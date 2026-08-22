@@ -21,12 +21,12 @@ use super::{
     run_stream::{ExactCaseSupport, ExploreCaseUniverse},
 };
 use crate::{
-    AnalysisProgramId, CheckedCallTarget, CheckedCallableId, CheckedExploreQueryView,
-    CheckedResolutionArtifacts, CheckedRuleCandidateResolution, ExprSiteId, RuleDispatchKey,
-    RuleDispatchTier,
+    checked_ty_structurally_equal, AnalysisProgramId, CheckedCallTarget, CheckedCallableId,
+    CheckedExploreQueryView, CheckedExpressionType, CheckedResolutionArtifacts,
+    CheckedRuleCandidateResolution, ExprSiteId, RuleDispatchKey, RuleDispatchTier, Ty,
 };
 
-const MECHANISM_REQUEST_HASH_V2: &[u8] = b"futuruna.explore.mechanism-request.v2";
+const MECHANISM_REQUEST_HASH_V3: &[u8] = b"futuruna.explore.mechanism-request.v3";
 const MECHANISM_CASE_TARGET_HASH_V1: &[u8] = b"futuruna.explore.case-target.v1";
 const MECHANISM_TARGET_MEMBERSHIP_HASH_V2: &[u8] = b"futuruna.explore.target-membership.v2";
 const MECHANISM_SITE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-site.v2";
@@ -423,124 +423,219 @@ pub(crate) enum MechanismNormalization {
     DynamicControlV1,
 }
 
-/// Checked contract explaining how the two endpoint computations are paired.
-/// Merely knowing that a query has a numeric lower and upper value is not
-/// enough: both call sites must resolve to this exact common callable or rule
-/// family before a differential trace can be sealed.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub(crate) struct MechanismEndpointPairingV1 {
-    before_call_site: MechanismSiteId,
-    after_call_site: MechanismSiteId,
-    common_callee: MechanismCallableSiteId,
+/// One checked endpoint observation template, independent of result fields.
+///
+/// The source-level callable is applied as `(state, context)` at this single
+/// producer-minted expression site. Fresh replay evaluates the same template
+/// once with Before and once with After; endpoint role is never encoded by two
+/// unrelated expressions or positional output fields.
+#[derive(Debug, Clone)]
+pub(crate) struct MechanismObservationIr {
+    pub(crate) endpoint_template: CheckedCallableId,
+    pub(crate) template_site: ExprSiteId,
+    pub(crate) template_root: MechanismSemanticRootId,
+    pub(crate) state_type: Ty,
+    pub(crate) context_type: Ty,
+    pub(crate) observation_type: Ty,
+    pub(crate) dependency_roots: Box<[MechanismSemanticRootId]>,
+    pub(crate) normalization_version: u32,
 }
 
-impl MechanismEndpointPairingV1 {
-    /// Seal a differential endpoint pairing from Phase-A resolution facts.
-    /// Both call expressions must resolve to the same exact supported callable;
-    /// spelling or equal result values are never sufficient.
-    pub(crate) fn from_checked_calls(
+impl PartialEq for MechanismObservationIr {
+    fn eq(&self, other: &Self) -> bool {
+        self.endpoint_template == other.endpoint_template
+            && self.template_site == other.template_site
+            && self.template_root == other.template_root
+            && checked_ty_structurally_equal(&self.state_type, &other.state_type)
+            && checked_ty_structurally_equal(&self.context_type, &other.context_type)
+            && checked_ty_structurally_equal(&self.observation_type, &other.observation_type)
+            && self.dependency_roots == other.dependency_roots
+            && self.normalization_version == other.normalization_version
+    }
+}
+
+impl Eq for MechanismObservationIr {}
+
+impl MechanismObservationIr {
+    pub(crate) fn derive_checked(
         resolutions: &CheckedResolutionArtifacts,
-        before_call_site: ExprSiteId,
-        after_call_site: ExprSiteId,
+        template_site: ExprSiteId,
+        state_type: Ty,
+        context_type: Ty,
     ) -> Result<Self, MechanismValidationError> {
-        validate_analysis_program_id(&resolutions.analysis_program)?;
-        if before_call_site.analysis_program != resolutions.analysis_program
-            || after_call_site.analysis_program != resolutions.analysis_program
-        {
+        if template_site.analysis_program != resolutions.analysis_program {
             return Err(invalid(
-                "mechanism endpoint call site belongs to another analysis program",
+                "mechanism observation template belongs to another checked program",
             ));
         }
         if !resolutions
-            .issues_for_reachable_sites([&before_call_site, &after_call_site])
+            .issues_for_reachable_sites([&template_site])
             .is_empty()
         {
             return Err(invalid(
-                "mechanism endpoint pairing is unavailable because checked source resolution is incomplete",
+                "mechanism observation template has unresolved checked-source issues",
             ));
         }
-        let before_target = resolutions
+        let resolution = resolutions
             .expressions
-            .get(&before_call_site)
-            .and_then(|resolution| resolution.call_target.as_ref())
-            .ok_or_else(|| invalid("before mechanism endpoint is not a resolved call"))?;
-        let after_target = resolutions
-            .expressions
-            .get(&after_call_site)
-            .and_then(|resolution| resolution.call_target.as_ref())
-            .ok_or_else(|| invalid("after mechanism endpoint is not a resolved call"))?;
-        if before_target != after_target {
+            .get(&template_site)
+            .ok_or_else(|| invalid("mechanism observation template has no checked resolution"))?;
+        let CheckedCallTarget::Function { callable, arity: 2 } = resolution
+            .call_target
+            .as_ref()
+            .ok_or_else(|| invalid("mechanism observation template is not a checked call"))?
+        else {
             return Err(invalid(
-                "mechanism endpoints do not resolve to the same exact callable",
+                "mechanism observation template must call one ordinary two-argument function",
             ));
-        }
-        let common_callee = MechanismCallableSiteId::from_checked_target(
-            &resolutions.analysis_program,
-            before_target,
-        )?;
-        Self::from_parts(
-            &resolutions.analysis_program,
-            MechanismSiteId::from_expression_site(&before_call_site)?,
-            MechanismSiteId::from_expression_site(&after_call_site)?,
-            common_callee,
-        )
-    }
-
-    #[cfg(test)]
-    pub(super) fn new_for_test(
-        analysis_program: &AnalysisProgramId,
-        before_call_site: MechanismSiteId,
-        after_call_site: MechanismSiteId,
-        common_callee: MechanismCallableSiteId,
-    ) -> Result<Self, MechanismValidationError> {
-        Self::from_parts(
-            analysis_program,
-            before_call_site,
-            after_call_site,
-            common_callee,
-        )
-    }
-
-    fn from_parts(
-        analysis_program: &AnalysisProgramId,
-        before_call_site: MechanismSiteId,
-        after_call_site: MechanismSiteId,
-        common_callee: MechanismCallableSiteId,
-    ) -> Result<Self, MechanismValidationError> {
-        let pairing = Self {
-            before_call_site,
-            after_call_site,
-            common_callee,
         };
-        pairing.validate(analysis_program)?;
-        Ok(pairing)
+        let CheckedExpressionType::Resolved(observation_type) = &resolution.resolved_type else {
+            return Err(invalid(
+                "mechanism observation template has no checked Observation type",
+            ));
+        };
+        let template_root =
+            MechanismSemanticRootId::from_checked_expression(resolutions, &template_site)?;
+        let observation = Self {
+            endpoint_template: callable.clone(),
+            template_site,
+            template_root: template_root.clone(),
+            state_type,
+            context_type,
+            observation_type: observation_type.clone(),
+            dependency_roots: vec![template_root].into_boxed_slice(),
+            normalization_version: 1,
+        };
+        observation.validate(&resolutions.analysis_program)?;
+        Ok(observation)
     }
 
     fn validate(
         &self,
         analysis_program: &AnalysisProgramId,
     ) -> Result<(), MechanismValidationError> {
-        for (label, site) in [
-            ("before endpoint call site", &self.before_call_site),
-            ("after endpoint call site", &self.after_call_site),
-        ] {
-            site.validate_scope(analysis_program, label)?;
-            if site.kind != MechanismSiteKind::Expression {
-                return Err(invalid(format!(
-                    "{label} must be an expression semantic site"
-                )));
-            }
+        if self.normalization_version != 1 {
+            return Err(invalid(
+                "mechanism observation normalization version is unsupported",
+            ));
         }
-        self.common_callee
-            .validate(analysis_program, "endpoint common callee")?;
+        if self.template_site.analysis_program != *analysis_program {
+            return Err(invalid(
+                "mechanism observation template crosses its checked program boundary",
+            ));
+        }
+        let expected_template_root = MechanismSemanticRootId::from_expression_mechanism_site(
+            MechanismSiteId::from_expression_site(&self.template_site)?,
+        )?;
+        if self.template_root != expected_template_root {
+            return Err(invalid(
+                "mechanism observation template root does not identify its checked template site",
+            ));
+        }
+        self.template_root
+            .validate_scope(analysis_program, "mechanism observation template root")?;
+        if self.dependency_roots.is_empty() {
+            return Err(invalid(
+                "mechanism observation template must retain at least one dependency root",
+            ));
+        }
+        for root in self.dependency_roots.iter() {
+            root.validate_scope(analysis_program, "mechanism observation dependency root")?;
+        }
+        if self
+            .dependency_roots
+            .windows(2)
+            .any(|roots| roots[0] >= roots[1])
+        {
+            return Err(invalid(
+                "mechanism observation dependency roots must be strictly canonical",
+            ));
+        }
+        if self
+            .dependency_roots
+            .binary_search(&self.template_root)
+            .is_err()
+        {
+            return Err(invalid(
+                "mechanism observation dependencies omit the checked template root",
+            ));
+        }
         Ok(())
     }
 
     fn hash_into(&self, hasher: &mut StableHasher) {
-        hasher.segment(&self.before_call_site.digest.0);
-        hasher.segment(&self.after_call_site.digest.0);
-        hasher.segment(self.common_callee.token());
-        hasher.segment(&self.common_callee.site().digest.0);
+        hasher.u32(self.normalization_version);
+        hasher.segment(
+            self.endpoint_template
+                .declaration
+                .declaration
+                .semantic_key()
+                .as_bytes(),
+        );
+        hasher.u128(self.endpoint_template.declaration.normalized_ordinal as u128);
+        hasher.u128(self.endpoint_template.structural_path.len() as u128);
+        for child in self.endpoint_template.structural_path.iter().copied() {
+            hasher.u32(child);
+        }
+        hasher.segment(self.template_site.analysis_program.as_str().as_bytes());
+        hasher.segment(self.template_site.declaration.semantic_key().as_bytes());
+        hasher.u128(self.template_site.normalized_declaration_ordinal as u128);
+        hasher.u128(self.template_site.ast_path.len() as u128);
+        for child in self.template_site.ast_path.iter().copied() {
+            hasher.u32(child);
+        }
+        hasher.segment(&self.template_root.0.digest.0);
+        hash_checked_type(hasher, &self.state_type);
+        hash_checked_type(hasher, &self.context_type);
+        hash_checked_type(hasher, &self.observation_type);
+        hasher.u128(self.dependency_roots.len() as u128);
+        for root in self.dependency_roots.iter() {
+            hasher.segment(&root.0.digest.0);
+        }
+    }
+}
+
+fn hash_checked_type(hasher: &mut StableHasher, ty: &Ty) {
+    match ty {
+        Ty::Name(name) => {
+            hasher.segment(b"name");
+            hasher.segment(name.as_bytes());
+        }
+        Ty::App(constructor, arguments) => {
+            hasher.segment(b"application");
+            hash_checked_type(hasher, constructor);
+            hasher.u128(arguments.len() as u128);
+            for argument in arguments {
+                hash_checked_type(hasher, argument);
+            }
+        }
+        Ty::Arrow(parameter, result) => {
+            hasher.segment(b"arrow");
+            hash_checked_type(hasher, parameter);
+            hash_checked_type(hasher, result);
+        }
+        Ty::Ref(inner) => {
+            hasher.segment(b"reference");
+            hash_checked_type(hasher, inner);
+        }
+        Ty::MutRef(inner) => {
+            hasher.segment(b"mutable-reference");
+            hash_checked_type(hasher, inner);
+        }
+        Ty::Shared(inner) => {
+            hasher.segment(b"shared");
+            hash_checked_type(hasher, inner);
+        }
+        Ty::Optional(inner) => {
+            hasher.segment(b"optional");
+            hash_checked_type(hasher, inner);
+        }
+        Ty::Var(name) => {
+            hasher.segment(b"variable");
+            hasher.segment(name.as_bytes());
+        }
+        Ty::Unit => hasher.segment(b"unit"),
+        Ty::Hole => hasher.segment(b"hole"),
     }
 }
 
@@ -687,9 +782,7 @@ pub(crate) struct MechanismObservationRequest {
     pub(crate) query: MechanismQueryId,
     pub(crate) target: MechanismObservationTarget,
     pub(crate) case_target: MechanismCaseTargetId,
-    pub(crate) before_root: MechanismSemanticRootId,
-    pub(crate) after_root: MechanismSemanticRootId,
-    pub(crate) endpoint_pairing: MechanismEndpointPairingV1,
+    pub(crate) template: MechanismObservationIr,
     pub(crate) normalization: MechanismNormalization,
     pub(crate) axis_cardinalities: Box<[u128]>,
     pub(crate) sampling: MechanismSamplingPlan,
@@ -821,9 +914,7 @@ impl MechanismObservationRequest {
         analysis_program: AnalysisProgramId,
         query: MechanismQueryId,
         target: MechanismObservationTarget,
-        before_root: MechanismSemanticRootId,
-        after_root: MechanismSemanticRootId,
-        endpoint_pairing: MechanismEndpointPairingV1,
+        template: MechanismObservationIr,
         normalization: MechanismNormalization,
         axis_cardinalities: impl Into<Box<[u128]>>,
         sampling: MechanismSamplingPlan,
@@ -833,9 +924,7 @@ impl MechanismObservationRequest {
         let bin_fields = bin_fields.into();
         validate_request_parts(
             &analysis_program,
-            &before_root,
-            &after_root,
-            &endpoint_pairing,
+            &template,
             &axis_cardinalities,
             &sampling,
             &bin_fields,
@@ -846,9 +935,7 @@ impl MechanismObservationRequest {
             &query,
             target,
             &case_target,
-            &before_root,
-            &after_root,
-            &endpoint_pairing,
+            &template,
             normalization,
             &axis_cardinalities,
             &bin_fields,
@@ -859,9 +946,7 @@ impl MechanismObservationRequest {
             query,
             target,
             case_target,
-            before_root,
-            after_root,
-            endpoint_pairing,
+            template,
             normalization,
             axis_cardinalities,
             sampling,
@@ -872,9 +957,7 @@ impl MechanismObservationRequest {
     pub(crate) fn validate(&self) -> Result<(), MechanismValidationError> {
         validate_request_parts(
             &self.analysis_program,
-            &self.before_root,
-            &self.after_root,
-            &self.endpoint_pairing,
+            &self.template,
             &self.axis_cardinalities,
             &self.sampling,
             &self.bin_fields,
@@ -884,9 +967,7 @@ impl MechanismObservationRequest {
             &self.query,
             self.target,
             &self.case_target,
-            &self.before_root,
-            &self.after_root,
-            &self.endpoint_pairing,
+            &self.template,
             self.normalization,
             &self.axis_cardinalities,
             &self.bin_fields,
@@ -909,17 +990,13 @@ impl MechanismObservationRequest {
 
 fn validate_request_parts(
     analysis_program: &AnalysisProgramId,
-    before_root: &MechanismSemanticRootId,
-    after_root: &MechanismSemanticRootId,
-    endpoint_pairing: &MechanismEndpointPairingV1,
+    template: &MechanismObservationIr,
     axis_cardinalities: &[u128],
     sampling: &MechanismSamplingPlan,
     bin_fields: &[MechanismBinField],
 ) -> Result<(), MechanismValidationError> {
     validate_analysis_program_id(analysis_program)?;
-    before_root.validate_scope(analysis_program, "before semantic root")?;
-    after_root.validate_scope(analysis_program, "after semantic root")?;
-    endpoint_pairing.validate(analysis_program)?;
+    template.validate(analysis_program)?;
     sampling.validate(axis_cardinalities)?;
 
     let mut names = BTreeSet::new();
@@ -944,23 +1021,19 @@ fn derive_request_id(
     query: &MechanismQueryId,
     target: MechanismObservationTarget,
     case_target: &MechanismCaseTargetId,
-    before_root: &MechanismSemanticRootId,
-    after_root: &MechanismSemanticRootId,
-    endpoint_pairing: &MechanismEndpointPairingV1,
+    template: &MechanismObservationIr,
     normalization: MechanismNormalization,
     axis_cardinalities: &[u128],
     bin_fields: &[MechanismBinField],
 ) -> MechanismRequestId {
-    let mut hasher = StableHasher::new(MECHANISM_REQUEST_HASH_V2);
+    let mut hasher = StableHasher::new(MECHANISM_REQUEST_HASH_V3);
     hasher.segment(analysis_program.as_str().as_bytes());
     hasher.segment(&(query.0).0);
     hasher.segment(match target {
         MechanismObservationTarget::MatchingConfigurations => b"matching-configurations",
     });
     hasher.segment(&case_target.digest.0);
-    hasher.segment(&before_root.0.digest.0);
-    hasher.segment(&after_root.0.digest.0);
-    endpoint_pairing.hash_into(&mut hasher);
+    template.hash_into(&mut hasher);
     hasher.segment(match normalization {
         MechanismNormalization::DynamicControlV1 => b"dynamic-control-v1",
     });
@@ -3148,8 +3221,8 @@ mod tests {
     };
     use super::*;
     use crate::{
-        CheckedDeclarationOccurrenceId, CheckedExpressionResolution, CheckedExpressionType,
-        DeclarationId, DeclarationKind, Lexer, ModuleId, Parser, TypeChecker,
+        CheckedDeclarationOccurrenceId, DeclarationId, DeclarationKind, Lexer, ModuleId, Parser,
+        TypeChecker,
     };
 
     fn analysis_program() -> AnalysisProgramId {
@@ -3218,7 +3291,7 @@ mod tests {
         MechanismSiteId::from_rule_candidate(program, &candidate).expect("rule candidate site")
     }
 
-    fn endpoint_pairing(program: &AnalysisProgramId) -> MechanismEndpointPairingV1 {
+    fn function_callee(program: &AnalysisProgramId) -> MechanismCallableSiteId {
         let callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("policy-callable"),
@@ -3228,13 +3301,32 @@ mod tests {
             structural_path: Box::default(),
         };
         let callable_site = MechanismSiteId::from_callable(program, &callable).expect("callable");
-        MechanismEndpointPairingV1::new_for_test(
-            program,
-            site(program, "before-call", 20),
-            site(program, "after-call", 21),
-            MechanismCallableSiteId::function(callable_site).expect("function callee"),
+        MechanismCallableSiteId::function(callable_site).expect("function callee")
+    }
+
+    fn observation_template(program: &AnalysisProgramId) -> MechanismObservationIr {
+        let template_site = expression_site(program, "policy-callable", 30);
+        let template_root = MechanismSemanticRootId::from_site(
+            MechanismSiteId::from_expression_site(&template_site).expect("template site"),
         )
-        .expect("endpoint pairing")
+        .expect("template root");
+        MechanismObservationIr {
+            endpoint_template: CheckedCallableId {
+                declaration: CheckedDeclarationOccurrenceId {
+                    declaration: declaration("policy-callable"),
+                    declaration_occurrence_ordinal: 0,
+                    normalized_ordinal: 0,
+                },
+                structural_path: Box::default(),
+            },
+            template_site,
+            template_root: template_root.clone(),
+            state_type: Ty::Name("State".to_string()),
+            context_type: Ty::Name("Context".to_string()),
+            observation_type: Ty::Name("Observation".to_string()),
+            dependency_roots: vec![template_root].into_boxed_slice(),
+            normalization_version: 1,
+        }
     }
 
     fn request(
@@ -3247,17 +3339,81 @@ mod tests {
             program.clone(),
             MechanismQueryId::from_checked_query_bytes(b"query-and-domain"),
             MechanismObservationTarget::MatchingConfigurations,
-            MechanismSemanticRootId::from_site(site(&program, "before", 0))
-                .expect("before semantic root"),
-            MechanismSemanticRootId::from_site(site(&program, "after", 0))
-                .expect("after semantic root"),
-            endpoint_pairing(&program),
+            observation_template(&program),
             MechanismNormalization::DynamicControlV1,
             axis_cardinalities,
             sampling,
             bin_fields,
         )
         .expect("request")
+    }
+
+    fn request_with_template(
+        program: &AnalysisProgramId,
+        template: MechanismObservationIr,
+    ) -> Result<MechanismObservationRequest, MechanismValidationError> {
+        MechanismObservationRequest::new(
+            program.clone(),
+            MechanismQueryId::from_checked_query_bytes(b"query-and-domain"),
+            MechanismObservationTarget::MatchingConfigurations,
+            template,
+            MechanismNormalization::DynamicControlV1,
+            [1],
+            MechanismSamplingPlan::empty(),
+            Box::default(),
+        )
+    }
+
+    #[test]
+    fn observation_template_identity_binds_site_root_and_dependency_roots() {
+        let program = analysis_program();
+        let original_template = observation_template(&program);
+        let original = request_with_template(&program, original_template.clone())
+            .expect("canonical observation template");
+
+        let mut unbound = original_template.clone();
+        unbound.template_site.ast_path = vec![31].into_boxed_slice();
+        let error = request_with_template(&program, unbound)
+            .expect_err("a stale semantic root must not authenticate another template site");
+        assert!(error.to_string().contains("does not identify"), "{error}");
+
+        let mut rebound = original_template.clone();
+        rebound.template_site.ast_path = vec![31].into_boxed_slice();
+        rebound.template_root = MechanismSemanticRootId::from_site(
+            MechanismSiteId::from_expression_site(&rebound.template_site)
+                .expect("rebound template site"),
+        )
+        .expect("rebound template root");
+        rebound.dependency_roots = vec![rebound.template_root.clone()].into_boxed_slice();
+        let rebound = request_with_template(&program, rebound)
+            .expect("a coherently rebound template remains valid");
+        assert_ne!(original.id, rebound.id);
+
+        let mut missing_dependency = original_template;
+        let other_site = expression_site(&program, "other-root", 32);
+        missing_dependency.dependency_roots = vec![MechanismSemanticRootId::from_site(
+            MechanismSiteId::from_expression_site(&other_site).expect("other site"),
+        )
+        .expect("other root")]
+        .into_boxed_slice();
+        let error = request_with_template(&program, missing_dependency)
+            .expect_err("dependencies must contain the template root");
+        assert!(error.to_string().contains("omit"), "{error}");
+    }
+
+    #[test]
+    fn observation_template_accepts_checked_callable_from_another_module() {
+        let program = analysis_program();
+        let mut template = observation_template(&program);
+        template
+            .endpoint_template
+            .declaration
+            .declaration
+            .module
+            .content_hash = "33".repeat(32).into_boxed_str();
+
+        request_with_template(&program, template)
+            .expect("module origin is callable identity, not a program-boundary rejection");
     }
 
     #[test]
@@ -3744,15 +3900,16 @@ mod tests {
     }
 
     #[test]
-    fn endpoint_pairing_rejects_shifted_invocations_at_one_call_site() {
+    fn occurrence_pairing_rejects_shifted_invocations_at_one_call_site() {
         let request = request(vec![1], MechanismSamplingPlan::empty(), Vec::new());
         let call_site = site(&request.analysis_program, "repeated-call", 16);
         let event_site = site(&request.analysis_program, "inside-call", 17);
+        let common_callee = function_callee(&request.analysis_program);
         let activation = |ordinal| {
             MechanismActivationStepV1::new(
                 &request,
                 call_site.clone(),
-                request.endpoint_pairing.common_callee.clone(),
+                common_callee.clone(),
                 ordinal,
             )
             .expect("activation")
@@ -3816,75 +3973,9 @@ mod tests {
 
         let mislabeled =
             MechanismCallableSiteId::Function(rule_family_site(&program, "not-a-function"));
-        assert!(MechanismEndpointPairingV1::new_for_test(
-            &program,
-            site(&program, "lower-call", 18),
-            site(&program, "upper-call", 19),
-            mislabeled,
-        )
-        .is_err());
-    }
-
-    #[test]
-    fn checked_endpoint_pairing_requires_the_same_resolved_callable() {
-        let program = analysis_program();
-        let before = expression_site(&program, "checked-lower-call", 23);
-        let after = expression_site(&program, "checked-upper-call", 24);
-        let callable = CheckedCallableId {
-            declaration: CheckedDeclarationOccurrenceId {
-                declaration: declaration("checked-policy-callable"),
-                declaration_occurrence_ordinal: 0,
-                normalized_ordinal: 0,
-            },
-            structural_path: Box::default(),
-        };
-        let resolution = |callable| CheckedExpressionResolution {
-            resolved_type: CheckedExpressionType::Unsupported,
-            value_binding: None,
-            call_target: Some(CheckedCallTarget::Function { callable, arity: 1 }),
-            field: None,
-            named_arguments: None,
-            exact_constructor: None,
-        };
-        let mut resolutions = CheckedResolutionArtifacts {
-            analysis_program: program.clone(),
-            source_snapshot_coherent: true,
-            ..CheckedResolutionArtifacts::default()
-        };
-        resolutions
-            .expressions
-            .insert(before.clone(), resolution(callable.clone()));
-        resolutions
-            .expressions
-            .insert(after.clone(), resolution(callable));
-
-        let pairing = MechanismEndpointPairingV1::from_checked_calls(
-            &resolutions,
-            before.clone(),
-            after.clone(),
-        )
-        .expect("source-confirmed endpoint pairing");
-        MechanismSemanticRootId::from_checked_expression(&resolutions, &before)
-            .expect("source-confirmed semantic root");
-        assert_eq!(
-            pairing.before_call_site,
-            MechanismSiteId::from_expression_site(&before).expect("before site")
-        );
-
-        let different_callable = CheckedCallableId {
-            declaration: CheckedDeclarationOccurrenceId {
-                declaration: declaration("different-policy-callable"),
-                declaration_occurrence_ordinal: 0,
-                normalized_ordinal: 0,
-            },
-            structural_path: Box::default(),
-        };
-        resolutions
-            .expressions
-            .insert(after.clone(), resolution(different_callable));
-        assert!(
-            MechanismEndpointPairingV1::from_checked_calls(&resolutions, before, after,).is_err()
-        );
+        assert!(mislabeled
+            .validate(&program, "mislabeled callable")
+            .is_err());
     }
 
     #[test]

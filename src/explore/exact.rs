@@ -22,7 +22,6 @@ use super::exact_stream::{
     ExactClosedClassificationV1, ExactMatchProjectionV1, ExactValidationReceiptDigestV1,
     ValidatedExactCaseObservationBatchV1,
 };
-use super::mechanism::MechanismQueryId;
 use super::report::{
     ExploreCaseGraphEvidence, ExploreCaseGraphRequest, ExploreCaseId, ExploreClosure,
     ExploreCompletionMethod, ExploreCount, ExploreCounts, ExploreCoverage, ExploreEvaluationPhase,
@@ -431,17 +430,10 @@ impl ExactRuntimeContext<'_> {
     /// environment. This is called once for enumeration and once for each
     /// publicly exposed case replay; runtime state is never shared between
     /// those phases.
-    fn fresh(
-        &self,
-        include_rule_candidate_tokens: bool,
-    ) -> Result<ExactRuntime, ExactEngineFailure> {
+    fn fresh(&self) -> Result<ExactRuntime, ExactEngineFailure> {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.install_rule_dispatch_metadata(self.artifacts);
-        interpreter.install_checked_runtime_callable_tokens_v1(
-            self.artifacts,
-            include_rule_candidate_tokens,
-        );
         interpreter.source_dir = self.source_dir.map(str::to_string);
         let mut base_env = interpreter.default_env();
         interpreter
@@ -480,45 +472,8 @@ impl ExactRuntime {
             .eval_exact_exploration(expression, env, step_limit, collection_limit)
             .map_err(|failure| runtime_failure(failure, phase))
             .map_err(|failure| failure.contextualize(context))?;
-        match runtime_value_to_explore_value(&runtime, expected, catalog) {
-            Ok(value) => Ok(value),
-            Err(message) => {
-                self.interpreter.abort_checked_runtime_trace_v1();
-                self.interpreter.abort_checked_runtime_rule_trace_v1();
-                Err(ExactEngineFailure::Error(format!(
-                    "while {context}: {message}"
-                )))
-            }
-        }
-    }
-
-    fn eval_value_at(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        root_site: &ExprSiteId,
-        expected: &Ty,
-        catalog: &calculate::TypeCatalog,
-        step_limit: usize,
-        collection_limit: usize,
-        context: &str,
-        phase: ExploreEvaluationPhase,
-    ) -> Result<ExploreValue, ExactEngineFailure> {
-        let runtime = self
-            .interpreter
-            .eval_exact_exploration_at(expression, env, root_site, step_limit, collection_limit)
-            .map_err(|failure| runtime_failure(failure, phase))
-            .map_err(|failure| failure.contextualize(context))?;
-        match runtime_value_to_explore_value(&runtime, expected, catalog) {
-            Ok(value) => Ok(value),
-            Err(message) => {
-                self.interpreter.abort_checked_runtime_trace_v1();
-                self.interpreter.abort_checked_runtime_rule_trace_v1();
-                Err(ExactEngineFailure::Error(format!(
-                    "while {context}: {message}"
-                )))
-            }
-        }
+        runtime_value_to_explore_value(&runtime, expected, catalog)
+            .map_err(|message| ExactEngineFailure::Error(format!("while {context}: {message}")))
     }
 
     fn eval_bool(
@@ -2362,9 +2317,6 @@ pub(super) struct ExactStreamEvaluator<'a> {
     artifacts: &'a TypeCheckArtifacts,
     query: &'a ExploreQueryIr,
     transition_schemas: TransitionSchemaIdentities,
-    checked_show_sites: Box<[ExprSiteId]>,
-    checked_mechanism_query_id: MechanismQueryId,
-    mechanism_runtime_root_authorized: bool,
     catalog: calculate::TypeCatalog,
     roots: BTreeSet<ExploreRuntimeRoot>,
     runtime: ExactRuntime,
@@ -2394,64 +2346,6 @@ impl ExactStreamEvaluatorPrepareError {
 pub(super) enum ExactStreamCaseAttempt {
     Complete(ExactEvaluatorConfirmedObservationV1),
     Open(ExploreStopReason),
-}
-
-#[derive(Debug)]
-pub(super) enum ExactFreshMatchReplayError {
-    OperationalLimit(ExploreStopReason),
-    NotConfirmedMatch,
-    ObservationUnsupported(String),
-    ReplayUnavailable(String),
-    Failure(String),
-}
-
-/// Private hook over the canonical fresh-replay output pipeline.
-///
-/// `before_show` sees the environment before the current alias is bound.  The
-/// expression is then evaluated exactly once by the ordinary exact runtime;
-/// `after_show` receives that canonical value before the alias is added to the
-/// environment.  Keeping both edges explicit lets mechanism tracing surround
-/// the real computation while numeric observers reuse its result.
-pub(super) trait ExactFreshMatchShowObserver {
-    /// Rule-candidate capability indexing is proportional to the checked rule
-    /// corpus, so ordinary exact execution and the function-only profiles do
-    /// not pay for it on every fresh replay.
-    fn requires_rule_candidate_tokens_v1(&self) -> bool {
-        false
-    }
-
-    fn before_show(
-        &mut self,
-        show_index: usize,
-        show_site: &ExprSiteId,
-        interpreter: &mut Interpreter,
-        environment: &Env,
-        step_limit: usize,
-        collection_limit: usize,
-    ) -> Result<(), ExactFreshMatchReplayError>;
-
-    fn after_show(
-        &mut self,
-        show_index: usize,
-        show_site: &ExprSiteId,
-        interpreter: &mut Interpreter,
-        environment: &Env,
-        value: &ExploreValue,
-        step_limit: usize,
-        collection_limit: usize,
-    ) -> Result<(), ExactFreshMatchReplayError>;
-}
-
-fn exact_fresh_match_replay_error(failure: ExactEngineFailure) -> ExactFreshMatchReplayError {
-    match failure {
-        ExactEngineFailure::OperationalLimit(stop) => {
-            ExactFreshMatchReplayError::OperationalLimit(stop)
-        }
-        ExactEngineFailure::Unsupported(message) => {
-            ExactFreshMatchReplayError::ObservationUnsupported(message)
-        }
-        ExactEngineFailure::Error(message) => ExactFreshMatchReplayError::Failure(message),
-    }
 }
 
 /// Non-forgeable (outside this module) evidence that one proposal came
@@ -2557,22 +2451,7 @@ impl<'a> ExactStreamEvaluator<'a> {
                 ))
             })?;
         let query = checked.closed_query;
-        let checked_mechanism_query_id =
-            MechanismQueryId::from_checked_query(&checked).map_err(|error| {
-                ExactStreamEvaluatorPrepareError::Failure(format!(
-                    "cannot bind exact evaluator query identity: {error}"
-                ))
-            })?;
-        let mechanism_runtime_root_authorized =
-            artifacts.require_mechanism_runtime_root_v1().is_ok();
         let transition_schemas = checked.transition_schemas().clone();
-        let checked_show_sites = checked.artifact.sites.show.clone();
-        if checked_show_sites.len() != query.query.output.show.len() {
-            return Err(ExactStreamEvaluatorPrepareError::Failure(
-                "checked Explore show-site width disagrees with the exact output schema"
-                    .to_string(),
-            ));
-        }
         let catalog = calculate::TypeCatalog::collect_checked(statements, source_dir).map_err(
             |diagnostics| {
                 ExactStreamEvaluatorPrepareError::Failure(format!(
@@ -2592,7 +2471,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             collection_limit,
             phase_override: None,
         }
-        .fresh(false)
+        .fresh()
         .map_err(exact_stream_prepare_error)?;
         Ok(Self {
             statements,
@@ -2600,9 +2479,6 @@ impl<'a> ExactStreamEvaluator<'a> {
             artifacts,
             query,
             transition_schemas,
-            checked_show_sites,
-            checked_mechanism_query_id,
-            mechanism_runtime_root_authorized,
             catalog,
             roots,
             runtime,
@@ -2610,130 +2486,6 @@ impl<'a> ExactStreamEvaluator<'a> {
             step_limit,
             collection_limit,
         })
-    }
-
-    pub(super) fn canonical_ordinals_for_rank(&self, rank: u128) -> Result<Box<[u128]>, String> {
-        unrank_product(
-            self.query
-                .universe
-                .dimensions
-                .iter()
-                .map(|dimension| dimension.domain.cardinality()),
-            rank,
-        )
-        .map(Vec::into_boxed_slice)
-    }
-
-    pub(super) fn checked_mechanism_query_id(&self) -> &MechanismQueryId {
-        &self.checked_mechanism_query_id
-    }
-
-    pub(super) const fn mechanism_runtime_root_authorized(&self) -> bool {
-        self.mechanism_runtime_root_authorized
-    }
-
-    /// Reconstruct one coordinator-confirmed matching case in a fresh exact
-    /// runtime and replay its output pipeline in canonical order. The observer
-    /// sees the exact environment immediately before each `show` expression:
-    /// extrema and preceding shown aliases are already bound, while the
-    /// current shown value is not. No state from classification is shared with
-    /// this replay.
-    pub(super) fn fresh_replay_confirmed_match_shows(
-        &self,
-        rank: u128,
-        observer: &mut impl ExactFreshMatchShowObserver,
-    ) -> Result<(), ExactFreshMatchReplayError> {
-        let ordinals = self
-            .canonical_ordinals_for_rank(rank)
-            .map_err(ExactFreshMatchReplayError::Failure)?;
-        let context = ExactRuntimeContext {
-            statements: self.statements,
-            source_dir: self.source_dir,
-            artifacts: self.artifacts,
-            catalog: &self.catalog,
-            roots: &self.roots,
-            step_limit: self.step_limit,
-            collection_limit: self.collection_limit,
-            phase_override: None,
-        }
-        .for_replay();
-        let mut runtime = context
-            .fresh(observer.requires_rule_candidate_tokens_v1())
-            .map_err(exact_fresh_match_replay_error)?;
-        let assignment = assignment_values(self.query, &ordinals)
-            .map_err(ExactFreshMatchReplayError::Failure)?;
-        let frame = match evaluate_admissibility(&mut runtime, &context, self.query, &assignment)
-            .map_err(exact_fresh_match_replay_error)?
-        {
-            Admissibility::StructurallyExcluded | Admissibility::Excluded(_) => {
-                return Err(ExactFreshMatchReplayError::NotConfirmedMatch)
-            }
-            Admissibility::Admissible(frame) => frame,
-        };
-        let transition_env = frame.transition_env();
-        if !evaluate_polarity(
-            &mut runtime,
-            &context,
-            self.query,
-            &self.question,
-            transition_env,
-        )
-        .map_err(exact_fresh_match_replay_error)?
-        {
-            return Err(ExactFreshMatchReplayError::NotConfirmedMatch);
-        }
-        evaluate_key(&mut runtime, &context, self.query, transition_env)
-            .map_err(exact_fresh_match_replay_error)?;
-        let extrema = evaluate_extrema(&mut runtime, &context, self.query, transition_env)
-            .map_err(exact_fresh_match_replay_error)?;
-        let mut output_env = transition_env.child();
-        for (field, value) in self.query.query.output.extrema.iter().zip(extrema.iter()) {
-            output_env.set(field.name.clone(), Value::Int(*value));
-        }
-        for (show_index, (field, show_site)) in self
-            .query
-            .query
-            .output
-            .show
-            .iter()
-            .zip(self.checked_show_sites.iter())
-            .enumerate()
-        {
-            observer.before_show(
-                show_index,
-                show_site,
-                &mut runtime.interpreter,
-                &output_env,
-                self.step_limit,
-                self.collection_limit,
-            )?;
-            let value = runtime
-                .eval_value_at(
-                    &field.value,
-                    &output_env,
-                    show_site,
-                    &field.ty,
-                    context.catalog,
-                    context.step_limit,
-                    context.collection_limit,
-                    &format!("fresh-replaying Explore shown field `{}`", field.name),
-                    context.phase(ExploreEvaluationPhase::Show {
-                        name: field.name.clone(),
-                    }),
-                )
-                .map_err(exact_fresh_match_replay_error)?;
-            observer.after_show(
-                show_index,
-                show_site,
-                &mut runtime.interpreter,
-                &output_env,
-                &value,
-                self.step_limit,
-                self.collection_limit,
-            )?;
-            bind_canonical(&mut output_env, &field.name, &value);
-        }
-        Ok(())
     }
 
     /// Evaluate one rank as a whole-CaseId retry unit. Matching cases always
@@ -3026,7 +2778,7 @@ fn replay_and_confirm(
     expected: &SearchObservation,
 ) -> Result<(), ExactEngineFailure> {
     let replay_context = runtime_context.for_replay();
-    let mut runtime = replay_context.fresh(false)?;
+    let mut runtime = replay_context.fresh()?;
     let assignment = expected
         .case_id
         .assignment(query)
@@ -3097,7 +2849,7 @@ fn replay_and_confirm_extrema_witness(
         ));
     }
     let replay_context = runtime_context.for_replay();
-    let mut runtime = replay_context.fresh(false)?;
+    let mut runtime = replay_context.fresh()?;
     let assignment = case_id
         .assignment(query)
         .map_err(ExactEngineFailure::Error)?;
@@ -3863,7 +3615,7 @@ fn execute_exact_finite_with_order(
         collection_limit: budget.collection_limit,
         phase_override: None,
     };
-    let mut runtime = match runtime_context.fresh(false) {
+    let mut runtime = match runtime_context.fresh() {
         Ok(runtime) => runtime,
         Err(ExactEngineFailure::OperationalLimit(stop)) => {
             let state = match candidate_search.as_ref() {

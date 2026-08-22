@@ -36,64 +36,27 @@ seal a small enough closed answer; a larger answer pauses at an honest
 finalization limit for future chunking. An explicit durable
 `--case-graph full` request now enables
 bounded, all-or-nothing publication of a total current-evidence search decision DAG.
-The internal mechanism engine now executes two deliberately narrow profiles,
-and the nested-helper profile is CLI-reachable as a positional count-only
-experiment. These positional selectors are admitted only when they normalize
-to the same checked endpoint-observation IR; they are not another evaluator or
-mechanism contract. The first, still-internal profile pairs two positional shown calls to one checked top-level
-function whose body is exactly one `if`; it can also populate private half-open
-bin incidence from a checked numeric shown value. The second observes the
-canonical shown-value evaluation in place when a common checked endpoint makes
-one direct positional call to one checked helper and that helper executes one
-`if`. Both paths fresh-replay confirmed matching cases, append complete
-signature observations, and publish count-only mechanism checkpoints that
-survive crash/reopen. Mechanism replay V1 owns an immutable checked root-module
-snapshot and refuses every external Futuruna import before stream creation;
-import support waits for a boundary-preserving frozen module graph rather than
-rereading live files or flattening module initialization. The nested profile is
-now driven by the same bounded invocation lifecycle as ordinary exact Explore:
-source probes run first; each confirmed mechanism replay is individually
-admitted under the 80% resource envelope; that backlog is drained before
-another CaseId is classified; and every orderly stop publishes its count
-checkpoint before pausing when view work is admitted. A pre-probe stop
-is journal-only because the mechanism checkpoint intentionally requires the
-completed probe milestone. The nested-helper path has one deliberately
-positional experimental CLI selector; the paths still have no general
-multi-event/rule-call tracing, public bin surface, or mechanism-DAG/terminal publication yet. Those
-surfaces, user-authored
-`probes`, typed `output as` rows, `then`, detached following, parallel workers
-and resumable chunked terminal publication are subsequent slices described
-below. Ordinary snapshot v6 therefore still reports mechanism evidence as
-unavailable and never infers a mechanism count from result groups. This is the
-implemented artifact contract, not a claim that a graph-bearing policy
-exploration has already been executed.
+Mechanism observation now starts at the semantic query boundary. An explicit
+`observe mechanisms with CALLABLE` clause names one pure ordinary function with
+the checked shape `(State, Context) -> Observation`, total over the checked
+finite endpoint State/Context domain and its reachable rule graph. The compiler
+seals that endpoint template and its dependency identity into the checked query
+and mechanism request. Output fields remain result projections; they never
+select or imply an observer.
 
-The smallest executable mechanism-stream fixture deliberately declares only
-four incomes, of which three are eligible lower boundary endpoints around one
-thresholding `if`. Its first post-probe checkpoint is `scope_open` with zero
-confirmed evidence and an honestly `unknown` mechanism-signature count. After
-case classification and fresh mechanism replay, selected members of the final
-private canonical checkpoint are:
-
-```json
-{
-  "status": "matching_closed",
-  "target_cases": { "certainty": "exact", "value": "3" },
-  "traced_cases": "3",
-  "known_target_untraced": { "total": "0" },
-  "mechanism_signatures": { "certainty": "exact", "value": "3" }
-}
-```
-
-The fixture first publishes its `scope_open` probe checkpoint. It then commits
-one exact classification, verifies that the newly confirmed mechanism rank has
-priority over the next classification, and drops the live coordinator without
-a pause. A fresh bounded invocation recovers that pending rank from the
-authenticated journal, drains it first, alternates the remaining classification
-and mechanism work, and publishes the `matching_closed` checkpoint. Reopening
-again has no replay backlog. The excerpt is for readability; each committed
-artifact is one cursor-bound canonical JSON line with the complete conservation
-fields and hashes.
+The execution boundary is intentionally honest: isolated evaluation of that
+template at Before and After is not implemented yet, so no mechanism replay,
+mechanism checkpoint, mechanism DAG, or exact mechanism-bin result is currently
+published. The compiler can validate and derive the checked mechanism request,
+while execution artifacts still report replay unavailable. The next coherent
+slice is fresh, isolated endpoint replay feeding the same durable evidence
+stream—not another before/after evaluator. General trace publication,
+user-authored `probes`, typed `output as` rows, `then`, detached following,
+parallel workers and resumable chunked terminal publication are subsequent
+slices described below. Ordinary snapshot v6 therefore still reports mechanism
+evidence as unavailable and never infers a mechanism count from result groups.
+This is the implemented artifact contract, not a claim that a graph-bearing
+policy exploration has already been executed.
 
 ## A transition contract, search clauses, probes, and a continuation
 
@@ -104,6 +67,7 @@ fields and hashes.
 | `bounds` | Every value each relevant input may take |
 | `transition` | How before state, after state, and edge context are constructed |
 | `boundaries` | Compact Relative integer-axis syntax and an optimization hint |
+| `observe mechanisms with` | Optional checked endpoint observer `CALLABLE(State, Context)` |
 | `probes` | An optional finite initial scheduling plan inside the same resumable run |
 | `output` | What counts as one finding and which case should be shown |
 | `then` | Optional code receiving the terminal typed report after search |
@@ -838,13 +802,14 @@ can close a result, while a user-supplied work cap can only leave an open
 frontier when it is reached.
 
 The **mechanism graph** answers how the encoded computation differs across an
-edge for one fixed query and observation specification. A fresh replay records
-stable rule, dispatch and branch sites at both endpoints, pairs them soundly,
-then interns equal differential signatures. Cases at different incomes or in
-different municipalities may therefore point to one shared mechanism. Asking
-a different observation question can legitimately produce a different
-signature for the same transition. This is execution evidence in the encoded
-model, not by itself proof of real-world temporal or legal causation.
+edge for one fixed query and observation specification. Once observer replay is
+implemented, a fresh replay will record stable rule, dispatch and branch sites
+at both endpoints, pair them soundly, then intern equal differential
+signatures. Cases at different incomes or in different municipalities may
+therefore point to one shared mechanism. Asking a different observation
+question can legitimately produce a different signature for the same
+transition. This is execution evidence in the encoded model, not by itself
+proof of real-world temporal or legal causation.
 
 Result grouping and mechanism grouping are independent. If `K(t)` is the
 output key and `Sigma_(q,h)(t)` is the mechanism signature on traced transition
@@ -1069,18 +1034,17 @@ keys and representatives from the same materialized Context, Before and After
 products. Scoped eligibility, polarity, keys, extrema and shown fields all
 evaluate against that one frame. A bounded terminal slice may check only
 selected representative/extrema witnesses and defer semantic-transition-graph
-or mechanism-incidence publication without changing evaluator semantics. A
-restricted same-function, single-`if` mechanism experiment may commit a
-count-only checkpoint, but its positional `show` roots must normalize to the
-same checked endpoint-observation IR or be refused; they are not an alternate
-before/after contract. Requested numeric shown fields may feed the durable
-half-open-bin incidence relation from their canonical evaluated values. A
-symbolic implementation may then alternate between finding one uncovered case,
+or mechanism-incidence publication without changing evaluator semantics. An
+observer, when requested, comes only from the query-owned checked endpoint
+template; neither output position nor equal shown values can supply it. The
+current runtime validates that template but does not yet replay it at the two
+endpoints or commit mechanism incidence. Once that replay boundary exists, a
+symbolic implementation may alternate between finding one uncovered case,
 replaying its mechanism, proving an exact case-classification region and
-subtracting that region. In the first general mechanism-enabled version,
-closure still replays every case in its target; a later proof-backed mode may
-certify a shared signature for a whole region. Answer/case/value completion
-requires no corresponding mechanism frontier.
+subtracting that region. The first mechanism-enabled version should still
+replay every case in its target; a later proof-backed mode may certify a shared
+signature for a whole region. Answer/case/value completion requires no
+corresponding mechanism frontier.
 
 The exploration can still be case-complete while mechanism evidence is only
 representative-scoped or unavailable; those closure claims are reported
@@ -1125,175 +1089,47 @@ This implemented field is not the semantic state/transition graph. The final
 public contract serializes that graph separately as
 `semantic_transition_graph`; that serialization is not implemented yet. The
 mechanism DAG cannot be derived by the same shortcut. The private durable
-path now has identity-bound trace authorization, typed signature/incidence
-batches, an arrival-order-independent reducer, explicit untraced support and
-count-only mechanism/bin checkpoints. Its executable producer remains limited
-to one stable `if`: either directly in the paired function or inside exactly
-one checked nested helper activation. The ordinary evaluator now carries
-structural `ExprSiteId` context through that narrow function/`if` path, but not
-through rule attempts, `match`, short circuits or general event graphs, and no
-public mechanism DAG is assembled. Consequently, result groups remain separate
-from mechanisms; the ordinary exact CLI profile still reports mechanisms as
-`unavailable_deferred`, while the positional nested-`if` profile may publish
-only the lower bounds or exact counts its replayed incidence actually proves.
+path does not yet execute the observer or commit mechanism evidence. Result
+groups therefore remain separate from mechanisms, and the exact CLI path
+reports mechanism evidence as `unavailable_deferred`.
 
-#### Implemented first nested mechanism slice
+#### Query-owned mechanism observation boundary
 
-The first nested slice is implemented and exposed through the experimental
-`nested-if-v1` selector. The two paired shown
-expressions resolve to the same checked top-level endpoint function, which
-remains the implicit root. During each canonical endpoint evaluation that
-function makes exactly one nested, direct, positional call to one checked
-top-level helper, and the helper actually executes exactly one `if` decision
-once. Only the helper contributes an activation-path frame. The trace contains
-the `IfDecision` outcome produced by the canonical evaluation itself; neither
-its condition nor either body is replayed separately.
+The optional source clause is placed after the explicit transition and any
+boundary clause, and before `output`:
 
-The frozen-profile selector refuses source containing short-circuit Boolean
-control, `match`, rule calls, recursion, named arguments, another nested
-activation, repeated invocation of the event-bearing helper or multiple
-dynamic-control events before a mechanism stream can be authorized. The
-instrumented expression subset is deliberately explicit: variables, literals,
-unit, non-short-circuit binary and unary operations, the two direct endpoint
-calls, the one direct helper call, the selected `if`, and one-expression blocks
-around those forms. Lists, tuples, fields, indexing, lambdas, pipes, effects,
-extra applications and other expression forms cause plan refusal even in an
-unreachable branch. Runtime checks remain defense in depth and cannot flatten
-away an unsupported or integrity-failed event. `DynamicControlV1` retains the
-complete supported executed control trace for each endpoint in this slice;
-there is no relevance-pruning pass yet.
-
-The evaluator revalidates and executes the artifact-owned immutable root syntax,
-not a later-mutated caller buffer. Before a mechanism-enabled store is opened,
-every checked declaration must belong to that root and the complete root AST is
-recursively checked for plain, qualified or hash imports. Any external import
-is refused until the runtime can retain immutable module nodes, origin
-directories and occurrence-bound import edges. A flat imported statement list
-is deliberately insufficient because it changes declaration-hoisting and
-binding-initialization order.
-
-Fresh initialization also attaches an interpreter-private capability to every
-actual root top-level closure that can be matched unambiguously to its producer-
-minted checked occurrence. Both the implicit endpoint and nested helper must
-present that capability before the trace installs a checked body site. Missing
-or unequal capabilities are hard replay failures and commit no mechanism
-evidence. They are not permanent `observation_unsupported` cases. A resource
-limit is different: it returns the same rank as operationally open, also
-without a journal commit, so a later slice can retry it with a larger budget.
-The older direct-`if` profile still reconstructs its checked condition so it
-can retain its wider pure-expression subset, but it authenticates the actual
-canonical show endpoint closure immediately beforehand. A shadowing value or
-different same-named closure therefore fails before reconstructed evidence can
-be minted.
-
-That no-pruning rule deliberately postpones an identity problem rather than
-hiding it. Repeated event-bearing calls currently need local invocation and
-visit ordinals, but an earlier call reached at only one endpoint can shift a
-later ordinal. Pruning first can create the same error by deleting the anchor
-against which an ordinal was assigned. Before either repeated event-bearing
-invocations or relevance pruning is enabled, the runtime contract must define
-a checked call anchor and correspondence rule over the complete executed trace;
-incompatible multiplicity must remain unpaired rather than be guessed.
-
-Endpoint state is isolated: the lower and upper evaluations do not share a
-trace stack or ordinal counters. Cached endpoint reuse is not mechanism
-evidence unless the cache entry binds the same analysis program, mechanism
-request, checked call anchor and canonical inputs and carries the complete
-result/trace provenance. A cached value by itself is insufficient. This V1
-slice traces confirmed matching cases only (`S_req = M`); representative and
-nonmatching trace populations remain later profiles. These restrictions narrow
-only the executable producer, not the general mechanism-DAG model above.
-
-The nested producer is now joined to a bounded orchestration loop rather than
-being exercised by a hand-written completion loop. After the checked probe
-milestone, the scheduler chooses exactly one atomic work subject at a time:
-
-1. if confirmed mechanism incidence is pending, admit
-   `MechanismCaseIdRank(rank)` and fresh-replay that rank;
-2. otherwise admit one ordinary `CaseIdRank(rank)` classification; and
-3. when both frontiers are empty, publish the count-only mechanism checkpoint
-   and pause with `mechanism_observation_closed_terminal_unavailable`.
-
-The subject distinction is capability-bearing, not a label: authority to
-classify rank 7 cannot be reused to mint mechanism evidence for rank 7. Each
-new matching classification is therefore reflected into its mechanism graph
-before the scheduler may expand the case frontier again. This bounds replay
-backlog, makes novel signatures observable early, and preserves the same exact
-resume rank when evaluation leaves a work unit open. An immutable V1 reducer
-ceiling instead returns a typed `mechanism_limit`; it is not transient resource
-pressure, and unchanged resume is not advertised as productive. Mechanism
-checkpoint publication remains a separately admitted view phase; denial after
-the probe milestone leaves a journal-only pause and a later invocation services
-that view debt before advancing further. A pre-probe journal pause creates no
-such debt because no mechanism checkpoint is defined at that cursor.
-
-The minimal real CLI experiment uses the checked four-case protocol fixture,
-not a policy-income range:
-
-```bash
-runa explore examples/danish-income-tax/mechanism-stream-smoke.runa \
-  --query nested_mechanism_stream_smoke \
-  --run-state /private/path/nested-if-smoke.run \
-  --pause-after probes \
-  --mechanism-profile nested-if-v1 \
-  --mechanism-before-show 0 \
-  --mechanism-after-show 1 \
-  --json
-
-runa explore examples/danish-income-tax/mechanism-stream-smoke.runa \
-  --query nested_mechanism_stream_smoke \
-  --run-state /private/path/nested-if-smoke.run \
-  --time-limit 10s \
-  --mechanism-profile nested-if-v1 \
-  --mechanism-before-show 0 \
-  --mechanism-after-show 1 \
-  --json
-
-runa explore examples/danish-income-tax/mechanism-rule-dispatch-smoke.runa \
-  --query rule_dispatch_mechanism_stream_smoke \
-  --run-state /private/path/rule-dispatch-smoke.run \
-  --time-limit 10s \
-  --mechanism-profile rule-dispatch-v1 \
-  --mechanism-before-show 0 \
-  --mechanism-after-show 1 \
-  --json
+```runa
+observe mechanisms with observe_endpoint
 ```
 
-The three mechanism flags are all-or-none, their indexes are distinct and
-zero-based, and changing them on resume fails immutable run-identity
-validation. Invocation-v1 adds the mechanism-only `execution_profile` object.
-An admitted view has artifact kind `mechanism_checkpoint`; capacity has
-`mechanism_checkpoint_unavailable`; a journal-only pause keeps
-`journal_checkpoint` but reports `mechanism_checkpoint.status = "deferred"`.
-This count-only profile rejects `--case-graph full` and `--finalize`.
-Both the probe checkpoint and the fully `matching_closed` checkpoint exit `2`
-because this profile cannot seal a terminal artifact yet. That exit is an
-intentional nonterminal checkpoint, not loss of the counts; consumers inspect
-the typed `stop`, `artifact`, and cursor before deciding whether a resume can
-advance.
+`observe_endpoint` must resolve uniquely to a pure ordinary function with an
+explicit `(State, Context) -> Observation` type. “Total” means that it returns
+an Observation for every checked finite endpoint-State/Context pair induced by
+this query, including every rule/call invocation reachable for those pairs—not
+for every value of those types globally. The compiler closes the callable and
+dependency identities and seals one endpoint-template site into query and
+mechanism-request identity. Its current conservative proof may reject
+arithmetic when it lacks range evidence even if the declared bounds would make
+every invocation safe.
+That is a fail-closed proof gap to remove, not a permanent arithmetic ban or a
+reason to introduce another observer architecture. A query without the clause
+can still close its transition answer; it simply has no requested mechanism
+observation.
 
-The executable four-income fixture yields three exact matching cases and three
-exact signatures. Their endpoint outcomes are `Else/Else`, `Else/Then` and
-`Then/Then`, each with support one. Every signature contains the same one-node
-checked shape—one helper activation frame and its actual `IfDecision`—while the
-outcome pair distinguishes the signatures. The experiment publishes the probe
-checkpoint, commits the first classification, drops with its mechanism rank
-pending, and resumes through the formal scheduler. The closing invocation
-classifies the remaining three boundary configurations, traces all three
-matching targets, and publishes exact three-case / three-signature counts with
-no untraced remainder.
-The companion direct-rule fixture has two matching boundary cases whose shown
-results are both `True`. It still closes at two exact mechanisms: one transition
-changes from the literal-head candidate to the fallback, while the other stays
-on the fallback. The runtime evidence contains the actually reached checked
-`RuleAttempt` chain and a `RuleSelection` root; a candidate skipped after an
-earlier win is absent rather than invented as a mismatch.
-A second focused source-boundary experiment checks the same shape through a
-plain-import helper and requires plan construction to fail with the frozen-
-module-graph requirement. The rejection happens before a mechanism stream is
-opened or evidence can be minted. Import-capable replay is intentionally held
-for the frozen module graph rather than made dependent on whether a live file
-happens to remain unchanged.
+The intended replay evaluates exactly that same checked template as
+`observe_endpoint(before, context)` and
+`observe_endpoint(after, context)` in isolated endpoint runtimes, then derives
+the differential trace. This is a second observation of the canonical
+`Context + Before -> After` transition, not another way to construct or
+classify it. Output `key`, `show`, and extrema expressions have no role in
+choosing the observer.
+
+That isolated endpoint replay is not implemented yet. The implementation can
+derive and validate the checked observation request, but no runtime mechanism
+observation is minted and ordinary artifacts report replay unavailable.
+Mechanism journal events, count/bin checkpoints, mechanism-DAG publication and
+mechanism-aware terminal schemas must wait for the real replay path rather than
+being simulated from output positions or result values.
 
 ### Shown values and representatives
 

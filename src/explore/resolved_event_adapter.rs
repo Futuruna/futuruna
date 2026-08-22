@@ -381,6 +381,7 @@ fn statement_iteration_width(statement: &Stmt) -> usize {
                     .map_or(0, |transition| transition.after_fields.len()),
             )
             .saturating_add(query.boundary.is_some() as usize)
+            .saturating_add(query.mechanism_observation.is_some() as usize)
             .saturating_add(query.output.key.len())
             .saturating_add(query.output.extrema.len())
             .saturating_add(query.output.show.len())

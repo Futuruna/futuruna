@@ -457,60 +457,39 @@ normalized evidence root represents the same classified regions and exact open
 frontier independently of worker order. The resulting object is closer to an
 event-sourced Merkle evidence DAG than to a literal blockchain.
 
-The same separation now governs the private mechanism-stream substrate. A
-validated block keeps its replay receipts and complete signature definitions
-in journal order, but its answer facts group equal signature/bin outcomes by
-compressed case support. Splitting the same cases across different work blocks
-therefore changes the chain history, not the mathematical evidence root.
-Already confirmed matching cases may contribute honest `scope_open` lower
-bounds while the rest of the case frontier remains open; a mechanism trace for
-an unconfirmed rank is rejected. Once case polarity closes, the accumulated
-known-match support becomes the exact mechanism target without enumerating one
-row per rank. The first private runtime slice now proves the complete durable
-path for two positional shown calls into the same single-`if` function:
-checked request, canonical output-environment replay, signature mint, journal
-commit, count-only checkpoint, and crash recovery. A checked numeric shown root
-now also reuses its canonical evaluated `Int` value for durable 50-DKK bin
-incidence. The first nested-helper profile now runs through a bounded,
-resource-governed slice: probes first, then one confirmed mechanism replay
-before another case classification, with a count checkpoint followed by a
-durable pause. Its crash experiment stops with a confirmed rank still pending;
-resume services that rank first and closes at three cases / three mechanisms.
-The companion `mechanism-stream-smoke.runa` fixture exposes that exact
-four-case protocol through the experimental `nested-if-v1` CLI selector before
-any Personskat-scale range is attempted. Its closed count checkpoint remains a
-paused `mechanism_observation_closed_terminal_unavailable` result until a
-mechanism-aware terminal schema exists.
-The additional `mechanism-rule-dispatch-smoke.runa` fixture is the first
-runtime rule-graph reflection: two checked boundary cases both return `True`,
-yet close at two exact mechanisms because ordinary dispatch reaches and selects
-different rule candidates. `rule-dispatch-v1` records each reached
-`HeadMismatch`, `GuardFalse`, `BodyFalse` or `Applicable` candidate and one
-terminal selection; skipped candidates remain absent. General nested/repeated
-rule activation, mechanism-DAG publication and public mechanism-aware result
-JSON are still deliberately deferred, so this architecture is not yet a claim
-of completed Personskat mechanism results.
+Mechanism observation now belongs to the exploration declaration itself:
 
-#### Empirical checkpoint: first exact runtime mechanism bins (2026-08-22)
+```runa
+observe mechanisms with observe_personskat_endpoint
+```
 
-The deliberately synthetic three-transition fixture now asks for a replayed
-loss in øre and two half-open 50-DKK bins. It contains one stable `if` at an
-income threshold and evaluates lower endpoints 198, 199 and 200 against their
-next-krone endpoints. The mechanism observer does not manufacture a histogram
-from those three cases: it interns the three before/after branch signatures,
-then relates each signature to the canonical replayed loss value.
+The named callable must be one pure ordinary function with the checked shape
+`(State, Context) -> Observation`, total over the checked finite endpoint
+State/Context pairs and every rule/call invocation reachable for those pairs—not
+over every possible value of those types. The compiler seals that endpoint
+template into the query and mechanism-request identity. The current
+conservative proof may reject arithmetic when it lacks sufficient range
+evidence; that is a fail-closed proof-stage gap, not a permanent arithmetic ban
+or a second observer design. The observer is not inferred from two `show`
+fields, their positions, equal result values, or a CLI tracing profile. This
+keeps the architecture pointed at the real question: evaluate one declared
+observation independently at Before and After, then compare the two executions
+as evidence about the same canonical transition.
 
-| Loss bin in øre | Confirmed cases | Exact distinct mechanisms |
-| --- | ---: | ---: |
-| `[-5,000, 0)` | 2 | 2 |
-| `[0, 5,000)` | 1 | 1 |
+That final sentence describes the replay contract, not current executable
+output. The checked observation IR exists, but isolated Before/After observer
+replay, mechanism journal events, mechanism-DAG publication, and exact
+mechanism-bin checkpoints are not implemented yet. The current runtime can
+carry the query-owned checked template, but it does not replay it and reports
+mechanism evidence unavailable. We therefore do not yet claim an exact runtime
+mechanism count or 50-DKK mechanism histogram, even for a synthetic fixture,
+and certainly not for the Personskat model.
 
-The closed checkpoint also reports 3 target cases, 3 traced cases, 3 exact
-signatures, zero cases outside the declared bins and zero unavailable bin
-values. Reopening after the checkpoint reconstructs byte-identical mechanism
-and bin evidence. This proves the runtime-to-journal-to-reducer-to-checkpoint
-path for exact mechanism-bin counts; it says nothing yet about the number of
-mechanisms in the Personskat model.
+The smallest honest next experiment is to type-check a small explicit
+`Context + Before -> After` query carrying this clause. Once endpoint replay is
+wired, that same fixture can exercise signature interning, crash-safe journal
+commit, resume, and exact bin incidence without introducing a second evaluator
+or deriving semantics from presentation fields.
 
 ### Search, transition, and mechanism graphs answer different questions
 
@@ -557,15 +536,15 @@ public contract names the two graphs separately as `search_decision_dag` and
 `semantic_transition_graph`.
 
 The mechanism DAG answers how the encoded execution differs across a declared
-edge under one explicit observation request. Fresh endpoint replay records
-stable dynamic rule and branch occurrences, pairs the before/after executions
-when sound, and interns equal signatures. Formally, one differential signature
-is two endpoint-local occurrence DAGs plus a fail-closed stable-slot
-correspondence; the compact shared view must not turn reversed endpoint order
-into a false cycle. Different income or municipality transitions can therefore
-point back to one shared mechanism without inventing cross-product cases. This
-is execution evidence in the model, not by itself proof of real-world
-causation.
+edge under one explicit observation request. Once observer replay is
+implemented, fresh endpoint replay will record stable dynamic rule and branch
+occurrences, pair the before/after executions when sound, and intern equal
+signatures. Formally, one differential signature is two endpoint-local
+occurrence DAGs plus a fail-closed stable-slot correspondence; the compact
+shared view must not turn reversed endpoint order into a false cycle. Different
+income or municipality transitions can therefore point back to one shared
+mechanism without inventing cross-product cases. This is execution evidence in
+the model, not by itself proof of real-world causation.
 
 None of the graphs substitutes for another. One projected result can contain
 several mechanisms, one mechanism can span several result keys, losses, bins,

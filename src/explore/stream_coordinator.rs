@@ -53,12 +53,6 @@ use super::exact_stream::{
 use super::mechanism::{
     CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
 };
-use super::mechanism_runtime::{
-    mint_nested_if_mechanism_observation_v1, mint_rule_dispatch_mechanism_observation_v1,
-    mint_single_if_mechanism_observation_v1, seal_runtime_confirmed_mechanism_observation_v1,
-    CheckedNestedIfMechanismRuntimePlanV1, CheckedRuleDispatchMechanismRuntimePlanV1,
-    CheckedSingleIfMechanismRuntimePlanV1, MechanismRuntimeMintErrorV1,
-};
 use super::mechanism_snapshot::{
     render_mechanism_observable_checkpoint_json_line_v1,
     render_mechanism_observable_checkpoint_unavailable_json_line_v1,
@@ -213,23 +207,6 @@ pub(super) enum ExactStreamAdvance {
     CaseOpen {
         rank: u128,
         reason: ExploreStopReason,
-    },
-}
-
-/// One atomic fresh-replay mechanism step over an already confirmed matching
-/// CaseId. No backlog means classification can continue; an operationally open
-/// result leaves the same rank pending without an append; a committed result
-/// has crossed the blob -> journal -> reducer boundary.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub(super) enum MechanismStreamAdvanceV1 {
-    NoConfirmedTargetBacklog,
-    CaseOpen {
-        rank: u128,
-        reason: ExploreStopReason,
-    },
-    Committed {
-        rank: u128,
-        canonical_blob_bytes: usize,
     },
 }
 
@@ -454,8 +431,8 @@ pub(super) struct ExactStreamCoordinator<'a> {
     store: ExploreRunStreamStore,
     stream: ExploreRunStream,
     exact: ExactEvidenceReducer,
-    /// Present only for the private mechanism-enabled stream identity. The
-    /// ordinary CLI still opens the legacy deferred stream with `None`.
+    /// Present only when the stream identity admits durable endpoint-observer
+    /// evidence. Exact classification can run without that later replay layer.
     mechanism: Option<MechanismEvidenceReducerV1>,
     mechanism_request: Option<CheckedMechanismObservationRequestV1>,
     evaluator: Option<ExactStreamEvaluator<'a>>,
@@ -562,10 +539,9 @@ impl<'a> ExactStreamCoordinator<'a> {
         if let Some(request) = mechanism_request.as_ref() {
             artifacts
                 .validate_checked_runtime_entry_v1(statements, source_dir)
-                .and_then(|()| artifacts.require_mechanism_runtime_root_v1())
                 .map_err(|error| {
                     ExactStreamCoordinatorError::context(
-                        "cannot authorize mechanism runtime source snapshot",
+                        "cannot authorize mechanism observation source snapshot",
                         error,
                     )
                 })?;
@@ -1361,203 +1337,6 @@ impl<'a> ExactStreamCoordinator<'a> {
                     error,
                 )
             })
-    }
-
-    /// Fresh-replay and commit one confirmed matching case through the
-    /// constrained checked single-`if` mechanism plan. A crash before the
-    /// journal append leaves the rank unprocessed; a crash afterwards is
-    /// restored from the authenticated blob without replaying the trace.
-    pub(super) fn advance_one_single_if_mechanism_case(
-        &mut self,
-        plan: &CheckedSingleIfMechanismRuntimePlanV1,
-    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
-        if !self.probe_phase_complete() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "mechanism replay cannot precede the completed source-probe milestone",
-            ));
-        }
-        let request = self.mechanism_request.as_ref().ok_or_else(|| {
-            ExactStreamCoordinatorError::invalid(
-                "this Explore stream identity does not authorize mechanism replay",
-            )
-        })?;
-        if request != plan.request() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "single-if mechanism runtime plan disagrees with sequence-zero request identity",
-            ));
-        }
-        let Some(rank) = self.next_mechanism_rank_hint()? else {
-            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
-        };
-        let confirmed = {
-            let evaluator = match self.ensure_evaluator_classified() {
-                Ok(evaluator) => evaluator,
-                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
-            };
-            match mint_single_if_mechanism_observation_v1(plan, evaluator, rank) {
-                Ok(confirmed) => confirmed,
-                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
-                    return Err(ExactStreamCoordinatorError::context(
-                        "cannot fresh-replay confirmed mechanism case",
-                        error,
-                    ));
-                }
-            }
-        };
-        if confirmed.rank() != rank {
-            return Err(ExactStreamCoordinatorError::invalid(format!(
-                "mechanism runtime returned rank {} while coordinating rank {rank}",
-                confirmed.rank()
-            )));
-        }
-        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
-            .map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot seal fresh-replay-confirmed mechanism case",
-                    error,
-                )
-            })?;
-        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
-        Ok(MechanismStreamAdvanceV1::Committed {
-            rank,
-            canonical_blob_bytes,
-        })
-    }
-
-    /// Fresh-replay and commit one confirmed matching case through the first
-    /// checked nested-activation trace profile.
-    pub(super) fn advance_one_nested_if_mechanism_case(
-        &mut self,
-        plan: &CheckedNestedIfMechanismRuntimePlanV1,
-    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
-        if !self.probe_phase_complete() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "mechanism replay cannot precede the completed source-probe milestone",
-            ));
-        }
-        let request = self.mechanism_request.as_ref().ok_or_else(|| {
-            ExactStreamCoordinatorError::invalid(
-                "this Explore stream identity does not authorize mechanism replay",
-            )
-        })?;
-        if request != plan.request() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "nested-if mechanism runtime plan disagrees with sequence-zero request identity",
-            ));
-        }
-        let Some(rank) = self.next_mechanism_rank_hint()? else {
-            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
-        };
-        let confirmed = {
-            let evaluator = match self.ensure_evaluator_classified() {
-                Ok(evaluator) => evaluator,
-                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
-            };
-            match mint_nested_if_mechanism_observation_v1(plan, evaluator, rank) {
-                Ok(confirmed) => confirmed,
-                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
-                    return Err(ExactStreamCoordinatorError::context(
-                        "cannot fresh-replay confirmed nested mechanism case",
-                        error,
-                    ));
-                }
-            }
-        };
-        if confirmed.rank() != rank {
-            return Err(ExactStreamCoordinatorError::invalid(format!(
-                "nested mechanism runtime returned rank {} while coordinating rank {rank}",
-                confirmed.rank()
-            )));
-        }
-        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
-            .map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot seal fresh-replay-confirmed nested mechanism case",
-                    error,
-                )
-            })?;
-        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
-        Ok(MechanismStreamAdvanceV1::Committed {
-            rank,
-            canonical_blob_bytes,
-        })
-    }
-
-    /// Fresh-replay and commit one confirmed matching case through the direct
-    /// checked rule-dispatch trace profile.
-    pub(super) fn advance_one_rule_dispatch_mechanism_case(
-        &mut self,
-        plan: &CheckedRuleDispatchMechanismRuntimePlanV1,
-    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
-        if !self.probe_phase_complete() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "mechanism replay cannot precede the completed source-probe milestone",
-            ));
-        }
-        let request = self.mechanism_request.as_ref().ok_or_else(|| {
-            ExactStreamCoordinatorError::invalid(
-                "this Explore stream identity does not authorize mechanism replay",
-            )
-        })?;
-        if request != plan.request() {
-            return Err(ExactStreamCoordinatorError::invalid(
-                "rule-dispatch mechanism runtime plan disagrees with sequence-zero request identity",
-            ));
-        }
-        let Some(rank) = self.next_mechanism_rank_hint()? else {
-            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
-        };
-        let confirmed = {
-            let evaluator = match self.ensure_evaluator_classified() {
-                Ok(evaluator) => evaluator,
-                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
-            };
-            match mint_rule_dispatch_mechanism_observation_v1(plan, evaluator, rank) {
-                Ok(confirmed) => confirmed,
-                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
-                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
-                }
-                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
-                    return Err(ExactStreamCoordinatorError::context(
-                        "cannot fresh-replay confirmed rule mechanism case",
-                        error,
-                    ));
-                }
-            }
-        };
-        if confirmed.rank() != rank {
-            return Err(ExactStreamCoordinatorError::invalid(format!(
-                "rule mechanism runtime returned rank {} while coordinating rank {rank}",
-                confirmed.rank()
-            )));
-        }
-        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
-            .map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot seal fresh-replay-confirmed rule mechanism case",
-                    error,
-                )
-            })?;
-        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
-        Ok(MechanismStreamAdvanceV1::Committed {
-            rank,
-            canonical_blob_bytes,
-        })
     }
 
     /// Commit one already fresh-replay-confirmed mechanism block through the

@@ -57,8 +57,8 @@ const CANONICAL_FINAL_MANIFEST_MAGIC_V1: &[u8] = b"futuruna.explore.final-manife
 
 /// Exact observation contract for dynamic mechanisms.
 ///
-/// `None` is itself hash-bound.  It cannot be confused with an old evaluator
-/// accidentally omitting requested observation.
+/// `None` is itself hash-bound and cannot be confused with a run whose checked
+/// query requests endpoint observation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ExploreMechanismObservationIdentity {
     None { explicit_none_hash: Box<str> },

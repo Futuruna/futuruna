@@ -1,6 +1,10 @@
--- Small protocol fixture for the experimental durable mechanism stream.
--- This intentionally proves orchestration and recovery over four cases; it is
--- not a Personskat search bound or a policy result.
+-- Small checked fixture for a query-owned function observer.
+-- Isolated endpoint replay and mechanism publication are not implemented yet;
+-- this fixture seals the canonical transition and observation IR only.
+-- It is not a Personskat search bound or a policy result.
+
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
 
 > adjustment(income: Int) -> Int {
     if income >= 200 { 20 } else { 0 }
@@ -10,21 +14,34 @@
     income - adjustment(income)
 }
 
-| eligible(income: Int, step: Int) -> True
+> observe_income_band(state: IncomeState, context: IncomeContext) -> Bool {
+    state.income >= 200
+}
 
-? explore nested_mechanism_stream_smoke {
-    over eligible(income, step)
+| is_declared_step(
+    before: IncomeState,
+    after: IncomeState,
+    context: IncomeContext
+) -> after.income == before.income + context.step
+
+? explore function_mechanism_observation_smoke {
+    over is_declared_step(before, after, context)
     find matches
     bounds {
-        income in range(198, 202)
-        step = 1
+        context.step = 1
+        before.income in range(198, 202)
     }
-    boundaries on income by step
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    boundaries on before.income by context.step
+    observe mechanisms with observe_income_band
     output {
-        key [income]
+        key [income = before.income]
         show [
-            before = net_income(income),
-            after = net_income(income + step)
+            before_net = net_income(before.income),
+            after_net = net_income(after.income)
         ]
         representative first
     }

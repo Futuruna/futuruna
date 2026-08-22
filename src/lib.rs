@@ -4946,6 +4946,19 @@ pub struct ExploreTransition {
     pub span: Span,
 }
 
+/// Query-owned mechanism observation template.
+///
+/// Source names one ordinary function. Parsing lowers that spelling to the
+/// canonical direct application `NAME(state, context)`, where `state` is bound
+/// independently to each endpoint and `context` is shared by both evaluations.
+/// This expression is separate from the question and result projection.
+#[derive(Debug, Clone)]
+pub struct ExploreMechanismObservation {
+    pub callable_name: String,
+    pub endpoint_template: Expr,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub struct ExploreOutputField {
     pub name: String,
@@ -5017,6 +5030,7 @@ pub struct ExploreQuery {
     pub bounds: Vec<ExploreBound>,
     pub transition: Option<ExploreTransition>,
     pub boundary: Option<ExploreBoundary>,
+    pub mechanism_observation: Option<ExploreMechanismObservation>,
     pub output: ExploreOutput,
     pub span: Span,
 }
@@ -5129,15 +5143,23 @@ pub struct TypedExploreAfterField {
     pub span: Span,
 }
 
+/// Checked construction used to decide endpoint membership before evaluating
+/// a potentially fallible derived After field.
+#[derive(Debug, Clone)]
+pub enum TypedExploreAfterMembershipPreconstruction {
+    RelativeIntStep { step: Expr, step_ty: Ty, span: Span },
+}
+
 /// Structural endpoint-membership obligation independent of an optimizer
 /// hint. A checked boundary contract requires its derived after field to
 /// remain inside the same exact domain as the corresponding before binding,
 /// regardless of whether the boundary was written through compact sugar or
 /// the explicit transition syntax.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TypedExploreAfterMembership {
     pub after_field_index: usize,
     pub before_bound_index: usize,
+    pub preconstruction: TypedExploreAfterMembershipPreconstruction,
 }
 
 /// Backend-neutral, non-optional transition produced for every checked Explore
@@ -5172,6 +5194,9 @@ pub struct TypedExploreQuery {
     pub sliced_inputs: Vec<TypedExploreInput>,
     pub bounds: Vec<TypedExploreBound>,
     pub transition: TypedExploreTransition,
+    /// The checked source-level selection retained until the occurrence-aware
+    /// query artifact seals the final `MechanismObservationIr`.
+    pub mechanism_observation: Option<ExploreMechanismObservation>,
     pub output: TypedExploreOutput,
     pub span: Span,
 }
@@ -5432,6 +5457,12 @@ fn normalize_flat_explore_transition(
                         Some(TypedExploreAfterMembership {
                             after_field_index,
                             before_bound_index: *bound_index,
+                            preconstruction:
+                                TypedExploreAfterMembershipPreconstruction::RelativeIntStep {
+                                    step: boundary.step.clone(),
+                                    step_ty: boundary.step_ty.clone(),
+                                    span: boundary.span,
+                                },
                         })
                     }
                     TypedExploreProductFieldBinding::TransitionExpression { .. } => None,
@@ -6311,6 +6342,16 @@ fn collect_true_free_symbol_uses_stmt(
                     &boundary.step,
                     uses,
                     &query_bound,
+                    &query_typed_receivers,
+                );
+            }
+            if let Some(observation) = &query.mechanism_observation {
+                let mut observation_bound = query_bound.clone();
+                observation_bound.insert("state".to_string());
+                collect_true_free_symbol_uses(
+                    &observation.endpoint_template,
+                    uses,
+                    &observation_bound,
                     &query_typed_receivers,
                 );
             }
@@ -7440,11 +7481,6 @@ pub struct RuleScopeFrame {
 #[derive(Debug)]
 struct PreparedRuntimeRuleDispatch {
     matching: Vec<Rc<Rule>>,
-    /// Producer-minted checked capabilities aligned with `matching`. Ordinary
-    /// interpretation and unsupported scoped dispatches retain `None`; exact
-    /// rule-mechanism replay requires every attempted global candidate to
-    /// authenticate through this seam before it can become evidence.
-    checked_candidate_tokens: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
     exceptions: Vec<usize>,
     conditional_defaults: Vec<usize>,
     clauses: Vec<usize>,
@@ -7726,6 +7762,9 @@ where
             }
             if let Some(boundary) = &query.boundary {
                 visit(AstChild::Expr(&boundary.step));
+            }
+            if let Some(observation) = &query.mechanism_observation {
+                visit(AstChild::Expr(&observation.endpoint_template));
             }
             for field in &query.output.key {
                 visit(AstChild::Expr(&field.value));
@@ -8105,6 +8144,13 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
             axis: boundary.axis.clone(),
             step: strip_spans_expr(&boundary.step),
             span: Span::dummy(),
+        }),
+        mechanism_observation: query.mechanism_observation.as_ref().map(|observation| {
+            ExploreMechanismObservation {
+                callable_name: observation.callable_name.clone(),
+                endpoint_template: strip_spans_expr(&observation.endpoint_template),
+                span: Span::dummy(),
+            }
         }),
         output: ExploreOutput {
             key: query
@@ -9358,6 +9404,34 @@ impl Parser {
         })
     }
 
+    fn parse_explore_mechanism_observation(
+        &mut self,
+    ) -> Result<ExploreMechanismObservation, String> {
+        let start = self.expect_explore_word("observe")?;
+        self.expect_explore_word("mechanisms")?;
+        self.expect_explore_word("with")?;
+        let callable_token = self.peek().clone();
+        let callable_name = self.expect_ident()?;
+        let span = self.span_since(&start);
+        let state = Expr::new(ExprKind::Var("state".to_string()), span);
+        let context = Expr::new(ExprKind::Var("context".to_string()), span);
+        let endpoint_template = Expr::new(
+            ExprKind::App(
+                Box::new(Expr::new(
+                    ExprKind::Var(callable_name.clone()),
+                    self.token_span(&callable_token),
+                )),
+                vec![state, context],
+            ),
+            span,
+        );
+        Ok(ExploreMechanismObservation {
+            callable_name,
+            endpoint_template,
+            span,
+        })
+    }
+
     fn finish_explore_transition_clause(&mut self) -> Result<(), String> {
         if self.peek_kind() == TokenKind::RBrace {
             return Ok(());
@@ -9664,6 +9738,13 @@ impl Parser {
         } else {
             None
         };
+        let mechanism_observation = if self.peek_word("observe") {
+            let observation = self.parse_explore_mechanism_observation()?;
+            self.skip_semis();
+            Some(observation)
+        } else {
+            None
+        };
         let output = self.parse_explore_output()?;
         self.skip_semis();
         if self.peek_kind() != TokenKind::RBrace {
@@ -9682,6 +9763,7 @@ impl Parser {
             bounds,
             transition,
             boundary,
+            mechanism_observation,
             output,
             span: self.span_since(question_token),
         }))
@@ -13106,38 +13188,6 @@ pub struct Interpreter {
     /// Preparation is enabled only after the guarded Explore initialization
     /// has completed, so declarations cannot make a retained family stale.
     exact_prepared_rule_dispatch_enabled: bool,
-    /// A fresh, checked exact-replay trace. Ordinary interpretation never
-    /// installs this state, and the state never participates in language fuel.
-    checked_runtime_trace_v1: Option<CheckedRuntimeTraceStateV1>,
-    /// A separately checked direct rule-family trace. Keeping this distinct
-    /// from the strict nested-function trace prevents the first rule profile
-    /// from silently widening that profile's execution subset.
-    checked_runtime_rule_trace_v1: Option<CheckedRuntimeRuleTraceStateV1>,
-    /// Producer-minted bridge from one immutable checked function occurrence to
-    /// the closure created while loading that exact module content. Tokens are
-    /// interpreter-local capabilities: they are never exposed to Futuruna code
-    /// and never persisted as mechanism identity.
-    checked_runtime_callable_sources_v1:
-        BTreeMap<CheckedRuntimeCallableLocatorV1, CheckedRuntimeCallableTokenV1>,
-    checked_runtime_callable_tokens_v1:
-        BTreeMap<CheckedRuntimeCallableTokenV1, CheckedRuntimeCallableIdentityV1>,
-    /// Mirrors the actual last-wins runtime function registry so reconstructed
-    /// named closures preserve (or deliberately lack) their checked capability.
-    checked_runtime_function_tokens_v1: BTreeMap<String, CheckedRuntimeCallableTokenV1>,
-    /// Producer capabilities for top-level rule declarations. The source map
-    /// is keyed only by immutable module/declaration identity; ambiguous
-    /// repeated checked occurrences intentionally receive no runtime token.
-    checked_runtime_rule_candidate_sources_v1:
-        BTreeMap<CheckedRuntimeRuleCandidateLocatorV1, CheckedRuntimeRuleCandidateTokenV1>,
-    checked_runtime_rule_candidate_tokens_v1:
-        BTreeMap<CheckedRuntimeRuleCandidateTokenV1, CheckedRuntimeRuleCandidateIdentityV1>,
-    /// Parallel to `rules`; tokens are interpreter-private and never become
-    /// persisted mechanism identity.
-    registered_rule_candidate_tokens_v1: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
-    /// Imports execute a filtered runtime statement slice. This override retains
-    /// the identity of the complete freshly loaded module whose content was
-    /// checked before any closure token can be minted from that slice.
-    checked_runtime_module_override_v1: Option<ModuleId>,
     /// Type constructors: name -> (arity, positional)
     pub constructors: BTreeMap<String, (usize, bool)>,
     /// Every declaration of a constructor name, retained for overload resolution.
@@ -13217,15 +13267,6 @@ impl Interpreter {
             rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
             exact_prepared_rule_dispatch: BTreeMap::new(),
             exact_prepared_rule_dispatch_enabled: false,
-            checked_runtime_trace_v1: None,
-            checked_runtime_rule_trace_v1: None,
-            checked_runtime_callable_sources_v1: BTreeMap::new(),
-            checked_runtime_callable_tokens_v1: BTreeMap::new(),
-            checked_runtime_function_tokens_v1: BTreeMap::new(),
-            checked_runtime_rule_candidate_sources_v1: BTreeMap::new(),
-            checked_runtime_rule_candidate_tokens_v1: BTreeMap::new(),
-            registered_rule_candidate_tokens_v1: Vec::new(),
-            checked_runtime_module_override_v1: None,
             constructors: {
                 let mut c = BTreeMap::new();
                 c.insert("Some".into(), (1, true)); // Option constructors for T? / ?. / ?:
@@ -13444,36 +13485,6 @@ impl Interpreter {
         step_limit: usize,
         collection_limit: usize,
     ) -> Result<Value, ExploreRuntimeFailure> {
-        self.eval_exact_exploration_impl(expression, env, None, step_limit, collection_limit)
-    }
-
-    /// The site-aware exact seam used by checked fresh replay. The expression
-    /// is still evaluated by the ordinary interpreter exactly once.
-    pub(crate) fn eval_exact_exploration_at(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        root_site: &ExprSiteId,
-        step_limit: usize,
-        collection_limit: usize,
-    ) -> Result<Value, ExploreRuntimeFailure> {
-        self.eval_exact_exploration_impl(
-            expression,
-            env,
-            Some(root_site),
-            step_limit,
-            collection_limit,
-        )
-    }
-
-    fn eval_exact_exploration_impl(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        root_site: Option<&ExprSiteId>,
-        step_limit: usize,
-        collection_limit: usize,
-    ) -> Result<Value, ExploreRuntimeFailure> {
         let previous_forbid_effects = self.exhaustive_preview_forbid_effects;
         let previous_effect_error = self.exhaustive_preview_error.borrow_mut().take();
         let previous_step_count = self.step_count;
@@ -13489,51 +13500,8 @@ impl Interpreter {
         self.ground_collection_limit = Some(collection_limit);
         *self.ground_error.borrow_mut() = None;
         let output_len = self.output.len();
-        let previous_trace_cursor = self
-            .checked_runtime_trace_v1
-            .as_ref()
-            .and_then(|state| state.cursor.clone());
-        if let (Some(state), Some(root_site)) = (self.checked_runtime_trace_v1.as_ref(), root_site)
-        {
-            if root_site != &state.plan.endpoint_root {
-                self.checked_runtime_trace_fail_v1(
-                    CheckedRuntimeTraceUnsupportedV1::EndpointRootMismatch,
-                );
-            }
-        }
-        let previous_rule_endpoint_active = self
-            .checked_runtime_rule_trace_v1
-            .as_ref()
-            .map(|state| state.endpoint_evaluation_active);
-        if let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() {
-            match root_site {
-                Some(root_site) if root_site == &state.plan.endpoint_root => {
-                    state.endpoint_evaluation_active = true;
-                }
-                _ => state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootMismatch),
-            }
-        }
-        let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            if self.checked_runtime_trace_v1.is_some() {
-                match root_site {
-                    Some(root_site) => {
-                        self.eval_at_checked_runtime_site_v1(expression, env, root_site.clone())
-                    }
-                    None => self.eval(expression, env),
-                }
-            } else {
-                self.eval(expression, env)
-            }
-        }));
-        if let Some(state) = self.checked_runtime_trace_v1.as_mut() {
-            state.cursor = previous_trace_cursor;
-        }
-        if let (Some(state), Some(previous)) = (
-            self.checked_runtime_rule_trace_v1.as_mut(),
-            previous_rule_endpoint_active,
-        ) {
-            state.endpoint_evaluation_active = previous;
-        }
+        let evaluation =
+            std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(expression, env)));
         let budget_exceeded = self.budget_exceeded;
         let error = self.ground_error.borrow_mut().take();
         let effect_error = self.take_exact_exploration_effect_error();
@@ -13549,82 +13517,19 @@ impl Interpreter {
         self.ground_collection_limit = previous_collection_limit;
         *self.ground_error.borrow_mut() = previous_ground_error;
 
-        // Semantic unsupported/error evidence must dominate an operational
-        // stop reached later in the same evaluation. Guard failures return
-        // `Unit` so evaluation can unwind normally; reporting fuel first would
-        // otherwise turn a known-invalid path into an apparently honest
-        // Partial frontier.
-        let function_trace_integrity_failure = self
-            .checked_runtime_trace_v1
-            .as_ref()
-            .and_then(|state| state.unsupported)
-            .filter(|reason| !reason.is_observation_unsupported());
-        let rule_trace_integrity_failure = self
-            .checked_runtime_rule_trace_v1
-            .as_ref()
-            .and_then(|state| state.unsupported)
-            .filter(|reason| !reason.is_observation_unsupported());
-        if let Some(message) = function_trace_integrity_failure
-            .map(|reason| format!("checked runtime trace encountered integrity failure {reason:?}"))
-            .or_else(|| {
-                rule_trace_integrity_failure.map(|reason| {
-                    format!("checked runtime rule trace encountered integrity failure {reason:?}")
-                })
-            })
-        {
-            self.abort_checked_runtime_traces_v1();
-            return Err(ExploreRuntimeFailure::RuntimeError { message });
-        }
         if let Some(message) = effect_error {
-            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::UnsupportedCapability { message });
         }
         if produced_output {
-            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::ProducedOutput);
         }
         if let Some(error) = error {
-            self.abort_checked_runtime_traces_v1();
             return Err(error);
         }
         if evaluation.is_err() {
-            self.abort_checked_runtime_traces_v1();
             return Err(ExploreRuntimeFailure::Panicked);
         }
         if budget_exceeded {
-            let function_trace_unsupported = self
-                .checked_runtime_trace_v1
-                .as_ref()
-                .and_then(|state| state.unsupported);
-            let rule_trace_unsupported = self
-                .checked_runtime_rule_trace_v1
-                .as_ref()
-                .and_then(|state| state.unsupported);
-            let trace_unsupported = function_trace_unsupported
-                .map(|reason| {
-                    (
-                        format!("checked runtime trace encountered {reason:?}"),
-                        reason.is_observation_unsupported(),
-                    )
-                })
-                .or_else(|| {
-                    rule_trace_unsupported.map(|reason| {
-                        (
-                            format!("checked runtime rule trace encountered {reason:?}"),
-                            reason.is_observation_unsupported(),
-                        )
-                    })
-                });
-            self.abort_checked_runtime_traces_v1();
-            if let Some((trace_detail, observation_unsupported)) = trace_unsupported {
-                let message =
-                    format!("{trace_detail} before exhausting its expression-step budget");
-                return Err(if observation_unsupported {
-                    ExploreRuntimeFailure::UnsupportedCapability { message }
-                } else {
-                    ExploreRuntimeFailure::RuntimeError { message }
-                });
-            }
             return Err(ExploreRuntimeFailure::OperationalLimit {
                 resource: ExploreRuntimeResource::ExpressionSteps,
                 limit: step_limit as u128,
@@ -13651,340 +13556,6 @@ impl Interpreter {
             &artifacts.rule_dispatch_return_issues,
             &artifacts.rule_dispatch_boolean_miss_safe_keys,
         );
-    }
-
-    /// Install interpreter-local capabilities for top-level functions and,
-    /// only for a rule-observer replay, rule candidates in one immutable
-    /// checked analysis program. The runtime later mints a capability only when
-    /// the freshly loaded complete module has the same producer-derived content
-    /// identity and selects one unambiguous checked occurrence. Capabilities
-    /// never cross the interpreter boundary.
-    pub(crate) fn install_checked_runtime_callable_tokens_v1(
-        &mut self,
-        artifacts: &TypeCheckArtifacts,
-        include_rule_candidates: bool,
-    ) {
-        self.checked_runtime_callable_sources_v1.clear();
-        self.checked_runtime_callable_tokens_v1.clear();
-        self.checked_runtime_function_tokens_v1.clear();
-        self.checked_runtime_rule_candidate_sources_v1.clear();
-        self.checked_runtime_rule_candidate_tokens_v1.clear();
-        self.registered_rule_candidate_tokens_v1.clear();
-        self.checked_runtime_module_override_v1 = None;
-
-        if artifacts.analysis_program.id != artifacts.checked_resolutions.analysis_program
-            || !artifacts.checked_resolutions.source_snapshot_coherent
-        {
-            return;
-        }
-
-        let mut module_candidates =
-            BTreeMap::<CheckedRuntimeCallableLocatorV1, Vec<CheckedRuntimeCallableTokenV1>>::new();
-        let mut next_token = 1i64;
-        for declaration in artifacts.analysis_program.declarations.iter() {
-            let Stmt::Defn(Defn::Fn { name, params, .. }) = &*declaration.statement else {
-                continue;
-            };
-            if !declaration.id.module.internal_path.is_empty() {
-                continue;
-            }
-            let locator = CheckedRuntimeCallableLocatorV1 {
-                module: declaration.id.module.clone(),
-                name: name.clone().into_boxed_str(),
-                arity: params.len(),
-            };
-            let identity = CheckedRuntimeCallableIdentityV1 {
-                analysis_program: artifacts.analysis_program.id.clone(),
-                callable: CheckedCallableId {
-                    declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
-                    structural_path: Box::default(),
-                },
-            };
-            let token = CheckedRuntimeCallableTokenV1(next_token);
-            let Some(next) = next_token.checked_add(1) else {
-                break;
-            };
-            next_token = next;
-            self.checked_runtime_callable_tokens_v1
-                .insert(token, identity);
-            module_candidates.entry(locator).or_default().push(token);
-        }
-
-        for (locator, tokens) in module_candidates {
-            let [token] = tokens.as_slice() else {
-                // One content-identical module may be retained through multiple
-                // semantic occurrences. Runtime loading has no occurrence token
-                // for that case yet, so fail closed instead of guessing.
-                continue;
-            };
-            self.checked_runtime_callable_sources_v1
-                .insert(locator, *token);
-        }
-
-        if include_rule_candidates {
-            let mut rule_candidates = BTreeMap::<
-                CheckedRuntimeRuleCandidateLocatorV1,
-                Vec<CheckedRuntimeRuleCandidateTokenV1>,
-            >::new();
-            let mut next_rule_token = 1i64;
-            for family in artifacts.checked_resolutions.rule_families.values() {
-                if family.key.scope.is_some() {
-                    continue;
-                }
-                for candidate in family.candidates.iter() {
-                    if !candidate.statement_path.is_empty()
-                        || !candidate
-                            .declaration
-                            .declaration
-                            .module
-                            .internal_path
-                            .is_empty()
-                    {
-                        continue;
-                    }
-                    let locator = CheckedRuntimeRuleCandidateLocatorV1 {
-                        module: candidate.declaration.declaration.module.clone(),
-                        declaration_ordinal: candidate.declaration.declaration.ordinal,
-                    };
-                    let token = CheckedRuntimeRuleCandidateTokenV1(next_rule_token);
-                    let Some(next) = next_rule_token.checked_add(1) else {
-                        break;
-                    };
-                    next_rule_token = next;
-                    self.checked_runtime_rule_candidate_tokens_v1.insert(
-                        token,
-                        CheckedRuntimeRuleCandidateIdentityV1 {
-                            analysis_program: artifacts.analysis_program.id.clone(),
-                            family: family.key.clone(),
-                            candidate: candidate.clone(),
-                        },
-                    );
-                    rule_candidates.entry(locator).or_default().push(token);
-                }
-            }
-            for (locator, tokens) in rule_candidates {
-                let [token] = tokens.as_slice() else {
-                    // Repeated content-identical occurrences cannot be distinguished
-                    // by the legacy loader yet. Refuse to authenticate either.
-                    continue;
-                };
-                self.checked_runtime_rule_candidate_sources_v1
-                    .insert(locator, *token);
-            }
-        }
-    }
-
-    fn checked_runtime_named_closure_env_v1(&self, name: &str, mut env: Env) -> Env {
-        if let Some(token) = self.checked_runtime_function_tokens_v1.get(name) {
-            env.set(
-                CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1.to_string(),
-                Value::Int(token.0),
-            );
-        }
-        env
-    }
-
-    fn checked_runtime_callable_identity_v1(
-        &self,
-        env: &Env,
-    ) -> Option<CheckedRuntimeCallableIdentityV1> {
-        let Value::Int(token) = env
-            .bindings
-            .get(CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1)?
-        else {
-            return None;
-        };
-        self.checked_runtime_callable_tokens_v1
-            .get(&CheckedRuntimeCallableTokenV1(*token))
-            .cloned()
-    }
-
-    /// Authenticate the closure which the ordinary runtime will select for one
-    /// already-checked direct application. This is the narrow bridge used by
-    /// the legacy direct-`if` mechanism profile: it preserves that profile's
-    /// wider pure expression subset while refusing to reconstruct a checked
-    /// branch from a shadowing value or another same-named runtime callable.
-    pub(crate) fn authenticate_checked_runtime_direct_callable_v1(
-        &self,
-        endpoint: &Expr,
-        env: &Env,
-        expected_analysis_program: &AnalysisProgramId,
-        expected_callable: &CheckedCallableId,
-    ) -> Result<(), String> {
-        let ExprKind::App(function, arguments) = &endpoint.kind else {
-            return Err(
-                "checked runtime callable authentication requires a direct application".to_string(),
-            );
-        };
-        let ExprKind::Var(name) = &function.kind else {
-            return Err(
-                "checked runtime callable authentication requires a named callee".to_string(),
-            );
-        };
-
-        // These branches precede ordinary environment lookup in `eval_inner`.
-        // A same-named closure therefore is not the callable this application
-        // would execute and cannot satisfy the capability check.
-        if name == PATHOF_MARKER
-            || name == REFOF_MARKER
-            || matches!(name.as_str(), "findall" | "search") && arguments.len() == 2
-            || self
-                .effect_decls
-                .values()
-                .any(|operations| operations.iter().any(|(operation, _)| operation == name))
-            || self.active_rule_scopes.last().is_some_and(|frame| {
-                self.rule_scope_has_rule_method(&frame.name, name, arguments.len())
-            })
-        {
-            return Err(format!(
-                "checked runtime application `{name}` is intercepted before its checked closure"
-            ));
-        }
-
-        let actual = match env.get(name) {
-            Some(Value::Closure {
-                env: closure_env, ..
-            }) => self.checked_runtime_callable_identity_v1(closure_env),
-            Some(_) => None,
-            None if self.functions.contains_key(name) => self
-                .checked_runtime_function_tokens_v1
-                .get(name)
-                .and_then(|token| self.checked_runtime_callable_tokens_v1.get(token))
-                .cloned(),
-            None => None,
-        };
-        if actual.as_ref().is_some_and(|actual| {
-            &actual.analysis_program == expected_analysis_program
-                && &actual.callable == expected_callable
-        }) {
-            Ok(())
-        } else {
-            Err(format!(
-                "runtime closure for checked application `{name}` does not match its producer-minted callable identity"
-            ))
-        }
-    }
-
-    /// Arm one fresh exact-replay trace. The checked plan is immutable and may
-    /// be cloned cheaply for the lower and upper endpoint evaluations.
-    pub(crate) fn begin_checked_runtime_trace_v1(
-        &mut self,
-        plan: CheckedRuntimeTracePlanV1,
-    ) -> Result<(), CheckedRuntimeTraceErrorV1> {
-        if self.checked_runtime_trace_v1.is_some() || self.checked_runtime_rule_trace_v1.is_some() {
-            return Err(CheckedRuntimeTraceErrorV1::AlreadyActive);
-        }
-        self.checked_runtime_trace_v1 = Some(CheckedRuntimeTraceStateV1 {
-            plan,
-            cursor: None,
-            activations: Vec::new(),
-            active_callables: BTreeSet::new(),
-            seen_applications: BTreeSet::new(),
-            event: None,
-            unsupported: None,
-        });
-        Ok(())
-    }
-
-    /// Finish and consume one successful strict trace. Unsupported evidence is
-    /// returned explicitly and can never be mistaken for an empty mechanism.
-    pub(crate) fn finish_checked_runtime_trace_v1(
-        &mut self,
-    ) -> Result<CheckedRuntimeTraceV1, CheckedRuntimeTraceErrorV1> {
-        let Some(mut state) = self.checked_runtime_trace_v1.take() else {
-            return Err(CheckedRuntimeTraceErrorV1::NotActive);
-        };
-        if state.cursor.is_some()
-            || !state.activations.is_empty()
-            || !state.active_callables.is_empty()
-        {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::UnbalancedTrace);
-        }
-        if let Some(reason) = state.unsupported {
-            return Err(CheckedRuntimeTraceErrorV1::Unsupported(reason));
-        }
-        let Some(event) = state.event else {
-            return Err(CheckedRuntimeTraceErrorV1::Unsupported(
-                CheckedRuntimeTraceUnsupportedV1::MissingEvent,
-            ));
-        };
-        Ok(CheckedRuntimeTraceV1 {
-            analysis_program: state.plan.analysis_program.clone(),
-            endpoint_root: state.plan.endpoint_root.clone(),
-            implicit_root_callable: state.plan.implicit_root_callable.clone(),
-            event,
-        })
-    }
-
-    /// Discard trace state after an exact runtime failure or abandoned replay.
-    pub(crate) fn abort_checked_runtime_trace_v1(&mut self) {
-        self.checked_runtime_trace_v1 = None;
-    }
-
-    /// Arm one fresh direct rule-family trace. Candidate events are admitted
-    /// only when the ordinary frozen dispatcher presents producer-minted
-    /// capabilities matching this exact checked plan.
-    pub(crate) fn begin_checked_runtime_rule_trace_v1(
-        &mut self,
-        plan: CheckedRuntimeRuleTracePlanV1,
-    ) -> Result<(), CheckedRuntimeRuleTraceErrorV1> {
-        if self.checked_runtime_trace_v1.is_some() || self.checked_runtime_rule_trace_v1.is_some() {
-            return Err(CheckedRuntimeRuleTraceErrorV1::AlreadyActive);
-        }
-        self.checked_runtime_rule_trace_v1 = Some(CheckedRuntimeRuleTraceStateV1 {
-            plan,
-            endpoint_evaluation_active: false,
-            endpoint_application_seen: false,
-            dispatch_active: false,
-            dispatch_seen: false,
-            next_candidate_index: 0,
-            attempted_source_orders: BTreeSet::new(),
-            attempts: Vec::new(),
-            selection: None,
-            unsupported: None,
-        });
-        Ok(())
-    }
-
-    pub(crate) fn finish_checked_runtime_rule_trace_v1(
-        &mut self,
-    ) -> Result<CheckedRuntimeRuleTraceV1, CheckedRuntimeRuleTraceErrorV1> {
-        let Some(mut state) = self.checked_runtime_rule_trace_v1.take() else {
-            return Err(CheckedRuntimeRuleTraceErrorV1::NotActive);
-        };
-        if state.endpoint_evaluation_active || state.dispatch_active {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::UnbalancedTrace);
-        }
-        if !state.endpoint_application_seen || !state.dispatch_seen {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
-        }
-        if let Some(reason) = state.unsupported {
-            return Err(CheckedRuntimeRuleTraceErrorV1::Unsupported(reason));
-        }
-        let Some(selection) = state.selection else {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
-            return Err(CheckedRuntimeRuleTraceErrorV1::Unsupported(
-                state
-                    .unsupported
-                    .expect("missing rule selection records an unsupported reason"),
-            ));
-        };
-        Ok(CheckedRuntimeRuleTraceV1 {
-            analysis_program: state.plan.analysis_program.clone(),
-            endpoint_root: state.plan.endpoint_root.clone(),
-            family: state.plan.family.clone(),
-            attempts: state.attempts.into_boxed_slice(),
-            selection,
-        })
-    }
-
-    pub(crate) fn abort_checked_runtime_rule_trace_v1(&mut self) {
-        self.checked_runtime_rule_trace_v1 = None;
-    }
-
-    fn abort_checked_runtime_traces_v1(&mut self) {
-        self.abort_checked_runtime_trace_v1();
-        self.abort_checked_runtime_rule_trace_v1();
     }
 
     /// Install only the exact rule-dispatch metadata needed by execution.
@@ -14034,15 +13605,6 @@ impl Interpreter {
     }
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
-        self.register_rule_with_checked_runtime_token_v1(name, rule, None);
-    }
-
-    fn register_rule_with_checked_runtime_token_v1(
-        &mut self,
-        name: String,
-        rule: Rule,
-        checked_token: Option<CheckedRuntimeRuleCandidateTokenV1>,
-    ) {
         if let Some(arity) = Self::rule_arity(&rule) {
             self.exact_prepared_rule_dispatch.remove(&RuleDispatchKey {
                 scope: None,
@@ -14086,11 +13648,6 @@ impl Interpreter {
         }
         let index = self.rules.len();
         self.rules.push((name.clone(), Rc::new(rule)));
-        self.registered_rule_candidate_tokens_v1.push(checked_token);
-        debug_assert_eq!(
-            self.rules.len(),
-            self.registered_rule_candidate_tokens_v1.len()
-        );
         self.rules_by_name.entry(name).or_default().push(index);
     }
 
@@ -14877,7 +14434,6 @@ impl Interpreter {
                                 body: body.clone(),
                             },
                         );
-                        self.checked_runtime_function_tokens_v1.remove(name);
                         self.functions.insert(
                             name.clone(),
                             FnDef {
@@ -14969,7 +14525,6 @@ impl Interpreter {
                         Some(name),
                     );
                     let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                    self.checked_runtime_function_tokens_v1.remove(method_name);
                     self.functions.insert(
                         method_name.clone(),
                         FnDef {
@@ -14983,17 +14538,7 @@ impl Interpreter {
     }
 
     fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
-        let module = self
-            .checked_runtime_module_override_v1
-            .clone()
-            .unwrap_or_else(|| TypeChecker::analysis_module_id(stmts));
-        let mut declaration_ordinal = 0usize;
         for stmt in stmts {
-            let statement_ordinal = TypeChecker::analysis_declaration_signature(stmt).map(|_| {
-                let ordinal = declaration_ordinal;
-                declaration_ordinal += 1;
-                ordinal
-            });
             match stmt {
                 Stmt::Defn(defn @ Defn::Fn { name, .. }) => {
                     self.register_runtime_callable_declaration(
@@ -15001,18 +14546,7 @@ impl Interpreter {
                         name,
                         None,
                     );
-                    let token = match defn {
-                        Defn::Fn { name, params, .. } => self
-                            .checked_runtime_callable_sources_v1
-                            .get(&CheckedRuntimeCallableLocatorV1 {
-                                module: module.clone(),
-                                name: name.clone().into_boxed_str(),
-                                arity: params.len(),
-                            })
-                            .copied(),
-                        _ => None,
-                    };
-                    self.eval_defn_with_checked_runtime_token_v1(defn, env, token);
+                    self.eval_defn(defn, env);
                 }
                 Stmt::TypeDecl(decl) if !matches!(decl, TypeDecl::WhenType { .. }) => {
                     self.register_runtime_type_decl(decl, env);
@@ -15024,19 +14558,7 @@ impl Interpreter {
                         &name,
                         None,
                     );
-                    let checked_token = statement_ordinal.and_then(|declaration_ordinal| {
-                        self.checked_runtime_rule_candidate_sources_v1
-                            .get(&CheckedRuntimeRuleCandidateLocatorV1 {
-                                module: module.clone(),
-                                declaration_ordinal,
-                            })
-                            .copied()
-                    });
-                    self.register_rule_with_checked_runtime_token_v1(
-                        name,
-                        rule.clone(),
-                        checked_token,
-                    );
+                    self.register_rule(name, rule.clone());
                 }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(name, body);
@@ -16398,11 +15920,6 @@ impl Interpreter {
                                 self.imported.insert(canon);
                                 match parse_source_module_file_cached(Path::new(&file_path)) {
                                     Ok(imported_module) => {
-                                        let previous_checked_module = self
-                                            .checked_runtime_module_override_v1
-                                            .replace(TypeChecker::analysis_module_id(
-                                                imported_module.statements(),
-                                            ));
                                         let defs: Vec<Stmt> = imported_module
                                             .statements()
                                             .iter()
@@ -16433,8 +15950,6 @@ impl Interpreter {
                                             )
                                         };
                                         self.source_dir = previous_source_dir;
-                                        self.checked_runtime_module_override_v1 =
-                                            previous_checked_module;
                                     }
                                     Err(error) => {
                                         eprintln!("Cannot import {}: {}", file_path, error)
@@ -16457,11 +15972,6 @@ impl Interpreter {
                             self.imported.insert(canon);
                             match parse_source_module_file_cached(Path::new(&file_path)) {
                                 Ok(imported_module) => {
-                                    let previous_checked_module = self
-                                        .checked_runtime_module_override_v1
-                                        .replace(TypeChecker::analysis_module_id(
-                                            imported_module.statements(),
-                                        ));
                                     let import_stmts = imported_module.statements();
                                     // Scan for @ export annotations to find exported names
                                     let mut exported_names: BTreeSet<String> = BTreeSet::new();
@@ -16538,8 +16048,6 @@ impl Interpreter {
                                         );
                                     }
                                     self.source_dir = previous_source_dir;
-                                    self.checked_runtime_module_override_v1 =
-                                        previous_checked_module;
                                     // Filter to only exported bindings
                                     let mut bindings = HashMap::new();
                                     let module_closure_env = mod_env.child();
@@ -16615,11 +16123,6 @@ impl Interpreter {
                                     .cloned()
                                     .collect::<Vec<_>>();
                                 if matching.len() == 1 {
-                                    let previous_checked_module = self
-                                        .checked_runtime_module_override_v1
-                                        .replace(TypeChecker::analysis_module_id(
-                                            imported_module.statements(),
-                                        ));
                                     let previous_source_dir = self.source_dir.clone();
                                     self.source_dir = Some(Self::imported_source_dir(&file_path));
                                     last = if initialization_mode
@@ -16636,8 +16139,6 @@ impl Interpreter {
                                         self.run_program(&matching, env)
                                     };
                                     self.source_dir = previous_source_dir;
-                                    self.checked_runtime_module_override_v1 =
-                                        previous_checked_module;
                                 } else {
                                     eprintln!(
                                         "Hash #{} expected exactly one definition in {}, found {}",
@@ -17095,15 +16596,6 @@ impl Interpreter {
     }
 
     pub fn eval_defn(&mut self, defn: &Defn, env: &mut Env) -> Value {
-        self.eval_defn_with_checked_runtime_token_v1(defn, env, None)
-    }
-
-    fn eval_defn_with_checked_runtime_token_v1(
-        &mut self,
-        defn: &Defn,
-        env: &mut Env,
-        checked_token: Option<CheckedRuntimeCallableTokenV1>,
-    ) -> Value {
         match defn {
             Defn::Fn {
                 name, params, body, ..
@@ -17117,19 +16609,13 @@ impl Interpreter {
                         body: body.clone(),
                     },
                 );
-                if let Some(token) = checked_token {
-                    self.checked_runtime_function_tokens_v1
-                        .insert(name.clone(), token);
-                } else {
-                    self.checked_runtime_function_tokens_v1.remove(name);
-                }
                 // Named functions don't capture env — they get it at call time
                 // This avoids exponential env cloning
                 let closure = Value::Closure {
                     name: Some(name.clone()),
                     params: param_names,
                     body: body.clone(),
-                    env: self.checked_runtime_named_closure_env_v1(name, Env::new()),
+                    env: Env::new(),
                 };
                 env.set(name.clone(), closure.clone());
                 closure
@@ -17176,23 +16662,13 @@ impl Interpreter {
                 name: Some(name),
                 params,
                 body,
-                env,
-            } => {
-                let mut captured = module_env.clone();
-                if let Some(token) = env
-                    .bindings
-                    .get(CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1)
-                    .cloned()
-                {
-                    captured.set(CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1.to_string(), token);
-                }
-                Value::Closure {
-                    name: Some(name.clone()),
-                    params: params.clone(),
-                    body: body.clone(),
-                    env: captured,
-                }
-            }
+                ..
+            } => Value::Closure {
+                name: Some(name.clone()),
+                params: params.clone(),
+                body: body.clone(),
+                env: module_env.clone(),
+            },
             _ => value.clone(),
         }
     }
@@ -17322,494 +16798,7 @@ impl Interpreter {
         Some(ordered.iter().map(|arg| self.eval(arg, env)).collect())
     }
 
-    fn checked_runtime_trace_fail_v1(&mut self, reason: CheckedRuntimeTraceUnsupportedV1) {
-        if let Some(state) = self.checked_runtime_trace_v1.as_mut() {
-            state.fail(reason);
-        }
-    }
-
-    fn checked_runtime_trace_current_site_v1(&self) -> Option<ExprSiteId> {
-        self.checked_runtime_trace_v1
-            .as_ref()
-            .and_then(|state| state.cursor.clone())
-    }
-
-    fn checked_runtime_trace_validate_expression_v1(&mut self, expression: &Expr) {
-        let Some(state) = self.checked_runtime_trace_v1.as_ref() else {
-            return;
-        };
-        let Some(site) = state.cursor.as_ref() else {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge,
-            );
-            return;
-        };
-        if site == &state.plan.endpoint_root && !matches!(&expression.kind, ExprKind::App(_, _)) {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::EndpointRootNotApplication,
-            );
-            return;
-        }
-        let unsupported = match &expression.kind {
-            ExprKind::Match(_, _) => Some(CheckedRuntimeTraceUnsupportedV1::Match),
-            ExprKind::Lambda(_, _)
-            | ExprKind::Field(_, _)
-            | ExprKind::Index(_, _)
-            | ExprKind::List(_)
-            | ExprKind::Tuple(_)
-            | ExprKind::Effect(_, _)
-            | ExprKind::Handle { .. }
-            | ExprKind::Try(_)
-            | ExprKind::Conjunction(_)
-            | ExprKind::Disjunction(_)
-            | ExprKind::Pipe(_, _) => Some(CheckedRuntimeTraceUnsupportedV1::UnsupportedExpression),
-            ExprKind::Var(_)
-            | ExprKind::Lit(_)
-            | ExprKind::App(_, _)
-            | ExprKind::BinOp(_, _, _)
-            | ExprKind::UnOp(_, _)
-            | ExprKind::If(_, _, _)
-            | ExprKind::Block(_)
-            | ExprKind::Unit => None,
-        };
-        if let Some(reason) = unsupported {
-            self.checked_runtime_trace_fail_v1(reason);
-        }
-    }
-
-    fn checked_runtime_trace_validate_app_v1(&mut self, function: &Expr, args: &[Expr]) {
-        if self.checked_runtime_trace_v1.is_none() {
-            return;
-        }
-        if has_named_args(args) {
-            self.checked_runtime_trace_fail_v1(CheckedRuntimeTraceUnsupportedV1::NamedArguments);
-            return;
-        }
-        match &function.kind {
-            ExprKind::Field(_, _) => {
-                self.checked_runtime_trace_fail_v1(CheckedRuntimeTraceUnsupportedV1::ScopedCall);
-                return;
-            }
-            ExprKind::Var(_) => {}
-            _ => {
-                self.checked_runtime_trace_fail_v1(CheckedRuntimeTraceUnsupportedV1::DynamicCall);
-                return;
-            }
-        }
-        let Some(state) = self.checked_runtime_trace_v1.as_ref() else {
-            return;
-        };
-        let Some(site) = state.cursor.as_ref() else {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge,
-            );
-            return;
-        };
-        let Some(callable) = state.plan.call_targets.get(site) else {
-            self.checked_runtime_trace_fail_v1(CheckedRuntimeTraceUnsupportedV1::MissingCallTarget);
-            return;
-        };
-        if site == &state.plan.endpoint_root && callable != &state.plan.implicit_root_callable {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::EndpointRootMismatch,
-            );
-            return;
-        }
-        if !state.plan.callable_bodies.contains_key(callable) {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::MissingCallableBody,
-            );
-        }
-    }
-
-    fn eval_at_checked_runtime_site_v1(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        site: ExprSiteId,
-    ) -> Value {
-        let Some(state) = self.checked_runtime_trace_v1.as_mut() else {
-            return self.eval(expression, env);
-        };
-        let previous = state.cursor.replace(site);
-        let value = self.eval_inner(expression, env);
-        if let Some(state) = self.checked_runtime_trace_v1.as_mut() {
-            state.cursor = previous;
-        }
-        value
-    }
-
-    fn eval_checked_runtime_descendant_v1(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        descendants: &[usize],
-    ) -> Value {
-        if self.checked_runtime_trace_v1.is_none() {
-            return self.eval(expression, env);
-        }
-        let Some(parent) = self.checked_runtime_trace_current_site_v1() else {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge,
-            );
-            return self.eval_inner(expression, env);
-        };
-        let Some(site) = parent.checked_descendant(descendants) else {
-            self.checked_runtime_trace_fail_v1(CheckedRuntimeTraceUnsupportedV1::SitePathOverflow);
-            return self.eval_inner(expression, env);
-        };
-        self.eval_at_checked_runtime_site_v1(expression, env, site)
-    }
-
-    fn eval_checked_runtime_child_v1(
-        &mut self,
-        expression: &Expr,
-        env: &Env,
-        child: usize,
-    ) -> Value {
-        self.eval_checked_runtime_descendant_v1(expression, env, &[child])
-    }
-
-    fn begin_checked_runtime_application_v1(
-        &mut self,
-        actual: Option<&CheckedRuntimeCallableIdentityV1>,
-    ) -> Option<CheckedRuntimeApplicationTokenV1> {
-        let state = self.checked_runtime_trace_v1.as_mut()?;
-        if state.has_integrity_failure() {
-            return None;
-        }
-        let Some(call_site) = state.cursor.clone() else {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge);
-            return None;
-        };
-        let Some(callable) = state.plan.call_targets.get(&call_site).cloned() else {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::MissingCallTarget);
-            return None;
-        };
-        if !actual.is_some_and(|actual| {
-            actual.analysis_program == state.plan.analysis_program && actual.callable == callable
-        }) {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::RuntimeCallableMismatch);
-            return None;
-        }
-        let Some(body_site) = state.plan.callable_bodies.get(&callable).cloned() else {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::MissingCallableBody);
-            return None;
-        };
-        if state.active_callables.contains(&callable) {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::RecursiveCall);
-            return None;
-        }
-        let application = CheckedRuntimeApplicationKeyV1 {
-            enclosing: state.activations.clone().into_boxed_slice(),
-            call_site: call_site.clone(),
-            callable: callable.clone(),
-        };
-        if !state.seen_applications.insert(application) {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::RepeatedCall);
-            return None;
-        }
-        let activation_len = state.activations.len();
-        if call_site != state.plan.endpoint_root {
-            state.activations.push(CheckedRuntimeFunctionActivationV1 {
-                call_site,
-                callable: callable.clone(),
-                invocation_ordinal: 0,
-            });
-        } else if callable != state.plan.implicit_root_callable {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::EndpointRootMismatch);
-            return None;
-        }
-        state.active_callables.insert(callable.clone());
-        Some(CheckedRuntimeApplicationTokenV1 {
-            callable,
-            body_site,
-            activation_len,
-        })
-    }
-
-    fn finish_checked_runtime_application_v1(
-        &mut self,
-        application: CheckedRuntimeApplicationTokenV1,
-    ) {
-        if let Some(state) = self.checked_runtime_trace_v1.as_mut() {
-            state.activations.truncate(application.activation_len);
-            state.active_callables.remove(&application.callable);
-        }
-    }
-
-    fn checked_runtime_trace_expects_function_v1(&self) -> bool {
-        let Some(state) = self.checked_runtime_trace_v1.as_ref() else {
-            return false;
-        };
-        state
-            .cursor
-            .as_ref()
-            .is_some_and(|site| state.plan.call_targets.contains_key(site))
-    }
-
-    fn record_checked_runtime_if_v1(&mut self, decision: CheckedRuntimeIfDecisionV1) {
-        let Some(state) = self.checked_runtime_trace_v1.as_mut() else {
-            return;
-        };
-        if state.unsupported.is_some() {
-            return;
-        }
-        let Some(site) = state.cursor.clone() else {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge);
-            return;
-        };
-        if !state.plan.allowed_if_sites.contains(&site) {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::IfSiteNotAllowed);
-            return;
-        }
-        if state.event.is_some() {
-            state.fail(CheckedRuntimeTraceUnsupportedV1::MultipleEvents);
-            return;
-        }
-        state.event = Some(CheckedRuntimeIfEventV1 {
-            activation_path: state.activations.clone().into_boxed_slice(),
-            site,
-            decision,
-            visit_ordinal: 0,
-        });
-    }
-
-    fn checked_runtime_rule_trace_note_application_v1(&mut self, function: &Expr, args: &[Expr]) {
-        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
-            return;
-        };
-        if state.has_integrity_failure() {
-            return;
-        }
-        if !state.endpoint_evaluation_active {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootMismatch);
-            return;
-        }
-        if state.endpoint_application_seen {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::NestedApplication);
-            return;
-        }
-        if has_named_args(args) {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::NamedArguments);
-            return;
-        }
-        let ExprKind::Var(name) = &function.kind else {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointRootNotApplication);
-            return;
-        };
-        if state.plan.family.scope.is_some()
-            || name != &state.plan.family.name
-            || args.len() != state.plan.family.arity
-        {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::EndpointTargetMismatch);
-            return;
-        }
-        state.endpoint_application_seen = true;
-    }
-
-    fn checked_runtime_rule_trace_fail_v1(&mut self, reason: CheckedRuntimeRuleTraceUnsupportedV1) {
-        if let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() {
-            state.fail(reason);
-        }
-    }
-
-    fn checked_runtime_rule_dispatch_candidate_identities_v1(
-        &self,
-        dispatch: &PreparedRuntimeRuleDispatch,
-    ) -> Option<Vec<CheckedRuntimeRuleCandidateIdentityV1>> {
-        dispatch
-            .exceptions
-            .iter()
-            .chain(dispatch.conditional_defaults.iter())
-            .chain(dispatch.clauses.iter())
-            .chain(dispatch.unconditional_defaults.iter())
-            .map(|index| {
-                let token = dispatch.checked_candidate_tokens.get(*index)?.as_ref()?;
-                self.checked_runtime_rule_candidate_tokens_v1
-                    .get(token)
-                    .cloned()
-            })
-            .collect()
-    }
-
-    fn begin_checked_runtime_rule_dispatch_v1(&mut self, dispatch: &PreparedRuntimeRuleDispatch) {
-        if self.checked_runtime_rule_trace_v1.is_none() {
-            return;
-        }
-        let actual = self.checked_runtime_rule_dispatch_candidate_identities_v1(dispatch);
-        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
-            return;
-        };
-        if state.unsupported.is_some() {
-            return;
-        }
-        if !state.endpoint_application_seen {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MissingDispatch);
-            return;
-        }
-        if state.dispatch_seen || state.dispatch_active {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::MultipleDispatches);
-            return;
-        }
-        let Some(actual) = actual else {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateIdentityMissing);
-            return;
-        };
-        if actual.len() != state.plan.candidates.len()
-            || actual
-                .iter()
-                .zip(state.plan.candidates.iter())
-                .any(|(actual, expected)| {
-                    actual.analysis_program != state.plan.analysis_program
-                        || actual.family != state.plan.family
-                        || &actual.candidate != expected
-                })
-        {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateSetMismatch);
-            return;
-        }
-        state.dispatch_seen = true;
-        state.dispatch_active = true;
-    }
-
-    fn checked_runtime_rule_candidate_identity_v1(
-        &self,
-        dispatch: &PreparedRuntimeRuleDispatch,
-        matching_index: usize,
-    ) -> Option<CheckedRuntimeRuleCandidateIdentityV1> {
-        let token = dispatch
-            .checked_candidate_tokens
-            .get(matching_index)?
-            .as_ref()?;
-        self.checked_runtime_rule_candidate_tokens_v1
-            .get(token)
-            .cloned()
-    }
-
-    fn record_checked_runtime_rule_attempt_v1(
-        &mut self,
-        dispatch: &PreparedRuntimeRuleDispatch,
-        matching_index: usize,
-        outcome: CheckedRuntimeRuleAttemptOutcomeV1,
-    ) {
-        if self.checked_runtime_rule_trace_v1.is_none() {
-            return;
-        }
-        let actual = self.checked_runtime_rule_candidate_identity_v1(dispatch, matching_index);
-        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
-            return;
-        };
-        if state.unsupported.is_some() {
-            return;
-        }
-        if !state.dispatch_active {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::UnbalancedTrace);
-            return;
-        }
-        let Some(actual) = actual else {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeCandidateIdentityMissing);
-            return;
-        };
-        let Some(expected) = state.plan.candidates.get(state.next_candidate_index) else {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
-            return;
-        };
-        if actual.analysis_program != state.plan.analysis_program
-            || actual.family != state.plan.family
-            || &actual.candidate != expected
-        {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
-            return;
-        }
-        let outcome_matches_tier = match outcome {
-            CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch
-            | CheckedRuntimeRuleAttemptOutcomeV1::Applicable => true,
-            CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse => matches!(
-                actual.candidate.tier,
-                RuleDispatchTier::Exception | RuleDispatchTier::ConditionalDefault
-            ),
-            CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse => {
-                actual.candidate.tier == RuleDispatchTier::Clause
-            }
-        };
-        if !outcome_matches_tier {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::RuntimeAttemptOrderMismatch);
-            return;
-        }
-        if !state
-            .attempted_source_orders
-            .insert(actual.candidate.source_order)
-        {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::DuplicateAttempt);
-            return;
-        }
-        state.attempts.push(CheckedRuntimeRuleAttemptEventV1 {
-            candidate: actual.candidate,
-            outcome,
-            visit_ordinal: 0,
-        });
-        state.next_candidate_index += 1;
-    }
-
-    fn record_checked_runtime_rule_selection_v1(
-        &mut self,
-        dispatch: &PreparedRuntimeRuleDispatch,
-        selected_matching_index: Option<usize>,
-    ) {
-        if self.checked_runtime_rule_trace_v1.is_none() {
-            return;
-        }
-        let selected = selected_matching_index
-            .and_then(|index| self.checked_runtime_rule_candidate_identity_v1(dispatch, index));
-        let Some(state) = self.checked_runtime_rule_trace_v1.as_mut() else {
-            return;
-        };
-        if state.unsupported.is_some() {
-            return;
-        }
-        if !state.dispatch_active || state.selection.is_some() {
-            state.fail(CheckedRuntimeRuleTraceUnsupportedV1::InvalidSelection);
-            return;
-        }
-        let selection = match (selected_matching_index, selected) {
-            (Some(_), Some(selected))
-                if selected.analysis_program == state.plan.analysis_program
-                    && selected.family == state.plan.family
-                    && state.attempts.last().is_some_and(|attempt| {
-                        attempt.candidate == selected.candidate
-                            && attempt.outcome == CheckedRuntimeRuleAttemptOutcomeV1::Applicable
-                    }) =>
-            {
-                CheckedRuntimeRuleSelectionV1::Selected(selected.candidate)
-            }
-            (None, None)
-                if state.attempts.iter().all(|attempt| {
-                    attempt.outcome != CheckedRuntimeRuleAttemptOutcomeV1::Applicable
-                }) && state.next_candidate_index == state.plan.candidates.len() =>
-            {
-                CheckedRuntimeRuleSelectionV1::NoApplicableRule
-            }
-            _ => {
-                state.fail(CheckedRuntimeRuleTraceUnsupportedV1::InvalidSelection);
-                return;
-            }
-        };
-        state.selection = Some(selection);
-        state.dispatch_active = false;
-    }
-
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
-        if self.checked_runtime_trace_v1.is_some() {
-            self.checked_runtime_trace_fail_v1(
-                CheckedRuntimeTraceUnsupportedV1::UncheckedEvaluationEdge,
-            );
-        }
-        self.eval_inner(expr, env)
-    }
-
-    fn eval_inner(&mut self, expr: &Expr, env: &Env) -> Value {
-        self.checked_runtime_trace_validate_expression_v1(expr);
         if self.step_limit > 0 {
             self.step_count += 1;
             if self.step_count > self.step_limit {
@@ -17835,7 +16824,7 @@ impl Interpreter {
                         name: Some(name.clone()),
                         params: definition.params,
                         body: definition.body,
-                        env: self.checked_runtime_named_closure_env_v1(name, env.clone()),
+                        env: env.clone(),
                     }
                 } else if self.has_callable_rule(name) {
                     Value::Builtin(format!("rule:{}", name))
@@ -17861,15 +16850,10 @@ impl Interpreter {
                 Literal::Bool(b) => Value::Bool(*b),
             },
             ExprKind::App(func, args) => {
-                self.checked_runtime_rule_trace_note_application_v1(func, args);
-                self.checked_runtime_trace_validate_app_v1(func, args);
                 if let ExprKind::Field(obj, method) = &func.as_ref().kind {
-                    let obj_val = self.eval_checked_runtime_descendant_v1(obj, env, &[0, 0]);
+                    let obj_val = self.eval(obj, env);
                     if let Value::RuleScopeInstance { name, bindings } = obj_val {
                         if self.rule_scope_has_rule_method(&name, method, args.len()) {
-                            self.checked_runtime_trace_fail_v1(
-                                CheckedRuntimeTraceUnsupportedV1::ScopedCall,
-                            );
                             return self
                                 .eval_rule_scope_method(&name, &bindings, method, args, env);
                         }
@@ -17898,9 +16882,6 @@ impl Interpreter {
                         ));
                     }
                     if let Some(result) = self.try_effect_dispatch(fn_name, args, env) {
-                        self.checked_runtime_trace_fail_v1(
-                            CheckedRuntimeTraceUnsupportedV1::DynamicCall,
-                        );
                         return result;
                     }
                     // findall(template_var, goal) — collect all solutions
@@ -17928,9 +16909,6 @@ impl Interpreter {
                         };
                     }
                     if let Some(result) = self.try_active_rule_scope_call(fn_name, args, env) {
-                        self.checked_runtime_trace_fail_v1(
-                            CheckedRuntimeTraceUnsupportedV1::ScopedCall,
-                        );
                         return result;
                     }
                     if let Some(local_callable) = env.get(fn_name).cloned() {
@@ -17942,10 +16920,7 @@ impl Interpreter {
                                     })
                             } else {
                                 args.iter()
-                                    .enumerate()
-                                    .map(|(index, argument)| {
-                                        self.eval_checked_runtime_child_v1(argument, env, index + 1)
-                                    })
+                                    .map(|argument| self.eval(argument, env))
                                     .collect()
                             };
                             return self.apply(local_callable, arg_vals, env);
@@ -17953,9 +16928,6 @@ impl Interpreter {
                     }
                     if self.constructor_signatures.contains_key(fn_name) {
                         if let Some(value) = self.eval_constructor_call(fn_name, args, env) {
-                            self.checked_runtime_trace_fail_v1(
-                                CheckedRuntimeTraceUnsupportedV1::DynamicCall,
-                            );
                             return value;
                         }
                     }
@@ -17965,7 +16937,7 @@ impl Interpreter {
                                 name: Some(fn_name.clone()),
                                 params: def.params.clone(),
                                 body: def.body.clone(),
-                                env: self.checked_runtime_named_closure_env_v1(fn_name, Env::new()),
+                                env: Env::new(),
                             };
                             let arg_vals = self
                                 .eval_named_args_by_names(&def.params, args, env)
@@ -17975,9 +16947,6 @@ impl Interpreter {
                     }
                     // Check if this is a rule call (| name(...) -> value)
                     if let Some(result) = self.try_rule_call(fn_name, args, env) {
-                        self.checked_runtime_trace_fail_v1(
-                            CheckedRuntimeTraceUnsupportedV1::RuleCall,
-                        );
                         return result;
                     }
                     // A known exact global family preserves the legacy empty
@@ -18005,13 +16974,10 @@ impl Interpreter {
                         }
                     }
                 }
-                let f = self.eval_checked_runtime_child_v1(func, env, 0);
+                let f = self.eval(func, env);
                 let arg_vals: Vec<Value> = args
                     .iter()
-                    .enumerate()
-                    .map(|(index, argument)| {
-                        self.eval_checked_runtime_child_v1(argument, env, index + 1)
-                    })
+                    .map(|argument| self.eval(argument, env))
                     .collect();
                 self.apply(f, arg_vals, env)
             }
@@ -18025,30 +16991,25 @@ impl Interpreter {
                 }
             }
             ExprKind::BinOp(op, lhs, rhs) => {
-                if op == "&&" || op == "||" {
-                    self.checked_runtime_trace_fail_v1(
-                        CheckedRuntimeTraceUnsupportedV1::ShortCircuit,
-                    );
-                }
-                let l = self.eval_checked_runtime_child_v1(lhs, env, 0);
+                let l = self.eval(lhs, env);
                 // Short-circuit for && and ||
                 if op == "&&" {
                     return match l {
                         Value::Bool(false) => Value::Bool(false),
-                        _ => self.eval_checked_runtime_child_v1(rhs, env, 1),
+                        _ => self.eval(rhs, env),
                     };
                 }
                 if op == "||" {
                     return match l {
                         Value::Bool(true) => Value::Bool(true),
-                        _ => self.eval_checked_runtime_child_v1(rhs, env, 1),
+                        _ => self.eval(rhs, env),
                     };
                 }
-                let r = self.eval_checked_runtime_child_v1(rhs, env, 1);
+                let r = self.eval(rhs, env);
                 self.eval_binop(op, l, r)
             }
             ExprKind::UnOp(op, operand) => {
-                let v = self.eval_checked_runtime_child_v1(operand, env, 0);
+                let v = self.eval(operand, env);
                 match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
                     ("-", Value::Int(n)) if self.ground_collection_limit.is_some() => {
@@ -18062,24 +17023,11 @@ impl Interpreter {
                     _ => Value::Unit,
                 }
             }
-            ExprKind::If(cond, then_, else_) => {
-                match self.eval_checked_runtime_child_v1(cond, env, 0) {
-                    Value::Bool(true) => {
-                        self.record_checked_runtime_if_v1(CheckedRuntimeIfDecisionV1::Then);
-                        self.eval_checked_runtime_child_v1(then_, env, 1)
-                    }
-                    Value::Bool(false) => {
-                        self.record_checked_runtime_if_v1(CheckedRuntimeIfDecisionV1::Else);
-                        self.eval_checked_runtime_child_v1(else_, env, 2)
-                    }
-                    _ => {
-                        self.checked_runtime_trace_fail_v1(
-                            CheckedRuntimeTraceUnsupportedV1::NonBooleanIf,
-                        );
-                        self.eval_checked_runtime_child_v1(then_, env, 1)
-                    }
-                }
-            }
+            ExprKind::If(cond, then_, else_) => match self.eval(cond, env) {
+                Value::Bool(true) => self.eval(then_, env),
+                Value::Bool(false) => self.eval(else_, env),
+                _ => self.eval(then_, env),
+            },
             ExprKind::Match(scrut, arms) => {
                 let val = self.eval(scrut, env);
                 let allow_bare_fielded_tag = matches!(scrut.kind, ExprKind::Var(_))
@@ -18089,28 +17037,6 @@ impl Interpreter {
                 self.eval_match(val, arms, env, allow_bare_fielded_tag)
             }
             ExprKind::Block(stmts) => {
-                if self.checked_runtime_trace_v1.is_some() {
-                    if let [Stmt::Expr(expression)] = stmts.as_slice() {
-                        let mut block_env = env.child();
-                        let mut last = self.eval_checked_runtime_descendant_v1(
-                            expression,
-                            &block_env,
-                            &[0, 0],
-                        );
-                        if let Value::Constructor(ref name, ref args) = last {
-                            if name == "__Teardown" {
-                                if let Some(Value::Str(scope_name)) = args.first() {
-                                    block_env.remove(scope_name);
-                                }
-                                last = Value::Unit;
-                            }
-                        }
-                        return last;
-                    }
-                    self.checked_runtime_trace_fail_v1(
-                        CheckedRuntimeTraceUnsupportedV1::UnsupportedBlock,
-                    );
-                }
                 let mut block_env = env.child();
                 self.run_statement_block(stmts, &mut block_env)
             }
@@ -18354,7 +17280,6 @@ impl Interpreter {
     }
 
     pub fn apply(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
-        let checked_function_expected = self.checked_runtime_trace_expects_function_v1();
         match func {
             Value::Closure {
                 ref name,
@@ -18364,73 +17289,35 @@ impl Interpreter {
             } => {
                 // Named functions: use call-site env (has builtins, other fns)
                 // Lambdas: use captured env (has enclosing scope vars)
-                let uses_call_env = name.is_some()
-                    && env.parent.is_none()
-                    && env
-                        .bindings
-                        .keys()
-                        .all(|binding| binding == CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1);
+                let uses_call_env =
+                    name.is_some() && env.bindings.is_empty() && env.parent.is_none();
                 let base_env = if uses_call_env { call_env } else { env };
                 let mut call = base_env.child();
                 for (p, a) in params.iter().zip(args.iter()) {
                     call.set(p.clone(), a.clone());
                 }
-                let actual_checked_callable = self.checked_runtime_callable_identity_v1(env);
-                let checked_application =
-                    self.begin_checked_runtime_application_v1(actual_checked_callable.as_ref());
-                let checked_body_site = checked_application
-                    .as_ref()
-                    .map(|application| application.body_site.clone());
                 let rulescope_self = base_env.get("__rulescope_self").cloned();
-                let result =
-                    if let Some(Value::RuleScopeInstance { name, bindings }) = rulescope_self {
-                        self.active_rule_scopes.push(RuleScopeFrame {
-                            name,
-                            bindings,
-                            memoized_zero_arg_rules: HashMap::new(),
-                        });
-                        let result = match checked_body_site {
-                            Some(site) => self.eval_at_checked_runtime_site_v1(body, &call, site),
-                            None => self.eval(body, &call),
-                        };
-                        self.active_rule_scopes.pop();
-                        result
-                    } else {
-                        match checked_body_site {
-                            Some(site) => self.eval_at_checked_runtime_site_v1(body, &call, site),
-                            None => self.eval(body, &call),
-                        }
-                    };
-                if let Some(application) = checked_application {
-                    self.finish_checked_runtime_application_v1(application);
+                if let Some(Value::RuleScopeInstance { name, bindings }) = rulescope_self {
+                    self.active_rule_scopes.push(RuleScopeFrame {
+                        name,
+                        bindings,
+                        memoized_zero_arg_rules: HashMap::new(),
+                    });
+                    let result = self.eval(body, &call);
+                    self.active_rule_scopes.pop();
+                    result
+                } else {
+                    self.eval(body, &call)
                 }
-                result
             }
-            Value::Builtin(ref name) => {
-                if checked_function_expected {
-                    self.checked_runtime_trace_fail_v1(
-                        CheckedRuntimeTraceUnsupportedV1::RuntimeCallableMismatch,
-                    );
-                }
-                self.eval_builtin(name, args, call_env)
-            }
+            Value::Builtin(ref name) => self.eval_builtin(name, args, call_env),
             Value::Constructor(name, existing) => {
-                if checked_function_expected {
-                    self.checked_runtime_trace_fail_v1(
-                        CheckedRuntimeTraceUnsupportedV1::RuntimeCallableMismatch,
-                    );
-                }
                 // Partial application of constructor
                 let mut all = Rc::unwrap_or_clone(existing);
                 all.extend(args);
                 Value::Constructor(name, all.into())
             }
             _ => {
-                if checked_function_expected {
-                    self.checked_runtime_trace_fail_v1(
-                        CheckedRuntimeTraceUnsupportedV1::RuntimeCallableMismatch,
-                    );
-                }
                 self.output.push(format!("Error: cannot apply {}", func));
                 Value::Unit
             }
@@ -21319,30 +20206,6 @@ impl Interpreter {
             .collect()
     }
 
-    fn rules_named_with_checked_tokens_v1(
-        &self,
-        name: &str,
-    ) -> (
-        Vec<Rc<Rule>>,
-        Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
-    ) {
-        let mut rules = Vec::new();
-        let mut tokens = Vec::new();
-        for index in self.rules_by_name.get(name).into_iter().flatten().copied() {
-            let Some((_, rule)) = self.rules.get(index) else {
-                continue;
-            };
-            rules.push(rule.clone());
-            tokens.push(
-                self.registered_rule_candidate_tokens_v1
-                    .get(index)
-                    .copied()
-                    .flatten(),
-            );
-        }
-        (rules, tokens)
-    }
-
     fn exact_prepared_rule_dispatch_is_active(&self) -> bool {
         self.exact_prepared_rule_dispatch_enabled && self.exhaustive_preview_forbid_effects
     }
@@ -21382,17 +20245,12 @@ impl Interpreter {
 
     fn prepare_runtime_rule_dispatch(
         matching: Vec<Rc<Rule>>,
-        checked_candidate_tokens: Vec<Option<CheckedRuntimeRuleCandidateTokenV1>>,
         arity: usize,
     ) -> Option<PreparedRuntimeRuleDispatch> {
-        if matching.len() != checked_candidate_tokens.len() {
-            return None;
-        }
-        let (matching, checked_candidate_tokens): (Vec<_>, Vec<_>) = matching
+        let matching = matching
             .into_iter()
-            .zip(checked_candidate_tokens)
-            .filter(|(rule, _)| Self::rule_arity(rule.as_ref()) == Some(arity))
-            .unzip();
+            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(arity))
+            .collect::<Vec<_>>();
         if matching.is_empty() {
             return None;
         }
@@ -21433,7 +20291,6 @@ impl Interpreter {
 
         Some(PreparedRuntimeRuleDispatch {
             matching,
-            checked_candidate_tokens,
             exceptions,
             conditional_defaults,
             clauses,
@@ -21457,10 +20314,8 @@ impl Interpreter {
         if let Some(prepared) = self.exact_prepared_rule_dispatch.get(&key) {
             return Some(prepared.clone());
         }
-        let (matching, checked_candidate_tokens) = self.rules_named_with_checked_tokens_v1(name);
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
-            matching,
-            checked_candidate_tokens,
+            self.rules_named(name),
             arity,
         )?);
         self.exact_prepared_rule_dispatch
@@ -21483,11 +20338,8 @@ impl Interpreter {
             return Some(prepared.clone());
         }
         let definition = self.rule_scopes.get(scope).cloned()?;
-        let matching = Self::rule_scope_matching_rules(&definition, name, arity);
-        let checked_candidate_tokens = vec![None; matching.len()];
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
-            matching,
-            checked_candidate_tokens,
+            Self::rule_scope_matching_rules(&definition, name, arity),
             arity,
         )?);
         self.exact_prepared_rule_dispatch
@@ -21685,9 +20537,7 @@ impl Interpreter {
         env: &Env,
         matching: Vec<Rc<Rule>>,
     ) -> Option<Value> {
-        let checked_candidate_tokens = vec![None; matching.len()];
-        let prepared =
-            Self::prepare_runtime_rule_dispatch(matching, checked_candidate_tokens, args.len())?;
+        let prepared = Self::prepare_runtime_rule_dispatch(matching, args.len())?;
         self.try_rule_call_from_prepared(args, env, &prepared)
     }
 
@@ -21697,7 +20547,6 @@ impl Interpreter {
         env: &Env,
         dispatch: &PreparedRuntimeRuleDispatch,
     ) -> Option<Value> {
-        self.begin_checked_runtime_rule_dispatch_v1(dispatch);
         // Evaluate arguments once (in caller's env so variables resolve correctly).
         // Named rule calls are normalized to the declaration-order head names here
         // so exception/default/clause matching stays purely positional below.
@@ -21740,38 +20589,12 @@ impl Interpreter {
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     let cond_met = match condition {
-                        Some(cond) => match self.eval(cond, &rule_env) {
-                            Value::Bool(value) => value,
-                            _ => {
-                                self.checked_runtime_rule_trace_fail_v1(
-                                    CheckedRuntimeRuleTraceUnsupportedV1::NonBooleanGuard,
-                                );
-                                false
-                            }
-                        },
+                        Some(cond) => matches!(self.eval(cond, &rule_env), Value::Bool(true)),
                         None => true,
                     };
                     if cond_met {
-                        let result = self.eval(value, &rule_env);
-                        self.record_checked_runtime_rule_attempt_v1(
-                            dispatch,
-                            *index,
-                            CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                        );
-                        self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
-                        return Some(result);
+                        return Some(self.eval(value, &rule_env));
                     }
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse,
-                    );
-                } else {
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
-                    );
                 }
             }
         }
@@ -21786,36 +20609,9 @@ impl Interpreter {
             } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
-                    let cond_met = match self.eval(cond, &rule_env) {
-                        Value::Bool(value) => value,
-                        _ => {
-                            self.checked_runtime_rule_trace_fail_v1(
-                                CheckedRuntimeRuleTraceUnsupportedV1::NonBooleanGuard,
-                            );
-                            false
-                        }
-                    };
-                    if cond_met {
-                        let result = self.eval(value, &rule_env);
-                        self.record_checked_runtime_rule_attempt_v1(
-                            dispatch,
-                            *index,
-                            CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                        );
-                        self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
-                        return Some(result);
+                    if matches!(self.eval(cond, &rule_env), Value::Bool(true)) {
+                        return Some(self.eval(value, &rule_env));
                     }
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::GuardFalse,
-                    );
-                } else {
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
-                    );
                 }
             }
         }
@@ -21827,34 +20623,12 @@ impl Interpreter {
             if let Rule::Clause { head, body } = dispatch.matching[*index].as_ref() {
                 if let Some(rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
                     match body {
-                        None => {
-                            self.record_checked_runtime_rule_attempt_v1(
-                                dispatch,
-                                *index,
-                                CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                            );
-                            self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
-                            return Some(Value::Bool(true));
-                        }
+                        None => return Some(Value::Bool(true)), // bare fact — head matched
                         Some(body_expr) => {
                             if let ExprKind::Conjunction(goals) = &body_expr.kind {
                                 if self.eval_conjunction(goals, &rule_env) {
-                                    self.record_checked_runtime_rule_attempt_v1(
-                                        dispatch,
-                                        *index,
-                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                                    );
-                                    self.record_checked_runtime_rule_selection_v1(
-                                        dispatch,
-                                        Some(*index),
-                                    );
                                     return Some(Value::Bool(true));
                                 }
-                                self.record_checked_runtime_rule_attempt_v1(
-                                    dispatch,
-                                    *index,
-                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
-                                );
                                 matched_false_clause = true;
                             } else if let ExprKind::Disjunction(alts) = &body_expr.kind {
                                 // Disjunction: succeed if ANY alternative succeeds
@@ -21865,53 +20639,19 @@ impl Interpreter {
                                     _ => !matches!(self.eval(alt, &rule_env), Value::Bool(false)),
                                 });
                                 if ok {
-                                    self.record_checked_runtime_rule_attempt_v1(
-                                        dispatch,
-                                        *index,
-                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                                    );
-                                    self.record_checked_runtime_rule_selection_v1(
-                                        dispatch,
-                                        Some(*index),
-                                    );
                                     return Some(Value::Bool(true));
                                 }
-                                self.record_checked_runtime_rule_attempt_v1(
-                                    dispatch,
-                                    *index,
-                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
-                                );
                                 matched_false_clause = true;
                             } else {
                                 let result = self.eval(body_expr, &rule_env);
                                 if !matches!(result, Value::Bool(false)) {
-                                    self.record_checked_runtime_rule_attempt_v1(
-                                        dispatch,
-                                        *index,
-                                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                                    );
-                                    self.record_checked_runtime_rule_selection_v1(
-                                        dispatch,
-                                        Some(*index),
-                                    );
                                     return Some(result);
                                 }
-                                self.record_checked_runtime_rule_attempt_v1(
-                                    dispatch,
-                                    *index,
-                                    CheckedRuntimeRuleAttemptOutcomeV1::BodyFalse,
-                                );
                                 matched_false_clause = true;
                                 // Body returned false — backtrack to next clause
                             }
                         }
                     }
-                } else {
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
-                    );
                 }
             }
         }
@@ -21926,25 +20666,11 @@ impl Interpreter {
             } = rule
             {
                 if let Some(mut rule_env) = self.match_rule_head(head, &arg_vals, &base_env) {
-                    let result = self.eval(value, &rule_env);
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::Applicable,
-                    );
-                    self.record_checked_runtime_rule_selection_v1(dispatch, Some(*index));
-                    return Some(result);
-                } else {
-                    self.record_checked_runtime_rule_attempt_v1(
-                        dispatch,
-                        *index,
-                        CheckedRuntimeRuleAttemptOutcomeV1::HeadMismatch,
-                    );
+                    return Some(self.eval(value, &rule_env));
                 }
             }
         }
 
-        self.record_checked_runtime_rule_selection_v1(dispatch, None);
         matched_false_clause.then_some(Value::Bool(false))
     }
 
@@ -23639,465 +22365,6 @@ pub(crate) struct ExprSiteId {
     pub(crate) ast_path: Box<[u32]>,
 }
 
-impl ExprSiteId {
-    /// Derive one canonical AST child without truncating a host-sized index.
-    pub(crate) fn checked_child(&self, child: usize) -> Option<Self> {
-        self.checked_descendant(&[child])
-    }
-
-    /// Derive a canonical descendant. Intermediate path elements may denote
-    /// statement containers; only the returned location is an expression site.
-    pub(crate) fn checked_descendant(&self, descendants: &[usize]) -> Option<Self> {
-        let mut ast_path = self.ast_path.to_vec();
-        for descendant in descendants {
-            ast_path.push(u32::try_from(*descendant).ok()?);
-        }
-        Some(Self {
-            analysis_program: self.analysis_program.clone(),
-            declaration: self.declaration.clone(),
-            normalized_declaration_ordinal: self.normalized_declaration_ordinal,
-            ast_path: ast_path.into_boxed_slice(),
-        })
-    }
-}
-
-/// Immutable checked identity input for one exact endpoint trace. Cloning the
-/// plan is cheap: potentially large maps remain shared across fresh replays.
-#[derive(Debug, Clone)]
-pub(crate) struct CheckedRuntimeTracePlanV1 {
-    analysis_program: AnalysisProgramId,
-    endpoint_root: ExprSiteId,
-    implicit_root_callable: CheckedCallableId,
-    call_targets: Arc<BTreeMap<ExprSiteId, CheckedCallableId>>,
-    callable_bodies: Arc<BTreeMap<CheckedCallableId, ExprSiteId>>,
-    allowed_if_sites: Arc<BTreeSet<ExprSiteId>>,
-}
-
-impl CheckedRuntimeTracePlanV1 {
-    pub(crate) fn new(
-        analysis_program: AnalysisProgramId,
-        endpoint_root: ExprSiteId,
-        implicit_root_callable: CheckedCallableId,
-        call_targets: BTreeMap<ExprSiteId, CheckedCallableId>,
-        callable_bodies: BTreeMap<CheckedCallableId, ExprSiteId>,
-        allowed_if_sites: BTreeSet<ExprSiteId>,
-    ) -> Result<Self, String> {
-        if endpoint_root.analysis_program != analysis_program {
-            return Err("runtime trace endpoint belongs to another checked program".to_string());
-        }
-        match call_targets.get(&endpoint_root) {
-            Some(callable) if callable == &implicit_root_callable => {}
-            Some(_) => {
-                return Err(
-                    "runtime trace endpoint target disagrees with its implicit callable"
-                        .to_string(),
-                )
-            }
-            None => {
-                return Err(
-                    "runtime trace endpoint has no exact checked callable target".to_string(),
-                )
-            }
-        }
-        for (call_site, callable) in &call_targets {
-            if call_site.analysis_program != analysis_program {
-                return Err(
-                    "runtime trace call target belongs to another checked program".to_string(),
-                );
-            }
-            let Some(body_site) = callable_bodies.get(callable) else {
-                return Err(
-                    "runtime trace callable target has no exact checked body site".to_string(),
-                );
-            };
-            if body_site.analysis_program != analysis_program
-                || body_site.declaration != callable.declaration.declaration
-                || body_site.normalized_declaration_ordinal
-                    != callable.declaration.normalized_ordinal
-            {
-                return Err(
-                    "runtime trace callable body disagrees with its checked callable occurrence"
-                        .to_string(),
-                );
-            }
-        }
-        for (callable, body_site) in &callable_bodies {
-            if body_site.analysis_program != analysis_program
-                || body_site.declaration != callable.declaration.declaration
-                || body_site.normalized_declaration_ordinal
-                    != callable.declaration.normalized_ordinal
-            {
-                return Err(
-                    "runtime trace body map crosses a checked callable occurrence".to_string(),
-                );
-            }
-        }
-        if !callable_bodies.contains_key(&implicit_root_callable) {
-            return Err("runtime trace implicit callable has no checked body site".to_string());
-        }
-        if allowed_if_sites
-            .iter()
-            .any(|site| site.analysis_program != analysis_program)
-        {
-            return Err("runtime trace if site belongs to another checked program".to_string());
-        }
-        Ok(Self {
-            analysis_program,
-            endpoint_root,
-            implicit_root_callable,
-            call_targets: Arc::new(call_targets),
-            callable_bodies: Arc::new(callable_bodies),
-            allowed_if_sites: Arc::new(allowed_if_sites),
-        })
-    }
-
-    pub(crate) fn analysis_program(&self) -> &AnalysisProgramId {
-        &self.analysis_program
-    }
-
-    pub(crate) fn endpoint_root(&self) -> &ExprSiteId {
-        &self.endpoint_root
-    }
-
-    pub(crate) fn implicit_root_callable(&self) -> &CheckedCallableId {
-        &self.implicit_root_callable
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeIfDecisionV1 {
-    Then,
-    Else,
-}
-
-/// One outcome-free checked function activation. The strict V1 profile rejects
-/// repeated invocations, so every retained invocation ordinal is zero.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub(crate) struct CheckedRuntimeFunctionActivationV1 {
-    pub(crate) call_site: ExprSiteId,
-    pub(crate) callable: CheckedCallableId,
-    pub(crate) invocation_ordinal: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CheckedRuntimeIfEventV1 {
-    pub(crate) activation_path: Box<[CheckedRuntimeFunctionActivationV1]>,
-    pub(crate) site: ExprSiteId,
-    pub(crate) decision: CheckedRuntimeIfDecisionV1,
-    pub(crate) visit_ordinal: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CheckedRuntimeTraceV1 {
-    pub(crate) analysis_program: AnalysisProgramId,
-    pub(crate) endpoint_root: ExprSiteId,
-    pub(crate) implicit_root_callable: CheckedCallableId,
-    pub(crate) event: CheckedRuntimeIfEventV1,
-}
-
-/// Source syntax cannot contain NUL, so an ordinary Futuruna binding can never
-/// observe or forge this interpreter-private closure capability slot.
-const CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1: &str = "\0futuruna.checked-runtime-callable.v1";
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct CheckedRuntimeCallableLocatorV1 {
-    module: ModuleId,
-    name: Box<str>,
-    arity: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct CheckedRuntimeCallableTokenV1(i64);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct CheckedRuntimeCallableIdentityV1 {
-    analysis_program: AnalysisProgramId,
-    callable: CheckedCallableId,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct CheckedRuntimeRuleCandidateLocatorV1 {
-    module: ModuleId,
-    declaration_ordinal: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct CheckedRuntimeRuleCandidateTokenV1(i64);
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-struct CheckedRuntimeRuleCandidateIdentityV1 {
-    analysis_program: AnalysisProgramId,
-    family: RuleDispatchKey,
-    candidate: CheckedRuleCandidateResolution,
-}
-
-/// Immutable checked identity input for one direct global rule-family trace.
-/// The endpoint itself is the implicit root; this deliberately does not yet
-/// authorize nested, scoped, repeated, or first-class rule activation.
-#[derive(Debug, Clone)]
-pub(crate) struct CheckedRuntimeRuleTracePlanV1 {
-    analysis_program: AnalysisProgramId,
-    endpoint_root: ExprSiteId,
-    family: RuleDispatchKey,
-    candidates: Arc<[CheckedRuleCandidateResolution]>,
-}
-
-impl CheckedRuntimeRuleTracePlanV1 {
-    pub(crate) fn new(
-        analysis_program: AnalysisProgramId,
-        endpoint_root: ExprSiteId,
-        family: CheckedRuleFamilyResolution,
-    ) -> Result<Self, String> {
-        if endpoint_root.analysis_program != analysis_program {
-            return Err(
-                "runtime rule trace endpoint belongs to another checked program".to_string(),
-            );
-        }
-        if family.key.scope.is_some() {
-            return Err("runtime rule trace V1 requires a global rule family".to_string());
-        }
-        if family.candidates.is_empty() {
-            return Err("runtime rule trace family has no checked candidates".to_string());
-        }
-        let mut source_orders = BTreeSet::new();
-        for candidate in family.candidates.iter() {
-            if !candidate.statement_path.is_empty() {
-                return Err("runtime rule trace V1 requires top-level rule candidates".to_string());
-            }
-            if !source_orders.insert(candidate.source_order) {
-                return Err(
-                    "runtime rule trace family repeats a checked candidate source order"
-                        .to_string(),
-                );
-            }
-            if std::iter::once(&candidate.head_site)
-                .chain(candidate.condition_site.iter())
-                .chain(candidate.value_site.iter())
-                .any(|site| site.analysis_program != analysis_program)
-            {
-                return Err(
-                    "runtime rule trace candidate belongs to another checked program".to_string(),
-                );
-            }
-        }
-        Ok(Self {
-            analysis_program,
-            endpoint_root,
-            family: family.key,
-            candidates: Arc::from(family.candidates),
-        })
-    }
-
-    pub(crate) fn analysis_program(&self) -> &AnalysisProgramId {
-        &self.analysis_program
-    }
-
-    pub(crate) fn endpoint_root(&self) -> &ExprSiteId {
-        &self.endpoint_root
-    }
-
-    pub(crate) fn family(&self) -> &RuleDispatchKey {
-        &self.family
-    }
-
-    pub(crate) fn candidates(&self) -> &[CheckedRuleCandidateResolution] {
-        &self.candidates
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeRuleAttemptOutcomeV1 {
-    HeadMismatch,
-    GuardFalse,
-    BodyFalse,
-    Applicable,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CheckedRuntimeRuleAttemptEventV1 {
-    pub(crate) candidate: CheckedRuleCandidateResolution,
-    pub(crate) outcome: CheckedRuntimeRuleAttemptOutcomeV1,
-    pub(crate) visit_ordinal: u32,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeRuleSelectionV1 {
-    NoApplicableRule,
-    Selected(CheckedRuleCandidateResolution),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct CheckedRuntimeRuleTraceV1 {
-    pub(crate) analysis_program: AnalysisProgramId,
-    pub(crate) endpoint_root: ExprSiteId,
-    pub(crate) family: RuleDispatchKey,
-    pub(crate) attempts: Box<[CheckedRuntimeRuleAttemptEventV1]>,
-    pub(crate) selection: CheckedRuntimeRuleSelectionV1,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeRuleTraceUnsupportedV1 {
-    EndpointRootMismatch,
-    EndpointRootNotApplication,
-    EndpointTargetMismatch,
-    NamedArguments,
-    NestedApplication,
-    MissingDispatch,
-    MultipleDispatches,
-    RuntimeFamilyMismatch,
-    RuntimeCandidateIdentityMissing,
-    RuntimeCandidateSetMismatch,
-    RuntimeAttemptOrderMismatch,
-    DuplicateAttempt,
-    NonBooleanGuard,
-    InvalidSelection,
-    UnbalancedTrace,
-}
-
-impl CheckedRuntimeRuleTraceUnsupportedV1 {
-    pub(crate) const fn is_observation_unsupported(self) -> bool {
-        matches!(self, Self::NamedArguments | Self::NestedApplication)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeRuleTraceErrorV1 {
-    AlreadyActive,
-    NotActive,
-    Unsupported(CheckedRuntimeRuleTraceUnsupportedV1),
-}
-
-struct CheckedRuntimeRuleTraceStateV1 {
-    plan: CheckedRuntimeRuleTracePlanV1,
-    endpoint_evaluation_active: bool,
-    endpoint_application_seen: bool,
-    dispatch_active: bool,
-    dispatch_seen: bool,
-    next_candidate_index: usize,
-    attempted_source_orders: BTreeSet<usize>,
-    attempts: Vec<CheckedRuntimeRuleAttemptEventV1>,
-    selection: Option<CheckedRuntimeRuleSelectionV1>,
-    unsupported: Option<CheckedRuntimeRuleTraceUnsupportedV1>,
-}
-
-impl CheckedRuntimeRuleTraceStateV1 {
-    fn fail(&mut self, reason: CheckedRuntimeRuleTraceUnsupportedV1) {
-        let replace = match self.unsupported {
-            None => true,
-            Some(existing) => {
-                existing.is_observation_unsupported() && !reason.is_observation_unsupported()
-            }
-        };
-        if replace {
-            self.unsupported = Some(reason);
-        }
-    }
-
-    fn has_integrity_failure(&self) -> bool {
-        self.unsupported
-            .is_some_and(|reason| !reason.is_observation_unsupported())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeTraceUnsupportedV1 {
-    EndpointRootMismatch,
-    EndpointRootNotApplication,
-    SitePathOverflow,
-    UncheckedEvaluationEdge,
-    MissingCallTarget,
-    MissingCallableBody,
-    RuntimeCallableMismatch,
-    NamedArguments,
-    DynamicCall,
-    RuleCall,
-    ScopedCall,
-    ShortCircuit,
-    Match,
-    UnsupportedExpression,
-    UnsupportedBlock,
-    IfSiteNotAllowed,
-    NonBooleanIf,
-    RecursiveCall,
-    RepeatedCall,
-    MultipleEvents,
-    MissingEvent,
-    UnbalancedTrace,
-}
-
-impl CheckedRuntimeTraceUnsupportedV1 {
-    /// Profile boundaries are honest permanent-untraced evidence. Structural
-    /// plan/cursor/lifecycle mismatches are implementation failures and must
-    /// never be downgraded into semantic evidence.
-    pub(crate) const fn is_observation_unsupported(self) -> bool {
-        matches!(
-            self,
-            Self::NamedArguments
-                | Self::DynamicCall
-                | Self::RuleCall
-                | Self::ScopedCall
-                | Self::ShortCircuit
-                | Self::Match
-                | Self::UnsupportedExpression
-                | Self::UnsupportedBlock
-                | Self::RecursiveCall
-                | Self::RepeatedCall
-                | Self::MultipleEvents
-        )
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum CheckedRuntimeTraceErrorV1 {
-    AlreadyActive,
-    NotActive,
-    Unsupported(CheckedRuntimeTraceUnsupportedV1),
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-struct CheckedRuntimeApplicationKeyV1 {
-    enclosing: Box<[CheckedRuntimeFunctionActivationV1]>,
-    call_site: ExprSiteId,
-    callable: CheckedCallableId,
-}
-
-struct CheckedRuntimeApplicationTokenV1 {
-    callable: CheckedCallableId,
-    body_site: ExprSiteId,
-    activation_len: usize,
-}
-
-struct CheckedRuntimeTraceStateV1 {
-    plan: CheckedRuntimeTracePlanV1,
-    cursor: Option<ExprSiteId>,
-    activations: Vec<CheckedRuntimeFunctionActivationV1>,
-    active_callables: BTreeSet<CheckedCallableId>,
-    seen_applications: BTreeSet<CheckedRuntimeApplicationKeyV1>,
-    event: Option<CheckedRuntimeIfEventV1>,
-    unsupported: Option<CheckedRuntimeTraceUnsupportedV1>,
-}
-
-impl CheckedRuntimeTraceStateV1 {
-    /// Preserve the first reason within one class, but never let a semantic
-    /// profile limitation hide a checked-plan, cursor, or lifecycle failure.
-    fn fail(&mut self, reason: CheckedRuntimeTraceUnsupportedV1) {
-        let replace = match self.unsupported {
-            None => true,
-            Some(existing) => {
-                existing.is_observation_unsupported() && !reason.is_observation_unsupported()
-            }
-        };
-        if replace {
-            self.unsupported = Some(reason);
-        }
-    }
-
-    fn has_integrity_failure(&self) -> bool {
-        self.unsupported
-            .is_some_and(|reason| !reason.is_observation_unsupported())
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum SourcedImportKind {
     Root,
@@ -24776,6 +23043,7 @@ pub(crate) struct CheckedExploreQuerySites {
     pub(crate) bounds: Box<[CheckedExploreBoundSites]>,
     pub(crate) transition_after: Box<[ExprSiteId]>,
     pub(crate) boundary_step: Option<ExprSiteId>,
+    pub(crate) mechanism_observation: Option<ExprSiteId>,
     pub(crate) key: Box<[ExprSiteId]>,
     pub(crate) extrema: Box<[ExprSiteId]>,
     pub(crate) show: Box<[ExprSiteId]>,
@@ -24868,6 +23136,9 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// and transition schemas. Declared products are bound to their resolved
     /// occurrence-sensitive type owners, never merely to source spelling.
     pub(crate) transition_schemas: explore::TransitionSchemaIdentities,
+    /// Optional query-owned endpoint observation template. It is checked once
+    /// and evaluated at both semantic endpoints; output fields do not select it.
+    pub(crate) mechanism_observation: Option<explore::MechanismObservationIr>,
     pub(crate) question: RuleDispatchKey,
     pub(crate) sites: CheckedExploreQuerySites,
     /// Index into the public closed-query projection. Access must go through
@@ -24903,6 +23174,7 @@ pub(crate) enum CheckedExploreQueryArtifactIssue {
         dimension_index: usize,
     },
     TransitionSchemaIdentity(String),
+    MechanismObservation(String),
 }
 
 #[derive(Debug, Clone)]
@@ -25016,47 +23288,6 @@ impl TypeCheckArtifacts {
         ))
     }
 
-    /// Require the deliberately conservative mechanism-runtime source profile.
-    /// Root syntax is immutable, but an import would still point at a live file;
-    /// V1 therefore refuses the whole external module graph before a stream can
-    /// mint or open durable mechanism evidence.
-    pub(crate) fn require_mechanism_runtime_root_v1(&self) -> Result<(), String> {
-        let (statements, _) = self.checked_runtime_root_program_v1()?;
-        if self
-            .analysis_program
-            .declarations
-            .iter()
-            .any(|declaration| !matches!(declaration.import_kind, SourcedImportKind::Root))
-        {
-            return Err(
-                "mechanism replay V1 requires every checked declaration to belong to the immutable root module; external imports need a frozen module graph"
-                    .into(),
-            );
-        }
-        let mut external_import = None;
-        for statement in statements {
-            walk_ast_stmt(statement, &mut |child| {
-                let AstChild::Stmt(statement) = child else {
-                    return;
-                };
-                if external_import.is_none() {
-                    external_import = match statement {
-                        Stmt::Import(_) => Some("plain import"),
-                        Stmt::QualifiedImport(_, _) => Some("qualified import"),
-                        Stmt::HashImport(_, _) => Some("hash import"),
-                        _ => None,
-                    };
-                }
-            });
-        }
-        if let Some(kind) = external_import {
-            return Err(format!(
-                "mechanism replay V1 refuses a live {kind}; external imports need a frozen module graph"
-            ));
-        }
-        Ok(())
-    }
-
     /// Reject a caller buffer or source origin that differs from the immutable
     /// root snapshot selected by the artifact. Exact evaluation then uses only
     /// the artifact-owned slice returned above.
@@ -25160,6 +23391,15 @@ impl TypeCheckArtifacts {
         if transition_schemas != artifact.transition_schemas {
             return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
         }
+        let mechanism_observation = checked_explore_mechanism_observation(
+            &self.checked_resolutions,
+            closed_query,
+            &artifact.sites,
+        )
+        .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        if mechanism_observation != artifact.mechanism_observation {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
         let domain_digest = checked_explore_domain_digest(
             closed_query,
             &type_facts,
@@ -25256,6 +23496,11 @@ fn checked_explore_query_sites(
         child += 1;
         site
     });
+    let mechanism_observation = query.mechanism_observation.as_ref().map(|_| {
+        let site = program.expression_site(declaration, vec![child]);
+        child += 1;
+        site
+    });
     let key = query
         .output
         .key
@@ -25298,6 +23543,7 @@ fn checked_explore_query_sites(
         bounds: bounds.into_boxed_slice(),
         transition_after: transition_after.into_boxed_slice(),
         boundary_step,
+        mechanism_observation,
         key,
         extrema,
         show,
@@ -25312,6 +23558,7 @@ fn checked_explore_site_roots(sites: &CheckedExploreQuerySites) -> Vec<&ExprSite
         .map(|bound| &bound.expression)
         .chain(sites.transition_after.iter())
         .chain(sites.boundary_step.iter())
+        .chain(sites.mechanism_observation.iter())
         .chain(sites.key.iter())
         .chain(sites.extrema.iter())
         .chain(sites.show.iter())
@@ -25748,6 +23995,47 @@ fn checked_explore_transition_schema_identities(
     .map_err(CheckedExploreQueryArtifactIssue::TransitionSchemaIdentity)
 }
 
+fn checked_explore_mechanism_observation(
+    resolutions: &CheckedResolutionArtifacts,
+    query: &explore::ExploreQueryIr,
+    sites: &CheckedExploreQuerySites,
+) -> Result<Option<explore::MechanismObservationIr>, CheckedExploreQueryArtifactIssue> {
+    let Some(_) = &query.query.mechanism_observation else {
+        if sites.mechanism_observation.is_some() {
+            return Err(CheckedExploreQueryArtifactIssue::MechanismObservation(
+                "mechanism observation site exists without a checked query template".into(),
+            ));
+        }
+        return Ok(None);
+    };
+    let site = sites.mechanism_observation.clone().ok_or_else(|| {
+        CheckedExploreQueryArtifactIssue::MechanismObservation(
+            "checked mechanism observation has no occurrence-aware expression site".into(),
+        )
+    })?;
+    let state_type = match &query.transition.state_schema.identity {
+        TypedExploreProductSchemaIdentity::Declared { ty } => ty.clone(),
+        TypedExploreProductSchemaIdentity::Synthetic { .. }
+        | TypedExploreProductSchemaIdentity::Unit => {
+            return Err(CheckedExploreQueryArtifactIssue::MechanismObservation(
+                "mechanism observation requires an explicit declared State schema".into(),
+            ));
+        }
+    };
+    let context_type = match &query.transition.context_schema.identity {
+        TypedExploreProductSchemaIdentity::Declared { ty } => ty.clone(),
+        TypedExploreProductSchemaIdentity::Unit => Ty::Unit,
+        TypedExploreProductSchemaIdentity::Synthetic { .. } => {
+            return Err(CheckedExploreQueryArtifactIssue::MechanismObservation(
+                "mechanism observation requires an explicit Context schema".into(),
+            ));
+        }
+    };
+    explore::MechanismObservationIr::derive_checked(resolutions, site, state_type, context_type)
+        .map(Some)
+        .map_err(|error| CheckedExploreQueryArtifactIssue::MechanismObservation(error.to_string()))
+}
+
 fn checked_query_hash_component(hasher: &mut Sha256, label: &str, value: &str) {
     hasher.update((label.len() as u64).to_le_bytes());
     hasher.update(label.as_bytes());
@@ -26038,6 +24326,27 @@ fn hash_checked_typed_transition(hasher: &mut Sha256, transition: &TypedExploreT
             "after-membership-before-bound-index",
             &membership.before_bound_index.to_string(),
         );
+        match &membership.preconstruction {
+            TypedExploreAfterMembershipPreconstruction::RelativeIntStep {
+                step, step_ty, ..
+            } => {
+                checked_query_hash_component(
+                    hasher,
+                    "after-membership-preconstruction",
+                    "relative-int-step",
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "after-membership-step-type",
+                    &format!("{step_ty:?}"),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "after-membership-step",
+                    &format!("{:?}", strip_spans_expr(step)),
+                );
+            }
+        }
     }
 }
 
@@ -26136,6 +24445,22 @@ fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
         }
     }
     hash_checked_typed_transition(hasher, &query.transition);
+    match &query.mechanism_observation {
+        Some(observation) => {
+            checked_query_hash_component(hasher, "mechanism-observation", "present");
+            checked_query_hash_component(
+                hasher,
+                "mechanism-observation-callable",
+                &observation.callable_name,
+            );
+            checked_query_hash_component(
+                hasher,
+                "mechanism-observation-template",
+                &format!("{:?}", strip_spans_expr(&observation.endpoint_template)),
+            );
+        }
+        None => checked_query_hash_component(hasher, "mechanism-observation", "absent"),
+    }
     for (role, fields) in [
         ("key", query.output.key.as_slice()),
         ("show", query.output.show.as_slice()),
@@ -26727,7 +25052,7 @@ fn checked_explore_query_digest(
     finite_plan_facts: &[CheckedExploreFinitePlanFact],
 ) -> Box<str> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-query.v3\0");
+    hasher.update(b"futuruna.checked-explore-query.v4\0");
     checked_query_hash_component(&mut hasher, "analysis-program", program.id.as_str());
     checked_query_hash_component(&mut hasher, "declaration", &declaration.id.semantic_key());
     checked_query_hash_component(
@@ -26800,6 +25125,8 @@ fn build_checked_explore_query_artifacts(
             checked_explore_closed_facts(resolutions, closed_query)?;
         let transition_schemas =
             checked_explore_transition_schema_identities(resolutions, closed_query, &type_facts)?;
+        let mechanism_observation =
+            checked_explore_mechanism_observation(resolutions, closed_query, &sites)?;
         let domain_digest = checked_explore_domain_digest(
             closed_query,
             &type_facts,
@@ -26824,6 +25151,7 @@ fn build_checked_explore_query_artifacts(
             },
             domain_digest,
             transition_schemas,
+            mechanism_observation,
             question,
             sites,
             closed_query_index,
@@ -26892,6 +25220,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
     const BINDER_CAPTURE: u32 = 5;
     const BINDER_EXPLORE_OUTPUT: u32 = 6;
     const BINDER_EXPLORE_ROLE: u32 = 7;
+    const BINDER_EXPLORE_OBSERVATION_STATE: u32 = 8;
     const EXPLORE_OUTPUT_EXTREMA: u32 = 0;
     const EXPLORE_OUTPUT_SHOW: u32 = 1;
 
@@ -29025,6 +27354,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         let output_start = query.bounds.len()
             + transition_expression_count
             + usize::from(query.boundary.is_some())
+            + usize::from(query.mechanism_observation.is_some())
             + query.output.key.len();
         for (field_index, field) in query.output.extrema.iter().enumerate() {
             let expression_path = Self::path_child(path, output_start + field_index);
@@ -29114,6 +27444,34 @@ impl<'a> CheckedResolutionRecorder<'a> {
         if let Some(boundary) = &query.boundary {
             let expression_path = Self::path_child(path, child_index);
             self.record_expr(declaration, &boundary.step, &expression_path, false, false);
+            child_index += 1;
+        }
+        if let Some(observation) = &query.mechanism_observation {
+            let expression_path = Self::path_child(path, child_index);
+            self.push_scope();
+            self.define_local(
+                "state".to_string(),
+                CheckedLocalBinding {
+                    kind: CheckedBinderKind::ExploreValue,
+                    site: self.structural_binder_site(
+                        declaration,
+                        &expression_path,
+                        vec![Self::BINDER_EXPLORE_OBSERVATION_STATE],
+                    ),
+                    type_name: query
+                        .transition
+                        .as_ref()
+                        .map(|transition| transition.state_ty.to_string()),
+                },
+            );
+            self.record_expr(
+                declaration,
+                &observation.endpoint_template,
+                &expression_path,
+                false,
+                false,
+            );
+            self.pop_scope();
             child_index += 1;
         }
         for field in &query.output.key {
@@ -36195,6 +34553,362 @@ impl TypeChecker {
         )
     }
 
+    /// Builtins admitted by the observer-totality proof. This is deliberately
+    /// a closed allow-list: adding a builtin to the language cannot silently
+    /// make a previously sealed observer partial. Each admitted operation
+    /// returns a value for every runtime value shape and has no index, parsing,
+    /// arithmetic-overflow, callback, stream, or external-runtime edge.
+    fn explore_observation_builtin_is_total(name: &str) -> bool {
+        matches!(
+            builtin_canonical(name),
+            "show"
+                | "show_int"
+                | "show_float"
+                | "rust_debug"
+                | "length"
+                | "not"
+                | "contains"
+                | "starts_with"
+                | "ends_with"
+                | "index_of"
+                | "string_length"
+                | "is_some"
+                | "is_none"
+        )
+    }
+
+    fn explore_observation_expression_is_total_inner(
+        &self,
+        expression: &Expr,
+        bound: &BTreeSet<String>,
+        visiting: &mut BTreeSet<ExplorePurityNode>,
+        memo: &mut BTreeMap<ExplorePurityNode, bool>,
+    ) -> bool {
+        let mut locally_total = true;
+        walk_ast_expr(expression, &mut |child| match child {
+            AstChild::Expr(expression) => match &expression.kind {
+                // These forms either contain an intrinsically partial runtime
+                // edge or require a separate proof that v1 does not possess.
+                ExprKind::Index(_, _)
+                | ExprKind::Try(_)
+                | ExprKind::Effect(_, _)
+                | ExprKind::Handle { .. }
+                | ExprKind::Lambda(_, _)
+                | ExprKind::Match(_, _)
+                | ExprKind::Conjunction(_)
+                | ExprKind::Disjunction(_)
+                | ExprKind::Pipe(_, _) => locally_total = false,
+                // Exact exploration reports integer overflow and zero/overflow
+                // division as partial. Without a range proof, arithmetic cannot
+                // be sealed as total merely because it type-checks.
+                ExprKind::BinOp(operator, _, _)
+                    if !matches!(
+                        operator.as_str(),
+                        "==" | "!=" | "<" | ">" | "<=" | ">=" | "&&" | "||"
+                    ) =>
+                {
+                    locally_total = false
+                }
+                ExprKind::UnOp(operator, _) if !matches!(operator.as_str(), "!" | "&" | "&mut") => {
+                    locally_total = false
+                }
+                ExprKind::App(function, _) if !matches!(&function.kind, ExprKind::Var(_)) => {
+                    locally_total = false
+                }
+                _ => {}
+            },
+            AstChild::Stmt(statement) => {
+                // A block-local value binding is total exactly when its walked
+                // initializer is total. Destructuring and executable statement
+                // forms need separate failure/termination proofs.
+                if !matches!(statement, Stmt::Bind(Pat::Var(_), _, _) | Stmt::Expr(_)) {
+                    locally_total = false;
+                }
+            }
+        });
+        if !locally_total {
+            return false;
+        }
+
+        let callable_bound = BTreeSet::new();
+        let (supported, calls, scoped_calls) =
+            self.explore_expression_capabilities(expression, bound, &callable_bound);
+        if !supported || !scoped_calls.is_empty() {
+            return false;
+        }
+        // A lexically supplied closure is pure only under a concrete runtime
+        // guard; that is not a static termination/totality proof.
+        if collect_scoped_runtime_calls(expression, bound)
+            .iter()
+            .any(|call| call.lexically_bound)
+        {
+            return false;
+        }
+
+        for call in calls {
+            // A root value binding is consulted before global callable
+            // registries at runtime. Its initializer may be a dynamically
+            // selected closure, so a same-named constructor/function/builtin
+            // cannot provide the totality proof for this call.
+            if self
+                .explore_top_level_binding_initializers
+                .contains_key(&call.0)
+                || self
+                    .explore_unsupported_top_level_bindings
+                    .contains(&call.0)
+            {
+                return false;
+            }
+            if self
+                .constructors
+                .get(&call.0)
+                .is_some_and(|(_, arity)| *arity == call.1)
+            {
+                continue;
+            }
+            let dependency = ExplorePurityNode::Callable {
+                name: call.0.clone(),
+                arity: call.1,
+                active_scope: None,
+            };
+            if self
+                .explore_function_definitions_by_arity
+                .contains_key(&(call.0.clone(), call.1))
+            {
+                if !self.explore_observation_node_is_total_inner(&dependency, visiting, memo) {
+                    return false;
+                }
+                continue;
+            }
+            if self
+                .explore_rules_by_arity
+                .contains_key(&(call.0.clone(), call.1))
+            {
+                if !self.explore_observation_node_is_total_inner(&dependency, visiting, memo) {
+                    return false;
+                }
+                continue;
+            }
+            let canonical = builtin_canonical(&call.0);
+            if self
+                .builtins
+                .get(canonical)
+                .is_some_and(|arity| *arity == call.1)
+            {
+                if !Self::explore_observation_builtin_is_total(canonical) {
+                    return false;
+                }
+                continue;
+            }
+            // Scoped members, unknown runtime callables, and special compiler
+            // markers have no total dispatch proof in v1.
+            return false;
+        }
+
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expression, &mut uses, bound, &BTreeMap::new());
+        for name in uses.values {
+            if self
+                .explore_top_level_binding_initializers
+                .contains_key(&name)
+                || self.explore_unsupported_top_level_bindings.contains(&name)
+            {
+                if !self.explore_observation_node_is_total_inner(
+                    &ExplorePurityNode::TopLevelBinding(name),
+                    visiting,
+                    memo,
+                ) {
+                    return false;
+                }
+                continue;
+            }
+            if self
+                .constructors
+                .get(&name)
+                .is_some_and(|(_, arity)| *arity == 0)
+            {
+                continue;
+            }
+            // A first-class function, builtin, rule, module member, or unknown
+            // value has no sealed total-value identity in the observation IR.
+            return false;
+        }
+        true
+    }
+
+    fn explore_observation_rule_is_total_inner(
+        &self,
+        key: &(String, usize),
+        visiting: &mut BTreeSet<ExplorePurityNode>,
+        memo: &mut BTreeMap<ExplorePurityNode, bool>,
+    ) -> bool {
+        if self.rule_dispatch_has_opaque_runtime_graph
+            || self
+                .rule_dispatch_return_issues
+                .contains_key(&RuleDispatchKey {
+                    scope: None,
+                    name: key.0.clone(),
+                    arity: key.1,
+                })
+        {
+            return false;
+        }
+        let Some(rules) = self.explore_rules_by_arity.get(key) else {
+            return false;
+        };
+        let dispatch_key = RuleDispatchKey {
+            scope: None,
+            name: key.0.clone(),
+            arity: key.1,
+        };
+        if !self.rule_dispatch_return_types.contains_key(&dispatch_key) {
+            return false;
+        }
+        // Dispatch tiers may select an earlier exception/default/clause, but
+        // every candidate expression is checked below. If none selects, an
+        // unconditional irrefutable candidate must eventually yield a value;
+        // an independently proven Bool family instead has the checked False
+        // miss value.
+        let dispatch_is_total = self
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&dispatch_key)
+            || rules.iter().any(|rule| {
+                rule_head_is_irrefutable(rule)
+                    && match rule {
+                        Rule::Exception {
+                            condition: None, ..
+                        }
+                        | Rule::Default {
+                            condition: None, ..
+                        } => true,
+                        Rule::Clause { body, .. } => body.is_some(),
+                        _ => false,
+                    }
+            });
+        if !dispatch_is_total {
+            return false;
+        }
+
+        for rule in rules {
+            let Some(head) = rule.head() else {
+                return false;
+            };
+            let mut binding_counts = BTreeMap::new();
+            if let ExprKind::App(_, arguments) = &head.kind {
+                for argument in arguments {
+                    collect_rule_head_binding_counts(argument, &mut binding_counts);
+                }
+            }
+            let bound = binding_counts.into_keys().collect::<BTreeSet<_>>();
+            match rule {
+                Rule::Clause {
+                    body: Some(value), ..
+                } => {
+                    if !self.explore_observation_expression_is_total_inner(
+                        value, &bound, visiting, memo,
+                    ) {
+                        return false;
+                    }
+                }
+                Rule::Clause { body: None, .. } => {}
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => {
+                    if !self.explore_observation_expression_is_total_inner(
+                        value, &bound, visiting, memo,
+                    ) || condition.as_ref().is_some_and(|condition| {
+                        !self.explore_observation_expression_is_total_inner(
+                            condition, &bound, visiting, memo,
+                        )
+                    }) {
+                        return false;
+                    }
+                }
+                Rule::ReactiveScope { .. } => return false,
+            }
+        }
+        true
+    }
+
+    fn explore_observation_node_is_total_inner(
+        &self,
+        node: &ExplorePurityNode,
+        visiting: &mut BTreeSet<ExplorePurityNode>,
+        memo: &mut BTreeMap<ExplorePurityNode, bool>,
+    ) -> bool {
+        if let Some(total) = memo.get(node) {
+            return *total;
+        }
+        if !visiting.insert(node.clone()) {
+            return false;
+        }
+        let total = match node {
+            ExplorePurityNode::Callable {
+                name,
+                arity,
+                active_scope: None,
+            } => {
+                let key = (name.clone(), *arity);
+                let definitions = self.explore_function_definitions_by_arity.get(&key);
+                if let Some(definitions) = definitions {
+                    definitions.len() == 1
+                        && !self.explore_declared_effect_callables.contains(&key)
+                        && self.explore_observation_expression_is_total_inner(
+                            &definitions[0].2,
+                            &definitions[0]
+                                .0
+                                .iter()
+                                .map(|parameter| parameter.name.clone())
+                                .collect(),
+                            visiting,
+                            memo,
+                        )
+                } else {
+                    self.explore_observation_rule_is_total_inner(&key, visiting, memo)
+                }
+            }
+            ExplorePurityNode::TopLevelBinding(name) => {
+                let initializers = self.explore_top_level_binding_initializers.get(name);
+                !self.explore_unsupported_top_level_bindings.contains(name)
+                    && initializers.is_some_and(|initializers| {
+                        initializers.len() == 1
+                            && self.explore_observation_expression_is_total_inner(
+                                &initializers[0],
+                                &BTreeSet::new(),
+                                visiting,
+                                memo,
+                            )
+                    })
+            }
+            ExplorePurityNode::Callable {
+                active_scope: Some(_),
+                ..
+            }
+            | ExplorePurityNode::ScopedRule(_) => false,
+        };
+        visiting.remove(node);
+        memo.insert(node.clone(), total);
+        total
+    }
+
+    /// Conservative totality proof for an endpoint-observation template.
+    /// Mechanism replay cannot turn a partial observer into evidence, so every
+    /// reachable operation and value dependency must close under the proof.
+    fn explore_observation_callable_is_total(&self, key: &(String, usize)) -> bool {
+        self.explore_observation_node_is_total_inner(
+            &ExplorePurityNode::Callable {
+                name: key.0.clone(),
+                arity: key.1,
+                active_scope: None,
+            },
+            &mut BTreeSet::new(),
+            &mut BTreeMap::new(),
+        )
+    }
+
     fn explore_expression_is_pure(&self, expr: &Expr, bound: &BTreeSet<String>) -> bool {
         self.explore_expression_dependencies_are_pure_inner(
             expr,
@@ -37866,6 +36580,103 @@ impl TypeChecker {
             }
         }
 
+        let typed_mechanism_observation = query.mechanism_observation.as_ref().map(|observation| {
+            let Some(transition) = query.transition.as_ref() else {
+                self.error_at_span(
+                    observation.span,
+                    "`observe mechanisms with` requires an explicit typed transition",
+                );
+                return observation.clone();
+            };
+            let key = (observation.callable_name.clone(), 2_usize);
+            let definitions = self.explore_function_definitions_by_arity.get(&key).cloned();
+            let Some(definitions) = definitions else {
+                self.error_at_span(
+                    observation.span,
+                    format!(
+                        "mechanism observer `{}` must name one ordinary two-argument function",
+                        observation.callable_name
+                    ),
+                );
+                return observation.clone();
+            };
+            if definitions.len() != 1 {
+                self.error_at_span(
+                    observation.span,
+                    format!(
+                        "mechanism observer `{}` is ambiguous; exactly one checked function occurrence is required",
+                        observation.callable_name
+                    ),
+                );
+            }
+            if let Some((parameters, return_type, _)) = definitions.first() {
+                let expected = [&transition.state_ty, &transition.context_ty];
+                if parameters.len() != expected.len() {
+                    self.error_at_span(
+                        observation.span,
+                        "mechanism observer must have exactly `(State, Context) -> Observation`",
+                    );
+                } else {
+                    for (index, (parameter, expected)) in
+                        parameters.iter().zip(expected).enumerate()
+                    {
+                        match &parameter.ty {
+                            Some(actual) if Self::explore_tys_equivalent(actual, expected) => {}
+                            Some(actual) => self.error_at_span(
+                                observation.span,
+                                format!(
+                                    "mechanism observer parameter {} has type `{actual}`; expected `{expected}`",
+                                    index + 1
+                                ),
+                            ),
+                            None => self.error_at_span(
+                                observation.span,
+                                format!(
+                                    "mechanism observer parameter {} needs the explicit type `{expected}`",
+                                    index + 1
+                                ),
+                            ),
+                        }
+                    }
+                }
+                if return_type.is_none() {
+                    self.error_at_span(
+                        observation.span,
+                        "mechanism observer needs an explicit Observation result type",
+                    );
+                }
+            }
+            if !self.explore_callable_is_pure(&key) {
+                self.error_at_span(
+                    observation.span,
+                    "mechanism observer must be pure and use only exploration-supported operations",
+                );
+            } else if !self.explore_observation_callable_is_total(&key) {
+                self.error_at_span(
+                    observation.span,
+                    "mechanism observer must be total; recursive and runtime-partial observer templates are not supported",
+                );
+            }
+
+            self.push_scope();
+            self.define_var("state");
+            self.define_var_type("state", &transition.state_ty);
+            self.define_var("context");
+            self.define_var_type("context", &transition.context_ty);
+            self.check_explore_available_references(
+                &observation.endpoint_template,
+                &reserved_names,
+                &BTreeSet::from([
+                    "state".to_string(),
+                    "context".to_string(),
+                    observation.callable_name.clone(),
+                ]),
+            );
+            self.check_explore_expression(&observation.endpoint_template);
+            self.pop_scope();
+            observation.clone()
+        });
+
         let mut typed_key = Vec::with_capacity(query.output.key.len());
         let mut typed_extrema = Vec::with_capacity(query.output.extrema.len());
         let mut typed_show = Vec::with_capacity(query.output.show.len());
@@ -38061,6 +36872,11 @@ impl TypeChecker {
                                     TypedExploreAfterMembership {
                                         after_field_index,
                                         before_bound_index: boundary.axis_bound_index,
+                                        preconstruction: TypedExploreAfterMembershipPreconstruction::RelativeIntStep {
+                                            step: boundary.step.clone(),
+                                            step_ty: boundary.step_ty.clone(),
+                                            span: boundary.span,
+                                        },
                                     },
                                 )
                             },
@@ -38094,6 +36910,7 @@ impl TypeChecker {
                 sliced_inputs,
                 bounds: typed_bounds,
                 transition,
+                mechanism_observation: typed_mechanism_observation,
                 output: TypedExploreOutput {
                     key: typed_key,
                     extrema: typed_extrema,
@@ -41139,6 +39956,43 @@ mod tests {
     }
 
     #[test]
+    fn explore_parser_owns_one_mechanism_observation_template() {
+        let source = r#"
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse mechanism observation");
+        let Stmt::Explore(query) = &statements[0] else {
+            panic!("expected Explore query")
+        };
+        let observation = query
+            .mechanism_observation
+            .as_ref()
+            .expect("query-owned observation");
+        assert_eq!(observation.callable_name, "observe_income");
+        assert!(matches!(
+            &observation.endpoint_template.kind,
+            ExprKind::App(callable, arguments)
+                if matches!(&callable.kind, ExprKind::Var(name) if name == "observe_income")
+                    && matches!(&arguments[0].kind, ExprKind::Var(name) if name == "state")
+                    && matches!(&arguments[1].kind, ExprKind::Var(name) if name == "context")
+        ));
+        assert!(observation.endpoint_template.span == observation.span);
+    }
+
+    #[test]
     fn explore_parser_preserves_existing_proof_forms() {
         for source in [
             "? explore\n",
@@ -41155,7 +40009,7 @@ mod tests {
             );
         }
 
-        let words = "explore over find bounds boundaries transition as context identity relative independent before after output key extrema having varies show representative";
+        let words = "explore over find bounds boundaries transition as context identity relative independent before after observe mechanisms with output key extrema having varies show representative";
         let mut lexer = Lexer::new(words);
         let tokens = lexer.tokenize();
         let identifiers = tokens
@@ -41559,6 +40413,296 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn explore_typechecker_seals_query_owned_mechanism_observation_ir() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    state.income
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income under context.step > 0
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("checked query-owned observation");
+        let observation = checked
+            .artifact
+            .mechanism_observation
+            .as_ref()
+            .expect("mechanism observation IR");
+        assert_eq!(
+            Some(&observation.template_site),
+            checked.artifact.sites.mechanism_observation.as_ref()
+        );
+        assert_eq!(observation.state_type.to_string(), "IncomeState");
+        assert_eq!(observation.context_type.to_string(), "IncomeContext");
+        assert_eq!(observation.observation_type.to_string(), "Int");
+        assert_eq!(observation.normalization_version, 1);
+        assert_eq!(observation.dependency_roots.len(), 1);
+        assert_eq!(observation.dependency_roots[0], observation.template_root);
+        assert_eq!(
+            observation
+                .endpoint_template
+                .declaration
+                .declaration
+                .name
+                .as_ref(),
+            "observe_income"
+        );
+
+        let request = explore::build_checked_mechanism_request_v1(
+            &artifacts,
+            0,
+            explore::MechanismObservationSelectionV1 {
+                retained_examples_per_signature: 1,
+            },
+        )
+        .expect("request derives from the query-owned template");
+        assert_eq!(request.observation.template, *observation);
+        assert!(request.observation.bin_fields.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_rejects_non_total_mechanism_observer() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    state.income / context.step
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert_eq!(
+            artifacts
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "mechanism observer must be total; recursive and runtime-partial observer templates are not supported"
+            ]
+        );
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.checked_exploration_queries.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_rejects_partial_builtin_in_mechanism_observer() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    = ignored: Int = nth([state.income], context.step)
+    state.income
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert_eq!(
+            artifacts
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "mechanism observer must be total; recursive and runtime-partial observer templates are not supported"
+            ]
+        );
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.checked_exploration_queries.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_rejects_partial_top_level_observer_dependency() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+= unstable_observation: Int = nth([1], 1)
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    unstable_observation
+    state.income
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert_eq!(
+            artifacts
+                .diagnostics
+                .iter()
+                .map(|diagnostic| diagnostic.message.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "mechanism observer must be total; recursive and runtime-partial observer templates are not supported"
+            ]
+        );
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.checked_exploration_queries.is_empty());
+    }
+
+    #[test]
+    fn explore_typechecker_accepts_total_rule_observer_dependency() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+| observed_amount(value: Int) -> value
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    observed_amount(state.income)
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        assert!(artifacts
+            .checked_exploration_query(0)
+            .expect("checked observer with total rule dependency")
+            .artifact
+            .mechanism_observation
+            .is_some());
+    }
+
+    #[test]
+    fn explore_typechecker_rejects_partial_rule_observer_dependency() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeContext = IncomeContext(step: Int)
+
+| observed_amount(value: Int) -> value under value > 0
+
+> observe_income(state: IncomeState, context: IncomeContext) -> Int {
+    observed_amount(state.income)
+}
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeContext) ->
+    after.income >= before.income
+
+? explore observed {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 3)
+    }
+    transition as IncomeState context IncomeContext {
+        relative
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output { key [income = before.income] representative first }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(artifacts.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message
+                == "mechanism observer must be total; recursive and runtime-partial observer templates are not supported"
+        }));
+        assert!(artifacts.exploration_queries.is_empty());
+        assert!(artifacts.checked_exploration_queries.is_empty());
     }
 
     #[test]
@@ -46029,6 +45173,7 @@ fn opaque(value: i64) -> i64 { value }
                     ],
                     transition: None,
                     boundary: None,
+                    mechanism_observation: None,
                     output: ExploreOutput {
                         key: vec![ExploreOutputField {
                             name: "key".to_string(),
@@ -47274,80 +46419,6 @@ handle <- Left
     }
 
     #[test]
-    fn checked_trace_integrity_failure_dominates_runtime_output_classification() {
-        assert!(
-            !CheckedRuntimeTraceUnsupportedV1::NonBooleanIf.is_observation_unsupported(),
-            "a checked `if` replaying to non-Bool is runtime/type integrity drift"
-        );
-        let analysis_program = AnalysisProgramId("trace-integrity-test".into());
-        let declaration = DeclarationId {
-            module: ModuleId::top_level("trace-integrity-module".to_string()),
-            kind: DeclarationKind::Function,
-            owner: None,
-            name: "expected".into(),
-            arity: Some(0),
-            ordinal: 0,
-        };
-        let occurrence = CheckedDeclarationOccurrenceId {
-            declaration: declaration.clone(),
-            declaration_occurrence_ordinal: 0,
-            normalized_ordinal: 0,
-        };
-        let callable = CheckedCallableId {
-            declaration: occurrence,
-            structural_path: Box::default(),
-        };
-        let root = ExprSiteId {
-            analysis_program: analysis_program.clone(),
-            declaration: declaration.clone(),
-            normalized_declaration_ordinal: 0,
-            ast_path: vec![0].into_boxed_slice(),
-        };
-        let body = ExprSiteId {
-            analysis_program: analysis_program.clone(),
-            declaration,
-            normalized_declaration_ordinal: 0,
-            ast_path: vec![1].into_boxed_slice(),
-        };
-        let plan = CheckedRuntimeTracePlanV1::new(
-            analysis_program,
-            root.clone(),
-            callable.clone(),
-            BTreeMap::from([(root.clone(), callable.clone())]),
-            BTreeMap::from([(callable, body)]),
-            BTreeSet::new(),
-        )
-        .expect("construct integrity-precedence trace plan");
-        let expression = Expr {
-            kind: ExprKind::App(
-                Box::new(Expr {
-                    kind: ExprKind::Var("not_callable".to_string()),
-                    span: Span::dummy(),
-                }),
-                Vec::new(),
-            ),
-            span: Span::dummy(),
-        };
-        let mut environment = Env::new();
-        environment.set("not_callable".to_string(), Value::Int(7));
-        let mut interpreter = Interpreter::new();
-        interpreter
-            .begin_checked_runtime_trace_v1(plan)
-            .expect("arm integrity-precedence trace");
-        let error = interpreter
-            .eval_exact_exploration_at(&expression, &environment, &root, 100, 100)
-            .expect_err("non-callable trace target must fail exact replay");
-        assert!(
-            matches!(
-                error,
-                ExploreRuntimeFailure::RuntimeError { ref message }
-                    if message.contains("RuntimeCallableMismatch")
-            ),
-            "trace integrity was downgraded behind runtime output: {error:?}"
-        );
-    }
-
-    #[test]
     fn parser_classifies_soft_newlines_once_and_keeps_statement_boundaries() {
         let source = "= first = (\n    1\n    + 2\n)\n= second = 3\n";
         let mut lexer = Lexer::new(source);
@@ -47371,81 +46442,6 @@ handle <- Left
             2,
             "only the two hard statement newlines should remain"
         );
-    }
-
-    #[test]
-    fn checked_direct_callable_authentication_rejects_shadow_closure() {
-        let analysis_program = AnalysisProgramId("direct-call-authentication-test".into());
-        let callable = CheckedCallableId {
-            declaration: CheckedDeclarationOccurrenceId {
-                declaration: DeclarationId {
-                    module: ModuleId::top_level("direct-call-authentication-module".to_string()),
-                    kind: DeclarationKind::Function,
-                    owner: None,
-                    name: "target".into(),
-                    arity: Some(0),
-                    ordinal: 0,
-                },
-                declaration_occurrence_ordinal: 0,
-                normalized_ordinal: 0,
-            },
-            structural_path: Box::default(),
-        };
-        let endpoint = Expr {
-            kind: ExprKind::App(
-                Box::new(Expr {
-                    kind: ExprKind::Var("target".to_string()),
-                    span: Span::dummy(),
-                }),
-                Vec::new(),
-            ),
-            span: Span::dummy(),
-        };
-        let token = CheckedRuntimeCallableTokenV1(1);
-        let mut interpreter = Interpreter::new();
-        interpreter.checked_runtime_callable_tokens_v1.insert(
-            token,
-            CheckedRuntimeCallableIdentityV1 {
-                analysis_program: analysis_program.clone(),
-                callable: callable.clone(),
-            },
-        );
-
-        let mut authenticated_closure_env = Env::new();
-        authenticated_closure_env.set(
-            CHECKED_RUNTIME_CALLABLE_TOKEN_BINDING_V1.to_string(),
-            Value::Int(token.0),
-        );
-        let closure = |env| Value::Closure {
-            name: Some("target".to_string()),
-            params: Vec::new(),
-            body: Expr {
-                kind: ExprKind::Unit,
-                span: Span::dummy(),
-            },
-            env,
-        };
-        let mut environment = Env::new();
-        environment.set("target".to_string(), closure(authenticated_closure_env));
-        interpreter
-            .authenticate_checked_runtime_direct_callable_v1(
-                &endpoint,
-                &environment,
-                &analysis_program,
-                &callable,
-            )
-            .expect("producer-minted closure capability should authenticate");
-
-        environment.set("target".to_string(), closure(Env::new()));
-        let error = interpreter
-            .authenticate_checked_runtime_direct_callable_v1(
-                &endpoint,
-                &environment,
-                &analysis_program,
-                &callable,
-            )
-            .expect_err("an untagged shadow closure must not authenticate");
-        assert!(error.contains("does not match its producer-minted callable identity"));
     }
 
     #[test]

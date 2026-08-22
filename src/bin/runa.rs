@@ -24,56 +24,6 @@ static TEMP_WORKSPACE_COUNTER: AtomicU64 = AtomicU64::new(0);
 static COMPILER_EXECUTABLE_HASH: OnceLock<Option<String>> = OnceLock::new();
 static RUSTC_FINGERPRINT: OnceLock<Option<String>> = OnceLock::new();
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ExploreMechanismProfileV1 {
-    NestedIfV1,
-    RuleDispatchV1,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum ExploreCliExecutionProfile {
-    Exact,
-    NestedIfMechanismV1 {
-        before_show_index: usize,
-        after_show_index: usize,
-    },
-    RuleDispatchMechanismV1 {
-        before_show_index: usize,
-        after_show_index: usize,
-    },
-}
-
-impl ExploreCliExecutionProfile {
-    const fn is_mechanism(self) -> bool {
-        matches!(
-            self,
-            Self::NestedIfMechanismV1 { .. } | Self::RuleDispatchMechanismV1 { .. }
-        )
-    }
-
-    fn json(self) -> serde_json::Value {
-        match self {
-            Self::Exact => serde_json::json!({ "kind": "exact" }),
-            Self::NestedIfMechanismV1 {
-                before_show_index,
-                after_show_index,
-            } => serde_json::json!({
-                "kind": "nested_if_mechanism_v1",
-                "before_show_index": before_show_index,
-                "after_show_index": after_show_index,
-            }),
-            Self::RuleDispatchMechanismV1 {
-                before_show_index,
-                after_show_index,
-            } => serde_json::json!({
-                "kind": "rule_dispatch_mechanism_v1",
-                "before_show_index": before_show_index,
-                "after_show_index": after_show_index,
-            }),
-        }
-    }
-}
-
 fn unique_temp_workspace(prefix: &str) -> PathBuf {
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::env::temp_dir().join(format!("{prefix}-{}-{sequence}", std::process::id()))
@@ -156,9 +106,6 @@ fn main_inner() {
     let mut explore_pause_after_probes = false;
     let mut explore_finalize = false;
     let mut explore_case_graph = explore::ExploreStreamCaseGraphRequest::Omit;
-    let mut explore_mechanism_profile = None;
-    let mut explore_mechanism_before_show = None;
-    let mut explore_mechanism_after_show = None;
     let mut explore_preview_json = false;
     let mut explore_preview_query = None;
     let mut explore_preview_limit = 10_000usize;
@@ -380,58 +327,6 @@ fn main_inner() {
             }
             arg if mode == "explore" && arg.starts_with("--case-graph=") => {
                 explore_case_graph = parse_explore_case_graph(&arg["--case-graph=".len()..]);
-                i += 1;
-            }
-            "--mechanism-profile" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!(
-                        "error: --mechanism-profile requires `nested-if-v1` or `rule-dispatch-v1`"
-                    );
-                    std::process::exit(1);
-                }
-                explore_mechanism_profile = Some(parse_explore_mechanism_profile(&args[i + 1]));
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--mechanism-profile=") => {
-                explore_mechanism_profile = Some(parse_explore_mechanism_profile(
-                    &arg["--mechanism-profile=".len()..],
-                ));
-                i += 1;
-            }
-            "--mechanism-before-show" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --mechanism-before-show requires a zero-based index");
-                    std::process::exit(1);
-                }
-                explore_mechanism_before_show = Some(parse_explore_show_index(
-                    "--mechanism-before-show",
-                    &args[i + 1],
-                ));
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--mechanism-before-show=") => {
-                explore_mechanism_before_show = Some(parse_explore_show_index(
-                    "--mechanism-before-show",
-                    &arg["--mechanism-before-show=".len()..],
-                ));
-                i += 1;
-            }
-            "--mechanism-after-show" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --mechanism-after-show requires a zero-based index");
-                    std::process::exit(1);
-                }
-                explore_mechanism_after_show = Some(parse_explore_show_index(
-                    "--mechanism-after-show",
-                    &args[i + 1],
-                ));
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--mechanism-after-show=") => {
-                explore_mechanism_after_show = Some(parse_explore_show_index(
-                    "--mechanism-after-show",
-                    &arg["--mechanism-after-show=".len()..],
-                ));
                 i += 1;
             }
             "--json" if mode == "__explore-preview" => {
@@ -707,12 +602,6 @@ fn main_inner() {
                 eprintln!(
                     "  explore --max-minutes N  Compatibility alias for a whole-minute time limit"
                 );
-                eprintln!(
-                    "  explore --mechanism-profile nested-if-v1|rule-dispatch-v1  Experimental count-only mechanism stream"
-                );
-                eprintln!(
-                    "  explore --mechanism-before-show N --mechanism-after-show N  Select distinct zero-based output.show endpoints"
-                );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
                 eprintln!("  --input PATH       Read calculation cases");
                 eprintln!("  --output PATH      Write a contract, template, or result");
@@ -802,12 +691,6 @@ fn main_inner() {
                 );
                 eprintln!(
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --finalize --json"
-                );
-                eprintln!(
-                    "  runa explore examples/danish-income-tax/mechanism-stream-smoke.runa --query nested_mechanism_stream_smoke --run-state /private/nested-if-smoke.run --time-limit 10s --mechanism-profile nested-if-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json"
-                );
-                eprintln!(
-                    "  runa explore examples/danish-income-tax/mechanism-rule-dispatch-smoke.runa --query rule_dispatch_mechanism_stream_smoke --run-state /private/rule-dispatch-smoke.run --time-limit 10s --mechanism-profile rule-dispatch-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json"
                 );
                 std::process::exit(0);
             }
@@ -1133,65 +1016,13 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--mechanism-profile nested-if-v1|rule-dispatch-v1 --mechanism-before-show INDEX --mechanism-after-show INDEX] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--json]"
         );
         std::process::exit(1);
     }
 
-    let explore_execution_profile = match (
-        explore_mechanism_profile,
-        explore_mechanism_before_show,
-        explore_mechanism_after_show,
-    ) {
-        (None, None, None) => ExploreCliExecutionProfile::Exact,
-        (Some(profile), Some(before_show_index), Some(after_show_index)) => {
-            if before_show_index == after_show_index {
-                eprintln!(
-                    "error: --mechanism-before-show and --mechanism-after-show must select distinct zero-based indexes"
-                );
-                std::process::exit(1);
-            }
-            match profile {
-                ExploreMechanismProfileV1::NestedIfV1 => {
-                    ExploreCliExecutionProfile::NestedIfMechanismV1 {
-                        before_show_index,
-                        after_show_index,
-                    }
-                }
-                ExploreMechanismProfileV1::RuleDispatchV1 => {
-                    ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
-                        before_show_index,
-                        after_show_index,
-                    }
-                }
-            }
-        }
-        _ => {
-            eprintln!(
-                "error: mechanism exploration requires --mechanism-profile nested-if-v1|rule-dispatch-v1, --mechanism-before-show INDEX, and --mechanism-after-show INDEX together"
-            );
-            std::process::exit(1);
-        }
-    };
-
     if mode == "explore" {
         let has_stream_control = explore_max_runtime.is_some() || explore_pause_after_probes;
-        if explore_execution_profile.is_mechanism() && explore_run_state.is_none() {
-            eprintln!("error: --mechanism-profile requires a durable --run-state path");
-            std::process::exit(1);
-        }
-        if explore_execution_profile.is_mechanism()
-            && explore_case_graph == explore::ExploreStreamCaseGraphRequest::Full
-        {
-            eprintln!(
-                "error: --mechanism-profile currently requires omitted public case-graph disclosure"
-            );
-            std::process::exit(1);
-        }
-        if explore_execution_profile.is_mechanism() && explore_finalize {
-            eprintln!("error: --mechanism-profile cannot yet be combined with --finalize");
-            std::process::exit(1);
-        }
         if has_stream_control && explore_run_state.is_none() {
             eprintln!(
                 "error: --time-limit/--max-minutes and --pause-after require a durable --run-state path"
@@ -1348,7 +1179,6 @@ fn main_inner() {
                     explore_pause_after_probes,
                     explore_case_graph,
                     explore_finalize,
-                    explore_execution_profile,
                 ),
                 "explore" if explore_plan => run_explore_cost_plan(
                     &source,
@@ -7052,10 +6882,6 @@ fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
         explore::ExploreStreamSliceStop::SnapshotCatchUp => {
             "pending observable snapshot catch-up attempted before further search".to_string()
         }
-        explore::ExploreStreamSliceStop::MechanismCheckpointCatchUp => {
-            "pending observable mechanism-checkpoint catch-up attempted before further search"
-                .to_string()
-        }
         explore::ExploreStreamSliceStop::TimeLimit => "invocation time limit reached".to_string(),
         explore::ExploreStreamSliceStop::ResourcePressure { detail } => {
             format!("resource pressure ({detail})")
@@ -7069,21 +6895,11 @@ fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
                 explore_stop_text(reason)
             )
         }
-        explore::ExploreStreamSliceStop::MechanismLimit {
-            blocked_rank,
-            detail,
-        } => format!(
-            "mechanism CaseId rank {blocked_rank} exceeds the immutable reducer contract; unchanged resume cannot advance ({detail})"
-        ),
         explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
             format!("atomic finalization limit in {phase} ({detail})")
         }
         explore::ExploreStreamSliceStop::ClassificationClosedFinalizationPending => {
             "case classification closed; terminal replay remains pending".to_string()
-        }
-        explore::ExploreStreamSliceStop::MechanismObservationClosedTerminalUnavailable => {
-            "case classification and mechanism replay closed; mechanism-aware terminal publication is unavailable in this profile; unchanged resume cannot advance"
-                .to_string()
         }
         explore::ExploreStreamSliceStop::TerminalSealed(status) => format!(
             "terminal result sealed ({})",
@@ -7226,9 +7042,6 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
         explore::ExploreStreamSliceStop::SnapshotCatchUp => {
             serde_json::json!({ "kind": "snapshot_catch_up" })
         }
-        explore::ExploreStreamSliceStop::MechanismCheckpointCatchUp => {
-            serde_json::json!({ "kind": "mechanism_checkpoint_catch_up" })
-        }
         explore::ExploreStreamSliceStop::TimeLimit => {
             serde_json::json!({ "kind": "time_limit" })
         }
@@ -7244,14 +7057,6 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
             "blocked_case_id_rank": blocked_rank.to_string(),
             "evaluator_reason": explore_execution_stop_reason_json(reason),
         }),
-        explore::ExploreStreamSliceStop::MechanismLimit {
-            blocked_rank,
-            detail,
-        } => serde_json::json!({
-            "kind": "mechanism_limit",
-            "blocked_case_id_rank": blocked_rank.to_string(),
-            "detail": detail,
-        }),
         explore::ExploreStreamSliceStop::FinalizationLimit { phase, detail } => {
             serde_json::json!({
                 "kind": "finalization_limit",
@@ -7261,14 +7066,6 @@ fn explore_stream_stop_json(stop: &explore::ExploreStreamSliceStop) -> serde_jso
         }
         explore::ExploreStreamSliceStop::ClassificationClosedFinalizationPending => {
             serde_json::json!({ "kind": "classification_closed_finalization_pending" })
-        }
-        explore::ExploreStreamSliceStop::MechanismObservationClosedTerminalUnavailable => {
-            serde_json::json!({
-                "kind": "mechanism_observation_closed_terminal_unavailable",
-                "classification": "closed",
-                "mechanism_observation": "closed",
-                "unchanged_resume": "cannot_advance",
-            })
         }
         explore::ExploreStreamSliceStop::TerminalSealed(status) => serde_json::json!({
             "kind": "terminal_sealed",
@@ -7289,9 +7086,6 @@ fn explore_stream_observer_deferral_text(
         explore::ExploreStreamObserverDeferral::ResourceAdmission { detail } => {
             format!("observer-view work was not admitted ({detail})")
         }
-        explore::ExploreStreamObserverDeferral::ProbeIncomplete => {
-            "mechanism checkpoint awaits the completed source-probe milestone".to_string()
-        }
     }
 }
 
@@ -7308,9 +7102,6 @@ fn explore_stream_observer_deferral_json(
                 "detail": detail,
             })
         }
-        explore::ExploreStreamObserverDeferral::ProbeIncomplete => {
-            serde_json::json!({ "kind": "probe_incomplete" })
-        }
     }
 }
 
@@ -7318,7 +7109,6 @@ fn write_exact_explore_stream_report(
     report: &explore::ExploreStreamSliceReport,
     run_state: &Path,
     json: bool,
-    execution_profile: ExploreCliExecutionProfile,
 ) -> io::Result<()> {
     let stdout = io::stdout();
     let mut output = stdout.lock();
@@ -7356,38 +7146,6 @@ fn write_exact_explore_stream_report(
                     },
                 },
             }),
-            explore::ExploreStreamArtifact::MechanismCheckpointJsonLine {
-                blob_digest,
-                checkpoint_cursor,
-                publication_cursor,
-                ..
-            } => serde_json::json!({
-                "kind": "mechanism_checkpoint",
-                "blob_digest": blob_digest,
-                "canonical_byte_framing": "json_line_lf",
-                "checkpoint_cursor": explore_stream_cursor_json(checkpoint_cursor),
-                "publication_cursor": explore_stream_cursor_json(publication_cursor),
-            }),
-            explore::ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine {
-                blob_digest,
-                checkpoint_cursor,
-                publication_cursor,
-                detail,
-                ..
-            } => serde_json::json!({
-                "kind": "mechanism_checkpoint_unavailable",
-                "blob_digest": blob_digest,
-                "canonical_byte_framing": "json_line_lf",
-                "checkpoint_cursor": explore_stream_cursor_json(checkpoint_cursor),
-                "publication_cursor": explore_stream_cursor_json(publication_cursor),
-                "mechanism_checkpoint": {
-                    "status": "unavailable",
-                    "reason": {
-                        "kind": "capacity",
-                        "detail": detail,
-                    },
-                },
-            }),
             explore::ExploreStreamArtifact::JournalOnlyCheckpoint { observer_deferral } => {
                 serde_json::json!({
                     "kind": "journal_checkpoint",
@@ -7397,15 +7155,6 @@ fn write_exact_explore_stream_report(
                     },
                 })
             }
-            explore::ExploreStreamArtifact::MechanismJournalOnlyCheckpoint {
-                observer_deferral,
-            } => serde_json::json!({
-                "kind": "journal_checkpoint",
-                "mechanism_checkpoint": {
-                    "status": "deferred",
-                    "reason": explore_stream_observer_deferral_json(observer_deferral),
-                },
-            }),
             explore::ExploreStreamArtifact::TerminalResultJson { blob_digest, .. } => {
                 serde_json::json!({
                     "kind": "terminal_result",
@@ -7414,7 +7163,7 @@ fn write_exact_explore_stream_report(
                 })
             }
         };
-        let mut envelope = serde_json::json!({
+        let envelope = serde_json::json!({
             "schema": "futuruna.explore.invocation.v1",
             "schema_version": 1,
             "stop": explore_stream_stop_json(&report.stop),
@@ -7425,12 +7174,6 @@ fn write_exact_explore_stream_report(
                 "closed_cases": report.closed_cases_this_slice.to_string(),
             },
         });
-        if execution_profile.is_mechanism() {
-            envelope
-                .as_object_mut()
-                .expect("Explore invocation envelope is an object")
-                .insert("execution_profile".to_string(), execution_profile.json());
-        }
         let mut envelope_prefix = serde_json::to_vec(&envelope)
             .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
         if envelope_prefix.pop() != Some(b'}') {
@@ -7451,21 +7194,12 @@ fn write_exact_explore_stream_report(
         output.write_all(b",\"artifact\":")?;
         output.write_all(&artifact_prefix)?;
         match &report.artifact {
-            explore::ExploreStreamArtifact::JournalOnlyCheckpoint { .. }
-            | explore::ExploreStreamArtifact::MechanismJournalOnlyCheckpoint { .. } => {}
+            explore::ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {}
             explore::ExploreStreamArtifact::CheckpointSnapshotJsonLine {
                 canonical_json_line,
                 ..
             }
             | explore::ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
-                canonical_json_line,
-                ..
-            }
-            | explore::ExploreStreamArtifact::MechanismCheckpointJsonLine {
-                canonical_json_line,
-                ..
-            }
-            | explore::ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine {
                 canonical_json_line,
                 ..
             } => {
@@ -7513,29 +7247,6 @@ fn write_exact_explore_stream_report(
     };
     writeln!(output, "Run: {lifecycle}")?;
     writeln!(output, "Run state: {}", run_state.display())?;
-    match execution_profile {
-        ExploreCliExecutionProfile::NestedIfMechanismV1 {
-            before_show_index,
-            after_show_index,
-        } => writeln!(
-            output,
-            "Execution profile: nested-if mechanism V1 (show {before_show_index} -> show {after_show_index})"
-        )?,
-        ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
-            before_show_index,
-            after_show_index,
-        } => writeln!(
-            output,
-            "Execution profile: rule-dispatch mechanism V1 (show {before_show_index} -> show {after_show_index})"
-        )?,
-        ExploreCliExecutionProfile::Exact => {}
-    }
-    if execution_profile.is_mechanism() {
-        writeln!(
-            output,
-            "Mechanism view: count-only (signature definitions, incidence DAGs, case DAGs, and terminal publication are not exposed)"
-        )?;
-    }
     writeln!(output, "Stop: {}", explore_stream_stop_text(&report.stop))?;
     writeln!(
         output,
@@ -7570,14 +7281,6 @@ fn write_exact_explore_stream_report(
             writeln!(
                 output,
                 "Observable snapshot: deferred ({})",
-                explore_stream_observer_deferral_text(observer_deferral)
-            )?;
-        }
-        explore::ExploreStreamArtifact::MechanismJournalOnlyCheckpoint { observer_deferral } => {
-            writeln!(output, "Artifact: journal-only mechanism checkpoint")?;
-            writeln!(
-                output,
-                "Observable mechanism checkpoint: deferred ({})",
                 explore_stream_observer_deferral_text(observer_deferral)
             )?;
         }
@@ -7626,51 +7329,6 @@ fn write_exact_explore_stream_report(
             writeln!(output, "Canonical observable status:")?;
             output.write_all(canonical_json_line)?;
         }
-        explore::ExploreStreamArtifact::MechanismCheckpointJsonLine {
-            canonical_json_line,
-            blob_digest,
-            checkpoint_cursor,
-            publication_cursor,
-        } => {
-            writeln!(output, "Artifact blob: {blob_digest}")?;
-            writeln!(
-                output,
-                "Checkpoint cursor: #{} {}",
-                checkpoint_cursor.sequence, checkpoint_cursor.journal_head
-            )?;
-            writeln!(
-                output,
-                "Publication cursor: #{} {}",
-                publication_cursor.sequence, publication_cursor.journal_head
-            )?;
-            writeln!(output, "Canonical count-only mechanism checkpoint:")?;
-            output.write_all(canonical_json_line)?;
-        }
-        explore::ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine {
-            canonical_json_line,
-            blob_digest,
-            checkpoint_cursor,
-            publication_cursor,
-            detail,
-        } => {
-            writeln!(output, "Artifact blob: {blob_digest}")?;
-            writeln!(
-                output,
-                "Checkpoint cursor: #{} {}",
-                checkpoint_cursor.sequence, checkpoint_cursor.journal_head
-            )?;
-            writeln!(
-                output,
-                "Publication cursor: #{} {}",
-                publication_cursor.sequence, publication_cursor.journal_head
-            )?;
-            writeln!(
-                output,
-                "Count-only mechanism checkpoint: unavailable; the admitted publisher reported capacity at this cursor ({detail})"
-            )?;
-            writeln!(output, "Canonical observable mechanism status:")?;
-            output.write_all(canonical_json_line)?;
-        }
         explore::ExploreStreamArtifact::TerminalResultJson {
             canonical_json,
             blob_digest,
@@ -7697,7 +7355,6 @@ fn run_exact_explore_stream(
     pause_after_probes: bool,
     case_graph: explore::ExploreStreamCaseGraphRequest,
     finalize: bool,
-    execution_profile: ExploreCliExecutionProfile,
 ) {
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize();
@@ -7720,39 +7377,13 @@ fn run_exact_explore_stream(
         case_graph,
         finalize,
     };
-    let report = match execution_profile {
-        ExploreCliExecutionProfile::Exact => explore::execute_checked_exact_stream_slice(
-            &statements,
-            source_dir_for(filename),
-            source,
-            query_name,
-            options,
-        ),
-        ExploreCliExecutionProfile::NestedIfMechanismV1 {
-            before_show_index,
-            after_show_index,
-        } => explore::execute_checked_nested_if_mechanism_stream_slice_v1(
-            &statements,
-            source_dir_for(filename),
-            source,
-            query_name,
-            before_show_index,
-            after_show_index,
-            options,
-        ),
-        ExploreCliExecutionProfile::RuleDispatchMechanismV1 {
-            before_show_index,
-            after_show_index,
-        } => explore::execute_checked_rule_dispatch_mechanism_stream_slice_v1(
-            &statements,
-            source_dir_for(filename),
-            source,
-            query_name,
-            before_show_index,
-            after_show_index,
-            options,
-        ),
-    }
+    let report = explore::execute_checked_exact_stream_slice(
+        &statements,
+        source_dir_for(filename),
+        source,
+        query_name,
+        options,
+    )
     .unwrap_or_else(|error| match error {
         explore::ExploreExecutionPreparationError::Diagnostics(diagnostics) => {
             print_type_check_diagnostics(&diagnostics, source, filename);
@@ -7768,9 +7399,7 @@ fn run_exact_explore_stream(
         }
     });
     let exit = explore_stream_exit_code(&report.stop);
-    if let Err(error) =
-        write_exact_explore_stream_report(&report, run_state, json, execution_profile)
-    {
+    if let Err(error) = write_exact_explore_stream_report(&report, run_state, json) {
         eprintln!("error: cannot write exploration artifact: {error}");
         std::process::exit(1);
     }
@@ -8537,29 +8166,6 @@ fn parse_explore_case_graph(raw: &str) -> explore::ExploreStreamCaseGraphRequest
         eprintln!("error: --case-graph requires `full`, got '{raw}'");
         std::process::exit(1);
     }
-}
-
-fn parse_explore_mechanism_profile(raw: &str) -> ExploreMechanismProfileV1 {
-    match raw {
-        "nested-if-v1" => ExploreMechanismProfileV1::NestedIfV1,
-        "rule-dispatch-v1" => ExploreMechanismProfileV1::RuleDispatchV1,
-        _ => {
-            eprintln!(
-                "error: --mechanism-profile requires `nested-if-v1` or `rule-dispatch-v1`, got '{raw}'"
-            );
-            std::process::exit(1);
-        }
-    }
-}
-
-fn parse_explore_show_index(option: &str, raw: &str) -> usize {
-    raw.parse::<usize>()
-        .ok()
-        .filter(|_| !raw.is_empty() && raw.bytes().all(|byte| byte.is_ascii_digit()))
-        .unwrap_or_else(|| {
-            eprintln!("error: {option} requires a zero-based integer index, got '{raw}'");
-            std::process::exit(1);
-        })
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47204,6 +46810,31 @@ mod tests {
     }
 
     #[test]
+    fn formatter_preserves_query_owned_mechanism_observation_idempotently() {
+        let source = "? explore observed {\nover changed(before,after,context)\nfind matches\nbounds {\ncontext.step = 1\nbefore.income in range(0,3)\n}\ntransition as IncomeState context IncomeContext {\nrelative\nafter.income = before.income + context.step\n}\nobserve mechanisms with observe_income\noutput {\nkey [income = before.income]\nrepresentative first\n}\n}\n";
+        let expected = "? explore observed {\n    over changed(before,after,context)\n    find matches\n    bounds {\n        context.step = 1\n        before.income in range(0,3)\n    }\n    transition as IncomeState context IncomeContext {\n        relative\n        after.income = before.income + context.step\n    }\n    observe mechanisms with observe_income\n    output {\n        key [income = before.income]\n        representative first\n    }\n}\n";
+
+        let formatted = format_runa_source(source);
+        assert_eq!(formatted, expected);
+        assert_eq!(format_runa_source(&formatted), expected);
+
+        let mut lexer = Lexer::new(&formatted);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &formatted);
+        let statements = parser.parse_program().expect("parse formatted observation");
+        let Some(Stmt::Explore(query)) = statements.first() else {
+            panic!("expected Explore query");
+        };
+        assert_eq!(
+            query
+                .mechanism_observation
+                .as_ref()
+                .map(|observation| observation.callable_name.as_str()),
+            Some("observe_income")
+        );
+    }
+
+    #[test]
     fn formatter_indents_soft_statement_continuations_once() {
         let source = "= total =\nbase +\nadjustment\n|> cap(limit)\n| rate(case) ->\ncase.income *\ncase.rate\nunder case.active\n";
         let expected = "= total =\n    base +\n    adjustment\n    |> cap(limit)\n| rate(case) ->\n    case.income *\n    case.rate\n    under case.active\n";
@@ -49859,6 +49490,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 step: coverage_expr("explore_step"),
                 span: Span::dummy(),
             }),
+            mechanism_observation: None,
             output: ExploreOutput {
                 key: vec![ExploreOutputField {
                     name: "key".to_string(),

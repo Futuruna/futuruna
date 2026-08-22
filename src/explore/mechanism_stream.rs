@@ -3520,14 +3520,14 @@ impl<'a> CanonicalReader<'a> {
 mod tests {
     use super::super::mechanism::{
         CheckedMechanismObservationRequestV1, MechanismBinField, MechanismDisclosureV1,
-        MechanismEndpointPairingV1, MechanismIncidenceDisclosure, MechanismNormalization,
+        MechanismIncidenceDisclosure, MechanismNormalization, MechanismObservationIr,
         MechanismObservationTarget, MechanismQueryId, MechanismSamplingPlan,
         MechanismSemanticRootId,
     };
     use super::*;
     use crate::{
         AnalysisProgramId, CheckedCallableId, CheckedDeclarationOccurrenceId, DeclarationId,
-        DeclarationKind, ExprSiteId, ModuleId,
+        DeclarationKind, ExprSiteId, ModuleId, Ty,
     };
 
     fn analysis_program() -> AnalysisProgramId {
@@ -3558,23 +3558,34 @@ mod tests {
         .expect("expression site")
     }
 
-    fn endpoint_pairing(program: &AnalysisProgramId) -> MechanismEndpointPairingV1 {
-        let callable = CheckedCallableId {
-            declaration: CheckedDeclarationOccurrenceId {
-                declaration: declaration("income-policy"),
-                declaration_occurrence_ordinal: 0,
-                normalized_ordinal: 0,
-            },
-            structural_path: Box::default(),
+    fn observation_template(program: &AnalysisProgramId) -> MechanismObservationIr {
+        let template_site = ExprSiteId {
+            analysis_program: program.clone(),
+            declaration: declaration("income-policy"),
+            normalized_declaration_ordinal: 0,
+            ast_path: vec![30].into_boxed_slice(),
         };
-        let callable_site = MechanismSiteId::from_callable(program, &callable).expect("callable");
-        MechanismEndpointPairingV1::new_for_test(
-            program,
-            site(program, "before-call", 10),
-            site(program, "after-call", 11),
-            MechanismCallableSiteId::function(callable_site).expect("function callee"),
+        let template_root = MechanismSemanticRootId::from_site(
+            MechanismSiteId::from_expression_site(&template_site).expect("template site"),
         )
-        .expect("endpoint pairing")
+        .expect("template root");
+        MechanismObservationIr {
+            endpoint_template: CheckedCallableId {
+                declaration: CheckedDeclarationOccurrenceId {
+                    declaration: declaration("income-policy"),
+                    declaration_occurrence_ordinal: 0,
+                    normalized_ordinal: 0,
+                },
+                structural_path: Box::default(),
+            },
+            template_site,
+            template_root: template_root.clone(),
+            state_type: Ty::Name("State".to_string()),
+            context_type: Ty::Name("Context".to_string()),
+            observation_type: Ty::Name("Observation".to_string()),
+            dependency_roots: vec![template_root].into_boxed_slice(),
+            normalization_version: 1,
+        }
     }
 
     fn checked_request(
@@ -3620,9 +3631,7 @@ mod tests {
             program.clone(),
             MechanismQueryId::from_checked_query_bytes(b"mechanism-stream-test-query"),
             MechanismObservationTarget::MatchingConfigurations,
-            MechanismSemanticRootId::from_site(site(&program, "before", 0)).expect("before root"),
-            MechanismSemanticRootId::from_site(site(&program, "after", 1)).expect("after root"),
-            endpoint_pairing(&program),
+            observation_template(&program),
             MechanismNormalization::DynamicControlV1,
             axis_cardinalities,
             MechanismSamplingPlan::empty(),

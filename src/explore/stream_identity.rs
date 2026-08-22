@@ -421,7 +421,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn absent_mechanism_binding_retains_the_legacy_deferred_identity() {
+    fn absent_mechanism_binding_has_an_explicit_deferred_identity() {
         assert_eq!(
             mechanism_observation_identity_digest(None).to_lowercase_hex(),
             "4a9856309bbfe75824577e9518b222af8f998581e1da1db8fa31414f50b3ab11"
