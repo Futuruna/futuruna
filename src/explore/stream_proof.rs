@@ -1,12 +1,14 @@
 //! Conservative lowering from checked source proofs into durable exact-stream
 //! evidence.
 //!
-//! A classification certificate can close only an admissible nonmatch. Proof
-//! matches remain singleton evaluator work because v1 cannot attach their
-//! complete report projection. Structural boundary suffixes are excluded
-//! without evaluation. Both forms lower to rank intervals only when the
-//! boundary axis has mixed-radix stride one; otherwise their support remains
-//! open rather than being expanded into singleton records.
+//! A classification certificate alone cannot close a constructible case: the
+//! durable transaction must also retain that region's exact semantic
+//! transition image. Until a certificate proves that image, proof matches and
+//! nonmatches remain singleton evaluator work. Structural boundary suffixes
+//! are the sole compact closure because they have no After state or
+//! TransitionId. They lower to rank intervals only when the boundary axis has
+//! mixed-radix stride one; otherwise their support remains open rather than
+//! being expanded into singleton records.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -42,9 +44,11 @@ const MAX_CANDIDATE_RANKS_V1: usize = DEFAULT_SOURCE_PROOF_PROFILE_LIMIT.get()
 /// fixed-width u128 ranks). Keeping this derived alongside the count prevents
 /// a second, accidentally looser allocation budget.
 const MAX_CANDIDATE_RANK_BYTES_V1: usize = 8 + 4 + (MAX_CANDIDATE_RANKS_V1 * 16);
-/// Proof/structural rectangles retained by one atomic first-generation probe.
-/// Certification beyond this cap stays open; the wire format may impose an
-/// even smaller effective bound.
+/// Structural rectangles retained by one atomic first-generation probe. A
+/// future transition-image certificate may consume the same aggregate region
+/// budget, but classification-only proof rectangles never consume it. Support
+/// beyond this cap stays open; the wire format may impose an even smaller
+/// effective bound.
 const MAX_SOURCE_PROOF_CLOSED_REGIONS_V1: usize = DEFAULT_SOURCE_PROOF_PROFILE_LIMIT.get()
     * SOURCE_PROOF_CLASSIFICATION_OPTIONS_V1
         .max_refinement_cells
@@ -72,6 +76,11 @@ pub(super) const fn source_proof_closed_region_limit_v1() -> usize {
 pub(super) struct SourceProofExactCoverageSummaryV1 {
     universe_case_count: u128,
     boundary_rank_stride: u128,
+    /// Prospective accounting slot for a future certificate version that
+    /// carries the complete regional transition image: canonical State and
+    /// Transition identities plus exact CaseId support. Classification-only V1
+    /// proofs must leave this at zero; a nonzero value cannot be minted by this
+    /// adapter.
     sealed_proof_nonmatch_cases: u128,
     open_proof_nonmatch_cases: u128,
     open_proof_match_cases: u128,
@@ -90,6 +99,8 @@ impl SourceProofExactCoverageSummaryV1 {
         self.boundary_rank_stride
     }
 
+    /// Always zero for classification-only V1 proofs. Retained in the durable
+    /// coverage vocabulary for a future transition-image certificate contract.
     pub(super) const fn sealed_proof_nonmatch_cases(self) -> u128 {
         self.sealed_proof_nonmatch_cases
     }
@@ -150,10 +161,10 @@ impl SourceProofProducerIdentityV1 {
 
 /// Prepared source-proof contribution for one exact stream.
 ///
-/// `closed_regions` is `None` when there is no compact nonmatching or
-/// structural support to seal. Candidate order is the deterministic source
-/// plan selection with first-occurrence deduplication, then canonical rank
-/// order; candidates already closed by the returned batch are omitted.
+/// `closed_regions` is `None` when there is no compact structural-exclusion
+/// support to seal. Candidate order is the deterministic source plan selection
+/// with first-occurrence deduplication, then canonical rank order; candidates
+/// already closed by the returned batch are omitted.
 #[derive(Debug)]
 pub(super) struct PreparedSourceProofExactCoverageV1 {
     closed_regions: Option<ValidatedExactClosedRegionBatchV1>,
@@ -240,8 +251,9 @@ impl From<ExactStreamError> for SourceProofExactAdapterError {
     }
 }
 
-/// Prepare proof/structural closure and source-event scheduling hints for one
-/// checked query. This does not evaluate a case and never seals a proof match.
+/// Prepare structural closure plus proof/source-event scheduling hints for one
+/// checked query. This does not evaluate a case and never seals any
+/// constructible classification-only proof region.
 pub(super) fn prepare_source_proof_exact_coverage_v1(
     query: &ExploreQueryIr,
     plan: &SourceProofPlan,
@@ -707,37 +719,17 @@ fn derive_closed_regions(
                     )?;
                 }
                 CaseTerminal::AdmissibleNonmatch => {
-                    let receipt = ExactValidationReceiptDigestV1::new(parse_lowercase_sha256(
-                        region.certificate().id(),
-                        "classification certificate id",
-                    )?);
-                    if shape.boundary_rank_stride != 1 || regions.len() == limit {
-                        summary.open_proof_nonmatch_cases = checked_add(
-                            summary.open_proof_nonmatch_cases,
-                            count,
-                            "open proof-nonmatch support",
-                        )?;
-                        if shape.boundary_rank_stride == 1 {
-                            summary.region_limit_reached = true;
-                        }
-                        continue;
-                    }
-                    let (start_rank, end_rank_exclusive) = shape.compact_rank_interval(
-                        region.outer_ordinals(),
-                        region.interval().start(),
-                        region.interval().end_exclusive(),
-                    )?;
-                    regions.push(ExactClosedRankRegionProposalV1::new(
-                        start_rank,
-                        end_rank_exclusive,
-                        ExactClosedRegionKindV1::Proof,
-                        ExactClosedClassificationV1::AdmissibleNonmatch,
-                        receipt,
-                    )?);
-                    summary.sealed_proof_nonmatch_cases = checked_add(
-                        summary.sealed_proof_nonmatch_cases,
+                    // A polarity certificate classifies the region, but it
+                    // does not certify tau's exact semantic transition image.
+                    // Constructible cases must therefore remain singleton
+                    // work until a regional certificate can supply the
+                    // collision-checked TransitionId partition and exact
+                    // CaseId support. Only structural exclusions may close
+                    // without a transition.
+                    summary.open_proof_nonmatch_cases = checked_add(
+                        summary.open_proof_nonmatch_cases,
                         count,
-                        "sealed proof-nonmatch support",
+                        "open proof-nonmatch support",
                     )?;
                 }
                 CaseTerminal::Excluded
@@ -750,6 +742,11 @@ fn derive_closed_regions(
             }
         }
     }
+
+    // This assertion is the V1 transaction boundary: only a future
+    // transition-image certificate version may make the prospective sealed
+    // proof-nonmatch counter nonzero.
+    debug_assert_eq!(summary.sealed_proof_nonmatch_cases, 0);
 
     let proposal = if regions.is_empty() {
         None

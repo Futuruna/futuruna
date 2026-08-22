@@ -37,18 +37,19 @@ use super::case_graph::{
     DEFAULT_MAX_CASE_RANK_RUN_AXES,
 };
 use super::exact::{
-    seal_local_evaluator_observation_batch_v1, ExactStreamCaseAttempt, ExactStreamEvaluator,
-    ExactStreamEvaluatorPrepareError,
+    seal_local_evaluator_observation_batch_v2, ExactStreamCaseAttempt, ExactStreamEvaluator,
+    ExactStreamEvaluatorPrepareError, SealedExactObservationBatchV2,
 };
 use super::exact_stream::{
-    decode_exact_case_observation_batch_v1, decode_exact_closed_region_batch_v1,
-    encode_exact_case_observation_batch_v1, encode_exact_closed_region_batch_v1,
-    restore_coordinator_committed_observation_batch_v1,
-    restore_coordinator_committed_region_batch_v1, ExactCaseObservationBatchProposalV1,
-    ExactCaseObservationProposalV1, ExactClosedClassificationSupportsV1,
-    ExactClosedClassificationV1, ExactClosedRegionBatchProposalV1, ExactEvidenceReducer,
-    ExactEvidenceSnapshotV1, ExactProjectionShapeV1, ExactRepresentativePolicyV1,
-    ValidatedExactCaseObservationBatchV1, ValidatedExactClosedRegionBatchV1,
+    decode_exact_case_observation_batch_v2, decode_exact_closed_region_batch_v1,
+    encode_exact_case_observation_batch_v2, encode_exact_closed_region_batch_v1,
+    restore_coordinator_committed_observation_batch_v2,
+    restore_coordinator_committed_region_batch_v1, transition_semantic_fact_digest_v2,
+    ExactCaseObservationBatchProposalV2, ExactCaseObservationProposalV2,
+    ExactClosedClassificationSupportsV1, ExactClosedClassificationV1,
+    ExactClosedRegionBatchProposalV1, ExactEvidenceReducer, ExactEvidenceSnapshotV1,
+    ExactProjectionShapeV1, ExactRepresentativePolicyV1, ValidatedExactCaseObservationBatchV2,
+    ValidatedExactClosedRegionBatchV1,
 };
 use super::mechanism::{
     CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
@@ -67,8 +68,9 @@ use super::mechanism_stream::{
     MAX_NORMALIZED_SEMANTIC_FACTS_PER_BATCH, MECHANISM_OBSERVATION_BLOB_KIND_V1,
 };
 use super::report::{
-    ExploreCaseGraphRequest, ExploreReportRequest, ExploreStopReason,
-    DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
+    ExploreCaseId, ExploreReportRequest, ExploreSearchDecisionDagRequest,
+    ExploreSemanticTransitionGraphRequest, ExploreStopReason, DEFAULT_EXPLORE_COLLECTION_LIMIT,
+    DEFAULT_EXPLORE_STEP_LIMIT,
 };
 use super::run_store::RunStoreLimits;
 use super::run_stream::{
@@ -94,24 +96,27 @@ use super::stream_proof::{
     prepare_source_proof_exact_coverage_v1,
 };
 use super::stream_replay::{
-    decode_exact_replay_closure_manifest_v1, encode_exact_replay_closure_manifest_v1,
-    exact_replay_witness_ranks_v1, validate_exact_replay_closure_v1, ExactReplayClosureManifestV1,
-    EXACT_REPLAY_CLOSURE_BLOB_KIND_V1,
+    decode_exact_replay_closure_manifest_v2, encode_exact_replay_closure_manifest_v2,
+    exact_replay_witness_ranks_v2, validate_exact_replay_closure_v2, ExactReplayClosureManifestV2,
+    EXACT_REPLAY_CLOSURE_BLOB_KIND_V2,
 };
 use super::stream_resource::ExactStreamSnapshotPublicationAuthority;
 use super::stream_snapshot::{
+    prepare_exact_semantic_transition_graph_publication_v1,
     render_exact_observable_snapshot_json_line_v1,
     render_exact_observable_snapshot_unavailable_json_line_v1,
-    render_exact_semantic_answer_json_v1, ExactCaseGraphPublicationResourceV1,
-    ExactObservableSnapshotMetadataV1, ExactPreparedCaseGraphPublicationV1,
-    ExactSemanticAnswerMetadataV1, EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1,
-    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1, EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1,
+    render_exact_semantic_answer_json_v1, ExactObservableSnapshotMetadataV1,
+    ExactPreparedSearchDecisionDagPublicationV1, ExactPreparedSemanticTransitionGraphPublicationV1,
+    ExactSearchDecisionDagPublicationResourceV1, ExactSemanticAnswerMetadataV1,
+    EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1, EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_BLOB_KIND_V1,
+    EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1,
 };
+use super::transition::TransitionSchemaIdentities;
 use super::ExploreQueryIr;
 use crate::{ExploreRepresentative, Stmt, TypeCheckArtifacts};
 
 const WRITER_FENCE_IDENTITY_V1: &[u8] = b"futuruna.explore.coordinator-writer-fence-identity.v1";
-const EXACT_OBSERVATION_BLOB_V1: &str = "exact-observations-v1";
+const EXACT_OBSERVATION_BLOB_V2: &str = "exact-observations-v2";
 const EXACT_REGION_BLOB_V1: &str = "exact-regions-v1";
 const SOURCE_CANDIDATE_BLOB_V1: &str = "source-candidates-v1";
 const SOURCE_PROBE_FALLBACK_PROOF_SET_V1: &[u8] =
@@ -312,21 +317,30 @@ pub(super) enum ExactTerminalPublicationAdvanceV1 {
     LimitReached { phase: &'static str, detail: String },
 }
 
-/// Opaque coordinator-minted case-view materialization bound to the current
-/// monotone classification state and immutable report request. Publication
-/// hooks accept this token rather than a caller-constructible graph enum, so a
-/// same-count but rank-permuted DAG cannot cross the checked byte seam.
-pub(super) struct PreparedExactCaseGraphPublication {
-    publication: ExactPreparedCaseGraphPublicationV1,
+/// Opaque coordinator-minted graph materializations bound atomically to the
+/// current classification and semantic-transition state plus the immutable
+/// report request. Publication hooks accept this token rather than separately
+/// caller-supplied graph enums, so neither a rank-permuted search DAG nor a
+/// same-count/different-support transition graph can cross the checked seam.
+pub(super) struct PreparedExactGraphPublicationsV1 {
+    search_decision_dag: ExactPreparedSearchDecisionDagPublicationV1,
+    semantic_transition_graph: ExactPreparedSemanticTransitionGraphPublicationV1,
     run_id: ExploreRunId,
     report_request: ExploreReportRequest,
     closed_case_count: u128,
     classification_support_identity_hashes: [CanonicalDigest; 4],
+    transition_support_revision: u64,
 }
 
-impl PreparedExactCaseGraphPublication {
-    pub(super) const fn publication(&self) -> &ExactPreparedCaseGraphPublicationV1 {
-        &self.publication
+impl PreparedExactGraphPublicationsV1 {
+    pub(super) const fn search_decision_dag(&self) -> &ExactPreparedSearchDecisionDagPublicationV1 {
+        &self.search_decision_dag
+    }
+
+    pub(super) const fn semantic_transition_graph(
+        &self,
+    ) -> &ExactPreparedSemanticTransitionGraphPublicationV1 {
+        &self.semantic_transition_graph
     }
 }
 
@@ -441,6 +455,7 @@ pub(super) struct ExactStreamCoordinator<'a> {
     artifacts: &'a TypeCheckArtifacts,
     accepted_query_index: usize,
     query: &'a ExploreQueryIr,
+    transition_schemas: TransitionSchemaIdentities,
     report_request: ExploreReportRequest,
     replay_closure: RequiredObligationId,
     writer_fence: Option<ExploreWriterFenceReceipt>,
@@ -548,6 +563,7 @@ impl<'a> ExactStreamCoordinator<'a> {
             validate_mechanism_request_for_checked_query(request, &checked)?;
         }
         let query = checked.closed_query;
+        let transition_schemas = checked.transition_schemas().clone();
         let mut exact = exact_reducer_for_query(query)?;
         let mut mechanism = mechanism_request
             .as_ref()
@@ -678,6 +694,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     artifacts,
                     accepted_query_index,
                     query,
+                    transition_schemas,
                     report_request,
                     replay_closure: prepared_header.replay_closure,
                     writer_fence: Some(receipt),
@@ -833,9 +850,9 @@ impl<'a> ExactStreamCoordinator<'a> {
                     apply_exact_replay(
                         &store,
                         &mut exact,
-                        stream.header(),
-                        stream.frontier(),
+                        &stream,
                         expected.replay_closure,
+                        &transition_schemas,
                         &payload,
                     )?;
                     apply_mechanism_replay(
@@ -1013,6 +1030,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                                     &stream,
                                     &exact,
                                     query,
+                                    &transition_schemas,
                                     report_request,
                                     derive_probe_progress(
                                         staged_manifest_blob,
@@ -1109,6 +1127,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                                 &stream,
                                 &exact,
                                 query,
+                                &transition_schemas,
                                 report_request,
                                 &bytes,
                             )?;
@@ -1270,6 +1289,7 @@ impl<'a> ExactStreamCoordinator<'a> {
                     artifacts,
                     accepted_query_index,
                     query,
+                    transition_schemas,
                     report_request,
                     replay_closure: expected.replay_closure,
                     writer_fence: None,
@@ -1567,44 +1587,67 @@ impl<'a> ExactStreamCoordinator<'a> {
         self.pending_observable_snapshot_on_resume
     }
 
-    /// Materialize the exact current-evidence case view requested by this
-    /// stream. The result is total over the declared universe: every rank not
-    /// yet present in one typed closed support resolves to an explicit open
-    /// terminal. Capacity failures return a status value, never a graph
-    /// prefix.
-    pub(super) fn prepare_case_graph_publication(
+    /// Materialize both exact current-evidence graph views requested by this
+    /// stream as one state-bound publication token. The search decision DAG is
+    /// total over the declared universe; the semantic graph is the exact
+    /// collision-checked State/Transition projection observed so far. Either
+    /// graph may return a typed all-or-none capacity status, never a prefix.
+    pub(super) fn prepare_graph_publications(
         &self,
-    ) -> Result<PreparedExactCaseGraphPublication, ExactStreamCoordinatorError> {
-        Ok(PreparedExactCaseGraphPublication {
-            publication: prepare_case_graph_publication(
-                &self.stream,
-                &self.exact,
-                self.report_request,
-            )?,
+    ) -> Result<PreparedExactGraphPublicationsV1, ExactStreamCoordinatorError> {
+        let search_decision_dag = prepare_search_decision_dag_publication(
+            &self.stream,
+            &self.exact,
+            self.report_request,
+        )?;
+        let semantic_transition_graph = prepare_semantic_transition_graph_publication(
+            &self.stream,
+            &self.exact,
+            &self.transition_schemas,
+            self.report_request,
+        )?;
+        require_search_decision_dag_request_matches(self.report_request, &search_decision_dag)?;
+        require_semantic_transition_graph_request_matches(
+            self.report_request,
+            &semantic_transition_graph,
+        )?;
+        Ok(PreparedExactGraphPublicationsV1 {
+            search_decision_dag,
+            semantic_transition_graph,
             run_id: self.stream.header().run_id(),
             report_request: self.report_request,
             closed_case_count: self.exact.closed_case_count(),
             classification_support_identity_hashes: self
                 .exact
                 .classification_support_identity_hashes(),
+            transition_support_revision: self.exact.transition_support_index().revision(),
         })
     }
 
-    fn require_prepared_case_graph_publication(
+    fn require_prepared_graph_publications(
         &self,
-        prepared: &PreparedExactCaseGraphPublication,
+        prepared: &PreparedExactGraphPublicationsV1,
     ) -> Result<(), ExactStreamCoordinatorError> {
         if prepared.run_id != self.stream.header().run_id()
             || prepared.report_request != self.report_request
             || prepared.closed_case_count != self.exact.closed_case_count()
             || prepared.classification_support_identity_hashes
                 != self.exact.classification_support_identity_hashes()
+            || prepared.transition_support_revision
+                != self.exact.transition_support_index().revision()
         {
             return Err(ExactStreamCoordinatorError::invalid(
-                "prepared case-graph publication is stale or belongs to another report request",
+                "prepared graph publications are stale or belong to another report request",
             ));
         }
-        require_case_graph_request_matches(self.report_request, prepared.publication())
+        require_search_decision_dag_request_matches(
+            self.report_request,
+            prepared.search_decision_dag(),
+        )?;
+        require_semantic_transition_graph_request_matches(
+            self.report_request,
+            prepared.semantic_transition_graph(),
+        )
     }
 
     pub(super) fn prepare_observable_snapshot_publication(
@@ -1666,8 +1709,8 @@ impl<'a> ExactStreamCoordinator<'a> {
                 ))
             }
         };
-        let case_graph = match self.prepare_case_graph_publication() {
-            Ok(case_graph) => case_graph,
+        let graph_publications = match self.prepare_graph_publications() {
+            Ok(publications) => publications,
             Err(error) if error.is_snapshot_publication_capacity() => {
                 return self.prepare_observable_snapshot_capacity_status_inner(
                     probe_progress.complete(),
@@ -1680,7 +1723,8 @@ impl<'a> ExactStreamCoordinator<'a> {
         let canonical_json_line = match render_exact_observable_snapshot_json_line_v1(
             &metadata,
             &snapshot,
-            case_graph.publication(),
+            graph_publications.search_decision_dag(),
+            graph_publications.semantic_transition_graph(),
         ) {
             Ok(bytes) => bytes,
             Err(error) if error.is_capacity_limit() => {
@@ -1751,7 +1795,7 @@ impl<'a> ExactStreamCoordinator<'a> {
     /// set, install its canonical manifest and close only the report-wide
     /// replay obligation.  Failure or an operationally open witness commits
     /// nothing, so the manifest remains an atomic finalization unit. The
-    /// manifest codec's fixed witness/byte caps bound this v1 phase; timed
+    /// manifest codec's fixed witness/byte caps bound this V2 phase; timed
     /// exploration slices do not call it implicitly.
     pub(super) fn close_replay_obligation(
         &mut self,
@@ -1775,7 +1819,7 @@ impl<'a> ExactStreamCoordinator<'a> {
             ));
         }
 
-        let witness_ranks = match exact_replay_witness_ranks_v1(&self.exact) {
+        let witness_ranks = match exact_replay_witness_ranks_v2(&self.exact) {
             Ok(ranks) => ranks,
             Err(error) => {
                 return Ok(ExactReplayClosureAdvance::LimitReached {
@@ -1785,8 +1829,9 @@ impl<'a> ExactStreamCoordinator<'a> {
         };
         let witness_count = witness_ranks.len();
         let manifest = if witness_ranks.is_empty() {
-            ExactReplayClosureManifestV1::new(
-                Vec::<ExactCaseObservationProposalV1>::new().into_boxed_slice(),
+            ExactReplayClosureManifestV2::new(
+                Vec::<ExactCaseObservationProposalV2>::new().into_boxed_slice(),
+                &self.transition_schemas,
             )
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
@@ -1839,14 +1884,18 @@ impl<'a> ExactStreamCoordinator<'a> {
                     }
                 }
             }
-            let (proposal, _) =
-                seal_local_evaluator_observation_batch_v1(confirmed).map_err(|error| {
-                    ExactStreamCoordinatorError::context(
-                        "cannot seal freshly replayed exact witnesses",
-                        error,
-                    )
-                })?;
-            ExactReplayClosureManifestV1::new(proposal.observations).map_err(|error| {
+            let sealed = seal_local_evaluator_observation_batch_v2(confirmed).map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot seal freshly replayed exact witnesses",
+                    error,
+                )
+            })?;
+            self.require_checked_transition_schemas(sealed.transition_schemas())?;
+            ExactReplayClosureManifestV2::new(
+                sealed.into_proposal().observations,
+                &self.transition_schemas,
+            )
+            .map_err(|error| {
                 ExactStreamCoordinatorError::context(
                     "cannot construct exact replay manifest",
                     error,
@@ -1854,19 +1903,22 @@ impl<'a> ExactStreamCoordinator<'a> {
             })?
         };
         let validation =
-            validate_exact_replay_closure_v1(&self.exact, &manifest).map_err(|error| {
+            validate_exact_replay_closure_v2(&self.exact, &manifest, &self.transition_schemas)
+                .map_err(|error| {
+                    ExactStreamCoordinatorError::context(
+                        "fresh exact replay manifest does not close selected witnesses",
+                        error,
+                    )
+                })?;
+        require_replay_manifest_transition_support(&self.exact, &self.stream, &manifest)?;
+        let normalized_witness_digest = validation.normalized_witness_digest();
+        let bytes = encode_exact_replay_closure_manifest_v2(&manifest, &self.transition_schemas)
+            .map_err(|error| {
                 ExactStreamCoordinatorError::context(
-                    "fresh exact replay manifest does not close selected witnesses",
+                    "cannot encode exact replay-closure manifest",
                     error,
                 )
             })?;
-        let normalized_witness_digest = validation.normalized_witness_digest();
-        let bytes = encode_exact_replay_closure_manifest_v1(&manifest).map_err(|error| {
-            ExactStreamCoordinatorError::context(
-                "cannot encode exact replay-closure manifest",
-                error,
-            )
-        })?;
         let blob_digest = content_digest(&bytes);
         let newly_closed = RequiredFrontier::new(
             ExactCaseSupport::empty(self.stream.header().case_universe()),
@@ -1912,7 +1964,7 @@ impl<'a> ExactStreamCoordinator<'a> {
             })?;
         self.store
             .install_blob(
-                EXACT_REPLAY_CLOSURE_BLOB_KIND_V1,
+                EXACT_REPLAY_CLOSURE_BLOB_KIND_V2,
                 &blob_digest.to_lowercase_hex(),
                 &bytes,
             )
@@ -2401,22 +2453,21 @@ impl<'a> ExactStreamCoordinator<'a> {
             }
         };
 
-        let (proposal, validated) =
-            seal_local_evaluator_observation_batch_v1(confirmed).map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot seal bounded source-probe observation batch",
-                    error,
-                )
-            })?;
-        let ranks = proposal
+        let sealed = seal_local_evaluator_observation_batch_v2(confirmed).map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot seal bounded source-probe observation batch",
+                error,
+            )
+        })?;
+        let ranks = sealed
+            .proposal()
             .observations
             .iter()
             .map(|observation| observation.case_id.rank)
             .collect::<Vec<_>>()
             .into_boxed_slice();
         let canonical_blob_bytes = self.commit_observation_batch(
-            proposal,
-            validated,
+            sealed,
             FrontierEvidenceKind::ProbeCandidateBatchClassification,
         )?;
         for rank in ranks.iter().copied() {
@@ -2459,15 +2510,11 @@ impl<'a> ExactStreamCoordinator<'a> {
                 confirmed.rank()
             )));
         }
-        let (proposal, validated) = seal_local_evaluator_observation_batch_v1(vec![confirmed])
-            .map_err(|error| {
+        let sealed =
+            seal_local_evaluator_observation_batch_v2(vec![confirmed]).map_err(|error| {
                 ExactStreamCoordinatorError::context("cannot seal local exact observation", error)
             })?;
-        self.commit_observation_batch(
-            proposal,
-            validated,
-            FrontierEvidenceKind::SingletonClassification,
-        )?;
+        self.commit_observation_batch(sealed, FrontierEvidenceKind::SingletonClassification)?;
         self.candidate_ranks.remove(&rank);
         Ok(ExactStreamAdvance::Committed {
             rank,
@@ -2570,14 +2617,14 @@ impl<'a> ExactStreamCoordinator<'a> {
             }
         };
 
-        let (proposal, validated) =
-            seal_local_evaluator_observation_batch_v1(confirmed).map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot seal bounded local exact observation batch",
-                    error,
-                )
-            })?;
-        let ranks = proposal
+        let sealed = seal_local_evaluator_observation_batch_v2(confirmed).map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot seal bounded local exact observation batch",
+                error,
+            )
+        })?;
+        let ranks = sealed
+            .proposal()
             .observations
             .iter()
             .map(|observation| observation.case_id.rank)
@@ -2588,8 +2635,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         } else {
             FrontierEvidenceKind::BoundedExactBatchClassification
         };
-        let canonical_blob_bytes =
-            self.commit_observation_batch(proposal, validated, producer_kind)?;
+        let canonical_blob_bytes = self.commit_observation_batch(sealed, producer_kind)?;
         for rank in ranks.iter().copied() {
             self.candidate_ranks.remove(&rank);
         }
@@ -2692,29 +2738,14 @@ impl<'a> ExactStreamCoordinator<'a> {
     ///
     /// This deliberately uses the reducer's full snapshot. Observable pause
     /// snapshots may expose a bounded prefix, but a terminal answer is never
-    /// silently truncated. The current single-blob v1 renderer has a 64 MiB
-    /// hard ceiling; chunked terminal publication is a later protocol.
+    /// silently truncated. The current single-blob renderer has a fixed hard
+    /// ceiling; chunked terminal publication is a later protocol.
     pub(super) fn publish_current_terminal_result(
         &mut self,
-        case_graph_publication: &PreparedExactCaseGraphPublication,
+        graph_publications: &PreparedExactGraphPublicationsV1,
     ) -> Result<ExactTerminalPublicationAdvanceV1, ExactStreamCoordinatorError> {
         self.require_exact_only_publication_contract("publish terminal result")?;
-        self.require_prepared_case_graph_publication(case_graph_publication)?;
-        let publication = case_graph_publication.publication();
-        if let ExactPreparedCaseGraphPublicationV1::CapacityLimited {
-            resource,
-            maximum,
-            required_at_least,
-        } = publication
-        {
-            return Ok(ExactTerminalPublicationAdvanceV1::LimitReached {
-                phase: "case_graph_publication",
-                detail: format!(
-                    "requested complete case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
-                    resource.name()
-                ),
-            });
-        }
+        self.require_prepared_graph_publications(graph_publications)?;
         let metadata = ExactSemanticAnswerMetadataV1::from_checked_stream(&self.stream, self.query)
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
@@ -2725,7 +2756,8 @@ impl<'a> ExactStreamCoordinator<'a> {
         let bytes = match render_exact_semantic_answer_json_v1(
             &metadata,
             &self.exact.snapshot(),
-            publication,
+            graph_publications.search_decision_dag(),
+            graph_publications.semantic_transition_graph(),
         ) {
             Ok(bytes) => bytes,
             Err(error) if error.is_capacity_limit() => {
@@ -2930,15 +2962,20 @@ impl<'a> ExactStreamCoordinator<'a> {
 
     fn commit_observation_batch(
         &mut self,
-        proposal: ExactCaseObservationBatchProposalV1,
-        validated: ValidatedExactCaseObservationBatchV1,
+        sealed: SealedExactObservationBatchV2,
         producer_kind: FrontierEvidenceKind,
     ) -> Result<usize, ExactStreamCoordinatorError> {
-        let bytes = encode_exact_case_observation_batch_v1(&proposal).map_err(|error| {
-            ExactStreamCoordinatorError::context("cannot encode exact observation batch", error)
-        })?;
+        self.require_checked_transition_schemas(sealed.transition_schemas())?;
+        let bytes =
+            encode_exact_case_observation_batch_v2(sealed.proposal(), sealed.transition_schemas())
+                .map_err(|error| {
+                    ExactStreamCoordinatorError::context(
+                        "cannot encode exact observation batch",
+                        error,
+                    )
+                })?;
         let blob_digest = content_digest(&bytes);
-        let projection = observation_evidence_projection(self.stream.header(), &validated)?;
+        let projection = observation_evidence_projection(self.stream.header(), sealed.validated())?;
         match producer_kind {
             FrontierEvidenceKind::SingletonClassification
                 if projection.support.case_count() != 1 =>
@@ -3023,7 +3060,7 @@ impl<'a> ExactStreamCoordinator<'a> {
         })?;
         let prepared_exact = self
             .exact
-            .prepare_observation_batch(validated)
+            .prepare_observation_batch(sealed.into_validated())
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
                     "exact observation batch conflicts with reducer state",
@@ -3048,7 +3085,7 @@ impl<'a> ExactStreamCoordinator<'a> {
             })?;
         self.store
             .install_blob(
-                EXACT_OBSERVATION_BLOB_V1,
+                EXACT_OBSERVATION_BLOB_V2,
                 &blob_digest.to_lowercase_hex(),
                 &bytes,
             )
@@ -3196,31 +3233,49 @@ impl<'a> ExactStreamCoordinator<'a> {
         })
     }
 
+    fn require_checked_transition_schemas(
+        &self,
+        transition_schemas: &TransitionSchemaIdentities,
+    ) -> Result<(), ExactStreamCoordinatorError> {
+        if transition_schemas != &self.transition_schemas {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "exact evaluator batch transition schemas do not match the checked query",
+            ));
+        }
+        Ok(())
+    }
+
     fn ensure_evaluator_classified(
         &mut self,
     ) -> Result<&mut ExactStreamEvaluator<'a>, ExactEvaluatorEnsureError> {
         if self.evaluator.is_none() {
-            self.evaluator = Some(
-                ExactStreamEvaluator::prepare_classified(
-                    self.statements,
-                    self.source_dir,
-                    self.artifacts,
-                    self.accepted_query_index,
-                    DEFAULT_EXPLORE_STEP_LIMIT,
-                    DEFAULT_EXPLORE_COLLECTION_LIMIT,
-                )
-                .map_err(|error| match error {
-                    ExactStreamEvaluatorPrepareError::OperationalLimit(stop) => {
-                        ExactEvaluatorEnsureError::OperationalLimit(stop)
-                    }
-                    ExactStreamEvaluatorPrepareError::Failure(error) => {
-                        ExactEvaluatorEnsureError::Failure(ExactStreamCoordinatorError::context(
-                            "cannot lazily prepare exact stream evaluator",
-                            error,
-                        ))
-                    }
-                })?,
-            );
+            let evaluator = ExactStreamEvaluator::prepare_classified(
+                self.statements,
+                self.source_dir,
+                self.artifacts,
+                self.accepted_query_index,
+                DEFAULT_EXPLORE_STEP_LIMIT,
+                DEFAULT_EXPLORE_COLLECTION_LIMIT,
+            )
+            .map_err(|error| match error {
+                ExactStreamEvaluatorPrepareError::OperationalLimit(stop) => {
+                    ExactEvaluatorEnsureError::OperationalLimit(stop)
+                }
+                ExactStreamEvaluatorPrepareError::Failure(error) => {
+                    ExactEvaluatorEnsureError::Failure(ExactStreamCoordinatorError::context(
+                        "cannot lazily prepare exact stream evaluator",
+                        error,
+                    ))
+                }
+            })?;
+            if evaluator.transition_schemas() != &self.transition_schemas {
+                return Err(ExactEvaluatorEnsureError::Failure(
+                    ExactStreamCoordinatorError::invalid(
+                        "prepared exact evaluator transition schemas do not match the checked query",
+                    ),
+                ));
+            }
+            self.evaluator = Some(evaluator);
         }
         self.evaluator.as_mut().ok_or_else(|| {
             ExactEvaluatorEnsureError::Failure(ExactStreamCoordinatorError::invalid(
@@ -3412,6 +3467,7 @@ fn require_canonical_snapshot_bytes(
     stream: &ExploreRunStream,
     exact: &ExactEvidenceReducer,
     query: &ExploreQueryIr,
+    transition_schemas: &TransitionSchemaIdentities,
     report_request: ExploreReportRequest,
     probe_progress: ExactSourceProbeProgressV1,
     bytes: &[u8],
@@ -3424,11 +3480,19 @@ fn require_canonical_snapshot_bytes(
                     error,
                 )
             })?;
-    let case_graph = prepare_case_graph_publication(stream, exact, report_request)?;
+    let search_decision_dag =
+        prepare_search_decision_dag_publication(stream, exact, report_request)?;
+    let semantic_transition_graph = prepare_semantic_transition_graph_publication(
+        stream,
+        exact,
+        transition_schemas,
+        report_request,
+    )?;
     let expected = render_exact_observable_snapshot_json_line_v1(
         &metadata,
         &exact.observable_snapshot(),
-        &case_graph,
+        &search_decision_dag,
+        &semantic_transition_graph,
     )
     .map_err(|error| {
         ExactStreamCoordinatorError::context(
@@ -3551,6 +3615,7 @@ fn require_canonical_terminal_result_bytes(
     stream: &ExploreRunStream,
     exact: &ExactEvidenceReducer,
     query: &ExploreQueryIr,
+    transition_schemas: &TransitionSchemaIdentities,
     report_request: ExploreReportRequest,
     bytes: &[u8],
 ) -> Result<(), ExactStreamCoordinatorError> {
@@ -3561,14 +3626,23 @@ fn require_canonical_terminal_result_bytes(
                 error,
             )
         })?;
-    let case_graph = prepare_case_graph_publication(stream, exact, report_request)?;
-    let expected = render_exact_semantic_answer_json_v1(&metadata, &exact.snapshot(), &case_graph)
-        .map_err(|error| {
-            ExactStreamCoordinatorError::context(
-                "cannot reconstruct canonical semantic answer",
-                error,
-            )
-        })?;
+    let search_decision_dag =
+        prepare_search_decision_dag_publication(stream, exact, report_request)?;
+    let semantic_transition_graph = prepare_semantic_transition_graph_publication(
+        stream,
+        exact,
+        transition_schemas,
+        report_request,
+    )?;
+    let expected = render_exact_semantic_answer_json_v1(
+        &metadata,
+        &exact.snapshot(),
+        &search_decision_dag,
+        &semantic_transition_graph,
+    )
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context("cannot reconstruct canonical semantic answer", error)
+    })?;
     if expected.as_slice() != bytes {
         return Err(ExactStreamCoordinatorError::invalid(
             "terminal-result blob does not encode the committed exact semantic answer",
@@ -3577,57 +3651,63 @@ fn require_canonical_terminal_result_bytes(
     Ok(())
 }
 
-fn prepare_case_graph_publication(
+fn prepare_search_decision_dag_publication(
     stream: &ExploreRunStream,
     exact: &ExactEvidenceReducer,
     request: ExploreReportRequest,
-) -> Result<ExactPreparedCaseGraphPublicationV1, ExactStreamCoordinatorError> {
-    if request.case_graph == ExploreCaseGraphRequest::Omit {
-        return Ok(ExactPreparedCaseGraphPublicationV1::NotRequested);
+) -> Result<ExactPreparedSearchDecisionDagPublicationV1, ExactStreamCoordinatorError> {
+    if request.search_decision_dag == ExploreSearchDecisionDagRequest::Omit {
+        return Ok(ExactPreparedSearchDecisionDagPublicationV1::NotRequested);
     }
 
     let axis_cardinalities = stream.header().case_universe().axis_cardinalities();
     if axis_cardinalities.len() > DEFAULT_MAX_CASE_RANK_RUN_AXES {
-        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
-            resource: ExactCaseGraphPublicationResourceV1::LoweringAxes,
-            maximum: DEFAULT_MAX_CASE_RANK_RUN_AXES,
-            required_at_least: axis_cardinalities.len(),
-        });
+        return Ok(
+            ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited {
+                resource: ExactSearchDecisionDagPublicationResourceV1::LoweringAxes,
+                maximum: DEFAULT_MAX_CASE_RANK_RUN_AXES,
+                required_at_least: axis_cardinalities.len(),
+            },
+        );
     }
 
     let Some(run_count) = exact.classification_rank_run_count() else {
-        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
-            resource: ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
-            maximum: DEFAULT_MAX_CASE_RANK_RUNS,
-            required_at_least: DEFAULT_MAX_CASE_RANK_RUNS.saturating_add(1),
-        });
+        return Ok(
+            ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited {
+                resource: ExactSearchDecisionDagPublicationResourceV1::LoweringRankRuns,
+                maximum: DEFAULT_MAX_CASE_RANK_RUNS,
+                required_at_least: DEFAULT_MAX_CASE_RANK_RUNS.saturating_add(1),
+            },
+        );
     };
     if run_count > DEFAULT_MAX_CASE_RANK_RUNS {
-        return Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
-            resource: ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
-            maximum: DEFAULT_MAX_CASE_RANK_RUNS,
-            required_at_least: run_count,
-        });
+        return Ok(
+            ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited {
+                resource: ExactSearchDecisionDagPublicationResourceV1::LoweringRankRuns,
+                maximum: DEFAULT_MAX_CASE_RANK_RUNS,
+                required_at_least: run_count,
+            },
+        );
     }
 
     let total_intervals = exact
         .classification_support_interval_count()
         .ok_or_else(|| {
             ExactStreamCoordinatorError::invalid(
-                "case-classification support interval count exceeds usize::MAX",
+                "search-decision support interval count exceeds usize::MAX",
             )
         })?;
     let supports = exact
         .classification_supports_bounded(total_intervals)
         .map_err(|error| {
             ExactStreamCoordinatorError::context(
-                "cannot validate persistent case-classification supports",
+                "cannot validate persistent search-decision supports",
                 error,
             )
         })?
         .ok_or_else(|| {
             ExactStreamCoordinatorError::invalid(
-                "bounded case-classification support traversal was unexpectedly refused",
+                "bounded search-decision support traversal was unexpectedly refused",
             )
         })?;
     let runs = case_terminal_rank_runs(&supports, run_count)?;
@@ -3637,45 +3717,95 @@ fn prepare_case_graph_publication(
         runs,
         CaseTerminal::EligibilityOpen(CaseOpenReason::SearchBudgetExhausted),
     ) {
-        Ok(graph) => Ok(ExactPreparedCaseGraphPublicationV1::Included(graph)),
+        Ok(graph) => Ok(ExactPreparedSearchDecisionDagPublicationV1::Included(graph)),
         Err(CaseRankRunLoweringError::LimitExceeded {
             resource,
             observed,
             limit,
-        }) => Ok(ExactPreparedCaseGraphPublicationV1::CapacityLimited {
-            resource: case_graph_publication_resource(resource),
-            maximum: limit,
-            required_at_least: observed,
-        }),
+        }) => Ok(
+            ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited {
+                resource: search_decision_dag_publication_resource(resource),
+                maximum: limit,
+                required_at_least: observed,
+            },
+        ),
         Err(error @ CaseRankRunLoweringError::AllocationFailed { .. }) => {
             Err(ExactStreamCoordinatorError::snapshot_capacity(
-                "cannot lower persistent case classifications into a total decision DAG",
+                "cannot lower persistent case classifications into a total search decision DAG",
                 error,
             ))
         }
         Err(error) => Err(ExactStreamCoordinatorError::context(
-            "cannot lower persistent case classifications into a total decision DAG",
+            "cannot lower persistent case classifications into a total search decision DAG",
             error,
         )),
     }
 }
 
-fn require_case_graph_request_matches(
+fn prepare_semantic_transition_graph_publication(
+    stream: &ExploreRunStream,
+    exact: &ExactEvidenceReducer,
+    transition_schemas: &TransitionSchemaIdentities,
     request: ExploreReportRequest,
-    publication: &ExactPreparedCaseGraphPublicationV1,
+) -> Result<ExactPreparedSemanticTransitionGraphPublicationV1, ExactStreamCoordinatorError> {
+    prepare_exact_semantic_transition_graph_publication_v1(
+        request.semantic_transition_graph,
+        stream.header().case_universe().axis_cardinalities(),
+        transition_schemas,
+        exact,
+        stream,
+    )
+    .map_err(|error| {
+        ExactStreamCoordinatorError::context(
+            "cannot prepare semantic transition graph publication",
+            error,
+        )
+    })
+}
+
+fn require_search_decision_dag_request_matches(
+    request: ExploreReportRequest,
+    publication: &ExactPreparedSearchDecisionDagPublicationV1,
 ) -> Result<(), ExactStreamCoordinatorError> {
-    let matches = match (request.case_graph, publication) {
-        (ExploreCaseGraphRequest::Omit, ExactPreparedCaseGraphPublicationV1::NotRequested) => true,
+    let matches = match (request.search_decision_dag, publication) {
         (
-            ExploreCaseGraphRequest::Include,
-            ExactPreparedCaseGraphPublicationV1::Included(_)
-            | ExactPreparedCaseGraphPublicationV1::CapacityLimited { .. },
+            ExploreSearchDecisionDagRequest::Omit,
+            ExactPreparedSearchDecisionDagPublicationV1::NotRequested,
+        ) => true,
+        (
+            ExploreSearchDecisionDagRequest::Include,
+            ExactPreparedSearchDecisionDagPublicationV1::Included(_)
+            | ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited { .. },
         ) => true,
         _ => false,
     };
     if !matches {
         return Err(ExactStreamCoordinatorError::invalid(
-            "prepared case-graph publication does not match the immutable report request",
+            "prepared search decision DAG publication does not match the immutable report request",
+        ));
+    }
+    Ok(())
+}
+
+fn require_semantic_transition_graph_request_matches(
+    request: ExploreReportRequest,
+    publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
+) -> Result<(), ExactStreamCoordinatorError> {
+    let matches = match (request.semantic_transition_graph, publication) {
+        (
+            ExploreSemanticTransitionGraphRequest::Omit,
+            ExactPreparedSemanticTransitionGraphPublicationV1::NotRequested,
+        ) => true,
+        (
+            ExploreSemanticTransitionGraphRequest::Include,
+            ExactPreparedSemanticTransitionGraphPublicationV1::Included { .. }
+            | ExactPreparedSemanticTransitionGraphPublicationV1::CapacityLimited { .. },
+        ) => true,
+        _ => false,
+    };
+    if !matches {
+        return Err(ExactStreamCoordinatorError::invalid(
+            "prepared semantic transition graph publication does not match the immutable report request",
         ));
     }
     Ok(())
@@ -3747,19 +3877,27 @@ fn case_terminal_rank_runs(
     Ok(runs)
 }
 
-fn case_graph_publication_resource(
+fn search_decision_dag_publication_resource(
     resource: CaseRankRunLoweringResource,
-) -> ExactCaseGraphPublicationResourceV1 {
+) -> ExactSearchDecisionDagPublicationResourceV1 {
     match resource {
-        CaseRankRunLoweringResource::Axes => ExactCaseGraphPublicationResourceV1::LoweringAxes,
-        CaseRankRunLoweringResource::Runs => ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
-        CaseRankRunLoweringResource::Nodes => ExactCaseGraphPublicationResourceV1::LoweringNodes,
-        CaseRankRunLoweringResource::Arcs => ExactCaseGraphPublicationResourceV1::LoweringArcs,
+        CaseRankRunLoweringResource::Axes => {
+            ExactSearchDecisionDagPublicationResourceV1::LoweringAxes
+        }
+        CaseRankRunLoweringResource::Runs => {
+            ExactSearchDecisionDagPublicationResourceV1::LoweringRankRuns
+        }
+        CaseRankRunLoweringResource::Nodes => {
+            ExactSearchDecisionDagPublicationResourceV1::LoweringNodes
+        }
+        CaseRankRunLoweringResource::Arcs => {
+            ExactSearchDecisionDagPublicationResourceV1::LoweringArcs
+        }
         CaseRankRunLoweringResource::OrdinalIntervals => {
-            ExactCaseGraphPublicationResourceV1::LoweringOrdinalIntervals
+            ExactSearchDecisionDagPublicationResourceV1::LoweringOrdinalIntervals
         }
         CaseRankRunLoweringResource::AccountedBytes => {
-            ExactCaseGraphPublicationResourceV1::LoweringAccountedBytes
+            ExactSearchDecisionDagPublicationResourceV1::LoweringAccountedBytes
         }
     }
 }
@@ -4031,11 +4169,13 @@ fn apply_mechanism_replay(
 fn apply_exact_replay(
     store: &ExploreRunStreamStore,
     exact: &mut ExactEvidenceReducer,
-    header: &ExploreRunHeader,
-    frontier_before: &RequiredFrontier,
+    stream: &ExploreRunStream,
     replay_closure: RequiredObligationId,
+    transition_schemas: &TransitionSchemaIdentities,
     payload: &CanonicalRunRecordPayload,
 ) -> Result<(), ExactStreamCoordinatorError> {
+    let header = stream.header();
+    let frontier_before = stream.frontier();
     match payload {
         CanonicalRunRecordPayload::CoveragePlanAccepted { plan, .. }
             if plan.certified_closed().is_empty() =>
@@ -4123,7 +4263,7 @@ fn apply_exact_replay(
             | FrontierEvidenceKind::ExactExhaustion => {
                 let bytes = store
                     .read_blob(
-                        EXACT_OBSERVATION_BLOB_V1,
+                        EXACT_OBSERVATION_BLOB_V2,
                         &validation_receipt_hash.to_lowercase_hex(),
                     )
                     .map_err(|error| {
@@ -4132,14 +4272,20 @@ fn apply_exact_replay(
                             error,
                         )
                     })?;
-                let proposal = decode_exact_case_observation_batch_v1(&bytes).map_err(|error| {
+                if content_digest(&bytes) != *validation_receipt_hash {
+                    return Err(ExactStreamCoordinatorError::invalid(
+                        "exact observation blob bytes disagree with their journal commitment",
+                    ));
+                }
+                let proposal = decode_exact_case_observation_batch_v2(&bytes, transition_schemas)
+                    .map_err(|error| {
                     ExactStreamCoordinatorError::context(
                         "cannot decode exact observation blob",
                         error,
                     )
                 })?;
                 let canonical_blob_bytes = bytes.len();
-                let validated = restore_coordinator_committed_observation_batch_v1(
+                let validated = restore_coordinator_committed_observation_batch_v2(
                     proposal,
                     |validated| {
                         let projection = observation_evidence_projection(header, validated)
@@ -4300,7 +4446,7 @@ fn apply_exact_replay(
                 }
                 let bytes = store
                     .read_blob(
-                        EXACT_REPLAY_CLOSURE_BLOB_KIND_V1,
+                        EXACT_REPLAY_CLOSURE_BLOB_KIND_V2,
                         &validation_receipt_hash.to_lowercase_hex(),
                     )
                     .map_err(|error| {
@@ -4309,20 +4455,27 @@ fn apply_exact_replay(
                             error,
                         )
                     })?;
-                let manifest =
-                    decode_exact_replay_closure_manifest_v1(&bytes).map_err(|error| {
+                if content_digest(&bytes) != *validation_receipt_hash {
+                    return Err(ExactStreamCoordinatorError::invalid(
+                        "exact replay-closure manifest bytes disagree with their journal commitment",
+                    ));
+                }
+                let manifest = decode_exact_replay_closure_manifest_v2(&bytes, transition_schemas)
+                    .map_err(|error| {
                         ExactStreamCoordinatorError::context(
                             "cannot decode exact replay-closure manifest",
                             error,
                         )
                     })?;
                 let validation =
-                    validate_exact_replay_closure_v1(exact, &manifest).map_err(|error| {
-                        ExactStreamCoordinatorError::context(
-                            "durable exact replay-closure manifest is invalid",
-                            error,
-                        )
-                    })?;
+                    validate_exact_replay_closure_v2(exact, &manifest, transition_schemas)
+                        .map_err(|error| {
+                            ExactStreamCoordinatorError::context(
+                                "durable exact replay-closure manifest is invalid",
+                                error,
+                            )
+                        })?;
+                require_replay_manifest_transition_support(exact, stream, &manifest)?;
                 let expected_obligations = BTreeSet::from([replay_closure]);
                 let expected_fact = SemanticEvidenceFact::new(
                     SemanticEvidenceLayer::RepresentativeSelection,
@@ -4366,6 +4519,39 @@ fn apply_exact_replay(
         },
         _ => Ok(()),
     }
+}
+
+fn require_replay_manifest_transition_support(
+    exact: &ExactEvidenceReducer,
+    stream: &ExploreRunStream,
+    manifest: &ExactReplayClosureManifestV2,
+) -> Result<(), ExactStreamCoordinatorError> {
+    let support = exact.transition_support_index();
+    for observation in manifest.observations() {
+        let transition = observation.transition().ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(format!(
+                "replay witness rank {} has no semantic transition",
+                observation.case_id.rank
+            ))
+        })?;
+        let digest = transition_semantic_fact_digest_v2(transition).map_err(|error| {
+            ExactStreamCoordinatorError::context(
+                "cannot derive replay witness semantic transition identity",
+                error,
+            )
+        })?;
+        let authenticated =
+            stream.semantic_transition_support(CanonicalDigest::from_sha256_bytes(digest.bytes()));
+        if !authenticated.is_some_and(|cases| cases.contains_rank(observation.case_id.rank))
+            || !support.transition_matches(transition.id(), transition)
+        {
+            return Err(ExactStreamCoordinatorError::invalid(format!(
+                "replay witness rank {} disagrees with committed semantic transition support",
+                observation.case_id.rank
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn proposal_from_validated_regions(
@@ -4572,9 +4758,9 @@ fn hash_mechanism_fact_segment(hasher: &mut Sha256, segment: &[u8]) {
 
 fn observation_evidence_projection(
     header: &ExploreRunHeader,
-    batch: &ValidatedExactCaseObservationBatchV1,
+    batch: &ValidatedExactCaseObservationBatchV2,
 ) -> Result<ExactEvidenceProjection, ExactStreamCoordinatorError> {
-    exact_evidence_projection(
+    let mut projection = exact_evidence_projection(
         header.case_universe(),
         batch.observations().iter().map(|observation| {
             (
@@ -4583,7 +4769,22 @@ fn observation_evidence_projection(
                 observation.semantic_fact_digest().bytes(),
             )
         }),
-    )
+    )?;
+    let transition_entries = batch.observations().iter().filter_map(|observation| {
+        observation.transition_semantic_fact_digest().map(|digest| {
+            (
+                observation.proposal().case_id.rank,
+                observation.proposal().case_id.rank + 1,
+                digest.bytes(),
+            )
+        })
+    });
+    projection.facts.extend(exact_semantic_case_facts(
+        header.case_universe(),
+        SemanticEvidenceLayer::SemanticTransition,
+        transition_entries,
+    )?);
+    Ok(projection)
 }
 
 fn region_evidence_projection(
@@ -4614,6 +4815,16 @@ fn exact_evidence_projection(
     .map_err(|error| {
         ExactStreamCoordinatorError::context("cannot construct exact semantic support", error)
     })?;
+    let facts =
+        exact_semantic_case_facts(universe, SemanticEvidenceLayer::CaseClassification, entries)?;
+    Ok(ExactEvidenceProjection { support, facts })
+}
+
+fn exact_semantic_case_facts(
+    universe: &super::run_stream::ExploreCaseUniverse,
+    layer: SemanticEvidenceLayer,
+    entries: impl IntoIterator<Item = (u128, u128, [u8; 32])>,
+) -> Result<Vec<SemanticEvidenceFact>, ExactStreamCoordinatorError> {
     let mut grouped = BTreeMap::<[u8; 32], Vec<(u128, u128)>>::new();
     for (start, end, digest) in entries {
         grouped.entry(digest).or_default().push((start, end));
@@ -4625,19 +4836,19 @@ fn exact_evidence_projection(
         })?;
         facts.push(
             SemanticEvidenceFact::new(
-                SemanticEvidenceLayer::CaseClassification,
+                layer,
                 CanonicalDigest::from_sha256_bytes(digest),
                 SemanticEvidenceSubject::cases(support),
             )
             .map_err(|error| {
                 ExactStreamCoordinatorError::context(
-                    "cannot construct normalized case-classification fact",
+                    "cannot construct normalized case-scoped semantic fact",
                     error,
                 )
             })?,
         );
     }
-    Ok(ExactEvidenceProjection { support, facts })
+    Ok(facts)
 }
 
 fn require_exact_frontier_projection(

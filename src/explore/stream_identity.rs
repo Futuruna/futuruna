@@ -25,8 +25,9 @@ use super::mechanism_stream::{
     mechanism_stream_contract_digest_v1, validate_mechanism_stream_request_v1,
 };
 use super::report::{
-    ExploreCaseGraphRequest, ExploreLedgerRequest, ExploreReportRequest,
-    DEFAULT_EXPLORE_COLLECTION_LIMIT, DEFAULT_EXPLORE_STEP_LIMIT,
+    ExploreLedgerRequest, ExploreReportRequest, ExploreSearchDecisionDagRequest,
+    ExploreSemanticTransitionGraphRequest, DEFAULT_EXPLORE_COLLECTION_LIMIT,
+    DEFAULT_EXPLORE_STEP_LIMIT,
 };
 use super::run_stream::{
     CanonicalDigest, ExploreCaseUniverse, ExploreRunHeader, ExploreRunIdentity, ExploreRunNonce,
@@ -41,8 +42,9 @@ use super::stream_proof::{
 };
 use super::stream_snapshot::{
     validate_exact_snapshot_presentation_v1, ExactProjectionLabelsV1,
-    EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
-    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1, MAX_CANONICAL_JSON_BYTES,
+    EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1,
+    EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1,
+    EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1, MAX_CANONICAL_JSON_BYTES,
     MAX_PRESENTATION_STRING_JSON_BYTES_V1, MAX_PRESENTATION_STRING_OCCURRENCES_V1,
     MAX_PROJECTION_LABELS, MAX_PROJECTION_LABEL_BYTES, MAX_PROJECTION_LABEL_TOTAL_BYTES_V1,
     MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1,
@@ -160,8 +162,9 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
         ]),
         contract_digest(&[
             b"semantic-evidence",
-            b"normalized-merkle-treap-v2",
+            b"normalized-merkle-treap-v3",
             b"persistent-case-support-treap-v2",
+            b"atomic-case-classification-and-semantic-transition-facts-v1",
         ]),
         if mechanism_request.is_some() {
             contract_digest(&[
@@ -173,7 +176,7 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
         } else {
             contract_digest(&[
                 b"exact-snapshot",
-                b"exact-observable-snapshot-v6",
+                b"exact-observable-snapshot-v7",
                 b"grouped-having-filter-v1",
                 b"bounded-canonical-raw-group-preview-v1",
                 b"result-preview-group-limit",
@@ -207,29 +210,33 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
                 &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),
                 b"replay-derived-source-probe-progress-v1",
                 b"inspectable-source-probe-limits-v1",
-                b"explicit-case-graph-publication-v1",
+                b"explicit-search-decision-dag-publication-v1",
                 b"mixed-radix-rank-run-lowerer-v1",
-                b"case-graph-axis-limit",
+                b"search-decision-dag-axis-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_AXES),
-                b"case-graph-rank-run-limit",
+                b"search-decision-dag-rank-run-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUNS),
-                b"case-graph-node-limit",
+                b"search-decision-dag-node-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_NODES),
-                b"case-graph-arc-limit",
+                b"search-decision-dag-arc-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ARCS),
-                b"case-graph-ordinal-interval-limit",
+                b"search-decision-dag-ordinal-interval-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS),
-                b"case-graph-accounted-byte-limit",
+                b"search-decision-dag-accounted-byte-limit",
                 &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES),
-                b"case-graph-canonical-json-byte-limit",
-                &usize_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
+                b"search-decision-dag-canonical-json-byte-limit",
+                &usize_bytes(EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1),
+                b"explicit-semantic-transition-graph-publication-v1",
+                b"semantic-transition-graph-canonical-json-byte-limit",
+                &usize_bytes(EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
+                b"transition-populations-u-d-u-c-u-t-d-c-d-t-m-c-m-t-v1",
             ])
         },
         contract_digest(&[
             b"terminal-result",
-            b"exact-report-v5",
+            b"exact-report-v6",
             b"grouped-having-filter-v1",
-            b"full-result-publication-required-v1",
+            b"all-or-status-graph-publication-v1",
             b"terminal-result-row-json-byte-limit-v1",
             &usize_bytes(MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1),
             b"terminal-outer-canonical-json-byte-limit-v1",
@@ -245,22 +252,26 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
             &usize_bytes(MAX_PRESENTATION_STRING_JSON_BYTES_V1),
             b"presentation-string-occurrence-limit",
             &usize_bytes(MAX_PRESENTATION_STRING_OCCURRENCES_V1),
-            b"explicit-case-graph-publication-v1",
+            b"explicit-search-decision-dag-publication-v1",
             b"mixed-radix-rank-run-lowerer-v1",
-            b"case-graph-axis-limit",
+            b"search-decision-dag-axis-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_AXES),
-            b"case-graph-rank-run-limit",
+            b"search-decision-dag-rank-run-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUNS),
-            b"case-graph-node-limit",
+            b"search-decision-dag-node-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_NODES),
-            b"case-graph-arc-limit",
+            b"search-decision-dag-arc-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ARCS),
-            b"case-graph-ordinal-interval-limit",
+            b"search-decision-dag-ordinal-interval-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS),
-            b"case-graph-accounted-byte-limit",
+            b"search-decision-dag-accounted-byte-limit",
             &usize_bytes(DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES),
-            b"case-graph-canonical-json-byte-limit",
-            &usize_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
+            b"search-decision-dag-canonical-json-byte-limit",
+            &usize_bytes(EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1),
+            b"explicit-semantic-transition-graph-publication-v1",
+            b"semantic-transition-graph-canonical-json-byte-limit",
+            &usize_bytes(EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1),
+            b"transition-populations-u-d-u-c-u-t-d-c-d-t-m-c-m-t-v1",
         ]),
     );
     let identity = ExploreRunIdentity::new(
@@ -348,9 +359,17 @@ fn mechanism_observation_identity_digest(checked_request_id: Option<[u8; 32]>) -
 }
 
 fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
-    let case_graph = match request.case_graph {
-        ExploreCaseGraphRequest::Omit => b"case-graph-omitted".as_slice(),
-        ExploreCaseGraphRequest::Include => b"case-graph-full".as_slice(),
+    let search_decision_dag = match request.search_decision_dag {
+        ExploreSearchDecisionDagRequest::Omit => b"search-decision-dag-omitted".as_slice(),
+        ExploreSearchDecisionDagRequest::Include => b"search-decision-dag-full".as_slice(),
+    };
+    let semantic_transition_graph = match request.semantic_transition_graph {
+        ExploreSemanticTransitionGraphRequest::Omit => {
+            b"semantic-transition-graph-omitted".as_slice()
+        }
+        ExploreSemanticTransitionGraphRequest::Include => {
+            b"semantic-transition-graph-full".as_slice()
+        }
     };
     let ledger = match request.ledger {
         ExploreLedgerRequest::Omit => b"ledger-omitted".as_slice(),
@@ -359,9 +378,10 @@ fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
         }
     };
     contract_digest(&[
-        b"report-request-v3",
+        b"report-request-v4",
         b"projected-rows",
-        case_graph,
+        search_decision_dag,
+        semantic_transition_graph,
         ledger,
         b"mechanisms-deferred",
         b"bounded-canonical-raw-group-preview-v1",
@@ -370,22 +390,34 @@ fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
 }
 
 fn retention_authorization_digest(request: ExploreReportRequest) -> CanonicalDigest {
-    let case_graph = match request.case_graph {
-        ExploreCaseGraphRequest::Omit => b"ordinal-case-classification-omitted".as_slice(),
-        ExploreCaseGraphRequest::Include => b"ordinal-case-classification-graph-full".as_slice(),
+    let search_decision_dag = match request.search_decision_dag {
+        ExploreSearchDecisionDagRequest::Omit => b"ordinal-case-classification-omitted".as_slice(),
+        ExploreSearchDecisionDagRequest::Include => {
+            b"ordinal-case-classification-search-decision-dag-full".as_slice()
+        }
+    };
+    let semantic_transition_graph = match request.semantic_transition_graph {
+        ExploreSemanticTransitionGraphRequest::Omit => {
+            b"semantic-transition-graph-publication-omitted".as_slice()
+        }
+        ExploreSemanticTransitionGraphRequest::Include => {
+            b"semantic-transition-state-context-and-support-full".as_slice()
+        }
     };
     let ledger = match request.ledger {
         ExploreLedgerRequest::Omit => b"matching-ledger-omitted".as_slice(),
         ExploreLedgerRequest::MatchingConfigurations => b"matching-ledger-full".as_slice(),
     };
     contract_digest(&[
-        b"retention-v3",
+        b"retention-v4",
         b"projected-results",
         b"configuration-manifest-v3",
+        b"private-semantic-transition-support-v1",
         b"globally-bounded-value-disclosure",
         &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
         &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),
-        case_graph,
+        search_decision_dag,
+        semantic_transition_graph,
         ledger,
     ])
 }

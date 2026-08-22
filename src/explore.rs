@@ -857,23 +857,32 @@ pub enum ExploreStreamPauseAfter {
     Probes,
 }
 
-/// Explicit case-level disclosure requested for one durable Explore stream.
+/// Explicit graph disclosure requested for one durable Explore stream.
 ///
 /// The request is part of immutable run identity. A run created with omitted
-/// case evidence cannot later be reopened as a graph-bearing run, or vice
-/// versa.
+/// graph evidence cannot later be reopened with that graph enabled, or vice
+/// versa. Search-decision and semantic-transition graphs use independent
+/// values of this type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreStreamCaseGraphRequest {
+pub enum ExploreStreamGraphRequest {
     Omit,
     Full,
 }
 
-impl ExploreStreamCaseGraphRequest {
-    fn report_request(self) -> report::ExploreReportRequest {
+impl ExploreStreamSliceOptions {
+    fn report_request(&self) -> report::ExploreReportRequest {
         report::ExploreReportRequest {
-            case_graph: match self {
-                Self::Omit => report::ExploreCaseGraphRequest::Omit,
-                Self::Full => report::ExploreCaseGraphRequest::Include,
+            search_decision_dag: match self.search_decision_dag {
+                ExploreStreamGraphRequest::Omit => report::ExploreSearchDecisionDagRequest::Omit,
+                ExploreStreamGraphRequest::Full => report::ExploreSearchDecisionDagRequest::Include,
+            },
+            semantic_transition_graph: match self.semantic_transition_graph {
+                ExploreStreamGraphRequest::Omit => {
+                    report::ExploreSemanticTransitionGraphRequest::Omit
+                }
+                ExploreStreamGraphRequest::Full => {
+                    report::ExploreSemanticTransitionGraphRequest::Include
+                }
             },
             ledger: report::ExploreLedgerRequest::Omit,
         }
@@ -883,16 +892,20 @@ impl ExploreStreamCaseGraphRequest {
 /// Controls for one resumable Explore invocation.
 ///
 /// Time, milestone, and finalization choices are operational. The explicit
-/// case-level disclosure request is immutable report identity. Reopening the
-/// same `run_state` may vary slice controls but must repeat that request.
+/// graph disclosure requests are immutable report identity. Reopening the same
+/// `run_state` may vary slice controls but must repeat both requests.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExploreStreamSliceOptions {
     pub run_state: PathBuf,
     pub max_runtime: Option<Duration>,
     pub pause_after: Option<ExploreStreamPauseAfter>,
-    /// Privacy-sensitive case-classification DAG disclosure. Omitted streams
-    /// publish counts and result rows without exposing the full case graph.
-    pub case_graph: ExploreStreamCaseGraphRequest,
+    /// Privacy-sensitive search-decision DAG disclosure. Omitted streams
+    /// publish counts and result rows without exposing the search partition.
+    pub search_decision_dag: ExploreStreamGraphRequest,
+    /// Privacy-sensitive semantic State/Context/Transition disclosure.
+    /// Transition populations remain available even when this graph is
+    /// omitted or exceeds its all-or-none publication cap.
+    pub semantic_transition_graph: ExploreStreamGraphRequest,
     /// Opt in to the bounded atomic-v1 terminal replay/publication phase once
     /// case classification is closed. This does not replace the required
     /// invocation time/milestone control.
@@ -2207,7 +2220,7 @@ enum ExactStreamFinalizationAttempt {
 /// cardinality-one lifecycle test invokes it directly to avoid live telemetry.
 fn attempt_atomic_exact_stream_finalization(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
-    case_graph_publication: &stream_coordinator::PreparedExactCaseGraphPublication,
+    graph_publications: &stream_coordinator::PreparedExactGraphPublicationsV1,
 ) -> Result<ExactStreamFinalizationAttempt, ExploreExecutionPreparationError> {
     match coordinator.close_replay_obligation().map_err(|error| {
         ExploreExecutionPreparationError::Execution(format!(
@@ -2230,7 +2243,7 @@ fn attempt_atomic_exact_stream_finalization(
     let receipt = match coordinator.published_terminal_result() {
         Some(receipt) => receipt,
         None => match coordinator
-            .publish_current_terminal_result(case_graph_publication)
+            .publish_current_terminal_result(graph_publications)
             .map_err(|error| {
                 ExploreExecutionPreparationError::Execution(format!(
                     "cannot publish exact terminal result: {error}"
@@ -2354,50 +2367,22 @@ fn finalize_or_pause_classification_closed_stream(
             closed_cases_at_slice_start,
         );
     }
-    let case_graph_publication = match coordinator.prepare_case_graph_publication() {
-        Ok(publication) => publication,
+    let graph_publications = match coordinator.prepare_graph_publications() {
+        Ok(publications) => publications,
         Err(error) => {
             finish_exact_stream_work(resources, in_flight)?;
             return Err(ExploreExecutionPreparationError::Execution(format!(
-                "cannot prepare final case-graph publication: {error}"
+                "cannot prepare final graph publications: {error}"
             )));
         }
     };
-    let capacity_status = match stream_snapshot::exact_case_graph_capacity_status_v1(
-        case_graph_publication.publication(),
-        &atomic_snapshot,
-    ) {
-        Ok(status) => status,
-        Err(error) => {
-            finish_exact_stream_work(resources, in_flight)?;
-            return Err(ExploreExecutionPreparationError::Execution(format!(
-                "cannot validate final case-graph publication: {error}"
-            )));
-        }
-    };
-    if let Some((resource, maximum, required_at_least)) = capacity_status {
-        let detail = format!(
-            "requested complete case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
-            resource.name()
-        );
-        finish_exact_stream_work(resources, in_flight)?;
-        return publish_or_defer_and_pause_exact_stream_slice(
-            coordinator,
-            resources,
-            query,
-            deadline,
-            run_stream::PauseReason::FinalizationPending,
-            ExploreStreamSliceStop::FinalizationLimit {
-                phase: "case_graph_publication".to_string(),
-                detail,
-            },
-            singleton_cases_evaluated_this_slice,
-            closed_cases_at_slice_start,
-        );
-    }
+    // Deterministic all-or-none caps for either requested graph are terminal
+    // publication statuses, not semantic or operational finalization failures.
+    // The renderer emits exact counts and typed capacity status without a DAG
+    // or semantic-transition prefix.
     drop(atomic_snapshot);
 
-    let attempt = attempt_atomic_exact_stream_finalization(coordinator, &case_graph_publication);
+    let attempt = attempt_atomic_exact_stream_finalization(coordinator, &graph_publications);
     finish_exact_stream_work(resources, in_flight)?;
 
     match attempt? {
@@ -2541,7 +2526,7 @@ fn execute_checked_stream_slice_v1(
         }
     };
     let query = &artifacts.exploration_universes[selected];
-    let report_request = options.case_graph.report_request();
+    let report_request = options.report_request();
     let coordinator_result = stream_coordinator::ExactStreamCoordinator::open_or_create(
         &options.run_state,
         run_store::RunStoreLimits::default(),
@@ -7586,7 +7571,8 @@ pub fn execute_exhaustive_preview(
         artifacts,
         accepted_query_index,
         report::ExploreReportRequest {
-            case_graph: report::ExploreCaseGraphRequest::Omit,
+            search_decision_dag: report::ExploreSearchDecisionDagRequest::Omit,
+            semantic_transition_graph: report::ExploreSemanticTransitionGraphRequest::Omit,
             ledger: report::ExploreLedgerRequest::MatchingConfigurations,
         },
         budget,
@@ -8039,7 +8025,8 @@ mod tests {
         let selected = 0;
         let query = &artifacts.exploration_universes[selected];
         let graph_request = report::ExploreReportRequest {
-            case_graph: report::ExploreCaseGraphRequest::Include,
+            search_decision_dag: report::ExploreSearchDecisionDagRequest::Include,
+            semantic_transition_graph: report::ExploreSemanticTransitionGraphRequest::Include,
             ledger: report::ExploreLedgerRequest::Omit,
         };
         assert_eq!(
@@ -8126,9 +8113,13 @@ mod tests {
                 );
                 let rendered =
                     std::str::from_utf8(canonical_json_line).expect("checkpoint JSON is UTF-8");
-                assert!(rendered.contains("\"case_graph\":\"full\""));
+                assert!(rendered.contains("\"search_decision_dag\":\"full\""));
+                assert!(rendered.contains("\"semantic_transition_graph\":\"full\""));
+                assert!(rendered
+                    .contains("\"schema\":\"futuruna.explore.semantic-transition-graph.v1\""));
                 assert!(rendered.contains("\"status\":\"included\""));
                 assert!(rendered.contains("\"classification\":\"eligibility_open\""));
+                assert!(rendered.contains("\"views\":\"open\""));
                 (checkpoint_cursor, publication_cursor)
             }
             ExploreStreamArtifact::TerminalResultJson { .. } => {
@@ -8187,7 +8178,7 @@ mod tests {
             selected,
             report::ExploreReportRequest::baseline(),
         ) {
-            Ok(_) => panic!("case-graph authorization is immutable run identity"),
+            Ok(_) => panic!("search decision DAG authorization is immutable run identity"),
             Err(error) => error,
         };
         assert!(mismatch
@@ -8315,7 +8306,7 @@ mod tests {
                 assert!(rendered.contains("\"reason\":{\"kind\":\"capacity\"}"));
                 assert!(!rendered.contains("\"configuration\""));
                 assert!(!rendered.contains("\"answer\""));
-                assert!(!rendered.contains("\"case_graph\""));
+                assert!(!rendered.contains("\"search_decision_dag\""));
                 assert_eq!(
                     canonical_json_line
                         .iter()
@@ -8389,24 +8380,35 @@ mod tests {
         }
         assert_eq!(coordinator.closed_case_count(), 1);
         assert!(coordinator.exact_snapshot().result_group_scan_complete);
-        let final_case_graph = coordinator
-            .prepare_case_graph_publication()
-            .expect("prepare final one-case graph");
-        let terminal_result_json =
-            match attempt_atomic_exact_stream_finalization(&mut coordinator, &final_case_graph)
-                .expect("finalize one-case durable stream")
-            {
-                ExactStreamFinalizationAttempt::Sealed(bytes) => bytes,
-                ExactStreamFinalizationAttempt::WitnessOpen { .. } => {
-                    panic!("one-case finalization left a replay witness open")
-                }
-                ExactStreamFinalizationAttempt::LimitReached { .. } => {
-                    panic!("one-case finalization exceeded an atomic limit")
-                }
-            };
+        let final_graph_publications = coordinator
+            .prepare_graph_publications()
+            .expect("prepare final one-case graph publications");
+        let terminal_result_json = match attempt_atomic_exact_stream_finalization(
+            &mut coordinator,
+            &final_graph_publications,
+        )
+        .expect("finalize one-case durable stream")
+        {
+            ExactStreamFinalizationAttempt::Sealed(bytes) => bytes,
+            ExactStreamFinalizationAttempt::WitnessOpen { .. } => {
+                panic!("one-case finalization left a replay witness open")
+            }
+            ExactStreamFinalizationAttempt::LimitReached { .. } => {
+                panic!("one-case finalization exceeded an atomic limit")
+            }
+        };
         let terminal_rendered =
             std::str::from_utf8(&terminal_result_json).expect("terminal JSON is UTF-8");
-        assert!(terminal_rendered.contains("\"case_graph\":\"full\""));
+        assert!(terminal_rendered.contains("\"search_decision_dag\":\"full\""));
+        assert!(terminal_rendered.contains("\"semantic_transition_graph\":\"full\""));
+        assert!(terminal_rendered
+            .contains("\"schema\":\"futuruna.explore.semantic-transition-graph.v1\""));
+        assert!(terminal_rendered.contains(
+            "\"distinct_declared_transitions\":{\"notation\":\"U_T\",\"lower_bound\":\"1\",\"exact\":\"1\",\"certainty\":\"exact\"}"
+        ));
+        assert!(terminal_rendered.contains(
+            "\"admissible_match\":{\"case_count\":\"1\",\"rank_intervals\":[{\"start\":\"0\",\"end_exclusive\":\"1\"}]}"
+        ));
         assert!(terminal_rendered.contains("\"status\":\"included\""));
         assert!(terminal_rendered.contains("\"classification\":\"admissible_match\""));
         assert!(terminal_rendered.contains("\"views\":\"closed\""));

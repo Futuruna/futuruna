@@ -695,6 +695,20 @@ impl ExactCaseSupport {
         Ok(merged)
     }
 
+    /// Stream the exact intersection without materializing it. This partitions
+    /// authoritative transition support by the reducer's three global
+    /// classification fibers while the bounded graph writer remains the only
+    /// publication allocation.
+    pub(crate) fn intersecting_intervals<'a>(
+        &'a self,
+        other: &'a Self,
+    ) -> Result<impl Iterator<Item = ExploreRankInterval> + 'a, ExploreRunStreamError> {
+        if self.universe_id != other.universe_id {
+            return Err(ExploreRunStreamError::StaleCaseUniverse);
+        }
+        Ok(ExactCaseSupportIntersectionIter::new(self, other))
+    }
+
     fn hash_into(&self, hasher: &mut StableHasher) {
         hasher.segment(&self.id.0);
     }
@@ -702,6 +716,62 @@ impl ExactCaseSupport {
 
 struct ExactCaseSupportIntervalIter<'a> {
     stack: Vec<&'a CaseSupportTreapNode>,
+}
+
+struct ExactCaseSupportIntersectionIter<'a> {
+    left: ExactCaseSupportIntervalIter<'a>,
+    right_root: Option<&'a Arc<CaseSupportTreapNode>>,
+    current_left: Option<ExploreRankInterval>,
+    cursor: u128,
+}
+
+impl<'a> ExactCaseSupportIntersectionIter<'a> {
+    fn new(left: &'a ExactCaseSupport, right: &'a ExactCaseSupport) -> Self {
+        let mut left = ExactCaseSupportIntervalIter::new(left.root.as_ref());
+        let current_left = left.next();
+        let cursor = current_left.map_or(0, |interval| interval.start);
+        Self {
+            left,
+            right_root: right.root.as_ref(),
+            current_left,
+            cursor,
+        }
+    }
+
+    fn advance_left(&mut self) {
+        self.current_left = self.left.next();
+        self.cursor = self.current_left.map_or(0, |interval| interval.start);
+    }
+}
+
+impl Iterator for ExactCaseSupportIntersectionIter<'_> {
+    type Item = ExploreRankInterval;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            let left = self.current_left?;
+            let Some(right) = case_support_treap_containing(self.right_root, self.cursor)
+                .or_else(|| case_support_treap_lower_bound(self.right_root, self.cursor))
+            else {
+                self.current_left = None;
+                return None;
+            };
+            if right.start >= left.end_exclusive {
+                self.advance_left();
+                continue;
+            }
+            let intersection = ExploreRankInterval {
+                start: left.start.max(right.start),
+                end_exclusive: left.end_exclusive.min(right.end_exclusive),
+            };
+            if intersection.end_exclusive >= left.end_exclusive {
+                self.advance_left();
+            } else {
+                self.cursor = intersection.end_exclusive;
+            }
+            return Some(intersection);
+        }
+    }
 }
 
 impl<'a> ExactCaseSupportIntervalIter<'a> {
@@ -1144,6 +1214,10 @@ pub(crate) enum SemanticEvidenceLayer {
     ExtremaWitness,
     MechanismTargetClosure,
     AnswerAggregation,
+    /// Canonical `Context + Before -> After` identity and exact CaseId support.
+    /// This is committed atomically with classification but does not itself
+    /// close the search frontier because structural exclusions have no edge.
+    SemanticTransition,
 }
 
 impl SemanticEvidenceLayer {
@@ -1155,6 +1229,7 @@ impl SemanticEvidenceLayer {
             Self::ExtremaWitness => 3,
             Self::MechanismTargetClosure => 4,
             Self::AnswerAggregation => 5,
+            Self::SemanticTransition => 6,
         });
     }
 
@@ -1171,6 +1246,10 @@ impl SemanticEvidenceLayer {
 
     fn closes_any_frontier(self) -> bool {
         self.closes_case_frontier() || self.closes_obligation_frontier()
+    }
+
+    fn has_exclusive_case_subject(self) -> bool {
+        matches!(self, Self::CaseClassification | Self::SemanticTransition)
     }
 }
 
@@ -1275,6 +1354,16 @@ impl SemanticEvidenceFact {
     ) -> Result<Self, ExploreRunStreamError> {
         match (layer, &subject) {
             (SemanticEvidenceLayer::CaseClassification, SemanticEvidenceSubject::Cases(_)) => {}
+            (
+                SemanticEvidenceLayer::SemanticTransition,
+                SemanticEvidenceSubject::Cases(support),
+            ) if support.is_empty() => {
+                return Err(ExploreRunStreamError::EmptySemanticTransitionSupport)
+            }
+            (SemanticEvidenceLayer::SemanticTransition, SemanticEvidenceSubject::Cases(_)) => {}
+            (SemanticEvidenceLayer::SemanticTransition, _) => {
+                return Err(ExploreRunStreamError::SemanticLayerSubjectMismatch)
+            }
             (layer, SemanticEvidenceSubject::Obligations(_))
                 if layer.closes_obligation_frontier() => {}
             (layer, _) if !layer.closes_any_frontier() => {}
@@ -1333,6 +1422,8 @@ impl SemanticEvidenceFact {
 struct SemanticEvidenceMap {
     root: Option<Arc<SemanticTreapNode>>,
     len: u128,
+    classification_support: Option<ExactCaseSupport>,
+    transition_support: Option<ExactCaseSupport>,
 }
 
 #[derive(Debug)]
@@ -1367,7 +1458,12 @@ impl SemanticTreapNode {
 
 impl SemanticEvidenceMap {
     fn empty() -> Self {
-        Self { root: None, len: 0 }
+        Self {
+            root: None,
+            len: 0,
+            classification_support: None,
+            transition_support: None,
+        }
     }
 
     fn root_hash(&self) -> [u8; 32] {
@@ -1380,6 +1476,21 @@ impl SemanticEvidenceMap {
         facts
     }
 
+    fn case_support(
+        &self,
+        layer: SemanticEvidenceLayer,
+        normalized_content_hash: CanonicalDigest,
+    ) -> Option<&ExactCaseSupport> {
+        let key = SemanticEvidenceKey {
+            layer,
+            normalized_content_hash,
+        };
+        match semantic_treap_get(self.root.as_ref(), key)?.subject() {
+            SemanticEvidenceSubject::Cases(support) => Some(support),
+            SemanticEvidenceSubject::Obligations(_) | SemanticEvidenceSubject::Global => None,
+        }
+    }
+
     fn with_facts(&self, facts: &[SemanticEvidenceFact]) -> Result<Self, ExploreRunStreamError> {
         let mut next = self.clone();
         for fact in facts {
@@ -1389,6 +1500,22 @@ impl SemanticEvidenceMap {
     }
 
     fn with_fact(&self, fact: SemanticEvidenceFact) -> Result<Self, ExploreRunStreamError> {
+        let mut classification_support = self.classification_support.clone();
+        let mut transition_support = self.transition_support.clone();
+        if fact.layer().has_exclusive_case_subject() {
+            let SemanticEvidenceSubject::Cases(support) = fact.subject() else {
+                return Err(ExploreRunStreamError::SemanticLayerSubjectMismatch);
+            };
+            let accumulated = match fact.layer() {
+                SemanticEvidenceLayer::CaseClassification => &mut classification_support,
+                SemanticEvidenceLayer::SemanticTransition => &mut transition_support,
+                _ => unreachable!("only case-scoped exclusive layers reach this branch"),
+            };
+            *accumulated = Some(match accumulated.take() {
+                Some(existing) => existing.merge_disjoint(support)?,
+                None => support.clone(),
+            });
+        }
         if let Some(existing) = semantic_treap_get(self.root.as_ref(), fact.key) {
             let merged = existing.merge_disjoint(&fact)?;
             return Ok(Self {
@@ -1399,6 +1526,8 @@ impl SemanticEvidenceMap {
                     merged,
                 )),
                 len: self.len,
+                classification_support,
+                transition_support,
             });
         }
         Ok(Self {
@@ -1407,6 +1536,8 @@ impl SemanticEvidenceMap {
                 .len
                 .checked_add(1)
                 .ok_or(ExploreRunStreamError::SemanticEvidenceCountOverflow)?,
+            classification_support,
+            transition_support,
         })
     }
 }
@@ -1573,18 +1704,21 @@ fn normalize_semantic_facts(
 fn validate_exclusive_fact_batch(
     facts: &[SemanticEvidenceFact],
 ) -> Result<(), ExploreRunStreamError> {
-    let mut case_intervals = Vec::<(ExploreRankInterval, SemanticEvidenceKey)>::new();
+    let mut case_intervals = Vec::<(
+        SemanticEvidenceLayer,
+        ExploreRankInterval,
+        SemanticEvidenceKey,
+    )>::new();
     let mut obligation_owners = BTreeMap::<RequiredObligationId, SemanticEvidenceKey>::new();
     for fact in facts {
         match (&fact.key.layer, &fact.subject) {
-            (
-                SemanticEvidenceLayer::CaseClassification,
-                SemanticEvidenceSubject::Cases(support),
-            ) => {
+            (layer, SemanticEvidenceSubject::Cases(support))
+                if layer.has_exclusive_case_subject() =>
+            {
                 case_intervals.extend(
                     support
                         .iter_intervals()
-                        .map(|interval| (interval, fact.key)),
+                        .map(|interval| (*layer, interval, fact.key)),
                 );
             }
             (layer, SemanticEvidenceSubject::Obligations(obligations))
@@ -1599,11 +1733,11 @@ fn validate_exclusive_fact_batch(
             _ => {}
         }
     }
-    case_intervals.sort_unstable_by_key(|(interval, key)| (*interval, *key));
+    case_intervals.sort_unstable_by_key(|(layer, interval, key)| (*layer, *interval, *key));
     for pair in case_intervals.windows(2) {
-        let (left, left_key) = pair[0];
-        let (right, right_key) = pair[1];
-        if right.start < left.end_exclusive && left_key != right_key {
+        let (left_layer, left, left_key) = pair[0];
+        let (right_layer, right, right_key) = pair[1];
+        if left_layer == right_layer && right.start < left.end_exclusive && left_key != right_key {
             return Err(ExploreRunStreamError::ContradictorySemanticEvidence);
         }
     }
@@ -2708,6 +2842,16 @@ impl ExploreRunStream {
         self.evidence.canonical_facts()
     }
 
+    pub(crate) fn semantic_transition_support(
+        &self,
+        normalized_transition_digest: CanonicalDigest,
+    ) -> Option<&ExactCaseSupport> {
+        self.evidence.case_support(
+            SemanticEvidenceLayer::SemanticTransition,
+            normalized_transition_digest,
+        )
+    }
+
     pub(crate) fn last_committed_event(&self) -> &CommittedRunEvent {
         &self.last_committed_event
     }
@@ -2758,11 +2902,11 @@ impl ExploreRunStream {
         if semantic_facts.is_empty() {
             return Err(ExploreRunStreamError::EmptySemanticEvidence);
         }
-        if semantic_facts
-            .iter()
-            .any(|fact| fact.layer().closes_any_frontier())
-        {
-            return Err(ExploreRunStreamError::ObservationCannotCloseFrontier);
+        if semantic_facts.iter().any(|fact| {
+            fact.layer().closes_any_frontier()
+                || fact.layer() == SemanticEvidenceLayer::SemanticTransition
+        }) {
+            return Err(ExploreRunStreamError::ObservationCannotCarryFrontierBoundEvidence);
         }
         validate_fact_universes(self.header.case_universe(), &semantic_facts)?;
         let mut next = self.prepared_state();
@@ -3282,7 +3426,8 @@ pub(crate) enum ExploreRunStreamError {
     ContradictorySemanticEvidence,
     SemanticLayerSubjectMismatch,
     EmptySemanticEvidence,
-    ObservationCannotCloseFrontier,
+    EmptySemanticTransitionSupport,
+    ObservationCannotCarryFrontierBoundEvidence,
     FrontierFactsMismatch,
     StaleCaseUniverse,
     StaleRunId,
@@ -3381,9 +3526,13 @@ impl fmt::Display for ExploreRunStreamError {
             Self::EmptySemanticEvidence => {
                 write!(out, "Explore semantic evidence batch must not be empty")
             }
-            Self::ObservationCannotCloseFrontier => write!(
+            Self::EmptySemanticTransitionSupport => write!(
                 out,
-                "Explore frontier-closing evidence requires an exact frontier transition"
+                "Explore semantic transition evidence must support at least one CaseId"
+            ),
+            Self::ObservationCannotCarryFrontierBoundEvidence => write!(
+                out,
+                "Explore frontier-bound evidence requires an exact frontier transition"
             ),
             Self::FrontierFactsMismatch => write!(
                 out,
@@ -3523,6 +3672,14 @@ fn validate_frontier_facts(
     let mut closed_cases: Option<ExactCaseSupport> = None;
     let mut closed_obligations = BTreeSet::<RequiredObligationId>::new();
     for fact in facts {
+        if fact.layer() == SemanticEvidenceLayer::SemanticTransition {
+            let SemanticEvidenceSubject::Cases(support) = fact.subject() else {
+                return Err(ExploreRunStreamError::SemanticLayerSubjectMismatch);
+            };
+            if newly_closed.open_cases.subtract_exact(support).is_err() {
+                return Err(ExploreRunStreamError::FrontierFactsMismatch);
+            }
+        }
         if fact.layer().closes_case_frontier() {
             let SemanticEvidenceSubject::Cases(support) = fact.subject() else {
                 return Err(ExploreRunStreamError::SemanticLayerSubjectMismatch);
@@ -3774,6 +3931,21 @@ mod tests {
         .unwrap()
     }
 
+    fn semantic_transition_fact(
+        header: &ExploreRunHeader,
+        interval: (u128, u128),
+        content: char,
+    ) -> SemanticEvidenceFact {
+        SemanticEvidenceFact::new(
+            SemanticEvidenceLayer::SemanticTransition,
+            digest(content),
+            SemanticEvidenceSubject::cases(
+                ExactCaseSupport::new(header.case_universe(), [interval]).unwrap(),
+            ),
+        )
+        .unwrap()
+    }
+
     fn global_fact(layer: SemanticEvidenceLayer, content: char) -> SemanticEvidenceFact {
         SemanticEvidenceFact::new(layer, digest(content), SemanticEvidenceSubject::global())
             .unwrap()
@@ -3882,7 +4054,10 @@ mod tests {
                 FrontierEvidenceKind::CertifiedRegionClassification,
                 RequiredFrontier::new(ExactCaseSupport::full(first_header.case_universe()), [])
                     .unwrap(),
-                [case_fact(&first_header, (0, 4), '1')],
+                [
+                    case_fact(&first_header, (0, 4), '1'),
+                    semantic_transition_fact(&first_header, (0, 4), '5'),
+                ],
                 digest('2'),
             )
             .unwrap();
@@ -3897,7 +4072,10 @@ mod tests {
                     [],
                 )
                 .unwrap(),
-                [case_fact(&second_header, (0, 2), '1')],
+                [
+                    case_fact(&second_header, (0, 2), '1'),
+                    semantic_transition_fact(&second_header, (0, 2), '5'),
+                ],
                 digest('3'),
             )
             .unwrap();
@@ -3911,7 +4089,10 @@ mod tests {
                     [],
                 )
                 .unwrap(),
-                [case_fact(&second_header, (2, 4), '1')],
+                [
+                    case_fact(&second_header, (2, 4), '1'),
+                    semantic_transition_fact(&second_header, (2, 4), '5'),
+                ],
                 digest('4'),
             )
             .unwrap();
@@ -3919,6 +4100,111 @@ mod tests {
 
         assert_eq!(one_batch.evidence_root(), two_batches.evidence_root());
         assert_ne!(one_batch.journal_head(), two_batches.journal_head());
+    }
+
+    #[test]
+    fn semantic_transition_facts_are_bound_to_the_same_frontier_closure() {
+        let header = header(3, 'f', 'd');
+        let lease = lease(&header, 1, 'a');
+        let mut stream = open(header.clone(), lease);
+
+        assert!(matches!(
+            stream.prepare_observation(
+                lease,
+                ObservationEvidenceKind::MechanismObserved,
+                [semantic_transition_fact(&header, (0, 1), '1')],
+                digest('2'),
+            ),
+            Err(ExploreRunStreamError::ObservationCannotCarryFrontierBoundEvidence)
+        ));
+
+        let newly_closed = RequiredFrontier::new(
+            ExactCaseSupport::new(header.case_universe(), [(0, 1)]).unwrap(),
+            [],
+        )
+        .unwrap();
+        assert!(matches!(
+            stream.prepare_frontier_transition(
+                lease,
+                FrontierEvidenceKind::SingletonClassification,
+                newly_closed,
+                [
+                    case_fact(&header, (0, 1), '3'),
+                    semantic_transition_fact(&header, (1, 2), '4'),
+                ],
+                digest('5'),
+            ),
+            Err(ExploreRunStreamError::FrontierFactsMismatch)
+        ));
+
+        let valid_closure = RequiredFrontier::new(
+            ExactCaseSupport::new(header.case_universe(), [(0, 2)]).unwrap(),
+            [],
+        )
+        .unwrap();
+        let prepared = stream
+            .prepare_frontier_transition(
+                lease,
+                FrontierEvidenceKind::BoundedExactBatchClassification,
+                valid_closure,
+                [
+                    case_fact(&header, (0, 1), '6'),
+                    case_fact(&header, (1, 2), '7'),
+                    semantic_transition_fact(&header, (1, 2), '8'),
+                ],
+                digest('9'),
+            )
+            .unwrap();
+        let payload = prepared.payload().clone();
+        let event = prepared.event().clone();
+        apply(&mut stream, prepared);
+
+        let mut replay = open(header, lease);
+        replay.replay_committed(payload, &event).unwrap();
+        assert_eq!(replay.cursor(), stream.cursor());
+    }
+
+    #[test]
+    fn semantic_transition_support_is_globally_exclusive_per_case() {
+        let header = header(2, 'f', 'd');
+        let evidence = SemanticEvidenceMap::empty()
+            .with_facts(&[semantic_transition_fact(&header, (0, 1), '1')])
+            .unwrap();
+
+        assert!(matches!(
+            evidence.with_facts(&[semantic_transition_fact(&header, (0, 1), '2')]),
+            Err(ExploreRunStreamError::OverlappingSemanticEvidence)
+        ));
+    }
+
+    #[test]
+    fn semantic_transition_fact_rejects_empty_case_support() {
+        let header = header(2, 'f', 'd');
+        let empty = ExactCaseSupport::new(header.case_universe(), []).unwrap();
+
+        assert!(matches!(
+            SemanticEvidenceFact::new(
+                SemanticEvidenceLayer::SemanticTransition,
+                digest('1'),
+                SemanticEvidenceSubject::cases(empty),
+            ),
+            Err(ExploreRunStreamError::EmptySemanticTransitionSupport)
+        ));
+    }
+
+    #[test]
+    fn case_support_intersection_streams_canonical_intervals_without_materialization() {
+        let universe = ExploreCaseUniverse::new(vec![12]).unwrap();
+        let left = ExactCaseSupport::new(&universe, [(0, 3), (5, 10)]).unwrap();
+        let right = ExactCaseSupport::new(&universe, [(1, 6), (8, 9), (11, 12)]).unwrap();
+
+        let intersections = left
+            .intersecting_intervals(&right)
+            .unwrap()
+            .map(|interval| (interval.start(), interval.end_exclusive()))
+            .collect::<Vec<_>>();
+
+        assert_eq!(intersections, vec![(1, 3), (5, 6), (8, 9)]);
     }
 
     #[test]

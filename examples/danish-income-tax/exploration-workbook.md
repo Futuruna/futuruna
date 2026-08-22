@@ -53,8 +53,16 @@ The first-class Explore architecture calls the finite declared coordinate space
 
 `U_D \ U_C` contains structurally excluded coordinates—for example the last
 income when its requested successor lies outside the bounded domain. Those
-coordinates retain `CaseId` support in the case DAG but do not mint a fictitious
-after state or `TransitionId`.
+coordinates retain `CaseId` support in the search decision DAG but do not mint
+a fictitious after state or `TransitionId`.
+
+The durable unit is the same unit the evaluator produces. A constructible
+income coordinate atomically carries `CaseId`, canonical context/before/after
+values, `TransitionId`, validity/question classification, and any matching
+projection. The journal must retain that transaction directly so the search
+DAG, semantic transition graph, counts and later mechanism DAG remain
+projections of one calculation. It must not discard the transition and infer
+it later from a displayed tax row.
 
 The question may compare after with before, or state an absolute condition on
 after while before remains available. A policy-version comparison changes the
@@ -503,7 +511,7 @@ generator coordinates
         v
 search decision DAG  -------> coverage and weighted transition-case counts
         |
-        | exact CaseId-to-TransitionId support
+        | mathematical CaseId-to-TransitionId relation
         v
 semantic transition graph --> shared before/after state nodes and result views
         |
@@ -519,21 +527,32 @@ name is presentation only, and graph nodes use `dimension_index`. The DAG
 shares equal suffixes while retaining disconnected paths. The
 semantic transition graph is the case graph we mean in the domain: role-neutral
 state nodes connected by directional before-to-after edges. A state can be
-reused across edges, while each edge retains its exact supporting `CaseId` or
-proved region. The in-process exact accumulator now constructs
-collision-checked `StateId`, directional `TransitionId` and singleton
-`CaseId -> TransitionId` support for constructible transactions it accepts.
-The durable journal does not yet retain that index. `TransitionId` is the
-extensional typed Context+Before→After identity:
+reused across edges, while each edge retains its exact supporting `CaseId`
+set. Mathematically, every constructible case belongs to the
+`CaseId -> TransitionId` relation. Its durable representation uses the inverse
+fibers: the authenticated stream owns exact `TransitionId -> CaseId support`.
+The reducer separately owns the three global classification supports and one
+compact collision/population index. That index interns each canonical state
+value once; an edge retains endpoint IDs, canonical context and monotone
+`admissible`/`matching` bits whose counts establish `U_T`, `D_T` and `M_T`. It
+does not retain a boxed ordinal `CaseId -> TransitionId` table or duplicate
+classification support for every edge. When the semantic graph is requested,
+its three support fibers are streamed as exact intersections of authenticated
+edge support with the global classification supports. The durable journal
+atomically retains each case's classification and canonical
+Context/Before/After transaction so replay rebuilds both projections.
+`TransitionId` is the extensional typed Context+Before→After identity:
 mode, after-recipe/DAG topology, query and generator coordinates, and mechanism
 path are excluded. Declared State/Context schema identity uses the resolved
 occurrence-sensitive owner and checked layout. The runtime derives typed
 32-byte State, Context and transition-type schema IDs from those canonical
-preimages before deriving state and edge identities. Snapshot v6 and
-exact-answer v5 can publish the search DAG under `graph.case_graph` when
-requested and admitted; they do not serialize that semantic support. The final
-public contract names the two graphs separately as `search_decision_dag` and
-`semantic_transition_graph`.
+preimages before deriving state and edge identities. Snapshot v7 and
+exact-answer v6 publish the two graphs independently when requested and
+admitted: `graph.search_decision_dag` contains the classification proof and
+`graph.semantic_transition_graph` contains canonical states, directional edges,
+and classification-partitioned case support. Durable CLI runs request them
+separately with `--search-decision-dag full` and
+`--semantic-transition-graph full`.
 
 The mechanism DAG answers how the encoded execution differs across a declared
 edge under one explicit observation request. Once observer replay is
@@ -553,21 +572,35 @@ counts.
 
 ### Read every count with its population and closure
 
-Search closure, semantic-graph materialization and mechanism closure are
-independent. The search decision DAG can establish an exact number of matching
-transition cases while the semantic graph is omitted and mechanism replay is
-still open. Conversely, every traced transition is confirmed evidence even
-before the requested mechanism population closes.
+Search closure, graph materialization and mechanism closure are independent.
+The reducer can establish exact case and transition populations while either
+graph is omitted or too large to publish, and mechanism replay may still be
+open. Conversely, every journaled transition is confirmed evidence before the
+classification frontier closes.
 
-Always name the population: declared generator cases, constructible transition
-cases, admissible transition cases, matching transition cases, distinct before
-states, distinct after states, distinct state nodes, distinct transition edges,
-projected findings, or distinct mechanism signatures. A `CaseId` count is
-weighted search support;
-a `TransitionId` count is semantic edges; neither is a state-node or mechanism
-count. Closing the search population does not close distinct-edge or state
-counts until `tau`'s image is fully reduced or certified; graph serialization
-capacity is a separate disclosure limit.
+Snapshot v7 and exact-answer v6 name seven populations explicitly:
+
+- `U_D`: declared generator cases;
+- `U_C`: constructible transition cases;
+- `U_T`: distinct declared transitions;
+- `D_C`: admissible transition cases;
+- `D_T`: distinct admissible transitions;
+- `M_C`: matching transition cases; and
+- `M_T`: distinct matching transitions.
+
+Each population publishes `lower_bound`, optional `exact`, and `certainty`.
+`U_D` is exact from the finite declared product. The other six are honest lower
+bounds while classification remains open and become exact when every declared
+case has a journaled classification and every constructible case has its
+canonical transition. A `CaseId` count is weighted search support; a
+`TransitionId` count is semantic-edge identity. Neither is a state-node,
+projected-finding, or mechanism count.
+
+Graph serialization capacity is a separate disclosure limit. Each requested
+graph is either included whole or reported as typed `capacity_limited` with the
+resource, fixed `maximum`, and honest `required_at_least`; no prefix is emitted.
+The seven counts retain their exact or lower-bound certainty, and a closed
+terminal answer can seal, regardless of either graph's publication status.
 
 For mechanisms scoped to all matching configurations, the relevant states are:
 

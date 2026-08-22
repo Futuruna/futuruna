@@ -26,13 +26,18 @@ use super::case_graph::{
 };
 use super::classification_regions::SOURCE_PROOF_CLASSIFICATION_OPTIONS_V1;
 use super::exact_stream::{
-    ExactCanonicalCaseIdV1, ExactCountBoundV1, ExactEvidenceSnapshotV1, ExactExtremaAggregateV1,
-    ExactResultAggregateV1, EXACT_OBSERVABLE_RESULT_PREVIEW_GROUP_LIMIT_V1,
+    transition_semantic_fact_digest_from_parts_v2, ExactCanonicalCaseIdV1,
+    ExactConstructibleClassificationV2, ExactCountBoundV1, ExactEvidenceReducer,
+    ExactEvidenceSnapshotV1, ExactExtremaAggregateV1, ExactResultAggregateV1,
+    ExactTransitionPopulationSnapshotV2, EXACT_OBSERVABLE_RESULT_PREVIEW_GROUP_LIMIT_V1,
     EXACT_OBSERVABLE_RESULT_PREVIEW_JSON_BYTE_LIMIT_V1,
     EXACT_OBSERVABLE_RESULT_PREVIEW_SEMANTIC_BYTE_LIMIT_V1,
     EXACT_OBSERVABLE_RESULT_PREVIEW_VALUE_NODE_LIMIT_V1,
 };
-use super::run_stream::{CanonicalDigest, ExploreRunCursor, ExploreRunStream, RunLifecycle};
+use super::report::ExploreSemanticTransitionGraphRequest;
+use super::run_stream::{
+    CanonicalDigest, ExactCaseSupport, ExploreRunCursor, ExploreRunStream, RunLifecycle,
+};
 use super::source_events::{SOURCE_PROOF_ADAPTER_LIMITS_V1, SOURCE_PROOF_EXTRACTION_OPTIONS_V1};
 use super::source_proof_plan::DEFAULT_SOURCE_PROOF_PROFILE_LIMIT;
 use super::stream_identity::{
@@ -45,6 +50,7 @@ use super::stream_proof::{
     source_proof_candidate_rank_bytes_limit_v1, source_proof_candidate_rank_limit_v1,
     source_proof_closed_region_limit_v1,
 };
+use super::transition::TransitionSchemaIdentities;
 use super::{
     ExploreEnumeratedSource, ExploreExactDomain, ExploreFactValue, ExploreFiniteTypePlan,
     ExploreGeneratorAxisRole, ExploreQueryIr, ExploreValue,
@@ -52,10 +58,10 @@ use super::{
 use crate::ExplorePolarity;
 
 /// Content-addressed kind for cursor-bearing observable snapshots.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v6";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v7";
 
 /// Schema name written into every cursor-bearing observable snapshot.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v6";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v7";
 
 /// Content-addressed kind for a bounded observer receipt reporting that one
 /// admitted full-snapshot attempt was unavailable because of capacity.
@@ -67,18 +73,20 @@ pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_SCHEMA_V1: &str =
     "futuruna.explore.snapshot-unavailable.v1";
 
 /// Content-addressed kind for history-independent semantic answers.
-pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v5";
+pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v6";
 
 /// Internal schema for the evidence-derived answer committed by a terminal
 /// payload hash. A public terminal report may wrap this object with additional
 /// checked-query presentation metadata.
-pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v5";
+pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v6";
 
-const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 6;
-const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 5;
-pub(crate) const MAX_CANONICAL_JSON_BYTES: usize = 64 * 1024 * 1024;
-/// Cumulative terminal row budget. The remaining 16 MiB is reserved for answer
-/// metadata, projection labels, JSON escaping, and the enclosing writer.
+const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 7;
+const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 6;
+pub(crate) const MAX_CANONICAL_JSON_BYTES: usize = 96 * 1024 * 1024;
+/// Cumulative terminal row budget. The remaining 48 MiB covers both bounded
+/// graph objects, answer metadata, projection labels, JSON escaping, and the
+/// enclosing writer, so an individually admitted graph cannot consume the
+/// entire former metadata reserve.
 pub(crate) const MAX_TERMINAL_RESULT_ROW_JSON_BYTES_V1: usize = 48 * 1024 * 1024;
 pub(crate) const MAX_PROJECTION_LABELS: usize = 65_536;
 pub(crate) const MAX_PROJECTION_LABEL_BYTES: usize = 1024 * 1024;
@@ -96,9 +104,9 @@ pub(crate) const MAX_PRESENTATION_STRING_OCCURRENCES_V1: usize = 262_144;
 
 /// Conservative peak envelope for one admitted snapshot materialization.
 ///
-/// This covers the 64 MiB case-DAG lowerer, 64 MiB outer canonical writer,
-/// nested graph/result/configuration JSON limits, validation scratch and
-/// reallocation overlap. The current one-worker stream remains in the cold
+/// This covers the 64 MiB search-decision-DAG lowerer, 96 MiB outer canonical
+/// writer, nested graph/result/configuration JSON limits, validation scratch
+/// and reallocation overlap. The current one-worker stream remains in the cold
 /// resource phase whose >=2 GiB charge dominates this value. A future
 /// calibrated/multiworker publisher must introduce a distinct snapshot charge
 /// before it may admit this work in scan mode.
@@ -109,11 +117,18 @@ pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_ACCOUNTED_WORKING_SET_V1: u64 = 256 *
 /// when an admitted full-snapshot attempt cannot complete.
 pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1: usize = 4 * 1024;
 
-/// Atomic publication cap for the canonical nested case-graph object.
+/// Atomic publication cap for the canonical nested search decision DAG object.
 ///
 /// The object is rendered and hashed independently before it is embedded in a
 /// snapshot. Crossing this bound never emits a graph prefix.
-pub(crate) const EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1: usize = 8 * 1024 * 1024;
+pub(crate) const EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1: usize = 8 * 1024 * 1024;
+
+/// Atomic publication cap for the canonical nested semantic transition graph.
+///
+/// The graph is rendered and hashed independently. Crossing this bound emits
+/// only a typed capacity status; no state or transition prefix escapes.
+pub(crate) const EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1: usize =
+    8 * 1024 * 1024;
 
 struct ExactPresentationStringBudgetV1 {
     encoded_bytes: usize,
@@ -220,9 +235,10 @@ pub(crate) fn validate_exact_snapshot_presentation_v1(
     Ok(())
 }
 
-/// One fixed resource that can prevent all-or-nothing case-DAG publication.
+/// One fixed resource that can prevent all-or-nothing search decision DAG
+/// publication.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum ExactCaseGraphPublicationResourceV1 {
+pub(crate) enum ExactSearchDecisionDagPublicationResourceV1 {
     LoweringAxes,
     LoweringRankRuns,
     LoweringNodes,
@@ -232,7 +248,7 @@ pub(crate) enum ExactCaseGraphPublicationResourceV1 {
     CanonicalJsonBytes,
 }
 
-impl ExactCaseGraphPublicationResourceV1 {
+impl ExactSearchDecisionDagPublicationResourceV1 {
     pub(crate) const fn name(self) -> &'static str {
         match self {
             Self::LoweringAxes => "lowering_axes",
@@ -253,25 +269,155 @@ impl ExactCaseGraphPublicationResourceV1 {
             Self::LoweringArcs => DEFAULT_MAX_CASE_RANK_RUN_ARCS,
             Self::LoweringOrdinalIntervals => DEFAULT_MAX_CASE_RANK_RUN_ORDINAL_INTERVALS,
             Self::LoweringAccountedBytes => DEFAULT_MAX_CASE_RANK_RUN_ACCOUNTED_BYTES,
-            Self::CanonicalJsonBytes => EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+            Self::CanonicalJsonBytes => EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1,
         }
     }
 }
 
-/// Fully prepared disclosure state for the case graph requested by one run.
+/// Fully prepared disclosure state for the search decision DAG requested by one run.
 ///
 /// `CapacityLimited` is evidence that a complete graph could not be
 /// materialized under one fixed schema limit. `required_at_least` is a lower
 /// bound, not an invented total. No variant can represent a graph prefix.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) enum ExactPreparedCaseGraphPublicationV1 {
+pub(crate) enum ExactPreparedSearchDecisionDagPublicationV1 {
     NotRequested,
     Included(CaseDecisionDag),
     CapacityLimited {
-        resource: ExactCaseGraphPublicationResourceV1,
+        resource: ExactSearchDecisionDagPublicationResourceV1,
         maximum: usize,
         required_at_least: usize,
     },
+}
+
+/// Fixed resource governing all-or-none semantic transition graph
+/// materialization.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ExactSemanticTransitionGraphPublicationResourceV1 {
+    CanonicalJsonBytes,
+}
+
+impl ExactSemanticTransitionGraphPublicationResourceV1 {
+    pub(crate) const fn name(self) -> &'static str {
+        match self {
+            Self::CanonicalJsonBytes => "canonical_json_bytes",
+        }
+    }
+
+    pub(crate) const fn fixed_maximum(self) -> usize {
+        match self {
+            Self::CanonicalJsonBytes => {
+                EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1
+            }
+        }
+    }
+}
+
+/// Fully prepared semantic transition graph publication for one reducer
+/// revision. Included bytes are already canonical and bounded. Capacity is a
+/// complete publication status, never a graph prefix or finalization failure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ExactPreparedSemanticTransitionGraphPublicationV1 {
+    NotRequested,
+    Included {
+        canonical_graph_object: Vec<u8>,
+        artifact_graph_hash: String,
+        state_count: u128,
+        transition_count: u128,
+        constructible_case_count: u128,
+    },
+    CapacityLimited {
+        resource: ExactSemanticTransitionGraphPublicationResourceV1,
+        maximum: usize,
+        required_at_least: usize,
+    },
+}
+
+impl ExactPreparedSemanticTransitionGraphPublicationV1 {
+    fn requested(&self) -> bool {
+        !matches!(self, Self::NotRequested)
+    }
+
+    fn complete_for_answer(&self, populations: ExactTransitionPopulationSnapshotV2) -> bool {
+        match self {
+            Self::NotRequested | Self::CapacityLimited { .. } => true,
+            Self::Included { .. } => {
+                populations.u_c.exact.is_some() && populations.u_t.exact.is_some()
+            }
+        }
+    }
+}
+
+/// Materialize the authenticated semantic transition relation under its fixed
+/// all-or-none JSON cap. The stream owns transition-to-case support; the exact
+/// reducer owns canonical edge collision witnesses and global classification
+/// fibers. Publication intersects those two authorities instead of retaining
+/// a duplicate per-edge support index.
+pub(crate) fn prepare_exact_semantic_transition_graph_publication_v1(
+    request: ExploreSemanticTransitionGraphRequest,
+    axis_cardinalities: &[u128],
+    schemas: &TransitionSchemaIdentities,
+    exact: &ExactEvidenceReducer,
+    stream: &ExploreRunStream,
+) -> Result<ExactPreparedSemanticTransitionGraphPublicationV1, ExactSnapshotRenderError> {
+    if request == ExploreSemanticTransitionGraphRequest::Omit {
+        return Ok(ExactPreparedSemanticTransitionGraphPublicationV1::NotRequested);
+    }
+
+    let transition_index = exact.transition_support_index();
+    let populations = exact.transition_population_snapshot();
+    let declared_cases = axis_cardinalities
+        .iter()
+        .copied()
+        .try_fold(1_u128, u128::checked_mul)
+        .ok_or_else(|| {
+            ExactSnapshotRenderError::invalid(
+                "semantic transition graph axis cardinalities exceed u128::MAX",
+            )
+        })?;
+    if populations.u_d.lower_bound != declared_cases {
+        return Err(ExactSnapshotRenderError::invalid(
+            "semantic transition graph axes disagree with the reducer case universe",
+        ));
+    }
+    let state_count = transition_index.state_len() as u128;
+    let transition_count = transition_index.len() as u128;
+    let constructible_case_count = populations.u_c.lower_bound;
+    if populations.u_t.lower_bound != transition_count {
+        return Err(ExactSnapshotRenderError::invalid(
+            "semantic transition index disagrees with reducer transition populations",
+        ));
+    }
+
+    let canonical_graph_object = match render_canonical_semantic_transition_graph_object_v1(
+        axis_cardinalities,
+        schemas,
+        exact,
+        stream,
+    ) {
+        Ok(bytes) => bytes,
+        Err(error) if error.is_capacity_limit() => {
+            return Ok(
+                ExactPreparedSemanticTransitionGraphPublicationV1::CapacityLimited {
+                    resource: ExactSemanticTransitionGraphPublicationResourceV1::CanonicalJsonBytes,
+                    maximum: EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+                    required_at_least: EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1
+                        + 1,
+                },
+            );
+        }
+        Err(error) => return Err(error),
+    };
+    let artifact_graph_hash = exact_stream_blob_sha256(&canonical_graph_object);
+    Ok(
+        ExactPreparedSemanticTransitionGraphPublicationV1::Included {
+            canonical_graph_object,
+            artifact_graph_hash,
+            state_count,
+            transition_count,
+            constructible_case_count,
+        },
+    )
 }
 
 /// Owned names from the type-checked Explore output projection.
@@ -1287,17 +1433,22 @@ impl Error for ExactSnapshotRenderError {}
 pub(crate) fn render_exact_observable_snapshot_json_line_v1(
     metadata: &ExactObservableSnapshotMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
-    case_graph_publication: &ExactPreparedCaseGraphPublicationV1,
+    search_decision_dag_publication: &ExactPreparedSearchDecisionDagPublicationV1,
+    semantic_transition_graph_publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
 ) -> Result<Vec<u8>, ExactSnapshotRenderError> {
     let prepared_results = validate_snapshot(
         snapshot,
         &metadata.semantic_answer,
         ExactResultRenderModeV1::ObservablePreview,
     )?;
-    let prepared_case_graph = prepare_case_graph_publication(
-        case_graph_publication,
+    let prepared_search_decision_dag = prepare_search_decision_dag_publication(
+        search_decision_dag_publication,
         snapshot,
         ExactResultRenderModeV1::ObservablePreview,
+    )?;
+    validate_semantic_transition_graph_publication(
+        semantic_transition_graph_publication,
+        snapshot,
     )?;
     let mut writer = CanonicalJsonWriter::new();
     writer.raw(b"{")?;
@@ -1352,7 +1503,8 @@ pub(crate) fn render_exact_observable_snapshot_json_line_v1(
         &metadata.semantic_answer,
         snapshot,
         &prepared_results,
-        &prepared_case_graph,
+        &prepared_search_decision_dag,
+        semantic_transition_graph_publication,
     )?;
     writer.raw(b"}\n")?;
     Ok(writer.finish())
@@ -1432,14 +1584,19 @@ pub(crate) fn render_exact_observable_snapshot_unavailable_json_line_v1(
 pub(crate) fn render_exact_semantic_answer_json_v1(
     metadata: &ExactSemanticAnswerMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
-    case_graph_publication: &ExactPreparedCaseGraphPublicationV1,
+    search_decision_dag_publication: &ExactPreparedSearchDecisionDagPublicationV1,
+    semantic_transition_graph_publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
 ) -> Result<Vec<u8>, ExactSnapshotRenderError> {
     let prepared_results =
         validate_snapshot(snapshot, metadata, ExactResultRenderModeV1::FullPublication)?;
-    let prepared_case_graph = prepare_case_graph_publication(
-        case_graph_publication,
+    let prepared_search_decision_dag = prepare_search_decision_dag_publication(
+        search_decision_dag_publication,
         snapshot,
         ExactResultRenderModeV1::FullPublication,
+    )?;
+    validate_semantic_transition_graph_publication(
+        semantic_transition_graph_publication,
+        snapshot,
     )?;
     let mut writer = CanonicalJsonWriter::new();
     write_semantic_answer_object(
@@ -1447,7 +1604,8 @@ pub(crate) fn render_exact_semantic_answer_json_v1(
         metadata,
         snapshot,
         &prepared_results,
-        &prepared_case_graph,
+        &prepared_search_decision_dag,
+        semantic_transition_graph_publication,
     )?;
     Ok(writer.finish())
 }
@@ -2009,15 +2167,15 @@ struct ExactPreparedResultsV1 {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ExactCaseGraphTerminalMultiplicityV1 {
+struct ExactSearchDecisionDagTerminalMultiplicityV1 {
     terminal_id: usize,
     terminal: CaseTerminal,
     case_count: u128,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct ExactCaseGraphSummaryV1 {
-    terminal_multiplicities: Vec<ExactCaseGraphTerminalMultiplicityV1>,
+struct ExactSearchDecisionDagSummaryV1 {
+    terminal_multiplicities: Vec<ExactSearchDecisionDagTerminalMultiplicityV1>,
     excluded: u128,
     eligibility_open: u128,
     admissible_nonmatch: u128,
@@ -2025,7 +2183,7 @@ struct ExactCaseGraphSummaryV1 {
     admissible_open: u128,
 }
 
-impl ExactCaseGraphSummaryV1 {
+impl ExactSearchDecisionDagSummaryV1 {
     fn admissibility_closed(&self) -> bool {
         self.eligibility_open == 0
     }
@@ -2035,34 +2193,38 @@ impl ExactCaseGraphSummaryV1 {
     }
 
     fn fully_closed_case_count(&self) -> Result<u128, ExactSnapshotRenderError> {
-        checked_case_graph_sum(
-            checked_case_graph_sum(self.excluded, self.admissible_nonmatch, "fully closed case")?,
+        checked_search_decision_dag_sum(
+            checked_search_decision_dag_sum(
+                self.excluded,
+                self.admissible_nonmatch,
+                "fully closed case",
+            )?,
             self.admissible_match,
             "fully closed case",
         )
     }
 
     fn open_case_count(&self) -> Result<u128, ExactSnapshotRenderError> {
-        checked_case_graph_sum(self.eligibility_open, self.admissible_open, "open case")
+        checked_search_decision_dag_sum(self.eligibility_open, self.admissible_open, "open case")
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum ExactRenderedCaseGraphPublicationV1 {
+enum ExactRenderedSearchDecisionDagPublicationV1 {
     NotRequested,
     Included {
         canonical_graph_object: Vec<u8>,
         artifact_graph_hash: String,
-        summary: ExactCaseGraphSummaryV1,
+        summary: ExactSearchDecisionDagSummaryV1,
     },
     CapacityLimited {
-        resource: ExactCaseGraphPublicationResourceV1,
+        resource: ExactSearchDecisionDagPublicationResourceV1,
         maximum: usize,
         required_at_least: usize,
     },
 }
 
-impl ExactRenderedCaseGraphPublicationV1 {
+impl ExactRenderedSearchDecisionDagPublicationV1 {
     fn requested(&self) -> bool {
         !matches!(self, Self::NotRequested)
     }
@@ -2073,66 +2235,65 @@ impl ExactRenderedCaseGraphPublicationV1 {
             Self::Included { summary, .. } => {
                 summary.admissibility_closed() && summary.polarity_closed()
             }
-            Self::CapacityLimited { .. } => false,
+            // A deterministic all-or-none capacity result satisfies the view
+            // request. Semantic closure is reported independently.
+            Self::CapacityLimited { .. } => true,
         }
     }
 }
 
-fn prepare_case_graph_publication(
-    publication: &ExactPreparedCaseGraphPublicationV1,
+fn prepare_search_decision_dag_publication(
+    publication: &ExactPreparedSearchDecisionDagPublicationV1,
     snapshot: &ExactEvidenceSnapshotV1,
     mode: ExactResultRenderModeV1,
-) -> Result<ExactRenderedCaseGraphPublicationV1, ExactSnapshotRenderError> {
+) -> Result<ExactRenderedSearchDecisionDagPublicationV1, ExactSnapshotRenderError> {
     match publication {
-        ExactPreparedCaseGraphPublicationV1::NotRequested => {
-            Ok(ExactRenderedCaseGraphPublicationV1::NotRequested)
+        ExactPreparedSearchDecisionDagPublicationV1::NotRequested => {
+            Ok(ExactRenderedSearchDecisionDagPublicationV1::NotRequested)
         }
-        ExactPreparedCaseGraphPublicationV1::CapacityLimited {
+        ExactPreparedSearchDecisionDagPublicationV1::CapacityLimited {
             resource,
             maximum,
             required_at_least,
         } => {
-            validate_case_graph_capacity_limit(*resource, *maximum, *required_at_least)?;
-            if mode == ExactResultRenderModeV1::FullPublication {
-                return Err(ExactSnapshotRenderError::limit(format!(
-                    "requested terminal case graph requires at least {required_at_least} {}, exceeding the fixed maximum {maximum}",
-                    resource.name()
-                )));
-            }
-            Ok(ExactRenderedCaseGraphPublicationV1::CapacityLimited {
-                resource: *resource,
-                maximum: *maximum,
-                required_at_least: *required_at_least,
-            })
+            validate_search_decision_dag_capacity_limit(*resource, *maximum, *required_at_least)?;
+            Ok(
+                ExactRenderedSearchDecisionDagPublicationV1::CapacityLimited {
+                    resource: *resource,
+                    maximum: *maximum,
+                    required_at_least: *required_at_least,
+                },
+            )
         }
-        ExactPreparedCaseGraphPublicationV1::Included(graph) => {
-            let summary = validate_case_graph_against_snapshot(graph, snapshot)?;
+        ExactPreparedSearchDecisionDagPublicationV1::Included(graph) => {
+            let summary = validate_search_decision_dag_against_snapshot(graph, snapshot)?;
             if mode == ExactResultRenderModeV1::FullPublication
                 && (!summary.admissibility_closed()
                     || !summary.polarity_closed()
                     || snapshot.open_case_count != 0)
             {
                 return Err(ExactSnapshotRenderError::invalid(
-                    "requested terminal case-graph publication must be included with closed admissibility and polarity",
+                    "requested terminal search decision DAG publication must be included with closed admissibility and polarity",
                 ));
             }
 
-            let canonical_graph_object = match render_canonical_case_graph_object(graph) {
+            let canonical_graph_object = match render_canonical_search_decision_dag_object(graph) {
                 Ok(bytes) => bytes,
-                Err(error)
-                    if error.is_capacity_limit()
-                        && mode == ExactResultRenderModeV1::ObservablePreview =>
-                {
-                    return Ok(ExactRenderedCaseGraphPublicationV1::CapacityLimited {
-                        resource: ExactCaseGraphPublicationResourceV1::CanonicalJsonBytes,
-                        maximum: EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
-                        required_at_least: EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1 + 1,
-                    });
+                Err(error) if error.is_capacity_limit() => {
+                    return Ok(
+                        ExactRenderedSearchDecisionDagPublicationV1::CapacityLimited {
+                            resource:
+                                ExactSearchDecisionDagPublicationResourceV1::CanonicalJsonBytes,
+                            maximum: EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1,
+                            required_at_least:
+                                EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1 + 1,
+                        },
+                    );
                 }
                 Err(error) => return Err(error),
             };
             let artifact_graph_hash = exact_stream_blob_sha256(&canonical_graph_object);
-            Ok(ExactRenderedCaseGraphPublicationV1::Included {
+            Ok(ExactRenderedSearchDecisionDagPublicationV1::Included {
                 canonical_graph_object,
                 artifact_graph_hash,
                 summary,
@@ -2141,78 +2302,114 @@ fn prepare_case_graph_publication(
     }
 }
 
-/// Resolve the all-or-status case-graph view before an atomic terminal replay
-/// begins. This uses the observable rules so a graph that crosses only the
-/// nested canonical-JSON cap is reported as typed capacity evidence rather
-/// than surfacing later as a generic terminal writer failure.
-pub(crate) fn exact_case_graph_capacity_status_v1(
-    publication: &ExactPreparedCaseGraphPublicationV1,
+fn validate_semantic_transition_graph_publication(
+    publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
     snapshot: &ExactEvidenceSnapshotV1,
-) -> Result<Option<(ExactCaseGraphPublicationResourceV1, usize, usize)>, ExactSnapshotRenderError> {
-    match prepare_case_graph_publication(
-        publication,
-        snapshot,
-        ExactResultRenderModeV1::ObservablePreview,
-    )? {
-        ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+) -> Result<(), ExactSnapshotRenderError> {
+    match publication {
+        ExactPreparedSemanticTransitionGraphPublicationV1::NotRequested => Ok(()),
+        ExactPreparedSemanticTransitionGraphPublicationV1::Included {
+            canonical_graph_object,
+            artifact_graph_hash,
+            state_count: _,
+            transition_count,
+            constructible_case_count,
+        } => {
+            if canonical_graph_object.len()
+                > EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1
+            {
+                return Err(ExactSnapshotRenderError::invalid(
+                    "included semantic transition graph exceeds its canonical-JSON limit",
+                ));
+            }
+            if exact_stream_blob_sha256(canonical_graph_object) != *artifact_graph_hash {
+                return Err(ExactSnapshotRenderError::invalid(
+                    "included semantic transition graph hash disagrees with its canonical bytes",
+                ));
+            }
+            if snapshot.transition_populations.u_c.lower_bound != *constructible_case_count
+                || snapshot.transition_populations.u_t.lower_bound != *transition_count
+            {
+                return Err(ExactSnapshotRenderError::invalid(
+                    "included semantic transition graph summary disagrees with transition populations",
+                ));
+            }
+            Ok(())
+        }
+        ExactPreparedSemanticTransitionGraphPublicationV1::CapacityLimited {
             resource,
             maximum,
             required_at_least,
-        } => Ok(Some((resource, maximum, required_at_least))),
-        ExactRenderedCaseGraphPublicationV1::NotRequested
-        | ExactRenderedCaseGraphPublicationV1::Included { .. } => Ok(None),
+        } => {
+            if *maximum != resource.fixed_maximum() {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "semantic transition graph capacity status for {} names maximum {maximum}, fixed schema maximum is {}",
+                    resource.name(),
+                    resource.fixed_maximum()
+                )));
+            }
+            if required_at_least <= maximum {
+                return Err(ExactSnapshotRenderError::invalid(format!(
+                    "semantic transition graph capacity status for {} requires at least {required_at_least}, which does not exceed maximum {maximum}",
+                    resource.name()
+                )));
+            }
+            Ok(())
+        }
     }
 }
 
-fn validate_case_graph_capacity_limit(
-    resource: ExactCaseGraphPublicationResourceV1,
+fn validate_search_decision_dag_capacity_limit(
+    resource: ExactSearchDecisionDagPublicationResourceV1,
     maximum: usize,
     required_at_least: usize,
 ) -> Result<(), ExactSnapshotRenderError> {
     if maximum != resource.fixed_maximum() {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "case-graph capacity status for {} names maximum {maximum}, fixed schema maximum is {}",
+            "search decision DAG capacity status for {} names maximum {maximum}, fixed schema maximum is {}",
             resource.name(),
             resource.fixed_maximum()
         )));
     }
     if required_at_least <= maximum {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "case-graph capacity status for {} requires at least {required_at_least}, which does not exceed maximum {maximum}",
+            "search decision DAG capacity status for {} requires at least {required_at_least}, which does not exceed maximum {maximum}",
             resource.name()
         )));
     }
     Ok(())
 }
 
-fn validate_case_graph_against_snapshot(
+fn validate_search_decision_dag_against_snapshot(
     graph: &CaseDecisionDag,
     snapshot: &ExactEvidenceSnapshotV1,
-) -> Result<ExactCaseGraphSummaryV1, ExactSnapshotRenderError> {
+) -> Result<ExactSearchDecisionDagSummaryV1, ExactSnapshotRenderError> {
     graph.validate().map_err(|error| {
-        ExactSnapshotRenderError::invalid(format!("included case graph is invalid: {error}"))
+        ExactSnapshotRenderError::invalid(format!(
+            "included search decision DAG is invalid: {error}"
+        ))
     })?;
     let universe = match graph.universe_cardinality() {
         CheckedCardinality::Exact(universe) => universe,
         CheckedCardinality::ExceedsU128 => {
             return Err(ExactSnapshotRenderError::invalid(
-                "included case-graph universe exceeds u128::MAX",
+                "included search decision DAG universe exceeds u128::MAX",
             ));
         }
     };
     if universe != snapshot.universe_case_count {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "included case-graph universe {universe} disagrees with exact evidence universe {}",
+            "included search decision DAG universe {universe} disagrees with exact evidence universe {}",
             snapshot.universe_case_count
         )));
     }
 
     let mut counts = graph.terminal_counts().map_err(|error| {
         ExactSnapshotRenderError::invalid(format!(
-            "cannot count included case-graph terminals: {error}"
+            "cannot count included search decision DAG terminals: {error}"
         ))
     })?;
-    let mut summary = ExactCaseGraphSummaryV1 {
+    let mut summary = ExactSearchDecisionDagSummaryV1 {
         terminal_multiplicities: Vec::new(),
         excluded: 0,
         eligibility_open: 0,
@@ -2225,27 +2422,27 @@ fn validate_case_graph_against_snapshot(
         .try_reserve_exact(graph.terminals().len())
         .map_err(|_| {
             ExactSnapshotRenderError::limit(
-                "cannot allocate included case-graph terminal multiplicities",
+                "cannot allocate included search decision DAG terminal multiplicities",
             )
         })?;
     for (terminal_id, terminal) in graph.terminals().iter().enumerate() {
         let cardinality = counts.remove(terminal).ok_or_else(|| {
             ExactSnapshotRenderError::invalid(format!(
-                "included case-graph terminal {terminal_id} has no multiplicity"
+                "included search decision DAG terminal {terminal_id} has no multiplicity"
             ))
         })?;
         let case_count = match cardinality {
             CheckedCardinality::Exact(case_count) => case_count,
             CheckedCardinality::ExceedsU128 => {
                 return Err(ExactSnapshotRenderError::invalid(format!(
-                    "included case-graph terminal {terminal_id} multiplicity exceeds u128::MAX"
+                    "included search decision DAG terminal {terminal_id} multiplicity exceeds u128::MAX"
                 )));
             }
         };
         match terminal {
             CaseTerminal::Excluded => summary.excluded = case_count,
             CaseTerminal::EligibilityOpen(_) => {
-                summary.eligibility_open = checked_case_graph_sum(
+                summary.eligibility_open = checked_search_decision_dag_sum(
                     summary.eligibility_open,
                     case_count,
                     "eligibility-open",
@@ -2254,13 +2451,16 @@ fn validate_case_graph_against_snapshot(
             CaseTerminal::AdmissibleNonmatch => summary.admissible_nonmatch = case_count,
             CaseTerminal::AdmissibleMatch => summary.admissible_match = case_count,
             CaseTerminal::AdmissibleOpen(_) => {
-                summary.admissible_open =
-                    checked_case_graph_sum(summary.admissible_open, case_count, "admissible-open")?;
+                summary.admissible_open = checked_search_decision_dag_sum(
+                    summary.admissible_open,
+                    case_count,
+                    "admissible-open",
+                )?;
             }
         }
         summary
             .terminal_multiplicities
-            .push(ExactCaseGraphTerminalMultiplicityV1 {
+            .push(ExactSearchDecisionDagTerminalMultiplicityV1 {
                 terminal_id,
                 terminal: terminal.clone(),
                 case_count,
@@ -2268,7 +2468,7 @@ fn validate_case_graph_against_snapshot(
     }
     if !counts.is_empty() {
         return Err(ExactSnapshotRenderError::invalid(
-            "included case-graph multiplicities contain an unindexed terminal",
+            "included search decision DAG multiplicities contain an unindexed terminal",
         ));
     }
 
@@ -2276,44 +2476,44 @@ fn validate_case_graph_against_snapshot(
     let open = summary.open_case_count()?;
     if fully_closed != snapshot.closed_case_count || open != snapshot.open_case_count {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "included case-graph closed/open multiplicities {fully_closed}/{open} disagree with exact evidence {}/{}",
+            "included search decision DAG closed/open multiplicities {fully_closed}/{open} disagree with exact evidence {}/{}",
             snapshot.closed_case_count, snapshot.open_case_count
         )));
     }
     if summary.excluded != snapshot.excluded.lower_bound {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "included case-graph excluded multiplicity {} disagrees with exact evidence {}",
+            "included search decision DAG excluded multiplicity {} disagrees with exact evidence {}",
             summary.excluded, snapshot.excluded.lower_bound
         )));
     }
-    let admissible = checked_case_graph_sum(
+    let admissible = checked_search_decision_dag_sum(
         summary.admissible_nonmatch,
         summary.admissible_match,
         "admissible",
     )?;
     if admissible != snapshot.admissible.lower_bound {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "included case-graph admissible multiplicity {admissible} disagrees with exact evidence {}",
+            "included search decision DAG admissible multiplicity {admissible} disagrees with exact evidence {}",
             snapshot.admissible.lower_bound
         )));
     }
     if summary.admissible_match != snapshot.matching.lower_bound {
         return Err(ExactSnapshotRenderError::invalid(format!(
-            "included case-graph matching multiplicity {} disagrees with exact evidence {}",
+            "included search decision DAG matching multiplicity {} disagrees with exact evidence {}",
             summary.admissible_match, snapshot.matching.lower_bound
         )));
     }
     Ok(summary)
 }
 
-fn checked_case_graph_sum(
+fn checked_search_decision_dag_sum(
     left: u128,
     right: u128,
     label: &str,
 ) -> Result<u128, ExactSnapshotRenderError> {
     left.checked_add(right).ok_or_else(|| {
         ExactSnapshotRenderError::invalid(format!(
-            "included case-graph {label} multiplicity exceeds u128::MAX"
+            "included search decision DAG {label} multiplicity exceeds u128::MAX"
         ))
     })
 }
@@ -2531,13 +2731,263 @@ fn prepare_result_rows(
     })
 }
 
-fn render_canonical_case_graph_object(
+fn render_canonical_semantic_transition_graph_object_v1(
+    axis_cardinalities: &[u128],
+    schemas: &TransitionSchemaIdentities,
+    exact: &ExactEvidenceReducer,
+    stream: &ExploreRunStream,
+) -> Result<Vec<u8>, ExactSnapshotRenderError> {
+    let index = exact.transition_support_index();
+    for (schema_id, preimage) in index.iter_state_schemas() {
+        if schema_id != schemas.state_schema_id() || preimage != schemas.state_schema_preimage() {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic graph contains a state schema outside the checked transition schema",
+            ));
+        }
+    }
+    for (schema_id, preimage) in index.iter_context_schemas() {
+        if schema_id != schemas.context_schema_id() || preimage != schemas.context_schema_preimage()
+        {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic graph contains a context schema outside the checked transition schema",
+            ));
+        }
+    }
+    for (type_id, preimage) in index.iter_transition_types() {
+        if type_id != schemas.transition_type_id() || preimage != schemas.transition_type_preimage()
+        {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic graph contains a transition type outside the checked transition schema",
+            ));
+        }
+    }
+
+    let mut writer = CanonicalJsonWriter::with_max_bytes(
+        EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+    );
+    writer.raw(b"{")?;
+    writer.member_string("schema", "futuruna.explore.semantic-transition-graph.v1")?;
+    writer.raw(b",")?;
+    writer.member_u64("schema_version", 1)?;
+    writer.raw(b",")?;
+    writer.member_string("case_id_encoding", "mixed_radix_rank_intervals_v1")?;
+    writer.raw(b",")?;
+    writer.member_string("rank_interval_encoding", "half_open")?;
+    writer.raw(b",\"axis_cardinalities\":[")?;
+    for (index, cardinality) in axis_cardinalities.iter().enumerate() {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.decimal(*cardinality)?;
+    }
+    writer.raw(b"],")?;
+    writer.member_string(
+        "state_schema_id",
+        &lowercase_hex(&schemas.state_schema_id().bytes()),
+    )?;
+    writer.raw(b",")?;
+    writer.member_string(
+        "context_schema_id",
+        &lowercase_hex(&schemas.context_schema_id().bytes()),
+    )?;
+    writer.raw(b",")?;
+    writer.member_string(
+        "transition_type_id",
+        &lowercase_hex(&schemas.transition_type_id().bytes()),
+    )?;
+    writer.raw(b",\"states\":[")?;
+    for (state_index, (state_id, schema_id, _, value)) in index.iter_states().enumerate() {
+        if state_index != 0 {
+            writer.raw(b",")?;
+        }
+        if schema_id != schemas.state_schema_id() {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic graph state has the wrong checked schema identity",
+            ));
+        }
+        writer.raw(b"{")?;
+        writer.member_string("state_id", &lowercase_hex(&state_id.bytes()))?;
+        writer.raw(b",")?;
+        writer.member_string("state_schema_id", &lowercase_hex(&schema_id.bytes()))?;
+        writer.raw(b",\"value\":")?;
+        write_value(&mut writer, value)?;
+        writer.raw(b"}")?;
+    }
+
+    let mut rendered_constructible_cases = 0_u128;
+    writer.raw(b"],\"transitions\":[")?;
+    for (transition_index, (transition_id, transition)) in index.iter().enumerate() {
+        if transition_index != 0 {
+            writer.raw(b",")?;
+        }
+        let before_state = index.state(transition.before_state_id()).ok_or_else(|| {
+            ExactSnapshotRenderError::invalid(
+                "semantic graph transition has no interned before-state",
+            )
+        })?;
+        let after_state = index.state(transition.after_state_id()).ok_or_else(|| {
+            ExactSnapshotRenderError::invalid(
+                "semantic graph transition has no interned after-state",
+            )
+        })?;
+        if transition.state_schema_id() != schemas.state_schema_id()
+            || transition.context_schema_id() != schemas.context_schema_id()
+            || transition.transition_type_id() != schemas.transition_type_id()
+            || before_state.0 != schemas.state_schema_id()
+            || after_state.0 != schemas.state_schema_id()
+        {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic graph transition disagrees with its checked schemas or state index",
+            ));
+        }
+
+        writer.raw(b"{")?;
+        writer.member_string("transition_id", &lowercase_hex(&transition_id.bytes()))?;
+        writer.raw(b",")?;
+        writer.member_string(
+            "transition_type_id",
+            &lowercase_hex(&transition.transition_type_id().bytes()),
+        )?;
+        writer.raw(b",")?;
+        writer.member_string(
+            "before_state_id",
+            &lowercase_hex(&transition.before_state_id().bytes()),
+        )?;
+        writer.raw(b",")?;
+        writer.member_string(
+            "after_state_id",
+            &lowercase_hex(&transition.after_state_id().bytes()),
+        )?;
+        writer.raw(b",\"context\":")?;
+        write_value(&mut writer, transition.context())?;
+        writer.raw(b",\"support\":{")?;
+
+        let transition_digest = transition_semantic_fact_digest_from_parts_v2(
+            transition_id,
+            transition.state_schema_id(),
+            transition.context_schema_id(),
+            transition.transition_type_id(),
+            transition.before_state_id(),
+            transition.after_state_id(),
+            transition.context(),
+            before_state.2,
+            after_state.2,
+        )
+        .map_err(|error| {
+            ExactSnapshotRenderError::invalid(format!(
+                "cannot derive semantic transition evidence identity: {error}"
+            ))
+        })?;
+        let authenticated_support = stream
+            .semantic_transition_support(CanonicalDigest::from_sha256_bytes(
+                transition_digest.bytes(),
+            ))
+            .ok_or_else(|| {
+                ExactSnapshotRenderError::invalid(
+                    "semantic graph edge has no authenticated transition support",
+                )
+            })?;
+
+        let mut edge_case_count = 0_u128;
+        for (fiber_index, (name, classification)) in [
+            (
+                "validity_excluded",
+                ExactConstructibleClassificationV2::ValidityExcluded,
+            ),
+            (
+                "admissible_nonmatch",
+                ExactConstructibleClassificationV2::AdmissibleNonmatch,
+            ),
+            (
+                "admissible_match",
+                ExactConstructibleClassificationV2::AdmissibleMatch,
+            ),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            if fiber_index != 0 {
+                writer.raw(b",")?;
+            }
+            writer.string(name)?;
+            writer.raw(b":")?;
+            let count = write_semantic_transition_support_v1(
+                &mut writer,
+                authenticated_support,
+                exact.classification_support(classification),
+            )?;
+            edge_case_count = edge_case_count.checked_add(count).ok_or_else(|| {
+                ExactSnapshotRenderError::invalid(
+                    "semantic transition edge support count exceeds u128::MAX",
+                )
+            })?;
+        }
+        if edge_case_count != authenticated_support.case_count() {
+            return Err(ExactSnapshotRenderError::invalid(
+                "semantic transition support is not partitioned by exact classifications",
+            ));
+        }
+        rendered_constructible_cases = rendered_constructible_cases
+            .checked_add(edge_case_count)
+            .ok_or_else(|| {
+                ExactSnapshotRenderError::invalid(
+                    "semantic transition graph support count exceeds u128::MAX",
+                )
+            })?;
+        writer.raw(b"}}")?;
+    }
+    if rendered_constructible_cases != exact.transition_population_snapshot().u_c.lower_bound {
+        return Err(ExactSnapshotRenderError::invalid(
+            "semantic transition edge supports do not partition constructible cases",
+        ));
+    }
+    writer.raw(b"]}")?;
+    Ok(writer.finish())
+}
+
+fn write_semantic_transition_support_v1(
+    writer: &mut CanonicalJsonWriter,
+    transition_support: &ExactCaseSupport,
+    classification_support: &ExactCaseSupport,
+) -> Result<u128, ExactSnapshotRenderError> {
+    let intersections = || {
+        transition_support
+            .intersecting_intervals(classification_support)
+            .map_err(|error| {
+                ExactSnapshotRenderError::invalid(format!(
+                    "cannot intersect transition and classification support: {error}"
+                ))
+            })
+    };
+    let case_count = intersections()?.try_fold(0_u128, |count, interval| {
+        count.checked_add(interval.case_count()).ok_or_else(|| {
+            ExactSnapshotRenderError::invalid("semantic transition support count exceeds u128::MAX")
+        })
+    })?;
+    writer.raw(b"{")?;
+    writer.member_decimal("case_count", case_count)?;
+    writer.raw(b",\"rank_intervals\":[")?;
+    for (index, interval) in intersections()?.enumerate() {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.raw(b"{")?;
+        writer.member_decimal("start", interval.start())?;
+        writer.raw(b",")?;
+        writer.member_decimal("end_exclusive", interval.end_exclusive())?;
+        writer.raw(b"}")?;
+    }
+    writer.raw(b"]}")?;
+    Ok(case_count)
+}
+
+fn render_canonical_search_decision_dag_object(
     graph: &CaseDecisionDag,
 ) -> Result<Vec<u8>, ExactSnapshotRenderError> {
     let mut writer =
-        CanonicalJsonWriter::with_max_bytes(EXACT_CASE_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1);
+        CanonicalJsonWriter::with_max_bytes(EXACT_SEARCH_DECISION_DAG_CANONICAL_JSON_BYTE_LIMIT_V1);
     writer.raw(b"{")?;
-    writer.member_string("schema", "futuruna.explore.case-graph.v1")?;
+    writer.member_string("schema", "futuruna.explore.search-decision-dag.v1")?;
     writer.raw(b",")?;
     writer.member_u64("schema_version", 1)?;
     writer.raw(b",")?;
@@ -2550,7 +3000,7 @@ fn render_canonical_case_graph_object(
         writer.decimal(*cardinality)?;
     }
     writer.raw(b"],\"root\":")?;
-    write_case_graph_root(&mut writer, graph.root())?;
+    write_search_decision_dag_root(&mut writer, graph.root())?;
     writer.raw(b",\"nodes\":[")?;
     for (node_index, node) in graph.nodes().iter().enumerate() {
         if node_index != 0 {
@@ -2577,7 +3027,7 @@ fn render_canonical_case_graph_object(
                 writer.raw(b"}")?;
             }
             writer.raw(b"],\"target\":")?;
-            write_case_graph_ref(&mut writer, arc.child())?;
+            write_search_decision_dag_ref(&mut writer, arc.child())?;
             writer.raw(b"}")?;
         }
         writer.raw(b"]}")?;
@@ -2597,17 +3047,17 @@ fn render_canonical_case_graph_object(
     Ok(writer.finish())
 }
 
-fn write_case_graph_root(
+fn write_search_decision_dag_root(
     writer: &mut CanonicalJsonWriter,
     root: DecisionRoot,
 ) -> Result<(), ExactSnapshotRenderError> {
     match root {
         DecisionRoot::EmptySpace => writer.raw(b"{\"kind\":\"empty_space\"}"),
-        DecisionRoot::Target(target) => write_case_graph_ref(writer, target),
+        DecisionRoot::Target(target) => write_search_decision_dag_ref(writer, target),
     }
 }
 
-fn write_case_graph_ref(
+fn write_search_decision_dag_ref(
     writer: &mut CanonicalJsonWriter,
     target: DecisionRef,
 ) -> Result<(), ExactSnapshotRenderError> {
@@ -2659,12 +3109,22 @@ fn case_open_reason_name(reason: &CaseOpenReason) -> &'static str {
 
 fn write_report_request(
     writer: &mut CanonicalJsonWriter,
-    publication: &ExactRenderedCaseGraphPublicationV1,
+    search_decision_dag: &ExactRenderedSearchDecisionDagPublicationV1,
+    semantic_transition_graph: &ExactPreparedSemanticTransitionGraphPublicationV1,
 ) -> Result<(), ExactSnapshotRenderError> {
     writer.raw(b"{")?;
     writer.member_string(
-        "case_graph",
-        if publication.requested() {
+        "search_decision_dag",
+        if search_decision_dag.requested() {
+            "full"
+        } else {
+            "omit"
+        },
+    )?;
+    writer.raw(b",")?;
+    writer.member_string(
+        "semantic_transition_graph",
+        if semantic_transition_graph.requested() {
             "full"
         } else {
             "omit"
@@ -2680,15 +3140,17 @@ fn write_report_request(
 fn write_graph_envelope(
     writer: &mut CanonicalJsonWriter,
     polarity: ExplorePolarity,
-    publication: &ExactRenderedCaseGraphPublicationV1,
+    snapshot: &ExactEvidenceSnapshotV1,
+    search_decision_dag: &ExactRenderedSearchDecisionDagPublicationV1,
+    semantic_transition_graph: &ExactPreparedSemanticTransitionGraphPublicationV1,
 ) -> Result<(), ExactSnapshotRenderError> {
-    writer.raw(b"{\"case_graph\":{")?;
-    match publication {
-        ExactRenderedCaseGraphPublicationV1::NotRequested => {
+    writer.raw(b"{\"search_decision_dag\":{")?;
+    match search_decision_dag {
+        ExactRenderedSearchDecisionDagPublicationV1::NotRequested => {
             writer.member_string("status", "not_requested")?;
             writer.raw(b",\"artifact_graph_hash\":null,\"closure\":null,\"polarity\":null,\"terminal_multiplicities\":null,\"capacity\":null")?;
         }
-        ExactRenderedCaseGraphPublicationV1::Included {
+        ExactRenderedSearchDecisionDagPublicationV1::Included {
             artifact_graph_hash,
             summary,
             ..
@@ -2731,13 +3193,33 @@ fn write_graph_envelope(
             }
             writer.raw(b"],\"capacity\":null")?;
         }
-        ExactRenderedCaseGraphPublicationV1::CapacityLimited {
+        ExactRenderedSearchDecisionDagPublicationV1::CapacityLimited {
             resource,
             maximum,
             required_at_least,
         } => {
             writer.member_string("status", "capacity_limited")?;
-            writer.raw(b",\"artifact_graph_hash\":null,\"closure\":null,\"polarity\":null,\"terminal_multiplicities\":null,\"capacity\":{")?;
+            writer.raw(b",\"artifact_graph_hash\":null,\"closure\":{")?;
+            writer.member_string(
+                "admissibility",
+                if snapshot.open_case_count == 0 {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b",")?;
+            writer.member_string(
+                "polarity",
+                if snapshot.open_case_count == 0 {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b"},")?;
+            writer.member_string("polarity", polarity_name(polarity))?;
+            writer.raw(b",\"terminal_multiplicities\":null,\"capacity\":{")?;
             writer.member_string("resource", resource.name())?;
             writer.raw(b",")?;
             writer.member_decimal("maximum", *maximum)?;
@@ -2747,33 +3229,120 @@ fn write_graph_envelope(
         }
     }
     writer.raw(b",\"limits\":")?;
-    write_case_graph_limits(writer)?;
-    writer.raw(b",\"case_graph\":")?;
-    match publication {
-        ExactRenderedCaseGraphPublicationV1::Included {
+    write_search_decision_dag_limits(writer)?;
+    writer.raw(b",\"search_decision_dag\":")?;
+    match search_decision_dag {
+        ExactRenderedSearchDecisionDagPublicationV1::Included {
             canonical_graph_object,
             ..
         } => writer.raw(canonical_graph_object)?,
-        ExactRenderedCaseGraphPublicationV1::NotRequested
-        | ExactRenderedCaseGraphPublicationV1::CapacityLimited { .. } => writer.raw(b"null")?,
+        ExactRenderedSearchDecisionDagPublicationV1::NotRequested
+        | ExactRenderedSearchDecisionDagPublicationV1::CapacityLimited { .. } => {
+            writer.raw(b"null")?
+        }
     }
+    writer.raw(b"},\"semantic_transition_graph\":{")?;
+    write_semantic_transition_graph_envelope_members(
+        writer,
+        snapshot.transition_populations,
+        semantic_transition_graph,
+    )?;
     writer.raw(b"},\"mechanism_graph\":{")?;
     writer.member_string("status", "unavailable_deferred")?;
     writer.raw(b"}}")
 }
 
-fn write_case_graph_limits(
+fn write_semantic_transition_graph_envelope_members(
+    writer: &mut CanonicalJsonWriter,
+    populations: ExactTransitionPopulationSnapshotV2,
+    publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
+) -> Result<(), ExactSnapshotRenderError> {
+    match publication {
+        ExactPreparedSemanticTransitionGraphPublicationV1::NotRequested => {
+            writer.member_string("status", "not_requested")?;
+            writer.raw(b",\"artifact_graph_hash\":null,\"closure\":null,\"state_count\":null,\"transition_count\":null,\"constructible_case_count\":null,\"capacity\":null")?;
+        }
+        ExactPreparedSemanticTransitionGraphPublicationV1::Included {
+            canonical_graph_object: _,
+            artifact_graph_hash,
+            state_count,
+            transition_count,
+            constructible_case_count,
+        } => {
+            writer.member_string("status", "included")?;
+            writer.raw(b",")?;
+            writer.member_string("artifact_graph_hash", artifact_graph_hash)?;
+            writer.raw(b",")?;
+            writer.member_string(
+                "closure",
+                if populations.u_c.exact.is_some() && populations.u_t.exact.is_some() {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b",")?;
+            writer.member_decimal("state_count", *state_count)?;
+            writer.raw(b",")?;
+            writer.member_decimal("transition_count", *transition_count)?;
+            writer.raw(b",")?;
+            writer.member_decimal("constructible_case_count", *constructible_case_count)?;
+            writer.raw(b",\"capacity\":null")?;
+        }
+        ExactPreparedSemanticTransitionGraphPublicationV1::CapacityLimited {
+            resource,
+            maximum,
+            required_at_least,
+        } => {
+            writer.member_string("status", "capacity_limited")?;
+            writer.raw(b",\"artifact_graph_hash\":null,")?;
+            writer.member_string(
+                "closure",
+                if populations.u_c.exact.is_some() && populations.u_t.exact.is_some() {
+                    "closed"
+                } else {
+                    "open"
+                },
+            )?;
+            writer.raw(b",\"state_count\":null,\"transition_count\":null,\"constructible_case_count\":null,\"capacity\":{")?;
+            writer.member_string("resource", resource.name())?;
+            writer.raw(b",")?;
+            writer.member_decimal("maximum", *maximum)?;
+            writer.raw(b",")?;
+            writer.member_decimal("required_at_least", *required_at_least)?;
+            writer.raw(b"}")?;
+        }
+    }
+    writer.raw(b",\"limits\":{")?;
+    writer.member_decimal(
+        ExactSemanticTransitionGraphPublicationResourceV1::CanonicalJsonBytes.name(),
+        EXACT_SEMANTIC_TRANSITION_GRAPH_CANONICAL_JSON_BYTE_LIMIT_V1,
+    )?;
+    writer.raw(b"},\"semantic_transition_graph\":")?;
+    match publication {
+        ExactPreparedSemanticTransitionGraphPublicationV1::Included {
+            canonical_graph_object,
+            ..
+        } => writer.raw(canonical_graph_object),
+        ExactPreparedSemanticTransitionGraphPublicationV1::NotRequested
+        | ExactPreparedSemanticTransitionGraphPublicationV1::CapacityLimited { .. } => {
+            writer.raw(b"null")
+        }
+    }
+}
+
+fn write_search_decision_dag_limits(
     writer: &mut CanonicalJsonWriter,
 ) -> Result<(), ExactSnapshotRenderError> {
     writer.raw(b"{")?;
     for (index, resource) in [
-        ExactCaseGraphPublicationResourceV1::LoweringAxes,
-        ExactCaseGraphPublicationResourceV1::LoweringRankRuns,
-        ExactCaseGraphPublicationResourceV1::LoweringNodes,
-        ExactCaseGraphPublicationResourceV1::LoweringArcs,
-        ExactCaseGraphPublicationResourceV1::LoweringOrdinalIntervals,
-        ExactCaseGraphPublicationResourceV1::LoweringAccountedBytes,
-        ExactCaseGraphPublicationResourceV1::CanonicalJsonBytes,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringAxes,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringRankRuns,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringNodes,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringArcs,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringOrdinalIntervals,
+        ExactSearchDecisionDagPublicationResourceV1::LoweringAccountedBytes,
+        ExactSearchDecisionDagPublicationResourceV1::CanonicalJsonBytes,
     ]
     .into_iter()
     .enumerate()
@@ -2791,17 +3360,21 @@ fn write_semantic_answer_object(
     metadata: &ExactSemanticAnswerMetadataV1,
     snapshot: &ExactEvidenceSnapshotV1,
     prepared_results: &ExactPreparedResultsV1,
-    case_graph_publication: &ExactRenderedCaseGraphPublicationV1,
+    search_decision_dag_publication: &ExactRenderedSearchDecisionDagPublicationV1,
+    semantic_transition_graph_publication: &ExactPreparedSemanticTransitionGraphPublicationV1,
 ) -> Result<(), ExactSnapshotRenderError> {
     let group_accounting = prepared_results.accounting;
     let classification_closed = snapshot.open_case_count == 0;
     let required_frontier_closed =
         metadata.required_open_case_count == 0 && metadata.required_open_obligation_count == 0;
+    let views_complete = search_decision_dag_publication.complete_for_answer()
+        && semantic_transition_graph_publication
+            .complete_for_answer(snapshot.transition_populations);
     let answer_complete = classification_closed
         && snapshot.projection_complete
         && required_frontier_closed
         && prepared_results.scan_complete
-        && case_graph_publication.complete_for_answer();
+        && views_complete;
 
     writer.raw(b"{")?;
     writer.member_string("schema", EXACT_SEMANTIC_ANSWER_SCHEMA_V1)?;
@@ -2864,14 +3437,7 @@ fn write_semantic_answer_object(
         },
     )?;
     writer.raw(b",")?;
-    writer.member_string(
-        "views",
-        if case_graph_publication.complete_for_answer() {
-            "closed"
-        } else {
-            "open"
-        },
-    )?;
+    writer.member_string("views", if views_complete { "closed" } else { "open" })?;
     writer.raw(b"},\"group_filter\":")?;
     write_group_filter(writer, &metadata.group_filter)?;
     writer.raw(b",\"case_frontier\":{")?;
@@ -2905,7 +3471,9 @@ fn write_semantic_answer_object(
     writer.string("distinct_result_groups")?;
     writer.raw(b":")?;
     write_count_bound(writer, group_accounting.emitted_groups)?;
-    writer.raw(b"},\"group_accounting\":{")?;
+    writer.raw(b"},\"transition_populations\":")?;
+    write_transition_populations(writer, snapshot.transition_populations)?;
+    writer.raw(b",\"group_accounting\":{")?;
     writer.string("raw_groups")?;
     writer.raw(b":")?;
     write_count_bound(writer, group_accounting.raw_groups)?;
@@ -2947,9 +3515,19 @@ fn write_semantic_answer_object(
     write_strings(writer, &metadata.projection_labels.shown)?;
     writer.raw(b"],\"value_encoding\":\"typed_exact_v1\"")?;
     writer.raw(b"},\"report_request\":")?;
-    write_report_request(writer, case_graph_publication)?;
+    write_report_request(
+        writer,
+        search_decision_dag_publication,
+        semantic_transition_graph_publication,
+    )?;
     writer.raw(b",\"graph\":")?;
-    write_graph_envelope(writer, metadata.polarity, case_graph_publication)?;
+    write_graph_envelope(
+        writer,
+        metadata.polarity,
+        snapshot,
+        search_decision_dag_publication,
+        semantic_transition_graph_publication,
+    )?;
     writer.raw(b",\"mechanism_evidence\":{")?;
     writer.member_string("status", "unavailable_deferred")?;
     writer.raw(b"},\"results_preview\":{")?;
@@ -3081,6 +3659,47 @@ fn write_count_bound(
             "lower_bound"
         },
     )?;
+    writer.raw(b"}")
+}
+
+fn write_transition_populations(
+    writer: &mut CanonicalJsonWriter,
+    populations: ExactTransitionPopulationSnapshotV2,
+) -> Result<(), ExactSnapshotRenderError> {
+    writer.raw(b"{")?;
+    for (index, (name, notation, bound)) in [
+        ("declared_cases", "U_D", populations.u_d),
+        ("constructible_cases", "U_C", populations.u_c),
+        ("distinct_declared_transitions", "U_T", populations.u_t),
+        ("admissible_cases", "D_C", populations.d_c),
+        ("distinct_admissible_transitions", "D_T", populations.d_t),
+        ("matching_cases", "M_C", populations.m_c),
+        ("distinct_matching_transitions", "M_T", populations.m_t),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.string(name)?;
+        writer.raw(b":{")?;
+        writer.member_string("notation", notation)?;
+        writer.raw(b",")?;
+        writer.member_decimal("lower_bound", bound.lower_bound)?;
+        writer.raw(b",")?;
+        writer.member_optional_decimal("exact", bound.exact)?;
+        writer.raw(b",")?;
+        writer.member_string(
+            "certainty",
+            if bound.exact.is_some() {
+                "exact"
+            } else {
+                "lower_bound"
+            },
+        )?;
+        writer.raw(b"}")?;
+    }
     writer.raw(b"}")
 }
 
@@ -3318,6 +3937,13 @@ fn validate_snapshot(
     validate_bound("excluded", snapshot.excluded, classification_closed)?;
     validate_bound("admissible", snapshot.admissible, classification_closed)?;
     validate_bound("matching", snapshot.matching, classification_closed)?;
+    validate_transition_populations(
+        snapshot.transition_populations,
+        snapshot.universe_case_count,
+        snapshot.admissible,
+        snapshot.matching,
+        classification_closed,
+    )?;
 
     let classified = snapshot
         .excluded
@@ -3451,6 +4077,51 @@ fn validate_snapshot(
     }
 
     Ok(prepared)
+}
+
+fn validate_transition_populations(
+    populations: ExactTransitionPopulationSnapshotV2,
+    universe_case_count: u128,
+    admissible: ExactCountBoundV1,
+    matching: ExactCountBoundV1,
+    classification_closed: bool,
+) -> Result<(), ExactSnapshotRenderError> {
+    validate_bound("U_D declared cases", populations.u_d, true)?;
+    for (name, bound) in [
+        ("U_C constructible cases", populations.u_c),
+        ("U_T distinct declared transitions", populations.u_t),
+        ("D_C admissible cases", populations.d_c),
+        ("D_T distinct admissible transitions", populations.d_t),
+        ("M_C matching cases", populations.m_c),
+        ("M_T distinct matching transitions", populations.m_t),
+    ] {
+        validate_bound(name, bound, classification_closed)?;
+    }
+    if populations.u_d.lower_bound != universe_case_count
+        || populations.d_c != admissible
+        || populations.m_c != matching
+    {
+        return Err(ExactSnapshotRenderError::invalid(
+            "transition case populations disagree with the exact evidence snapshot",
+        ));
+    }
+    for (subset_name, subset, superset_name, superset) in [
+        ("U_C", populations.u_c, "U_D", populations.u_d),
+        ("U_T", populations.u_t, "U_C", populations.u_c),
+        ("D_C", populations.d_c, "U_C", populations.u_c),
+        ("D_T", populations.d_t, "U_T", populations.u_t),
+        ("D_T", populations.d_t, "D_C", populations.d_c),
+        ("M_C", populations.m_c, "D_C", populations.d_c),
+        ("M_T", populations.m_t, "D_T", populations.d_t),
+        ("M_T", populations.m_t, "M_C", populations.m_c),
+    ] {
+        if subset.lower_bound > superset.lower_bound {
+            return Err(ExactSnapshotRenderError::invalid(format!(
+                "transition population {subset_name} exceeds {superset_name}"
+            )));
+        }
+    }
+    Ok(())
 }
 
 fn validate_bound(

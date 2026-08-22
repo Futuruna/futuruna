@@ -17,19 +17,20 @@ use super::case_graph::{
 };
 use super::classification_regions::ClassificationRegionCertificate;
 use super::exact_stream::{
-    encode_exact_case_observation_v1, seal_evaluator_confirmed_canonical_observation_batch,
-    ExactCanonicalCaseIdV1, ExactCaseObservationBatchProposalV1, ExactCaseObservationProposalV1,
-    ExactClosedClassificationV1, ExactMatchProjectionV1, ExactValidationReceiptDigestV1,
-    ValidatedExactCaseObservationBatchV1,
+    encode_exact_case_observation_v2, seal_evaluator_confirmed_canonical_observation_batch,
+    ExactCanonicalCaseIdV1, ExactCaseObservationBatchProposalV2, ExactCaseObservationProposalV2,
+    ExactCaseOutcomeV2, ExactConstructibleCaseOutcomeV2, ExactMatchProjectionV1,
+    ExactValidationReceiptDigestV1, ValidatedExactCaseObservationBatchV2,
 };
 use super::report::{
-    ExploreCaseGraphEvidence, ExploreCaseGraphRequest, ExploreCaseId, ExploreClosure,
-    ExploreCompletionMethod, ExploreCount, ExploreCounts, ExploreCoverage, ExploreEvaluationPhase,
-    ExploreExactEvidence, ExploreExactOutcome, ExploreExactReport, ExploreExecutionBudget,
-    ExploreExtremaSummary, ExploreGroupCounts, ExploreGroupFilter, ExploreLayerClosures,
-    ExploreLedgerEvidence, ExploreLedgerRequest, ExploreLedgerRow, ExploreLimitResource,
-    ExploreReportDimension, ExploreReportRequest, ExploreReportSchema, ExploreResultKey,
-    ExploreResultRow, ExploreSearchEvidence, ExploreStopReason,
+    ExploreCaseId, ExploreClosure, ExploreCompletionMethod, ExploreCount, ExploreCounts,
+    ExploreCoverage, ExploreEvaluationPhase, ExploreExactEvidence, ExploreExactOutcome,
+    ExploreExactReport, ExploreExecutionBudget, ExploreExtremaSummary, ExploreGroupCounts,
+    ExploreGroupFilter, ExploreLayerClosures, ExploreLedgerEvidence, ExploreLedgerRequest,
+    ExploreLedgerRow, ExploreLimitResource, ExploreReportDimension, ExploreReportRequest,
+    ExploreReportSchema, ExploreResultKey, ExploreResultRow, ExploreSearchDecisionDagEvidence,
+    ExploreSearchDecisionDagRequest, ExploreSearchEvidence, ExploreSemanticTransitionGraphRequest,
+    ExploreStopReason,
 };
 use super::source_events::{SourceEventExtraction, SourceEventLabel};
 use super::source_proof_plan::SourceProofPlan;
@@ -2130,9 +2131,14 @@ fn accept_case_transaction(
         transition,
         outcome,
     } = transaction;
+    let (admissible_transition, matching_transition) = match &outcome {
+        ExactCaseOutcome::Excluded => (false, false),
+        ExactCaseOutcome::AdmissibleNonmatch => (true, false),
+        ExactCaseOutcome::AdmissibleMatch(_) => (true, true),
+    };
     let prepared_transition = accumulator
         .transition_support
-        .prepare_intern(transition, ExploreCaseId::new(case_id.0.clone()))
+        .prepare_intern(transition, admissible_transition, matching_transition)
         .map_err(|error| {
             ExactEngineFailure::Error(format!(
                 "cannot accept canonical Explore transition support: {error}"
@@ -2344,7 +2350,7 @@ impl ExactStreamEvaluatorPrepareError {
 
 #[derive(Debug)]
 pub(super) enum ExactStreamCaseAttempt {
-    Complete(ExactEvaluatorConfirmedObservationV1),
+    Complete(ExactEvaluatorConfirmedObservationV2),
     Open(ExploreStopReason),
 }
 
@@ -2352,17 +2358,51 @@ pub(super) enum ExactStreamCaseAttempt {
 /// directly from the coordinator-owned checked evaluator, not from decoded
 /// worker or storage bytes.
 #[derive(Debug)]
-pub(super) struct ExactEvaluatorConfirmedObservationV1 {
-    proposal: ExactCaseObservationProposalV1,
+pub(super) struct ExactEvaluatorConfirmedObservationV2 {
+    proposal: ExactCaseObservationProposalV2,
+    transition_schemas: TransitionSchemaIdentities,
 }
 
-impl ExactEvaluatorConfirmedObservationV1 {
+/// One evaluator-sealed batch kept opaque until the coordinator commits it.
+/// The persisted proposal, reducer evidence and checked schemas cannot be
+/// supplied independently, so one journal blob can never be paired with
+/// another batch's semantic facts or reducer delta.
+#[derive(Debug)]
+pub(super) struct SealedExactObservationBatchV2 {
+    proposal: ExactCaseObservationBatchProposalV2,
+    validated: ValidatedExactCaseObservationBatchV2,
+    transition_schemas: TransitionSchemaIdentities,
+}
+
+impl SealedExactObservationBatchV2 {
+    pub(super) fn proposal(&self) -> &ExactCaseObservationBatchProposalV2 {
+        &self.proposal
+    }
+
+    pub(super) fn validated(&self) -> &ValidatedExactCaseObservationBatchV2 {
+        &self.validated
+    }
+
+    pub(super) fn transition_schemas(&self) -> &TransitionSchemaIdentities {
+        &self.transition_schemas
+    }
+
+    pub(super) fn into_validated(self) -> ValidatedExactCaseObservationBatchV2 {
+        self.validated
+    }
+
+    pub(super) fn into_proposal(self) -> ExactCaseObservationBatchProposalV2 {
+        self.proposal
+    }
+}
+
+impl ExactEvaluatorConfirmedObservationV2 {
     pub(super) fn rank(&self) -> u128 {
         self.proposal.case_id.rank
     }
 
     pub(super) fn canonical_encoded_len(&self) -> Result<usize, String> {
-        encode_exact_case_observation_v1(&self.proposal)
+        encode_exact_case_observation_v2(&self.proposal, &self.transition_schemas)
             .map(|bytes| bytes.len())
             .map_err(|error| error.to_string())
     }
@@ -2372,16 +2412,22 @@ impl ExactEvaluatorConfirmedObservationV1 {
 /// private token type proves every item was returned by this trusted evaluator
 /// instance; future out-of-process workers must use a separate revalidation
 /// adapter and cannot construct these tokens.
-pub(super) fn seal_local_evaluator_observation_batch_v1(
-    confirmed: Vec<ExactEvaluatorConfirmedObservationV1>,
-) -> Result<
-    (
-        ExactCaseObservationBatchProposalV1,
-        ValidatedExactCaseObservationBatchV1,
-    ),
-    String,
-> {
-    let proposal = ExactCaseObservationBatchProposalV1::new(
+pub(super) fn seal_local_evaluator_observation_batch_v2(
+    confirmed: Vec<ExactEvaluatorConfirmedObservationV2>,
+) -> Result<SealedExactObservationBatchV2, String> {
+    let transition_schemas = confirmed
+        .first()
+        .map(|confirmed| confirmed.transition_schemas.clone())
+        .ok_or_else(|| "trusted exact evaluator batch must not be empty".to_string())?;
+    if confirmed
+        .iter()
+        .any(|confirmed| confirmed.transition_schemas != transition_schemas)
+    {
+        return Err(
+            "trusted exact evaluator batch mixes checked transition schema identities".to_string(),
+        );
+    }
+    let proposal = ExactCaseObservationBatchProposalV2::new(
         confirmed
             .into_iter()
             .map(|confirmed| confirmed.proposal)
@@ -2392,10 +2438,18 @@ pub(super) fn seal_local_evaluator_observation_batch_v1(
     let persisted = proposal.clone();
     let validated = seal_evaluator_confirmed_canonical_observation_batch(proposal, |_| Ok(()))
         .map_err(|error| error.to_string())?;
-    Ok((persisted, validated))
+    Ok(SealedExactObservationBatchV2 {
+        proposal: persisted,
+        validated,
+        transition_schemas,
+    })
 }
 
 impl<'a> ExactStreamEvaluator<'a> {
+    pub(super) fn transition_schemas(&self) -> &TransitionSchemaIdentities {
+        &self.transition_schemas
+    }
+
     pub(super) fn prepare(
         supplied_statements: &'a [Stmt],
         supplied_source_dir: Option<&'a str>,
@@ -2523,7 +2577,7 @@ impl<'a> ExactStreamEvaluator<'a> {
         )
         .map_err(exact_stream_failure_message)?;
 
-        let (classification, projection) = match transaction {
+        let outcome = match transaction {
             ExactCaseEvaluation::Open(observed) => {
                 let stop = observed.stop.ok_or_else(|| {
                     "durable exact evaluation left a case open without a stop reason".to_string()
@@ -2536,20 +2590,22 @@ impl<'a> ExactStreamEvaluator<'a> {
                         "durable evaluator structurally excluded another CaseId".to_string()
                     );
                 }
-                (ExactClosedClassificationV1::Excluded, None)
+                ExactCaseOutcomeV2::StructurallyExcluded
             }
             ExactCaseEvaluation::Complete(ExactCaseTransaction {
-                case_id, outcome, ..
+                case_id,
+                transition,
+                outcome,
             }) => {
                 if case_id.0.as_ref() != ordinals.as_slice() {
                     return Err(
                         "durable evaluator returned a transaction for another CaseId".to_string(),
                     );
                 }
-                match outcome {
-                    ExactCaseOutcome::Excluded => (ExactClosedClassificationV1::Excluded, None),
+                let outcome = match outcome {
+                    ExactCaseOutcome::Excluded => ExactConstructibleCaseOutcomeV2::ValidityExcluded,
                     ExactCaseOutcome::AdmissibleNonmatch => {
-                        (ExactClosedClassificationV1::AdmissibleNonmatch, None)
+                        ExactConstructibleCaseOutcomeV2::AdmissibleNonmatch
                     }
                     ExactCaseOutcome::AdmissibleMatch(MatchingCaseTransaction::Materialized {
                         observation,
@@ -2568,10 +2624,7 @@ impl<'a> ExactStreamEvaluator<'a> {
                             observation.objective,
                         )
                         .map_err(|error| error.to_string())?;
-                        (
-                            ExactClosedClassificationV1::AdmissibleMatch,
-                            Some(projection),
-                        )
+                        ExactConstructibleCaseOutcomeV2::AdmissibleMatch(projection)
                     }
                     ExactCaseOutcome::AdmissibleMatch(
                         MatchingCaseTransaction::ProjectionOnly { .. },
@@ -2579,19 +2632,22 @@ impl<'a> ExactStreamEvaluator<'a> {
                         return Err("durable evaluator produced a projection-only matching case"
                             .to_string())
                     }
+                };
+                ExactCaseOutcomeV2::Constructible {
+                    transition,
+                    outcome,
                 }
             }
         };
 
-        let mut proposal = ExactCaseObservationProposalV1::new(
+        let mut proposal = ExactCaseObservationProposalV2::new(
             ExactCanonicalCaseIdV1::new(rank, ordinals),
-            classification,
-            projection,
+            outcome,
             ExactValidationReceiptDigestV1::new([0; 32]),
         )
         .map_err(|error| error.to_string())?;
-        let provisional =
-            encode_exact_case_observation_v1(&proposal).map_err(|error| error.to_string())?;
+        let provisional = encode_exact_case_observation_v2(&proposal, &self.transition_schemas)
+            .map_err(|error| error.to_string())?;
         let mut receipt = Sha256::new();
         receipt.update(EXACT_STREAM_EVALUATOR_RECEIPT_V2);
         receipt.update((provisional.len() as u64).to_le_bytes());
@@ -2599,7 +2655,10 @@ impl<'a> ExactStreamEvaluator<'a> {
         proposal.validation_receipt_digest =
             ExactValidationReceiptDigestV1::new(receipt.finalize().into());
         Ok(ExactStreamCaseAttempt::Complete(
-            ExactEvaluatorConfirmedObservationV1 { proposal },
+            ExactEvaluatorConfirmedObservationV2 {
+                proposal,
+                transition_schemas: self.transition_schemas.clone(),
+            },
         ))
     }
 }
@@ -2937,17 +2996,28 @@ fn finalize_report(
     question: &Expr,
     mut state: ExactSearchState,
 ) -> Result<ExploreExactReport, String> {
+    if request.semantic_transition_graph == ExploreSemanticTransitionGraphRequest::Include {
+        return Err(
+            "the synchronous exact report cannot represent requested semantic-transition graph evidence; use the durable Explore stream publisher"
+                .to_string(),
+        );
+    }
     let case_closure = validate_graph_counts(
         &state.case_graph,
         state.declared,
         state.admissible,
         state.matching,
     )?;
-    let transition_support_cases = state.transition_support.case_len() as u128;
-    if transition_support_cases > case_closure.closed_cases {
+    let transition_count = state.transition_support.len() as u128;
+    let admissible_transition_count = state.transition_support.admissible_transition_count();
+    let matching_transition_count = state.transition_support.matching_transition_count();
+    if transition_count > case_closure.closed_cases
+        || admissible_transition_count > state.admissible
+        || matching_transition_count > state.matching
+    {
         return Err(format!(
-            "semantic transition support contains {transition_support_cases} singleton cases but the case DAG closes only {}",
-            case_closure.closed_cases
+            "semantic transition populations exceed their case populations: U_T={transition_count}, D_T={admissible_transition_count}, M_T={matching_transition_count}, closed={}, admissible={}, matching={}",
+            case_closure.closed_cases, state.admissible, state.matching,
         ));
     }
 
@@ -3312,9 +3382,11 @@ fn finalize_report(
             search
         }
     };
-    let case_graph = match request.case_graph {
-        ExploreCaseGraphRequest::Omit => ExploreCaseGraphEvidence::Omitted,
-        ExploreCaseGraphRequest::Include => ExploreCaseGraphEvidence::Included(state.case_graph),
+    let search_decision_dag = match request.search_decision_dag {
+        ExploreSearchDecisionDagRequest::Omit => ExploreSearchDecisionDagEvidence::Omitted,
+        ExploreSearchDecisionDagRequest::Include => {
+            ExploreSearchDecisionDagEvidence::Included(state.case_graph)
+        }
     };
     let ledger = match request.ledger {
         ExploreLedgerRequest::Omit => ExploreLedgerEvidence::Omitted,
@@ -3333,7 +3405,7 @@ fn finalize_report(
         coverage,
         closures,
         results: results.into_boxed_slice(),
-        case_graph,
+        search_decision_dag,
         ledger,
     };
     let all_requested_layers_closed = closures.all_closed();
@@ -3530,7 +3602,7 @@ fn execute_exact_finite_with_order(
         ExactWorkOrder::Canonical => None,
         ExactWorkOrder::DenseSourceCandidateFirst { plan } => {
             match build_dense_candidate_search(query, &axis_cardinalities, plan.extractions()) {
-                Ok(mut search) => match apply_classification_proofs(&mut search, plan) {
+                Ok(search) => match validate_classification_proofs_without_closure(plan) {
                     Ok(()) => Some(search),
                     Err(diagnostic) => {
                         return failure_report(query, ExactEngineFailure::Error(diagnostic))
@@ -3678,13 +3750,13 @@ fn execute_exact_finite_with_order(
     finalize_report(query, request, Some(&runtime_context), &question, state)
 }
 
-/// Import only proof-closed nonmatches. Matching regions deliberately remain
-/// scheduler work so keys, shown values, representatives, and optional ledger
-/// rows are always produced and replay-confirmed by the ordinary runtime.
-fn apply_classification_proofs(
-    search: &mut DenseCandidateSearch,
-    plan: &SourceProofPlan,
-) -> Result<(), String> {
+/// Validate classification proofs without closing constructible cases.
+///
+/// A polarity certificate does not carry the exact semantic transition image
+/// required by the canonical case transaction. Both matching and nonmatching
+/// regions therefore remain scheduler work until a future certificate can
+/// prove their complete `Context + Before -> After` partition and support.
+fn validate_classification_proofs_without_closure(plan: &SourceProofPlan) -> Result<(), String> {
     for proof in plan.proofs() {
         for region in proof.regions() {
             if region.certificate().interval() != region.interval() {
@@ -3694,15 +3766,7 @@ fn apply_classification_proofs(
                 );
             }
             match region.classification() {
-                CaseTerminal::AdmissibleNonmatch => search
-                    .certify_region(
-                        region.outer_ordinals(),
-                        region.interval(),
-                        region.classification().clone(),
-                        region.certificate().clone(),
-                    )
-                    .map_err(|error| error.to_string())?,
-                CaseTerminal::AdmissibleMatch => {}
+                CaseTerminal::AdmissibleNonmatch | CaseTerminal::AdmissibleMatch => {}
                 CaseTerminal::Excluded
                 | CaseTerminal::EligibilityOpen(_)
                 | CaseTerminal::AdmissibleOpen(_) => {
@@ -4219,40 +4283,49 @@ mod atomic_case_tests {
         assert_eq!(accumulator.classified, 2);
         assert_eq!(accumulator.admissible, 1);
         assert_eq!(accumulator.matching, 0);
-        assert_eq!(accumulator.transition_support.case_len(), 2);
         assert_eq!(accumulator.transition_support.len(), 1);
+        assert_eq!(
+            accumulator.transition_support.admissible_transition_count(),
+            1
+        );
+        assert_eq!(
+            accumulator.transition_support.matching_transition_count(),
+            0
+        );
     }
 
     #[test]
-    fn transition_remap_rejection_does_not_reclassify_a_case() {
+    fn distinct_transition_edges_are_counted_without_a_case_map() {
         let mut accumulator = ExactAccumulator::new();
-        let case_id = OrdinalCaseId(vec![0].into_boxed_slice());
         accept_case_transaction(
             &mut accumulator,
             &first_representative(),
             ExactCaseTransaction {
-                case_id: case_id.clone(),
+                case_id: OrdinalCaseId(vec![0].into_boxed_slice()),
                 transition: semantic_transition(),
                 outcome: ExactCaseOutcome::Excluded,
             },
         )
         .expect("first complete case should be accepted");
 
-        let rejected = accept_case_transaction(
+        accept_case_transaction(
             &mut accumulator,
             &first_representative(),
             ExactCaseTransaction {
-                case_id,
+                case_id: OrdinalCaseId(vec![1].into_boxed_slice()),
                 transition: semantic_transition_to(3),
                 outcome: ExactCaseOutcome::AdmissibleNonmatch,
             },
-        );
+        )
+        .expect("a distinct case may contribute a distinct transition");
 
-        assert!(matches!(rejected, Err(ExactEngineFailure::Error(_))));
-        assert_eq!(accumulator.classified, 1);
-        assert_eq!(accumulator.admissible, 0);
-        assert_eq!(accumulator.transition_support.case_len(), 1);
-        assert_eq!(accumulator.transition_support.len(), 1);
+        assert_eq!(accumulator.classified, 2);
+        assert_eq!(accumulator.admissible, 1);
+        assert_eq!(accumulator.transition_support.len(), 2);
+        assert_eq!(
+            accumulator.transition_support.admissible_transition_count(),
+            1
+        );
     }
 
     #[test]
@@ -4292,7 +4365,11 @@ mod atomic_case_tests {
         );
         assert_eq!(accumulator.candidates[&key].case_id, case_id);
         assert_eq!(accumulator.ledger.len(), 1);
-        assert_eq!(accumulator.transition_support.case_len(), 1);
+        assert_eq!(accumulator.transition_support.len(), 1);
+        assert_eq!(
+            accumulator.transition_support.matching_transition_count(),
+            1
+        );
     }
 
     #[test]

@@ -898,7 +898,8 @@ fn validate_semantic_fact_batch(facts: &[SemanticEvidenceFact]) -> Result<(), Ru
     let case_interval_count = facts.iter().try_fold(0_usize, |total, fact| {
         let additional = match (fact.layer(), fact.subject()) {
             (
-                SemanticEvidenceLayer::CaseClassification,
+                SemanticEvidenceLayer::CaseClassification
+                | SemanticEvidenceLayer::SemanticTransition,
                 SemanticEvidenceSubject::Cases(support),
             ) => support.interval_count(),
             _ => 0,
@@ -927,14 +928,15 @@ fn validate_semantic_fact_batch(facts: &[SemanticEvidenceFact]) -> Result<(), Ru
     for fact in facts {
         match (fact.layer(), fact.subject()) {
             (
-                SemanticEvidenceLayer::CaseClassification,
+                layer @ (SemanticEvidenceLayer::CaseClassification
+                | SemanticEvidenceLayer::SemanticTransition),
                 SemanticEvidenceSubject::Cases(support),
             ) => {
                 case_intervals.extend(
                     support
                         .intervals()
                         .into_iter()
-                        .map(|interval| (interval.start(), interval.end_exclusive())),
+                        .map(|interval| (layer, interval.start(), interval.end_exclusive())),
                 );
             }
             (
@@ -953,7 +955,10 @@ fn validate_semantic_fact_batch(facts: &[SemanticEvidenceFact]) -> Result<(), Ru
         }
     }
     case_intervals.sort_unstable();
-    if case_intervals.windows(2).any(|pair| pair[1].0 < pair[0].1) {
+    if case_intervals
+        .windows(2)
+        .any(|pair| pair[0].0 == pair[1].0 && pair[1].1 < pair[0].2)
+    {
         return Err(RunStreamCodecError::ContradictorySemanticFacts);
     }
     Ok(())
@@ -1284,6 +1289,7 @@ fn semantic_layer_tag(value: SemanticEvidenceLayer) -> u8 {
         SemanticEvidenceLayer::ExtremaWitness => 3,
         SemanticEvidenceLayer::MechanismTargetClosure => 4,
         SemanticEvidenceLayer::AnswerAggregation => 5,
+        SemanticEvidenceLayer::SemanticTransition => 6,
     }
 }
 
@@ -1295,6 +1301,7 @@ fn decode_semantic_layer(value: u8) -> Result<SemanticEvidenceLayer, RunStreamCo
         3 => Ok(SemanticEvidenceLayer::ExtremaWitness),
         4 => Ok(SemanticEvidenceLayer::MechanismTargetClosure),
         5 => Ok(SemanticEvidenceLayer::AnswerAggregation),
+        6 => Ok(SemanticEvidenceLayer::SemanticTransition),
         value => Err(RunStreamCodecError::InvalidTag {
             field: "semantic_evidence_layer",
             value,

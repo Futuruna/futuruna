@@ -24,9 +24,11 @@ the same canonical transition evaluator:
 immutable run identity, a checked source-probe phase, candidate-first
 evaluation, authenticated frontier deltas, bounded canonical snapshots and
 exact restart from an owner-supplied run-state directory. The append-only
-journal pause is the authoritative resume checkpoint. Snapshot v6 and its
-optional search decision DAG are a separately admitted materialized view: when deadline or
-resource admission denies that phase, the invocation returns a typed
+journal pause is the authoritative resume checkpoint. Every constructible case
+is one canonical transaction containing its `CaseId`, Context/Before/After
+transition, classification and optional matching projection; the journal
+commits that transaction atomically. Snapshot v7 is a separately admitted
+materialized view: when deadline or resource admission denies that phase, the invocation returns a typed
 `JournalOnlyCheckpoint` at the final paused cursor without a snapshot blob or
 canonical payload. If the phase is admitted but its publisher reports
 capacity, a separate bounded `snapshot_unavailable` receipt makes that cursor
@@ -34,8 +36,11 @@ observable without publishing partial semantics or blocking later work.
 Explicit `--finalize` can atomically replay, publish and
 seal a small enough closed answer; a larger answer pauses at an honest
 finalization limit for future chunking. An explicit durable
-`--case-graph full` request now enables
-bounded, all-or-nothing publication of a total current-evidence search decision DAG.
+`--search-decision-dag full` request enables bounded, all-or-nothing
+publication of the total current-evidence classification DAG, while independent
+`--semantic-transition-graph full` enables the canonical state/edge/support
+projection. A graph that crosses its publication cap yields typed
+`capacity_limited` status and does not block sealing.
 Mechanism observation now starts at the semantic query boundary. An explicit
 `observe mechanisms with CALLABLE` clause names one pure ordinary function with
 the checked shape `(State, Context) -> Observation`, total over the checked
@@ -53,7 +58,7 @@ slice is fresh, isolated endpoint replay feeding the same durable evidence
 stream—not another before/after evaluator. General trace publication,
 user-authored `probes`, typed `output as` rows, `then`, detached following,
 parallel workers and resumable chunked terminal publication are subsequent
-slices described below. Ordinary snapshot v6 therefore still reports mechanism
+slices described below. Ordinary snapshot v7 therefore still reports mechanism
 evidence as unavailable and never infers a mechanism count from result groups.
 This is the implemented artifact contract, not a claim that a graph-bearing
 policy exploration has already been executed.
@@ -367,8 +372,10 @@ and closure counts; checked probe phase, candidate counts and commitments;
 bounded configuration and representative-result prefixes; and exact or
 lower-bound count labels. Individual nonmatch cases and candidate reasons
 remain private journal material by default. A durable run created with
-`--case-graph full` additionally authorizes its complete current case
-classification DAG; mechanism-DAG views still await the general replay path.
+`--search-decision-dag full` additionally authorizes its complete current case
+classification DAG; `--semantic-transition-graph full` independently
+authorizes canonical states, edges and classification-partitioned case support.
+Mechanism-DAG views still await the general replay path.
 Mechanism evidence is explicitly `unavailable_deferred`; result groups are
 never relabelled as mechanisms. It is not final while the required frontier is
 open. To continue after this inspection, replace `--pause-after probes` with a
@@ -399,7 +406,7 @@ authoritative.
 Machine mode wraps the exact stored checkpoint in
 `futuruna.explore.invocation.v1`; the invocation schema stays v1 for both
 forms. An admitted checkpoint uses artifact kind `checkpoint`, embeds
-`futuruna.explore.snapshot.v6`, and names its checkpoint, publication and final
+`futuruna.explore.snapshot.v7`, and names its checkpoint, publication and final
 cursors. The checkpoint describes cursor 40; cursor 41 durably names its blob;
 cursor 42 commits the pause. `canonical_byte_framing: "json_line_lf"` records
 that reproducing the blob digest requires the checkpoint object plus one LF.
@@ -439,7 +446,7 @@ runa explore support.runa \
 
 At expiry the library stops dispatch, commits accepted work and the exact open
 frontier, and pauses at its next work boundary. If time remains and the view is
-admitted, it also publishes snapshot v6; otherwise it returns the journal-only
+admitted, it also publishes snapshot v7; otherwise it returns the journal-only
 form above. If the child does not exit within the supervisor grace interval,
 the parent contains it instead; the next invocation recovers the last durable
 journal head and evidence root. An abrupt process or machine failure likewise
@@ -460,7 +467,7 @@ runa explore support.runa \
 ```
 
 Atomic-v1 fresh-replays the selected representative/extrema witnesses,
-publishes `futuruna.explore.exact-answer.v5`, and seals only if the full
+publishes `futuruna.explore.exact-answer.v6`, and seals only if the full
 snapshot, retained replay manifest and terminal JSON fit its conservative
 envelope. If not, the same invocation commits a journal pause with typed
 `FinalizationLimit` details (`finalization_limit` in JSON); it carries a
@@ -472,11 +479,11 @@ during this atomic unit. The CLI supervisor may interrupt it, and replay safely
 resumes from the last committed event.
 
 The present atomic guardrails are intentionally conservative: all raw groups
-must fit the v6 complete raw-group preflight (at most 256 groups, 16,384
+must fit the current complete raw-group preflight (at most 256 groups, 16,384
 recursive value nodes and 4 MiB semantic payload), at most 65,536 selected
 replay witnesses may be retained, replay observations may use at most 32 MiB
 of canonical manifest bodies, rendered result rows may use at most 48 MiB,
-and the complete single JSON document may use at most 64 MiB. These are
+and the complete single JSON document may use at most 96 MiB. These are
 finalizer-capability limits, not limits on exact case counts. Reaching one
 leaves classification evidence closed and the terminal frontier durable, but
 unchanged atomic-v1 cannot advance it past that limit.
@@ -493,7 +500,7 @@ both limits belong to serialization-schema identity. That presentation binding
 does not promote an axis name into structural axis identity;
 `(role, role_field_index, bound_index)` remains authoritative.
 
-The complete snapshot/case-DAG materialization phase has a fixed 256 MiB
+The complete snapshot and graph-materialization phase has a fixed 256 MiB
 accounted working-set envelope. It is admitted under the same 80-percent CPU
 and RAM policy and may never borrow the reserved 20 percent of CPU or the
 memory reserve, which is at least 20 percent and never below 1 GiB. The current
@@ -505,13 +512,15 @@ charge; it cannot reuse that cold-phase argument.
 Search-DAG publication has a separate fixed envelope: at most 256 axes, 65,536
 uniform rank runs, 131,072 nodes, 262,144 arcs, 262,144 ordinal intervals and
 64 MiB of conservative lowerer-accounted work. The complete nested
-`futuruna.explore.case-graph.v1` object must then fit in 8 MiB of
+`futuruna.explore.search-decision-dag.v1` object must then fit in 8 MiB of
 canonical JSON. An admitted requested pause snapshot publishes the entire graph
 or a typed
 `capacity_limited` status with the resource, fixed `maximum`, and honest
-`required_at_least`; it never emits a graph prefix. A requested terminal graph
-must be included with closed admissibility and polarity. Otherwise finalization
-pauses with phase `case_graph_publication` and does not seal.
+`required_at_least`; it never emits a graph prefix. Semantic-transition-graph
+publication is independently requested and all-or-none under its own 8 MiB
+canonical-JSON cap. Either graph may report `capacity_limited` while its scalar
+counts and certainty remain public. Capacity is a complete publication status,
+not a finalization failure: a closed answer may seal without either graph body.
 
 The graph choice is deliberately durable identity, not a display toggle. Start
 the graph-bearing run this way and repeat the option on every resume:
@@ -521,15 +530,16 @@ runa explore support.runa \
   --query support_cliffs \
   --run-state /private/work/support-cliffs-with-graph.run \
   --time-limit 20m \
-  --case-graph full \
+  --search-decision-dag full \
+  --semantic-transition-graph full \
   --json
 ```
 
-The report-request digest binds `full` versus `omit`; the retention-
-authorization digest binds case-classification disclosure; and the snapshot
-and terminal schema digests bind the fixed lowerer and JSON limits. All are
-immutable run identity. Futuruna rejects trying to reopen an omitted-graph run
-with the option, or a graph-bearing run without it.
+Report-request v4 binds each graph's independent `full` versus `omit` choice;
+retention-authorization v4 binds case-classification and semantic-transition
+disclosure; and the snapshot and terminal schema digests bind the fixed
+lowerer and JSON limits. All are immutable run identity. Futuruna rejects any
+resume that changes either graph request.
 
 The run journal retains every selected `CaseId`, match, nonmatch and exclusion;
 the actual lower and upper boundary endpoint values; exact question and
@@ -586,7 +596,7 @@ Stale identities, a corrupt journal, overlapping chunks or replay differences
 fail closed and preserve the last valid journal head and evidence root. A
 changed query or probe plan
 starts a new run rather than rewriting old evidence. A pause with remaining
-frontier exits `2` and commits a journal checkpoint; it emits snapshot v6 only
+frontier exits `2` and commits a journal checkpoint; it emits snapshot v7 only
 when materialized-view admission succeeds. Only the durable `Completed` seal
 over an empty required frontier exits `0` as a final answer.
 
@@ -677,6 +687,16 @@ populations for the default one-to-one generator; an intentional many-to-one
 normalization retains every supporting `CaseId` and deduplicates only the
 semantic edge count.
 
+That normalized case transaction is the implementation invariant. A
+constructible case is evaluated once and
+atomically yields its `CaseId`, canonical context/before/after transition,
+classification, and any matching projection. The journal retains that same
+transaction; the search DAG, semantic transition graph and result aggregates
+are reducers over it. Structural exclusions yield only `CaseId` plus their
+structural classification. Reconstructing a discarded transition from a shown
+row would create a second source of semantics and is therefore not an
+acceptable intermediate.
+
 Endpoint validity and cross-edge constraints decide whether `t` is
 admissible. The Boolean question decides its polarity. Keys, shown values and
 fresh-replay evidence are all observations of this same transition. An income
@@ -724,7 +744,7 @@ canonical generator coordinates
         v
 search decision DAG  --------> exact coverage and weighted case counts
         |
-        | CaseId -> TransitionId support
+        | mathematical CaseId -> TransitionId relation
         v
 semantic transition graph ---> projected keys and distributions
         |
@@ -747,11 +767,9 @@ Its terminals preserve what is and is not known: excluded, admissible match,
 admissible nonmatch, eligibility still open, or polarity still open for an
 already admissible region. That distinction lets Futuruna know `D` exactly
 even when it cannot yet decide all of `M`. Missing mechanism evidence is never
-smuggled into a search terminal. Implemented snapshot-v6 and exact-answer-v5
-artifacts can expose this search DAG under `graph.case_graph` when requested
-and admitted. The final public contract names it `search_decision_dag`
-alongside a separately serialized `semantic_transition_graph`; the implemented
-field never implies that the state/edge graph is present.
+smuggled into a search terminal. Snapshot v7 and exact-answer v6 expose this
+search DAG under `graph.search_decision_dag` when independently requested and
+admitted. Its presence never implies that the state/edge graph is present.
 
 The **semantic transition graph** is the domain-level case graph. A role-neutral
 `StateId` identifies each canonical typed state, so one state may be the target
@@ -760,19 +778,34 @@ extensional typed `Context + Before -> After` value. It includes the canonical
 State/Context schemas, context and endpoint IDs, while excluding transition
 mode, after recipes/DAG topology, query and generator coordinates, and
 mechanism paths. Every edge retains exact support back to `CaseId` or a proved
-case region. The graph can
-share states without confusing state-node count, distinct-edge count and
-weighted supporting-case count. Materialization may be omitted or capped
-without weakening the search DAG's exact scalar counts.
+case region. The graph can share states without confusing state-node count,
+distinct-edge count and weighted supporting-case count. Snapshot v7 and
+exact-answer v6 expose it independently under
+`graph.semantic_transition_graph`. Materialization may be omitted or capped
+without weakening the reducer's population counts.
 
-The in-process exact accumulator now derives typed 32-byte State, Context and
-transition-type schema IDs, retains their canonical preimages for collision
-checks, derives state and transition IDs from those typed IDs, and interns
-`CaseId -> TransitionId` support for every singleton transaction it accepts.
-The durable stream does not yet journal or publicly serialize that index, nor
-does the implementation invent edge support for a certified search region. The
-public semantic graph and complete distinct-transition counts therefore remain
-a later slice of this same architecture.
+Mathematically, every constructible case belongs to the
+`CaseId -> TransitionId` relation. The authenticated stream stores its inverse
+fibers as exact `TransitionId -> CaseId support`; it atomically journals each
+case classification with its canonical Context/Before/After transaction. The
+reducer owns the three global classification supports and one compact
+collision/population index. That index retains the typed schema preimages,
+interns each canonical state value once, and stores only endpoint IDs,
+canonical context, and monotone `admissible`/`matching` bits per edge. Its edge
+and bit counts establish `U_T`, `D_T`, and `M_T`. It carries neither a boxed
+ordinal `CaseId -> TransitionId` table nor duplicate classification supports
+for every edge. Replay reconstructs these projections from the journal. A
+candidate region supplies no semantic edge support unless an exact certificate
+establishes its complete transition image.
+
+Every snapshot and terminal answer also publishes seven population counts:
+declared cases `U_D`, constructible cases `U_C`, distinct declared transitions
+`U_T`, admissible cases `D_C`, distinct admissible transitions `D_T`, matching
+cases `M_C`, and distinct matching transitions `M_T`. Each entry carries a
+`lower_bound`, an optional `exact`, and a `certainty` label. `U_D` is exact from
+the declared finite product; the remaining populations are lower bounds while
+classification is open and become exact together when that frontier closes.
+Those count facts survive graph omission and graph-capacity status.
 
 Search closure proves weighted `CaseId` counts. It does not automatically
 prove how many distinct `TransitionId` or `StateId` values a large symbolic
@@ -1007,10 +1040,11 @@ pressure or explicit milestone pause continues from the committed open
 frontier. But if a particular whole case deterministically exhausts the step
 or collection budget bound into this run's evaluator identity, retrying the
 same run unchanged would stop at that same case forever. The invocation stop
-must say that the rank is open and blocked under the current evaluator
-contract; an admitted snapshot reflects the same evidence. Budget refinement
-needs an explicit compatible protocol; otherwise it begins a differently
-identified run.
+must say that the rank is open and blocked under this run's immutable evaluator
+contract; an admitted snapshot reflects the same evidence. In-place budget
+refinement requires an explicit journaled evaluator-generation transition;
+until that exists, a larger per-case budget begins a separately identified
+run.
 
 Mechanism-guided symbolic search may use one replayed witness to prioritize the
 next case region, but version one assigns that signature only to cases freshly
@@ -1019,7 +1053,7 @@ exact homogeneous region, add its weighted cardinality to a saturating counter
 and retain only the requested examples. That proof kind must be explicit; one
 guessed witness never silently stands for an unproved population.
 
-Three limits must not be confused:
+Four limits must not be confused:
 
 - `bounds` changes the world and therefore changes the proposition;
 - an answer/case/value search budget leaves an explicit open region and makes
@@ -1059,8 +1093,8 @@ events update those supports; recovery rebuilds them from the typed journal.
 The reducer validates that the supports are pairwise disjoint, their counts
 equal the scalar classification counts, and their union equals closed support.
 
-For `--case-graph full`, a bounded mixed-radix rank-run lowerer turns those
-supports into the existing canonical search decision DAG without enumerating
+For `--search-decision-dag full`, a bounded mixed-radix rank-run lowerer turns
+those supports into the canonical search decision DAG without enumerating
 every case. It validates terminal multiplicities against the exact reducer
 counts and gives every rank in the declared universe one terminal. Current
 closed support ends at `excluded`, `admissible_nonmatch` or
@@ -1068,30 +1102,41 @@ closed support ends at `excluded`, `admissible_nonmatch` or
 `eligibility_open(search_budget_exhausted)`. That makes the snapshot graph
 total over current evidence even while exploration closure is open.
 
-Snapshot-v6 configuration entries carry `bound_index`, `role` and
+Snapshot-v7 configuration entries carry `bound_index`, `role` and
 `role_field_index` beside each axis or fact name. The structural triple owns
-identity and order; names are presentation only, and case-DAG nodes refer to
-`dimension_index`. Exact-answer-v5 omits the configuration object and instead
-commits its checked program, query, domain, report, disclosure policy and full
-case universe indirectly through `answer_scope_hash`.
+identity and order; names are presentation only, and search-decision-DAG nodes
+refer to `dimension_index`. Exact-answer-v6 omits the configuration object and
+instead commits its checked program, query, domain, report, disclosure policy
+and full case universe indirectly through `answer_scope_hash`.
 
-Publication is all-or-nothing. Within the fixed lowerer and 8 MiB nested-JSON
-limits, `graph.case_graph.status` is `included` and carries the complete search
-decision DAG, its artifact hash, closures, polarity, terminal multiplicities
-and limits.
-Otherwise status is `capacity_limited`, the graph and graph hash are absent,
-and typed capacity evidence names what exceeded its maximum. Baseline runs keep
-status `not_requested`. The request, retention authorization and schema limits
-were bound before the run began, so publication cannot silently widen
-disclosure or change limits during resume.
+For `--semantic-transition-graph full`, the graph publisher walks the compact
+state/edge index and obtains each edge's exact support from the authenticated
+stream. It derives `validity_excluded`, `admissible_nonmatch`, and
+`admissible_match` fibers by streaming exact intersection with the reducer's
+three global classification supports. It does not materialize a second
+per-edge classification index. The graph body is therefore a bounded
+projection of the same transaction journal that produced the seven population
+counts; presentation fields and mechanism evidence do not define its identity.
 
-This implemented field is not the semantic state/transition graph. The final
-public contract serializes that graph separately as
-`semantic_transition_graph`; that serialization is not implemented yet. The
-mechanism DAG cannot be derived by the same shortcut. The private durable
-path does not yet execute the observer or commit mechanism evidence. Result
-groups therefore remain separate from mechanisms, and the exact CLI path
-reports mechanism evidence as `unavailable_deferred`.
+Each graph publishes all-or-nothing under an independent fixed cap. Within the
+search lowerer and 8 MiB nested-JSON limits,
+`graph.search_decision_dag.status` is `included` and carries the complete DAG,
+its artifact hash, closures, polarity, terminal multiplicities and limits.
+Within the semantic graph's 8 MiB canonical-JSON limit,
+`graph.semantic_transition_graph.status` is `included` and carries the complete
+state/edge/support object and its artifact hash. Otherwise the affected status
+is `capacity_limited`, its graph and hash are absent, and typed capacity
+evidence names the resource, fixed `maximum`, and honest
+`required_at_least`. Baseline requests use `not_requested`. A capacity status
+does not block terminal sealing and never weakens the separately published
+exact or lower-bound populations. The two requests, retention authorization,
+and schema limits are bound before the run begins, so resume cannot silently
+widen disclosure or change limits.
+
+Neither implemented field is a mechanism DAG. The private durable path does
+not yet execute the observer or commit mechanism evidence. Result groups
+therefore remain separate from mechanisms, and the exact CLI path reports
+mechanism evidence as `unavailable_deferred`.
 
 #### Query-owned mechanism observation boundary
 
@@ -1797,16 +1842,22 @@ The general optimization architecture has three orthogonal axes:
    candidate closes only that point. A source label is a mechanism hypothesis,
    not a replay-derived mechanism signature, and an exhausted candidate list
    does not close its complement.
-3. **Proof closure** avoids singleton evaluation. For the three-million-kroner
+3. **Proof closure** avoids singleton evaluation only when it certifies the
+   complete case transaction. For the three-million-kroner
    income axis, the principal path is to normalize the reachable finite
    difference into guarded quasi-affine form—affine terms, constant division
    and remainder, finite lookups, conditionals and `min`/`max`—then partition
    intervals by guards and congruence classes. Exact sign bounds can certify a
-   whole cell as matching or nonmatching; exact value bounds and cardinalities
-   can populate case counts and loss bins without materializing every case.
-   Hash-bound, disjoint certificates must cover the declared support and lower
-   into the ordered search decision DAG. Case/value closure still does not imply mechanism
-   closure; the latter needs replayed or equivalently proven trace incidence.
+   whole cell's polarity. That polarity proof becomes closing evidence only
+   when the certificate also partitions the cell's exact `tau` image by
+   canonical `TransitionId`; matching cells additionally need complete output
+   projections or an equivalent aggregation certificate. Exact value bounds
+   and cardinalities can then populate case counts and loss bins without
+   materializing every case. Until then the cell remains residual singleton
+   work. Hash-bound, disjoint certificates must cover the declared support and
+   lower into both the ordered search decision DAG and semantic transition
+   graph. Case/value closure still does not imply mechanism closure; the latter
+   needs replayed or equivalently proven trace incidence.
 
 SMT/CEGAR belongs after quasi-affine normalization, over the residual cells.
 Every satisfiable model is replayed and used to refine its cell. An
@@ -1880,7 +1931,7 @@ crash recovery honest:
    fast scale-down. A pressure stop checkpoints an honest open frontier rather
    than pushing toward a nominal utilization target.
 4. Only the still-open residual support is split into short, canonical,
-   disjoint CaseId-rank shards; proof-closed regions are never expanded back
+   disjoint CaseId-rank shards; transaction-image-certified regions are never expanded back
    into singleton work for checkpointing. Each
    completed shard is validated and atomically committed as an immutable
    content-addressed chunk, so a crash loses at most the short shards still in
@@ -1927,18 +1978,19 @@ figures are admission ceilings, not utilization targets or kernel-enforced
 guarantees against momentary CPU/RSS overshoot, and not permission to ignore
 swap growth or warning pressure.
 
-Pause does not bypass that envelope. The small append-only journal transition
-is the resume checkpoint; the potentially much larger snapshot and search decision DAG
-form a separate materialized-view work subject with 256 MiB of accounted
-working set. It receives one normal admission opportunity after semantic work
-stops. If the deadline or current host sample denies it, Futuruna preserves the
-20-percent/1-GiB reserve, appends the pause directly and reports
-`JournalOnlyCheckpoint`. The next resumed invocation retries that observation
-work before semantic dispatch and pauses at `snapshot_catch_up`; it is not lost
-evidence and is not permission to relabel the graph as capacity-limited. If an
-admitted attempt reports capacity, it instead publishes the bounded
-`snapshot_unavailable` observer receipt, satisfying that cursor's observation
-boundary without claiming that a later attempt can never fit.
+Pause does not bypass that envelope. The small append-only journal transaction
+is the resume checkpoint; the potentially much larger snapshot and its
+requested graph projections form a separate materialized-view work subject
+with 256 MiB of accounted working set. It receives one normal admission
+opportunity after semantic work stops. If the deadline or current host sample
+denies it, Futuruna preserves the 20-percent/1-GiB reserve, appends the pause
+directly and reports `JournalOnlyCheckpoint`. The next resumed invocation
+retries that observation work before semantic dispatch and pauses at
+`snapshot_catch_up`; it is not lost evidence and is not permission to relabel
+either graph as capacity-limited. If an admitted outer snapshot attempt reports
+capacity, it instead publishes the bounded `snapshot_unavailable` observer
+receipt, satisfying that cursor's observation boundary without claiming that a
+later attempt can never fit.
 
 The first executable slice is deliberately one worker, but it still runs in a
 fresh macOS process group. Other platforms currently reject the durable path
@@ -2045,8 +2097,9 @@ partition:
 Those endpoints came from exact source formulas and are inputs to certificate
 checking, not replacement bounds authored into the final query. The final
 query declares the broad valid axis; midpoint probes only choose which open
-cell to inspect next, and only a certificate, SMT closure or singleton
-exhaustion closes a cell.
+  cell to inspect next, and only a complete transition-image certificate or
+  singleton exhaustion closes a constructible cell. SMT polarity closure alone
+  remains a scheduling proof until it supplies that semantic image.
 
 The executable experiment ladder is
 `examples/danish-income-tax/personskat-income-cliffs-distance-ramp.explore.runa`.

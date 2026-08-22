@@ -60,7 +60,7 @@ impl ExploreResultKey {
 ///
 /// This is report evidence rather than executable syntax so validators do not
 /// need to trust or retain the source AST. Suppression never changes D, M, the
-/// case graph, or the optional matching-configuration ledger.
+/// search decision DAG, or the optional matching-configuration ledger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ExploreGroupFilter {
     All,
@@ -237,9 +237,18 @@ fn validate_unique_names(kind: &str, names: &[String]) -> Result<(), String> {
     Ok(())
 }
 
-/// Privacy-sensitive case graph materialization requested for this report.
+/// Privacy-sensitive search decision DAG materialization requested for this
+/// report.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum ExploreCaseGraphRequest {
+pub(crate) enum ExploreSearchDecisionDagRequest {
+    Omit,
+    Include,
+}
+
+/// Privacy-sensitive semantic before/context/after graph materialization
+/// requested for this report.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExploreSemanticTransitionGraphRequest {
     Omit,
     Include,
 }
@@ -253,17 +262,19 @@ pub(crate) enum ExploreLedgerRequest {
 }
 
 /// Explicit report shape. The baseline request publishes projected result
-/// rows but neither a full case graph nor the matching-case ledger.
+/// rows but neither graph nor the matching-case ledger.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ExploreReportRequest {
-    pub(crate) case_graph: ExploreCaseGraphRequest,
+    pub(crate) search_decision_dag: ExploreSearchDecisionDagRequest,
+    pub(crate) semantic_transition_graph: ExploreSemanticTransitionGraphRequest,
     pub(crate) ledger: ExploreLedgerRequest,
 }
 
 impl ExploreReportRequest {
     pub(crate) const fn baseline() -> Self {
         Self {
-            case_graph: ExploreCaseGraphRequest::Omit,
+            search_decision_dag: ExploreSearchDecisionDagRequest::Omit,
+            semantic_transition_graph: ExploreSemanticTransitionGraphRequest::Omit,
             ledger: ExploreLedgerRequest::Omit,
         }
     }
@@ -275,10 +286,10 @@ impl Default for ExploreReportRequest {
     }
 }
 
-/// Case-graph evidence, kept separate from the request so a report cannot
-/// silently expand its disclosure surface.
+/// Search decision DAG evidence, kept separate from the request so a report
+/// cannot silently expand its disclosure surface.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum ExploreCaseGraphEvidence {
+pub(crate) enum ExploreSearchDecisionDagEvidence {
     Omitted,
     Included(CaseDecisionDag),
 }
@@ -1059,7 +1070,7 @@ pub(crate) struct ExploreExactEvidence {
     pub(crate) coverage: ExploreCoverage,
     pub(crate) closures: ExploreLayerClosures,
     pub(crate) results: Box<[ExploreResultRow]>,
-    pub(crate) case_graph: ExploreCaseGraphEvidence,
+    pub(crate) search_decision_dag: ExploreSearchDecisionDagEvidence,
     pub(crate) ledger: ExploreLedgerEvidence,
 }
 
@@ -1089,24 +1100,24 @@ impl ExploreExactEvidence {
             ));
         }
 
-        let case_graph = self.validate_case_graph_request()?;
-        if let Some(case_graph) = case_graph {
-            let multiplicities = CaseGraphMultiplicities::from_graph(case_graph)?;
+        let search_decision_dag = self.validate_search_decision_dag_request()?;
+        if let Some(search_decision_dag) = search_decision_dag {
+            let multiplicities = SearchDecisionDagMultiplicities::from_graph(search_decision_dag)?;
             let open = multiplicities
                 .eligibility_open
                 .checked_add(multiplicities.polarity_open)
                 .ok_or_else(|| {
-                    "Explore case-graph open multiplicity exceeds u128::MAX".to_string()
+                    "Explore search decision DAG open multiplicity exceeds u128::MAX".to_string()
                 })?;
             if self.search.remaining_open_cases() != open {
                 return Err(format!(
-                    "Explore search reports {} open cases but its case graph reports {open}",
+                    "Explore search reports {} open cases but its search decision DAG reports {open}",
                     self.search.remaining_open_cases()
                 ));
             }
         }
-        self.validate_results(case_graph)?;
-        self.validate_ledger(case_graph)?;
+        self.validate_results(search_decision_dag)?;
+        self.validate_ledger(search_decision_dag)?;
         Ok(())
     }
 
@@ -1163,7 +1174,10 @@ impl ExploreExactEvidence {
         Ok(())
     }
 
-    fn validate_results(&self, case_graph: Option<&CaseDecisionDag>) -> Result<(), String> {
+    fn validate_results(
+        &self,
+        search_decision_dag: Option<&CaseDecisionDag>,
+    ) -> Result<(), String> {
         if !self.results.is_empty()
             && (!self.closures.representatives.is_closed() || !self.closures.rows.is_closed())
         {
@@ -1183,7 +1197,11 @@ impl ExploreExactEvidence {
                         .to_string(),
                 );
             }
-            validate_matching_case(case_graph, &row.representative, "result representative")?;
+            validate_matching_case(
+                search_decision_dag,
+                &row.representative,
+                "result representative",
+            )?;
             if row.key.len() != self.schema.key_names.len() {
                 return Err(format!(
                     "Explore result key has {} values for {} schema fields",
@@ -1221,12 +1239,12 @@ impl ExploreExactEvidence {
                 validate_case_id(&summary.minimum_witness, &self.schema)?;
                 validate_case_id(&summary.maximum_witness, &self.schema)?;
                 validate_matching_case(
-                    case_graph,
+                    search_decision_dag,
                     &summary.minimum_witness,
                     "extrema minimum witness",
                 )?;
                 validate_matching_case(
-                    case_graph,
+                    search_decision_dag,
                     &summary.maximum_witness,
                     "extrema maximum witness",
                 )?;
@@ -1364,39 +1382,49 @@ impl ExploreExactEvidence {
         Ok(())
     }
 
-    fn validate_case_graph_request(&self) -> Result<Option<&CaseDecisionDag>, String> {
-        match (self.request.case_graph, &self.case_graph) {
-            (ExploreCaseGraphRequest::Omit, ExploreCaseGraphEvidence::Omitted) => Ok(None),
-            (ExploreCaseGraphRequest::Include, ExploreCaseGraphEvidence::Included(graph)) => {
-                self.validate_case_graph(graph)?;
+    fn validate_search_decision_dag_request(&self) -> Result<Option<&CaseDecisionDag>, String> {
+        match (self.request.search_decision_dag, &self.search_decision_dag) {
+            (ExploreSearchDecisionDagRequest::Omit, ExploreSearchDecisionDagEvidence::Omitted) => {
+                Ok(None)
+            }
+            (
+                ExploreSearchDecisionDagRequest::Include,
+                ExploreSearchDecisionDagEvidence::Included(graph),
+            ) => {
+                self.validate_search_decision_dag(graph)?;
                 Ok(Some(graph))
             }
-            (ExploreCaseGraphRequest::Omit, ExploreCaseGraphEvidence::Included(_)) => {
-                Err("Explore report included a case graph that the request omitted".to_string())
-            }
-            (ExploreCaseGraphRequest::Include, ExploreCaseGraphEvidence::Omitted) => {
-                Err("Explore report omitted its requested case graph".to_string())
-            }
+            (
+                ExploreSearchDecisionDagRequest::Omit,
+                ExploreSearchDecisionDagEvidence::Included(_),
+            ) => Err(
+                "Explore report included a search decision DAG that the request omitted"
+                    .to_string(),
+            ),
+            (
+                ExploreSearchDecisionDagRequest::Include,
+                ExploreSearchDecisionDagEvidence::Omitted,
+            ) => Err("Explore report omitted its requested search decision DAG".to_string()),
         }
     }
 
-    fn validate_case_graph(&self, graph: &CaseDecisionDag) -> Result<(), String> {
+    fn validate_search_decision_dag(&self, graph: &CaseDecisionDag) -> Result<(), String> {
         graph
             .validate()
-            .map_err(|error| format!("Explore included case graph is invalid: {error}"))?;
+            .map_err(|error| format!("Explore included search decision DAG is invalid: {error}"))?;
         if graph.axis_cardinalities() != self.schema.axis_cardinalities.as_ref() {
             return Err(format!(
-                "Explore case graph axis cardinalities {:?} disagree with report schema {:?}",
+                "Explore search decision DAG axis cardinalities {:?} disagree with report schema {:?}",
                 graph.axis_cardinalities(),
                 self.schema.axis_cardinalities
             ));
         }
 
-        let multiplicities = CaseGraphMultiplicities::from_graph(graph)?;
+        let multiplicities = SearchDecisionDagMultiplicities::from_graph(graph)?;
         multiplicities.validate_against(self.counts, self.closures)
     }
 
-    fn validate_ledger(&self, case_graph: Option<&CaseDecisionDag>) -> Result<(), String> {
+    fn validate_ledger(&self, search_decision_dag: Option<&CaseDecisionDag>) -> Result<(), String> {
         let rows = match (self.request.ledger, &self.ledger) {
             (ExploreLedgerRequest::Omit, ExploreLedgerEvidence::Omitted) => return Ok(()),
             (
@@ -1416,7 +1444,7 @@ impl ExploreExactEvidence {
 
         for row in rows {
             validate_case_id(&row.case_id, &self.schema)?;
-            validate_matching_case(case_graph, &row.case_id, "matching-ledger row")?;
+            validate_matching_case(search_decision_dag, &row.case_id, "matching-ledger row")?;
             if row.dimensions.len() != self.schema.dimensions.len() {
                 return Err(format!(
                     "Explore ledger row has {} dimension values for {} schema fields",
@@ -1497,7 +1525,7 @@ fn validate_matching_case(
 ) -> Result<(), String> {
     let Some(graph) = graph else {
         // A replay-confirmed row remains independently valid when the request
-        // deliberately omits the privacy-sensitive case graph.
+        // deliberately omits the privacy-sensitive search decision DAG.
         return Ok(());
     };
     let terminal = graph
@@ -1513,7 +1541,7 @@ fn validate_matching_case(
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct CaseGraphMultiplicities {
+struct SearchDecisionDagMultiplicities {
     declared: u128,
     known_admissible: u128,
     matching: u128,
@@ -1521,7 +1549,7 @@ struct CaseGraphMultiplicities {
     polarity_open: u128,
 }
 
-impl CaseGraphMultiplicities {
+impl SearchDecisionDagMultiplicities {
     fn from_graph(graph: &CaseDecisionDag) -> Result<Self, String> {
         let mut summary = Self {
             declared: 0,
@@ -1530,15 +1558,14 @@ impl CaseGraphMultiplicities {
             eligibility_open: 0,
             polarity_open: 0,
         };
-        for (terminal, cardinality) in graph
-            .terminal_counts()
-            .map_err(|error| format!("cannot count Explore case graph terminals: {error}"))?
-        {
+        for (terminal, cardinality) in graph.terminal_counts().map_err(|error| {
+            format!("cannot count Explore search decision DAG terminals: {error}")
+        })? {
             let count = match cardinality {
                 CheckedCardinality::Exact(count) => count,
                 CheckedCardinality::ExceedsU128 => {
                     return Err(format!(
-                        "Explore case graph terminal {terminal:?} multiplicity exceeds u128::MAX"
+                        "Explore search decision DAG terminal {terminal:?} multiplicity exceeds u128::MAX"
                     ))
                 }
             };
@@ -1593,7 +1620,7 @@ impl CaseGraphMultiplicities {
         )?;
         if closures.admissibility.is_closed() != admissibility_closed {
             return Err(format!(
-                "Explore admissibility closure {:?} disagrees with case-graph eligibility-open multiplicity {}",
+                "Explore admissibility closure {:?} disagrees with search decision DAG eligibility-open multiplicity {}",
                 closures.admissibility, self.eligibility_open
             ));
         }
@@ -1611,7 +1638,7 @@ impl CaseGraphMultiplicities {
         )?;
         if closures.polarity.is_closed() != polarity_closed {
             return Err(format!(
-                "Explore polarity closure {:?} disagrees with case-graph open multiplicities (eligibility {}, polarity {})",
+                "Explore polarity closure {:?} disagrees with search decision DAG open multiplicities (eligibility {}, polarity {})",
                 closures.polarity, self.eligibility_open, self.polarity_open
             ));
         }
@@ -1621,7 +1648,7 @@ impl CaseGraphMultiplicities {
 
 fn checked_graph_sum(left: u128, right: u128, kind: &str) -> Result<u128, String> {
     left.checked_add(right)
-        .ok_or_else(|| format!("Explore case-graph {kind} multiplicity exceeds u128::MAX"))
+        .ok_or_else(|| format!("Explore search decision DAG {kind} multiplicity exceeds u128::MAX"))
 }
 
 fn require_graph_count(
@@ -1631,7 +1658,7 @@ fn require_graph_count(
 ) -> Result<(), String> {
     if actual != expected {
         return Err(format!(
-            "Explore {kind} count {actual:?} disagrees with case-graph evidence {expected:?}"
+            "Explore {kind} count {actual:?} disagrees with search decision DAG evidence {expected:?}"
         ));
     }
     Ok(())
@@ -1872,15 +1899,20 @@ mod tests {
         counts: ExploreCounts,
         coverage: ExploreCoverage,
         results: Vec<ExploreResultRow>,
-        case_graph: ExploreCaseGraphEvidence,
+        search_decision_dag: ExploreSearchDecisionDagEvidence,
     ) -> ExploreExactEvidence {
         let declared = schema.declared_assignment_count().unwrap();
         ExploreExactEvidence {
             request: ExploreReportRequest {
-                case_graph: match &case_graph {
-                    ExploreCaseGraphEvidence::Omitted => ExploreCaseGraphRequest::Omit,
-                    ExploreCaseGraphEvidence::Included(_) => ExploreCaseGraphRequest::Include,
+                search_decision_dag: match &search_decision_dag {
+                    ExploreSearchDecisionDagEvidence::Omitted => {
+                        ExploreSearchDecisionDagRequest::Omit
+                    }
+                    ExploreSearchDecisionDagEvidence::Included(_) => {
+                        ExploreSearchDecisionDagRequest::Include
+                    }
                 },
+                semantic_transition_graph: ExploreSemanticTransitionGraphRequest::Omit,
                 ledger: ExploreLedgerRequest::Omit,
             },
             schema,
@@ -1897,7 +1929,7 @@ mod tests {
             coverage,
             closures: ExploreLayerClosures::closed(),
             results: results.into_boxed_slice(),
-            case_graph,
+            search_decision_dag,
             ledger: ExploreLedgerEvidence::Omitted,
         }
     }
@@ -1915,7 +1947,7 @@ mod tests {
             },
             ExploreCoverage::Empty,
             Vec::new(),
-            ExploreCaseGraphEvidence::Included(graph),
+            ExploreSearchDecisionDagEvidence::Included(graph),
         );
         report(ExploreExactOutcome::Complete {
             method: ExploreCompletionMethod::ExactFiniteExhaustion,
@@ -1940,7 +1972,7 @@ mod tests {
                 Vec::<ExploreValue>::new(),
                 ExploreCaseId::new(vec![2]),
             )],
-            ExploreCaseGraphEvidence::Omitted,
+            ExploreSearchDecisionDagEvidence::Omitted,
         );
         let error = report(ExploreExactOutcome::Complete {
             method: ExploreCompletionMethod::ExactFiniteExhaustion,
@@ -1969,7 +2001,7 @@ mod tests {
                 Vec::<ExploreValue>::new(),
                 ExploreCaseId::new(vec![1]),
             )],
-            ExploreCaseGraphEvidence::Included(builder.finish_complete().unwrap()),
+            ExploreSearchDecisionDagEvidence::Included(builder.finish_complete().unwrap()),
         );
         let error = report(ExploreExactOutcome::Complete {
             method: ExploreCompletionMethod::ExactFiniteExhaustion,
@@ -1994,14 +2026,14 @@ mod tests {
             },
             ExploreCoverage::Some,
             Vec::new(),
-            ExploreCaseGraphEvidence::Included(builder.finish_complete().unwrap()),
+            ExploreSearchDecisionDagEvidence::Included(builder.finish_complete().unwrap()),
         );
         let error = report(ExploreExactOutcome::Complete {
             method: ExploreCompletionMethod::ExactFiniteExhaustion,
             evidence,
         })
         .unwrap_err();
-        assert!(error.contains("case-graph evidence"));
+        assert!(error.contains("search decision DAG evidence"));
     }
 
     #[test]
@@ -2011,7 +2043,8 @@ mod tests {
         builder.push_next(CaseTerminal::AdmissibleNonmatch).unwrap();
         let evidence = ExploreExactEvidence {
             request: ExploreReportRequest {
-                case_graph: ExploreCaseGraphRequest::Include,
+                search_decision_dag: ExploreSearchDecisionDagRequest::Include,
+                semantic_transition_graph: ExploreSemanticTransitionGraphRequest::Omit,
                 ledger: ExploreLedgerRequest::MatchingConfigurations,
             },
             schema: schema(vec![2]),
@@ -2038,7 +2071,9 @@ mod tests {
                 ExploreCaseId::new(vec![0]),
             )]
             .into_boxed_slice(),
-            case_graph: ExploreCaseGraphEvidence::Included(builder.finish_complete().unwrap()),
+            search_decision_dag: ExploreSearchDecisionDagEvidence::Included(
+                builder.finish_complete().unwrap(),
+            ),
             ledger: ExploreLedgerEvidence::MatchingConfigurations {
                 rows: vec![ExploreLedgerRow::confirmed(
                     ExploreCaseId::new(vec![1]),
@@ -2069,7 +2104,8 @@ mod tests {
             .unwrap();
         let evidence = ExploreExactEvidence {
             request: ExploreReportRequest {
-                case_graph: ExploreCaseGraphRequest::Include,
+                search_decision_dag: ExploreSearchDecisionDagRequest::Include,
+                semantic_transition_graph: ExploreSemanticTransitionGraphRequest::Omit,
                 ledger: ExploreLedgerRequest::Omit,
             },
             schema: schema(vec![2]),
@@ -2104,7 +2140,7 @@ mod tests {
                 ExploreCount::LowerBound(1),
             )]
             .into_boxed_slice(),
-            case_graph: ExploreCaseGraphEvidence::Included(graph),
+            search_decision_dag: ExploreSearchDecisionDagEvidence::Included(graph),
             ledger: ExploreLedgerEvidence::Omitted,
         };
         report(ExploreExactOutcome::Partial {
@@ -2126,7 +2162,7 @@ mod tests {
             },
             ExploreCoverage::None,
             Vec::new(),
-            ExploreCaseGraphEvidence::Omitted,
+            ExploreSearchDecisionDagEvidence::Omitted,
         );
         let error = report(ExploreExactOutcome::Partial {
             stop: ExploreStopReason::CaseLimit { limit: 1 },
@@ -2148,7 +2184,7 @@ mod tests {
             },
             ExploreCoverage::None,
             Vec::new(),
-            ExploreCaseGraphEvidence::Omitted,
+            ExploreSearchDecisionDagEvidence::Omitted,
         );
         let error = report(ExploreExactOutcome::Unknown {
             reason: "solver returned unknown".to_string(),
@@ -2193,7 +2229,7 @@ mod tests {
                 ExploreCaseId::new(vec![0]),
             )]
             .into_boxed_slice(),
-            case_graph: ExploreCaseGraphEvidence::Omitted,
+            search_decision_dag: ExploreSearchDecisionDagEvidence::Omitted,
             ledger: ExploreLedgerEvidence::Omitted,
         };
         let error = report(ExploreExactOutcome::Partial {

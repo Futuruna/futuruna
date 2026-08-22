@@ -1,11 +1,11 @@
 //! Canonical semantic identities for before-to-after Explore transitions.
 //!
-//! Search coordinates keep their query-local [`ExploreCaseId`] identity. This
-//! module supplies the separate semantic projection: role-neutral state nodes,
-//! directional transition edges, and the exact support relation from generator
-//! coordinates to those edges.
+//! Search coordinates and their exact support fibers remain in the reducer's
+//! authenticated classification frontier. This module supplies the separate
+//! semantic projection: role-neutral state nodes and directional transition
+//! edges.
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 use std::sync::Arc;
@@ -14,7 +14,6 @@ use sha2::{Digest, Sha256};
 
 use crate::CheckedDataTypeId;
 
-use super::report::ExploreCaseId;
 use super::{
     ExploreProductSchemaIr, ExploreTransitionIr, ExploreValue, Ty,
     TypedExploreProductSchemaIdentity,
@@ -140,6 +139,70 @@ impl TransitionSchemaIdentities {
         )
     }
 
+    /// Rehydrate one self-contained durable transition and additionally bind
+    /// it to this checked query's exact schema preimages.
+    ///
+    /// [`TransitionInstance::from_canonical_v1`] proves that the record is
+    /// internally self-consistent. This stronger boundary also prevents a
+    /// different, self-consistent schema from being replayed into a run whose
+    /// checked query selected these identities.
+    pub(crate) fn rehydrate_canonical_v1(
+        &self,
+        canonical: TransitionInstanceCanonicalV1,
+    ) -> Result<TransitionInstance, TransitionIdentityError> {
+        if canonical.state_schema_id != self.state_schema_id
+            || canonical.state_schema_preimage.as_ref() != self.state_schema_preimage.as_ref()
+        {
+            return Err(TransitionIdentityError::CheckedStateSchemaMismatch);
+        }
+        if canonical.context_schema_id != self.context_schema_id
+            || canonical.context_schema_preimage.as_ref() != self.context_schema_preimage.as_ref()
+        {
+            return Err(TransitionIdentityError::CheckedContextSchemaMismatch);
+        }
+        if canonical.transition_type_id != self.transition_type_id
+            || canonical.transition_type_preimage.as_ref() != self.transition_type_preimage.as_ref()
+        {
+            return Err(TransitionIdentityError::CheckedTransitionTypeMismatch);
+        }
+        TransitionInstance::from_canonical_v1(canonical)
+    }
+
+    /// Rehydrate a compact durable claim whose schema identities are supplied
+    /// by this already checked run contract. The resulting transition shares
+    /// the schema preimage allocations instead of copying them once per case.
+    pub(crate) fn rehydrate_checked_claim_v1(
+        &self,
+        before_state_id: StateId,
+        after_state_id: StateId,
+        transition_id: TransitionId,
+        context: ExploreValue,
+        before: ExploreValue,
+        after: ExploreValue,
+    ) -> Result<TransitionInstance, TransitionIdentityError> {
+        let transition = TransitionInstance::from_shared_schema(
+            self.state_schema_id,
+            self.context_schema_id,
+            self.transition_type_id,
+            self.state_schema_preimage.clone(),
+            self.context_schema_preimage.clone(),
+            self.transition_type_preimage.clone(),
+            context,
+            before,
+            after,
+        );
+        if transition.before_state_id != before_state_id {
+            return Err(TransitionIdentityError::BeforeStateIdMismatch);
+        }
+        if transition.after_state_id != after_state_id {
+            return Err(TransitionIdentityError::AfterStateIdMismatch);
+        }
+        if transition.id != transition_id {
+            return Err(TransitionIdentityError::TransitionIdMismatch);
+        }
+        Ok(transition)
+    }
+
     pub(crate) const fn state_schema_id(&self) -> StateSchemaId {
         self.state_schema_id
     }
@@ -152,8 +215,15 @@ impl TransitionSchemaIdentities {
         self.transition_type_id
     }
 
-    #[cfg(test)]
-    fn transition_type_preimage(&self) -> &[u8] {
+    pub(crate) fn state_schema_preimage(&self) -> &[u8] {
+        &self.state_schema_preimage
+    }
+
+    pub(crate) fn context_schema_preimage(&self) -> &[u8] {
+        &self.context_schema_preimage
+    }
+
+    pub(crate) fn transition_type_preimage(&self) -> &[u8] {
         &self.transition_type_preimage
     }
 }
@@ -174,6 +244,10 @@ impl StateSchemaId {
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
     }
+
+    pub(crate) const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
 }
 
 /// Canonical identity of one closed Context product schema.
@@ -192,6 +266,10 @@ impl ContextSchemaId {
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
     }
+
+    pub(crate) const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
 }
 
 /// Canonical identity of the typed Context + State transition relation.
@@ -209,6 +287,10 @@ impl TransitionTypeId {
 
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
+    }
+
+    pub(crate) const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
     }
 }
 
@@ -231,6 +313,10 @@ impl StateId {
 
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
+    }
+
+    pub(crate) const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
     }
 }
 
@@ -260,13 +346,174 @@ impl TransitionId {
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
     }
+
+    pub(crate) const fn from_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
 }
+
+/// Self-contained canonical wire projection of one semantic transition.
+///
+/// Every digest is retained as a claim rather than trusted input. Durable
+/// replay reconstructs a [`TransitionInstance`] with
+/// [`TransitionInstance::from_canonical_v1`], which rederives the schema,
+/// state, and edge identities from these exact preimages and values.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct TransitionInstanceCanonicalV1 {
+    state_schema_id: StateSchemaId,
+    context_schema_id: ContextSchemaId,
+    transition_type_id: TransitionTypeId,
+    before_state_id: StateId,
+    after_state_id: StateId,
+    transition_id: TransitionId,
+    state_schema_preimage: Arc<[u8]>,
+    context_schema_preimage: Arc<[u8]>,
+    transition_type_preimage: Arc<[u8]>,
+    context: ExploreValue,
+    before: ExploreValue,
+    after: ExploreValue,
+}
+
+impl TransitionInstanceCanonicalV1 {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        state_schema_id: StateSchemaId,
+        context_schema_id: ContextSchemaId,
+        transition_type_id: TransitionTypeId,
+        before_state_id: StateId,
+        after_state_id: StateId,
+        transition_id: TransitionId,
+        state_schema_preimage: impl Into<Arc<[u8]>>,
+        context_schema_preimage: impl Into<Arc<[u8]>>,
+        transition_type_preimage: impl Into<Arc<[u8]>>,
+        context: ExploreValue,
+        before: ExploreValue,
+        after: ExploreValue,
+    ) -> Self {
+        Self {
+            state_schema_id,
+            context_schema_id,
+            transition_type_id,
+            before_state_id,
+            after_state_id,
+            transition_id,
+            state_schema_preimage: state_schema_preimage.into(),
+            context_schema_preimage: context_schema_preimage.into(),
+            transition_type_preimage: transition_type_preimage.into(),
+            context,
+            before,
+            after,
+        }
+    }
+
+    pub(crate) const fn state_schema_id(&self) -> StateSchemaId {
+        self.state_schema_id
+    }
+
+    pub(crate) const fn context_schema_id(&self) -> ContextSchemaId {
+        self.context_schema_id
+    }
+
+    pub(crate) const fn transition_type_id(&self) -> TransitionTypeId {
+        self.transition_type_id
+    }
+
+    pub(crate) const fn before_state_id(&self) -> StateId {
+        self.before_state_id
+    }
+
+    pub(crate) const fn after_state_id(&self) -> StateId {
+        self.after_state_id
+    }
+
+    pub(crate) const fn transition_id(&self) -> TransitionId {
+        self.transition_id
+    }
+
+    pub(crate) fn state_schema_preimage(&self) -> &[u8] {
+        &self.state_schema_preimage
+    }
+
+    pub(crate) fn context_schema_preimage(&self) -> &[u8] {
+        &self.context_schema_preimage
+    }
+
+    pub(crate) fn transition_type_preimage(&self) -> &[u8] {
+        &self.transition_type_preimage
+    }
+
+    pub(crate) fn context(&self) -> &ExploreValue {
+        &self.context
+    }
+
+    pub(crate) fn before(&self) -> &ExploreValue {
+        &self.before
+    }
+
+    pub(crate) fn after(&self) -> &ExploreValue {
+        &self.after
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum TransitionIdentityError {
+    StateSchemaIdMismatch,
+    ContextSchemaIdMismatch,
+    TransitionTypePreimageMismatch,
+    TransitionTypeIdMismatch,
+    BeforeStateIdMismatch,
+    AfterStateIdMismatch,
+    TransitionIdMismatch,
+    CheckedStateSchemaMismatch,
+    CheckedContextSchemaMismatch,
+    CheckedTransitionTypeMismatch,
+}
+
+impl fmt::Display for TransitionIdentityError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let message = match self {
+            Self::StateSchemaIdMismatch => {
+                "canonical transition State schema ID does not match its preimage"
+            }
+            Self::ContextSchemaIdMismatch => {
+                "canonical transition Context schema ID does not match its preimage"
+            }
+            Self::TransitionTypePreimageMismatch => {
+                "canonical transition-type preimage does not bind Context then State"
+            }
+            Self::TransitionTypeIdMismatch => {
+                "canonical transition-type ID does not match its preimage"
+            }
+            Self::BeforeStateIdMismatch => {
+                "canonical transition before-State ID does not match its value"
+            }
+            Self::AfterStateIdMismatch => {
+                "canonical transition after-State ID does not match its value"
+            }
+            Self::TransitionIdMismatch => {
+                "canonical transition ID does not match its context and endpoints"
+            }
+            Self::CheckedStateSchemaMismatch => {
+                "canonical transition State schema does not match the checked Explore query"
+            }
+            Self::CheckedContextSchemaMismatch => {
+                "canonical transition Context schema does not match the checked Explore query"
+            }
+            Self::CheckedTransitionTypeMismatch => {
+                "canonical transition type does not match the checked Explore query"
+            }
+        };
+        formatter.write_str(message)
+    }
+}
+
+impl Error for TransitionIdentityError {}
 
 /// One normalized semantic edge and the canonical values that produced it.
 ///
 /// Schema preimages are retained privately so the support interner can reject
 /// a SHA-256 collision instead of silently treating unequal edges as equal.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct TransitionInstance {
     id: TransitionId,
     before_state_id: StateId,
@@ -277,9 +524,9 @@ pub(crate) struct TransitionInstance {
     state_schema_preimage: Arc<[u8]>,
     context_schema_preimage: Arc<[u8]>,
     transition_type_preimage: Arc<[u8]>,
-    context: ExploreValue,
-    before: ExploreValue,
-    after: ExploreValue,
+    context: Arc<ExploreValue>,
+    before: Arc<ExploreValue>,
+    after: Arc<ExploreValue>,
 }
 
 impl TransitionInstance {
@@ -318,11 +565,14 @@ impl TransitionInstance {
         before: ExploreValue,
         after: ExploreValue,
     ) -> Self {
-        let before_state_id = StateId::derive(state_schema_id, &before);
-        let after_state_id = StateId::derive(state_schema_id, &after);
+        let context = Arc::new(context);
+        let before = Arc::new(before);
+        let after = Arc::new(after);
+        let before_state_id = StateId::derive(state_schema_id, before.as_ref());
+        let after_state_id = StateId::derive(state_schema_id, after.as_ref());
         let id = TransitionId::derive(
             transition_type_id,
-            &context,
+            context.as_ref(),
             before_state_id,
             after_state_id,
         );
@@ -339,6 +589,83 @@ impl TransitionInstance {
             context,
             before,
             after,
+        }
+    }
+
+    /// Reconstruct a durable transition only after rederiving every claimed
+    /// semantic identity from its canonical preimage.
+    pub(crate) fn from_canonical_v1(
+        canonical: TransitionInstanceCanonicalV1,
+    ) -> Result<Self, TransitionIdentityError> {
+        let TransitionInstanceCanonicalV1 {
+            state_schema_id,
+            context_schema_id,
+            transition_type_id,
+            before_state_id,
+            after_state_id,
+            transition_id,
+            state_schema_preimage,
+            context_schema_preimage,
+            transition_type_preimage,
+            context,
+            before,
+            after,
+        } = canonical;
+
+        if StateSchemaId::derive(&state_schema_preimage) != state_schema_id {
+            return Err(TransitionIdentityError::StateSchemaIdMismatch);
+        }
+        if ContextSchemaId::derive(&context_schema_preimage) != context_schema_id {
+            return Err(TransitionIdentityError::ContextSchemaIdMismatch);
+        }
+
+        let mut expected_transition_type = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V1);
+        expected_transition_type.bytes(context_schema_id.as_ref());
+        expected_transition_type.bytes(state_schema_id.as_ref());
+        if expected_transition_type.finish().as_ref() != transition_type_preimage.as_ref() {
+            return Err(TransitionIdentityError::TransitionTypePreimageMismatch);
+        }
+        if TransitionTypeId::derive(&transition_type_preimage) != transition_type_id {
+            return Err(TransitionIdentityError::TransitionTypeIdMismatch);
+        }
+
+        let transition = Self::from_shared_schema(
+            state_schema_id,
+            context_schema_id,
+            transition_type_id,
+            state_schema_preimage,
+            context_schema_preimage,
+            transition_type_preimage,
+            context,
+            before,
+            after,
+        );
+        if transition.before_state_id != before_state_id {
+            return Err(TransitionIdentityError::BeforeStateIdMismatch);
+        }
+        if transition.after_state_id != after_state_id {
+            return Err(TransitionIdentityError::AfterStateIdMismatch);
+        }
+        if transition.id != transition_id {
+            return Err(TransitionIdentityError::TransitionIdMismatch);
+        }
+        Ok(transition)
+    }
+
+    pub(crate) fn canonical_v1(&self) -> TransitionInstanceCanonicalV1 {
+        TransitionInstanceCanonicalV1 {
+            state_schema_id: self.state_schema_id,
+            context_schema_id: self.context_schema_id,
+            transition_type_id: self.transition_type_id,
+            before_state_id: self.before_state_id,
+            after_state_id: self.after_state_id,
+            transition_id: self.id,
+            state_schema_preimage: self.state_schema_preimage.clone(),
+            context_schema_preimage: self.context_schema_preimage.clone(),
+            transition_type_preimage: self.transition_type_preimage.clone(),
+            context: self.context.as_ref().clone(),
+            before: self.before.as_ref().clone(),
+            after: self.after.as_ref().clone(),
         }
     }
 
@@ -366,77 +693,326 @@ impl TransitionInstance {
         self.transition_type_id
     }
 
+    pub(crate) fn state_schema_preimage(&self) -> &[u8] {
+        &self.state_schema_preimage
+    }
+
+    pub(crate) fn context_schema_preimage(&self) -> &[u8] {
+        &self.context_schema_preimage
+    }
+
+    pub(crate) fn transition_type_preimage(&self) -> &[u8] {
+        &self.transition_type_preimage
+    }
+
     pub(crate) fn context(&self) -> &ExploreValue {
-        &self.context
+        self.context.as_ref()
     }
 
     pub(crate) fn before(&self) -> &ExploreValue {
-        &self.before
+        self.before.as_ref()
     }
 
     pub(crate) fn after(&self) -> &ExploreValue {
-        &self.after
+        self.after.as_ref()
     }
 }
 
+/// Compact collision witness for one interned directional edge.
+///
+/// Endpoint values live only in [`CanonicalState`]. Keeping their identities
+/// here is sufficient because insertion checks each `StateId` against that
+/// canonical state preimage before checking this edge witness.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct SupportedTransition {
-    transition: TransitionInstance,
-    case_ids: BTreeSet<ExploreCaseId>,
+pub(crate) struct SupportedTransition {
+    state_schema_id: StateSchemaId,
+    context_schema_id: ContextSchemaId,
+    transition_type_id: TransitionTypeId,
+    before_state_id: StateId,
+    after_state_id: StateId,
+    context: Arc<ExploreValue>,
+    admissible: bool,
+    matching: bool,
+}
+
+impl SupportedTransition {
+    fn from_transition(transition: &TransitionInstance, admissible: bool, matching: bool) -> Self {
+        Self {
+            state_schema_id: transition.state_schema_id,
+            context_schema_id: transition.context_schema_id,
+            transition_type_id: transition.transition_type_id,
+            before_state_id: transition.before_state_id,
+            after_state_id: transition.after_state_id,
+            context: transition.context.clone(),
+            admissible,
+            matching,
+        }
+    }
+
+    fn matches(&self, transition: &TransitionInstance) -> bool {
+        self.state_schema_id == transition.state_schema_id
+            && self.context_schema_id == transition.context_schema_id
+            && self.transition_type_id == transition.transition_type_id
+            && self.before_state_id == transition.before_state_id
+            && self.after_state_id == transition.after_state_id
+            && self.context.as_ref() == transition.context.as_ref()
+    }
+
+    pub(crate) const fn state_schema_id(&self) -> StateSchemaId {
+        self.state_schema_id
+    }
+
+    pub(crate) const fn context_schema_id(&self) -> ContextSchemaId {
+        self.context_schema_id
+    }
+
+    pub(crate) const fn transition_type_id(&self) -> TransitionTypeId {
+        self.transition_type_id
+    }
+
+    pub(crate) const fn before_state_id(&self) -> StateId {
+        self.before_state_id
+    }
+
+    pub(crate) const fn after_state_id(&self) -> StateId {
+        self.after_state_id
+    }
+
+    pub(crate) fn context(&self) -> &ExploreValue {
+        self.context.as_ref()
+    }
+
+    pub(crate) const fn admissible(&self) -> bool {
+        self.admissible
+    }
+
+    pub(crate) const fn matching(&self) -> bool {
+        self.matching
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct CanonicalState {
     schema_id: StateSchemaId,
     schema_preimage: Arc<[u8]>,
-    value: ExploreValue,
+    value: Arc<ExploreValue>,
 }
 
 /// Collision-checking interner for the exact semantic graph projection.
 ///
 /// This is the authoritative owner of canonical state preimages and
 /// directional edge preimages within the projection. Equal directional edges
-/// share one entry. Multiple distinct case coordinates may support that entry,
-/// while a single case coordinate may support only one edge because transition
-/// normalization is a total function. It remains a projection over evaluated
-/// cases, not a second source of execution truth.
-#[derive(Debug, Default)]
+/// share one entry. Exact transition-to-case support remains in the
+/// authenticated run stream, while global classification fibers remain in the
+/// reducer; this interner is a compact collision/population projection, not a
+/// second source of execution truth.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct TransitionSupportIndex {
+    revision: u64,
+    admissible_transition_count: u128,
+    matching_transition_count: u128,
     by_state_schema: BTreeMap<StateSchemaId, Arc<[u8]>>,
     by_context_schema: BTreeMap<ContextSchemaId, Arc<[u8]>>,
     by_transition_type: BTreeMap<TransitionTypeId, Arc<[u8]>>,
     by_state: BTreeMap<StateId, CanonicalState>,
     by_transition: BTreeMap<TransitionId, SupportedTransition>,
-    by_case: BTreeMap<ExploreCaseId, TransitionId>,
 }
 
-/// A collision-checked support insertion with no remaining semantic failure.
-///
-/// The exact accumulator prepares this together with its classification
-/// update, then applies both only after every fallible check has succeeded.
+/// One collision-checked singleton insertion with no remaining semantic
+/// failure. This is a convenience wrapper over the atomic batch protocol.
 pub(crate) struct PreparedTransitionSupportInsert {
     transition_id: TransitionId,
+    batch: PreparedTransitionSupportBatch,
+}
+
+/// An atomic, canonically ordered support delta bound to one index revision.
+///
+/// Its fields are private so only [`TransitionSupportIndex::prepare_batch`] can
+/// mint a token. Applying a token has no semantic failure path: a stale token
+/// is a caller protocol violation detected before any mutation.
+#[derive(Debug)]
+pub(crate) struct PreparedTransitionSupportBatch {
+    prior_revision: u64,
+    next_revision: u64,
+    delta: TransitionSupportIndex,
+}
+
+#[derive(Debug)]
+struct TransitionSupportCandidate {
+    transition_id: TransitionId,
     transition: TransitionInstance,
-    case_id: ExploreCaseId,
+    admissible: bool,
+    matching: bool,
 }
 
 impl TransitionSupportIndex {
+    /// Monotone mutation revision for binding prepared projections to this
+    /// reducer state. It is operational metadata, not semantic graph identity.
+    pub(crate) const fn revision(&self) -> u64 {
+        self.revision
+    }
+
     pub(crate) fn intern(
         &mut self,
         transition: TransitionInstance,
-        case_id: ExploreCaseId,
+        admissible: bool,
+        matching: bool,
     ) -> Result<TransitionId, TransitionSupportError> {
-        let prepared = self.prepare_intern(transition, case_id)?;
+        let prepared = self.prepare_intern(transition, admissible, matching)?;
         Ok(self.commit_prepared(prepared))
     }
 
     pub(crate) fn prepare_intern(
         &self,
         transition: TransitionInstance,
-        case_id: ExploreCaseId,
+        admissible: bool,
+        matching: bool,
     ) -> Result<PreparedTransitionSupportInsert, TransitionSupportError> {
         let transition_id = transition.id();
+        let batch = self.prepare_batch([(transition, admissible, matching)])?;
+        Ok(PreparedTransitionSupportInsert {
+            transition_id,
+            batch,
+        })
+    }
 
+    pub(crate) fn commit_prepared(
+        &mut self,
+        prepared: PreparedTransitionSupportInsert,
+    ) -> TransitionId {
+        self.apply_prepared_batch(prepared.batch);
+        prepared.transition_id
+    }
+
+    /// Prepare a whole reducer delta against a private staged overlay.
+    ///
+    /// Inputs are sorted by their complete canonical transition before
+    /// validation, so both successful state and collision outcomes are
+    /// independent of worker arrival order. Equal transitions are idempotent.
+    /// Every other transition is checked against both committed state and
+    /// earlier staged entries before a token is returned; an error therefore
+    /// leaves this index untouched.
+    pub(crate) fn prepare_batch(
+        &self,
+        inserts: impl IntoIterator<Item = (TransitionInstance, bool, bool)>,
+    ) -> Result<PreparedTransitionSupportBatch, TransitionSupportError> {
+        let mut inserts = inserts
+            .into_iter()
+            .map(
+                |(transition, admissible, matching)| TransitionSupportCandidate {
+                    transition_id: transition.id(),
+                    transition,
+                    admissible,
+                    matching,
+                },
+            )
+            .collect::<Vec<_>>();
+        inserts.sort_by(|left, right| {
+            (&left.transition, left.admissible, left.matching).cmp(&(
+                &right.transition,
+                right.admissible,
+                right.matching,
+            ))
+        });
+
+        let mut staged = Self::default();
+        for insert in inserts {
+            if insert.matching && !insert.admissible {
+                return Err(TransitionSupportError::MatchingWithoutAdmissible {
+                    transition_id: insert.transition_id,
+                });
+            }
+            self.require_compatible_transition(&insert.transition)?;
+            staged.require_compatible_transition(&insert.transition)?;
+
+            let committed = self.by_transition.get(&insert.transition_id);
+            let pending = staged.by_transition.get(&insert.transition_id);
+            let prior_admissible = committed.is_some_and(SupportedTransition::admissible)
+                || pending.is_some_and(SupportedTransition::admissible);
+            let prior_matching = committed.is_some_and(SupportedTransition::matching)
+                || pending.is_some_and(SupportedTransition::matching);
+            let adds_population =
+                (insert.admissible && !prior_admissible) || (insert.matching && !prior_matching);
+
+            if committed.is_some() || pending.is_some() {
+                if adds_population {
+                    staged.observe_supported_transition_unchecked(
+                        insert.transition_id,
+                        &insert.transition,
+                        insert.admissible,
+                        insert.matching,
+                    );
+                }
+                // Compatibility was checked first, so an observation with no
+                // new population bit is the exact edge already interned.
+                continue;
+            }
+
+            staged.commit_unchecked(
+                insert.transition,
+                insert.transition_id,
+                insert.admissible,
+                insert.matching,
+            );
+        }
+
+        let next_revision = if staged.by_transition.is_empty() {
+            self.revision
+        } else {
+            self.revision
+                .checked_add(1)
+                .ok_or(TransitionSupportError::RevisionExhausted)?
+        };
+        Ok(PreparedTransitionSupportBatch {
+            prior_revision: self.revision,
+            next_revision,
+            delta: staged,
+        })
+    }
+
+    /// Apply a successfully prepared batch. Staleness is a reducer protocol
+    /// violation and is asserted before the first mutation.
+    pub(crate) fn apply_prepared_batch(&mut self, prepared: PreparedTransitionSupportBatch) {
+        assert_eq!(
+            self.revision, prepared.prior_revision,
+            "prepared transition-support batch is stale"
+        );
+        self.apply_delta_unchecked(prepared.delta);
+        self.revision = prepared.next_revision;
+    }
+
+    fn apply_delta_unchecked(&mut self, delta: Self) {
+        let Self {
+            revision: _,
+            admissible_transition_count: _,
+            matching_transition_count: _,
+            by_state_schema,
+            by_context_schema,
+            by_transition_type,
+            by_state,
+            by_transition,
+        } = delta;
+        for (id, preimage) in by_state_schema {
+            self.by_state_schema.entry(id).or_insert(preimage);
+        }
+        for (id, preimage) in by_context_schema {
+            self.by_context_schema.entry(id).or_insert(preimage);
+        }
+        for (id, preimage) in by_transition_type {
+            self.by_transition_type.entry(id).or_insert(preimage);
+        }
+        for (id, state) in by_state {
+            self.by_state.entry(id).or_insert(state);
+        }
+        for (id, incoming) in by_transition {
+            self.merge_supported_transition_unchecked(id, incoming);
+        }
+    }
+
+    fn require_compatible_transition(
+        &self,
+        transition: &TransitionInstance,
+    ) -> Result<(), TransitionSupportError> {
         if self
             .by_state_schema
             .get(&transition.state_schema_id)
@@ -473,13 +1049,13 @@ impl TransitionSupportIndex {
             transition.before_state_id,
             transition.state_schema_id,
             &transition.state_schema_preimage,
-            &transition.before,
+            transition.before.as_ref(),
         )?;
         self.require_equal_state_preimage(
             transition.after_state_id,
             transition.state_schema_id,
             &transition.state_schema_preimage,
-            &transition.after,
+            transition.after.as_ref(),
         )?;
         if transition.before_state_id == transition.after_state_id
             && transition.before != transition.after
@@ -489,39 +1065,23 @@ impl TransitionSupportIndex {
             });
         }
 
-        if let Some(existing) = self.by_case.get(&case_id) {
-            if *existing != transition_id {
-                return Err(TransitionSupportError::CaseRemapped {
-                    case_id: case_id.clone(),
-                    existing: *existing,
-                    attempted: transition_id,
+        if let Some(existing) = self.by_transition.get(&transition.id) {
+            if !existing.matches(transition) {
+                return Err(TransitionSupportError::TransitionIdCollision {
+                    transition_id: transition.id,
                 });
             }
         }
-
-        if let Some(existing) = self.by_transition.get(&transition_id) {
-            if existing.transition != transition {
-                return Err(TransitionSupportError::TransitionIdCollision { transition_id });
-            }
-        }
-
-        Ok(PreparedTransitionSupportInsert {
-            transition_id,
-            transition,
-            case_id,
-        })
+        Ok(())
     }
 
-    pub(crate) fn commit_prepared(
+    fn commit_unchecked(
         &mut self,
-        prepared: PreparedTransitionSupportInsert,
-    ) -> TransitionId {
-        let PreparedTransitionSupportInsert {
-            transition_id,
-            transition,
-            case_id,
-        } = prepared;
-
+        mut transition: TransitionInstance,
+        transition_id: TransitionId,
+        admissible: bool,
+        matching: bool,
+    ) {
         self.by_state_schema
             .entry(transition.state_schema_id)
             .or_insert_with(|| transition.state_schema_preimage.clone());
@@ -532,33 +1092,108 @@ impl TransitionSupportIndex {
             .entry(transition.transition_type_id)
             .or_insert_with(|| transition.transition_type_preimage.clone());
 
-        let before_state = CanonicalState {
-            schema_id: transition.state_schema_id,
-            schema_preimage: transition.state_schema_preimage.clone(),
-            value: transition.before.clone(),
-        };
-        let after_state = CanonicalState {
-            schema_id: transition.state_schema_id,
-            schema_preimage: transition.state_schema_preimage.clone(),
-            value: transition.after.clone(),
-        };
-        self.by_state
-            .entry(transition.before_state_id)
-            .or_insert(before_state);
-        self.by_state
-            .entry(transition.after_state_id)
-            .or_insert(after_state);
+        transition.before = self.intern_state_unchecked(
+            transition.before_state_id,
+            transition.state_schema_id,
+            &transition.state_schema_preimage,
+            transition.before.clone(),
+        );
+        transition.after = self.intern_state_unchecked(
+            transition.after_state_id,
+            transition.state_schema_id,
+            &transition.state_schema_preimage,
+            transition.after.clone(),
+        );
 
-        let entry =
-            self.by_transition
-                .entry(transition_id)
-                .or_insert_with(|| SupportedTransition {
-                    transition,
-                    case_ids: BTreeSet::new(),
+        self.observe_supported_transition_unchecked(
+            transition_id,
+            &transition,
+            admissible,
+            matching,
+        );
+    }
+
+    fn observe_supported_transition_unchecked(
+        &mut self,
+        transition_id: TransitionId,
+        transition: &TransitionInstance,
+        admissible: bool,
+        matching: bool,
+    ) {
+        let incoming = SupportedTransition::from_transition(transition, admissible, matching);
+        self.merge_supported_transition_unchecked(transition_id, incoming);
+    }
+
+    fn merge_supported_transition_unchecked(
+        &mut self,
+        transition_id: TransitionId,
+        incoming: SupportedTransition,
+    ) {
+        debug_assert!(!incoming.matching || incoming.admissible);
+        let (new_admissible, new_matching) = match self.by_transition.entry(transition_id) {
+            std::collections::btree_map::Entry::Occupied(mut existing) => {
+                debug_assert_eq!(existing.get().state_schema_id, incoming.state_schema_id);
+                debug_assert_eq!(existing.get().context_schema_id, incoming.context_schema_id);
+                debug_assert_eq!(
+                    existing.get().transition_type_id,
+                    incoming.transition_type_id
+                );
+                debug_assert_eq!(existing.get().before_state_id, incoming.before_state_id);
+                debug_assert_eq!(existing.get().after_state_id, incoming.after_state_id);
+                debug_assert_eq!(existing.get().context, incoming.context);
+                let new_admissible = incoming.admissible && !existing.get().admissible;
+                let new_matching = incoming.matching && !existing.get().matching;
+                existing.get_mut().admissible |= incoming.admissible;
+                existing.get_mut().matching |= incoming.matching;
+                (new_admissible, new_matching)
+            }
+            std::collections::btree_map::Entry::Vacant(vacant) => {
+                let new_admissible = incoming.admissible;
+                let new_matching = incoming.matching;
+                vacant.insert(incoming);
+                (new_admissible, new_matching)
+            }
+        };
+        if new_admissible {
+            self.admissible_transition_count = self
+                .admissible_transition_count
+                .checked_add(1)
+                .expect("admissible transition count cannot exceed addressable edges");
+        }
+        if new_matching {
+            self.matching_transition_count = self
+                .matching_transition_count
+                .checked_add(1)
+                .expect("matching transition count cannot exceed addressable edges");
+        }
+    }
+
+    fn intern_state_unchecked(
+        &mut self,
+        state_id: StateId,
+        schema_id: StateSchemaId,
+        schema_preimage: &Arc<[u8]>,
+        value: Arc<ExploreValue>,
+    ) -> Arc<ExploreValue> {
+        match self.by_state.entry(state_id) {
+            std::collections::btree_map::Entry::Occupied(existing) => {
+                debug_assert_eq!(existing.get().schema_id, schema_id);
+                debug_assert_eq!(
+                    existing.get().schema_preimage.as_ref(),
+                    schema_preimage.as_ref()
+                );
+                debug_assert_eq!(existing.get().value.as_ref(), value.as_ref());
+                existing.get().value.clone()
+            }
+            std::collections::btree_map::Entry::Vacant(vacant) => {
+                vacant.insert(CanonicalState {
+                    schema_id,
+                    schema_preimage: schema_preimage.clone(),
+                    value: value.clone(),
                 });
-        entry.case_ids.insert(case_id.clone());
-        self.by_case.entry(case_id).or_insert(transition_id);
-        transition_id
+                value
+            }
+        }
     }
 
     fn require_equal_state_preimage(
@@ -571,7 +1206,7 @@ impl TransitionSupportIndex {
         if self.by_state.get(&state_id).is_some_and(|existing| {
             existing.schema_id != schema_id
                 || existing.schema_preimage.as_ref() != schema_preimage
-                || &existing.value != value
+                || existing.value.as_ref() != value
         }) {
             return Err(TransitionSupportError::StateIdCollision { state_id });
         }
@@ -591,8 +1226,33 @@ impl TransitionSupportIndex {
         self.by_state.len()
     }
 
-    pub(crate) fn case_len(&self) -> usize {
-        self.by_case.len()
+    pub(crate) const fn admissible_transition_count(&self) -> u128 {
+        self.admissible_transition_count
+    }
+
+    pub(crate) const fn matching_transition_count(&self) -> u128 {
+        self.matching_transition_count
+    }
+
+    /// State schemas in ascending canonical identity order.
+    pub(crate) fn iter_state_schemas(&self) -> impl Iterator<Item = (StateSchemaId, &[u8])> {
+        self.by_state_schema
+            .iter()
+            .map(|(id, preimage)| (*id, preimage.as_ref()))
+    }
+
+    /// Context schemas in ascending canonical identity order.
+    pub(crate) fn iter_context_schemas(&self) -> impl Iterator<Item = (ContextSchemaId, &[u8])> {
+        self.by_context_schema
+            .iter()
+            .map(|(id, preimage)| (*id, preimage.as_ref()))
+    }
+
+    /// Transition relation types in ascending canonical identity order.
+    pub(crate) fn iter_transition_types(&self) -> impl Iterator<Item = (TransitionTypeId, &[u8])> {
+        self.by_transition_type
+            .iter()
+            .map(|(id, preimage)| (*id, preimage.as_ref()))
     }
 
     /// Exact schema identity, schema preimage and value for one interned state node.
@@ -601,7 +1261,7 @@ impl TransitionSupportIndex {
             (
                 state.schema_id,
                 state.schema_preimage.as_ref(),
-                &state.value,
+                state.value.as_ref(),
             )
         })
     }
@@ -615,54 +1275,37 @@ impl TransitionSupportIndex {
                 *id,
                 state.schema_id,
                 state.schema_preimage.as_ref(),
-                &state.value,
+                state.value.as_ref(),
             )
         })
     }
 
-    pub(crate) fn transition(&self, id: TransitionId) -> Option<&TransitionInstance> {
-        self.by_transition.get(&id).map(|entry| &entry.transition)
-    }
-
-    pub(crate) fn support(&self, id: TransitionId) -> Option<&BTreeSet<ExploreCaseId>> {
-        self.by_transition.get(&id).map(|entry| &entry.case_ids)
-    }
-
-    pub(crate) fn transition_for_case(&self, case_id: &ExploreCaseId) -> Option<TransitionId> {
-        self.by_case.get(case_id).copied()
-    }
-
-    pub(crate) fn iter(
+    /// Check a claimed transition against the complete canonical collision
+    /// witnesses already interned for `id`.
+    pub(crate) fn transition_matches(
         &self,
-    ) -> impl Iterator<Item = (TransitionId, &TransitionInstance, &BTreeSet<ExploreCaseId>)> {
-        self.by_transition
-            .iter()
-            .map(|(id, entry)| (*id, &entry.transition, &entry.case_ids))
+        id: TransitionId,
+        transition: &TransitionInstance,
+    ) -> bool {
+        id == transition.id
+            && self.by_transition.contains_key(&id)
+            && self.require_compatible_transition(transition).is_ok()
+    }
+
+    pub(crate) fn iter(&self) -> impl Iterator<Item = (TransitionId, &SupportedTransition)> {
+        self.by_transition.iter().map(|(id, edge)| (*id, edge))
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum TransitionSupportError {
-    StateSchemaIdCollision {
-        schema_id: StateSchemaId,
-    },
-    ContextSchemaIdCollision {
-        schema_id: ContextSchemaId,
-    },
-    TransitionTypeIdCollision {
-        type_id: TransitionTypeId,
-    },
-    StateIdCollision {
-        state_id: StateId,
-    },
-    TransitionIdCollision {
-        transition_id: TransitionId,
-    },
-    CaseRemapped {
-        case_id: ExploreCaseId,
-        existing: TransitionId,
-        attempted: TransitionId,
-    },
+    StateSchemaIdCollision { schema_id: StateSchemaId },
+    ContextSchemaIdCollision { schema_id: ContextSchemaId },
+    TransitionTypeIdCollision { type_id: TransitionTypeId },
+    StateIdCollision { state_id: StateId },
+    TransitionIdCollision { transition_id: TransitionId },
+    MatchingWithoutAdmissible { transition_id: TransitionId },
+    RevisionExhausted,
 }
 
 impl fmt::Display for TransitionSupportError {
@@ -683,8 +1326,11 @@ impl fmt::Display for TransitionSupportError {
             Self::TransitionIdCollision { .. } => formatter.write_str(
                 "Explore transition SHA-256 collision rejected by canonical support interner",
             ),
-            Self::CaseRemapped { .. } => formatter
-                .write_str("one Explore case coordinate cannot support two semantic transitions"),
+            Self::MatchingWithoutAdmissible { .. } => formatter
+                .write_str("an Explore matching transition observation must also be admissible"),
+            Self::RevisionExhausted => {
+                formatter.write_str("Explore transition-support revision counter exhausted")
+            }
         }
     }
 }
@@ -1377,20 +2023,26 @@ mod tests {
 
     #[test]
     fn state_identity_is_reused_across_endpoint_roles() {
-        let first_case = ExploreCaseId::new(vec![0_u128]);
-        let second_case = ExploreCaseId::new(vec![1_u128]);
         let first = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
         let second = transition(ExploreValue::Unit, rich_state(200_000), rich_state(201_000));
         let shared_state_id = first.after_state_id();
+        let first_shared_allocation = Arc::downgrade(&first.after);
+        let duplicate_shared_allocation = Arc::downgrade(&second.before);
         let mut index = TransitionSupportIndex::default();
 
         assert_eq!(shared_state_id, second.before_state_id());
         assert_eq!(first.after(), second.before());
+        assert!(!Arc::ptr_eq(&first.after, &second.before));
 
-        index.intern(first, first_case).unwrap();
-        index.intern(second, second_case).unwrap();
+        index.intern(first, false, false).unwrap();
+        index.intern(second, false, false).unwrap();
 
         assert_eq!(index.state_len(), 3);
+        assert!(Arc::ptr_eq(
+            &index.by_state[&shared_state_id].value,
+            &first_shared_allocation.upgrade().unwrap()
+        ));
+        assert!(duplicate_shared_allocation.upgrade().is_none());
         let expected_shared_state = rich_state(200_000);
         assert_eq!(
             index.state(shared_state_id),
@@ -1410,8 +2062,6 @@ mod tests {
     #[test]
     fn state_preimage_collisions_at_either_endpoint_are_atomic() {
         for collide_before in [true, false] {
-            let first_case = ExploreCaseId::new(vec![0_u128]);
-            let attempted_case = ExploreCaseId::new(vec![1_u128]);
             let existing = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
             let colliding_state_id = existing.before_state_id();
             let mut attempted =
@@ -1422,24 +2072,21 @@ mod tests {
                 attempted.after_state_id = colliding_state_id;
             }
             let mut index = TransitionSupportIndex::default();
-            index.intern(existing, first_case).unwrap();
+            index.intern(existing, false, false).unwrap();
 
             assert_eq!(
-                index.intern(attempted, attempted_case.clone()),
+                index.intern(attempted, false, false),
                 Err(TransitionSupportError::StateIdCollision {
                     state_id: colliding_state_id,
                 })
             );
             assert_eq!(index.state_len(), 2);
             assert_eq!(index.len(), 1);
-            assert_eq!(index.transition_for_case(&attempted_case), None);
         }
     }
 
     #[test]
     fn schema_preimage_collisions_are_rejected_before_value_identity() {
-        let first_case = ExploreCaseId::new(vec![0_u128]);
-        let attempted_case = ExploreCaseId::new(vec![1_u128]);
         let existing = transition(
             ExploreValue::Int(1_000),
             rich_state(199_000),
@@ -1453,17 +2100,43 @@ mod tests {
         attempted.context_schema_preimage = Arc::from(b"different-context-schema".as_slice());
         let colliding_schema_id = attempted.context_schema_id;
         let mut index = TransitionSupportIndex::default();
-        index.intern(existing, first_case).unwrap();
+        index.intern(existing, false, false).unwrap();
 
         assert_eq!(
-            index.intern(attempted, attempted_case.clone()),
+            index.intern(attempted, false, false),
             Err(TransitionSupportError::ContextSchemaIdCollision {
                 schema_id: colliding_schema_id,
             })
         );
         assert_eq!(index.state_len(), 2);
         assert_eq!(index.len(), 1);
-        assert_eq!(index.transition_for_case(&attempted_case), None);
+    }
+
+    #[test]
+    fn compact_edge_witness_rejects_transition_id_collision_atomically() {
+        let existing = transition(
+            ExploreValue::Int(1_000),
+            rich_state(199_000),
+            rich_state(200_000),
+        );
+        let collision = existing.id();
+        let mut attempted = transition(
+            ExploreValue::Int(2_000),
+            rich_state(300_000),
+            rich_state(301_000),
+        );
+        attempted.id = collision;
+        let mut index = TransitionSupportIndex::default();
+        index.intern(existing, false, false).unwrap();
+
+        assert_eq!(
+            index.intern(attempted, false, false),
+            Err(TransitionSupportError::TransitionIdCollision {
+                transition_id: collision,
+            })
+        );
+        assert_eq!(index.state_len(), 2);
+        assert_eq!(index.len(), 1);
     }
 
     #[test]
@@ -1492,9 +2165,7 @@ mod tests {
     }
 
     #[test]
-    fn two_case_ids_retain_exact_support_for_one_edge() {
-        let first_case = ExploreCaseId::new(vec![0_u128, 2_u128]);
-        let second_case = ExploreCaseId::new(vec![1_u128, 2_u128]);
+    fn equal_edges_are_set_idempotent_without_retaining_case_coordinates() {
         let edge = transition(
             ExploreValue::Int(1_000),
             rich_state(199_000),
@@ -1503,16 +2174,213 @@ mod tests {
         let equal_edge = edge.clone();
         let mut index = TransitionSupportIndex::default();
 
-        let first_id = index.intern(edge, first_case.clone()).unwrap();
-        let second_id = index.intern(equal_edge, second_case.clone()).unwrap();
+        let first_id = index.intern(edge.clone(), false, false).unwrap();
+        let revision_after_first = index.revision();
+        let second_id = index.intern(equal_edge, false, false).unwrap();
 
         assert_eq!(first_id, second_id);
         assert_eq!(index.len(), 1);
-        assert_eq!(
-            index.support(first_id),
-            Some(&BTreeSet::from([first_case.clone(), second_case.clone()]))
+        assert_eq!(index.revision(), revision_after_first);
+        assert!(index.transition_matches(first_id, &edge));
+    }
+
+    #[test]
+    fn transition_population_bits_are_monotone_and_counted_once() {
+        let edge = transition(
+            ExploreValue::Int(1_000),
+            rich_state(199_000),
+            rich_state(200_000),
         );
-        assert_eq!(index.transition_for_case(&first_case), Some(first_id));
-        assert_eq!(index.transition_for_case(&second_case), Some(first_id));
+        let edge_id = edge.id();
+        let mut index = TransitionSupportIndex::default();
+
+        index.intern(edge.clone(), false, false).unwrap();
+        assert_eq!(index.admissible_transition_count(), 0);
+        assert_eq!(index.matching_transition_count(), 0);
+
+        index.intern(edge.clone(), true, false).unwrap();
+        assert_eq!(index.admissible_transition_count(), 1);
+        assert_eq!(index.matching_transition_count(), 0);
+
+        index.intern(edge.clone(), true, true).unwrap();
+        let fully_observed_revision = index.revision();
+        index.intern(edge.clone(), true, true).unwrap();
+        index.intern(edge.clone(), false, false).unwrap();
+
+        assert_eq!(index.revision(), fully_observed_revision);
+        assert_eq!(index.admissible_transition_count(), 1);
+        assert_eq!(index.matching_transition_count(), 1);
+        let (_, supported) = index.iter().next().unwrap();
+        assert_eq!(supported.transition_type_id(), edge.transition_type_id());
+        assert!(supported.admissible());
+        assert!(supported.matching());
+        assert!(index.transition_matches(edge_id, &edge));
+    }
+
+    #[test]
+    fn matching_without_admissibility_is_rejected_atomically() {
+        let edge = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
+        let transition_id = edge.id();
+        let index = TransitionSupportIndex::default();
+
+        assert_eq!(
+            index.prepare_batch([(edge, false, true)]).unwrap_err(),
+            TransitionSupportError::MatchingWithoutAdmissible { transition_id }
+        );
+        assert_eq!(index, TransitionSupportIndex::default());
+    }
+
+    #[test]
+    fn canonical_transition_rehydration_rederives_every_claimed_id() {
+        let schemas = TransitionSchemaIdentities::derive_checked(
+            &minimal_transition_ir(
+                ExploreTransitionMode::Relative,
+                ExploreAfterFieldSourceIr::FrameBefore {
+                    before_field_index: 0,
+                },
+                1,
+            ),
+            None,
+            None,
+            &intrinsic_type_owners(),
+        )
+        .unwrap();
+        let transition = minimal_semantic_edge(&schemas);
+        let canonical = transition.canonical_v1();
+
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(canonical.clone()),
+            Ok(transition.clone())
+        );
+        assert_eq!(
+            schemas.rehydrate_canonical_v1(canonical.clone()),
+            Ok(transition)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.state_schema_id = StateSchemaId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::StateSchemaIdMismatch)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.context_schema_id = ContextSchemaId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::ContextSchemaIdMismatch)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.transition_type_preimage = Arc::from(b"wrong-relation".as_slice());
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::TransitionTypePreimageMismatch)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.transition_type_id = TransitionTypeId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::TransitionTypeIdMismatch)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.before_state_id = StateId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::BeforeStateIdMismatch)
+        );
+
+        let mut damaged = canonical.clone();
+        damaged.after_state_id = StateId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::AfterStateIdMismatch)
+        );
+
+        let mut damaged = canonical;
+        damaged.transition_id = TransitionId::from_bytes([0; 32]);
+        assert_eq!(
+            TransitionInstance::from_canonical_v1(damaged),
+            Err(TransitionIdentityError::TransitionIdMismatch)
+        );
+    }
+
+    #[test]
+    fn transition_support_batch_is_arrival_order_independent_and_set_idempotent() {
+        let first = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
+        let second = first.clone();
+        let third = transition(ExploreValue::Unit, rich_state(200_000), rich_state(201_000));
+        let inputs = vec![
+            (first.clone(), false, false),
+            (second, true, true),
+            (third, true, false),
+            (first.clone(), true, false),
+        ];
+
+        let mut forward = TransitionSupportIndex::default();
+        let prepared = forward.prepare_batch(inputs.clone()).unwrap();
+        forward.apply_prepared_batch(prepared);
+
+        let mut reverse = TransitionSupportIndex::default();
+        let prepared = reverse.prepare_batch(inputs.into_iter().rev()).unwrap();
+        reverse.apply_prepared_batch(prepared);
+
+        assert_eq!(forward, reverse);
+        assert_eq!(forward.len(), 2);
+        assert_eq!(forward.state_len(), 3);
+        assert_eq!(forward.admissible_transition_count(), 2);
+        assert_eq!(forward.matching_transition_count(), 1);
+        assert!(forward.transition_matches(first.id(), &first));
+        let ordered_transitions = forward
+            .iter()
+            .map(|(transition_id, _)| transition_id)
+            .collect::<Vec<_>>();
+        assert!(ordered_transitions.windows(2).all(|pair| pair[0] < pair[1]));
+    }
+
+    #[test]
+    fn transition_support_batch_rejects_intra_batch_state_collision_atomically() {
+        let first = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
+        let collision = first.before_state_id();
+        let mut second = transition(ExploreValue::Unit, rich_state(299_000), rich_state(300_000));
+        second.before_state_id = collision;
+        let index = TransitionSupportIndex::default();
+
+        let error = index
+            .prepare_batch(vec![(second, false, false), (first, false, false)])
+            .unwrap_err();
+        assert_eq!(
+            error,
+            TransitionSupportError::StateIdCollision {
+                state_id: collision,
+            }
+        );
+        assert_eq!(index, TransitionSupportIndex::default());
+    }
+
+    #[test]
+    fn prepared_transition_support_batch_is_revision_bound() {
+        let first = transition(ExploreValue::Unit, rich_state(199_000), rich_state(200_000));
+        let second = transition(ExploreValue::Unit, rich_state(200_000), rich_state(201_000));
+        let mut index = TransitionSupportIndex::default();
+        let first_batch = index
+            .prepare_batch([(first.clone(), false, false)])
+            .unwrap();
+        let stale_batch = index
+            .prepare_batch([(second.clone(), false, false)])
+            .unwrap();
+
+        index.apply_prepared_batch(first_batch);
+        let after_first = index.clone();
+        let stale_apply = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            index.apply_prepared_batch(stale_batch);
+        }));
+
+        assert!(stale_apply.is_err());
+        assert_eq!(index, after_first);
+        assert!(index.transition_matches(first.id(), &first));
+        assert!(!index.transition_matches(second.id(), &second));
     }
 }

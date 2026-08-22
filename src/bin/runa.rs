@@ -105,7 +105,8 @@ fn main_inner() {
     let mut explore_max_runtime = None;
     let mut explore_pause_after_probes = false;
     let mut explore_finalize = false;
-    let mut explore_case_graph = explore::ExploreStreamCaseGraphRequest::Omit;
+    let mut explore_search_decision_dag = explore::ExploreStreamGraphRequest::Omit;
+    let mut explore_semantic_transition_graph = explore::ExploreStreamGraphRequest::Omit;
     let mut explore_preview_json = false;
     let mut explore_preview_query = None;
     let mut explore_preview_limit = 10_000usize;
@@ -317,16 +318,36 @@ fn main_inner() {
                 explore_finalize = true;
                 i += 1;
             }
-            "--case-graph" if mode == "explore" => {
+            "--search-decision-dag" if mode == "explore" => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --case-graph requires `full`");
+                    eprintln!("error: --search-decision-dag requires `full`");
                     std::process::exit(1);
                 }
-                explore_case_graph = parse_explore_case_graph(&args[i + 1]);
+                explore_search_decision_dag =
+                    parse_explore_graph_request("--search-decision-dag", &args[i + 1]);
                 i += 2;
             }
-            arg if mode == "explore" && arg.starts_with("--case-graph=") => {
-                explore_case_graph = parse_explore_case_graph(&arg["--case-graph=".len()..]);
+            arg if mode == "explore" && arg.starts_with("--search-decision-dag=") => {
+                explore_search_decision_dag = parse_explore_graph_request(
+                    "--search-decision-dag",
+                    &arg["--search-decision-dag=".len()..],
+                );
+                i += 1;
+            }
+            "--semantic-transition-graph" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --semantic-transition-graph requires `full`");
+                    std::process::exit(1);
+                }
+                explore_semantic_transition_graph =
+                    parse_explore_graph_request("--semantic-transition-graph", &args[i + 1]);
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--semantic-transition-graph=") => {
+                explore_semantic_transition_graph = parse_explore_graph_request(
+                    "--semantic-transition-graph",
+                    &arg["--semantic-transition-graph=".len()..],
+                );
                 i += 1;
             }
             "--json" if mode == "__explore-preview" => {
@@ -591,7 +612,10 @@ fn main_inner() {
                 );
                 eprintln!("  explore --pause-after probes  Pause at the durable probe milestone");
                 eprintln!(
-                    "  explore --case-graph full  Explicitly authorize full bounded case-DAG publication"
+                    "  explore --search-decision-dag full  Request all-or-none search decision DAG publication"
+                );
+                eprintln!(
+                    "  explore --semantic-transition-graph full  Request all-or-none semantic transition graph publication"
                 );
                 eprintln!(
                     "  explore --finalize    With --run-state and a time limit, opt in to bounded atomic-v1 terminal sealing"
@@ -687,7 +711,7 @@ fn main_inner() {
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --json"
                 );
                 eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --case-graph full --json"
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --semantic-transition-graph full --json"
                 );
                 eprintln!(
                     "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --finalize --json"
@@ -1016,7 +1040,7 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--case-graph full] [--finalize] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--search-decision-dag full] [--semantic-transition-graph full] [--finalize] [--json]"
         );
         std::process::exit(1);
     }
@@ -1033,11 +1057,17 @@ fn main_inner() {
             eprintln!("error: --finalize requires a durable --run-state path");
             std::process::exit(1);
         }
-        if explore_case_graph == explore::ExploreStreamCaseGraphRequest::Full
-            && explore_run_state.is_none()
-        {
-            eprintln!("error: --case-graph full requires a durable --run-state path");
-            std::process::exit(1);
+        for (flag, request) in [
+            ("--search-decision-dag", explore_search_decision_dag),
+            (
+                "--semantic-transition-graph",
+                explore_semantic_transition_graph,
+            ),
+        ] {
+            if request == explore::ExploreStreamGraphRequest::Full && explore_run_state.is_none() {
+                eprintln!("error: {flag} full requires a durable --run-state path");
+                std::process::exit(1);
+            }
         }
         if explore_finalize && explore_pause_after_probes {
             eprintln!("error: --finalize cannot be combined with --pause-after probes");
@@ -1177,7 +1207,8 @@ fn main_inner() {
                         .expect("stream dispatch requires --run-state"),
                     explore_max_runtime,
                     explore_pause_after_probes,
-                    explore_case_graph,
+                    explore_search_decision_dag,
+                    explore_semantic_transition_graph,
                     explore_finalize,
                 ),
                 "explore" if explore_plan => run_explore_cost_plan(
@@ -6891,7 +6922,7 @@ fn explore_stream_stop_text(stop: &explore::ExploreStreamSliceStop) -> String {
             reason,
         } => {
             format!(
-                "CaseId rank {blocked_rank} is blocked under the current evaluator contract; unchanged resume will retry that same CaseId ({})",
+                "CaseId rank {blocked_rank} is blocked under this run's immutable evaluator contract; unchanged resume will retry that same CaseId ({})",
                 explore_stop_text(reason)
             )
         }
@@ -7353,7 +7384,8 @@ fn run_exact_explore_stream(
     run_state: &Path,
     max_runtime: Option<std::time::Duration>,
     pause_after_probes: bool,
-    case_graph: explore::ExploreStreamCaseGraphRequest,
+    search_decision_dag: explore::ExploreStreamGraphRequest,
+    semantic_transition_graph: explore::ExploreStreamGraphRequest,
     finalize: bool,
 ) {
     let mut lexer = Lexer::new(source);
@@ -7374,7 +7406,8 @@ fn run_exact_explore_stream(
         run_state: run_state.to_path_buf(),
         max_runtime,
         pause_after: pause_after_probes.then_some(explore::ExploreStreamPauseAfter::Probes),
-        case_graph,
+        search_decision_dag,
+        semantic_transition_graph,
         finalize,
     };
     let report = explore::execute_checked_exact_stream_slice(
@@ -8159,11 +8192,11 @@ fn parse_explore_pause_after(raw: &str) -> bool {
     }
 }
 
-fn parse_explore_case_graph(raw: &str) -> explore::ExploreStreamCaseGraphRequest {
+fn parse_explore_graph_request(flag: &str, raw: &str) -> explore::ExploreStreamGraphRequest {
     if raw == "full" {
-        explore::ExploreStreamCaseGraphRequest::Full
+        explore::ExploreStreamGraphRequest::Full
     } else {
-        eprintln!("error: --case-graph requires `full`, got '{raw}'");
+        eprintln!("error: {flag} requires `full`, got '{raw}'");
         std::process::exit(1);
     }
 }
