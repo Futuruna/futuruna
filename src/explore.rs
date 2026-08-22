@@ -7628,7 +7628,7 @@ mod tests {
         show [
             before = net_income(income),
             after = net_income(income + step),
-            loss_ore = (net_income(income) - net_income(income + step)) * 100
+            loss_ore = (before - after) * 100
         ]
         representative first
     }

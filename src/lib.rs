@@ -25670,6 +25670,9 @@ impl<'a> CheckedResolutionRecorder<'a> {
     const BINDER_EXPLORE: u32 = 3;
     const BINDER_HANDLER: u32 = 4;
     const BINDER_CAPTURE: u32 = 5;
+    const BINDER_EXPLORE_OUTPUT: u32 = 6;
+    const EXPLORE_OUTPUT_EXTREMA: u32 = 0;
+    const EXPLORE_OUTPUT_SHOW: u32 = 1;
 
     fn record(checker: &'a TypeChecker) -> CheckedResolutionArtifacts {
         let program = &checker.analysis_program;
@@ -27771,6 +27774,31 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     .map(|ty| (input.name.clone(), ty))
             })
             .collect::<BTreeMap<_, _>>();
+        let output_start =
+            query.bounds.len() + usize::from(query.boundary.is_some()) + query.output.key.len();
+        for (field_index, field) in query.output.extrema.iter().enumerate() {
+            let expression_path = Self::path_child(path, output_start + field_index);
+            self.define_explore_output_alias(
+                declaration,
+                &field.name,
+                &expression_path,
+                Self::EXPLORE_OUTPUT_EXTREMA,
+                field_index,
+                None,
+            );
+        }
+        let show_start = output_start + query.output.extrema.len();
+        for (field_index, field) in query.output.show.iter().enumerate() {
+            let expression_path = Self::path_child(path, show_start + field_index);
+            self.define_explore_output_alias(
+                declaration,
+                &field.name,
+                &expression_path,
+                Self::EXPLORE_OUTPUT_SHOW,
+                field_index,
+                None,
+            );
+        }
         let mut child_index = 0;
         for (bound_index, bound) in query.bounds.iter().enumerate() {
             match bound {
@@ -27828,14 +27856,36 @@ impl<'a> CheckedResolutionRecorder<'a> {
             self.record_expr(declaration, &field.value, &expression_path, false, false);
             child_index += 1;
         }
+        let extrema_start = child_index;
         for field in &query.output.extrema {
             let expression_path = Self::path_child(path, child_index);
             self.record_expr(declaration, &field.value, &expression_path, false, false);
             child_index += 1;
         }
-        for field in &query.output.show {
+        for (field_index, field) in query.output.extrema.iter().enumerate() {
+            let expression_path = Self::path_child(path, extrema_start + field_index);
+            let type_name = self.recorded_expression_type_name(declaration, &expression_path);
+            self.define_explore_output_alias(
+                declaration,
+                &field.name,
+                &expression_path,
+                Self::EXPLORE_OUTPUT_EXTREMA,
+                field_index,
+                type_name,
+            );
+        }
+        for (field_index, field) in query.output.show.iter().enumerate() {
             let expression_path = Self::path_child(path, child_index);
             self.record_expr(declaration, &field.value, &expression_path, false, false);
+            let type_name = self.recorded_expression_type_name(declaration, &expression_path);
+            self.define_explore_output_alias(
+                declaration,
+                &field.name,
+                &expression_path,
+                Self::EXPLORE_OUTPUT_SHOW,
+                field_index,
+                type_name,
+            );
             child_index += 1;
         }
         match &query.output.representative {
@@ -27847,6 +27897,45 @@ impl<'a> CheckedResolutionRecorder<'a> {
             }
         }
         self.pop_scope();
+    }
+
+    fn recorded_expression_type_name(
+        &self,
+        declaration: &SourcedStmt,
+        expression_path: &[u32],
+    ) -> Option<String> {
+        let site = self.expression_site(declaration, expression_path);
+        self.artifacts
+            .expressions
+            .get(&site)
+            .and_then(|resolution| match &resolution.resolved_type {
+                CheckedExpressionType::Resolved(ty) => Some(ty.to_string()),
+                CheckedExpressionType::Unsupported => None,
+            })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn define_explore_output_alias(
+        &mut self,
+        declaration: &SourcedStmt,
+        name: &str,
+        expression_path: &[u32],
+        output_kind: u32,
+        field_index: usize,
+        type_name: Option<String>,
+    ) {
+        self.define_local(
+            name.to_string(),
+            CheckedLocalBinding {
+                kind: CheckedBinderKind::ExploreValue,
+                site: self.structural_binder_site(
+                    declaration,
+                    expression_path,
+                    vec![Self::BINDER_EXPLORE_OUTPUT, output_kind, field_index as u32],
+                ),
+                type_name,
+            },
+        );
     }
 
     fn resolved_call_target_type(&self, target: &CheckedCallTarget) -> Option<Ty> {
@@ -37279,6 +37368,112 @@ mod tests {
     }
 
     #[test]
+    fn checked_resolution_binds_explore_output_aliases_in_runtime_order() {
+        let source = r#"
+> net_income(income: Int) -> Int { income - 20 }
+| eligible(income: Int, step: Int) -> True
+? explore aliases {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in [198, 199]
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        extrema [baseline = income]
+        show [
+            before = net_income(income),
+            after = net_income(income + step),
+            loss_ore = (before - after) * 100,
+            adjusted = loss_ore + baseline
+        ]
+        representative first
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = artifacts
+            .checked_exploration_queries
+            .first()
+            .expect("checked alias query");
+        assert_eq!(query.sites.extrema.len(), 1);
+        assert_eq!(query.sites.show.len(), 4);
+        for site in query.sites.extrema.iter().chain(query.sites.show.iter()) {
+            let resolution = artifacts
+                .checked_resolutions
+                .expressions
+                .get(site)
+                .expect("checked output root");
+            assert!(
+                matches!(&resolution.resolved_type, CheckedExpressionType::Resolved(ty) if ty.to_string() == "Int"),
+                "unexpected output resolution at {site:?}: {resolution:?}"
+            );
+        }
+        assert!(artifacts
+            .checked_resolutions
+            .issues_for_reachable_sites(query.sites.extrema.iter().chain(query.sites.show.iter()))
+            .is_empty());
+
+        let forward_source = r#"
+= second = 99
+| eligible(value: Int) -> True
+? explore forward_alias {
+    over eligible(value)
+    find matches
+    bounds { value in [1] }
+    output {
+        key [value]
+        show [first = second + 1, second = value]
+        representative first
+    }
+}
+"#;
+        let forward = explore_artifacts_for_source(forward_source);
+        assert!(forward.diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("referenced before its bound or shown value")));
+        assert!(forward.checked_exploration_queries.is_empty());
+        let declaration = forward
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| {
+                matches!(&*declaration.statement, Stmt::Explore(query) if query.name.as_deref() == Some("forward_alias"))
+            })
+            .expect("forward-alias declaration");
+        let (second_path, _) = checked_expression_paths(&declaration.statement)
+            .into_iter()
+            .find(|(_, expression)| matches!(&expression.kind, ExprKind::Var(name) if name == "second"))
+            .expect("forward second use");
+        let second_site = forward
+            .analysis_program
+            .expression_site(declaration, second_path);
+        let second_resolution = forward
+            .checked_resolutions
+            .expressions
+            .get(&second_site)
+            .expect("checked forward alias resolution");
+        assert!(matches!(
+            &second_resolution.value_binding,
+            Some(CheckedValueBinding::Binder {
+                kind: CheckedBinderKind::ExploreValue,
+                ..
+            })
+        ));
+        assert!(forward
+            .checked_resolutions
+            .issues_for_reachable_sites([&second_site])
+            .contains(&CheckedResolutionIssue::TypeNotResolved));
+    }
+
+    #[test]
     fn checked_resolution_rule_family_uses_authoritative_tier_order() {
         let source = r#"
 | choose(value: Int) -> 0
@@ -39303,6 +39498,20 @@ fn opaque(value: i64) -> i64 { value }
 ? explore forward_show { over condition(value) find matches bounds { value in [1] } output { key [value] show [first = second + 1, second = value] representative first } }
 "#,
                 "referenced before its bound or shown value",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore simultaneous_extrema { over condition(value) find matches bounds { value in [1] } output { key [value] extrema [first = value, second = first + 1] representative first } }
+"#,
+                "referenced before its bound or shown value",
+            ),
+            (
+                r#"
+| condition(value: Int) -> value > 0
+? explore unknown_show { over condition(value) find matches bounds { value in [1] } output { key [value] show [bad = missing + 1] representative first } }
+"#,
+                "undefined variable `missing`",
             ),
             (
                 r#"
