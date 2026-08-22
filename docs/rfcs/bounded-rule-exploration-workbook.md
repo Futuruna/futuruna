@@ -33,8 +33,9 @@ seal a small enough closed answer; a larger answer pauses at an honest
 finalization limit for future chunking. An explicit durable
 `--case-graph full` request now enables
 bounded, all-or-nothing publication of a total current-evidence case DAG.
-A private developer-only mechanism path now executes two deliberately narrow
-profiles. The first pairs two positional shown calls to one checked top-level
+The internal mechanism engine now executes two deliberately narrow profiles,
+and the nested-helper profile is CLI-reachable as a positional count-only
+experiment. The first, still-internal profile pairs two positional shown calls to one checked top-level
 function whose body is exactly one `if`; it can also populate private half-open
 bin incidence from a checked numeric shown value. The second observes the
 canonical shown-value evaluation in place when a common checked endpoint makes
@@ -51,9 +52,9 @@ admitted under the 80% resource envelope; that backlog is drained before
 another CaseId is classified; and every orderly stop publishes the existing
 count checkpoint before its pause when view work is admitted. A pre-probe stop
 is journal-only because the mechanism checkpoint intentionally requires the
-completed probe milestone. The paths have no CLI selector, general
-multi-event/rule-call
-tracing, public bin surface, or mechanism-DAG/terminal publication yet. Those
+completed probe milestone. The nested-helper path has one deliberately
+positional experimental CLI selector; the paths still have no general
+multi-event/rule-call tracing, public bin surface, or mechanism-DAG/terminal publication yet. Those
 surfaces, user-authored
 `probes`, typed `output as` rows, `after`, detached following, parallel workers
 and resumable chunked terminal publication are subsequent slices described
@@ -1003,13 +1004,14 @@ one checked nested helper activation. The ordinary evaluator now carries
 structural `ExprSiteId` context through that narrow function/`if` path, but not
 through rule attempts, `match`, short circuits or general event graphs, and no
 public mechanism DAG is assembled. Consequently, result groups remain separate
-from mechanisms; the ordinary CLI still reports mechanisms as
-`unavailable_deferred`, while the private stream may publish only the lower
-bounds or exact counts its replayed incidence actually proves.
+from mechanisms; the ordinary exact CLI profile still reports mechanisms as
+`unavailable_deferred`, while the positional nested-`if` profile may publish
+only the lower bounds or exact counts its replayed incidence actually proves.
 
 #### Implemented first nested mechanism slice
 
-The first nested slice is implemented privately. The two paired shown
+The first nested slice is implemented and exposed through the experimental
+`nested-if-v1` selector. The two paired shown
 expressions resolve to the same checked top-level endpoint function, which
 remains the implicit root. During each canonical endpoint evaluation that
 function makes exactly one nested, direct, positional call to one checked
@@ -1081,7 +1083,7 @@ milestone, the scheduler chooses exactly one atomic work subject at a time:
    `MechanismCaseIdRank(rank)` and fresh-replay that rank;
 2. otherwise admit one ordinary `CaseIdRank(rank)` classification; and
 3. when both frontiers are empty, publish the count-only mechanism checkpoint
-   and pause at the still-explicit terminal-publication frontier.
+   and pause with `mechanism_observation_closed_terminal_unavailable`.
 
 The subject distinction is capability-bearing, not a label: authority to
 classify rank 7 cannot be reused to mint mechanism evidence for rank 7. Each
@@ -1095,6 +1097,42 @@ checkpoint publication remains a separately admitted view phase; denial after
 the probe milestone leaves a journal-only pause and a later invocation services
 that view debt before advancing further. A pre-probe journal pause creates no
 such debt because no mechanism checkpoint is defined at that cursor.
+
+The minimal real CLI experiment uses the checked four-case protocol fixture,
+not a policy-income range:
+
+```bash
+runa explore examples/danish-income-tax/mechanism-stream-smoke.runa \
+  --query nested_mechanism_stream_smoke \
+  --run-state /private/path/nested-if-smoke.run \
+  --pause-after probes \
+  --mechanism-profile nested-if-v1 \
+  --mechanism-before-show 0 \
+  --mechanism-after-show 1 \
+  --json
+
+runa explore examples/danish-income-tax/mechanism-stream-smoke.runa \
+  --query nested_mechanism_stream_smoke \
+  --run-state /private/path/nested-if-smoke.run \
+  --time-limit 10s \
+  --mechanism-profile nested-if-v1 \
+  --mechanism-before-show 0 \
+  --mechanism-after-show 1 \
+  --json
+```
+
+The three mechanism flags are all-or-none, their indexes are distinct and
+zero-based, and changing them on resume fails immutable run-identity
+validation. Invocation-v1 adds the mechanism-only `execution_profile` object.
+An admitted view has artifact kind `mechanism_checkpoint`; capacity has
+`mechanism_checkpoint_unavailable`; a journal-only pause keeps
+`journal_checkpoint` but reports `mechanism_checkpoint.status = "deferred"`.
+This count-only profile rejects `--case-graph full` and `--finalize`.
+Both the probe checkpoint and the fully `matching_closed` checkpoint exit `2`
+because this profile cannot seal a terminal artifact yet. That exit is an
+intentional nonterminal checkpoint, not loss of the counts; consumers inspect
+the typed `stop`, `artifact`, and cursor before deciding whether a resume can
+advance.
 
 The executable four-income fixture yields three exact matching cases and three
 exact signatures. Their endpoint outcomes are `Else/Else`, `Else/Then` and

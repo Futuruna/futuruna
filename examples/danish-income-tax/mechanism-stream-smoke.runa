@@ -1,0 +1,31 @@
+-- Small protocol fixture for the experimental durable mechanism stream.
+-- This intentionally proves orchestration and recovery over four cases; it is
+-- not a Personskat search bound or a policy result.
+
+> adjustment(income: Int) -> Int {
+    if income >= 200 { 20 } else { 0 }
+}
+
+> net_income(income: Int) -> Int {
+    income - adjustment(income)
+}
+
+| eligible(income: Int, step: Int) -> True
+
+? explore nested_mechanism_stream_smoke {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = net_income(income),
+            after = net_income(income + step)
+        ]
+        representative first
+    }
+}

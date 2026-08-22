@@ -582,6 +582,10 @@ pub enum ExploreStreamSliceStop {
     /// semantic frontier; the artifact says whether materialization succeeded
     /// or had to remain deferred.
     SnapshotCatchUp,
+    /// Mechanism counterpart to `SnapshotCatchUp`: a preceding post-probe
+    /// journal-only pause left its count view unpublished, and this invocation
+    /// services that observer boundary before more semantic work.
+    MechanismCheckpointCatchUp,
     TimeLimit,
     ResourcePressure {
         detail: String,
@@ -608,6 +612,10 @@ pub enum ExploreStreamSliceStop {
         detail: String,
     },
     ClassificationClosedFinalizationPending,
+    /// Classification and requested mechanism replay are both closed, but
+    /// this count-only profile has no terminal mechanism publication contract.
+    /// Reopening unchanged can republish the count checkpoint but cannot seal.
+    MechanismObservationClosedTerminalUnavailable,
     /// This invocation closed the required frontier, published the immutable
     /// terminal answer and committed its terminal seal.
     TerminalSealed(ExploreStreamTerminalStatus),
@@ -648,11 +656,11 @@ pub struct ExploreStreamCursor {
 }
 
 /// Why this invocation committed a replayable journal pause without also
-/// materializing its potentially much larger observable snapshot. This is an
-/// operational view status, not evidence that the requested case graph hit a
-/// semantic or schema capacity bound.
+/// materializing its potentially much larger observer view. This is an
+/// operational view status, not evidence that a requested graph or count view
+/// hit a semantic or schema capacity bound.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ExploreStreamSnapshotDeferral {
+pub enum ExploreStreamObserverDeferral {
     TimeLimit,
     ResourceAdmission {
         detail: String,
@@ -686,11 +694,34 @@ pub enum ExploreStreamArtifact {
         publication_cursor: ExploreStreamCursor,
         detail: String,
     },
+    /// Cursor-bearing, count-only mechanism checkpoint followed by one LF.
+    /// Signature definitions, CaseIds and incidence remain in the private
+    /// authenticated run state until their public graph schema is defined.
+    MechanismCheckpointJsonLine {
+        canonical_json_line: Vec<u8>,
+        blob_digest: String,
+        checkpoint_cursor: ExploreStreamCursor,
+        publication_cursor: ExploreStreamCursor,
+    },
+    /// Bounded receipt published when the admitted mechanism-checkpoint
+    /// renderer cannot fit its immutable V1 envelope at this cursor.
+    MechanismCheckpointUnavailableJsonLine {
+        canonical_json_line: Vec<u8>,
+        blob_digest: String,
+        checkpoint_cursor: ExploreStreamCursor,
+        publication_cursor: ExploreStreamCursor,
+        detail: String,
+    },
     /// The append-only journal is already a complete resume checkpoint. When
     /// the bounded snapshot phase is not admitted, pausing must not spend the
     /// host reserve to manufacture a materialized view.
     JournalOnlyCheckpoint {
-        snapshot_deferral: ExploreStreamSnapshotDeferral,
+        observer_deferral: ExploreStreamObserverDeferral,
+    },
+    /// Mechanism-profile journal checkpoint whose separately admitted
+    /// count-only observer view was unavailable at this invocation boundary.
+    MechanismJournalOnlyCheckpoint {
+        observer_deferral: ExploreStreamObserverDeferral,
     },
     /// History-independent immutable terminal answer bytes and their raw blob
     /// address. The final cursor commits the separate semantic payload hash.
@@ -1697,14 +1728,14 @@ fn publish_prepared_mechanism_checkpoint_and_pause_stream_slice(
     let publication_cursor = public_exact_stream_cursor(publication_cursor);
     let canonical_json_line = prepared_checkpoint.into_canonical_json_line();
     let artifact = match materialization_capacity_detail {
-        Some(detail) => ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine {
+        Some(detail) => ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine {
             canonical_json_line,
             blob_digest,
             checkpoint_cursor,
             publication_cursor,
             detail,
         },
-        None => ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+        None => ExploreStreamArtifact::MechanismCheckpointJsonLine {
             canonical_json_line,
             blob_digest,
             checkpoint_cursor,
@@ -1725,7 +1756,7 @@ fn pause_exact_stream_slice_without_snapshot(
     coordinator: &mut stream_coordinator::ExactStreamCoordinator<'_>,
     pause_reason: run_stream::PauseReason,
     stop: ExploreStreamSliceStop,
-    snapshot_deferral: ExploreStreamSnapshotDeferral,
+    observer_deferral: ExploreStreamObserverDeferral,
     singleton_cases_evaluated_this_slice: u128,
     closed_cases_at_slice_start: u128,
 ) -> Result<ExploreStreamSliceReport, ExploreExecutionPreparationError> {
@@ -1756,7 +1787,11 @@ fn pause_exact_stream_slice_without_snapshot(
         probe_milestone_complete,
         singleton_cases_evaluated_this_slice,
         closed_cases_this_slice,
-        artifact: ExploreStreamArtifact::JournalOnlyCheckpoint { snapshot_deferral },
+        artifact: if coordinator.mechanism_checkpoint_enabled() {
+            ExploreStreamArtifact::MechanismJournalOnlyCheckpoint { observer_deferral }
+        } else {
+            ExploreStreamArtifact::JournalOnlyCheckpoint { observer_deferral }
+        },
     })
 }
 
@@ -1780,7 +1815,7 @@ fn publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
                 pause_reason,
                 stop,
-                ExploreStreamSnapshotDeferral::ProbeIncomplete,
+                ExploreStreamObserverDeferral::ProbeIncomplete,
                 singleton_cases_evaluated_this_slice,
                 closed_cases_at_slice_start,
             );
@@ -1834,7 +1869,7 @@ fn publish_or_defer_and_pause_exact_stream_slice(
             coordinator,
             pause_reason,
             stop,
-            ExploreStreamSnapshotDeferral::TimeLimit,
+            ExploreStreamObserverDeferral::TimeLimit,
             singleton_cases_evaluated_this_slice,
             closed_cases_at_slice_start,
         ),
@@ -1843,7 +1878,7 @@ fn publish_or_defer_and_pause_exact_stream_slice(
                 coordinator,
                 pause_reason,
                 stop,
-                ExploreStreamSnapshotDeferral::ResourceAdmission {
+                ExploreStreamObserverDeferral::ResourceAdmission {
                     detail: reason.code().to_string(),
                 },
                 singleton_cases_evaluated_this_slice,
@@ -1900,7 +1935,7 @@ fn publish_or_defer_and_pause_mechanism_stream_slice(
             coordinator,
             pause_reason,
             stop,
-            ExploreStreamSnapshotDeferral::TimeLimit,
+            ExploreStreamObserverDeferral::TimeLimit,
             singleton_cases_evaluated_this_slice,
             closed_cases_at_slice_start,
         ),
@@ -1909,7 +1944,7 @@ fn publish_or_defer_and_pause_mechanism_stream_slice(
                 coordinator,
                 pause_reason,
                 stop,
-                ExploreStreamSnapshotDeferral::ResourceAdmission {
+                ExploreStreamObserverDeferral::ResourceAdmission {
                     detail: reason.code().to_string(),
                 },
                 singleton_cases_evaluated_this_slice,
@@ -2543,7 +2578,7 @@ fn advance_nested_if_mechanism_stream_slice_v1(
                     query,
                     deadline,
                     run_stream::PauseReason::FinalizationPending,
-                    ExploreStreamSliceStop::ClassificationClosedFinalizationPending,
+                    ExploreStreamSliceStop::MechanismObservationClosedTerminalUnavailable,
                     singleton_cases_evaluated_this_slice,
                     closed_cases_at_slice_start,
                 );
@@ -2587,12 +2622,16 @@ enum CheckedStreamExecutionProfileV1 {
     },
 }
 
-/// First executable orchestration seam for mechanism discovery. The selection
-/// remains invocation-side and crate-private while the mechanism-DAG result
-/// schema is designed; the durable count checkpoint is already observable and
-/// resumable through the ordinary stream report.
+/// Execute one bounded slice of the Experimental positional nested-`if`
+/// mechanism profile.
+///
+/// This V1 API is intentionally narrow while the mechanism-DAG result schema
+/// and source syntax are designed. The two indexes select distinct checked
+/// `output.show` positions; the durable count checkpoint is observable and
+/// resumable through the stream report. Callers must treat this surface as
+/// Experimental under Futuruna's compatibility policy.
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn execute_checked_nested_if_mechanism_stream_slice_v1(
+pub fn execute_checked_nested_if_mechanism_stream_slice_v1(
     statements: &[Stmt],
     source_dir: Option<String>,
     source: &str,
@@ -2785,13 +2824,18 @@ fn execute_checked_stream_slice_v1(
     // that view first claim on the next invocation so repeated deadlines cannot
     // indefinitely hide otherwise durable progress.
     if pending_observable_snapshot_on_resume {
+        let catch_up_stop = if mechanism_plan.is_some() {
+            ExploreStreamSliceStop::MechanismCheckpointCatchUp
+        } else {
+            ExploreStreamSliceStop::SnapshotCatchUp
+        };
         return publish_or_defer_and_pause_exact_stream_slice(
             &mut coordinator,
             &mut resources,
             query,
             deadline,
             run_stream::PauseReason::Explicit,
-            ExploreStreamSliceStop::SnapshotCatchUp,
+            catch_up_stop,
             0,
             closed_cases_at_slice_start,
         );
@@ -7781,7 +7825,7 @@ mod tests {
             &mut coordinator,
             run_stream::PauseReason::TimeLimit,
             ExploreStreamSliceStop::TimeLimit,
-            ExploreStreamSnapshotDeferral::ProbeIncomplete,
+            ExploreStreamObserverDeferral::ProbeIncomplete,
             0,
             0,
         )
@@ -7789,8 +7833,8 @@ mod tests {
         assert!(!pre_probe_pause.probe_milestone_complete);
         assert!(matches!(
             pre_probe_pause.artifact,
-            ExploreStreamArtifact::JournalOnlyCheckpoint {
-                snapshot_deferral: ExploreStreamSnapshotDeferral::ProbeIncomplete,
+            ExploreStreamArtifact::MechanismJournalOnlyCheckpoint {
+                observer_deferral: ExploreStreamObserverDeferral::ProbeIncomplete,
             }
         ));
         assert!(!coordinator.pending_observable_snapshot_on_resume());
@@ -7827,7 +7871,7 @@ mod tests {
         assert!(probe_report.probe_milestone_complete);
         assert_eq!(probe_report.singleton_cases_evaluated_this_slice, 0);
         let initial_json = match &probe_report.artifact {
-            ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            ExploreStreamArtifact::MechanismCheckpointJsonLine {
                 canonical_json_line,
                 ..
             } => std::str::from_utf8(canonical_json_line)
@@ -7891,13 +7935,13 @@ mod tests {
         .expect("resume and close the bounded mechanism stream");
         assert_eq!(
             final_report.stop,
-            ExploreStreamSliceStop::ClassificationClosedFinalizationPending
+            ExploreStreamSliceStop::MechanismObservationClosedTerminalUnavailable
         );
         assert!(final_report.probe_milestone_complete);
         assert_eq!(final_report.singleton_cases_evaluated_this_slice, 3);
         assert_eq!(final_report.closed_cases_this_slice, 3);
         let final_json = match &final_report.artifact {
-            ExploreStreamArtifact::CheckpointSnapshotJsonLine {
+            ExploreStreamArtifact::MechanismCheckpointJsonLine {
                 canonical_json_line,
                 ..
             } => std::str::from_utf8(canonical_json_line)
@@ -8383,6 +8427,11 @@ mod tests {
             ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine { .. } => {
                 panic!("one-case probe checkpoint unexpectedly hit snapshot capacity")
             }
+            ExploreStreamArtifact::MechanismCheckpointJsonLine { .. }
+            | ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine { .. }
+            | ExploreStreamArtifact::MechanismJournalOnlyCheckpoint { .. } => {
+                panic!("exact-only probe returned a mechanism checkpoint")
+            }
             ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {
                 panic!("direct graph-bearing checkpoint publication was deferred")
             }
@@ -8465,7 +8514,7 @@ mod tests {
             &mut coordinator,
             run_stream::PauseReason::TimeLimit,
             ExploreStreamSliceStop::TimeLimit,
-            ExploreStreamSnapshotDeferral::TimeLimit,
+            ExploreStreamObserverDeferral::TimeLimit,
             0,
             0,
         )
@@ -8477,7 +8526,7 @@ mod tests {
         assert!(matches!(
             journal_only.artifact,
             ExploreStreamArtifact::JournalOnlyCheckpoint {
-                snapshot_deferral: ExploreStreamSnapshotDeferral::TimeLimit,
+                observer_deferral: ExploreStreamObserverDeferral::TimeLimit,
             }
         ));
         assert!(coordinator.pending_observable_snapshot_on_resume());
@@ -8702,6 +8751,11 @@ mod tests {
             }
             ExploreStreamArtifact::CheckpointSnapshotUnavailableJsonLine { .. } => {
                 panic!("already-sealed reopen returned a snapshot-capacity artifact")
+            }
+            ExploreStreamArtifact::MechanismCheckpointJsonLine { .. }
+            | ExploreStreamArtifact::MechanismCheckpointUnavailableJsonLine { .. }
+            | ExploreStreamArtifact::MechanismJournalOnlyCheckpoint { .. } => {
+                panic!("already-sealed exact stream returned a mechanism checkpoint")
             }
             ExploreStreamArtifact::JournalOnlyCheckpoint { .. } => {
                 panic!("already-sealed reopen returned a journal-only checkpoint")

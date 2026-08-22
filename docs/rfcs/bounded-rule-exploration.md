@@ -14,8 +14,8 @@ first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
 An explicit durable-only `--case-graph full` request now publishes a bounded,
-total current-evidence case DAG. A private executable mechanism stream now has
-two narrow profiles: one checked top-level endpoint containing one `if`, and one
+total current-evidence case DAG. The internal executable mechanism engine now
+has two narrow profiles: one checked top-level endpoint containing one `if`, and one
 checked endpoint making one direct positional call to a checked helper that
 executes one `if`. Both fresh-replay each confirmed matching case in its
 canonical output environment, journal replay-confirmed signature blocks, and
@@ -27,8 +27,10 @@ revalidates the checked root AST and refuses every external Futuruna import
 before a mechanism stream is opened; import support requires a future frozen
 module graph that preserves module boundaries and origins. General multi-event
 and rule-attempt instrumentation, mechanism-DAG publication and public
-mechanism-aware terminal schemas remain later slices, so the ordinary CLI
-continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
+mechanism-aware terminal schemas remain later slices. An explicitly positional
+experimental CLI profile now exposes the nested-helper stream as count-only
+checkpoints; the ordinary exact profile still reports mechanisms as deferred.
+Symbolic/SMT closure,
 typed output rows, result continuations, detached observation, parallel
 workers, and chunked terminal publication also remain later implementation
 slices. No result group is treated as a mechanism.
@@ -252,9 +254,11 @@ The first version does not:
 **Journal-only checkpoint**
 : The authoritative append-only journal pause returned when snapshot
   materialization is not admitted before the invocation deadline. The current
-  typed artifact is `JournalOnlyCheckpoint`; invocation-v1 JSON names artifact
-  kind `journal_checkpoint`, reports `snapshot.status` as `deferred`, and has no
-  snapshot blob, canonical payload, checkpoint cursor or publication cursor.
+  typed artifact is `JournalOnlyCheckpoint` for exact snapshots or
+  `MechanismJournalOnlyCheckpoint` for mechanism count views; invocation-v1
+  JSON names either artifact kind `journal_checkpoint`, reports the selected
+  observer view (`snapshot` or `mechanism_checkpoint`) as `deferred`, and has no
+  view blob, canonical payload, checkpoint cursor or publication cursor.
   This is operational view deferral, not evidence, graph-capacity status or a
   change to run identity.
 
@@ -1592,8 +1596,9 @@ therefore cross a replay boundary before classification can expand again. A
 failed or operationally capped replay commits neither the rank nor a prefix;
 the same rank remains first after resume. When neither frontier has work, the
 coordinator publishes `matching_closed` count evidence and pauses at the
-deferred mechanism-terminal frontier rather than invoking the exact-only
-finalizer.
+typed `mechanism_observation_closed_terminal_unavailable` frontier rather than
+invoking the exact-only finalizer. The stop states that unchanged resume cannot
+advance until a mechanism-aware terminal publication contract exists.
 
 Before the probe milestone, a mechanism checkpoint is not defined. A
 journal-only pause there is therefore a complete resume boundary but not
@@ -2668,7 +2673,8 @@ Exploration uses a dedicated analysis command. The current human-only
 compatibility path accepts `--case-limit`. The current macOS-supervised durable
 path accepts `--run-state`, `--time-limit`/`--max-minutes`,
 `--pause-after probes`, explicit `--case-graph full`, explicit `--finalize`, and
-`--json`:
+`--json`. The first count-only mechanism experiment additionally accepts one
+all-or-none nested-`if` profile and two zero-based `output.show` indexes:
 
 ```bash
 runa explore model.runa
@@ -2678,6 +2684,7 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --pause-after probes --json
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --case-graph full --json
 runa explore model.runa --query income_cliffs --run-state /private/path/income-cliffs.run --time-limit 10m --finalize --json
+runa explore examples/danish-income-tax/mechanism-stream-smoke.runa --query nested_mechanism_stream_smoke --run-state /private/path/nested-if-smoke.run --pause-after probes --mechanism-profile nested-if-v1 --mechanism-before-show 0 --mechanism-after-show 1 --json
 ```
 
 The accepted protocol also reserves the following future surfaces. They are
@@ -2707,6 +2714,16 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
 - Repeating the same command with the same `--run-state` validates the journal
   and resumes its exact open frontier. A changed immutable identity is an error,
   not an implicit new run or probe refresh.
+- `--mechanism-profile nested-if-v1`, `--mechanism-before-show INDEX`, and
+  `--mechanism-after-show INDEX` are an all-or-none experimental selector. The
+  indexes must be distinct zero-based shown-field positions. This profile
+  requires `--run-state`, binds its checked mechanism request into sequence-zero
+  identity, drains confirmed mechanism replay before classifying another case,
+  and publishes count-only checkpoints. It currently rejects `--case-graph
+  full` and `--finalize`; signature definitions, incidence DAGs and terminal
+  mechanism publication remain private or unavailable. Fully closed mechanism evidence
+  therefore pauses with `mechanism_observation_closed_terminal_unavailable`
+  and exit `2`; unchanged resume cannot seal or advance.
 - `--case-graph full` is available only with `--run-state` and explicitly
   authorizes disclosure and retention of the complete current case
   classification graph. Full versus omitted is bound through the report
@@ -2742,6 +2759,11 @@ runa explore model.runa --query income_cliffs --run-state /private/path/income-c
   `snapshot.status = "deferred"`, and no canonical payload or blob. The
   admitted capacity receipt has distinct kind `snapshot_unavailable`, status
   `unavailable`, reason kind `capacity`, and its own content-addressed payload.
+  A mechanism-profile receipt adds `execution_profile`, uses artifact kind
+  `mechanism_checkpoint` or `mechanism_checkpoint_unavailable`, and embeds the
+  count-only mechanism schema. Its journal-only form uses
+  `mechanism_checkpoint.status = "deferred"` rather than calling that view a
+  snapshot.
   It is not JSONL. Compatibility and plan JSON remain unavailable.
 - Future `--follow`/`--jsonl` surfaces will expose committed deltas without
   changing ordinary `--json` from one invocation receipt into a stream.
@@ -2823,8 +2845,8 @@ to stderr, so post-processing cannot corrupt the JSON transport.
 
 On the current durable path, `--json` emits one versioned
 `futuruna.explore.invocation.v1` document. Its `stop`, `final_cursor`, and
-per-slice counters are operational receipt data. Its `artifact` has four
-current forms. An admitted pause uses kind `checkpoint`, raw-embeds
+per-slice counters are operational receipt data. Its exact profile has four
+artifact forms. An admitted pause uses kind `checkpoint`, raw-embeds
 `futuruna.explore.snapshot.v5`, and supplies the blob digest, byte framing,
 checkpoint cursor and publication cursor. A denied or deadline-exhausted view
 uses kind `journal_checkpoint`, contains `snapshot.status = "deferred"` and its
@@ -2834,7 +2856,13 @@ that reports capacity uses kind `snapshot_unavailable`, raw-embeds the bounded
 cursors as a full snapshot publication. A sealed receipt uses kind
 `terminal_result` and raw-embeds the current experimental
 `futuruna.explore.exact-answer.v4` semantic answer. The invocation schema stays
-`futuruna.explore.invocation.v1` for all four forms. Compatibility and plan
+`futuruna.explore.invocation.v1` for all four forms. The nested-`if` mechanism
+profile adds an `execution_profile` object containing its two selected show
+indexes. Its admitted count view uses kind `mechanism_checkpoint` and embeds
+`futuruna.explore.mechanism-checkpoint.v1`; bounded rendering capacity uses
+`mechanism_checkpoint_unavailable`. A journal-only mechanism pause keeps kind
+`journal_checkpoint`, has `mechanism_checkpoint.status = "deferred"`, and does
+not carry a canonical payload. Compatibility and plan
 JSON are not implemented. JSONL following and the expanded public
 `futuruna.explore.v1` terminal report below remain specified future surfaces.
 

@@ -446,6 +446,11 @@ resource-governed slice: probes first, then one confirmed mechanism replay
 before another case classification, with a count checkpoint followed by a
 durable pause. Its crash experiment stops with a confirmed rank still pending;
 resume services that rank first and closes at three cases / three mechanisms.
+The companion `mechanism-stream-smoke.runa` fixture exposes that exact
+four-case protocol through the experimental `nested-if-v1` CLI selector before
+any Personskat-scale range is attempted. Its closed count checkpoint remains a
+paused `mechanism_observation_closed_terminal_unavailable` result until a
+mechanism-aware terminal schema exists.
 General multi-activation and rule-attempt tracing, mechanism-DAG publication
 and public mechanism-aware result JSON are still deliberately deferred, so
 this architecture is not yet a claim of completed Personskat mechanism
