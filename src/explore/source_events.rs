@@ -733,7 +733,7 @@ pub(super) struct SourceEventExtractionRequest<'a> {
     pub(super) query: &'a ExploreQueryIr,
     pub(super) analysis_program_hash: &'a str,
     pub(super) query_hash: &'a str,
-    /// Canonical source-order ordinals for all dimensions except the boundary
+    /// Canonical generator-axis ordinals for all dimensions except the boundary
     /// axis. The fragment's profile-specialized constants must correspond to
     /// this exact tuple.
     pub(super) outer_ordinals: &'a [u128],
@@ -880,9 +880,7 @@ pub(super) fn extract_source_event_candidates(
 ) -> Result<SourceEventExtraction, SourceEventExtractionError> {
     let boundary = request
         .query
-        .universe
-        .boundary
-        .as_ref()
+        .boundary_hint()
         .ok_or(SourceEventExtractionError::QueryHasNoBoundary)?;
     if boundary.step <= 0 {
         return Err(SourceEventExtractionError::BoundaryStepIsNotPositive(

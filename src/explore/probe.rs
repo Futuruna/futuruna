@@ -13,9 +13,9 @@ use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU128;
 
-use super::{report::ExploreCaseId, ExplorePolarity, ExploreValue};
+use super::{report::ExploreCaseId, ExploreGeneratorAxisRole, ExplorePolarity, ExploreValue};
 
-pub(crate) const PROBE_ARTIFACT_SCHEMA_V1: &str = "futuruna.explore.probe-artifact.v1";
+pub(crate) const PROBE_ARTIFACT_SCHEMA_V2: &str = "futuruna.explore.probe-artifact.v2";
 
 /// Hash-bound semantic identity of one checked probe plan.
 ///
@@ -65,6 +65,19 @@ pub(crate) struct ProbeBoundaryContract {
     pub(crate) requires_both_endpoints_in_domain: bool,
 }
 
+/// Canonical identity and presentation metadata for one probe CaseId axis.
+///
+/// `label` is never authoritative: fields with the same spelling may coexist
+/// in distinct Context, Before and independent-After roles. Durable selection
+/// uses the structural coordinates and the descriptor's canonical list index.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ProbeDimensionDescriptor {
+    pub(crate) bound_index: usize,
+    pub(crate) role: ExploreGeneratorAxisRole,
+    pub(crate) role_field_index: usize,
+    pub(crate) label: String,
+}
+
 /// Checked schema and disclosure authorization for a probe artifact.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProbePlanContract {
@@ -74,7 +87,7 @@ pub(crate) struct ProbePlanContract {
     pub(crate) query_name: Box<str>,
     pub(crate) identity: ProbeSemanticIdentity,
     pub(crate) polarity: ExplorePolarity,
-    pub(crate) dimension_names: Box<[String]>,
+    pub(crate) dimensions: Box<[ProbeDimensionDescriptor]>,
     pub(crate) axis_cardinalities: Box<[u128]>,
     pub(crate) boundary: Option<ProbeBoundaryContract>,
     pub(crate) selectors: Box<[ProbeSelector]>,
@@ -82,8 +95,8 @@ pub(crate) struct ProbePlanContract {
     pub(crate) initial_frontier: ProbeFrontierId,
     /// Independently varied, non-boundary dimensions authorized by the
     /// optional `lift ... across [...]` operation, in dimension order.
-    pub(crate) lift_dimension_names: Box<[String]>,
-    pub(crate) retained_configuration_names: Box<[String]>,
+    pub(crate) lift_dimension_indices: Box<[usize]>,
+    pub(crate) retained_configuration_dimension_indices: Box<[usize]>,
     pub(crate) retained_key_names: Box<[String]>,
     pub(crate) retained_shown_names: Box<[String]>,
     pub(crate) mechanism_trace_authorized: bool,
@@ -92,7 +105,7 @@ pub(crate) struct ProbePlanContract {
 impl ProbePlanContract {
     pub(crate) fn validate(&self) -> Result<(), ProbeValidationError> {
         require_nonempty("artifact_schema", &self.artifact_schema)?;
-        if self.artifact_schema.as_ref() != PROBE_ARTIFACT_SCHEMA_V1 {
+        if self.artifact_schema.as_ref() != PROBE_ARTIFACT_SCHEMA_V2 {
             return Err(invalid(format!(
                 "unknown probe artifact schema `{}`",
                 self.artifact_schema
@@ -107,11 +120,11 @@ impl ProbePlanContract {
         self.identity.validate()?;
         self.initial_frontier.validate("initial_frontier")?;
 
-        validate_unique_nonempty("dimension", &self.dimension_names)?;
-        if self.dimension_names.len() != self.axis_cardinalities.len() {
+        validate_dimension_descriptors(&self.dimensions)?;
+        if self.dimensions.len() != self.axis_cardinalities.len() {
             return Err(invalid(format!(
-                "probe schema has {} dimension names but {} axis cardinalities",
-                self.dimension_names.len(),
+                "probe schema has {} dimensions but {} axis cardinalities",
+                self.dimensions.len(),
                 self.axis_cardinalities.len()
             )));
         }
@@ -128,19 +141,25 @@ impl ProbePlanContract {
         }
 
         if let Some(boundary) = self.boundary {
-            if boundary.axis >= self.dimension_names.len() {
+            if boundary.axis >= self.dimensions.len() {
                 return Err(invalid(format!(
                     "probe boundary axis {} is outside {} dimensions",
                     boundary.axis,
-                    self.dimension_names.len()
+                    self.dimensions.len()
                 )));
             }
             if boundary.step <= 0 {
                 return Err(invalid("probe boundary step must be positive"));
             }
+            if self.dimensions[boundary.axis].role != ExploreGeneratorAxisRole::Before {
+                return Err(invalid(format!(
+                    "probe boundary axis {} must be a Before dimension, found {:?}",
+                    boundary.axis, self.dimensions[boundary.axis].role
+                )));
+            }
             if !boundary.requires_both_endpoints_in_domain {
                 return Err(invalid(
-                    "probe artifact v1 requires both boundary endpoints to belong to the declared domain",
+                    "probe artifact v2 requires both boundary endpoints to belong to the declared domain",
                 ));
             }
         }
@@ -157,33 +176,29 @@ impl ProbePlanContract {
             ));
         }
 
-        validate_dimension_subset_order(
+        validate_dimension_index_subset_order(
             "lift dimension",
-            &self.dimension_names,
-            &self.lift_dimension_names,
+            self.dimensions.len(),
+            &self.lift_dimension_indices,
         )?;
         match self.boundary {
             Some(boundary) => {
-                let boundary_name = &self.dimension_names[boundary.axis];
-                if self
-                    .lift_dimension_names
-                    .iter()
-                    .any(|name| name == boundary_name)
-                {
+                if self.lift_dimension_indices.contains(&boundary.axis) {
                     return Err(invalid(format!(
-                        "probe lift dimension `{boundary_name}` is the boundary axis"
+                        "probe lift dimension {} `{}` is the boundary axis",
+                        boundary.axis, self.dimensions[boundary.axis].label
                     )));
                 }
             }
-            None if !self.lift_dimension_names.is_empty() => {
+            None if !self.lift_dimension_indices.is_empty() => {
                 return Err(invalid("probe lift dimensions require a boundary contract"))
             }
             None => {}
         }
-        validate_dimension_subset_order(
+        validate_dimension_index_subset_order(
             "retained configuration",
-            &self.dimension_names,
-            &self.retained_configuration_names,
+            self.dimensions.len(),
+            &self.retained_configuration_dimension_indices,
         )?;
         validate_unique_nonempty("retained key", &self.retained_key_names)?;
         validate_unique_nonempty("retained shown", &self.retained_shown_names)?;
@@ -205,11 +220,11 @@ impl ProbePlanContract {
     }
 
     fn validate_case_id(&self, case_id: &ExploreCaseId) -> Result<(), ProbeValidationError> {
-        if case_id.len() != self.dimension_names.len() {
+        if case_id.len() != self.dimensions.len() {
             return Err(invalid(format!(
                 "probe CaseId has {} ordinals for {} dimensions",
                 case_id.len(),
-                self.dimension_names.len()
+                self.dimensions.len()
             )));
         }
         for (axis, (&ordinal, &cardinality)) in case_id
@@ -237,7 +252,7 @@ impl ProbePlanContract {
         let boundary = self.boundary.ok_or_else(|| {
             invalid("probe artifact contains a lifted case without a boundary contract")
         })?;
-        if self.lift_dimension_names.is_empty() {
+        if self.lift_dimension_indices.is_empty() {
             return Err(invalid(
                 "probe artifact contains a lifted case but its plan declares no lift dimensions",
             ));
@@ -253,20 +268,20 @@ impl ProbePlanContract {
             ));
         }
         let allowed = self
-            .lift_dimension_names
+            .lift_dimension_indices
             .iter()
-            .map(String::as_str)
+            .copied()
             .collect::<BTreeSet<_>>();
-        for (axis, ((&origin, &candidate), name)) in origin_case_id
+        for (axis, (&origin, &candidate)) in origin_case_id
             .ordinals()
             .iter()
             .zip(candidate_case_id.ordinals())
-            .zip(self.dimension_names.iter())
             .enumerate()
         {
-            if origin != candidate && !allowed.contains(name.as_str()) {
+            if origin != candidate && !allowed.contains(&axis) {
                 return Err(invalid(format!(
-                    "lifted probe candidate changes unauthorized axis {axis} `{name}`"
+                    "lifted probe candidate changes unauthorized axis {axis} `{}`",
+                    self.dimensions[axis].label
                 )));
             }
         }
@@ -334,6 +349,14 @@ pub(crate) struct ProbeNamedValue {
     pub(crate) value: ExploreValue,
 }
 
+/// One retained generator coordinate. The dimension index is authoritative;
+/// the contract descriptor supplies any presentation label.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ProbeDimensionValue {
+    pub(crate) dimension_index: usize,
+    pub(crate) value: ExploreValue,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum ProbeClassificationKind {
     Excluded,
@@ -379,7 +402,8 @@ impl ProbeClassification {
 }
 
 /// Explicit output availability prevents an exclusion from acquiring values
-/// that the evaluator never computed.
+/// that the evaluator never retained. Both structural and validity exclusions
+/// are represented as `Unavailable`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProbeRetainedOutputs {
     Unavailable,
@@ -463,11 +487,17 @@ impl ProbeSchedulingReason {
     }
 }
 
-/// Replayable evidence for one and only one evaluated CaseId.
+/// Replayable evidence for one and only one classified CaseId.
+///
+/// An excluded boundary case is phase-neutral here: two evaluated endpoints
+/// record a constructible transition rejected by validity, while an ineligible
+/// endpoint records structural exclusion before a transition exists. Neither
+/// acquires outputs or mechanism evidence; a structural exclusion also must
+/// not acquire a TransitionId.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProbeObservation {
     pub(crate) case_id: ExploreCaseId,
-    pub(crate) configuration: Box<[ProbeNamedValue]>,
+    pub(crate) configuration: Box<[ProbeDimensionValue]>,
     pub(crate) boundary_values: ProbeBoundaryValues,
     pub(crate) classification: ProbeClassification,
     pub(crate) outputs: ProbeRetainedOutputs,
@@ -714,10 +744,11 @@ impl ProbeArtifact {
             .classification
             .validate(self.contract.polarity)?;
         self.validate_boundary_values(observation)?;
-        validate_named_values_exact(
+        validate_dimension_values_exact(
             "retained configuration",
             &observation.configuration,
-            &self.contract.retained_configuration_names,
+            &self.contract.dimensions,
+            &self.contract.retained_configuration_dimension_indices,
         )?;
         observation.scheduling_reason.validate(
             &observation.case_id,
@@ -729,7 +760,7 @@ impl ProbeArtifact {
             (ProbeClassification::Excluded { .. }, ProbeRetainedOutputs::Unavailable) => {}
             (ProbeClassification::Excluded { .. }, ProbeRetainedOutputs::Available { .. }) => {
                 return Err(invalid(format!(
-                    "excluded probe CaseId {:?} must not retain outputs that were unavailable",
+                    "excluded probe CaseId {:?} must retain outputs as unavailable",
                     observation.case_id.ordinals()
                 )))
             }
@@ -759,6 +790,16 @@ impl ProbeArtifact {
             }
         }
 
+        if matches!(
+            &observation.classification,
+            ProbeClassification::Excluded { .. }
+        ) && observation.mechanism_signature.is_some()
+        {
+            return Err(invalid(format!(
+                "excluded probe CaseId {:?} must not retain a mechanism signature",
+                observation.case_id.ordinals()
+            )));
+        }
         if observation.mechanism_signature.is_some() && !self.contract.mechanism_trace_authorized {
             return Err(invalid(format!(
                 "probe CaseId {:?} retains a mechanism signature without authorization",
@@ -834,11 +875,13 @@ impl ProbeArtifact {
 
         match &observation.classification {
             ProbeClassification::Excluded { .. } => {
-                if lower.state == ProbeEndpointState::Evaluated
-                    && upper.state == ProbeEndpointState::Evaluated
-                {
+                let validity_excluded = lower.state == ProbeEndpointState::Evaluated
+                    && upper.state == ProbeEndpointState::Evaluated;
+                let structurally_excluded = lower.state == ProbeEndpointState::Ineligible
+                    || upper.state == ProbeEndpointState::Ineligible;
+                if !validity_excluded && !structurally_excluded {
                     return Err(invalid(format!(
-                        "excluded boundary probe CaseId {:?} marks both endpoints evaluated",
+                        "excluded boundary probe CaseId {:?} has neither two evaluated endpoints nor a structurally ineligible endpoint",
                         observation.case_id.ordinals()
                     )));
                 }
@@ -1185,32 +1228,90 @@ fn validate_unique_nonempty(kind: &str, names: &[String]) -> Result<(), ProbeVal
     Ok(())
 }
 
-fn validate_dimension_subset_order(
-    kind: &str,
-    dimensions: &[String],
-    subset: &[String],
+fn validate_dimension_descriptors(
+    dimensions: &[ProbeDimensionDescriptor],
 ) -> Result<(), ProbeValidationError> {
-    validate_unique_nonempty(kind, subset)?;
-    let subset_names = subset.iter().map(String::as_str).collect::<BTreeSet<_>>();
-    for name in subset {
-        if !dimensions.iter().any(|dimension| dimension == name) {
+    let mut bound_indices = BTreeSet::new();
+    let mut role_fields = BTreeSet::new();
+    let mut previous = None;
+    for (dimension_index, dimension) in dimensions.iter().enumerate() {
+        require_nonempty("dimension label", &dimension.label)?;
+        if !bound_indices.insert(dimension.bound_index) {
             return Err(invalid(format!(
-                "probe {kind} `{name}` is not an independent probe dimension"
+                "probe dimension bound index {} occurs more than once",
+                dimension.bound_index
             )));
         }
+        if !role_fields.insert((dimension.role, dimension.role_field_index)) {
+            return Err(invalid(format!(
+                "probe {:?} field index {} occurs in more than one dimension",
+                dimension.role, dimension.role_field_index
+            )));
+        }
+        let key = (
+            dimension.role,
+            dimension.role_field_index,
+            dimension.bound_index,
+        );
+        if previous.is_some_and(|previous| previous >= key) {
+            return Err(invalid(format!(
+                "probe dimension {dimension_index} is not in canonical Context, Before, AfterIndependent field order"
+            )));
+        }
+        previous = Some(key);
     }
-    let canonical = dimensions
-        .iter()
-        .filter(|name| subset_names.contains(name.as_str()))
-        .collect::<Vec<_>>();
-    if canonical
-        .iter()
-        .map(|name| name.as_str())
-        .ne(subset.iter().map(String::as_str))
-    {
+    Ok(())
+}
+
+fn validate_dimension_index_subset_order(
+    kind: &str,
+    dimension_count: usize,
+    subset: &[usize],
+) -> Result<(), ProbeValidationError> {
+    let mut previous = None;
+    for &dimension_index in subset {
+        if dimension_index >= dimension_count {
+            return Err(invalid(format!(
+                "probe {kind} index {dimension_index} is outside {dimension_count} dimensions"
+            )));
+        }
+        if previous.is_some_and(|previous| previous >= dimension_index) {
+            return Err(invalid(format!(
+                "probe {kind} indices are not distinct and in canonical dimension order"
+            )));
+        }
+        previous = Some(dimension_index);
+    }
+    Ok(())
+}
+
+fn validate_dimension_values_exact(
+    kind: &str,
+    values: &[ProbeDimensionValue],
+    dimensions: &[ProbeDimensionDescriptor],
+    selected_dimension_indices: &[usize],
+) -> Result<(), ProbeValidationError> {
+    if values.len() != selected_dimension_indices.len() {
         return Err(invalid(format!(
-            "probe {kind} names are not in canonical dimension order"
+            "probe {kind} has {} values for {} authorized dimensions",
+            values.len(),
+            selected_dimension_indices.len()
         )));
+    }
+    for (index, (value, &dimension_index)) in
+        values.iter().zip(selected_dimension_indices).enumerate()
+    {
+        let _dimension = dimensions.get(dimension_index).ok_or_else(|| {
+            invalid(format!(
+                "probe {kind} references absent dimension index {dimension_index}"
+            ))
+        })?;
+        if value.dimension_index != dimension_index {
+            return Err(invalid(format!(
+                "probe {kind} value {index} references dimension {}, expected {dimension_index}",
+                value.dimension_index
+            )));
+        }
     }
     Ok(())
 }
@@ -1271,15 +1372,33 @@ mod tests {
         }
     }
 
+    fn dimension(
+        bound_index: usize,
+        role: ExploreGeneratorAxisRole,
+        role_field_index: usize,
+        label: &str,
+    ) -> ProbeDimensionDescriptor {
+        ProbeDimensionDescriptor {
+            bound_index,
+            role,
+            role_field_index,
+            label: label.to_string(),
+        }
+    }
+
     fn contract(suffix: &str, cap: u128) -> ProbePlanContract {
         ProbePlanContract {
-            artifact_schema: PROBE_ARTIFACT_SCHEMA_V1.into(),
-            normalization_version: "normalization-v1".into(),
+            artifact_schema: PROBE_ARTIFACT_SCHEMA_V2.into(),
+            normalization_version: "normalization-v2".into(),
             selector_tie_break_version: "tie-break-v1".into(),
             query_name: "income_cliffs".into(),
             identity: identity(suffix),
             polarity: ExplorePolarity::Violations,
-            dimension_names: vec!["commune".to_string(), "income".to_string()].into_boxed_slice(),
+            dimensions: vec![
+                dimension(0, ExploreGeneratorAxisRole::Context, 0, "commune"),
+                dimension(1, ExploreGeneratorAxisRole::Before, 0, "income"),
+            ]
+            .into_boxed_slice(),
             axis_cardinalities: vec![2, 3].into_boxed_slice(),
             boundary: Some(ProbeBoundaryContract {
                 axis: 1,
@@ -1293,9 +1412,8 @@ mod tests {
             .into_boxed_slice(),
             semantic_case_cap: NonZeroU128::new(cap).unwrap(),
             initial_frontier: ProbeFrontierId::new(digest("root")).unwrap(),
-            lift_dimension_names: vec!["commune".to_string()].into_boxed_slice(),
-            retained_configuration_names: vec!["commune".to_string(), "income".to_string()]
-                .into_boxed_slice(),
+            lift_dimension_indices: vec![0].into_boxed_slice(),
+            retained_configuration_dimension_indices: vec![0, 1].into_boxed_slice(),
             retained_key_names: vec!["income_before".to_string()].into_boxed_slice(),
             retained_shown_names: vec!["loss_ore".to_string()].into_boxed_slice(),
             mechanism_trace_authorized: false,
@@ -1305,6 +1423,13 @@ mod tests {
     fn named(name: &str, value: i64) -> ProbeNamedValue {
         ProbeNamedValue {
             name: name.to_string(),
+            value: ExploreValue::Int(value),
+        }
+    }
+
+    fn dimension_value(dimension_index: usize, value: i64) -> ProbeDimensionValue {
+        ProbeDimensionValue {
+            dimension_index,
             value: ExploreValue::Int(value),
         }
     }
@@ -1320,7 +1445,7 @@ mod tests {
     fn observation(case_id: ExploreCaseId) -> ProbeObservation {
         ProbeObservation {
             case_id,
-            configuration: vec![named("commune", 0), named("income", 100)].into_boxed_slice(),
+            configuration: vec![dimension_value(0, 0), dimension_value(1, 100)].into_boxed_slice(),
             boundary_values: ProbeBoundaryValues {
                 lower: Some(ProbeBoundaryEndpoint {
                     value: ExploreValue::Int(100),
@@ -1533,10 +1658,74 @@ mod tests {
     }
 
     #[test]
+    fn excluded_boundary_probe_preserves_structural_or_validity_phase() {
+        let mut validity_excluded = artifact(
+            contract("validity-excluded", 2),
+            ProbeArtifactState::Partial {
+                reason: ProbePartialReason::Interrupted,
+            },
+            ProbeFrontierState::Open(
+                ProbeFrontierId::new(digest("validity-excluded-next")).unwrap(),
+            ),
+        );
+        validity_excluded.observations[0].classification = ProbeClassification::Excluded {
+            reason: "transition validity rejected both evaluated endpoints".into(),
+        };
+        validity_excluded.observations[0].outputs = ProbeRetainedOutputs::Unavailable;
+        validity_excluded.transcript[0].classification = ProbeClassificationKind::Excluded;
+        validity_excluded.validate().unwrap();
+
+        let mut structurally_excluded = validity_excluded.clone();
+        structurally_excluded.observations[0]
+            .boundary_values
+            .upper
+            .as_mut()
+            .unwrap()
+            .state = ProbeEndpointState::Ineligible;
+        structurally_excluded.observations[0].classification = ProbeClassification::Excluded {
+            reason: "upper endpoint is structurally ineligible".into(),
+        };
+        structurally_excluded.validate().unwrap();
+
+        let mut fabricated_outputs = structurally_excluded.clone();
+        fabricated_outputs.observations[0].outputs = ProbeRetainedOutputs::Available {
+            key: vec![named("income_before", 100)].into_boxed_slice(),
+            shown: vec![named("loss_ore", 20)].into_boxed_slice(),
+        };
+        assert!(fabricated_outputs
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("must retain outputs as unavailable"));
+
+        structurally_excluded.contract.mechanism_trace_authorized = true;
+        structurally_excluded.observations[0].mechanism_signature =
+            Some(ProbeMechanismSignatureRef::new("fabricated-structural-signature").unwrap());
+        assert!(structurally_excluded
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("must not retain a mechanism signature"));
+
+        let mut incomplete_exclusion = validity_excluded;
+        incomplete_exclusion.observations[0]
+            .boundary_values
+            .upper
+            .as_mut()
+            .unwrap()
+            .state = ProbeEndpointState::EligibleUnevaluated;
+        assert!(incomplete_exclusion
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("neither two evaluated endpoints nor a structurally ineligible endpoint"));
+    }
+
+    #[test]
     fn non_boundary_probe_has_no_endpoint_evidence() {
         let mut plan = contract("generic", 2);
         plan.boundary = None;
-        plan.lift_dimension_names = Vec::new().into_boxed_slice();
+        plan.lift_dimension_indices = Vec::new().into_boxed_slice();
         plan.selectors = vec![ProbeSelector::FrontierMidpoints].into_boxed_slice();
         let mut artifact = artifact(
             plan,

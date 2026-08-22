@@ -173,7 +173,7 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
         } else {
             contract_digest(&[
                 b"exact-snapshot",
-                b"exact-observable-snapshot-v5",
+                b"exact-observable-snapshot-v6",
                 b"grouped-having-filter-v1",
                 b"bounded-canonical-raw-group-preview-v1",
                 b"result-preview-group-limit",
@@ -200,7 +200,7 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
                 b"cursor-bound-snapshot-unavailable-v1",
                 b"snapshot-unavailable-json-byte-limit",
                 &usize_bytes(EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_JSON_BYTE_LIMIT_V1),
-                b"inspectable-configuration-manifest-v2",
+                b"inspectable-configuration-manifest-v3",
                 b"configuration-value-node-limit",
                 &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
                 b"configuration-value-semantic-byte-limit",
@@ -227,7 +227,7 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
         },
         contract_digest(&[
             b"terminal-result",
-            b"exact-report-v4",
+            b"exact-report-v5",
             b"grouped-having-filter-v1",
             b"full-result-publication-required-v1",
             b"terminal-result-row-json-byte-limit-v1",
@@ -311,7 +311,8 @@ pub(super) fn prepare_exact_stream_header_with_mechanism(
         ]),
         contract_digest(&[
             b"evaluator",
-            b"exact-interpreter-v1",
+            b"exact-transition-interpreter-v2",
+            b"normalized-before-context-after-v1",
             b"whole-case-atomic-v1",
             &usize_bytes(DEFAULT_EXPLORE_STEP_LIMIT),
             &usize_bytes(DEFAULT_EXPLORE_COLLECTION_LIMIT),
@@ -358,13 +359,13 @@ fn report_request_digest(request: ExploreReportRequest) -> CanonicalDigest {
         }
     };
     contract_digest(&[
-        b"report-request-v2",
+        b"report-request-v3",
         b"projected-rows",
         case_graph,
         ledger,
         b"mechanisms-deferred",
         b"bounded-canonical-raw-group-preview-v1",
-        b"inspectable-configuration-manifest-v2",
+        b"inspectable-configuration-manifest-v3",
     ])
 }
 
@@ -378,9 +379,9 @@ fn retention_authorization_digest(request: ExploreReportRequest) -> CanonicalDig
         ExploreLedgerRequest::MatchingConfigurations => b"matching-ledger-full".as_slice(),
     };
     contract_digest(&[
-        b"retention-v2",
+        b"retention-v3",
         b"projected-results",
-        b"configuration-manifest-v2",
+        b"configuration-manifest-v3",
         b"globally-bounded-value-disclosure",
         &usize_bytes(CONFIGURATION_MANIFEST_VALUE_NODE_LIMIT_V2),
         &usize_bytes(CONFIGURATION_MANIFEST_VALUE_SEMANTIC_BYTE_LIMIT_V2),

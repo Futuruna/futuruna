@@ -865,7 +865,7 @@ pub(crate) struct OrderedDecisionDag<T> {
 /// decision DAG without enumerating singleton paths.
 ///
 /// The constructors normalize each local ordinal set. The final graph
-/// constructor additionally checks source-order dimensions, bounds,
+/// constructor additionally checks canonical generator dimensions, bounds,
 /// disjointness and exhaustiveness before any partition can become evidence.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecisionPartition<T> {
@@ -892,7 +892,7 @@ impl<T> DecisionPartition<T> {
     }
 }
 
-/// One terminal or source-order decision in a checked partition input.
+/// One terminal or canonical-axis decision in a checked partition input.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(super) struct DecisionPartitionTarget<T> {
     kind: DecisionPartitionTargetKind<T>,
@@ -1257,7 +1257,7 @@ impl<T: Clone + Ord> OrderedDecisionDag<T> {
     /// materializing any singleton case path.
     ///
     /// The input is accepted only when it is an exact total partition of the
-    /// declared product: dimensions are source ordered, every local ordinal
+    /// declared product: dimensions use canonical generator-axis order, every local ordinal
     /// set is in bounds, and sibling arc sets are disjoint and exhaustive.
     pub(super) fn from_decision_partition(
         axis_cardinalities: Vec<u128>,
@@ -2964,7 +2964,7 @@ impl<T: Clone + Ord> DecisionPartitionDagBuilder<T> {
             } => {
                 if *dimension_index < next_dimension {
                     return Err(CaseGraphError::InvalidGraph(format!(
-                        "partition dimension {dimension_index} does not follow source-order context {next_dimension}"
+                        "partition dimension {dimension_index} does not follow canonical-axis context {next_dimension}"
                     )));
                 }
                 let cardinality = self

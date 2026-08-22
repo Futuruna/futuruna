@@ -16,13 +16,15 @@ supply a list of suspected thresholds.
 
 The normative contract lives in
 [Bounded Rule Exploration with `? explore`](bounded-rule-exploration.md). The
-compiler parses and type-checks the five search clauses today. The current
-development slice contains the human-only capped exact-finite compatibility
-executor and the first macOS-supervised durable observable coordinator:
+compiler parses and type-checks the compact search clauses and normalizes them
+into the mandatory transition IR. The current
+development slice contains a human-only capped exact-finite reference
+invocation and the first macOS-supervised durable observable coordinator over
+the same canonical transition evaluator:
 immutable run identity, a checked source-probe phase, candidate-first
 evaluation, authenticated frontier deltas, bounded canonical snapshots and
 exact restart from an owner-supplied run-state directory. The append-only
-journal pause is the authoritative resume checkpoint. Snapshot v5 and its
+journal pause is the authoritative resume checkpoint. Snapshot v6 and its
 optional search decision DAG are a separately admitted materialized view: when deadline or
 resource admission denies that phase, the invocation returns a typed
 `JournalOnlyCheckpoint` at the final paused cursor without a snapshot blob or
@@ -36,7 +38,9 @@ finalization limit for future chunking. An explicit durable
 bounded, all-or-nothing publication of a total current-evidence search decision DAG.
 The internal mechanism engine now executes two deliberately narrow profiles,
 and the nested-helper profile is CLI-reachable as a positional count-only
-experiment. The first, still-internal profile pairs two positional shown calls to one checked top-level
+experiment. These positional selectors are admitted only when they normalize
+to the same checked endpoint-observation IR; they are not another evaluator or
+mechanism contract. The first, still-internal profile pairs two positional shown calls to one checked top-level
 function whose body is exactly one `if`; it can also populate private half-open
 bin incidence from a checked numeric shown value. The second observes the
 canonical shown-value evaluation in place when a common checked endpoint makes
@@ -50,8 +54,8 @@ rereading live files or flattening module initialization. The nested profile is
 now driven by the same bounded invocation lifecycle as ordinary exact Explore:
 source probes run first; each confirmed mechanism replay is individually
 admitted under the 80% resource envelope; that backlog is drained before
-another CaseId is classified; and every orderly stop publishes the existing
-count checkpoint before its pause when view work is admitted. A pre-probe stop
+another CaseId is classified; and every orderly stop publishes its count
+checkpoint before pausing when view work is admitted. A pre-probe stop
 is journal-only because the mechanism checkpoint intentionally requires the
 completed probe milestone. The nested-helper path has one deliberately
 positional experimental CLI selector; the paths still have no general
@@ -59,7 +63,7 @@ multi-event/rule-call tracing, public bin surface, or mechanism-DAG/terminal pub
 surfaces, user-authored
 `probes`, typed `output as` rows, `then`, detached following, parallel workers
 and resumable chunked terminal publication are subsequent slices described
-below. Ordinary snapshot v5 therefore still reports mechanism evidence as
+below. Ordinary snapshot v6 therefore still reports mechanism evidence as
 unavailable and never infers a mechanism count from result groups. This is the
 implemented artifact contract, not a claim that a graph-bearing policy
 exploration has already been executed.
@@ -99,7 +103,7 @@ fields and hashes.
 | `find` | Whether Futuruna searches for cases where the rule fails or holds |
 | `bounds` | Every value each relevant input may take |
 | `transition` | How before state, after state, and edge context are constructed |
-| `boundaries` | Relative integer-axis compatibility sugar and an optimization hint |
+| `boundaries` | Compact Relative integer-axis syntax and an optimization hint |
 | `probes` | An optional finite initial scheduling plan inside the same resumable run |
 | `output` | What counts as one finding and which case should be shown |
 | `then` | Optional code receiving the terminal typed report after search |
@@ -108,14 +112,14 @@ Neither `probes` nor `then` is another search input. A probe plan changes
 scheduling, not the world or answer; `then` runs only from the terminal sealed
 report after enumeration, replay and sorting.
 
-The existing `output { ... }` form remains CLI-only. The specified
+The `output { ... }` form is CLI-only. The specified
 `output as Row` form lets Futuruna code consume the result afterward.
 
 `find violations` looks for cases where the rule is false. `find matches` looks
 for cases where it is true. Bounds define the world. Boundaries define the
-initial Relative movement in the current compatibility syntax. The normalized
-transition defines the semantic edge. The output key defines what one answer
-means.
+initial Relative movement in compact syntax and normalize into the same
+transition IR as an explicit declaration. The normalized transition defines
+the semantic edge. The output key defines what one answer means.
 
 ## 1. Begin with a property
 
@@ -431,7 +435,7 @@ authoritative.
 Machine mode wraps the exact stored checkpoint in
 `futuruna.explore.invocation.v1`; the invocation schema stays v1 for both
 forms. An admitted checkpoint uses artifact kind `checkpoint`, embeds
-`futuruna.explore.snapshot.v5`, and names its checkpoint, publication and final
+`futuruna.explore.snapshot.v6`, and names its checkpoint, publication and final
 cursors. The checkpoint describes cursor 40; cursor 41 durably names its blob;
 cursor 42 commits the pause. `canonical_byte_framing: "json_line_lf"` records
 that reproducing the blob digest requires the checkpoint object plus one LF.
@@ -471,7 +475,7 @@ runa explore support.runa \
 
 At expiry the library stops dispatch, commits accepted work and the exact open
 frontier, and pauses at its next work boundary. If time remains and the view is
-admitted, it also publishes snapshot v5; otherwise it returns the journal-only
+admitted, it also publishes snapshot v6; otherwise it returns the journal-only
 form above. If the child does not exit within the supervisor grace interval,
 the parent contains it instead; the next invocation recovers the last durable
 journal head and evidence root. An abrupt process or machine failure likewise
@@ -492,7 +496,7 @@ runa explore support.runa \
 ```
 
 Atomic-v1 fresh-replays the selected representative/extrema witnesses,
-publishes `futuruna.explore.exact-answer.v4`, and seals only if the full
+publishes `futuruna.explore.exact-answer.v5`, and seals only if the full
 snapshot, retained replay manifest and terminal JSON fit its conservative
 envelope. If not, the same invocation commits a journal pause with typed
 `FinalizationLimit` details (`finalization_limit` in JSON); it carries a
@@ -504,7 +508,7 @@ during this atomic unit. The CLI supervisor may interrupt it, and replay safely
 resumes from the last committed event.
 
 The present atomic guardrails are intentionally conservative: all raw groups
-must fit the v5 complete raw-group preflight (at most 256 groups, 16,384
+must fit the v6 complete raw-group preflight (at most 256 groups, 16,384
 recursive value nodes and 4 MiB semantic payload), at most 65,536 selected
 replay witnesses may be retained, replay observations may use at most 32 MiB
 of canonical manifest bodies, rendered result rows may use at most 48 MiB,
@@ -521,7 +525,9 @@ fact and boundary names, plus projection/having labels—must additionally fit a
 exact cumulative 8 MiB canonical-JSON string budget and 262,144 total
 occurrences. The occurrence cap bounds retained metadata objects even for tiny
 or repeated names. Repeated serialized occurrences are charged repeatedly, and
-both limits are schema identity.
+both limits belong to serialization-schema identity. That presentation binding
+does not promote an axis name into structural axis identity;
+`(role, role_field_index, bound_index)` remains authoritative.
 
 The complete snapshot/case-DAG materialization phase has a fixed 256 MiB
 accounted working-set envelope. It is admitted under the same 80-percent CPU
@@ -532,11 +538,12 @@ single-worker run stays in the conservative cold phase, whose
 calibrated scan-mode or multi-worker publisher needs a distinct snapshot
 charge; it cannot reuse that cold-phase argument.
 
-Case-DAG publication has a separate fixed envelope: at most 256 axes, 65,536
+Search-DAG publication has a separate fixed envelope: at most 256 axes, 65,536
 uniform rank runs, 131,072 nodes, 262,144 arcs, 262,144 ordinal intervals and
 64 MiB of conservative lowerer-accounted work. The complete nested
-`futuruna.explore.case-graph.v1` object must then fit in 8 MiB of canonical
-JSON. An admitted requested pause snapshot publishes the entire graph or a typed
+`futuruna.explore.case-graph.v1` object must then fit in 8 MiB of
+canonical JSON. An admitted requested pause snapshot publishes the entire graph
+or a typed
 `capacity_limited` status with the resource, fixed `maximum`, and honest
 `required_at_least`; it never emits a graph prefix. A requested terminal graph
 must be included with closed admissibility and polarity. Otherwise finalization
@@ -571,9 +578,10 @@ it in an explicitly chosen private location rather than the repository.
 #### First domain-neutral execution checkpoint (2026-08-21)
 
 `examples/explore-stream-lifecycle.explore.runa` is a deliberately tiny oracle
-for the protocol rather than a policy model. Its compatibility execution
-completed exactly: 10 declared assignments, 9 admissible boundary transitions,
-2 matching configurations, and 2 result keys (`income_before` 4 and 7). This
+for the protocol rather than a policy model. Its canonical reference execution
+completed exactly: 10 declared generator coordinates, 9 constructible and
+admissible boundary transitions, 2 matching configurations, and 2 result keys
+(`income_before` 4 and 7). This
 establishes the semantic result expected from the durable run without using a
 tax-specific income anchor.
 
@@ -614,7 +622,7 @@ Stale identities, a corrupt journal, overlapping chunks or replay differences
 fail closed and preserve the last valid journal head and evidence root. A
 changed query or probe plan
 starts a new run rather than rewriting old evidence. A pause with remaining
-frontier exits `2` and commits a journal checkpoint; it emits snapshot v5 only
+frontier exits `2` and commits a journal checkpoint; it emits snapshot v6 only
 when materialized-view admission succeeds. Only the durable `Completed` seal
 over an empty required frontier exits `0` as a final answer.
 
@@ -693,11 +701,15 @@ transition cases:
 t = (context, before state, after state)
 ```
 
-Operational search starts from one canonical generator coordinate `u` with a
-`CaseId`, then normalizes it through `tau(u) = t`. The search populations
-`U_C`, `D_C` and `M_C` count those coordinates. The semantic populations
-`U_T`, `D_T` and `M_T` count distinct transition identities in their images.
-They agree for the default one-to-one generator; an intentional many-to-one
+Operational search starts from one canonical generator coordinate `u` in the
+declared space `U_D`, and every such coordinate has a `CaseId`. Structural
+endpoint contracts select the constructible subset `U_C`: only `u in U_C`
+normalizes through `tau(u) = t` and receives a `TransitionId`. Coordinates in
+`U_D \ U_C` close as structural exclusions in the search DAG without fictitious
+endpoint or transition identity. The case populations `D_C` and `M_C` are
+subsets of `U_C`; the semantic populations `U_T`, `D_T` and `M_T` count distinct
+transition identities in their images. They agree with their supporting case
+populations for the default one-to-one generator; an intentional many-to-one
 normalization retains every supporting `CaseId` and deduplicates only the
 semantic edge count.
 
@@ -709,11 +721,22 @@ cliff is one instance: frame the profile, derive `after.income` from
 after resources are lower. A policy-version comparison or a municipality
 alternative uses the same model.
 
+The generator supplies that intervention; it is not itself the rule mechanism.
+For example, Futuruna does not claim that tax law caused gross income to rise
+by 1 DKK. It asks the model at both endpoints; when mechanism observation is
+separately requested and admitted, replay describes both computations and how
+their encoded rule paths differ, if they differ. The transition and observed
+signature remain linked without conflating intervention with explanation or
+pretending an open mechanism scope is complete.
+
 After construction is field-wise. An after field may be copied from before,
-derived from before plus context, or selected from an independent finite
-domain. This makes “which municipality has lower tax, if any differs” a normal
-transition query: frame the income and profile, vary only the after
-municipality, recompute the dependent tax state, and compare it with the
+derived from before plus context and explicitly projected `after.OTHER` fields,
+or selected from an independent finite domain. Explicit `after.OTHER`
+references close to indexed dependency edges; source order does not determine
+evaluation order, cycles are rejected, and each node runs once after its
+declared predecessors. This makes “which municipality has lower tax, if any
+differs” a normal transition query: frame the income and profile, vary only the
+after municipality, recompute the dependent tax state, and compare it with the
 before municipality. Logical “for every alternative” is aggregation over
 those concrete edges, not a magical unmaterialized after state.
 
@@ -721,12 +744,15 @@ The explicit surface names an author-declared state product and context product
 (or unit context), then requires `before.FIELD` and `context.FIELD` bounds to
 cover those schemas exactly. That lets an ordinary typed rule declare
 `question(before: State, after: State, context: Context) -> Bool` before the
-query. Mechanism observation is separate again: one checked pure endpoint
-template `observe(endpoint: State, context: Context)` is evaluated at both
-states. It is never guessed by splitting the two-state question or by pairing
+query. A declared product's canonical schema identity uses its resolved,
+occurrence-sensitive checked owner and exact field layout, not its type-name
+spelling alone. Mechanism observation is separate again: one checked pure
+endpoint template `observe(endpoint: State, context: Context)` is evaluated at
+both states. It is never guessed by splitting the two-state question or by pairing
 two convenient shown fields.
 
-An explicitly authorized artifact may project three linked graphs:
+The final explicitly authorized artifact contract may project three linked
+graphs:
 
 ```text
 canonical generator coordinates
@@ -744,8 +770,12 @@ shared mechanism DAG  --------> changed rules, dispatch, and branches
 ```
 
 The **search decision DAG** is the proof and compression object. Its decisions
-follow the role-tagged finite generator axes in canonical order. Equal suffixes
-are shared, so a single node can represent a large exact region. Sharing never
+follow finite generator axes in canonical
+`(role, role_field_index, bound_index)` order. Reports and snapshots serialize
+that structural descriptor beside a presentation-only name; graph nodes refer
+to the descriptor-array index. Fixed and derived facts carry the same ownership
+descriptor but add no varied coordinate. Equal suffixes are shared, so a single
+node can represent a large exact region. Sharing never
 forgets the path that led there: two disconnected paths pointing at one node
 remain the union of those paths, not every crossed combination of their values.
 
@@ -753,21 +783,32 @@ Its terminals preserve what is and is not known: excluded, admissible match,
 admissible nonmatch, eligibility still open, or polarity still open for an
 already admissible region. That distinction lets Futuruna know `D` exactly
 even when it cannot yet decide all of `M`. Missing mechanism evidence is never
-smuggled into a search terminal. The current snapshot-v5 and sealed
-exact-answer-v4 `graph.case_graph` fields contain this DAG; they must retain
-that meaning. A
-transition-aware schema adds `search_decision_dag` and
-`semantic_transition_graph` separately rather than silently reinterpreting the
-old field.
+smuggled into a search terminal. Implemented snapshot-v6 and exact-answer-v5
+artifacts can expose this search DAG under `graph.case_graph` when requested
+and admitted. The final public contract names it `search_decision_dag`
+alongside a separately serialized `semantic_transition_graph`; the implemented
+field never implies that the state/edge graph is present.
 
 The **semantic transition graph** is the domain-level case graph. A role-neutral
 `StateId` identifies each canonical typed state, so one state may be the target
 of one edge and source of another. A directional `TransitionId` identifies the
-transition schema, edge-local context and the two endpoint IDs. Every edge
-retains exact support back to `CaseId` or a proved case region. The graph can
+extensional typed `Context + Before -> After` value. It includes the canonical
+State/Context schemas, context and endpoint IDs, while excluding transition
+mode, after recipes/DAG topology, query and generator coordinates, and
+mechanism paths. Every edge retains exact support back to `CaseId` or a proved
+case region. The graph can
 share states without confusing state-node count, distinct-edge count and
 weighted supporting-case count. Materialization may be omitted or capped
 without weakening the search DAG's exact scalar counts.
+
+The in-process exact accumulator now derives typed 32-byte State, Context and
+transition-type schema IDs, retains their canonical preimages for collision
+checks, derives state and transition IDs from those typed IDs, and interns
+`CaseId -> TransitionId` support for every singleton transaction it accepts.
+The durable stream does not yet journal or publicly serialize that index, nor
+does the implementation invent edge support for a certified search region. The
+public semantic graph and complete distinct-transition counts therefore remain
+a later slice of this same architecture.
 
 Search closure proves weighted `CaseId` counts. It does not automatically
 prove how many distinct `TransitionId` or `StateId` values a large symbolic
@@ -892,7 +933,7 @@ The snapshot reports how many raw groups were observed and scanned, whether the
 scan closed, and whether every displayed count is exact or only a lower bound.
 This gives a saved probe enough human context to say which bounds it matches
 without turning an accidental domain or result dump into the output contract.
-The current v5 identity fixes the configuration budget at 4,096 recursive
+The current v6 identity fixes the configuration budget at 4,096 recursive
 value nodes and 4 MiB of semantic value bytes. Its result preview selects at
 most 256 canonical raw groups under 16,384 recursive value nodes, 4 MiB of
 semantic payload and 8 MiB of rendered row JSON. These are disclosure limits,
@@ -904,7 +945,7 @@ owner-local directory; they do not authenticate a hostile owner or magically
 prove that an evaluated case was correct. Exact certificates and fresh
 publication replay remain the semantic checks.
 
-The current executable v5 snapshot can derive the explicitly authorized search
+The current executable v6 snapshot can derive the explicitly authorized search
 decision DAG from that evidence; semantic-transition- and mechanism-DAG
 publication remain deferred. Closed
 facts and exact lower bounds only move forward, while graph reduction, node
@@ -1023,18 +1064,17 @@ Three limits must not be confused:
 - a display limit such as “show five cases per mechanism” changes only the
   view, not exact counts or completion.
 
-The current exact implementation is still a point-assignment precursor:
-classify the finite world, then derive keys and representatives. For boundary
-membership and `where` it constructs an upper environment, but polarity, keys,
-extrema and shown fields still evaluate in the lower environment. Its first
-bounded terminal replay checks only selected representative/extrema witnesses;
-it publishes no semantic transition graph or mechanism incidence. The private
-mechanism-enabled experiment adds canonical replay for the deliberately
-constrained same-function, single-`if` profile and commits its count-only
-checkpoint. Its positional pair of same-callee `show` roots is not yet a typed
-before/after contract. Requested numeric `show` fields reuse their canonical
-evaluated values and feed the durable half-open-bin incidence relation; general
-transition lowering and dynamic mechanisms remain deferred. A
+Every exact implementation classifies canonical transition cases, then derives
+keys and representatives from the same materialized Context, Before and After
+products. Scoped eligibility, polarity, keys, extrema and shown fields all
+evaluate against that one frame. A bounded terminal slice may check only
+selected representative/extrema witnesses and defer semantic-transition-graph
+or mechanism-incidence publication without changing evaluator semantics. A
+restricted same-function, single-`if` mechanism experiment may commit a
+count-only checkpoint, but its positional `show` roots must normalize to the
+same checked endpoint-observation IR or be refused; they are not an alternate
+before/after contract. Requested numeric shown fields may feed the durable
+half-open-bin incidence relation from their canonical evaluated values. A
 symbolic implementation may then alternate between finding one uncovered case,
 replaying its mechanism, proving an exact case-classification region and
 subtracting that region. In the first general mechanism-enabled version,
@@ -1064,19 +1104,27 @@ closed support ends at `excluded`, `admissible_nonmatch` or
 `eligibility_open(search_budget_exhausted)`. That makes the snapshot graph
 total over current evidence even while exploration closure is open.
 
+Snapshot-v6 configuration entries carry `bound_index`, `role` and
+`role_field_index` beside each axis or fact name. The structural triple owns
+identity and order; names are presentation only, and case-DAG nodes refer to
+`dimension_index`. Exact-answer-v5 omits the configuration object and instead
+commits its checked program, query, domain, report, disclosure policy and full
+case universe indirectly through `answer_scope_hash`.
+
 Publication is all-or-nothing. Within the fixed lowerer and 8 MiB nested-JSON
-limits, legacy `graph.case_graph.status` is `included` and carries the complete
-search decision DAG,
-its artifact hash, closures, polarity, terminal multiplicities and limits.
+limits, `graph.case_graph.status` is `included` and carries the complete search
+decision DAG, its artifact hash, closures, polarity, terminal multiplicities
+and limits.
 Otherwise status is `capacity_limited`, the graph and graph hash are absent,
 and typed capacity evidence names what exceeded its maximum. Baseline runs keep
 status `not_requested`. The request, retention authorization and schema limits
 were bound before the run began, so publication cannot silently widen
 disclosure or change limits during resume.
 
-This field is not the semantic state/transition graph; a new schema must name
-the two artifacts separately. The mechanism DAG cannot be derived by the same
-shortcut. The private durable
+This implemented field is not the semantic state/transition graph. The final
+public contract serializes that graph separately as
+`semantic_transition_graph`; that serialization is not implemented yet. The
+mechanism DAG cannot be derived by the same shortcut. The private durable
 path now has identity-bound trace authorization, typed signature/incidence
 batches, an arrival-order-independent reducer, explicit untraced support and
 count-only mechanism/bin checkpoints. Its executable producer remains limited
@@ -1884,7 +1932,8 @@ The original shape therefore invokes the transition 177 times and the full
 Personskat calculation twice per transition, for 354 calls. The derived-fact
 control has the static shape of 128 enumeration transitions plus seven replay
 transitions, or 135 transitions. It removes genuine duplicate work, but still
-performs a full lower/upper calculation for every configuration it classifies.
+performs a full canonical before/after calculation for every configuration it
+classifies.
 
 The general optimization architecture has three orthogonal axes:
 
@@ -2114,13 +2163,13 @@ algorithm.
 
 The first proof-closure milestone is therefore one fixed profile through
 1,500,000 DKK, not a half-sized brute-force job. Its zero-evaluation cost plan
-has `U = 1,500,001` declared incomes and 1,500,000 eligible adjacent pairs. A
-100,000-case singleton cap would still leave at least 1,400,001 declared
-assignments open. The candidate/certificate backend must instead close this
-same declared bound by weighted regions, using native evaluation only for the
-small residual. Once that plan closes, extending the upper bound to 3,000,000
-should add source events and proof cells rather than another 1.5 million
-mandatory evaluations.
+has `|U_D| = 1,500,001` declared incomes and `|U_C| = 1,500,000`
+constructible adjacent transitions. A 100,000-case singleton cap would still
+leave at least 1,400,001 declared assignments open. The candidate/certificate
+backend must instead close this same declared bound by weighted regions, using
+native evaluation only for the small residual. Once that plan closes, extending
+the upper bound to 3,000,000 should add source events and proof cells rather
+than another 1.5 million mandatory evaluations.
 
 The first execution is deliberately capped at **one** singleton
 classification. Source preparation and interval certification still analyze
@@ -2138,7 +2187,7 @@ Only after inspecting that one-case report is the case cap raised to cover the
 measured residual. This is an experimental probe of the real execution path,
 not a separate hand-authored oracle and not a claim of completion.
 
-Do not run this broad query through the one-shot compatibility executor. The
+Do not run this broad query through the one-shot non-resumable scan. The
 first 1.5-million-axis measurement starts only after a pre-probe `RunOpened`
 header, later proof/residual coverage plans, distinct journal and canonical
 evidence roots, and resumable typed refinement chunks are wired. That makes the
@@ -2226,13 +2275,18 @@ is closed.
 
 - Parse, format and type-check the synthetic query.
 - Make normalized transition IR mandatory: frame/derive/independently vary each
-  after-state field and type-check explicit before, after and context scopes.
-- Lower a legacy no-boundary query to Identity and `boundaries on x by step` to
-  Relative frame semantics without changing its current bare-name behavior.
-- Preserve every existing `?` proof form, including an invariant named
-  `explore`.
-- Preserve existing CLI-only `output { ... }` while adding the optional
-  `output as Row` and `then report ->` forms.
+  after-state field, resolve explicit `after.OTHER` references into an indexed
+  acyclic dependency DAG, and type-check before, after and context scopes.
+- Close declared State/Context schemas to their resolved occurrence-sensitive
+  owners and layouts; mint extensional typed transition IDs independently of
+  mode, recipes, queries, generator coordinates and mechanism paths.
+- Normalize compact no-boundary syntax to Identity and
+  `boundaries on x by step` to Relative frame semantics; resolve bare names as
+  checked source aliases into the canonical transition IR.
+- Keep exploration declarations syntactically distinct from proof forms,
+  including an invariant named `explore`.
+- Support CLI-only `output { ... }` and the optional `output as Row` and
+  `then report ->` forms over one canonical result contract.
 - Diagnose missing, duplicate and out-of-order clauses.
 
 ### Checkpoint 2: domains
@@ -2265,7 +2319,10 @@ is closed.
 - Commit probe matches, nonmatches and exclusions as ordinary singleton
   evidence with their observed `CaseId`, authorized named configuration,
   actual boundary endpoints, classification, outputs, scheduling reason and
-  adaptive transcript.
+  adaptive transcript. An exclusion is phase-neutral: two evaluated endpoints
+  may prove a constructible validity exclusion, while an ineligible endpoint
+  proves structural exclusion before any `TransitionId` exists. Every excluded
+  probe retains outputs as unavailable and carries no mechanism signature.
 - Exercise cross-profile axis-value lifting while proving that generated cases
   stay `unevaluated` and inherit no evidence from their observed origin.
 - Fail closed on stale identities, corrupt chains, overlapping chunks or replay
@@ -2281,6 +2338,9 @@ is closed.
 - Close and distinguish `D`, `M` and `R`.
 - Build a reduced ordered search decision DAG whose expansion reproduces the complete
   finite classification and whose path multiplicities conserve the counts.
+- Carry `(role, role_field_index, bound_index)` for every report/snapshot axis,
+  use names only as presentation labels and resolve graph nodes by
+  `dimension_index`.
 - Preserve separate eligibility-open and admissible/polarity-open frontiers
   before closure.
 - For supported boundary expressions, build a program-hash-bound

@@ -1,7 +1,7 @@
 //! Exact certified-region lowering into the canonical case decision DAG.
 //!
 //! A proof backend supplies disjoint rectangles or interval/congruence cells
-//! over source-order domain ordinals. This module validates their finite
+//! over canonical generator-axis domain ordinals. This module validates their finite
 //! support, retains opaque certificate identities for accounting, and lowers
 //! the correlated union as one total decision partition. Uncovered support is
 //! always eligibility-open; it is never inferred from neighboring regions.
@@ -180,7 +180,7 @@ impl CertifiedAxisSet {
 
 /// One proof-backed, correlated product cell.
 ///
-/// The axes are a conjunction in source order. Multiple regions form a union;
+/// The axes are a conjunction in canonical generator-axis order. Multiple regions form a union;
 /// their per-axis supports are never merged into marginal unions.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(super) struct CertifiedCaseRegion<Certificate> {

@@ -328,7 +328,7 @@ struct ExactBoundaryShape {
 
 impl ExactBoundaryShape {
     fn from_checked_query(query: &ExploreQueryIr) -> Result<Self, SourceProofExactAdapterError> {
-        let boundary = query.universe.boundary.as_ref().ok_or_else(|| {
+        let boundary = query.boundary_hint().ok_or_else(|| {
             SourceProofExactAdapterError::invalid(
                 "source-proof stream lowering requires a checked boundary query",
             )

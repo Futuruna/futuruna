@@ -4875,19 +4875,40 @@ pub struct ExploreOver {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ExploreBoundRole {
+    Before,
+    Context,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreConstraintScope {
+    Before,
+    After,
+    BothEndpoints,
+    Transition,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExploreBound {
     Domain {
+        /// `None` is accepted only by the flat source sugar. Explicit
+        /// transitions require a `before.FIELD` or `context.FIELD` target.
+        role: Option<ExploreBoundRole>,
         name: String,
         domain: Expr,
         span: Span,
     },
     Value {
+        role: Option<ExploreBoundRole>,
         name: String,
         value: Expr,
         span: Span,
     },
     Where {
+        /// Explicit syntax names one endpoint/edge scope. Flat sugar leaves
+        /// this absent and receives its deterministic normalization scope.
+        scope: Option<ExploreConstraintScope>,
         predicate: Expr,
         span: Span,
     },
@@ -4895,8 +4916,33 @@ pub enum ExploreBound {
 
 #[derive(Debug, Clone)]
 pub struct ExploreBoundary {
+    /// Explicit syntax uses `before.FIELD`; flat sugar retains an untagged
+    /// axis and is normalized to the Before role.
+    pub axis_role: Option<ExploreBoundRole>,
     pub axis: String,
     pub step: Expr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreAfterFieldSource {
+    Derived { expression: Expr },
+    IndependentDomain { domain: Expr },
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreAfterField {
+    pub name: String,
+    pub source: ExploreAfterFieldSource,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreTransition {
+    pub state_ty: Ty,
+    pub context_ty: Ty,
+    pub mode: ExploreTransitionMode,
+    pub after_fields: Vec<ExploreAfterField>,
     pub span: Span,
 }
 
@@ -4969,9 +5015,144 @@ pub struct ExploreQuery {
     pub over: ExploreOver,
     pub polarity: ExplorePolarity,
     pub bounds: Vec<ExploreBound>,
+    pub transition: Option<ExploreTransition>,
     pub boundary: Option<ExploreBoundary>,
     pub output: ExploreOutput,
     pub span: Span,
+}
+
+/// Version of compiler-minted structural products used when source sugar does
+/// not name a nominal State or Context product. They enter the same canonical
+/// transition IR as declared products; this is schema identity, not a second
+/// evaluator contract.
+pub const EXPLORE_SYNTHETIC_PRODUCT_SCHEMA_VERSION: u32 = 1;
+
+/// Version of source-to-transition normalization shared by every Explore
+/// spelling.
+pub const EXPLORE_TRANSITION_NORMALIZATION_VERSION: u32 = 1;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreTransitionSyntax {
+    FlatSugar,
+    Explicit,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreTransitionMode {
+    Identity,
+    Relative,
+    Independent,
+}
+
+/// Semantic role of one finite generator dimension in canonical CaseId order.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ExploreGeneratorAxisRole {
+    Context,
+    Before,
+    AfterIndependent,
+}
+
+/// Source binding of one normalized product field.
+#[derive(Debug, Clone)]
+pub enum TypedExploreProductFieldBinding {
+    /// A named `bounds` clause at this source-order index.
+    Bound { bound_index: usize },
+    /// A transition-step expression that is not itself a named bound.
+    TransitionExpression { expression: Expr },
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreProductField {
+    pub name: String,
+    pub ty: Ty,
+    pub binding: TypedExploreProductFieldBinding,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypedExploreProductSchemaIdentity {
+    Synthetic { version: u32 },
+    Declared { ty: Ty },
+    Unit,
+}
+
+/// One normalized product schema. Declared products retain nominal identity;
+/// source sugar receives a versioned structural identity. State and Context
+/// are stored in distinct transition roles even when their field lists match.
+#[derive(Debug, Clone)]
+pub struct TypedExploreProductSchema {
+    pub identity: TypedExploreProductSchemaIdentity,
+    pub fields: Vec<TypedExploreProductField>,
+}
+
+/// Name-resolution environment for a normalized derived after-field.
+///
+/// Expressions produced from flat source sugar keep their bare-name spelling,
+/// but execute in the same transition frame as explicit endpoint expressions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedExploreDerivedEnvironment {
+    TransitionFrameV1,
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreAfterDependency {
+    pub field_index: usize,
+    /// Checked State-field spelling for the indexed `after.FIELD` edge. This
+    /// does not itself introduce a bare runtime binding.
+    pub binding_name: String,
+}
+
+#[derive(Debug, Clone)]
+pub enum TypedExploreAfterFieldSource {
+    FrameBefore {
+        before_field_index: usize,
+    },
+    Derived {
+        expression: Expr,
+        expression_ty: Ty,
+        environment: TypedExploreDerivedEnvironment,
+        /// Compiler-resolved edges in the after-construction DAG. Source
+        /// order is irrelevant; exact execution waits for these fields.
+        after_dependencies: Vec<TypedExploreAfterDependency>,
+    },
+    IndependentDomain {
+        bound_index: usize,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub struct TypedExploreAfterField {
+    pub field_index: usize,
+    pub name: String,
+    pub value_ty: Ty,
+    pub source: TypedExploreAfterFieldSource,
+    pub span: Span,
+}
+
+/// Structural endpoint-membership obligation independent of an optimizer
+/// hint. A checked boundary contract requires its derived after field to
+/// remain inside the same exact domain as the corresponding before binding,
+/// regardless of whether the boundary was written through compact sugar or
+/// the explicit transition syntax.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TypedExploreAfterMembership {
+    pub after_field_index: usize,
+    pub before_bound_index: usize,
+}
+
+/// Backend-neutral, non-optional transition produced for every checked Explore
+/// query, including compact syntax normalized into this same model.
+#[derive(Debug, Clone)]
+pub struct TypedExploreTransition {
+    pub normalization_version: u32,
+    pub mode: ExploreTransitionMode,
+    pub state_schema: TypedExploreProductSchema,
+    pub context_schema: TypedExploreProductSchema,
+    pub after_fields: Vec<TypedExploreAfterField>,
+    pub after_membership: Vec<TypedExploreAfterMembership>,
+    /// Optional checked optimizer assertion. It never defines endpoint
+    /// construction, validity, or membership.
+    pub boundary_hint: Option<TypedExploreBoundary>,
 }
 
 /// Backend-neutral, type-checked exploration contract. Solver lowering consumes
@@ -4979,6 +5160,9 @@ pub struct ExploreQuery {
 #[derive(Debug, Clone)]
 pub struct TypedExploreQuery {
     pub name: Option<String>,
+    /// Frontend provenance used only while validating and lowering compact
+    /// aliases. It is not part of transition semantics or durable identity.
+    pub source_syntax: ExploreTransitionSyntax,
     pub rule_name: String,
     pub rule_arity: usize,
     pub polarity: ExplorePolarity,
@@ -4987,9 +5171,15 @@ pub struct TypedExploreQuery {
     /// domain pass binds every rule input, so this remains empty.
     pub sliced_inputs: Vec<TypedExploreInput>,
     pub bounds: Vec<TypedExploreBound>,
-    pub boundary: Option<TypedExploreBoundary>,
+    pub transition: TypedExploreTransition,
     pub output: TypedExploreOutput,
     pub span: Span,
+}
+
+impl TypedExploreQuery {
+    pub fn boundary_hint(&self) -> Option<&TypedExploreBoundary> {
+        self.transition.boundary_hint.as_ref()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -5000,14 +5190,32 @@ pub struct TypedExploreInput {
 }
 
 #[derive(Debug, Clone)]
+pub enum TypedExploreBoundTarget {
+    /// Source-level compact scalar sugar. Its semantic role is established by
+    /// the canonical product schemas, never by this alias spelling.
+    CompactScalar,
+    BeforeField {
+        field_index: usize,
+    },
+    ContextField {
+        field_index: usize,
+    },
+    AfterIndependent {
+        field_index: usize,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub enum TypedExploreBound {
     Domain {
+        target: TypedExploreBoundTarget,
         name: String,
         value_ty: Ty,
         domain: TypedExploreDomain,
         span: Span,
     },
     Value {
+        target: TypedExploreBoundTarget,
         name: String,
         value_ty: Ty,
         value: Expr,
@@ -5015,6 +5223,7 @@ pub enum TypedExploreBound {
     },
     Where {
         predicate: Expr,
+        scope: ExploreConstraintScope,
         span: Span,
     },
 }
@@ -5040,11 +5249,220 @@ pub enum TypedExploreDomain {
 
 #[derive(Debug, Clone)]
 pub struct TypedExploreBoundary {
+    /// Exact source bound that owns the Before generator axis. `axis` is only
+    /// presentation/source metadata after this point.
+    pub axis_bound_index: usize,
     pub axis: String,
     pub axis_ty: Ty,
     pub step: Expr,
     pub step_ty: Ty,
     pub span: Span,
+}
+
+fn flat_boundary_step_bound_index(
+    bounds: &[TypedExploreBound],
+    boundary: &TypedExploreBoundary,
+) -> Option<usize> {
+    let ExprKind::Var(step_name) = &boundary.step.kind else {
+        return None;
+    };
+    bounds.iter().position(|bound| {
+        matches!(
+            bound,
+            TypedExploreBound::Value {
+                target: TypedExploreBoundTarget::CompactScalar,
+                name,
+                ..
+            } if name == step_name
+        )
+    })
+}
+
+/// Lower the flat Explore spelling into the same canonical transition model
+/// used by explicit State/Context syntax.
+fn normalize_flat_explore_transition(
+    bounds: &[TypedExploreBound],
+    boundary_hint: Option<TypedExploreBoundary>,
+) -> TypedExploreTransition {
+    let step_bound_index = boundary_hint
+        .as_ref()
+        .and_then(|boundary| flat_boundary_step_bound_index(bounds, boundary));
+    let mode = if boundary_hint.is_some() {
+        ExploreTransitionMode::Relative
+    } else {
+        ExploreTransitionMode::Identity
+    };
+
+    let state_fields = bounds
+        .iter()
+        .enumerate()
+        .filter_map(|(bound_index, bound)| {
+            if Some(bound_index) == step_bound_index {
+                return None;
+            }
+            match bound {
+                TypedExploreBound::Domain {
+                    target: TypedExploreBoundTarget::CompactScalar,
+                    name,
+                    value_ty,
+                    span,
+                    ..
+                }
+                | TypedExploreBound::Value {
+                    target: TypedExploreBoundTarget::CompactScalar,
+                    name,
+                    value_ty,
+                    span,
+                    ..
+                } => Some(TypedExploreProductField {
+                    name: name.clone(),
+                    ty: value_ty.clone(),
+                    binding: TypedExploreProductFieldBinding::Bound { bound_index },
+                    span: *span,
+                }),
+                TypedExploreBound::Where { .. } => None,
+                TypedExploreBound::Domain {
+                    target:
+                        TypedExploreBoundTarget::BeforeField { .. }
+                        | TypedExploreBoundTarget::ContextField { .. }
+                        | TypedExploreBoundTarget::AfterIndependent { .. },
+                    ..
+                }
+                | TypedExploreBound::Value {
+                    target:
+                        TypedExploreBoundTarget::BeforeField { .. }
+                        | TypedExploreBoundTarget::ContextField { .. }
+                        | TypedExploreBoundTarget::AfterIndependent { .. },
+                    ..
+                } => unreachable!("explicit fields use explicit transition normalization"),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let mut context_fields = Vec::new();
+    if let Some(boundary) = boundary_hint.as_ref() {
+        if let Some(bound_index) = step_bound_index {
+            let (name, ty, span) = match &bounds[bound_index] {
+                TypedExploreBound::Value {
+                    name,
+                    value_ty,
+                    span,
+                    ..
+                } => (name.clone(), value_ty.clone(), *span),
+                _ => unreachable!("flat boundary step index names a value bound"),
+            };
+            context_fields.push(TypedExploreProductField {
+                name,
+                ty,
+                binding: TypedExploreProductFieldBinding::Bound { bound_index },
+                span,
+            });
+        } else {
+            context_fields.push(TypedExploreProductField {
+                name: "__flat_boundary_step".to_string(),
+                ty: boundary.step_ty.clone(),
+                binding: TypedExploreProductFieldBinding::TransitionExpression {
+                    expression: boundary.step.clone(),
+                },
+                span: boundary.span,
+            });
+        }
+    }
+
+    let after_fields = state_fields
+        .iter()
+        .enumerate()
+        .map(|(field_index, field)| {
+            let source = match (&boundary_hint, &field.binding) {
+                (None, _) => TypedExploreAfterFieldSource::FrameBefore {
+                    before_field_index: field_index,
+                },
+                (Some(boundary), _)
+                    if field.name == boundary.axis
+                        && matches!(
+                            &field.binding,
+                            TypedExploreProductFieldBinding::Bound { .. }
+                        ) =>
+                {
+                    TypedExploreAfterFieldSource::Derived {
+                        expression: Expr::new(
+                            ExprKind::BinOp(
+                                "+".to_string(),
+                                Box::new(Expr::new(
+                                    ExprKind::Var(boundary.axis.clone()),
+                                    boundary.span,
+                                )),
+                                Box::new(boundary.step.clone()),
+                            ),
+                            boundary.span,
+                        ),
+                        expression_ty: boundary.axis_ty.clone(),
+                        environment: TypedExploreDerivedEnvironment::TransitionFrameV1,
+                        after_dependencies: Vec::new(),
+                    }
+                }
+                (Some(_), TypedExploreProductFieldBinding::Bound { .. }) => {
+                    TypedExploreAfterFieldSource::FrameBefore {
+                        before_field_index: field_index,
+                    }
+                }
+                (Some(_), TypedExploreProductFieldBinding::TransitionExpression { .. }) => {
+                    unreachable!("the synthetic boundary step is a context field")
+                }
+            };
+            TypedExploreAfterField {
+                field_index,
+                name: field.name.clone(),
+                value_ty: field.ty.clone(),
+                source,
+                span: field.span,
+            }
+        })
+        .collect();
+
+    let after_membership = boundary_hint
+        .as_ref()
+        .and_then(|boundary| {
+            state_fields
+                .iter()
+                .enumerate()
+                .find(|(_, field)| field.name == boundary.axis)
+                .and_then(|(after_field_index, field)| match &field.binding {
+                    TypedExploreProductFieldBinding::Bound { bound_index } => {
+                        Some(TypedExploreAfterMembership {
+                            after_field_index,
+                            before_bound_index: *bound_index,
+                        })
+                    }
+                    TypedExploreProductFieldBinding::TransitionExpression { .. } => None,
+                })
+        })
+        .into_iter()
+        .collect();
+
+    TypedExploreTransition {
+        normalization_version: EXPLORE_TRANSITION_NORMALIZATION_VERSION,
+        mode,
+        state_schema: TypedExploreProductSchema {
+            identity: TypedExploreProductSchemaIdentity::Synthetic {
+                version: EXPLORE_SYNTHETIC_PRODUCT_SCHEMA_VERSION,
+            },
+            fields: state_fields,
+        },
+        context_schema: TypedExploreProductSchema {
+            identity: if context_fields.is_empty() {
+                TypedExploreProductSchemaIdentity::Unit
+            } else {
+                TypedExploreProductSchemaIdentity::Synthetic {
+                    version: EXPLORE_SYNTHETIC_PRODUCT_SCHEMA_VERSION,
+                }
+            },
+            fields: context_fields,
+        },
+        after_fields,
+        after_membership,
+        boundary_hint,
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -5554,9 +5972,13 @@ impl<'a> RuleDispatchRegistry<'a> {
 #[derive(Debug, Clone, Default)]
 struct FreeSymbolUses {
     values: BTreeSet<String>,
+    /// Occurrence counts complement the deduplicated dependency sets when a
+    /// consumer must prove that every free role-root use is a projection.
+    value_occurrences: BTreeMap<String, usize>,
     calls: BTreeSet<String>,
     member_calls: BTreeSet<(String, String)>,
     member_values: BTreeSet<(String, String)>,
+    member_value_occurrences: BTreeMap<(String, String), usize>,
     typed_member_calls: BTreeSet<(String, String)>,
     runtime_calls: Vec<RuntimeCallUse>,
     runtime_member_calls: Vec<RuntimeMemberCallUse>,
@@ -5565,9 +5987,15 @@ struct FreeSymbolUses {
 impl FreeSymbolUses {
     fn extend(&mut self, other: Self) {
         self.values.extend(other.values);
+        for (name, count) in other.value_occurrences {
+            *self.value_occurrences.entry(name).or_default() += count;
+        }
         self.calls.extend(other.calls);
         self.member_calls.extend(other.member_calls);
         self.member_values.extend(other.member_values);
+        for (member, count) in other.member_value_occurrences {
+            *self.member_value_occurrences.entry(member).or_default() += count;
+        }
         self.typed_member_calls.extend(other.typed_member_calls);
         self.runtime_calls.extend(other.runtime_calls);
         self.runtime_member_calls.extend(other.runtime_member_calls);
@@ -5812,12 +6240,22 @@ fn collect_true_free_symbol_uses_stmt(
             let mut query_bound = bound.clone();
             let mut query_typed_receivers = typed_receivers.clone();
             query_bound.extend(query.over.inputs.iter().map(|input| input.name.clone()));
-            query_bound.extend(query.bounds.iter().filter_map(|clause| match clause {
-                ExploreBound::Domain { name, .. } | ExploreBound::Value { name, .. } => {
-                    Some(name.clone())
+            if let Some(transition) = &query.transition {
+                for (role, ty) in [
+                    ("before", &transition.state_ty),
+                    ("after", &transition.state_ty),
+                    ("context", &transition.context_ty),
+                ] {
+                    query_typed_receivers.insert(role.to_string(), ty.to_string());
                 }
-                ExploreBound::Where { .. } => None,
-            }));
+            } else {
+                query_bound.extend(query.bounds.iter().filter_map(|clause| match clause {
+                    ExploreBound::Domain { name, .. } | ExploreBound::Value { name, .. } => {
+                        Some(name.clone())
+                    }
+                    ExploreBound::Where { .. } => None,
+                }));
+            }
             query_bound.extend(query.output.extrema.iter().map(|field| field.name.clone()));
             query_bound.extend(query.output.show.iter().map(|field| field.name.clone()));
             for clause in &query.bounds {
@@ -5829,8 +6267,10 @@ fn collect_true_free_symbol_uses_stmt(
                             &query_bound,
                             &query_typed_receivers,
                         );
-                        query_bound.insert(name.clone());
-                        query_typed_receivers.remove(name);
+                        if query.transition.is_none() {
+                            query_bound.insert(name.clone());
+                            query_typed_receivers.remove(name);
+                        }
                     }
                     ExploreBound::Value { name, value, .. } => {
                         collect_true_free_symbol_uses(
@@ -5839,8 +6279,10 @@ fn collect_true_free_symbol_uses_stmt(
                             &query_bound,
                             &query_typed_receivers,
                         );
-                        query_bound.insert(name.clone());
-                        query_typed_receivers.remove(name);
+                        if query.transition.is_none() {
+                            query_bound.insert(name.clone());
+                            query_typed_receivers.remove(name);
+                        }
                     }
                     ExploreBound::Where { predicate, .. } => collect_true_free_symbol_uses(
                         predicate,
@@ -5848,6 +6290,20 @@ fn collect_true_free_symbol_uses_stmt(
                         &query_bound,
                         &query_typed_receivers,
                     ),
+                }
+            }
+            if let Some(transition) = &query.transition {
+                for field in &transition.after_fields {
+                    let expression = match &field.source {
+                        ExploreAfterFieldSource::Derived { expression } => expression,
+                        ExploreAfterFieldSource::IndependentDomain { domain } => domain,
+                    };
+                    collect_true_free_symbol_uses(
+                        expression,
+                        uses,
+                        &query_bound,
+                        &query_typed_receivers,
+                    );
                 }
             }
             if let Some(boundary) = &query.boundary {
@@ -5942,6 +6398,7 @@ fn collect_true_free_symbol_uses(
         ExprKind::Var(name) => {
             if !bound.contains(name) {
                 uses.values.insert(name.clone());
+                *uses.value_occurrences.entry(name.clone()).or_default() += 1;
             }
         }
         ExprKind::Lit(_) | ExprKind::Unit => {}
@@ -6038,6 +6495,10 @@ fn collect_true_free_symbol_uses(
                 if !bound.contains(receiver) {
                     uses.member_values
                         .insert((receiver.clone(), member.clone()));
+                    *uses
+                        .member_value_occurrences
+                        .entry((receiver.clone(), member.clone()))
+                        .or_default() += 1;
                 }
             }
             collect_true_free_symbol_uses(object, uses, bound, typed_receivers)
@@ -6786,9 +7247,11 @@ pub fn analyze_top_level_binding_dependencies(stmts: &[Stmt]) -> TopLevelBinding
         collect_true_free_symbol_uses(expression, &mut uses, &BTreeSet::new(), &BTreeMap::new());
         let FreeSymbolUses {
             values,
+            value_occurrences: _,
             calls,
             member_calls,
             member_values: _,
+            member_value_occurrences: _,
             typed_member_calls,
             runtime_calls: _,
             runtime_member_calls: _,
@@ -7249,6 +7712,18 @@ where
                     ExploreBound::Where { predicate, .. } => visit(AstChild::Expr(predicate)),
                 }
             }
+            if let Some(transition) = &query.transition {
+                for field in &transition.after_fields {
+                    match &field.source {
+                        ExploreAfterFieldSource::Derived { expression } => {
+                            visit(AstChild::Expr(expression))
+                        }
+                        ExploreAfterFieldSource::IndependentDomain { domain } => {
+                            visit(AstChild::Expr(domain))
+                        }
+                    }
+                }
+            }
             if let Some(boundary) = &query.boundary {
                 visit(AstChild::Expr(&boundary.step));
             }
@@ -7571,23 +8046,62 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
             .bounds
             .iter()
             .map(|clause| match clause {
-                ExploreBound::Domain { name, domain, .. } => ExploreBound::Domain {
+                ExploreBound::Domain {
+                    role, name, domain, ..
+                } => ExploreBound::Domain {
+                    role: *role,
                     name: name.clone(),
                     domain: strip_spans_expr(domain),
                     span: Span::dummy(),
                 },
-                ExploreBound::Value { name, value, .. } => ExploreBound::Value {
+                ExploreBound::Value {
+                    role, name, value, ..
+                } => ExploreBound::Value {
+                    role: *role,
                     name: name.clone(),
                     value: strip_spans_expr(value),
                     span: Span::dummy(),
                 },
-                ExploreBound::Where { predicate, .. } => ExploreBound::Where {
+                ExploreBound::Where {
+                    scope, predicate, ..
+                } => ExploreBound::Where {
+                    scope: *scope,
                     predicate: strip_spans_expr(predicate),
                     span: Span::dummy(),
                 },
             })
             .collect(),
+        transition: query
+            .transition
+            .as_ref()
+            .map(|transition| ExploreTransition {
+                state_ty: transition.state_ty.clone(),
+                context_ty: transition.context_ty.clone(),
+                mode: transition.mode,
+                after_fields: transition
+                    .after_fields
+                    .iter()
+                    .map(|field| ExploreAfterField {
+                        name: field.name.clone(),
+                        source: match &field.source {
+                            ExploreAfterFieldSource::Derived { expression } => {
+                                ExploreAfterFieldSource::Derived {
+                                    expression: strip_spans_expr(expression),
+                                }
+                            }
+                            ExploreAfterFieldSource::IndependentDomain { domain } => {
+                                ExploreAfterFieldSource::IndependentDomain {
+                                    domain: strip_spans_expr(domain),
+                                }
+                            }
+                        },
+                        span: Span::dummy(),
+                    })
+                    .collect(),
+                span: Span::dummy(),
+            }),
         boundary: query.boundary.as_ref().map(|boundary| ExploreBoundary {
+            axis_role: boundary.axis_role,
             axis: boundary.axis.clone(),
             step: strip_spans_expr(&boundary.step),
             span: Span::dummy(),
@@ -8594,6 +9108,36 @@ impl Parser {
         Ok((token.text.clone(), token))
     }
 
+    fn explore_bound_role_at_cursor(&self) -> Option<ExploreBoundRole> {
+        let role = if self.peek_word("before") {
+            ExploreBoundRole::Before
+        } else if self.peek_word("context") {
+            ExploreBoundRole::Context
+        } else {
+            return None;
+        };
+        self.tokens
+            .get(self.pos + 1)
+            .is_some_and(|token| token.kind == TokenKind::Dot)
+            .then_some(role)
+    }
+
+    fn parse_explore_bound_target(
+        &mut self,
+        target_kind: &str,
+    ) -> Result<(Option<ExploreBoundRole>, String, Token), String> {
+        let start = self.peek().clone();
+        if let Some(role) = self.explore_bound_role_at_cursor() {
+            self.advance();
+            self.expect(TokenKind::Dot)?;
+            let name = self.expect_field_name()?;
+            Ok((Some(role), name, start))
+        } else {
+            let (name, token) = self.expect_explore_binder(target_kind)?;
+            Ok((None, name, token))
+        }
+    }
+
     fn is_explore_query_start(&self) -> bool {
         if !self.peek_word("explore") {
             return false;
@@ -8623,7 +9167,7 @@ impl Parser {
                 format!("`{}`", token.source_text)
             };
             Err(format!(
-                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `over`, `find`, `bounds`, optional `boundaries`, then `output`",
+                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `over`, `find`, `bounds`, optional `transition`, optional `boundaries`, then `output`",
                 token.line, token.col, word, found
             ))
         }
@@ -8722,8 +9266,21 @@ impl Parser {
             let start = self.peek().clone();
             if self.peek_word("where") {
                 self.advance();
+                let scope = if self.peek_word("before") {
+                    self.advance();
+                    Some(ExploreConstraintScope::Before)
+                } else if self.peek_word("after") {
+                    self.advance();
+                    Some(ExploreConstraintScope::After)
+                } else if self.peek_word("transition") {
+                    self.advance();
+                    Some(ExploreConstraintScope::Transition)
+                } else {
+                    None
+                };
                 let predicate = self.parse_expr()?;
                 bounds.push(ExploreBound::Where {
+                    scope,
                     predicate,
                     span: self.span_since(&start),
                 });
@@ -8737,17 +9294,31 @@ impl Parser {
                     start.line, start.col
                 ));
             }
-            let (name, _) = self.expect_explore_binder("bound name")?;
-            if !names.insert(name.clone()) {
-                return Err(format!(
-                    "{}:{}: duplicate exploration bound `{}`",
-                    start.line, start.col, name
-                ));
+            let (role, name, _) = self.parse_explore_bound_target("bound name")?;
+            let identity = (role, name.clone());
+            if !names.insert(identity) {
+                let target = match role {
+                    Some(ExploreBoundRole::Before) => format!("before.{name}"),
+                    Some(ExploreBoundRole::Context) => format!("context.{name}"),
+                    None => name.clone(),
+                };
+                return Err(if role.is_some() {
+                    format!(
+                        "{}:{}: duplicate exploration bound target `{target}`",
+                        start.line, start.col
+                    )
+                } else {
+                    format!(
+                        "{}:{}: duplicate exploration bound `{target}`",
+                        start.line, start.col
+                    )
+                });
             }
             if self.peek_word("in") {
                 self.advance();
                 let domain = self.parse_expr()?;
                 bounds.push(ExploreBound::Domain {
+                    role,
                     name,
                     domain,
                     span: self.span_since(&start),
@@ -8755,6 +9326,7 @@ impl Parser {
             } else if self.consume_explore_equals() {
                 let value = self.parse_expr()?;
                 bounds.push(ExploreBound::Value {
+                    role,
                     name,
                     value,
                     span: self.span_since(&start),
@@ -8775,12 +9347,101 @@ impl Parser {
     fn parse_explore_boundary(&mut self) -> Result<ExploreBoundary, String> {
         let start = self.expect_explore_word("boundaries")?;
         self.expect_explore_word("on")?;
-        let (axis, _) = self.expect_explore_binder("boundary axis")?;
+        let (axis_role, axis, _) = self.parse_explore_bound_target("boundary axis")?;
         self.expect_explore_word("by")?;
         let step = self.parse_expr()?;
         Ok(ExploreBoundary {
+            axis_role,
             axis,
             step,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn finish_explore_transition_clause(&mut self) -> Result<(), String> {
+        if self.peek_kind() == TokenKind::RBrace {
+            return Ok(());
+        }
+        if self.peek_kind() != TokenKind::Semi {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration transition clauses must be separated by a newline or `;`, found `{}`",
+                token.line, token.col, token.source_text
+            ));
+        }
+        self.skip_semis();
+        Ok(())
+    }
+
+    fn parse_explore_transition(&mut self) -> Result<ExploreTransition, String> {
+        let start = self.expect_explore_word("transition")?;
+        self.expect_explore_word("as")?;
+        let state_ty = self.parse_type()?;
+        self.expect_explore_word("context")?;
+        let context_ty = self.parse_type()?;
+        self.expect(TokenKind::LBrace)?;
+        self.skip_semis();
+
+        let mode = if self.peek_word("identity") {
+            self.advance();
+            ExploreTransitionMode::Identity
+        } else if self.peek_word("relative") {
+            self.advance();
+            ExploreTransitionMode::Relative
+        } else if self.peek_word("independent") {
+            self.advance();
+            ExploreTransitionMode::Independent
+        } else {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration transition must begin with `identity`, `relative`, or `independent`",
+                token.line, token.col
+            ));
+        };
+        self.finish_explore_transition_clause()?;
+
+        let mut after_fields = Vec::new();
+        let mut names = BTreeSet::new();
+        while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
+            let field_start = self.peek().clone();
+            self.expect_explore_word("after")?;
+            self.expect(TokenKind::Dot)?;
+            let name = self.expect_field_name()?;
+            if !names.insert(name.clone()) {
+                return Err(format!(
+                    "{}:{}: duplicate exploration after-field `{}`",
+                    field_start.line, field_start.col, name
+                ));
+            }
+            let source = if self.consume_explore_equals() {
+                ExploreAfterFieldSource::Derived {
+                    expression: self.parse_expr()?,
+                }
+            } else if self.peek_word("in") {
+                self.advance();
+                ExploreAfterFieldSource::IndependentDomain {
+                    domain: self.parse_expr()?,
+                }
+            } else {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: expected `=` or `in` after exploration after-field `{}`",
+                    token.line, token.col, name
+                ));
+            };
+            after_fields.push(ExploreAfterField {
+                name,
+                source,
+                span: self.span_since(&field_start),
+            });
+            self.finish_explore_transition_clause()?;
+        }
+        self.expect(TokenKind::RBrace)?;
+        Ok(ExploreTransition {
+            state_ty,
+            context_ty,
+            mode,
+            after_fields,
             span: self.span_since(&start),
         })
     }
@@ -8989,6 +9650,13 @@ impl Parser {
         self.skip_semis();
         let bounds = self.parse_explore_bounds()?;
         self.skip_semis();
+        let transition = if self.peek_word("transition") {
+            let transition = self.parse_explore_transition()?;
+            self.skip_semis();
+            Some(transition)
+        } else {
+            None
+        };
         let boundary = if self.peek_word("boundaries") {
             let boundary = self.parse_explore_boundary()?;
             self.skip_semis();
@@ -9012,6 +9680,7 @@ impl Parser {
             over,
             polarity,
             bounds,
+            transition,
             boundary,
             output,
             span: self.span_since(question_token),
@@ -22832,8 +23501,10 @@ impl StaticTypeBudget {
 /// Full SHA-256 equality is deliberately treated as content equality: two
 /// byte-distinct inputs that ever produced the same normalized digest would
 /// share this ID rather than being disambiguated with a checkout-local path.
-/// Ordinary duplicate content is expected and shares an ID by design; its
-/// retained occurrences are distinguished by [`SourcedStmt::normalized_ordinal`].
+/// Ordinary duplicate content is expected and shares an ID by design; stable
+/// semantic instances use [`SourcedStmt::declaration_occurrence_ordinal`],
+/// while [`SourcedStmt::normalized_ordinal`] addresses them inside one checked
+/// program.
 #[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct ModuleId {
     pub(crate) content_hash: Box<str>,
@@ -23442,6 +24113,9 @@ pub(crate) enum SourcedImportKind {
 #[derive(Debug, Clone)]
 pub(crate) struct SourcedStmt {
     pub(crate) id: DeclarationId,
+    /// Stable rank among retained declarations with this exact DeclarationId.
+    /// Unlike `normalized_ordinal`, unrelated declarations cannot renumber it.
+    pub(crate) declaration_occurrence_ordinal: usize,
     pub(crate) normalized_ordinal: usize,
     pub(crate) import_kind: SourcedImportKind,
     pub(crate) statement: Arc<Stmt>,
@@ -23458,8 +24132,9 @@ impl SourcedStmt {
     /// Canonical parent-instance namespace for declarations addressed through
     /// a direct qualified import. The target's content identity is reusable,
     /// while the path component binds a child declaration to this particular
-    /// path-independent parent alias/ordinal. Qualified contents remain opaque
-    /// until a later checked resolver explicitly asks for this namespace.
+    /// path-independent parent alias/equal-declaration occurrence. Qualified
+    /// contents remain opaque until a later checked resolver explicitly asks
+    /// for this namespace.
     pub(crate) fn qualified_instance_module_id(&self) -> Option<ModuleId> {
         let SourcedImportKind::QualifiedImport { module_name } = &self.import_kind else {
             return None;
@@ -23468,7 +24143,7 @@ impl SourcedStmt {
         let parent_hash = parsed_source_content_hash(&format!(
             "{};occurrence={}",
             self.id.semantic_key(),
-            self.normalized_ordinal
+            self.declaration_occurrence_ordinal
         ));
         Some(target.within_inline_module(&format!("qualified:{}:{}", module_name, parent_hash)))
     }
@@ -23524,12 +24199,15 @@ impl CheckedAnalysisProgram {
 }
 
 /// One retained occurrence of a semantic declaration. `DeclarationId` stays
-/// reusable when the same plain/hash declaration is consumed more than once;
-/// the normalized ordinal makes an occurrence addressable inside this checked
-/// analysis program without introducing a source path or byte offset.
+/// reusable when the same plain/hash declaration is consumed more than once.
+/// `declaration_occurrence_ordinal` is the stable semantic discriminator among
+/// equal declarations; `normalized_ordinal` remains the whole-program address
+/// used to locate that retained occurrence without a source path or byte
+/// offset.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct CheckedDeclarationOccurrenceId {
     pub(crate) declaration: DeclarationId,
+    pub(crate) declaration_occurrence_ordinal: usize,
     pub(crate) normalized_ordinal: usize,
 }
 
@@ -23537,6 +24215,7 @@ impl CheckedDeclarationOccurrenceId {
     fn from_sourced(declaration: &SourcedStmt) -> Self {
         Self {
             declaration: declaration.id.clone(),
+            declaration_occurrence_ordinal: declaration.declaration_occurrence_ordinal,
             normalized_ordinal: declaration.normalized_ordinal,
         }
     }
@@ -24019,9 +24698,6 @@ pub struct TypeChecker {
     inferring_exact_explore_rule_returns: bool,
     /// Require exact rule identities while checking an exploration query.
     checking_explore_query: bool,
-    /// Hidden exact-exhaustion preview: retain ordinary type checking while
-    /// bypassing solver-only purity and static replay-classification gates.
-    checking_exhaustive_explore_preview: bool,
     /// Bodies used to prove that an Explore question and its reachable helpers
     /// are free of effects and unsupported propagation paths.
     explore_callable_expressions_by_arity: BTreeMap<(String, usize), Vec<Expr>>,
@@ -24098,6 +24774,7 @@ pub(crate) struct CheckedExploreBoundSites {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CheckedExploreQuerySites {
     pub(crate) bounds: Box<[CheckedExploreBoundSites]>,
+    pub(crate) transition_after: Box<[ExprSiteId]>,
     pub(crate) boundary_step: Option<ExprSiteId>,
     pub(crate) key: Box<[ExprSiteId]>,
     pub(crate) extrema: Box<[ExprSiteId]>,
@@ -24107,6 +24784,8 @@ pub(crate) struct CheckedExploreQuerySites {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum CheckedExploreTypeUse {
+    StateSchema,
+    ContextSchema,
     Dimension(usize),
     Fact(usize),
     SlicedInput(usize),
@@ -24185,9 +24864,13 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// Producer-minted identity of the normalized finite domain and CaseId
     /// convention, independently revalidated by the checked accessor.
     pub(crate) domain_digest: Box<str>,
+    /// Producer-minted semantic identities for the canonical State, Context,
+    /// and transition schemas. Declared products are bound to their resolved
+    /// occurrence-sensitive type owners, never merely to source spelling.
+    pub(crate) transition_schemas: explore::TransitionSchemaIdentities,
     pub(crate) question: RuleDispatchKey,
     pub(crate) sites: CheckedExploreQuerySites,
-    /// Index into the legacy compatibility vector. Access must go through
+    /// Index into the public closed-query projection. Access must go through
     /// `TypeCheckArtifacts::checked_exploration_query`, which revalidates the
     /// producer digest before exposing the borrowed closed query.
     closed_query_index: usize,
@@ -24219,6 +24902,7 @@ pub(crate) enum CheckedExploreQueryArtifactIssue {
     FinitePlanTypeMismatch {
         dimension_index: usize,
     },
+    TransitionSchemaIdentity(String),
 }
 
 #[derive(Debug, Clone)]
@@ -24247,6 +24931,11 @@ impl CheckedExploreQueryView<'_> {
     pub(crate) fn domain_hash(&self) -> &str {
         &self.artifact.domain_digest
     }
+
+    /// Producer-owned semantic schema identity used by every exact evaluator.
+    pub(crate) fn transition_schemas(&self) -> &explore::TransitionSchemaIdentities {
+        &self.artifact.transition_schemas
+    }
 }
 
 pub struct TypeCheckArtifacts {
@@ -24262,9 +24951,9 @@ pub struct TypeCheckArtifacts {
     /// Closed, exact universes.  Solver/executor code must consume this layer,
     /// never the typed source-domain syntax above.
     pub exploration_universes: Vec<explore::ExploreQueryIr>,
-    /// Declaration-occurrence-bound checked query artifacts. Legacy public
-    /// query/universe vectors remain for compatibility, but proof-first
-    /// consumers must use this immutable joined layer.
+    /// Declaration-occurrence-bound checked query artifacts. Exact and
+    /// proof-producing consumers must use this immutable joined layer rather
+    /// than independently pairing the public typed and closed projections.
     pub(crate) checked_exploration_queries: Vec<CheckedExploreQueryArtifact>,
     pub(crate) checked_exploration_query_issue: Option<CheckedExploreQueryArtifactIssue>,
     pub(crate) analysis_program: CheckedAnalysisProgram,
@@ -24408,8 +25097,8 @@ impl TypeCheckArtifacts {
         self.checked_exploration_query(accepted_index)
     }
 
-    /// Select one producer-minted checked query. The compatibility vectors are
-    /// public and historically mutable, so the digest is recomputed before a
+    /// Select one producer-minted checked query. The public projections are
+    /// independently mutable, so the digest is recomputed before a
     /// proof consumer receives a reference; stale or caller-modified state is
     /// rejected rather than rebound to the declaration by spelling.
     pub(crate) fn checked_exploration_query(
@@ -24462,6 +25151,15 @@ impl TypeCheckArtifacts {
         {
             return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
         }
+        let transition_schemas = checked_explore_transition_schema_identities(
+            &self.checked_resolutions,
+            closed_query,
+            &type_facts,
+        )
+        .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        if transition_schemas != artifact.transition_schemas {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
         let domain_digest = checked_explore_domain_digest(
             closed_query,
             &type_facts,
@@ -24497,7 +25195,7 @@ fn checked_explore_query_sites(
     query: &ExploreQuery,
 ) -> CheckedExploreQuerySites {
     let mut child = 0_u32;
-    let bounds = query
+    let mut bounds = query
         .bounds
         .iter()
         .enumerate()
@@ -24522,8 +25220,37 @@ fn checked_explore_query_sites(
             });
             CheckedExploreBoundSites { expression, binder }
         })
-        .collect::<Vec<_>>()
-        .into_boxed_slice();
+        .collect::<Vec<_>>();
+    let mut transition_after = Vec::new();
+    if let Some(transition) = &query.transition {
+        let mut independent_index = 0_usize;
+        for field in &transition.after_fields {
+            let ast_path = vec![child];
+            child += 1;
+            let expression = program.expression_site(declaration, ast_path.clone());
+            match &field.source {
+                ExploreAfterFieldSource::Derived { .. } => transition_after.push(expression),
+                ExploreAfterFieldSource::IndependentDomain { .. } => {
+                    let bound_index = query.bounds.len() + independent_index;
+                    independent_index += 1;
+                    bounds.push(CheckedExploreBoundSites {
+                        expression,
+                        binder: Some(CheckedBinderSiteId::Structural {
+                            analysis_program: program.id.clone(),
+                            declaration: declaration.id.clone(),
+                            normalized_declaration_ordinal: declaration.normalized_ordinal,
+                            ast_path: ast_path.into_boxed_slice(),
+                            binder_path: vec![
+                                CheckedResolutionRecorder::BINDER_EXPLORE,
+                                bound_index as u32,
+                            ]
+                            .into_boxed_slice(),
+                        }),
+                    });
+                }
+            }
+        }
+    }
     let boundary_step = query.boundary.as_ref().map(|_| {
         let site = program.expression_site(declaration, vec![child]);
         child += 1;
@@ -24568,7 +25295,8 @@ fn checked_explore_query_sites(
     ))
     .then(|| program.expression_site(declaration, vec![child]));
     CheckedExploreQuerySites {
-        bounds,
+        bounds: bounds.into_boxed_slice(),
+        transition_after: transition_after.into_boxed_slice(),
         boundary_step,
         key,
         extrema,
@@ -24582,6 +25310,7 @@ fn checked_explore_site_roots(sites: &CheckedExploreQuerySites) -> Vec<&ExprSite
         .bounds
         .iter()
         .map(|bound| &bound.expression)
+        .chain(sites.transition_after.iter())
         .chain(sites.boundary_step.iter())
         .chain(sites.key.iter())
         .chain(sites.extrema.iter())
@@ -24905,6 +25634,24 @@ fn checked_explore_closed_facts(
     let mut type_facts = Vec::new();
     let mut constructors = Vec::new();
     let mut finite_plan_facts = Vec::new();
+    if let TypedExploreProductSchemaIdentity::Declared { ty } =
+        &query.transition.state_schema.identity
+    {
+        type_facts.push(checked_explore_type_fact(
+            resolutions,
+            CheckedExploreTypeUse::StateSchema,
+            ty,
+        )?);
+    }
+    if let TypedExploreProductSchemaIdentity::Declared { ty } =
+        &query.transition.context_schema.identity
+    {
+        type_facts.push(checked_explore_type_fact(
+            resolutions,
+            CheckedExploreTypeUse::ContextSchema,
+            ty,
+        )?);
+    }
     for (dimension_index, dimension) in query.universe.dimensions.iter().enumerate() {
         type_facts.push(checked_explore_type_fact(
             resolutions,
@@ -24981,11 +25728,337 @@ fn checked_explore_closed_facts(
     ))
 }
 
+fn checked_explore_transition_schema_identities(
+    resolutions: &CheckedResolutionArtifacts,
+    query: &explore::ExploreQueryIr,
+    type_facts: &[CheckedExploreTypeFact],
+) -> Result<explore::TransitionSchemaIdentities, CheckedExploreQueryArtifactIssue> {
+    let owner = |use_site: CheckedExploreTypeUse| {
+        type_facts
+            .iter()
+            .find(|fact| fact.use_site == use_site)
+            .map(|fact| &fact.owner)
+    };
+    explore::TransitionSchemaIdentities::derive_checked(
+        &query.transition,
+        owner(CheckedExploreTypeUse::StateSchema),
+        owner(CheckedExploreTypeUse::ContextSchema),
+        &resolutions.data_type_identities,
+    )
+    .map_err(CheckedExploreQueryArtifactIssue::TransitionSchemaIdentity)
+}
+
 fn checked_query_hash_component(hasher: &mut Sha256, label: &str, value: &str) {
     hasher.update((label.len() as u64).to_le_bytes());
     hasher.update(label.as_bytes());
     hasher.update((value.len() as u64).to_le_bytes());
     hasher.update(value.as_bytes());
+}
+
+fn hash_checked_typed_domain(hasher: &mut Sha256, domain: &TypedExploreDomain) {
+    match domain {
+        TypedExploreDomain::FiniteExpr {
+            expression,
+            collection_ty,
+            element_ty,
+        } => {
+            checked_query_hash_component(hasher, "domain-kind", "finite-expression");
+            checked_query_hash_component(
+                hasher,
+                "collection-type",
+                &format!("{:?}", collection_ty),
+            );
+            checked_query_hash_component(hasher, "element-type", &format!("{:?}", element_ty));
+            checked_query_hash_component(
+                hasher,
+                "domain-expression",
+                &format!("{:?}", strip_spans_expr(expression)),
+            );
+        }
+        TypedExploreDomain::Range {
+            start,
+            end_exclusive,
+        } => {
+            checked_query_hash_component(hasher, "domain-kind", "range");
+            checked_query_hash_component(
+                hasher,
+                "range-start-expression",
+                &format!("{:?}", strip_spans_expr(start)),
+            );
+            checked_query_hash_component(
+                hasher,
+                "range-end-expression",
+                &format!("{:?}", strip_spans_expr(end_exclusive)),
+            );
+        }
+        TypedExploreDomain::Values { ty } => {
+            checked_query_hash_component(hasher, "domain-kind", "values");
+            checked_query_hash_component(hasher, "values-type", &format!("{:?}", ty));
+        }
+    }
+}
+
+fn hash_checked_product_schema(
+    hasher: &mut Sha256,
+    role: &str,
+    schema: &TypedExploreProductSchema,
+) {
+    match &schema.identity {
+        TypedExploreProductSchemaIdentity::Synthetic { version } => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "synthetic");
+            checked_query_hash_component(
+                hasher,
+                &format!("{role}-schema-version"),
+                &version.to_string(),
+            );
+        }
+        TypedExploreProductSchemaIdentity::Declared { ty } => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "declared");
+            checked_query_hash_component(
+                hasher,
+                &format!("{role}-schema-type"),
+                &format!("{ty:?}"),
+            );
+        }
+        TypedExploreProductSchemaIdentity::Unit => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "unit");
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        &format!("{role}-field-count"),
+        &schema.fields.len().to_string(),
+    );
+    for field in &schema.fields {
+        checked_query_hash_component(hasher, &format!("{role}-field-name"), &field.name);
+        checked_query_hash_component(
+            hasher,
+            &format!("{role}-field-type"),
+            &format!("{:?}", field.ty),
+        );
+        match &field.binding {
+            TypedExploreProductFieldBinding::Bound { bound_index } => {
+                checked_query_hash_component(hasher, &format!("{role}-field-binding"), "bound");
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-bound-index"),
+                    &bound_index.to_string(),
+                );
+            }
+            TypedExploreProductFieldBinding::TransitionExpression { expression } => {
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-binding"),
+                    "transition-expression",
+                );
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-expression"),
+                    &format!("{:?}", strip_spans_expr(expression)),
+                );
+            }
+        }
+    }
+}
+
+fn hash_checked_closed_product_schema(
+    hasher: &mut Sha256,
+    role: &str,
+    schema: &explore::ExploreProductSchemaIr,
+) {
+    match &schema.identity {
+        TypedExploreProductSchemaIdentity::Synthetic { version } => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "synthetic");
+            checked_query_hash_component(
+                hasher,
+                &format!("{role}-schema-version"),
+                &version.to_string(),
+            );
+        }
+        TypedExploreProductSchemaIdentity::Declared { ty } => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "declared");
+            checked_query_hash_component(
+                hasher,
+                &format!("{role}-schema-type"),
+                &format!("{ty:?}"),
+            );
+        }
+        TypedExploreProductSchemaIdentity::Unit => {
+            checked_query_hash_component(hasher, &format!("{role}-schema-kind"), "unit");
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        &format!("{role}-field-count"),
+        &schema.fields.len().to_string(),
+    );
+    for field in &schema.fields {
+        checked_query_hash_component(
+            hasher,
+            &format!("{role}-field-index"),
+            &field.field_index.to_string(),
+        );
+        checked_query_hash_component(hasher, &format!("{role}-field-name"), &field.name);
+        checked_query_hash_component(
+            hasher,
+            &format!("{role}-field-type"),
+            &format!("{:?}", field.value_ty),
+        );
+        match &field.source {
+            explore::ExploreProductFieldSourceIr::Dimension { dimension_index } => {
+                checked_query_hash_component(hasher, &format!("{role}-field-source"), "dimension");
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-dimension-index"),
+                    &dimension_index.to_string(),
+                );
+            }
+            explore::ExploreProductFieldSourceIr::Fact { fact_index } => {
+                checked_query_hash_component(hasher, &format!("{role}-field-source"), "fact");
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-fact-index"),
+                    &fact_index.to_string(),
+                );
+            }
+            explore::ExploreProductFieldSourceIr::TransitionExpression { expression } => {
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-source"),
+                    "transition-expression",
+                );
+                checked_query_hash_component(
+                    hasher,
+                    &format!("{role}-field-expression"),
+                    &format!("{:?}", strip_spans_expr(expression)),
+                );
+            }
+        }
+    }
+}
+
+fn hash_checked_typed_transition(hasher: &mut Sha256, transition: &TypedExploreTransition) {
+    checked_query_hash_component(
+        hasher,
+        "transition-normalization-version",
+        &transition.normalization_version.to_string(),
+    );
+    checked_query_hash_component(
+        hasher,
+        "transition-mode",
+        match transition.mode {
+            ExploreTransitionMode::Identity => "identity",
+            ExploreTransitionMode::Relative => "relative",
+            ExploreTransitionMode::Independent => "independent",
+        },
+    );
+    hash_checked_product_schema(hasher, "state", &transition.state_schema);
+    hash_checked_product_schema(hasher, "context", &transition.context_schema);
+    checked_query_hash_component(
+        hasher,
+        "after-field-count",
+        &transition.after_fields.len().to_string(),
+    );
+    for field in &transition.after_fields {
+        checked_query_hash_component(hasher, "after-field-index", &field.field_index.to_string());
+        checked_query_hash_component(hasher, "after-field-name", &field.name);
+        checked_query_hash_component(hasher, "after-field-type", &format!("{:?}", field.value_ty));
+        match &field.source {
+            TypedExploreAfterFieldSource::FrameBefore { before_field_index } => {
+                checked_query_hash_component(hasher, "after-field-source", "frame-before");
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-before-index",
+                    &before_field_index.to_string(),
+                );
+            }
+            TypedExploreAfterFieldSource::Derived {
+                expression,
+                expression_ty,
+                environment,
+                after_dependencies,
+            } => {
+                checked_query_hash_component(hasher, "after-field-source", "derived");
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-derived-type",
+                    &format!("{:?}", expression_ty),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-derived-environment",
+                    &format!("{:?}", environment),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-derived-expression",
+                    &format!("{:?}", strip_spans_expr(expression)),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-dependency-count",
+                    &after_dependencies.len().to_string(),
+                );
+                for dependency in after_dependencies {
+                    checked_query_hash_component(
+                        hasher,
+                        "after-field-dependency-index",
+                        &dependency.field_index.to_string(),
+                    );
+                    checked_query_hash_component(
+                        hasher,
+                        "after-field-dependency-binding",
+                        &dependency.binding_name,
+                    );
+                }
+            }
+            TypedExploreAfterFieldSource::IndependentDomain { bound_index } => {
+                checked_query_hash_component(hasher, "after-field-source", "independent-domain");
+                checked_query_hash_component(
+                    hasher,
+                    "after-field-independent-bound-index",
+                    &bound_index.to_string(),
+                );
+            }
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "after-membership-count",
+        &transition.after_membership.len().to_string(),
+    );
+    for membership in &transition.after_membership {
+        checked_query_hash_component(
+            hasher,
+            "after-membership-field-index",
+            &membership.after_field_index.to_string(),
+        );
+        checked_query_hash_component(
+            hasher,
+            "after-membership-before-bound-index",
+            &membership.before_bound_index.to_string(),
+        );
+    }
+}
+
+fn hash_checked_typed_bound_target(hasher: &mut Sha256, target: &TypedExploreBoundTarget) {
+    match target {
+        TypedExploreBoundTarget::CompactScalar => {
+            checked_query_hash_component(hasher, "bound-target", "compact-scalar");
+        }
+        TypedExploreBoundTarget::BeforeField { field_index } => {
+            checked_query_hash_component(hasher, "bound-target", "before-field");
+            checked_query_hash_component(hasher, "bound-field-index", &field_index.to_string());
+        }
+        TypedExploreBoundTarget::ContextField { field_index } => {
+            checked_query_hash_component(hasher, "bound-target", "context-field");
+            checked_query_hash_component(hasher, "bound-field-index", &field_index.to_string());
+        }
+        TypedExploreBoundTarget::AfterIndependent { field_index } => {
+            checked_query_hash_component(hasher, "bound-target", "after-independent");
+            checked_query_hash_component(hasher, "bound-field-index", &field_index.to_string());
+        }
+    }
 }
 
 fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
@@ -25011,66 +26084,27 @@ fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
     for bound in &query.bounds {
         match bound {
             TypedExploreBound::Domain {
+                target,
                 name,
                 value_ty,
                 domain,
                 ..
             } => {
                 checked_query_hash_component(hasher, "bound-kind", "domain");
+                hash_checked_typed_bound_target(hasher, target);
                 checked_query_hash_component(hasher, "bound-name", name);
                 checked_query_hash_component(hasher, "bound-type", &format!("{:?}", value_ty));
-                match domain {
-                    TypedExploreDomain::FiniteExpr {
-                        expression,
-                        collection_ty,
-                        element_ty,
-                    } => {
-                        checked_query_hash_component(hasher, "domain-kind", "finite-expression");
-                        checked_query_hash_component(
-                            hasher,
-                            "collection-type",
-                            &format!("{:?}", collection_ty),
-                        );
-                        checked_query_hash_component(
-                            hasher,
-                            "element-type",
-                            &format!("{:?}", element_ty),
-                        );
-                        checked_query_hash_component(
-                            hasher,
-                            "domain-expression",
-                            &format!("{:?}", strip_spans_expr(expression)),
-                        );
-                    }
-                    TypedExploreDomain::Range {
-                        start,
-                        end_exclusive,
-                    } => {
-                        checked_query_hash_component(hasher, "domain-kind", "range");
-                        checked_query_hash_component(
-                            hasher,
-                            "range-start-expression",
-                            &format!("{:?}", strip_spans_expr(start)),
-                        );
-                        checked_query_hash_component(
-                            hasher,
-                            "range-end-expression",
-                            &format!("{:?}", strip_spans_expr(end_exclusive)),
-                        );
-                    }
-                    TypedExploreDomain::Values { ty } => {
-                        checked_query_hash_component(hasher, "domain-kind", "values");
-                        checked_query_hash_component(hasher, "values-type", &format!("{:?}", ty));
-                    }
-                }
+                hash_checked_typed_domain(hasher, domain);
             }
             TypedExploreBound::Value {
+                target,
                 name,
                 value_ty,
                 value,
                 ..
             } => {
                 checked_query_hash_component(hasher, "bound-kind", "value");
+                hash_checked_typed_bound_target(hasher, target);
                 checked_query_hash_component(hasher, "bound-name", name);
                 checked_query_hash_component(hasher, "bound-type", &format!("{:?}", value_ty));
                 checked_query_hash_component(
@@ -25079,8 +26113,20 @@ fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
                     &format!("{:?}", strip_spans_expr(value)),
                 );
             }
-            TypedExploreBound::Where { predicate, .. } => {
+            TypedExploreBound::Where {
+                predicate, scope, ..
+            } => {
                 checked_query_hash_component(hasher, "bound-kind", "where");
+                checked_query_hash_component(
+                    hasher,
+                    "where-scope",
+                    match scope {
+                        ExploreConstraintScope::Before => "before",
+                        ExploreConstraintScope::After => "after",
+                        ExploreConstraintScope::BothEndpoints => "both-endpoints",
+                        ExploreConstraintScope::Transition => "transition",
+                    },
+                );
                 checked_query_hash_component(
                     hasher,
                     "where-predicate",
@@ -25089,26 +26135,7 @@ fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
             }
         }
     }
-    if let Some(boundary) = &query.boundary {
-        checked_query_hash_component(hasher, "boundary-axis", &boundary.axis);
-        checked_query_hash_component(
-            hasher,
-            "boundary-axis-type",
-            &format!("{:?}", boundary.axis_ty),
-        );
-        checked_query_hash_component(
-            hasher,
-            "boundary-step-type",
-            &format!("{:?}", boundary.step_ty),
-        );
-        checked_query_hash_component(
-            hasher,
-            "boundary-step",
-            &format!("{:?}", strip_spans_expr(&boundary.step)),
-        );
-    } else {
-        checked_query_hash_component(hasher, "boundary", "none");
-    }
+    hash_checked_typed_transition(hasher, &query.transition);
     for (role, fields) in [
         ("key", query.output.key.as_slice()),
         ("show", query.output.show.as_slice()),
@@ -25352,6 +26379,174 @@ fn hash_checked_exact_domain(hasher: &mut Sha256, domain: &explore::ExploreExact
     }
 }
 
+fn hash_checked_transition_ir(hasher: &mut Sha256, transition: &explore::ExploreTransitionIr) {
+    checked_query_hash_component(
+        hasher,
+        "closed-transition-normalization-version",
+        &transition.normalization_version.to_string(),
+    );
+    checked_query_hash_component(
+        hasher,
+        "closed-transition-mode",
+        match transition.mode {
+            ExploreTransitionMode::Identity => "identity",
+            ExploreTransitionMode::Relative => "relative",
+            ExploreTransitionMode::Independent => "independent",
+        },
+    );
+    hash_checked_closed_product_schema(hasher, "closed-state", &transition.state_schema);
+    hash_checked_closed_product_schema(hasher, "closed-context", &transition.context_schema);
+    checked_query_hash_component(
+        hasher,
+        "closed-after-field-count",
+        &transition.after_fields.len().to_string(),
+    );
+    for field in &transition.after_fields {
+        checked_query_hash_component(
+            hasher,
+            "closed-after-field-index",
+            &field.field_index.to_string(),
+        );
+        checked_query_hash_component(hasher, "closed-after-field-name", &field.name);
+        checked_query_hash_component(
+            hasher,
+            "closed-after-field-type",
+            &format!("{:?}", field.value_ty),
+        );
+        match &field.source {
+            explore::ExploreAfterFieldSourceIr::FrameBefore { before_field_index } => {
+                checked_query_hash_component(hasher, "closed-after-field-source", "frame-before");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-before-index",
+                    &before_field_index.to_string(),
+                );
+            }
+            explore::ExploreAfterFieldSourceIr::Derived {
+                expression,
+                environment,
+                after_dependencies,
+            } => {
+                checked_query_hash_component(hasher, "closed-after-field-source", "derived");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-derived-environment",
+                    &format!("{:?}", environment),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-derived-expression",
+                    &format!("{:?}", strip_spans_expr(expression)),
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-dependency-count",
+                    &after_dependencies.len().to_string(),
+                );
+                for dependency in after_dependencies {
+                    checked_query_hash_component(
+                        hasher,
+                        "closed-after-field-dependency-index",
+                        &dependency.field_index.to_string(),
+                    );
+                    checked_query_hash_component(
+                        hasher,
+                        "closed-after-field-dependency-binding",
+                        &dependency.binding_name,
+                    );
+                }
+            }
+            explore::ExploreAfterFieldSourceIr::IndependentDomain { dimension_index } => {
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-source",
+                    "independent-domain",
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-field-independent-dimension-index",
+                    &dimension_index.to_string(),
+                );
+            }
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "closed-after-membership-count",
+        &transition.after_membership.len().to_string(),
+    );
+    for membership in &transition.after_membership {
+        checked_query_hash_component(
+            hasher,
+            "closed-after-membership-field-index",
+            &membership.after_field_index.to_string(),
+        );
+        checked_query_hash_component(
+            hasher,
+            "closed-after-membership-before-dimension-index",
+            &membership.before_dimension_index.to_string(),
+        );
+        match membership.preconstruction {
+            explore::ExploreAfterMembershipPreconstructionIr::RelativeIntStep { step } => {
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-membership-preconstruction",
+                    "relative-int-step",
+                );
+                checked_query_hash_component(
+                    hasher,
+                    "closed-after-membership-step",
+                    &step.to_string(),
+                );
+            }
+        }
+    }
+    checked_query_hash_component(
+        hasher,
+        "closed-flat-alias-count",
+        &transition.flat_aliases.len().to_string(),
+    );
+    for alias in &transition.flat_aliases {
+        checked_query_hash_component(hasher, "closed-flat-alias-name", &alias.name);
+        match alias.role {
+            explore::ExploreFlatAliasRole::Context { field_index } => {
+                checked_query_hash_component(hasher, "closed-flat-alias-role", "context");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-flat-alias-role-field-index",
+                    &field_index.to_string(),
+                );
+            }
+            explore::ExploreFlatAliasRole::State { field_index } => {
+                checked_query_hash_component(hasher, "closed-flat-alias-role", "state");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-flat-alias-role-field-index",
+                    &field_index.to_string(),
+                );
+            }
+        }
+        match alias.source {
+            explore::ExploreFlatAliasSource::Dimension { dimension_index } => {
+                checked_query_hash_component(hasher, "closed-flat-alias-source", "dimension");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-flat-alias-source-index",
+                    &dimension_index.to_string(),
+                );
+            }
+            explore::ExploreFlatAliasSource::Fact { fact_index } => {
+                checked_query_hash_component(hasher, "closed-flat-alias-source", "fact");
+                checked_query_hash_component(
+                    hasher,
+                    "closed-flat-alias-source-index",
+                    &fact_index.to_string(),
+                );
+            }
+        }
+    }
+}
+
 fn hash_checked_universe(hasher: &mut Sha256, universe: &explore::ExploreUniverseIr) {
     checked_query_hash_component(
         hasher,
@@ -25359,16 +26554,50 @@ fn hash_checked_universe(hasher: &mut Sha256, universe: &explore::ExploreUnivers
         &universe.dimensions.len().to_string(),
     );
     for dimension in &universe.dimensions {
+        checked_query_hash_component(
+            hasher,
+            "dimension-bound-index",
+            &dimension.bound_index.to_string(),
+        );
         checked_query_hash_component(hasher, "dimension-name", &dimension.name);
         checked_query_hash_component(
             hasher,
             "dimension-type",
             &format!("{:?}", dimension.value_ty),
         );
+        checked_query_hash_component(
+            hasher,
+            "dimension-role",
+            match dimension.role {
+                ExploreGeneratorAxisRole::Context => "context",
+                ExploreGeneratorAxisRole::Before => "before",
+                ExploreGeneratorAxisRole::AfterIndependent => "after-independent",
+            },
+        );
+        checked_query_hash_component(
+            hasher,
+            "dimension-role-field-index",
+            &dimension.role_field_index.to_string(),
+        );
         hash_checked_exact_domain(hasher, &dimension.domain);
     }
     checked_query_hash_component(hasher, "fact-count", &universe.facts.len().to_string());
     for fact in &universe.facts {
+        checked_query_hash_component(hasher, "fact-bound-index", &fact.bound_index.to_string());
+        checked_query_hash_component(
+            hasher,
+            "fact-role",
+            match fact.role {
+                ExploreGeneratorAxisRole::Context => "context",
+                ExploreGeneratorAxisRole::Before => "before",
+                ExploreGeneratorAxisRole::AfterIndependent => "after-independent",
+            },
+        );
+        checked_query_hash_component(
+            hasher,
+            "fact-role-field-index",
+            &fact.role_field_index.to_string(),
+        );
         checked_query_hash_component(hasher, "fact-name", &fact.name);
         checked_query_hash_component(hasher, "fact-type", &format!("{:?}", fact.value_ty));
         match &fact.value {
@@ -25424,24 +26653,6 @@ fn hash_checked_universe(hasher: &mut Sha256, universe: &explore::ExploreUnivers
         "cartesian-count",
         &format!("{:?}", universe.cartesian_count_before_constraints),
     );
-    if let Some(boundary) = &universe.boundary {
-        checked_query_hash_component(
-            hasher,
-            "closed-boundary",
-            &format!(
-                "axis={:?};index={};step={};both={};recomputed={:?};eligible={:?};unconstrained={:?}",
-                boundary.axis,
-                boundary.axis_dimension_index,
-                boundary.step,
-                boundary.requires_both_endpoints_in_domain,
-                boundary.recomputed_fact_indices,
-                boundary.eligible_axis_pairs,
-                boundary.eligible_unconstrained_pairs,
-            ),
-        );
-    } else {
-        checked_query_hash_component(hasher, "closed-boundary", "none");
-    }
 }
 
 fn hash_checked_explore_closed_provenance(
@@ -25483,13 +26694,18 @@ fn checked_explore_domain_digest(
     finite_plan_facts: &[CheckedExploreFinitePlanFact],
 ) -> Box<str> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-domain.v1\0");
-    checked_query_hash_component(&mut hasher, "case-id-axis-order", "source-dimension-order");
+    hasher.update(b"futuruna.checked-explore-domain.v2\0");
+    checked_query_hash_component(
+        &mut hasher,
+        "case-id-axis-order",
+        "role-tagged-transition-field-order-v1",
+    );
     checked_query_hash_component(
         &mut hasher,
         "case-id-rank-order",
         "mixed-radix-last-axis-fastest",
     );
+    hash_checked_transition_ir(&mut hasher, &closed_query.transition);
     hash_checked_universe(&mut hasher, &closed_query.universe);
     hash_checked_explore_closed_provenance(
         &mut hasher,
@@ -25511,7 +26727,7 @@ fn checked_explore_query_digest(
     finite_plan_facts: &[CheckedExploreFinitePlanFact],
 ) -> Box<str> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-query.v2\0");
+    hasher.update(b"futuruna.checked-explore-query.v3\0");
     checked_query_hash_component(&mut hasher, "analysis-program", program.id.as_str());
     checked_query_hash_component(&mut hasher, "declaration", &declaration.id.semantic_key());
     checked_query_hash_component(
@@ -25522,6 +26738,7 @@ fn checked_explore_query_digest(
     checked_query_hash_component(&mut hasher, "question", &format!("{:?}", question));
     checked_query_hash_component(&mut hasher, "sites", &format!("{:?}", sites));
     hash_checked_typed_query(&mut hasher, &closed_query.query);
+    hash_checked_transition_ir(&mut hasher, &closed_query.transition);
     hash_checked_universe(&mut hasher, &closed_query.universe);
     hash_checked_explore_closed_provenance(
         &mut hasher,
@@ -25581,6 +26798,8 @@ fn build_checked_explore_query_artifacts(
         }
         let (type_facts, ground_constructors, finite_plan_facts) =
             checked_explore_closed_facts(resolutions, closed_query)?;
+        let transition_schemas =
+            checked_explore_transition_schema_identities(resolutions, closed_query, &type_facts)?;
         let domain_digest = checked_explore_domain_digest(
             closed_query,
             &type_facts,
@@ -25604,6 +26823,7 @@ fn build_checked_explore_query_artifacts(
                 digest,
             },
             domain_digest,
+            transition_schemas,
             question,
             sites,
             closed_query_index,
@@ -25671,6 +26891,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
     const BINDER_HANDLER: u32 = 4;
     const BINDER_CAPTURE: u32 = 5;
     const BINDER_EXPLORE_OUTPUT: u32 = 6;
+    const BINDER_EXPLORE_ROLE: u32 = 7;
     const EXPLORE_OUTPUT_EXTREMA: u32 = 0;
     const EXPLORE_OUTPUT_SHOW: u32 = 1;
 
@@ -25877,8 +27098,8 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 .or_insert_with(|| Self::intrinsic_data_type_id(owner));
         }
         for intrinsic in [
-            "Int", "Float", "String", "Bool", "Char", "List", "Unit", "Option", "Result", "Pair",
-            "Stream", "Subject", "Db", "TypeDef", "Set", "Map",
+            "Int", "Nat", "Float", "String", "Bool", "Char", "List", "Tuple", "Unit", "Option",
+            "Result", "Pair", "Stream", "Subject", "Db", "TypeDef", "Set", "Map",
         ] {
             if self.data_owner_declarations.contains_key(intrinsic) {
                 continue;
@@ -27774,8 +28995,37 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     .map(|ty| (input.name.clone(), ty))
             })
             .collect::<BTreeMap<_, _>>();
-        let output_start =
-            query.bounds.len() + usize::from(query.boundary.is_some()) + query.output.key.len();
+        if let Some(transition) = &query.transition {
+            for (role_index, (name, ty)) in [
+                ("before", &transition.state_ty),
+                ("after", &transition.state_ty),
+                ("context", &transition.context_ty),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                self.define_local(
+                    name.to_string(),
+                    CheckedLocalBinding {
+                        kind: CheckedBinderKind::ExploreValue,
+                        site: self.structural_binder_site(
+                            declaration,
+                            path,
+                            vec![Self::BINDER_EXPLORE_ROLE, role_index as u32],
+                        ),
+                        type_name: Some(ty.to_string()),
+                    },
+                );
+            }
+        }
+        let transition_expression_count = query
+            .transition
+            .as_ref()
+            .map_or(0, |transition| transition.after_fields.len());
+        let output_start = query.bounds.len()
+            + transition_expression_count
+            + usize::from(query.boundary.is_some())
+            + query.output.key.len();
         for (field_index, field) in query.output.extrema.iter().enumerate() {
             let expression_path = Self::path_child(path, output_start + field_index);
             self.define_explore_output_alias(
@@ -27805,18 +29055,20 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 ExploreBound::Domain { name, domain, .. } => {
                     let expression_path = Self::path_child(path, child_index);
                     self.record_expr(declaration, domain, &expression_path, false, false);
-                    self.define_local(
-                        name.clone(),
-                        CheckedLocalBinding {
-                            kind: CheckedBinderKind::ExploreValue,
-                            site: self.structural_binder_site(
-                                declaration,
-                                &expression_path,
-                                vec![Self::BINDER_EXPLORE, bound_index as u32],
-                            ),
-                            type_name: input_types.get(name).cloned(),
-                        },
-                    );
+                    if query.transition.is_none() {
+                        self.define_local(
+                            name.clone(),
+                            CheckedLocalBinding {
+                                kind: CheckedBinderKind::ExploreValue,
+                                site: self.structural_binder_site(
+                                    declaration,
+                                    &expression_path,
+                                    vec![Self::BINDER_EXPLORE, bound_index as u32],
+                                ),
+                                type_name: input_types.get(name).cloned(),
+                            },
+                        );
+                    }
                 }
                 ExploreBound::Value { name, value, .. } => {
                     let expression_path = Self::path_child(path, child_index);
@@ -27826,18 +29078,20 @@ impl<'a> CheckedResolutionRecorder<'a> {
                             .infer_expr_type_name_with_locals(value, &locals)
                     });
                     self.record_expr(declaration, value, &expression_path, false, false);
-                    self.define_local(
-                        name.clone(),
-                        CheckedLocalBinding {
-                            kind: CheckedBinderKind::ExploreValue,
-                            site: self.structural_binder_site(
-                                declaration,
-                                &expression_path,
-                                vec![Self::BINDER_EXPLORE, bound_index as u32],
-                            ),
-                            type_name: inferred,
-                        },
-                    );
+                    if query.transition.is_none() {
+                        self.define_local(
+                            name.clone(),
+                            CheckedLocalBinding {
+                                kind: CheckedBinderKind::ExploreValue,
+                                site: self.structural_binder_site(
+                                    declaration,
+                                    &expression_path,
+                                    vec![Self::BINDER_EXPLORE, bound_index as u32],
+                                ),
+                                type_name: inferred,
+                            },
+                        );
+                    }
                 }
                 ExploreBound::Where { predicate, .. } => {
                     let expression_path = Self::path_child(path, child_index);
@@ -27845,6 +29099,17 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 }
             }
             child_index += 1;
+        }
+        if let Some(transition) = &query.transition {
+            for field in &transition.after_fields {
+                let expression = match &field.source {
+                    ExploreAfterFieldSource::Derived { expression } => expression,
+                    ExploreAfterFieldSource::IndependentDomain { domain } => domain,
+                };
+                let expression_path = Self::path_child(path, child_index);
+                self.record_expr(declaration, expression, &expression_path, false, false);
+                child_index += 1;
+            }
         }
         if let Some(boundary) = &query.boundary {
             let expression_path = Self::path_child(path, child_index);
@@ -28368,7 +29633,6 @@ impl TypeChecker {
             explore_rule_return_issues: BTreeMap::new(),
             inferring_exact_explore_rule_returns: false,
             checking_explore_query: false,
-            checking_exhaustive_explore_preview: false,
             explore_callable_expressions_by_arity: BTreeMap::new(),
             explore_scoped_callable_expressions: BTreeMap::new(),
             explore_rules_by_arity: BTreeMap::new(),
@@ -30010,6 +31274,7 @@ impl TypeChecker {
             })
             .collect();
 
+        let mut declaration_occurrence_counts = BTreeMap::<DeclarationId, usize>::new();
         let declarations = declarations
             .into_iter()
             .enumerate()
@@ -30025,9 +31290,15 @@ impl TypeChecker {
                     arity,
                     ordinal: declaration.declaration_ordinal,
                 };
+                let next_occurrence = declaration_occurrence_counts.entry(id.clone()).or_default();
+                let declaration_occurrence_ordinal = *next_occurrence;
+                *next_occurrence = next_occurrence
+                    .checked_add(1)
+                    .expect("retained declaration occurrence count fits usize");
                 let source_span = Self::analysis_statement_span(&declaration.statement);
                 SourcedStmt {
                     id,
+                    declaration_occurrence_ordinal,
                     normalized_ordinal,
                     import_kind: declaration.import_kind,
                     statement: Arc::new(declaration.statement),
@@ -35143,18 +36414,16 @@ impl TypeChecker {
                 return;
             }
         }
-        if !self.checking_exhaustive_explore_preview {
-            let bound = self.scopes.last().cloned().unwrap_or_default();
-            if !self.explore_expression_is_pure(expr, &bound) {
-                self.error_at_expr(
-                    expr,
-                    "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
-                        .to_string(),
-                );
-            }
-            for issue in self.explore_operator_issues_with_locals(expr, &BTreeMap::new()) {
-                self.error_at_expr(expr, issue);
-            }
+        let bound = self.scopes.last().cloned().unwrap_or_default();
+        if !self.explore_expression_is_pure(expr, &bound) {
+            self.error_at_expr(
+                expr,
+                "exploration expressions must use only pure, exploration-supported operations; effects, effectful helpers and `?` propagation are not supported"
+                    .to_string(),
+            );
+        }
+        for issue in self.explore_operator_issues_with_locals(expr, &BTreeMap::new()) {
+            self.error_at_expr(expr, issue);
         }
         self.check_expr(expr, None);
     }
@@ -35181,6 +36450,271 @@ impl TypeChecker {
                         name
                     ),
                 );
+            }
+        }
+    }
+
+    fn check_explore_role_environment(&mut self, expr: &Expr, allowed: &[&str], environment: &str) {
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expr, &mut uses, &BTreeSet::new(), &BTreeMap::new());
+        let allowed = allowed.iter().copied().collect::<BTreeSet<_>>();
+        for role in ["before", "after", "context"] {
+            if (uses.values.contains(role) || uses.calls.contains(role)) && !allowed.contains(role)
+            {
+                self.error_at_expr(
+                    expr,
+                    format!(
+                        "exploration {environment} cannot reference `{role}` in this transition environment"
+                    ),
+                );
+            }
+        }
+    }
+
+    fn resolve_explore_after_dependencies(
+        &mut self,
+        expr: &Expr,
+        state_fields: &[(String, Ty)],
+        field_name: &str,
+    ) -> Vec<TypedExploreAfterDependency> {
+        // Both the shape proof and DAG edges use the lexical collector. A
+        // nested binder named `after` is an ordinary local, not the transition
+        // role, while every genuinely free role-root occurrence must be the
+        // receiver of exactly one `after.FIELD` projection.
+        let mut free_uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expr, &mut free_uses, &BTreeSet::new(), &BTreeMap::new());
+        let after_value_uses = free_uses
+            .value_occurrences
+            .get("after")
+            .copied()
+            .unwrap_or_default();
+        let projected_uses = free_uses
+            .member_value_occurrences
+            .iter()
+            .filter_map(|((receiver, _), count)| (receiver == "after").then_some(*count))
+            .sum::<usize>();
+        if after_value_uses != projected_uses {
+            self.error_at_expr(
+                expr,
+                format!(
+                    "derived field `after.{field_name}` may reference the partial after state only through `after.FIELD` projections"
+                ),
+            );
+        }
+
+        let projected_fields = free_uses
+            .member_values
+            .into_iter()
+            .filter_map(|(receiver, projected)| (receiver == "after").then_some(projected));
+
+        let mut dependencies = BTreeMap::new();
+        for projected in projected_fields {
+            let Some(field_index) = state_fields
+                .iter()
+                .position(|(candidate, _)| candidate == &projected)
+            else {
+                self.error_at_expr(
+                    expr,
+                    format!(
+                        "derived field `after.{field_name}` references unknown after field `{projected}`"
+                    ),
+                );
+                continue;
+            };
+            dependencies
+                .entry(field_index)
+                .or_insert(TypedExploreAfterDependency {
+                    field_index,
+                    binding_name: projected,
+                });
+        }
+        dependencies.into_values().collect()
+    }
+
+    fn explore_declared_product_fields(
+        &mut self,
+        ty: &Ty,
+        role: &str,
+        span: Span,
+        allow_unit: bool,
+    ) -> Option<Vec<(String, Ty)>> {
+        if matches!(ty, Ty::Unit) {
+            if allow_unit {
+                return Some(Vec::new());
+            }
+            self.error_at_span(
+                span,
+                format!("exploration {role} must be a declared named-field product, not `()`"),
+            );
+            return None;
+        }
+        let Ty::Name(type_name) = ty else {
+            self.error_at_span(
+                span,
+                format!(
+                    "exploration {role} type `{ty}` must name one declared, non-generic product type"
+                ),
+            );
+            return None;
+        };
+        let constructors = self
+            .constructor_signatures
+            .iter()
+            .flat_map(|(constructor_name, signatures)| {
+                signatures
+                    .iter()
+                    .filter(|signature| signature.parent == *type_name)
+                    .map(move |signature| (constructor_name.clone(), signature.clone()))
+            })
+            .collect::<Vec<_>>();
+        if constructors.len() != 1 {
+            self.error_at_span(
+                span,
+                format!(
+                    "exploration {role} type `{type_name}` must have exactly one constructor, found {}",
+                    constructors.len()
+                ),
+            );
+            return None;
+        }
+        let (constructor_name, signature) = &constructors[0];
+        if constructor_name != type_name {
+            self.error_at_span(
+                span,
+                format!(
+                    "exploration {role} type `{type_name}` must use the same-named product constructor `{type_name}(...)`, found `{constructor_name}(...)`"
+                ),
+            );
+            return None;
+        }
+        if signature.positional || signature.fields.is_empty() {
+            self.error_at_span(
+                span,
+                format!(
+                    "exploration {role} type `{type_name}` must be a nonempty named-field product"
+                ),
+            );
+            return None;
+        }
+        if signature.field_tys.len() != signature.fields.len() {
+            self.error_at_span(
+                span,
+                format!(
+                    "cannot resolve the complete named-field schema of exploration {role} type `{type_name}`"
+                ),
+            );
+            return None;
+        }
+        let mut fields = Vec::with_capacity(signature.fields.len());
+        for (field, field_ty) in signature.fields.iter().zip(&signature.field_tys) {
+            let Some(field_ty) = field_ty
+                .as_deref()
+                .and_then(|field_ty| parse_type_annotation(field_ty).ok())
+            else {
+                self.error_at_span(
+                    span,
+                    format!(
+                        "cannot resolve type of exploration {role} field `{type_name}.{field}`"
+                    ),
+                );
+                return None;
+            };
+            fields.push((field.clone(), field_ty));
+        }
+        Some(fields)
+    }
+
+    fn check_explore_domain_against(
+        &mut self,
+        label: &str,
+        domain: &Expr,
+        expected: &Ty,
+        available_names: &BTreeSet<String>,
+    ) -> TypedExploreDomain {
+        self.check_explore_expression(domain);
+        if let Some(actual) = self.explore_domain_item_ty(domain) {
+            if !Self::explore_tys_equivalent(&actual, expected) {
+                self.error_at_expr(
+                    domain,
+                    format!(
+                        "exploration domain `{label}` contains `{actual}` values but the field expects `{expected}`"
+                    ),
+                );
+            }
+        } else if !matches!(&domain.kind, ExprKind::List(items) if items.is_empty()) {
+            self.error_at_expr(
+                domain,
+                format!("cannot determine the finite item type of exploration domain `{label}`"),
+            );
+        }
+        match &domain.kind {
+            ExprKind::App(function, arguments)
+                if matches!(&function.kind, ExprKind::Var(name) if name == "range")
+                    && arguments.len() == 2 =>
+            {
+                if available_names.contains("range")
+                    || self.explore_contextual_intrinsic_is_shadowed("range", 2)
+                {
+                    self.error_at_expr(
+                        domain,
+                        "exploration `range(start, end)` is shadowed by an available query value or program declaration; rename that declaration so the bounded range is unambiguous"
+                            .to_string(),
+                    );
+                }
+                for endpoint in arguments {
+                    if self
+                        .inferred_explore_ty(endpoint)
+                        .as_ref()
+                        .map(ToString::to_string)
+                        .as_deref()
+                        != Some("Int")
+                    {
+                        self.error_at_expr(
+                            endpoint,
+                            "exploration range endpoints must have type `Int`".to_string(),
+                        );
+                    }
+                }
+                TypedExploreDomain::Range {
+                    start: arguments[0].clone(),
+                    end_exclusive: arguments[1].clone(),
+                }
+            }
+            ExprKind::App(function, arguments)
+                if matches!(&function.kind, ExprKind::Var(name) if name == "values")
+                    && arguments.len() == 1 =>
+            {
+                if available_names.contains("values")
+                    || self.explore_contextual_intrinsic_is_shadowed("values", 1)
+                {
+                    self.error_at_expr(
+                        domain,
+                        "exploration `values(Type)` is shadowed by an available query value or program declaration; rename that declaration so finite-type enumeration is unambiguous"
+                            .to_string(),
+                    );
+                }
+                let ty = Self::explore_ty_from_expr(&arguments[0]).unwrap_or_else(|| {
+                    self.error_at_expr(
+                        &arguments[0],
+                        "`values(...)` expects a declared type, such as `values(Status)` or `values(Option(Status))`"
+                            .to_string(),
+                    );
+                    Ty::Hole
+                });
+                TypedExploreDomain::Values { ty }
+            }
+            _ => {
+                let collection_ty = self.inferred_explore_ty(domain).unwrap_or_else(|| {
+                    Ty::App(
+                        Box::new(Ty::Name("List".to_string())),
+                        vec![expected.clone()],
+                    )
+                });
+                TypedExploreDomain::FiniteExpr {
+                    expression: domain.clone(),
+                    collection_ty,
+                    element_ty: expected.clone(),
+                }
             }
         }
     }
@@ -35255,8 +36789,7 @@ impl TypeChecker {
                 ),
             );
         }
-        if !self.checking_exhaustive_explore_preview
-            && self.rule_arities.contains(&signature_key)
+        if self.rule_arities.contains(&signature_key)
             && !self.explore_callable_is_pure(&signature_key)
         {
             self.error_at_span(
@@ -35298,32 +36831,120 @@ impl TypeChecker {
             });
         }
 
-        if !self.checking_exhaustive_explore_preview {
-            if let Some(issue) = self.explore_rule_return_issues.get(&signature_key).cloned() {
-                self.error_at_span(query.over.span, issue);
-            } else {
-                match self.explore_rule_return_types_by_arity.get(&signature_key) {
-                    Some(return_type) if return_type.to_string() == "Bool" => {}
-                    Some(return_type) => self.error_at_span(
-                        query.over.span,
-                        format!(
-                            "exploration target `{}` must be a Boolean rule, but it returns `{}`",
-                            query.over.rule_name, return_type
-                        ),
-                    ),
-                    None => self.error_at_span(
-                        query.over.span,
-                        format!(
-                            "cannot infer the result type of exploration rule `{}`; declare a pure Boolean rule",
-                            query.over.rule_name
-                        ),
-                    ),
+        let explicit_product_fields = query.transition.as_ref().map(|transition| {
+            let explicit_role_names = query
+                .over
+                .inputs
+                .iter()
+                .map(|input| input.name.as_str())
+                .collect::<Vec<_>>();
+            if explicit_role_names.as_slice() != ["before", "after", "context"] {
+                self.error_at_span(
+                    query.over.span,
+                    "an explicit exploration transition requires `over rule(before, after, context)` in that exact role order",
+                );
+            }
+            for (index, expected) in [
+                &transition.state_ty,
+                &transition.state_ty,
+                &transition.context_ty,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if let Some(actual) = parameter_types.get(index).and_then(|ty| ty.as_ref()) {
+                    if !Self::explore_tys_equivalent(actual, expected) {
+                        self.error_at_span(
+                            query.over.span,
+                            format!(
+                                "explicit exploration role {} has rule type `{actual}` but transition type `{expected}`",
+                                ["before", "after", "context"][index]
+                            ),
+                        );
+                    }
                 }
+            }
+            for output_name in query
+                .output
+                .extrema
+                .iter()
+                .map(|field| field.name.as_str())
+                .chain(query.output.show.iter().map(|field| field.name.as_str()))
+            {
+                if matches!(output_name, "before" | "after" | "context") {
+                    self.error_at_span(
+                        query.output.span,
+                        format!(
+                            "explicit exploration output alias `{output_name}` conflicts with a transition role"
+                        ),
+                    );
+                }
+            }
+            let state = self
+                .explore_declared_product_fields(
+                    &transition.state_ty,
+                    "state",
+                    transition.span,
+                    false,
+                )
+                .unwrap_or_default();
+            let context = self
+                .explore_declared_product_fields(
+                    &transition.context_ty,
+                    "context",
+                    transition.span,
+                    true,
+                )
+                .unwrap_or_default();
+            (state, context)
+        });
+
+        if let Some(issue) = self.explore_rule_return_issues.get(&signature_key).cloned() {
+            self.error_at_span(query.over.span, issue);
+        } else {
+            match self.explore_rule_return_types_by_arity.get(&signature_key) {
+                Some(return_type) if return_type.to_string() == "Bool" => {}
+                Some(return_type) => self.error_at_span(
+                    query.over.span,
+                    format!(
+                        "exploration target `{}` must be a Boolean rule, but it returns `{}`",
+                        query.over.rule_name, return_type
+                    ),
+                ),
+                None => self.error_at_span(
+                    query.over.span,
+                    format!(
+                        "cannot infer the result type of exploration rule `{}`; declare a pure Boolean rule",
+                        query.over.rule_name
+                    ),
+                ),
             }
         }
 
         self.push_scope();
-        let mut typed_bounds = Vec::with_capacity(query.bounds.len());
+        if let Some(transition) = &query.transition {
+            for (name, ty) in [
+                ("before", &transition.state_ty),
+                ("after", &transition.state_ty),
+                ("context", &transition.context_ty),
+            ] {
+                self.define_var(name);
+                self.define_var_type(name, ty);
+            }
+        }
+        let independent_after_count = query.transition.as_ref().map_or(0, |transition| {
+            transition
+                .after_fields
+                .iter()
+                .filter(|field| {
+                    matches!(
+                        field.source,
+                        ExploreAfterFieldSource::IndependentDomain { .. }
+                    )
+                })
+                .count()
+        });
+        let mut typed_bounds = Vec::with_capacity(query.bounds.len() + independent_after_count);
         let mut bound_inputs = BTreeSet::new();
         let mut domain_inputs = BTreeSet::new();
         let over_input_names = query
@@ -35332,29 +36953,130 @@ impl TypeChecker {
             .iter()
             .map(|input| input.name.as_str())
             .collect::<BTreeSet<_>>();
-        let reserved_names = query
+        let mut reserved_names = query
             .over
             .inputs
             .iter()
             .map(|input| input.name.clone())
-            .chain(query.bounds.iter().filter_map(|bound| match bound {
+            .chain(query.output.extrema.iter().map(|field| field.name.clone()))
+            .chain(query.output.show.iter().map(|field| field.name.clone()))
+            .collect::<BTreeSet<_>>();
+        if query.transition.is_none() {
+            reserved_names.extend(query.bounds.iter().filter_map(|bound| match bound {
                 ExploreBound::Domain { name, .. } | ExploreBound::Value { name, .. } => {
                     Some(name.clone())
                 }
                 ExploreBound::Where { .. } => None,
-            }))
-            .chain(query.output.extrema.iter().map(|field| field.name.clone()))
-            .chain(query.output.show.iter().map(|field| field.name.clone()))
-            .collect::<BTreeSet<_>>();
+            }));
+        }
         for name in &reserved_names {
+            if query.transition.is_some() && matches!(name.as_str(), "before" | "after" | "context")
+            {
+                continue;
+            }
             self.define_var(name);
             self.define_var_type(name, &Ty::Hole);
         }
-        let mut available_names = BTreeSet::new();
+        let mut available_names = if query.transition.is_some() {
+            ["before", "after", "context"]
+                .into_iter()
+                .map(str::to_string)
+                .collect()
+        } else {
+            BTreeSet::new()
+        };
         let mut fixed_ints = BTreeMap::new();
+        let mut explicit_field_bindings = BTreeMap::<(ExploreBoundRole, usize), usize>::new();
         for clause in &query.bounds {
             match clause {
-                ExploreBound::Domain { name, domain, span } => {
+                ExploreBound::Domain {
+                    role,
+                    name,
+                    domain,
+                    span,
+                } => {
+                    if let Some((state_fields, context_fields)) = &explicit_product_fields {
+                        let Some(role) = *role else {
+                            self.error_at_span(
+                                *span,
+                                format!(
+                                    "explicit exploration bound `{name}` must be written as `before.{name}` or `context.{name}`"
+                                ),
+                            );
+                            continue;
+                        };
+                        let fields = match role {
+                            ExploreBoundRole::Before => state_fields,
+                            ExploreBoundRole::Context => context_fields,
+                        };
+                        let Some(field_index) = fields.iter().position(|(field, _)| field == name)
+                        else {
+                            self.error_at_span(
+                                *span,
+                                format!(
+                                    "explicit exploration bound targets unknown {} field `{name}`",
+                                    match role {
+                                        ExploreBoundRole::Before => "state",
+                                        ExploreBoundRole::Context => "context",
+                                    }
+                                ),
+                            );
+                            continue;
+                        };
+                        let expected = fields[field_index].1.clone();
+                        self.check_explore_available_references(
+                            domain,
+                            &reserved_names,
+                            &available_names,
+                        );
+                        self.check_explore_role_environment(domain, &[], "bound domain");
+                        let typed_domain = self.check_explore_domain_against(
+                            &format!(
+                                "{}.{}",
+                                match role {
+                                    ExploreBoundRole::Before => "before",
+                                    ExploreBoundRole::Context => "context",
+                                },
+                                name
+                            ),
+                            domain,
+                            &expected,
+                            &available_names,
+                        );
+                        let bound_index = typed_bounds.len();
+                        let target = match role {
+                            ExploreBoundRole::Before => {
+                                TypedExploreBoundTarget::BeforeField { field_index }
+                            }
+                            ExploreBoundRole::Context => {
+                                TypedExploreBoundTarget::ContextField { field_index }
+                            }
+                        };
+                        typed_bounds.push(TypedExploreBound::Domain {
+                            target,
+                            name: name.clone(),
+                            value_ty: expected,
+                            domain: typed_domain,
+                            span: *span,
+                        });
+                        if explicit_field_bindings
+                            .insert((role, field_index), bound_index)
+                            .is_some()
+                        {
+                            self.error_at_span(
+                                *span,
+                                format!("duplicate explicit exploration bound for `{name}`"),
+                            );
+                        }
+                        continue;
+                    }
+                    if role.is_some() {
+                        self.error_at_span(
+                            *span,
+                            "role-tagged exploration bounds require an explicit `transition` clause",
+                        );
+                        continue;
+                    }
                     self.check_explore_available_references(
                         domain,
                         &reserved_names,
@@ -35471,13 +37193,113 @@ impl TypeChecker {
                     available_names.insert(name.clone());
                     domain_inputs.insert(name.clone());
                     typed_bounds.push(TypedExploreBound::Domain {
+                        target: TypedExploreBoundTarget::CompactScalar,
                         name: name.clone(),
                         value_ty: expected,
                         domain: typed_domain,
                         span: *span,
                     });
                 }
-                ExploreBound::Value { name, value, span } => {
+                ExploreBound::Value {
+                    role,
+                    name,
+                    value,
+                    span,
+                } => {
+                    if let Some((state_fields, context_fields)) = &explicit_product_fields {
+                        let Some(role) = *role else {
+                            self.error_at_span(
+                                *span,
+                                format!(
+                                    "explicit exploration bound `{name}` must be written as `before.{name}` or `context.{name}`"
+                                ),
+                            );
+                            continue;
+                        };
+                        let fields = match role {
+                            ExploreBoundRole::Before => state_fields,
+                            ExploreBoundRole::Context => context_fields,
+                        };
+                        let Some(field_index) = fields.iter().position(|(field, _)| field == name)
+                        else {
+                            self.error_at_span(
+                                *span,
+                                format!(
+                                    "explicit exploration bound targets unknown {} field `{name}`",
+                                    match role {
+                                        ExploreBoundRole::Before => "state",
+                                        ExploreBoundRole::Context => "context",
+                                    }
+                                ),
+                            );
+                            continue;
+                        };
+                        let expected = fields[field_index].1.clone();
+                        self.check_explore_available_references(
+                            value,
+                            &reserved_names,
+                            &available_names,
+                        );
+                        self.check_explore_role_environment(
+                            value,
+                            match role {
+                                ExploreBoundRole::Before => &["context"],
+                                ExploreBoundRole::Context => &[],
+                            },
+                            "bound value",
+                        );
+                        self.check_explore_expression(value);
+                        match self.inferred_explore_ty(value) {
+                            Some(actual) if !Self::explore_tys_equivalent(&expected, &actual) => {
+                                self.error_at_expr(
+                                    value,
+                                    format!(
+                                        "explicit exploration field `{name}` has type `{actual}` but the product declares `{expected}`"
+                                    ),
+                                );
+                            }
+                            None => self.error_at_expr(
+                                value,
+                                format!(
+                                    "cannot infer the value type of explicit exploration field `{name}`"
+                                ),
+                            ),
+                            Some(_) => {}
+                        }
+                        let bound_index = typed_bounds.len();
+                        let target = match role {
+                            ExploreBoundRole::Before => {
+                                TypedExploreBoundTarget::BeforeField { field_index }
+                            }
+                            ExploreBoundRole::Context => {
+                                TypedExploreBoundTarget::ContextField { field_index }
+                            }
+                        };
+                        typed_bounds.push(TypedExploreBound::Value {
+                            target,
+                            name: name.clone(),
+                            value_ty: expected,
+                            value: value.clone(),
+                            span: *span,
+                        });
+                        if explicit_field_bindings
+                            .insert((role, field_index), bound_index)
+                            .is_some()
+                        {
+                            self.error_at_span(
+                                *span,
+                                format!("duplicate explicit exploration bound for `{name}`"),
+                            );
+                        }
+                        continue;
+                    }
+                    if role.is_some() {
+                        self.error_at_span(
+                            *span,
+                            "role-tagged exploration bounds require an explicit `transition` clause",
+                        );
+                        continue;
+                    }
                     self.check_explore_available_references(
                         value,
                         &reserved_names,
@@ -35528,13 +37350,53 @@ impl TypeChecker {
                         fixed_ints.insert(name.clone(), value);
                     }
                     typed_bounds.push(TypedExploreBound::Value {
+                        target: TypedExploreBoundTarget::CompactScalar,
                         name: name.clone(),
                         value_ty,
                         value: value.clone(),
                         span: *span,
                     });
                 }
-                ExploreBound::Where { predicate, span } => {
+                ExploreBound::Where {
+                    scope,
+                    predicate,
+                    span,
+                } => {
+                    let typed_scope = if query.transition.is_some() {
+                        let Some(scope) = *scope else {
+                            self.error_at_span(
+                                *span,
+                                "explicit exploration validity must name `where before`, `where after`, or `where transition`",
+                            );
+                            continue;
+                        };
+                        self.check_explore_role_environment(
+                            predicate,
+                            match scope {
+                                ExploreConstraintScope::Before => &["before", "context"],
+                                ExploreConstraintScope::After => &["after", "context"],
+                                ExploreConstraintScope::Transition => {
+                                    &["before", "after", "context"]
+                                }
+                                ExploreConstraintScope::BothEndpoints => &[],
+                            },
+                            "validity predicate",
+                        );
+                        scope
+                    } else {
+                        if scope.is_some() {
+                            self.error_at_span(
+                                *span,
+                                "scoped exploration validity requires an explicit `transition` clause",
+                            );
+                            continue;
+                        }
+                        if query.boundary.is_some() {
+                            ExploreConstraintScope::BothEndpoints
+                        } else {
+                            ExploreConstraintScope::Before
+                        }
+                    };
                     self.check_explore_available_references(
                         predicate,
                         &reserved_names,
@@ -35550,36 +37412,351 @@ impl TypeChecker {
                     }
                     typed_bounds.push(TypedExploreBound::Where {
                         predicate: predicate.clone(),
+                        scope: typed_scope,
                         span: *span,
                     });
                 }
             }
         }
 
-        let sliced_inputs = Vec::new();
-        for input in &query.over.inputs {
-            if !bound_inputs.contains(&input.name) {
-                self.error_at_span(
-                    input.span,
-                    format!(
-                        "exploration input `{}` is unbound; add `{0} in finite_domain` or `{0} = fixed_value`",
-                        input.name
-                    ),
+        let explicit_transition_parts = query.transition.as_ref().and_then(|transition| {
+            let (state_fields, context_fields) = explicit_product_fields.as_ref()?;
+            for (role, fields) in [
+                (ExploreBoundRole::Context, context_fields),
+                (ExploreBoundRole::Before, state_fields),
+            ] {
+                for (field_index, (field_name, _)) in fields.iter().enumerate() {
+                    if !explicit_field_bindings.contains_key(&(role, field_index)) {
+                        self.error_at_span(
+                            transition.span,
+                            format!(
+                                "explicit exploration is missing a bound for `{}.{field_name}`",
+                                match role {
+                                    ExploreBoundRole::Before => "before",
+                                    ExploreBoundRole::Context => "context",
+                                }
+                            ),
+                        );
+                    }
+                }
+            }
+
+            let assignments = transition
+                .after_fields
+                .iter()
+                .map(|field| (field.name.as_str(), field))
+                .collect::<BTreeMap<_, _>>();
+            for field in &transition.after_fields {
+                if !state_fields
+                    .iter()
+                    .any(|(state_field, _)| state_field == &field.name)
+                {
+                    self.error_at_span(
+                        field.span,
+                        format!(
+                            "explicit exploration transition assigns unknown state field `after.{}`",
+                            field.name
+                        ),
+                    );
+                }
+            }
+            let mut derived_count = 0_usize;
+            let mut independent_count = 0_usize;
+            let mut independent_bound_indices = BTreeMap::<String, usize>::new();
+            for field in &transition.after_fields {
+                let ExploreAfterFieldSource::IndependentDomain { domain } = &field.source else {
+                    continue;
+                };
+                let Some(field_index) = state_fields
+                    .iter()
+                    .position(|(state_field, _)| state_field == &field.name)
+                else {
+                    continue;
+                };
+                let field_ty = &state_fields[field_index].1;
+                if transition.mode != ExploreTransitionMode::Independent {
+                    self.error_at_span(
+                        field.span,
+                        "`after.FIELD in DOMAIN` requires an `independent` exploration transition",
+                    );
+                }
+                independent_count += 1;
+                self.check_explore_available_references(
+                    domain,
+                    &reserved_names,
+                    &available_names,
                 );
+                self.check_explore_role_environment(
+                    domain,
+                    &[],
+                    "independent after-field domain",
+                );
+                let typed_domain = self.check_explore_domain_against(
+                    &format!("after.{}", field.name),
+                    domain,
+                    field_ty,
+                    &available_names,
+                );
+                let bound_index = typed_bounds.len();
+                typed_bounds.push(TypedExploreBound::Domain {
+                    target: TypedExploreBoundTarget::AfterIndependent { field_index },
+                    name: field.name.clone(),
+                    value_ty: field_ty.clone(),
+                    domain: typed_domain,
+                    span: field.span,
+                });
+                independent_bound_indices.insert(field.name.clone(), bound_index);
+            }
+            let mut typed_after_fields = Vec::with_capacity(state_fields.len());
+            for (field_index, (field_name, field_ty)) in state_fields.iter().enumerate() {
+                let source = match assignments.get(field_name.as_str()).copied() {
+                    None => TypedExploreAfterFieldSource::FrameBefore {
+                        before_field_index: field_index,
+                    },
+                    Some(ExploreAfterField {
+                        source: ExploreAfterFieldSource::Derived { expression },
+                        span,
+                        ..
+                    }) => {
+                        if transition.mode == ExploreTransitionMode::Identity {
+                            self.error_at_span(
+                                *span,
+                                "an `identity` exploration transition cannot assign after fields",
+                            );
+                        }
+                        derived_count += 1;
+                        self.check_explore_available_references(
+                            expression,
+                            &reserved_names,
+                            &available_names,
+                        );
+                        self.check_explore_role_environment(
+                            expression,
+                            &["before", "after", "context"],
+                            "derived after-field",
+                        );
+                        self.check_explore_expression(expression);
+                        let after_dependencies = self.resolve_explore_after_dependencies(
+                            expression,
+                            state_fields,
+                            field_name,
+                        );
+                        let expression_ty =
+                            self.inferred_explore_ty(expression).unwrap_or_else(|| {
+                                self.error_at_expr(
+                                    expression,
+                                    format!(
+                                        "cannot infer type of derived field `after.{field_name}`"
+                                    ),
+                                );
+                                Ty::Hole
+                            });
+                        if !Self::explore_tys_equivalent(field_ty, &expression_ty) {
+                            self.error_at_expr(
+                                expression,
+                                format!(
+                                    "derived field `after.{field_name}` has type `{expression_ty}` but state field type is `{field_ty}`"
+                                ),
+                            );
+                        }
+                        TypedExploreAfterFieldSource::Derived {
+                            expression: expression.clone(),
+                            expression_ty,
+                            environment: TypedExploreDerivedEnvironment::TransitionFrameV1,
+                            after_dependencies,
+                        }
+                    }
+                    Some(ExploreAfterField {
+                        source: ExploreAfterFieldSource::IndependentDomain { .. },
+                        ..
+                    }) => {
+                        TypedExploreAfterFieldSource::IndependentDomain {
+                            bound_index: *independent_bound_indices
+                                .get(field_name)
+                                .expect("known independent after field has one canonical bound"),
+                        }
+                    }
+                };
+                typed_after_fields.push(TypedExploreAfterField {
+                    field_index,
+                    name: field_name.clone(),
+                    value_ty: field_ty.clone(),
+                    source,
+                    span: assignments
+                        .get(field_name.as_str())
+                        .map_or(transition.span, |field| field.span),
+                });
+            }
+            match transition.mode {
+                ExploreTransitionMode::Identity if !transition.after_fields.is_empty() => {}
+                ExploreTransitionMode::Identity => {}
+                ExploreTransitionMode::Relative if derived_count == 0 => self.error_at_span(
+                    transition.span,
+                    "a `relative` exploration transition must derive at least one after field",
+                ),
+                ExploreTransitionMode::Relative => {}
+                ExploreTransitionMode::Independent if independent_count == 0 => self.error_at_span(
+                    transition.span,
+                    "an `independent` exploration transition must give at least one after field a finite domain",
+                ),
+                ExploreTransitionMode::Independent => {}
+            }
+
+            let typed_state_fields = state_fields
+                .iter()
+                .enumerate()
+                .filter_map(|(field_index, (name, ty))| {
+                    explicit_field_bindings
+                        .get(&(ExploreBoundRole::Before, field_index))
+                        .map(|bound_index| TypedExploreProductField {
+                            name: name.clone(),
+                            ty: ty.clone(),
+                            binding: TypedExploreProductFieldBinding::Bound {
+                                bound_index: *bound_index,
+                            },
+                            span: transition.span,
+                        })
+                })
+                .collect::<Vec<_>>();
+            let typed_context_fields = context_fields
+                .iter()
+                .enumerate()
+                .filter_map(|(field_index, (name, ty))| {
+                    explicit_field_bindings
+                        .get(&(ExploreBoundRole::Context, field_index))
+                        .map(|bound_index| TypedExploreProductField {
+                            name: name.clone(),
+                            ty: ty.clone(),
+                            binding: TypedExploreProductFieldBinding::Bound {
+                                bound_index: *bound_index,
+                            },
+                            span: transition.span,
+                        })
+                })
+                .collect::<Vec<_>>();
+            Some((
+                TypedExploreProductSchema {
+                    identity: TypedExploreProductSchemaIdentity::Declared {
+                        ty: transition.state_ty.clone(),
+                    },
+                    fields: typed_state_fields,
+                },
+                TypedExploreProductSchema {
+                    identity: if matches!(transition.context_ty, Ty::Unit) {
+                        TypedExploreProductSchemaIdentity::Unit
+                    } else {
+                        TypedExploreProductSchemaIdentity::Declared {
+                            ty: transition.context_ty.clone(),
+                        }
+                    },
+                    fields: typed_context_fields,
+                },
+                typed_after_fields,
+            ))
+        });
+
+        let sliced_inputs = Vec::new();
+        if query.transition.is_none() {
+            for input in &query.over.inputs {
+                if !bound_inputs.contains(&input.name) {
+                    self.error_at_span(
+                        input.span,
+                        format!(
+                            "exploration input `{}` is unbound; add `{0} in finite_domain` or `{0} = fixed_value`",
+                            input.name
+                        ),
+                    );
+                }
             }
         }
 
         let typed_boundary = query.boundary.as_ref().map(|boundary| {
-            let axis_ty = input_types.get(&boundary.axis).cloned().unwrap_or(Ty::Hole);
-            if !domain_inputs.contains(&boundary.axis) {
-                self.error_at_span(
-                    boundary.span,
-                    format!(
-                        "exploration boundary axis `{}` must be an input with a finite domain",
-                        boundary.axis
-                    ),
-                );
-            }
+            let (axis_ty, axis_bound_index) =
+                if let Some((state_fields, _)) = &explicit_product_fields {
+                if boundary.axis_role != Some(ExploreBoundRole::Before) {
+                    self.error_at_span(
+                        boundary.span,
+                        "an explicit exploration boundary axis must be written as `before.FIELD`",
+                    );
+                }
+                match state_fields
+                    .iter()
+                    .position(|(field, _)| field == &boundary.axis)
+                {
+                    Some(field_index) => {
+                        let axis_bound_index = typed_bounds.iter().position(|bound| {
+                                matches!(
+                                    bound,
+                                    TypedExploreBound::Domain {
+                                        target: TypedExploreBoundTarget::BeforeField {
+                                            field_index: candidate
+                                        },
+                                        ..
+                                    } if *candidate == field_index
+                                )
+                            });
+                        if axis_bound_index.is_none() {
+                            self.error_at_span(
+                                boundary.span,
+                                format!(
+                                    "explicit exploration boundary axis `before.{}` must have a finite `in` bound",
+                                    boundary.axis
+                                ),
+                            );
+                        }
+                        (
+                            state_fields[field_index].1.clone(),
+                            axis_bound_index.unwrap_or(usize::MAX),
+                        )
+                    }
+                    None => {
+                        self.error_at_span(
+                            boundary.span,
+                            format!(
+                                "explicit exploration boundary names unknown state field `before.{}`",
+                                boundary.axis
+                            ),
+                        );
+                        (Ty::Hole, usize::MAX)
+                    }
+                }
+            } else {
+                if boundary.axis_role.is_some() {
+                    self.error_at_span(
+                        boundary.span,
+                        "a role-tagged boundary axis requires an explicit `transition` clause",
+                    );
+                }
+                if !domain_inputs.contains(&boundary.axis) {
+                    self.error_at_span(
+                        boundary.span,
+                        format!(
+                            "exploration boundary axis `{}` must be an input with a finite domain",
+                            boundary.axis
+                        ),
+                    );
+                }
+                let axis_bound_index = typed_bounds
+                    .iter()
+                    .position(|bound| {
+                        matches!(
+                            bound,
+                            TypedExploreBound::Domain {
+                                target: TypedExploreBoundTarget::CompactScalar,
+                                name,
+                                ..
+                            } if name == &boundary.axis
+                        )
+                    })
+                    .unwrap_or(usize::MAX);
+                (
+                    input_types
+                        .get(&boundary.axis)
+                        .cloned()
+                        .unwrap_or(Ty::Hole),
+                    axis_bound_index,
+                )
+            };
             if axis_ty.to_string() != "Int" {
                 self.error_at_span(
                     boundary.span,
@@ -35594,6 +37771,13 @@ impl TypeChecker {
                 &reserved_names,
                 &available_names,
             );
+            if query.transition.is_some() {
+                self.check_explore_role_environment(
+                    &boundary.step,
+                    &["context"],
+                    "boundary step",
+                );
+            }
             self.check_explore_expression(&boundary.step);
             let step_ty = self.inferred_explore_ty(&boundary.step).unwrap_or(Ty::Hole);
             if step_ty.to_string() != "Int" {
@@ -35614,6 +37798,7 @@ impl TypeChecker {
                 }
             }
             TypedExploreBoundary {
+                axis_bound_index,
                 axis: boundary.axis.clone(),
                 axis_ty,
                 step: boundary.step.clone(),
@@ -35622,10 +37807,76 @@ impl TypeChecker {
             }
         });
 
+        if let (Some(transition), Some(boundary)) = (&query.transition, &query.boundary) {
+            if transition.mode != ExploreTransitionMode::Relative {
+                self.error_at_span(
+                    boundary.span,
+                    "`boundaries` defines an endpoint-membership contract only for a `relative` explicit transition",
+                );
+            }
+            let boundary_field_index =
+                explicit_product_fields
+                    .as_ref()
+                    .and_then(|(state_fields, _)| {
+                        state_fields
+                            .iter()
+                            .position(|(field, _)| field == &boundary.axis)
+                    });
+            let matches = transition.after_fields.iter().filter(|field| {
+                let candidate_field_index =
+                    explicit_product_fields
+                        .as_ref()
+                        .and_then(|(state_fields, _)| {
+                            state_fields
+                                .iter()
+                                .position(|(candidate, _)| candidate == &field.name)
+                        });
+                if boundary_field_index.is_none() || candidate_field_index != boundary_field_index {
+                    return false;
+                }
+                let ExploreAfterFieldSource::Derived { expression } = &field.source else {
+                    return false;
+                };
+                let ExprKind::BinOp(operator, left, right) = &expression.kind else {
+                    return false;
+                };
+                if operator != "+" {
+                    return false;
+                }
+                let left_is_axis = matches!(
+                    &left.kind,
+                    ExprKind::Field(receiver, projected)
+                        if explicit_product_fields.as_ref().and_then(|(state_fields, _)| {
+                            state_fields.iter().position(|(candidate, _)| candidate == projected)
+                        }) == boundary_field_index
+                            && matches!(&receiver.kind, ExprKind::Var(role) if role == "before")
+                );
+                left_is_axis
+                    && format!("{:?}", strip_spans_expr(right))
+                        == format!("{:?}", strip_spans_expr(&boundary.step))
+            });
+            if matches.count() != 1 {
+                self.error_at_span(
+                    boundary.span,
+                    format!(
+                        "boundary contract `before.{}` must exactly match one derivation `after.{0} = before.{0} + STEP`",
+                        boundary.axis
+                    ),
+                );
+            }
+        }
+
         let mut typed_key = Vec::with_capacity(query.output.key.len());
         let mut typed_extrema = Vec::with_capacity(query.output.extrema.len());
         let mut typed_show = Vec::with_capacity(query.output.show.len());
         for field in &query.output.key {
+            if query.transition.is_some() {
+                self.check_explore_role_environment(
+                    &field.value,
+                    &["before", "after", "context"],
+                    "output key",
+                );
+            }
             self.check_explore_available_references(
                 &field.value,
                 &reserved_names,
@@ -35659,6 +37910,13 @@ impl TypeChecker {
             });
         }
         for field in &query.output.extrema {
+            if query.transition.is_some() {
+                self.check_explore_role_environment(
+                    &field.value,
+                    &["before", "after", "context"],
+                    "output extrema",
+                );
+            }
             self.check_explore_available_references(
                 &field.value,
                 &reserved_names,
@@ -35722,6 +37980,13 @@ impl TypeChecker {
         });
 
         for field in &query.output.show {
+            if query.transition.is_some() {
+                self.check_explore_role_environment(
+                    &field.value,
+                    &["before", "after", "context"],
+                    "shown output",
+                );
+            }
             self.check_explore_available_references(
                 &field.value,
                 &reserved_names,
@@ -35753,6 +38018,13 @@ impl TypeChecker {
             ExploreRepresentative::First { .. } => None,
             ExploreRepresentative::Maximize { objective, .. }
             | ExploreRepresentative::Minimize { objective, .. } => {
+                if query.transition.is_some() {
+                    self.check_explore_role_environment(
+                        objective,
+                        &["before", "after", "context"],
+                        "representative objective",
+                    );
+                }
                 self.check_explore_available_references(
                     objective,
                     &reserved_names,
@@ -35772,15 +38044,56 @@ impl TypeChecker {
         self.pop_scope();
 
         if selectable && self.diagnostics.len() == diagnostic_start {
+            let transition = if let Some(source_transition) = &query.transition {
+                let (state_schema, context_schema, after_fields) = explicit_transition_parts
+                    .expect("diagnostic-free explicit transition has complete product bindings");
+                let after_membership = typed_boundary
+                    .as_ref()
+                    .and_then(|boundary| {
+                        state_schema.fields.iter().enumerate().find_map(
+                            |(after_field_index, field)| {
+                                matches!(
+                                    &field.binding,
+                                    TypedExploreProductFieldBinding::Bound { bound_index }
+                                        if *bound_index == boundary.axis_bound_index
+                                )
+                                .then_some(
+                                    TypedExploreAfterMembership {
+                                        after_field_index,
+                                        before_bound_index: boundary.axis_bound_index,
+                                    },
+                                )
+                            },
+                        )
+                    })
+                    .into_iter()
+                    .collect();
+                TypedExploreTransition {
+                    normalization_version: EXPLORE_TRANSITION_NORMALIZATION_VERSION,
+                    mode: source_transition.mode,
+                    state_schema,
+                    context_schema,
+                    after_fields,
+                    after_membership,
+                    boundary_hint: typed_boundary,
+                }
+            } else {
+                normalize_flat_explore_transition(&typed_bounds, typed_boundary)
+            };
             self.exploration_queries.push(TypedExploreQuery {
                 name: query.name.clone(),
+                source_syntax: if query.transition.is_some() {
+                    ExploreTransitionSyntax::Explicit
+                } else {
+                    ExploreTransitionSyntax::FlatSugar
+                },
                 rule_name: query.over.rule_name.clone(),
                 rule_arity: arity,
                 polarity: query.polarity,
                 inputs: typed_inputs,
                 sliced_inputs,
                 bounds: typed_bounds,
-                boundary: typed_boundary,
+                transition,
                 output: TypedExploreOutput {
                     key: typed_key,
                     extrema: typed_extrema,
@@ -36891,18 +39204,7 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> TypeCheckArtifacts {
-        Self::check_with_artifact_options(stmts, source_dir, source, false, false)
-    }
-
-    /// Check the hidden exact-finite preview without imposing requirements
-    /// that exist solely for solver lowering. Runtime types are still checked,
-    /// and every assignment is later executed by the ordinary interpreter.
-    pub fn check_with_exhaustive_preview_artifacts(
-        stmts: &[Stmt],
-        source_dir: Option<String>,
-        source: &str,
-    ) -> TypeCheckArtifacts {
-        Self::check_with_artifact_options(stmts, source_dir, source, false, true)
+        Self::check_with_artifact_options(stmts, source_dir, source, false)
     }
 
     /// Run type checking and additionally collect compile-time metadata from
@@ -36912,7 +39214,7 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
     ) -> TypeCheckArtifacts {
-        Self::check_with_artifact_options(stmts, source_dir, source, true, false)
+        Self::check_with_artifact_options(stmts, source_dir, source, true)
     }
 
     fn check_with_artifact_options(
@@ -36920,12 +39222,10 @@ impl TypeChecker {
         source_dir: Option<String>,
         source: &str,
         collect_all_imported_metadata_bindings: bool,
-        exhaustive_explore_preview: bool,
     ) -> TypeCheckArtifacts {
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
-        tc.checking_exhaustive_explore_preview = exhaustive_explore_preview;
         tc.install_constructor_prepass(stmts);
         tc.collect_declarations(stmts);
         tc.infer_rule_return_types(stmts);
@@ -36953,7 +39253,7 @@ impl TypeChecker {
                 &tc.rule_dispatch_boolean_miss_safe_keys,
                 &tc.explore_rule_return_types_by_arity,
                 &tc.explore_rule_return_issues,
-                !exhaustive_explore_preview,
+                true,
             ) {
                 Ok(universes) => exploration_universes = universes,
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
@@ -38123,7 +40423,7 @@ mod tests {
         std::fs::create_dir_all(&temp_dir).expect("create checked-analysis directory");
         let module_source = r#"
 > helper(value: Int) -> Int { value + 1 }
-| eligible(value: Int) -> True under helper(value) > 0
+| eligible(value: Int) -> value >= 0
 "#;
         let module_statements =
             parse_test_program(module_source).expect("parse reusable import module");
@@ -38197,6 +40497,14 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(reused_helpers.len(), 2);
         assert_eq!(reused_helpers[0].id, reused_helpers[1].id);
+        assert_eq!(
+            [
+                reused_helpers[0].declaration_occurrence_ordinal,
+                reused_helpers[1].declaration_occurrence_ordinal,
+            ],
+            [0, 1],
+            "equal retained declarations receive a local stable semantic rank"
+        );
         assert!(matches!(
             &reused_helpers[0].import_kind,
             SourcedImportKind::PlainImport
@@ -38218,6 +40526,11 @@ mod tests {
         assert_ne!(
             duplicate_rules[0].normalized_ordinal, duplicate_rules[1].normalized_ordinal,
             "one semantic site may have multiple retained import occurrences"
+        );
+        assert_ne!(
+            duplicate_rules[0].declaration_occurrence_ordinal,
+            duplicate_rules[1].declaration_occurrence_ordinal,
+            "equal declaration identities retain distinct stable occurrence ranks"
         );
         assert_ne!(
             duplicate
@@ -38342,7 +40655,7 @@ mod tests {
             "direct-qualified children retain distinct canonical parent instances"
         );
         let mut repeated_alias_occurrence = declarations[2].clone();
-        repeated_alias_occurrence.normalized_ordinal += 1;
+        repeated_alias_occurrence.declaration_occurrence_ordinal += 1;
         assert_ne!(
             declarations[2].qualified_instance_module_id(),
             repeated_alias_occurrence.qualified_instance_module_id(),
@@ -38741,6 +41054,91 @@ mod tests {
     }
 
     #[test]
+    fn explore_parser_preserves_explicit_transition_roles_and_sources() {
+        let source = r#"
+? explore transitions {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 10)
+        where before before.income >= 0
+        where after after.income >= 0
+        where transition after.income >= before.income
+    }
+    transition as IncomeState context IncomeChange {
+        independent
+        after.income = before.income + context.step
+        after.municipality in municipalities
+    }
+    boundaries on before.income by context.step
+    output {
+        key [income = before.income]
+        show [next = after.income]
+        representative first
+    }
+}
+"#;
+        let statements = parse_test_program(source).expect("parse explicit transition");
+        let Stmt::Explore(query) = &statements[0] else {
+            panic!("expected explicit Explore query")
+        };
+        assert!(matches!(
+            &query.bounds[0],
+            ExploreBound::Value {
+                role: Some(ExploreBoundRole::Context),
+                name,
+                ..
+            } if name == "step"
+        ));
+        assert!(matches!(
+            &query.bounds[1],
+            ExploreBound::Domain {
+                role: Some(ExploreBoundRole::Before),
+                name,
+                ..
+            } if name == "income"
+        ));
+        assert!(matches!(
+            &query.bounds[2],
+            ExploreBound::Where {
+                scope: Some(ExploreConstraintScope::Before),
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[3],
+            ExploreBound::Where {
+                scope: Some(ExploreConstraintScope::After),
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[4],
+            ExploreBound::Where {
+                scope: Some(ExploreConstraintScope::Transition),
+                ..
+            }
+        ));
+        let transition = query.transition.as_ref().expect("explicit transition AST");
+        assert_eq!(transition.state_ty.to_string(), "IncomeState");
+        assert_eq!(transition.context_ty.to_string(), "IncomeChange");
+        assert_eq!(transition.mode, ExploreTransitionMode::Independent);
+        assert!(matches!(
+            &transition.after_fields[0].source,
+            ExploreAfterFieldSource::Derived { .. }
+        ));
+        assert!(matches!(
+            &transition.after_fields[1].source,
+            ExploreAfterFieldSource::IndependentDomain { .. }
+        ));
+        assert_eq!(
+            query.boundary.as_ref().map(|boundary| boundary.axis_role),
+            Some(Some(ExploreBoundRole::Before))
+        );
+    }
+
+    #[test]
     fn explore_parser_preserves_existing_proof_forms() {
         for source in [
             "? explore\n",
@@ -38757,8 +41155,7 @@ mod tests {
             );
         }
 
-        let words =
-            "explore over find bounds boundaries output key extrema having varies show representative";
+        let words = "explore over find bounds boundaries transition as context identity relative independent before after output key extrema having varies show representative";
         let mut lexer = Lexer::new(words);
         let tokens = lexer.tokenize();
         let identifiers = tokens
@@ -39003,13 +41400,42 @@ mod tests {
             TypedExploreBound::Value { value_ty, .. } if value_ty.to_string() == "Int"
         ));
         assert_eq!(
-            query.boundary.as_ref().map(|boundary| (
+            query.boundary_hint().map(|boundary| (
                 boundary.axis.as_str(),
                 boundary.axis_ty.to_string(),
                 boundary.step_ty.to_string(),
             )),
             Some(("income", "Int".to_string(), "Int".to_string()))
         );
+        assert_eq!(query.transition.mode, ExploreTransitionMode::Relative);
+        assert_eq!(
+            query
+                .transition
+                .state_schema
+                .fields
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<Vec<_>>(),
+            ["profile", "income"]
+        );
+        assert_eq!(
+            query
+                .transition
+                .context_schema
+                .fields
+                .iter()
+                .map(|field| field.name.as_str())
+                .collect::<Vec<_>>(),
+            ["step"]
+        );
+        assert!(matches!(
+            &query.transition.after_fields[0].source,
+            TypedExploreAfterFieldSource::FrameBefore { .. }
+        ));
+        assert!(matches!(
+            &query.transition.after_fields[1].source,
+            TypedExploreAfterFieldSource::Derived { .. }
+        ));
         assert_eq!(query.output.key[0].ty.to_string(), "Int");
         assert_eq!(query.output.extrema[0].ty.to_string(), "Int");
         assert!(matches!(
@@ -39030,6 +41456,265 @@ mod tests {
                 .map(ToString::to_string),
             Some("Int".to_string())
         );
+    }
+
+    #[test]
+    fn explore_typechecker_builds_nominal_explicit_transition_ir() {
+        let source = r#"
+# IncomeState = IncomeState(income: Int, municipality: Int)
+# IncomeChange = IncomeChange(step: Int)
+
+| changed(before: IncomeState, after: IncomeState, context: IncomeChange) ->
+    after.income >= before.income under context.step > 0
+
+? explore alternatives {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 10)
+        before.municipality = 1
+        where before before.income >= 0
+        where after after.income >= 0
+        where transition after.municipality != before.municipality
+    }
+    transition as IncomeState context IncomeChange {
+        independent
+        after.income = before.income + context.step
+        after.municipality in [1, 2]
+    }
+    output {
+        key [income = before.income]
+        extrema [gain = after.income - before.income]
+        show [municipality = after.municipality]
+        representative first
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_queries[0];
+        assert_eq!(query.source_syntax, ExploreTransitionSyntax::Explicit);
+        assert_eq!(query.transition.mode, ExploreTransitionMode::Independent);
+        assert!(matches!(
+            &query.transition.state_schema.identity,
+            TypedExploreProductSchemaIdentity::Declared { .. }
+        ));
+        assert!(matches!(
+            &query.transition.context_schema.identity,
+            TypedExploreProductSchemaIdentity::Declared { .. }
+        ));
+        assert_eq!(query.bounds.len(), 7);
+        assert!(matches!(
+            &query.bounds[0],
+            TypedExploreBound::Value {
+                target: TypedExploreBoundTarget::ContextField { field_index: 0 },
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[1],
+            TypedExploreBound::Domain {
+                target: TypedExploreBoundTarget::BeforeField { field_index: 0 },
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[6],
+            TypedExploreBound::Domain {
+                target: TypedExploreBoundTarget::AfterIndependent { field_index: 1 },
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.transition.after_fields[0].source,
+            TypedExploreAfterFieldSource::Derived { .. }
+        ));
+        assert!(matches!(
+            &query.transition.after_fields[1].source,
+            TypedExploreAfterFieldSource::IndependentDomain { bound_index: 6 }
+        ));
+        assert!(matches!(
+            &query.bounds[3],
+            TypedExploreBound::Where {
+                scope: ExploreConstraintScope::Before,
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[4],
+            TypedExploreBound::Where {
+                scope: ExploreConstraintScope::After,
+                ..
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[5],
+            TypedExploreBound::Where {
+                scope: ExploreConstraintScope::Transition,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn explore_typechecker_resolves_explicit_after_dependencies_by_field_index() {
+        let source = r#"
+# OrderedState = OrderedState(earlier: Int, later: Int)
+
+| changed(before: OrderedState, after: OrderedState, context: ()) ->
+    after.earlier > before.earlier
+
+? explore forward_dependency {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        before.earlier = 0
+        before.later in range(0, 4)
+    }
+    transition as OrderedState context () {
+        relative
+        after.earlier = after.later + 1
+        after.later = before.later + 1
+    }
+    boundaries on before.later by 1
+    output {
+        key [later = before.later]
+        representative first
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_queries[0];
+        let TypedExploreAfterFieldSource::Derived {
+            after_dependencies, ..
+        } = &query.transition.after_fields[0].source
+        else {
+            panic!("earlier after field must be derived");
+        };
+        assert_eq!(after_dependencies.len(), 1);
+        assert_eq!(after_dependencies[0].field_index, 1);
+        assert_eq!(after_dependencies[0].binding_name, "later");
+
+        let TypedExploreAfterFieldSource::Derived {
+            after_dependencies, ..
+        } = &query.transition.after_fields[1].source
+        else {
+            panic!("later after field must be derived");
+        };
+        assert!(after_dependencies.is_empty());
+        assert_eq!(
+            query
+                .transition
+                .boundary_hint
+                .as_ref()
+                .map(|boundary| boundary.axis_bound_index),
+            Some(1)
+        );
+        assert_eq!(query.transition.after_membership.len(), 1);
+        assert_eq!(query.transition.after_membership[0].after_field_index, 1);
+        assert_eq!(query.transition.after_membership[0].before_bound_index, 1);
+    }
+
+    #[test]
+    fn explore_typechecker_rejects_explicit_after_dependency_cycle() {
+        let source = r#"
+# CyclicState = CyclicState(first: Int, second: Int)
+
+| changed(before: CyclicState, after: CyclicState, context: ()) ->
+    after.first >= before.first
+
+? explore cyclic_dependency {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        before.first in range(0, 2)
+        before.second = 0
+    }
+    transition as CyclicState context () {
+        relative
+        after.first = after.second
+        after.second = after.first
+    }
+    output {
+        key [first = before.first]
+        representative first
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        let messages = artifacts
+            .diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.message.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            messages,
+            ["after-construction DAG contains a cycle among nodes {0, 1}"]
+        );
+    }
+
+    #[test]
+    fn explore_after_dag_ignores_lexically_shadowed_after_receiver() {
+        let source = r#"
+# ShadowState = ShadowState(first: Int, second: Int)
+
+> shadow_second(value: ShadowState) -> Int { value.second }
+
+| changed(before: ShadowState, after: ShadowState, context: ()) ->
+    after.second > before.second
+
+? explore lexical_after {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        before.first = 0
+        before.second = 1
+    }
+    transition as ShadowState context () {
+        relative
+        after.first = foldl([before], 0, |sum: Int, after: ShadowState| sum + shadow_second(after))
+        after.second = after.first + 1
+    }
+    output {
+        key [second = after.second]
+        representative first
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_queries[0];
+        let TypedExploreAfterFieldSource::Derived {
+            after_dependencies: first_dependencies,
+            ..
+        } = &query.transition.after_fields[0].source
+        else {
+            panic!("first after field must be derived");
+        };
+        assert!(first_dependencies.is_empty());
+        let TypedExploreAfterFieldSource::Derived {
+            after_dependencies: second_dependencies,
+            ..
+        } = &query.transition.after_fields[1].source
+        else {
+            panic!("second after field must be derived");
+        };
+        assert_eq!(second_dependencies.len(), 1);
+        assert_eq!(second_dependencies[0].field_index, 0);
     }
 
     #[test]
@@ -39153,6 +41838,21 @@ mod tests {
             explore::ExploreExactDomain::FiniteType { plan, .. } => *plan = original_plan,
             _ => unreachable!("Profile dimension remains finite"),
         }
+        let original_role = artifacts.exploration_universes[0].universe.dimensions[0].role;
+        artifacts.exploration_universes[0].universe.dimensions[0].role =
+            ExploreGeneratorAxisRole::Context;
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
+        artifacts.exploration_universes[0].universe.dimensions[0].role = original_role;
+        let original_mode = artifacts.exploration_universes[0].transition.mode;
+        artifacts.exploration_universes[0].transition.mode = ExploreTransitionMode::Identity;
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
+        artifacts.exploration_universes[0].transition.mode = original_mode;
         artifacts.exploration_universes[0].query.polarity = ExplorePolarity::Violations;
         assert!(matches!(
             artifacts.checked_exploration_query(0),
@@ -43316,15 +46016,18 @@ fn opaque(value: i64) -> i64 { value }
                     polarity: ExplorePolarity::Matches,
                     bounds: vec![
                         ExploreBound::Value {
+                            role: None,
                             name: "derived".to_string(),
                             value: typechecker_missing_expr("missing_explore_value"),
                             span: Span::dummy(),
                         },
                         ExploreBound::Where {
+                            scope: None,
                             predicate: typechecker_missing_expr("missing_explore_where"),
                             span: Span::dummy(),
                         },
                     ],
+                    transition: None,
                     boundary: None,
                     output: ExploreOutput {
                         key: vec![ExploreOutputField {
@@ -44587,6 +47290,7 @@ handle <- Left
         };
         let occurrence = CheckedDeclarationOccurrenceId {
             declaration: declaration.clone(),
+            declaration_occurrence_ordinal: 0,
             normalized_ordinal: 0,
         };
         let callable = CheckedCallableId {
@@ -44682,6 +47386,7 @@ handle <- Left
                     arity: Some(0),
                     ordinal: 0,
                 },
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),

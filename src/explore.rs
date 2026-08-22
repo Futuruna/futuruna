@@ -42,6 +42,9 @@ mod stream_proof;
 mod stream_replay;
 mod stream_resource;
 mod stream_snapshot;
+mod transition;
+
+pub(crate) use transition::TransitionSchemaIdentities;
 
 const EXPLORE_GROUND_COLLECTION_LIMIT: u64 = 1_000_000;
 const EXPLORE_GROUND_WORK_LIMIT: u64 = 4_000_000;
@@ -69,6 +72,69 @@ pub enum ExploreValue {
         positional: bool,
         fields: Vec<(String, ExploreValue)>,
     },
+}
+
+fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
+    match value {
+        ExploreValue::Int(value) => Value::Int(*value),
+        ExploreValue::FloatBits(bits) => Value::Float(f64::from_bits(*bits)),
+        ExploreValue::String(value) => Value::Str(value.clone()),
+        ExploreValue::Character(value) => Value::Char(*value),
+        ExploreValue::Boolean(value) => Value::Bool(*value),
+        ExploreValue::Unit => Value::Unit,
+        ExploreValue::List(values) => values.iter().rev().fold(
+            Value::Constructor("Nil".into(), vec![].into()),
+            |tail, value| {
+                Value::Constructor(
+                    "Cons".into(),
+                    vec![runtime_value_from_explore_value(value), tail].into(),
+                )
+            },
+        ),
+        ExploreValue::Set(values) => Value::Set(
+            values
+                .iter()
+                .map(|value| {
+                    (
+                        value.runtime_display_key(),
+                        runtime_value_from_explore_value(value),
+                    )
+                })
+                .collect(),
+        ),
+        ExploreValue::Tuple(values) => Value::Tuple(
+            values
+                .iter()
+                .map(runtime_value_from_explore_value)
+                .collect(),
+        ),
+        ExploreValue::Constructor {
+            variant,
+            positional: true,
+            fields,
+            ..
+        } => Value::Constructor(
+            variant.clone(),
+            fields
+                .iter()
+                .map(|(_, value)| runtime_value_from_explore_value(value))
+                .collect::<Vec<_>>()
+                .into(),
+        ),
+        ExploreValue::Constructor {
+            variant,
+            positional: false,
+            fields,
+            ..
+        } => Value::NamedConstructor(
+            variant.clone(),
+            fields
+                .iter()
+                .map(|(name, value)| (name.clone(), runtime_value_from_explore_value(value)))
+                .collect::<Vec<_>>()
+                .into(),
+        ),
+    }
 }
 
 impl ExploreValue {
@@ -426,9 +492,15 @@ impl ExploreExactDomain {
 
 #[derive(Debug, Clone)]
 pub struct ExploreDimensionIr {
+    /// Source-independent link back to the normalized typed bound that owns
+    /// this generator axis. Product construction uses this identity rather
+    /// than presentation names, which may repeat across transition roles.
+    pub bound_index: usize,
     pub name: String,
     pub value_ty: Ty,
     pub domain: ExploreExactDomain,
+    pub role: ExploreGeneratorAxisRole,
+    pub role_field_index: usize,
     pub span: Span,
 }
 
@@ -443,16 +515,15 @@ pub enum ExploreFactValue {
 
 #[derive(Debug, Clone)]
 pub struct ExploreFactIr {
+    /// Normalized typed-bound identity used when materializing State/Context
+    /// products. It is not inferred from the fact's display name.
+    pub bound_index: usize,
+    pub role: ExploreGeneratorAxisRole,
+    pub role_field_index: usize,
     pub name: String,
     pub value_ty: Ty,
     pub value: ExploreFactValue,
     pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreConstraintScope {
-    Candidate,
-    BothBoundaryEndpoints,
 }
 
 #[derive(Debug, Clone)]
@@ -479,6 +550,254 @@ pub struct ExploreBoundaryIr {
 }
 
 #[derive(Debug, Clone)]
+pub enum ExploreAfterFieldSourceIr {
+    FrameBefore {
+        before_field_index: usize,
+    },
+    Derived {
+        expression: Expr,
+        environment: TypedExploreDerivedEnvironment,
+        /// Canonical after-construction DAG predecessors. The evaluator exposes
+        /// only these already-constructed fields through the runtime-only
+        /// partial `after` product; the partial value never becomes a state.
+        after_dependencies: Vec<ExploreAfterDependencyIr>,
+    },
+    /// One canonical generator coordinate supplies this field. The domain is
+    /// owned by `ExploreUniverseIr::dimensions`; transition construction only
+    /// retains the closed coordinate index.
+    IndependentDomain {
+        dimension_index: usize,
+    },
+}
+
+/// One compiler-owned edge in the normalized after-construction DAG.
+/// `binding_name` is the checked State-field spelling used to validate the
+/// indexed edge and expose `after.FIELD`. Any compact bare alias is carried
+/// separately by `ExploreFlatAliasIr`; runtime construction never infers
+/// either relation from mutable environment contents or incidental field order.
+#[derive(Debug, Clone)]
+pub struct ExploreAfterDependencyIr {
+    pub field_index: usize,
+    pub binding_name: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreAfterFieldIr {
+    pub field_index: usize,
+    pub name: String,
+    pub value_ty: Ty,
+    pub source: ExploreAfterFieldSourceIr,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreAfterMembershipPreconstructionIr {
+    /// The checked after construction is `before + step` for this Int field.
+    /// Membership can therefore close before any fallible derived evaluation.
+    RelativeIntStep { step: i64 },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExploreAfterMembershipIr {
+    pub after_field_index: usize,
+    pub before_dimension_index: usize,
+    pub preconstruction: ExploreAfterMembershipPreconstructionIr,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreProductFieldSourceIr {
+    Dimension { dimension_index: usize },
+    Fact { fact_index: usize },
+    TransitionExpression { expression: Expr },
+}
+
+#[derive(Debug, Clone)]
+pub struct ExploreProductFieldIr {
+    pub field_index: usize,
+    pub name: String,
+    pub value_ty: Ty,
+    pub source: ExploreProductFieldSourceIr,
+    pub span: Span,
+}
+
+/// A closed product schema: every field source already names a closed
+/// generator/fact slot or a checked transition expression. Exact execution
+/// never resolves product membership through source bounds or display names.
+#[derive(Debug, Clone)]
+pub struct ExploreProductSchemaIr {
+    pub identity: TypedExploreProductSchemaIdentity,
+    pub fields: Vec<ExploreProductFieldIr>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreFlatAliasRole {
+    Context { field_index: usize },
+    State { field_index: usize },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreFlatAliasSource {
+    Dimension { dimension_index: usize },
+    Fact { fact_index: usize },
+}
+
+/// Closed provenance for compact source aliases. This is an evaluation view
+/// over the canonical frame, never an alternative transition model.
+#[derive(Debug, Clone)]
+pub struct ExploreFlatAliasIr {
+    pub name: String,
+    pub role: ExploreFlatAliasRole,
+    pub source: ExploreFlatAliasSource,
+}
+
+/// Closed, non-optional before/context/after transition contract consumed by
+/// exact execution. Mode, field sources, endpoint membership, and scoped
+/// validity define semantics; `boundary_hint` can only accelerate them.
+#[derive(Debug, Clone)]
+pub struct ExploreTransitionIr {
+    pub normalization_version: u32,
+    pub mode: ExploreTransitionMode,
+    pub state_schema: ExploreProductSchemaIr,
+    pub context_schema: ExploreProductSchemaIr,
+    pub after_fields: Vec<ExploreAfterFieldIr>,
+    pub after_membership: Vec<ExploreAfterMembershipIr>,
+    pub flat_aliases: Vec<ExploreFlatAliasIr>,
+    /// Checked optimizer metadata. Semantic endpoint construction, membership,
+    /// and validity are represented elsewhere in this transition IR.
+    pub boundary_hint: Option<ExploreBoundaryIr>,
+}
+
+fn validate_after_construction_dag(fields: &[ExploreAfterFieldIr]) -> Result<(), String> {
+    for (expected_index, field) in fields.iter().enumerate() {
+        if field.field_index != expected_index {
+            return Err(format!(
+                "after field `{}` has canonical index {}, expected {}",
+                field.name, field.field_index, expected_index
+            ));
+        }
+        let ExploreAfterFieldSourceIr::Derived {
+            after_dependencies, ..
+        } = &field.source
+        else {
+            continue;
+        };
+        let mut bindings = BTreeSet::new();
+        for dependency in after_dependencies {
+            if dependency.field_index >= fields.len() {
+                return Err(format!(
+                    "derived after field `{}` references absent DAG node {}",
+                    field.name, dependency.field_index
+                ));
+            }
+            if dependency.binding_name.is_empty() {
+                return Err(format!(
+                    "derived after field `{}` has an empty DAG binding",
+                    field.name
+                ));
+            }
+            if fields[dependency.field_index].name != dependency.binding_name {
+                return Err(format!(
+                    "derived after field `{}` binds DAG input `{}` to field `{}`",
+                    field.name, dependency.binding_name, fields[dependency.field_index].name
+                ));
+            }
+            if !bindings.insert(dependency.binding_name.as_str()) {
+                return Err(format!(
+                    "derived after field `{}` binds DAG input `{}` more than once",
+                    field.name, dependency.binding_name
+                ));
+            }
+        }
+    }
+
+    let mut closed = fields
+        .iter()
+        .filter(|field| !matches!(&field.source, ExploreAfterFieldSourceIr::Derived { .. }))
+        .map(|field| field.field_index)
+        .collect::<BTreeSet<_>>();
+    let mut open = fields
+        .iter()
+        .filter(|field| matches!(&field.source, ExploreAfterFieldSourceIr::Derived { .. }))
+        .map(|field| field.field_index)
+        .collect::<BTreeSet<_>>();
+    while !open.is_empty() {
+        let ready = open.iter().copied().find(|field_index| {
+            let ExploreAfterFieldSourceIr::Derived {
+                after_dependencies, ..
+            } = &fields[*field_index].source
+            else {
+                return false;
+            };
+            after_dependencies
+                .iter()
+                .all(|dependency| closed.contains(&dependency.field_index))
+        });
+        let Some(field_index) = ready else {
+            return Err(format!(
+                "after-construction DAG contains a cycle among nodes {:?}",
+                open
+            ));
+        };
+        open.remove(&field_index);
+        closed.insert(field_index);
+    }
+    Ok(())
+}
+
+fn close_product_schema(
+    schema: &TypedExploreProductSchema,
+    bound_dimensions: &BTreeMap<usize, usize>,
+    bound_facts: &BTreeMap<usize, usize>,
+) -> Result<ExploreProductSchemaIr, String> {
+    let mut fields = Vec::with_capacity(schema.fields.len());
+    for (field_index, field) in schema.fields.iter().enumerate() {
+        let source = match &field.binding {
+            TypedExploreProductFieldBinding::Bound { bound_index } => {
+                match (
+                    bound_dimensions.get(bound_index),
+                    bound_facts.get(bound_index),
+                ) {
+                    (Some(dimension_index), None) => ExploreProductFieldSourceIr::Dimension {
+                        dimension_index: *dimension_index,
+                    },
+                    (None, Some(fact_index)) => ExploreProductFieldSourceIr::Fact {
+                        fact_index: *fact_index,
+                    },
+                    (None, None) => {
+                        return Err(format!(
+                            "product field `{}` references unclosed bound {}",
+                            field.name, bound_index
+                        ))
+                    }
+                    (Some(_), Some(_)) => {
+                        return Err(format!(
+                            "product field `{}` bound {} is both a dimension and a fact",
+                            field.name, bound_index
+                        ))
+                    }
+                }
+            }
+            TypedExploreProductFieldBinding::TransitionExpression { expression } => {
+                ExploreProductFieldSourceIr::TransitionExpression {
+                    expression: expression.clone(),
+                }
+            }
+        };
+        fields.push(ExploreProductFieldIr {
+            field_index,
+            name: field.name.clone(),
+            value_ty: field.ty.clone(),
+            source,
+            span: field.span,
+        });
+    }
+    Ok(ExploreProductSchemaIr {
+        identity: schema.identity.clone(),
+        fields,
+    })
+}
+
+#[derive(Debug, Clone)]
 pub struct ExploreUniverseIr {
     pub dimensions: Vec<ExploreDimensionIr>,
     pub facts: Vec<ExploreFactIr>,
@@ -487,13 +806,19 @@ pub struct ExploreUniverseIr {
     /// Product before `where` and before the queried rule.  This is never
     /// presented as the admissible/result count.
     pub cartesian_count_before_constraints: ExploreCardinality,
-    pub boundary: Option<ExploreBoundaryIr>,
 }
 
 #[derive(Debug, Clone)]
 pub struct ExploreQueryIr {
     pub query: TypedExploreQuery,
+    pub transition: ExploreTransitionIr,
     pub universe: ExploreUniverseIr,
+}
+
+impl ExploreQueryIr {
+    pub fn boundary_hint(&self) -> Option<&ExploreBoundaryIr> {
+        self.transition.boundary_hint.as_ref()
+    }
 }
 
 /// Default answer-search cap for the public exact-finite executor.
@@ -746,11 +1071,14 @@ pub struct ExploreStreamSliceReport {
     pub artifact: ExploreStreamArtifact,
 }
 
-/// One declared search axis in source order, before constraints or question
-/// evaluation.
+/// One declared search axis in canonical transition-role order, before
+/// constraints or question evaluation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExploreCostPlanAxis {
     pub name: String,
+    pub bound_index: usize,
+    pub role: ExploreGeneratorAxisRole,
+    pub role_field_index: usize,
     pub cardinality: ExploreCardinality,
 }
 
@@ -758,6 +1086,7 @@ pub struct ExploreCostPlanAxis {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExploreCostPlanBoundary {
     pub axis: String,
+    pub axis_dimension_index: usize,
     pub step: i64,
     /// Product of the boundary-eligible axis pairs and every other declared
     /// axis, before `where` constraints or question evaluation.
@@ -883,8 +1212,31 @@ pub struct ExploreExecutionRow {
     /// Exact when the projected key class is closed; otherwise a confirmed
     /// lower bound over the evaluated closed cases.
     pub support: ExploreCountEvidence,
-    /// Domain ordinals in bound source order, not raw hidden input values.
+    /// Domain ordinals in canonical Context → Before → independent-After axis
+    /// order, not raw hidden input values.
     pub representative_case_id: Vec<u128>,
+}
+
+/// Structural identity and presentation label for one CaseId coordinate.
+/// Labels may repeat across roles; consumers must use the indexed descriptor
+/// rather than parse or compare the display spelling.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ExploreExecutionDimension {
+    pub bound_index: usize,
+    pub role: ExploreGeneratorAxisRole,
+    pub role_field_index: usize,
+    pub label: String,
+}
+
+impl ExploreExecutionDimension {
+    pub fn qualified_label(&self) -> String {
+        let role = match self.role {
+            ExploreGeneratorAxisRole::Context => "context",
+            ExploreGeneratorAxisRole::Before => "before",
+            ExploreGeneratorAxisRole::AfterIndependent => "after",
+        };
+        format!("{role}.{}", self.label)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -994,7 +1346,8 @@ pub enum ExploreExecutionSearchEvidence {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ExploreExecutionEvidence {
-    pub dimension_names: Vec<String>,
+    /// Structural descriptors in canonical CaseId axis order.
+    pub dimensions: Vec<ExploreExecutionDimension>,
     pub axis_cardinalities: Vec<u128>,
     pub key_names: Vec<String>,
     pub extrema_names: Vec<String>,
@@ -1158,7 +1511,16 @@ fn public_evidence(evidence: report::ExploreExactEvidence) -> ExploreExecutionEv
         }
     };
     ExploreExecutionEvidence {
-        dimension_names: schema.dimension_names.into_vec(),
+        dimensions: schema
+            .dimensions
+            .iter()
+            .map(|dimension| ExploreExecutionDimension {
+                bound_index: dimension.bound_index,
+                role: dimension.role,
+                role_field_index: dimension.role_field_index,
+                label: dimension.label.clone(),
+            })
+            .collect(),
         axis_cardinalities: schema.axis_cardinalities.into_vec(),
         key_names: schema.key_names.clone().into_vec(),
         extrema_names: schema.extrema_names.clone().into_vec(),
@@ -1299,8 +1661,8 @@ fn public_exact_report(
 /// Execute one already checked and elaborated finite Explore query.
 ///
 /// This is the durable exact backend used by the public command. It consumes
-/// ordinary `check_with_artifacts` evidence rather than the hidden preview's
-/// relaxed checker, requires a caller-supplied finite case cap, and publishes
+/// ordinary `check_with_artifacts` evidence, requires a caller-supplied finite
+/// case cap, and publishes
 /// only replay-confirmed projected values. Its report request is deliberately
 /// the privacy-safe baseline: projected rows only, with no case ledger or case
 /// graph disclosure.
@@ -1309,7 +1671,6 @@ fn execute_exact(
     source_dir: Option<&str>,
     artifacts: &TypeCheckArtifacts,
     accepted_query_index: usize,
-    query: &ExploreQueryIr,
     options: ExploreExactOptions,
 ) -> Result<ExploreExecutionReport, String> {
     let budget = report::ExploreExecutionBudget::new(
@@ -1326,7 +1687,7 @@ fn execute_exact(
             statements,
             source_dir,
             artifacts,
-            query,
+            accepted_query_index,
             report::ExploreReportRequest::baseline(),
             budget,
             &plan,
@@ -1338,7 +1699,7 @@ fn execute_exact(
             statements,
             source_dir,
             artifacts,
-            query,
+            accepted_query_index,
             report::ExploreReportRequest::baseline(),
             budget,
         ),
@@ -1403,16 +1764,18 @@ fn cost_plan(query: &ExploreQueryIr, options: ExploreExactOptions) -> ExploreCos
             .iter()
             .map(|dimension| ExploreCostPlanAxis {
                 name: dimension.name.clone(),
+                bound_index: dimension.bound_index,
+                role: dimension.role,
+                role_field_index: dimension.role_field_index,
                 cardinality: dimension.domain.cardinality(),
             })
             .collect(),
         declared_cartesian_count,
         boundary: query
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .map(|boundary| ExploreCostPlanBoundary {
                 axis: boundary.axis.clone(),
+                axis_dimension_index: boundary.axis_dimension_index,
                 step: boundary.step,
                 eligible_unconstrained_pairs: boundary.eligible_unconstrained_pairs.clone(),
             }),
@@ -1451,8 +1814,7 @@ pub fn plan_checked_exact(
 
 /// Check, elaborate, select and execute one exact-finite exploration as one
 /// inseparable operation. This prevents callers from combining statements,
-/// artifacts and a query IR produced by different checks or by the hidden
-/// relaxed preview checker.
+/// artifacts and a query IR produced by different checks.
 pub fn execute_checked_exact(
     statements: &[Stmt],
     source_dir: Option<String>,
@@ -1474,7 +1836,6 @@ pub fn execute_checked_exact(
         source_dir.as_deref(),
         &artifacts,
         selected,
-        &artifacts.exploration_universes[selected],
         options,
     )
     .map_err(ExploreExecutionPreparationError::Execution)
@@ -3726,6 +4087,21 @@ impl<'a> ExploreGroundEvaluator<'a> {
                 }
                 Err(format!("unresolved ground name `{}`", name))
             }
+            ExprKind::Field(receiver, field) => {
+                let receiver = self.eval(receiver, None)?;
+                let value = match receiver {
+                    ExploreValue::Constructor {
+                        positional: false,
+                        fields,
+                        ..
+                    } => fields
+                        .into_iter()
+                        .find_map(|(name, value)| (name == *field).then_some(value)),
+                    _ => None,
+                };
+                value
+                    .ok_or_else(|| format!("ground exploration value has no named field `{field}`"))
+            }
             ExprKind::UnOp(operator, value) => {
                 let value = self.eval(value, expected)?;
                 match (operator.as_str(), value) {
@@ -4424,6 +4800,65 @@ fn eval_ground_exact(
         );
     }
     Ok((canonical_value, runtime_value))
+}
+
+/// Materialize the checked Context projection needed by boundary-step
+/// elaboration. Every referenced field must be coordinate-invariant; unrelated
+/// Context axes remain outside this private projection view.
+fn fixed_boundary_context(
+    query: &TypedExploreQuery,
+    facts: &[ExploreFactIr],
+    bound_fact_indices: &BTreeMap<usize, usize>,
+    required_fields: &BTreeSet<String>,
+) -> Result<Option<(ExploreValue, Value)>, String> {
+    let TypedExploreProductSchemaIdentity::Declared { ty } =
+        &query.transition.context_schema.identity
+    else {
+        return Ok(None);
+    };
+    let Ty::Name(type_name) = ty else {
+        return Err(format!(
+            "explicit exploration Context schema `{ty}` is not a nominal product"
+        ));
+    };
+
+    let mut fields = Vec::with_capacity(required_fields.len());
+    for field in query
+        .transition
+        .context_schema
+        .fields
+        .iter()
+        .filter(|field| required_fields.contains(&field.name))
+    {
+        let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding else {
+            return Ok(None);
+        };
+        let Some(fact_index) = bound_fact_indices.get(bound_index) else {
+            return Ok(None);
+        };
+        let fact = facts.get(*fact_index).ok_or_else(|| {
+            format!(
+                "fixed Context field `{}` references absent fact {}",
+                field.name, fact_index
+            )
+        })?;
+        let ExploreFactValue::Fixed(value) = &fact.value else {
+            return Ok(None);
+        };
+        fields.push((field.name.clone(), value.clone()));
+    }
+    if fields.len() != required_fields.len() {
+        return Err("boundary step references an absent Context field".to_string());
+    }
+
+    let canonical = ExploreValue::Constructor {
+        type_name: type_name.clone(),
+        variant: type_name.clone(),
+        positional: false,
+        fields,
+    };
+    let runtime = runtime_value_from_explore_value(&canonical);
+    Ok(Some((canonical, runtime)))
 }
 
 fn eval_ground_binary(
@@ -6327,9 +6762,17 @@ fn validate_query_replay_callable_identities(
         .iter()
         .map(|input| input.name.clone())
         .chain(query.bounds.iter().filter_map(|bound| match bound {
-            TypedExploreBound::Domain { name, .. } | TypedExploreBound::Value { name, .. } => {
-                Some(name.clone())
+            TypedExploreBound::Domain {
+                target: TypedExploreBoundTarget::CompactScalar,
+                name,
+                ..
             }
+            | TypedExploreBound::Value {
+                target: TypedExploreBoundTarget::CompactScalar,
+                name,
+                ..
+            } => Some(name.clone()),
+            TypedExploreBound::Domain { .. } | TypedExploreBound::Value { .. } => None,
             TypedExploreBound::Where { .. } => None,
         }))
         .chain(query.output.extrema.iter().map(|field| field.name.clone()))
@@ -6363,8 +6806,25 @@ fn validate_query_replay_callable_identities(
             TypedExploreBound::Where { predicate, .. } => check_expression(predicate),
         }
     }
-    if let Some(boundary) = &query.boundary {
+    if let Some(boundary) = query.boundary_hint() {
         check_expression(&boundary.step);
+    }
+    for schema in [
+        &query.transition.state_schema,
+        &query.transition.context_schema,
+    ] {
+        for field in &schema.fields {
+            if let TypedExploreProductFieldBinding::TransitionExpression { expression } =
+                &field.binding
+            {
+                check_expression(expression);
+            }
+        }
+    }
+    for field in &query.transition.after_fields {
+        if let TypedExploreAfterFieldSource::Derived { expression, .. } = &field.source {
+            check_expression(expression);
+        }
     }
     for field in &query.output.key {
         check_expression(&field.value);
@@ -6654,8 +7114,9 @@ pub(crate) fn elaborate_queries(
             definitions.clone(),
             validate_replay_callables,
         ) {
-            Ok(universe) => universes.push(ExploreQueryIr {
+            Ok((universe, transition)) => universes.push(ExploreQueryIr {
                 query: query.clone(),
+                transition,
                 universe,
             }),
             Err(mut query_diagnostics) => diagnostics.append(&mut query_diagnostics),
@@ -6673,7 +7134,7 @@ fn elaborate_query(
     catalog: &calculate::TypeCatalog,
     definitions: GroundDefinitions,
     validate_replay_callables: bool,
-) -> Result<ExploreUniverseIr, Vec<Diagnostic>> {
+) -> Result<(ExploreUniverseIr, ExploreTransitionIr), Vec<Diagnostic>> {
     if validate_replay_callables {
         let replay_diagnostics = validate_query_replay_callable_identities(query, &definitions);
         if !replay_diagnostics.is_empty() {
@@ -6687,29 +7148,151 @@ fn elaborate_query(
         .iter()
         .map(|input| input.name.clone())
         .chain(query.bounds.iter().filter_map(|bound| match bound {
-            TypedExploreBound::Domain { name, .. } | TypedExploreBound::Value { name, .. } => {
-                Some(name.clone())
+            TypedExploreBound::Domain {
+                target: TypedExploreBoundTarget::CompactScalar,
+                name,
+                ..
             }
+            | TypedExploreBound::Value {
+                target: TypedExploreBoundTarget::CompactScalar,
+                name,
+                ..
+            } => Some(name.clone()),
+            TypedExploreBound::Domain { .. } | TypedExploreBound::Value { .. } => None,
             TypedExploreBound::Where { .. } => None,
         }))
         .chain(query.output.extrema.iter().map(|field| field.name.clone()))
         .chain(query.output.show.iter().map(|field| field.name.clone()))
         .collect::<BTreeSet<_>>();
     let mut dimensions = Vec::new();
-    let mut available_names = BTreeSet::new();
+    let mut available_names = if query.source_syntax == ExploreTransitionSyntax::Explicit {
+        query
+            .inputs
+            .iter()
+            .map(|input| input.name.clone())
+            .collect()
+    } else {
+        BTreeSet::new()
+    };
     let mut dimension_names = BTreeSet::new();
     let mut derived_names = BTreeSet::new();
     let mut facts = Vec::new();
+    let mut bound_fact_indices = BTreeMap::new();
     let mut constraints = Vec::new();
     let mut diagnostics = Vec::new();
-
-    for bound in &query.bounds {
+    let mut bound_roles = BTreeMap::new();
+    for (field_index, field) in query.transition.state_schema.fields.iter().enumerate() {
+        if let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding {
+            if bound_roles
+                .insert(
+                    *bound_index,
+                    (ExploreGeneratorAxisRole::Before, field_index),
+                )
+                .is_some()
+            {
+                diagnostics.push(Diagnostic::error_at(
+                    field.span,
+                    format!(
+                        "normalized bound {} is assigned to more than one transition field",
+                        bound_index
+                    ),
+                ));
+            }
+        }
+    }
+    for (field_index, field) in query.transition.context_schema.fields.iter().enumerate() {
+        if let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding {
+            if bound_roles
+                .insert(
+                    *bound_index,
+                    (ExploreGeneratorAxisRole::Context, field_index),
+                )
+                .is_some()
+            {
+                diagnostics.push(Diagnostic::error_at(
+                    field.span,
+                    format!(
+                        "normalized bound {} is assigned to more than one transition field",
+                        bound_index
+                    ),
+                ));
+            }
+        }
+    }
+    for field in &query.transition.after_fields {
+        if let TypedExploreAfterFieldSource::IndependentDomain { bound_index } = &field.source {
+            if bound_roles
+                .insert(
+                    *bound_index,
+                    (
+                        ExploreGeneratorAxisRole::AfterIndependent,
+                        field.field_index,
+                    ),
+                )
+                .is_some()
+            {
+                diagnostics.push(Diagnostic::error_at(
+                    field.span,
+                    format!(
+                        "normalized bound {} is assigned to more than one transition field",
+                        bound_index
+                    ),
+                ));
+            }
+        }
+    }
+    for (bound_index, bound) in query.bounds.iter().enumerate() {
+        let (target, span) = match bound {
+            TypedExploreBound::Domain { target, span, .. }
+            | TypedExploreBound::Value { target, span, .. } => (target, *span),
+            TypedExploreBound::Where { .. } => continue,
+        };
+        let Some((expected_role, expected_field_index)) = bound_roles.get(&bound_index).copied()
+        else {
+            diagnostics.push(Diagnostic::error_at(
+                span,
+                format!(
+                    "exploration bound {} is not owned by the normalized transition",
+                    bound_index
+                ),
+            ));
+            continue;
+        };
+        let target_matches = match target {
+            TypedExploreBoundTarget::CompactScalar => {
+                query.source_syntax == ExploreTransitionSyntax::FlatSugar
+            }
+            TypedExploreBoundTarget::BeforeField { field_index } => {
+                expected_role == ExploreGeneratorAxisRole::Before
+                    && *field_index == expected_field_index
+            }
+            TypedExploreBoundTarget::ContextField { field_index } => {
+                expected_role == ExploreGeneratorAxisRole::Context
+                    && *field_index == expected_field_index
+            }
+            TypedExploreBoundTarget::AfterIndependent { field_index } => {
+                expected_role == ExploreGeneratorAxisRole::AfterIndependent
+                    && *field_index == expected_field_index
+            }
+        };
+        if !target_matches {
+            diagnostics.push(Diagnostic::error_at(
+                span,
+                format!(
+                    "exploration bound {} target disagrees with its normalized {:?} field {} role",
+                    bound_index, expected_role, expected_field_index
+                ),
+            ));
+        }
+    }
+    for (bound_index, bound) in query.bounds.iter().enumerate() {
         match bound {
             TypedExploreBound::Domain {
                 name,
                 value_ty,
                 domain,
                 span,
+                ..
             } => {
                 let exact = match domain {
                     TypedExploreDomain::FiniteExpr {
@@ -6907,11 +7490,25 @@ fn elaborate_query(
                 };
                 match exact {
                     Ok(domain) => {
+                        let Some((role, role_field_index)) = bound_roles.get(&bound_index).copied()
+                        else {
+                            diagnostics.push(Diagnostic::error_at(
+                                *span,
+                                format!(
+                                    "exploration dimension `{name}` has no normalized transition role"
+                                ),
+                            ));
+                            available_names.insert(name.clone());
+                            continue;
+                        };
                         dimension_names.insert(name.clone());
                         dimensions.push(ExploreDimensionIr {
+                            bound_index,
                             name: name.clone(),
                             value_ty: value_ty.clone(),
                             domain,
+                            role,
+                            role_field_index,
                             span: *span,
                         });
                     }
@@ -6920,11 +7517,29 @@ fn elaborate_query(
                 available_names.insert(name.clone());
             }
             TypedExploreBound::Value {
+                target,
                 name,
                 value_ty,
                 value,
                 span,
+                ..
             } => {
+                let Some((role, role_field_index)) = bound_roles.get(&bound_index).copied() else {
+                    diagnostics.push(Diagnostic::error_at(
+                        *span,
+                        format!("exploration value `{name}` has no normalized transition role"),
+                    ));
+                    available_names.insert(name.clone());
+                    continue;
+                };
+                if role == ExploreGeneratorAxisRole::AfterIndependent {
+                    diagnostics.push(Diagnostic::error_at(
+                        *span,
+                        format!("independent after field `{name}` must use a finite domain"),
+                    ));
+                    available_names.insert(name.clone());
+                    continue;
+                }
                 let dependencies =
                     expression_query_dependencies(value, &all_local_names, &definitions);
                 let unavailable = dependencies
@@ -6944,9 +7559,16 @@ fn elaborate_query(
                     continue;
                 }
                 available_names.insert(name.clone());
-                let varies = dependencies.iter().any(|dependency| {
-                    dimension_names.contains(dependency) || derived_names.contains(dependency)
-                });
+                let depends_on_transition_role = query.source_syntax
+                    == ExploreTransitionSyntax::Explicit
+                    && !matches!(target, TypedExploreBoundTarget::CompactScalar)
+                    && dependencies.iter().any(|dependency| {
+                        query.inputs.iter().any(|input| input.name == *dependency)
+                    });
+                let varies = depends_on_transition_role
+                    || dependencies.iter().any(|dependency| {
+                        dimension_names.contains(dependency) || derived_names.contains(dependency)
+                    });
                 let fact = if varies {
                     derived_names.insert(name.clone());
                     ExploreFactValue::Derived {
@@ -7001,14 +7623,22 @@ fn elaborate_query(
                         }
                     }
                 };
+                bound_fact_indices.insert(bound_index, facts.len());
                 facts.push(ExploreFactIr {
+                    bound_index,
+                    role,
+                    role_field_index,
                     name: name.clone(),
                     value_ty: value_ty.clone(),
                     value: fact,
                     span: *span,
                 });
             }
-            TypedExploreBound::Where { predicate, span } => {
+            TypedExploreBound::Where {
+                predicate,
+                scope,
+                span,
+            } => {
                 let dependencies =
                     expression_query_dependencies(predicate, &all_local_names, &definitions);
                 let unavailable = dependencies
@@ -7027,11 +7657,7 @@ fn elaborate_query(
                 }
                 constraints.push(ExploreConstraintIr {
                     predicate: predicate.clone(),
-                    scope: if query.boundary.is_some() {
-                        ExploreConstraintScope::BothBoundaryEndpoints
-                    } else {
-                        ExploreConstraintScope::Candidate
-                    },
+                    scope: *scope,
                     span: *span,
                 });
             }
@@ -7042,17 +7668,166 @@ fn elaborate_query(
         return Err(diagnostics);
     }
 
+    // CaseId coordinates are semantic generator coordinates, not parser
+    // order. Keep them stable across harmless source reordering by sorting
+    // each axis into the declared Context, Before, AfterIndependent product
+    // order before any cardinality or membership index is derived.
+    dimensions.sort_by_key(|dimension| {
+        let role_order = match dimension.role {
+            ExploreGeneratorAxisRole::Context => 0_u8,
+            ExploreGeneratorAxisRole::Before => 1,
+            ExploreGeneratorAxisRole::AfterIndependent => 2,
+        };
+        (
+            role_order,
+            dimension.role_field_index,
+            dimension.bound_index,
+        )
+    });
+    let bound_dimension_indices = dimensions
+        .iter()
+        .enumerate()
+        .map(|(dimension_index, dimension)| (dimension.bound_index, dimension_index))
+        .collect::<BTreeMap<_, _>>();
+
     let mut cartesian_count_before_constraints = ExploreCardinality::one();
     for dimension in &dimensions {
         cartesian_count_before_constraints =
             cartesian_count_before_constraints.multiply(dimension.domain.cardinality());
     }
 
-    let boundary = query.boundary.as_ref().and_then(|boundary| {
-        let (axis_dimension_index, dimension) = dimensions
+    let mut transition_sensitive_names =
+        if query.source_syntax == ExploreTransitionSyntax::FlatSugar {
+            query
+                .transition
+                .after_fields
+                .iter()
+                .filter_map(|field| {
+                    matches!(&field.source, TypedExploreAfterFieldSource::Derived { .. })
+                        .then(|| field.name.clone())
+                })
+                .collect::<BTreeSet<_>>()
+        } else {
+            BTreeSet::new()
+        };
+    let mut transition_recomputed_fact_indices = Vec::new();
+    for (index, fact) in facts.iter().enumerate() {
+        let ExploreFactValue::Derived { dependencies, .. } = &fact.value else {
+            continue;
+        };
+        if dependencies
             .iter()
-            .enumerate()
-            .find(|(_, dimension)| dimension.name == boundary.axis)?;
+            .any(|dependency| transition_sensitive_names.contains(dependency))
+        {
+            transition_recomputed_fact_indices.push(index);
+            transition_sensitive_names.insert(fact.name.clone());
+        }
+    }
+
+    let boundary_hint = query.boundary_hint().and_then(|boundary| {
+        let axis_bound_index = boundary.axis_bound_index;
+        let state_field_index = query
+            .transition
+            .state_schema
+            .fields
+            .iter()
+            .position(|field| {
+                matches!(
+                    &field.binding,
+                    TypedExploreProductFieldBinding::Bound { bound_index }
+                        if *bound_index == axis_bound_index
+                )
+            });
+        let Some(state_field_index) = state_field_index else {
+            diagnostics.push(Diagnostic::error_at(
+                boundary.span,
+                "exploration boundary does not target a canonical Before field",
+            ));
+            return None;
+        };
+        let Some(axis_dimension_index) = bound_dimension_indices.get(&axis_bound_index).copied()
+        else {
+            diagnostics.push(Diagnostic::error_at(
+                boundary.span,
+                "exploration boundary does not target a finite generator dimension",
+            ));
+            return None;
+        };
+        let Some(dimension) = dimensions.get(axis_dimension_index) else {
+            diagnostics.push(Diagnostic::error_at(
+                boundary.span,
+                "exploration boundary generator dimension is absent",
+            ));
+            return None;
+        };
+        if dimension.role != ExploreGeneratorAxisRole::Before
+            || dimension.role_field_index != state_field_index
+        {
+            diagnostics.push(Diagnostic::error_at(
+                boundary.span,
+                "exploration boundary target is not the resolved Before generator axis",
+            ));
+            return None;
+        }
+        let mut step_symbol_uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(
+            &boundary.step,
+            &mut step_symbol_uses,
+            &BTreeSet::new(),
+            &BTreeMap::new(),
+        );
+        if step_symbol_uses.values.contains("context")
+            || step_symbol_uses.calls.contains("context")
+        {
+            let required_context_fields = step_symbol_uses
+                .member_values
+                .iter()
+                .filter_map(|(receiver, field)| {
+                    (receiver == "context").then_some(field.clone())
+                })
+                .collect::<BTreeSet<_>>();
+            let context_value_uses = step_symbol_uses
+                .value_occurrences
+                .get("context")
+                .copied()
+                .unwrap_or_default();
+            let context_projection_uses = step_symbol_uses
+                .member_value_occurrences
+                .iter()
+                .filter_map(|((receiver, _), count)| {
+                    (receiver == "context").then_some(*count)
+                })
+                .sum::<usize>();
+            if context_value_uses != context_projection_uses {
+                diagnostics.push(Diagnostic::error_at(
+                    boundary.span,
+                    "exploration boundary step may reference Context only through fixed `context.FIELD` projections",
+                ));
+                return None;
+            }
+            match fixed_boundary_context(
+                query,
+                &facts,
+                &bound_fact_indices,
+                &required_context_fields,
+            ) {
+                Ok(Some((canonical, runtime))) => {
+                    evaluator.set_local("context", canonical);
+                    runtime_evaluator.set_local("context", runtime);
+                }
+                Ok(None) => {
+                    diagnostics.push(Diagnostic::error_at(
+                        boundary.span,
+                        "exploration boundary step references a Context field that is not coordinate-invariant",
+                    ));
+                    return None;
+                }
+                Err(message) => {
+                    diagnostics.push(Diagnostic::error_at(boundary.span, message));
+                    return None;
+                }
+            }
+        }
         let step_dependencies =
             expression_query_dependencies(&boundary.step, &all_local_names, &definitions);
         let varying_step_dependencies = step_dependencies
@@ -7103,33 +7878,19 @@ fn elaborate_query(
             }
         };
         let mut eligible_unconstrained_pairs = eligible_axis_pairs.clone();
-        for other in dimensions
-            .iter()
-            .filter(|candidate| candidate.name != boundary.axis)
-        {
+        for (dimension_index, other) in dimensions.iter().enumerate() {
+            if dimension_index == axis_dimension_index {
+                continue;
+            }
             eligible_unconstrained_pairs =
                 eligible_unconstrained_pairs.multiply(other.domain.cardinality());
         }
-        let mut axis_sensitive = BTreeSet::from([boundary.axis.clone()]);
-        let mut recomputed_fact_indices = Vec::new();
-        for (index, fact) in facts.iter().enumerate() {
-            let ExploreFactValue::Derived { dependencies, .. } = &fact.value else {
-                continue;
-            };
-            if dependencies
-                .iter()
-                .any(|dependency| axis_sensitive.contains(dependency))
-            {
-                recomputed_fact_indices.push(index);
-                axis_sensitive.insert(fact.name.clone());
-            }
-        }
         Some(ExploreBoundaryIr {
-            axis: boundary.axis.clone(),
+            axis: dimension.name.clone(),
             axis_dimension_index,
             step,
             requires_both_endpoints_in_domain: true,
-            recomputed_fact_indices,
+            recomputed_fact_indices: transition_recomputed_fact_indices.clone(),
             eligible_axis_pairs,
             eligible_unconstrained_pairs,
             span: boundary.span,
@@ -7216,368 +7977,388 @@ fn elaborate_query(
         return Err(diagnostics);
     }
 
-    Ok(ExploreUniverseIr {
+    let recomputed_fact_names = transition_recomputed_fact_indices
+        .iter()
+        .filter_map(|fact_index| facts.get(*fact_index))
+        .map(|fact| fact.name.as_str())
+        .collect::<BTreeSet<_>>();
+    let state_field_indices = query
+        .transition
+        .state_schema
+        .fields
+        .iter()
+        .enumerate()
+        .map(|(field_index, field)| (field.name.as_str(), field_index))
+        .collect::<BTreeMap<_, _>>();
+    let mut after_fields = Vec::with_capacity(query.transition.after_fields.len());
+    for field in &query.transition.after_fields {
+        let source = match &field.source {
+            TypedExploreAfterFieldSource::FrameBefore { .. }
+                if recomputed_fact_names.contains(field.name.as_str()) =>
+            {
+                let Some(ExploreFactValue::Derived {
+                    expression,
+                    dependencies,
+                }) = facts
+                    .iter()
+                    .find(|fact| fact.name == field.name)
+                    .map(|fact| &fact.value)
+                else {
+                    diagnostics.push(Diagnostic::error_at(
+                        field.span,
+                        format!(
+                            "transition field `{}` is marked for recomputation without a derived fact",
+                            field.name
+                        ),
+                    ));
+                    continue;
+                };
+                ExploreAfterFieldSourceIr::Derived {
+                    expression: expression.clone(),
+                    environment: TypedExploreDerivedEnvironment::TransitionFrameV1,
+                    after_dependencies: dependencies
+                        .iter()
+                        .filter(|dependency| {
+                            recomputed_fact_names.contains(dependency.as_str())
+                                || query.transition.after_fields.iter().any(|candidate| {
+                                    candidate.name == dependency.as_str()
+                                        && matches!(
+                                            &candidate.source,
+                                            TypedExploreAfterFieldSource::Derived { .. }
+                                        )
+                                })
+                        })
+                        .filter_map(|dependency| {
+                            state_field_indices
+                                .get(dependency.as_str())
+                                .map(|field_index| ExploreAfterDependencyIr {
+                                    field_index: *field_index,
+                                    binding_name: dependency.clone(),
+                                })
+                        })
+                        .collect(),
+                }
+            }
+            TypedExploreAfterFieldSource::FrameBefore { before_field_index } => {
+                ExploreAfterFieldSourceIr::FrameBefore {
+                    before_field_index: *before_field_index,
+                }
+            }
+            TypedExploreAfterFieldSource::Derived {
+                expression,
+                environment,
+                after_dependencies,
+                ..
+            } => ExploreAfterFieldSourceIr::Derived {
+                expression: expression.clone(),
+                environment: *environment,
+                after_dependencies: after_dependencies
+                    .iter()
+                    .map(|dependency| ExploreAfterDependencyIr {
+                        field_index: dependency.field_index,
+                        binding_name: dependency.binding_name.clone(),
+                    })
+                    .collect(),
+            },
+            TypedExploreAfterFieldSource::IndependentDomain { bound_index } => {
+                let Some(dimension_index) = bound_dimension_indices.get(bound_index).copied()
+                else {
+                    diagnostics.push(Diagnostic::error_at(
+                        field.span,
+                        format!(
+                            "independent after field `{}` does not name a finite generator dimension",
+                            field.name
+                        ),
+                    ));
+                    continue;
+                };
+                let Some(dimension) = dimensions.get(dimension_index) else {
+                    diagnostics.push(Diagnostic::error_at(
+                        field.span,
+                        format!(
+                            "independent after field `{}` references absent generator dimension {}",
+                            field.name, dimension_index
+                        ),
+                    ));
+                    continue;
+                };
+                if dimension.role != ExploreGeneratorAxisRole::AfterIndependent
+                    || dimension.role_field_index != field.field_index
+                {
+                    diagnostics.push(Diagnostic::error_at(
+                        field.span,
+                        format!(
+                            "independent after field `{}` does not own its normalized generator axis",
+                            field.name
+                        ),
+                    ));
+                    continue;
+                }
+                ExploreAfterFieldSourceIr::IndependentDomain { dimension_index }
+            }
+        };
+        after_fields.push(ExploreAfterFieldIr {
+            field_index: field.field_index,
+            name: field.name.clone(),
+            value_ty: field.value_ty.clone(),
+            source,
+            span: field.span,
+        });
+    }
+    if !diagnostics.is_empty() {
+        return Err(diagnostics);
+    }
+    if let Err(message) = validate_after_construction_dag(&after_fields) {
+        return Err(vec![Diagnostic::error_at(query.span, message)]);
+    }
+
+    let mut after_membership = Vec::with_capacity(query.transition.after_membership.len());
+    for membership in &query.transition.after_membership {
+        let Some(before_dimension_index) = bound_dimension_indices
+            .get(&membership.before_bound_index)
+            .copied()
+        else {
+            diagnostics.push(Diagnostic::error_at(
+                query.span,
+                format!(
+                    "transition membership for after field {} does not name a finite before dimension",
+                    membership.after_field_index
+                ),
+            ));
+            continue;
+        };
+        let Some(boundary) = boundary_hint.as_ref().filter(|boundary| {
+            boundary.axis_dimension_index == before_dimension_index
+                && dimensions
+                    .get(before_dimension_index)
+                    .is_some_and(|dimension| {
+                        dimension.role_field_index == membership.after_field_index
+                    })
+        }) else {
+            diagnostics.push(Diagnostic::error_at(
+                query.span,
+                format!(
+                    "transition membership for after field {} has no matching closed boundary construction",
+                    membership.after_field_index
+                ),
+            ));
+            continue;
+        };
+        after_membership.push(ExploreAfterMembershipIr {
+            after_field_index: membership.after_field_index,
+            before_dimension_index,
+            preconstruction: ExploreAfterMembershipPreconstructionIr::RelativeIntStep {
+                step: boundary.step,
+            },
+        });
+    }
+    if !diagnostics.is_empty() {
+        return Err(diagnostics);
+    }
+
+    let state_schema = close_product_schema(
+        &query.transition.state_schema,
+        &bound_dimension_indices,
+        &bound_fact_indices,
+    )
+    .map_err(|message| vec![Diagnostic::error_at(query.span, message)])?;
+    let context_schema = close_product_schema(
+        &query.transition.context_schema,
+        &bound_dimension_indices,
+        &bound_fact_indices,
+    )
+    .map_err(|message| vec![Diagnostic::error_at(query.span, message)])?;
+    let mut flat_aliases = Vec::new();
+    for (bound_index, bound) in query.bounds.iter().enumerate() {
+        let (target, name) = match bound {
+            TypedExploreBound::Domain { target, name, .. }
+            | TypedExploreBound::Value { target, name, .. } => (target, name),
+            TypedExploreBound::Where { .. } => continue,
+        };
+        if !matches!(target, TypedExploreBoundTarget::CompactScalar) {
+            continue;
+        }
+        let Some((generator_role, field_index)) = bound_roles.get(&bound_index).copied() else {
+            return Err(vec![Diagnostic::error_at(
+                query.span,
+                format!("compact alias `{name}` has no normalized transition role"),
+            )]);
+        };
+        let role = match generator_role {
+            ExploreGeneratorAxisRole::Context => ExploreFlatAliasRole::Context { field_index },
+            ExploreGeneratorAxisRole::Before => ExploreFlatAliasRole::State { field_index },
+            ExploreGeneratorAxisRole::AfterIndependent => {
+                return Err(vec![Diagnostic::error_at(
+                    query.span,
+                    format!("compact alias `{name}` cannot own an independent after axis"),
+                )])
+            }
+        };
+        let source = match (
+            bound_dimension_indices.get(&bound_index),
+            bound_fact_indices.get(&bound_index),
+        ) {
+            (Some(dimension_index), None) => ExploreFlatAliasSource::Dimension {
+                dimension_index: *dimension_index,
+            },
+            (None, Some(fact_index)) => ExploreFlatAliasSource::Fact {
+                fact_index: *fact_index,
+            },
+            _ => {
+                return Err(vec![Diagnostic::error_at(
+                    query.span,
+                    format!("compact alias `{name}` has no unique closed value slot"),
+                )])
+            }
+        };
+        flat_aliases.push(ExploreFlatAliasIr {
+            name: name.clone(),
+            role,
+            source,
+        });
+    }
+
+    let transition = ExploreTransitionIr {
+        normalization_version: query.transition.normalization_version,
+        mode: query.transition.mode,
+        state_schema,
+        context_schema,
+        after_fields,
+        after_membership,
+        flat_aliases,
+        boundary_hint,
+    };
+    let universe = ExploreUniverseIr {
         dimensions,
         facts,
         constraints,
         sliced_inputs: query.sliced_inputs.clone(),
         cartesian_count_before_constraints,
-        boundary,
-    })
+    };
+    Ok((universe, transition))
 }
 
-fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
-    match value {
-        ExploreValue::Int(value) => Value::Int(*value),
-        ExploreValue::FloatBits(bits) => Value::Float(f64::from_bits(*bits)),
-        ExploreValue::String(value) => Value::Str(value.clone()),
-        ExploreValue::Character(value) => Value::Char(*value),
-        ExploreValue::Boolean(value) => Value::Bool(*value),
-        ExploreValue::Unit => Value::Unit,
-        ExploreValue::List(values) => values.iter().rev().fold(
-            Value::Constructor("Nil".into(), vec![].into()),
-            |tail, value| {
-                Value::Constructor(
-                    "Cons".into(),
-                    vec![runtime_value_from_explore_value(value), tail].into(),
-                )
-            },
-        ),
-        ExploreValue::Set(values) => Value::Set(
-            values
-                .iter()
-                .map(|value| {
-                    (
-                        value.runtime_display_key(),
-                        runtime_value_from_explore_value(value),
-                    )
-                })
-                .collect(),
-        ),
-        ExploreValue::Tuple(values) => Value::Tuple(
-            values
-                .iter()
-                .map(runtime_value_from_explore_value)
-                .collect(),
-        ),
-        ExploreValue::Constructor {
-            variant,
-            positional: true,
-            fields,
-            ..
-        } => Value::Constructor(
-            variant.clone(),
-            fields
-                .iter()
-                .map(|(_, value)| runtime_value_from_explore_value(value))
-                .collect::<Vec<_>>()
-                .into(),
-        ),
-        ExploreValue::Constructor {
-            variant,
-            positional: false,
-            fields,
-            ..
-        } => Value::NamedConstructor(
-            variant.clone(),
-            fields
-                .iter()
-                .map(|(name, value)| (name.clone(), runtime_value_from_explore_value(value)))
-                .collect::<Vec<_>>()
-                .into(),
-        ),
-    }
-}
-
-fn preview_scalar(value: &ExploreValue) -> bool {
-    matches!(
-        value,
-        ExploreValue::Int(_)
-            | ExploreValue::FloatBits(_)
-            | ExploreValue::String(_)
-            | ExploreValue::Character(_)
-            | ExploreValue::Boolean(_)
-            | ExploreValue::Unit
-    )
-}
-
-fn preview_materialize_assignments(
-    domains: &[Vec<ExploreValue>],
-    limit: usize,
-) -> Result<Vec<Vec<ExploreValue>>, String> {
-    let mut assignments = vec![Vec::new()];
-    for domain in domains {
-        let next_len = assignments
-            .len()
-            .checked_mul(domain.len())
-            .ok_or_else(|| "exploration preview assignment count overflow".to_string())?;
-        if next_len > limit {
-            return Err(format!(
-                "exploration has at least {} assignments, exceeding preview limit {}",
-                next_len, limit
-            ));
-        }
-        let mut next = Vec::with_capacity(next_len);
-        for prefix in assignments {
-            for value in domain {
-                let mut assignment = prefix.clone();
-                assignment.push(value.clone());
-                next.push(assignment);
-            }
-        }
-        assignments = next;
-    }
-    Ok(assignments)
-}
-
-fn preview_eval_field(
-    interpreter: &mut Interpreter,
-    env: &Env,
-    field: &TypedExploreOutputField,
-    catalog: &calculate::TypeCatalog,
-) -> Result<ExplorePreviewField, String> {
-    let runtime_value = interpreter.eval(&field.value, env);
-    if let Some(message) = interpreter.take_exhaustive_preview_error() {
-        return Err(message);
-    }
-    let value =
-        runtime_value_to_explore_value(&runtime_value, &field.ty, catalog).map_err(|message| {
-            format!(
-                "cannot replay exploration output `{}` as `{}`: {}",
-                field.name, field.ty, message
-            )
-        })?;
-    if !preview_scalar(&value) {
-        return Err(format!(
-            "exploration preview output `{}` has non-scalar type `{}`; the preview currently supports only scalar key/show fields",
-            field.name, field.ty
-        ));
-    }
-    Ok(ExplorePreviewField {
-        name: field.name.clone(),
-        value,
-    })
-}
-
-/// Exhaust a small exact universe through normal interpreter semantics.
-///
-/// This deliberately narrow developer preview is not the public solver-backed
-/// report contract. It accepts only fixed facts, no `where` clauses, and
-/// `representative first`, and refuses any universe larger than `case_limit`.
+/// Render a small result through the one canonical exact evaluator. This
+/// hidden command is a presentation adapter only: it owns no transition,
+/// eligibility, question, or output semantics.
 pub fn execute_exhaustive_preview(
     statements: &[Stmt],
     source_dir: Option<&str>,
     artifacts: &TypeCheckArtifacts,
-    query: &ExploreQueryIr,
+    accepted_query_index: usize,
     case_limit: usize,
 ) -> Result<ExplorePreviewReport, String> {
     if case_limit == 0 {
         return Err("exploration preview limit must be positive".to_string());
     }
-    if !query.query.output.extrema.is_empty() || query.query.output.having.is_some() {
-        return Err(
-            "exploration preview does not support grouped `extrema`/`having`; use the exact-finite executor"
-                .to_string(),
-        );
-    }
-    if !matches!(
-        &query.query.output.representative,
-        ExploreRepresentative::First { .. }
-    ) {
-        return Err(
-            "exploration preview currently supports only `representative first`".to_string(),
-        );
-    }
-    if !query.universe.constraints.is_empty() {
-        return Err(
-            "exploration preview does not yet execute `where` constraints; use a Boolean question rule for the first experiment"
-                .to_string(),
-        );
-    }
-    if query
-        .universe
-        .facts
-        .iter()
-        .any(|fact| matches!(&fact.value, ExploreFactValue::Derived { .. }))
-    {
-        return Err(
-            "exploration preview supports fixed facts only; move derived values into the question/output helper"
-                .to_string(),
-        );
-    }
-
-    let declared_assignments = query
-        .universe
-        .cartesian_count_before_constraints
-        .exact()
-        .ok_or_else(|| "exploration assignment count exceeds u128::MAX".to_string())?;
-    if declared_assignments > case_limit as u128 {
-        return Err(format!(
-            "exploration declares {} assignments, exceeding preview limit {}",
-            declared_assignments, case_limit
-        ));
-    }
-    let declared_assignments = u64::try_from(declared_assignments)
-        .map_err(|_| "exploration assignment count exceeds u64::MAX".to_string())?;
-
-    let domains = query
-        .universe
-        .dimensions
-        .iter()
-        .map(|dimension| dimension.domain.enumerate_preview(case_limit))
-        .collect::<Result<Vec<_>, _>>()?;
-    let assignments = preview_materialize_assignments(&domains, case_limit)?;
-    let catalog = calculate::TypeCatalog::collect_checked(statements, source_dir)
-        .map_err(|diagnostics| diagnostics.join("; "))?;
-
-    let mut interpreter = Interpreter::new();
-    interpreter.suppress_output = true;
-    interpreter.enable_exhaustive_preview_effect_guard();
-    interpreter.install_rule_dispatch_metadata(artifacts);
-    interpreter.source_dir = source_dir.map(str::to_string);
-    let mut base_env = interpreter.default_env();
-    interpreter.initialize_calculation_program(&query.query.rule_name, statements, &mut base_env);
-    if let Some(message) = interpreter.take_exhaustive_preview_error() {
-        return Err(message);
-    }
-
-    let boundary_axis_values = query.universe.boundary.as_ref().map(|boundary| {
-        domains[boundary.axis_dimension_index]
-            .iter()
-            .filter_map(ExploreValue::int)
-            .collect::<BTreeSet<_>>()
-    });
-    let question = ExprKind::App(
-        Box::new(ExprKind::Var(query.query.rule_name.clone()).into()),
-        query
-            .query
-            .inputs
-            .iter()
-            .map(|input| ExprKind::Var(input.name.clone()).into())
-            .collect(),
-    )
-    .into();
-
-    let mut eligible_configurations = 0_u64;
-    let mut evaluated_configurations = 0_u64;
-    let mut matching_configurations = 0_u64;
-    let mut distinct_keys = BTreeSet::<Vec<ExploreValue>>::new();
-    let mut rows = Vec::new();
-
-    for assignment in assignments {
-        if let Some(boundary) = &query.universe.boundary {
-            let lower = assignment[boundary.axis_dimension_index]
-                .int()
-                .ok_or_else(|| "exploration boundary assignment is not an Int".to_string())?;
-            let upper = lower
-                .checked_add(boundary.step)
-                .ok_or_else(|| "exploration boundary endpoint overflow".to_string())?;
-            if !boundary_axis_values
-                .as_ref()
-                .is_some_and(|values| values.contains(&upper))
-            {
-                continue;
-            }
+    let budget = report::ExploreExecutionBudget::new(
+        Some(case_limit as u128),
+        report::DEFAULT_EXPLORE_STEP_LIMIT,
+        report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
+    )?;
+    let exact = exact::execute_exact_finite(
+        statements,
+        source_dir,
+        artifacts,
+        accepted_query_index,
+        report::ExploreReportRequest {
+            case_graph: report::ExploreCaseGraphRequest::Omit,
+            ledger: report::ExploreLedgerRequest::MatchingConfigurations,
+        },
+        budget,
+    )?;
+    let report::ExploreExactReport {
+        query_name,
+        polarity,
+        outcome,
+        ..
+    } = exact;
+    let evidence = match outcome {
+        report::ExploreExactOutcome::Complete { evidence, .. } => evidence,
+        report::ExploreExactOutcome::Partial { stop, .. } => {
+            return Err(format!(
+                "exploration did not complete within preview limit {case_limit}: {stop:?}"
+            ))
         }
-        eligible_configurations = eligible_configurations.saturating_add(1);
-
-        let mut env = base_env.child();
-        for (dimension, value) in query.universe.dimensions.iter().zip(&assignment) {
-            env.set(
-                dimension.name.clone(),
-                runtime_value_from_explore_value(value),
-            );
+        report::ExploreExactOutcome::Unknown { reason, .. } => return Err(reason),
+        report::ExploreExactOutcome::Unsupported { diagnostic } => return Err(diagnostic),
+        report::ExploreExactOutcome::Error { diagnostics } => {
+            return Err(diagnostics.into_vec().join("; "))
         }
-        for fact in &query.universe.facts {
-            let ExploreFactValue::Fixed(value) = &fact.value else {
-                unreachable!("derived facts were rejected above")
-            };
-            env.set(fact.name.clone(), runtime_value_from_explore_value(value));
+    };
+    let exact_u64 = |name: &str, count: report::ExploreCount| {
+        count
+            .exact()
+            .ok_or_else(|| format!("complete exploration has non-exact {name}"))
+            .and_then(|value| {
+                u64::try_from(value).map_err(|_| format!("exploration {name} exceeds u64::MAX"))
+            })
+    };
+    let declared_assignments = exact_u64(
+        "declared assignment count",
+        evidence.counts.declared_assignments,
+    )?;
+    let eligible_configurations = exact_u64(
+        "admissible configuration count",
+        evidence.counts.admissible_configurations,
+    )?;
+    let matching_configurations = exact_u64(
+        "matching configuration count",
+        evidence.counts.matching_configurations,
+    )?;
+    let distinct_keys = exact_u64(
+        "distinct result-key count",
+        evidence.counts.distinct_result_keys,
+    )?;
+    let rows = match evidence.ledger {
+        report::ExploreLedgerEvidence::MatchingConfigurations { rows } => rows
+            .into_vec()
+            .into_iter()
+            .map(|row| ExplorePreviewRow {
+                inputs: evidence
+                    .schema
+                    .dimensions
+                    .iter()
+                    .map(report::ExploreReportDimension::qualified_label)
+                    .zip(row.dimensions.into_vec())
+                    .map(|(name, value)| ExplorePreviewField { name, value })
+                    .collect(),
+                key: evidence
+                    .schema
+                    .key_names
+                    .iter()
+                    .cloned()
+                    .zip(row.key.values().iter().cloned())
+                    .map(|(name, value)| ExplorePreviewField { name, value })
+                    .collect(),
+                shown: evidence
+                    .schema
+                    .shown_names
+                    .iter()
+                    .cloned()
+                    .zip(row.shown.into_vec())
+                    .map(|(name, value)| ExplorePreviewField { name, value })
+                    .collect(),
+            })
+            .collect::<Vec<_>>(),
+        report::ExploreLedgerEvidence::Omitted => {
+            return Err("canonical preview execution omitted its requested matching ledger".into())
         }
-
-        evaluated_configurations = evaluated_configurations.saturating_add(1);
-        let question_value = interpreter.eval(&question, &env);
-        if let Some(message) = interpreter.take_exhaustive_preview_error() {
-            return Err(message);
-        }
-        let matched = match question_value {
-            Value::Bool(value) => match query.query.polarity {
-                ExplorePolarity::Matches => value,
-                ExplorePolarity::Violations => !value,
-            },
-            other => {
-                return Err(format!(
-                    "exploration question `{}` replayed to non-Bool value `{}`",
-                    query.query.rule_name, other
-                ))
-            }
-        };
-        if !matched {
-            continue;
-        }
-        matching_configurations = matching_configurations.saturating_add(1);
-
-        let mut inputs = Vec::with_capacity(query.query.inputs.len());
-        for input in &query.query.inputs {
-            let runtime_value = env.get(&input.name).ok_or_else(|| {
-                format!("exploration input `{}` is absent during replay", input.name)
-            })?;
-            let value = runtime_value_to_explore_value(runtime_value, &input.ty, &catalog)
-                .map_err(|message| {
-                    format!(
-                        "cannot serialize exploration input `{}` as `{}`: {}",
-                        input.name, input.ty, message
-                    )
-                })?;
-            inputs.push(ExplorePreviewField {
-                name: input.name.clone(),
-                value,
-            });
-        }
-
-        let mut key = Vec::with_capacity(query.query.output.key.len());
-        for field in &query.query.output.key {
-            key.push(preview_eval_field(&mut interpreter, &env, field, &catalog)?);
-        }
-        distinct_keys.insert(key.iter().map(|field| field.value.clone()).collect());
-
-        let mut shown = Vec::with_capacity(query.query.output.show.len());
-        let mut output_env = env.child();
-        for field in &query.query.output.show {
-            let replayed = preview_eval_field(&mut interpreter, &output_env, field, &catalog)?;
-            output_env.set(
-                replayed.name.clone(),
-                runtime_value_from_explore_value(&replayed.value),
-            );
-            shown.push(replayed);
-        }
-        rows.push(ExplorePreviewRow { inputs, key, shown });
-    }
-
-    if evaluated_configurations == 0 {
-        return Err(
-            "exploration preview has no eligible configurations, so it cannot validate the Boolean question result"
-                .to_string(),
-        );
-    }
-
+    };
+    let mut rows = rows;
     rows.sort_by(|left, right| {
         left.key
             .cmp(&right.key)
             .then_with(|| left.inputs.cmp(&right.inputs))
     });
     Ok(ExplorePreviewReport {
-        query_name: query
-            .query
-            .name
-            .clone()
-            .unwrap_or_else(|| "<anonymous>".to_string()),
-        polarity: query.query.polarity,
+        query_name,
+        polarity,
         declared_assignments,
         eligible_configurations,
-        evaluated_configurations,
+        evaluated_configurations: eligible_configurations,
         matching_configurations,
-        distinct_keys: distinct_keys.len() as u64,
+        distinct_keys,
         rows,
     })
 }
@@ -7606,6 +8387,167 @@ mod tests {
             Some(source_dir.to_string_lossy().to_string()),
             source,
         )
+    }
+
+    #[test]
+    fn exact_evaluator_constructs_explicit_after_fields_in_dag_order() {
+        let source = r#"
+# OrderedState = OrderedState(earlier: Int, later: Int)
+
+> later(value: Int) -> Int { value + 1 }
+
+| changed(before: OrderedState, after: OrderedState, context: ()) ->
+    after.earlier > before.earlier
+
+? explore forward_dependency {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        before.earlier = 0
+        before.later in range(0, 2)
+    }
+    transition as OrderedState context () {
+        relative
+        after.earlier = after.later + later(before.earlier)
+        after.later = later(before.later)
+    }
+    output {
+        key [later = before.later]
+        show [earlier_after = after.earlier, later_after = after.later]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse explicit after-DAG fixture");
+        let report = execute_checked_exact(
+            &statements,
+            None,
+            source,
+            Some("forward_dependency"),
+            ExploreExactOptions {
+                case_limit: NonZeroU128::new(2).unwrap(),
+            },
+        )
+        .expect("execute the two-case explicit transition");
+        let evidence = match report.outcome {
+            ExploreExecutionOutcome::Complete { evidence, .. } => evidence,
+            outcome => panic!("explicit after-DAG fixture did not close: {outcome:?}"),
+        };
+
+        assert_eq!(evidence.dimensions.len(), 1);
+        assert_eq!(evidence.dimensions[0].qualified_label(), "before.later");
+        assert_eq!(evidence.dimensions[0].bound_index, 1);
+        assert_eq!(
+            evidence.dimensions[0].role,
+            ExploreGeneratorAxisRole::Before
+        );
+        assert_eq!(evidence.dimensions[0].role_field_index, 1);
+        assert_eq!(evidence.axis_cardinalities, [2]);
+        assert_eq!(
+            evidence.counts,
+            ExploreExecutionCounts {
+                declared_assignments: ExploreCountEvidence::Exact(2),
+                admissible_configurations: ExploreCountEvidence::Exact(2),
+                matching_configurations: ExploreCountEvidence::Exact(2),
+                distinct_result_keys: ExploreCountEvidence::Exact(2),
+            }
+        );
+        assert_eq!(evidence.results.len(), 2);
+        assert_eq!(evidence.results[0].key[0].value, ExploreValue::Int(0));
+        assert_eq!(
+            evidence.results[0]
+                .shown
+                .iter()
+                .map(|field| field.value.clone())
+                .collect::<Vec<_>>(),
+            [ExploreValue::Int(2), ExploreValue::Int(1)]
+        );
+        assert_eq!(evidence.results[1].key[0].value, ExploreValue::Int(1));
+        assert_eq!(
+            evidence.results[1]
+                .shown
+                .iter()
+                .map(|field| field.value.clone())
+                .collect::<Vec<_>>(),
+            [ExploreValue::Int(3), ExploreValue::Int(2)]
+        );
+    }
+
+    #[test]
+    fn explicit_boundary_context_step_excludes_overflow_before_after_construction() {
+        let source = r#"
+# BoundaryState = BoundaryState(income: Int)
+# BoundaryContext = BoundaryContext(step: Int)
+
+| changed(before: BoundaryState, after: BoundaryState, context: BoundaryContext) ->
+    after.income > before.income under context.step > 0
+
+? explore overflow_guard {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in [9223372036854775807]
+    }
+    transition as BoundaryState context BoundaryContext {
+        relative
+        after.income = before.income + context.step
+    }
+    boundaries on before.income by context.step
+    output {
+        key [income = before.income]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse explicit boundary-overflow fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let mut closed_without_hint = artifacts.exploration_universes[0].clone();
+        closed_without_hint.transition.boundary_hint = None;
+        assert_eq!(
+            exact::endpoint_memberships_are_structurally_eligible(
+                &closed_without_hint,
+                &[ExploreValue::Int(i64::MAX)],
+            ),
+            Ok(false),
+            "canonical membership, not optimizer metadata, must close overflow"
+        );
+        let report = execute_checked_exact(
+            &statements,
+            None,
+            source,
+            Some("overflow_guard"),
+            ExploreExactOptions {
+                case_limit: NonZeroU128::new(1).unwrap(),
+            },
+        )
+        .expect("close the one-coordinate boundary-overflow fixture");
+        let evidence = match report.outcome {
+            ExploreExecutionOutcome::Complete { evidence, .. } => evidence,
+            outcome => panic!("boundary-overflow fixture did not close: {outcome:?}"),
+        };
+
+        assert_eq!(
+            evidence.counts,
+            ExploreExecutionCounts {
+                declared_assignments: ExploreCountEvidence::Exact(1),
+                admissible_configurations: ExploreCountEvidence::Exact(0),
+                matching_configurations: ExploreCountEvidence::Exact(0),
+                distinct_result_keys: ExploreCountEvidence::Exact(0),
+            }
+        );
+        assert!(evidence.results.is_empty());
     }
 
     #[test]
@@ -9274,7 +10216,8 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let universe = &artifacts.exploration_universes[0].universe;
+        let closed_query = &artifacts.exploration_universes[0];
+        let universe = &closed_query.universe;
         assert!(matches!(
             &universe.dimensions[0].domain,
             ExploreExactDomain::Enumerated { values, .. }
@@ -9292,7 +10235,7 @@ mod tests {
             universe.cartesian_count_before_constraints,
             ExploreCardinality::Exact(10)
         );
-        let boundary = universe.boundary.as_ref().expect("boundary");
+        let boundary = closed_query.boundary_hint().expect("boundary");
         assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(4));
         assert_eq!(
             boundary.eligible_unconstrained_pairs,
@@ -9301,9 +10244,18 @@ mod tests {
         assert_eq!(boundary.axis_dimension_index, 1);
         assert!(boundary.requires_both_endpoints_in_domain);
         assert_eq!(boundary.recomputed_fact_indices, vec![1, 2]);
-        assert!(universe.constraints.iter().all(|constraint| {
-            constraint.scope == ExploreConstraintScope::BothBoundaryEndpoints
-        }));
+        assert_eq!(
+            closed_query.transition.mode,
+            ExploreTransitionMode::Relative
+        );
+        assert!(universe
+            .dimensions
+            .iter()
+            .all(|dimension| dimension.role == ExploreGeneratorAxisRole::Before));
+        assert!(universe
+            .constraints
+            .iter()
+            .all(|constraint| { constraint.scope == ExploreConstraintScope::BothEndpoints }));
     }
 
     #[test]
@@ -9323,7 +10275,8 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let universe = &artifacts.exploration_universes[0].universe;
+        let closed_query = &artifacts.exploration_universes[0];
+        let universe = &closed_query.universe;
         assert_eq!(
             universe.cartesian_count_before_constraints,
             ExploreCardinality::Exact(0)
@@ -9332,6 +10285,16 @@ mod tests {
             .dimensions
             .iter()
             .all(|dimension| dimension.domain.cardinality() == ExploreCardinality::Exact(0)));
+        assert_eq!(
+            closed_query.transition.mode,
+            ExploreTransitionMode::Identity
+        );
+        assert!(closed_query.transition.context_schema.fields.is_empty());
+        assert!(closed_query
+            .transition
+            .after_fields
+            .iter()
+            .all(|field| matches!(&field.source, ExploreAfterFieldSourceIr::FrameBefore { .. })));
     }
 
     #[test]
@@ -9705,9 +10668,7 @@ mod tests {
             artifacts.diagnostics
         );
         let boundary = artifacts.exploration_universes[0]
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .expect("boundary");
         assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(1));
     }
@@ -11369,9 +12330,7 @@ mod tests {
             artifacts.diagnostics
         );
         let boundary = artifacts.exploration_universes[0]
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .expect("boundary");
         assert_eq!(boundary.step, 1);
         assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(2));

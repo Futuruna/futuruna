@@ -3562,6 +3562,7 @@ mod tests {
         let callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("income-policy"),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),
@@ -3680,6 +3681,7 @@ mod tests {
         let callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("nested-income-policy"),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),

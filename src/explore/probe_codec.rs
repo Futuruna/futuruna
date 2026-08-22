@@ -16,13 +16,14 @@ use serde::{Deserialize, Serialize};
 use super::probe::{
     ProbeArtifact, ProbeArtifactState, ProbeBoundaryContract, ProbeBoundaryEndpoint,
     ProbeBoundaryValues, ProbeClassification, ProbeClassificationKind, ProbeCompletionReason,
-    ProbeCounts, ProbeCursor, ProbeDecision, ProbeEndpointState, ProbeFrontierId,
-    ProbeFrontierState, ProbeLiftedCandidate, ProbeMechanismSignatureRef, ProbeNamedValue,
-    ProbeObservation, ProbePartialReason, ProbePlanContract, ProbeRetainedOutputs,
-    ProbeSchedulingReason, ProbeSelector, ProbeSemanticIdentity,
+    ProbeCounts, ProbeCursor, ProbeDecision, ProbeDimensionDescriptor, ProbeDimensionValue,
+    ProbeEndpointState, ProbeFrontierId, ProbeFrontierState, ProbeLiftedCandidate,
+    ProbeMechanismSignatureRef, ProbeNamedValue, ProbeObservation, ProbePartialReason,
+    ProbePlanContract, ProbeRetainedOutputs, ProbeSchedulingReason, ProbeSelector,
+    ProbeSemanticIdentity,
 };
 use super::report::ExploreCaseId;
-use super::{ExplorePolarity, ExploreValue};
+use super::{ExploreGeneratorAxisRole, ExplorePolarity, ExploreValue};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ProbeCodecError(String);
@@ -40,31 +41,31 @@ fn invalid(message: impl Into<String>) -> ProbeCodecError {
 }
 
 /// Encodes one validated checkpoint as compact canonical JSON plus `\n`.
-pub(crate) fn encode_probe_artifact_v1(
+pub(crate) fn encode_probe_artifact_v2(
     artifact: &ProbeArtifact,
 ) -> Result<Vec<u8>, ProbeCodecError> {
     artifact
         .validate()
         .map_err(|error| invalid(format!("invalid probe artifact: {error}")))?;
-    let dto = ProbeArtifactV1Dto::from_core(artifact)?;
+    let dto = ProbeArtifactV2Dto::from_core(artifact)?;
     let mut bytes = serde_json::to_vec(&dto)
         .map_err(|error| invalid(format!("cannot encode probe artifact: {error}")))?;
     bytes.push(b'\n');
     Ok(bytes)
 }
 
-/// Decodes only the unique canonical v1 byte representation.
-pub(crate) fn decode_probe_artifact_v1(bytes: &[u8]) -> Result<ProbeArtifact, ProbeCodecError> {
-    let dto = serde_json::from_slice::<ProbeArtifactV1Dto>(bytes)
+/// Decodes only the unique canonical v2 byte representation.
+pub(crate) fn decode_probe_artifact_v2(bytes: &[u8]) -> Result<ProbeArtifact, ProbeCodecError> {
+    let dto = serde_json::from_slice::<ProbeArtifactV2Dto>(bytes)
         .map_err(|error| invalid(format!("cannot decode probe artifact: {error}")))?;
     let artifact = dto.into_core()?;
     artifact
         .validate()
         .map_err(|error| invalid(format!("invalid probe artifact: {error}")))?;
-    let canonical = encode_probe_artifact_v1(&artifact)?;
+    let canonical = encode_probe_artifact_v2(&artifact)?;
     if canonical.as_slice() != bytes {
         return Err(invalid(
-            "probe artifact bytes are not the canonical compact v1 encoding",
+            "probe artifact bytes are not the canonical compact v2 encoding",
         ));
     }
     Ok(artifact)
@@ -72,8 +73,8 @@ pub(crate) fn decode_probe_artifact_v1(bytes: &[u8]) -> Result<ProbeArtifact, Pr
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ProbeArtifactV1Dto {
-    contract: ProbePlanContractV1Dto,
+struct ProbeArtifactV2Dto {
+    contract: ProbePlanContractV2Dto,
     state: ProbeArtifactStateV1Dto,
     cursor: ProbeCursorV1Dto,
     counts: ProbeCountsV1Dto,
@@ -84,24 +85,41 @@ struct ProbeArtifactV1Dto {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct ProbePlanContractV1Dto {
+struct ProbePlanContractV2Dto {
     artifact_schema: String,
     normalization_version: String,
     selector_tie_break_version: String,
     query_name: String,
     identity: ProbeSemanticIdentityV1Dto,
     polarity: ExplorePolarityV1Dto,
-    dimension_names: Vec<String>,
+    dimensions: Vec<ProbeDimensionDescriptorV2Dto>,
     axis_cardinalities: Vec<String>,
     boundary: Option<ProbeBoundaryContractV1Dto>,
     selectors: Vec<ProbeSelectorV1Dto>,
     semantic_case_cap: String,
     initial_frontier: String,
-    lift_dimension_names: Vec<String>,
-    retained_configuration_names: Vec<String>,
+    lift_dimension_indices: Vec<String>,
+    retained_configuration_dimension_indices: Vec<String>,
     retained_key_names: Vec<String>,
     retained_shown_names: Vec<String>,
     mechanism_trace_authorized: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProbeDimensionDescriptorV2Dto {
+    bound_index: String,
+    role: ExploreGeneratorAxisRoleV2Dto,
+    role_field_index: String,
+    label: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+enum ExploreGeneratorAxisRoleV2Dto {
+    Context,
+    Before,
+    AfterIndependent,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -189,12 +207,19 @@ struct ProbeCountsV1Dto {
 #[serde(deny_unknown_fields)]
 struct ProbeObservationV1Dto {
     case_id: Vec<String>,
-    configuration: Vec<ProbeNamedValueV1Dto>,
+    configuration: Vec<ProbeDimensionValueV2Dto>,
     boundary_values: ProbeBoundaryValuesV1Dto,
     classification: ProbeClassificationV1Dto,
     outputs: ProbeRetainedOutputsV1Dto,
     scheduling_reason: ProbeSchedulingReasonV1Dto,
     mechanism_signature: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct ProbeDimensionValueV2Dto {
+    dimension_index: String,
+    value: ExploreValueV1Dto,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -329,10 +354,10 @@ struct ExploreConstructorFieldV1Dto {
     value: ExploreValueV1Dto,
 }
 
-impl ProbeArtifactV1Dto {
+impl ProbeArtifactV2Dto {
     fn from_core(artifact: &ProbeArtifact) -> Result<Self, ProbeCodecError> {
         Ok(Self {
-            contract: ProbePlanContractV1Dto::from_core(&artifact.contract),
+            contract: ProbePlanContractV2Dto::from_core(&artifact.contract),
             state: ProbeArtifactStateV1Dto::from_core(artifact.state),
             cursor: ProbeCursorV1Dto::from_core(&artifact.cursor),
             counts: ProbeCountsV1Dto::from_core(artifact.counts),
@@ -382,7 +407,7 @@ impl ProbeArtifactV1Dto {
     }
 }
 
-impl ProbePlanContractV1Dto {
+impl ProbePlanContractV2Dto {
     fn from_core(contract: &ProbePlanContract) -> Self {
         Self {
             artifact_schema: contract.artifact_schema.to_string(),
@@ -391,7 +416,11 @@ impl ProbePlanContractV1Dto {
             query_name: contract.query_name.to_string(),
             identity: ProbeSemanticIdentityV1Dto::from_core(&contract.identity),
             polarity: ExplorePolarityV1Dto::from_core(contract.polarity),
-            dimension_names: contract.dimension_names.to_vec(),
+            dimensions: contract
+                .dimensions
+                .iter()
+                .map(ProbeDimensionDescriptorV2Dto::from_core)
+                .collect(),
             axis_cardinalities: contract
                 .axis_cardinalities
                 .iter()
@@ -406,8 +435,16 @@ impl ProbePlanContractV1Dto {
                 .collect(),
             semantic_case_cap: contract.semantic_case_cap.get().to_string(),
             initial_frontier: contract.initial_frontier.as_str().to_string(),
-            lift_dimension_names: contract.lift_dimension_names.to_vec(),
-            retained_configuration_names: contract.retained_configuration_names.to_vec(),
+            lift_dimension_indices: contract
+                .lift_dimension_indices
+                .iter()
+                .map(|index| (*index as u128).to_string())
+                .collect(),
+            retained_configuration_dimension_indices: contract
+                .retained_configuration_dimension_indices
+                .iter()
+                .map(|index| (*index as u128).to_string())
+                .collect(),
             retained_key_names: contract.retained_key_names.to_vec(),
             retained_shown_names: contract.retained_shown_names.to_vec(),
             mechanism_trace_authorized: contract.mechanism_trace_authorized,
@@ -425,7 +462,12 @@ impl ProbePlanContractV1Dto {
             query_name: self.query_name.into_boxed_str(),
             identity: self.identity.into_core(),
             polarity: self.polarity.into_core(),
-            dimension_names: self.dimension_names.into_boxed_slice(),
+            dimensions: self
+                .dimensions
+                .into_iter()
+                .map(ProbeDimensionDescriptorV2Dto::into_core)
+                .collect::<Result<Vec<_>, _>>()?
+                .into_boxed_slice(),
             axis_cardinalities: parse_u128_list("axis_cardinalities", self.axis_cardinalities)?
                 .into_boxed_slice(),
             boundary: self
@@ -441,12 +483,58 @@ impl ProbePlanContractV1Dto {
             semantic_case_cap,
             initial_frontier: ProbeFrontierId::new(self.initial_frontier.into_boxed_str())
                 .map_err(|error| invalid(format!("invalid initial frontier: {error}")))?,
-            lift_dimension_names: self.lift_dimension_names.into_boxed_slice(),
-            retained_configuration_names: self.retained_configuration_names.into_boxed_slice(),
+            lift_dimension_indices: parse_usize_list(
+                "lift_dimension_indices",
+                self.lift_dimension_indices,
+            )?
+            .into_boxed_slice(),
+            retained_configuration_dimension_indices: parse_usize_list(
+                "retained_configuration_dimension_indices",
+                self.retained_configuration_dimension_indices,
+            )?
+            .into_boxed_slice(),
             retained_key_names: self.retained_key_names.into_boxed_slice(),
             retained_shown_names: self.retained_shown_names.into_boxed_slice(),
             mechanism_trace_authorized: self.mechanism_trace_authorized,
         })
+    }
+}
+
+impl ProbeDimensionDescriptorV2Dto {
+    fn from_core(dimension: &ProbeDimensionDescriptor) -> Self {
+        Self {
+            bound_index: (dimension.bound_index as u128).to_string(),
+            role: ExploreGeneratorAxisRoleV2Dto::from_core(dimension.role),
+            role_field_index: (dimension.role_field_index as u128).to_string(),
+            label: dimension.label.clone(),
+        }
+    }
+
+    fn into_core(self) -> Result<ProbeDimensionDescriptor, ProbeCodecError> {
+        Ok(ProbeDimensionDescriptor {
+            bound_index: parse_usize("dimensions[].bound_index", &self.bound_index)?,
+            role: self.role.into_core(),
+            role_field_index: parse_usize("dimensions[].role_field_index", &self.role_field_index)?,
+            label: self.label,
+        })
+    }
+}
+
+impl ExploreGeneratorAxisRoleV2Dto {
+    fn from_core(role: ExploreGeneratorAxisRole) -> Self {
+        match role {
+            ExploreGeneratorAxisRole::Context => Self::Context,
+            ExploreGeneratorAxisRole::Before => Self::Before,
+            ExploreGeneratorAxisRole::AfterIndependent => Self::AfterIndependent,
+        }
+    }
+
+    fn into_core(self) -> ExploreGeneratorAxisRole {
+        match self {
+            Self::Context => ExploreGeneratorAxisRole::Context,
+            Self::Before => ExploreGeneratorAxisRole::Before,
+            Self::AfterIndependent => ExploreGeneratorAxisRole::AfterIndependent,
+        }
     }
 }
 
@@ -664,7 +752,7 @@ impl ProbeObservationV1Dto {
             configuration: observation
                 .configuration
                 .iter()
-                .map(ProbeNamedValueV1Dto::from_core)
+                .map(ProbeDimensionValueV2Dto::from_core)
                 .collect::<Result<_, _>>()?,
             boundary_values: ProbeBoundaryValuesV1Dto::from_core(&observation.boundary_values)?,
             classification: ProbeClassificationV1Dto::from_core(&observation.classification),
@@ -685,7 +773,7 @@ impl ProbeObservationV1Dto {
             configuration: self
                 .configuration
                 .into_iter()
-                .map(ProbeNamedValueV1Dto::into_core)
+                .map(ProbeDimensionValueV2Dto::into_core)
                 .collect::<Result<Vec<_>, _>>()?
                 .into_boxed_slice(),
             boundary_values: self.boundary_values.into_core()?,
@@ -700,6 +788,25 @@ impl ProbeObservationV1Dto {
                     })
                 })
                 .transpose()?,
+        })
+    }
+}
+
+impl ProbeDimensionValueV2Dto {
+    fn from_core(value: &ProbeDimensionValue) -> Result<Self, ProbeCodecError> {
+        Ok(Self {
+            dimension_index: (value.dimension_index as u128).to_string(),
+            value: ExploreValueV1Dto::from_core(&value.value)?,
+        })
+    }
+
+    fn into_core(self) -> Result<ProbeDimensionValue, ProbeCodecError> {
+        Ok(ProbeDimensionValue {
+            dimension_index: parse_usize(
+                "observation.configuration[].dimension_index",
+                &self.dimension_index,
+            )?,
+            value: self.value.into_core()?,
         })
     }
 }
@@ -1092,6 +1199,14 @@ fn parse_u128_list(field: &str, values: Vec<String>) -> Result<Vec<u128>, ProbeC
         .collect()
 }
 
+fn parse_usize_list(field: &str, values: Vec<String>) -> Result<Vec<usize>, ProbeCodecError> {
+    values
+        .into_iter()
+        .enumerate()
+        .map(|(index, value)| parse_usize(&format!("{field}[{index}]"), &value))
+        .collect()
+}
+
 fn parse_u128(field: &str, value: &str) -> Result<u128, ProbeCodecError> {
     let bytes = value.as_bytes();
     let canonical = !bytes.is_empty()
@@ -1218,7 +1333,7 @@ fn validate_explore_value(value: &ExploreValue) -> Result<(), ProbeCodecError> {
 
 #[cfg(test)]
 mod tests {
-    use super::super::probe::PROBE_ARTIFACT_SCHEMA_V1;
+    use super::super::probe::PROBE_ARTIFACT_SCHEMA_V2;
     use super::*;
 
     fn digest(byte: &str) -> Box<str> {
@@ -1228,6 +1343,13 @@ mod tests {
     fn named(name: &str, value: ExploreValue) -> ProbeNamedValue {
         ProbeNamedValue {
             name: name.to_string(),
+            value,
+        }
+    }
+
+    fn dimension_value(dimension_index: usize, value: ExploreValue) -> ProbeDimensionValue {
+        ProbeDimensionValue {
+            dimension_index,
             value,
         }
     }
@@ -1260,7 +1382,7 @@ mod tests {
         ]);
         let observation = ProbeObservation {
             case_id: case_id.clone(),
-            configuration: vec![named("value", configuration_value)].into_boxed_slice(),
+            configuration: vec![dimension_value(0, configuration_value)].into_boxed_slice(),
             boundary_values: ProbeBoundaryValues::default(),
             classification: ProbeClassification::Match {
                 question_value: true,
@@ -1291,8 +1413,8 @@ mod tests {
         };
         ProbeArtifact {
             contract: ProbePlanContract {
-                artifact_schema: PROBE_ARTIFACT_SCHEMA_V1.into(),
-                normalization_version: "normalization-v1".into(),
+                artifact_schema: PROBE_ARTIFACT_SCHEMA_V2.into(),
+                normalization_version: "normalization-v2".into(),
                 selector_tie_break_version: "tie-break-v1".into(),
                 query_name: "typed_probe".into(),
                 identity: ProbeSemanticIdentity {
@@ -1304,14 +1426,20 @@ mod tests {
                     evaluator_contract_hash: digest("06"),
                 },
                 polarity: ExplorePolarity::Matches,
-                dimension_names: vec!["value".to_string()].into_boxed_slice(),
+                dimensions: vec![ProbeDimensionDescriptor {
+                    bound_index: 0,
+                    role: ExploreGeneratorAxisRole::Before,
+                    role_field_index: 0,
+                    label: "value".to_string(),
+                }]
+                .into_boxed_slice(),
                 axis_cardinalities: vec![u128::MAX].into_boxed_slice(),
                 boundary: None,
                 selectors: vec![ProbeSelector::FrontierMidpoints].into_boxed_slice(),
                 semantic_case_cap: NonZeroU128::new(1).expect("nonzero cap"),
                 initial_frontier,
-                lift_dimension_names: Vec::new().into_boxed_slice(),
-                retained_configuration_names: vec!["value".to_string()].into_boxed_slice(),
+                lift_dimension_indices: Vec::new().into_boxed_slice(),
+                retained_configuration_dimension_indices: vec![0].into_boxed_slice(),
                 retained_key_names: vec!["key".to_string()].into_boxed_slice(),
                 retained_shown_names: vec!["shown".to_string()].into_boxed_slice(),
                 mechanism_trace_authorized: true,
@@ -1336,11 +1464,11 @@ mod tests {
     }
 
     #[test]
-    fn canonical_v1_roundtrip_preserves_typed_values() {
+    fn canonical_v2_roundtrip_preserves_typed_values() {
         let artifact = fixture();
-        let bytes = encode_probe_artifact_v1(&artifact).expect("encode");
+        let bytes = encode_probe_artifact_v2(&artifact).expect("encode");
         assert_eq!(bytes.last(), Some(&b'\n'));
-        assert_eq!(decode_probe_artifact_v1(&bytes).expect("decode"), artifact);
+        assert_eq!(decode_probe_artifact_v2(&bytes).expect("decode"), artifact);
 
         let text = std::str::from_utf8(&bytes).expect("utf8");
         assert!(text.contains(&format!("\"{}\"", u128::MAX)));
@@ -1363,15 +1491,15 @@ mod tests {
 
     #[test]
     fn decoder_rejects_alternate_bytes_and_scalar_spellings() {
-        let bytes = encode_probe_artifact_v1(&fixture()).expect("encode");
+        let bytes = encode_probe_artifact_v2(&fixture()).expect("encode");
 
         let mut missing_newline = bytes.clone();
         missing_newline.pop();
-        assert!(decode_probe_artifact_v1(&missing_newline).is_err());
+        assert!(decode_probe_artifact_v2(&missing_newline).is_err());
 
         let mut spaced = bytes.clone();
         spaced.insert(1, b' ');
-        assert!(decode_probe_artifact_v1(&spaced).is_err());
+        assert!(decode_probe_artifact_v2(&spaced).is_err());
 
         let text = std::str::from_utf8(&bytes).expect("utf8");
         let nonminimal_u128 = text.replacen(
@@ -1379,16 +1507,16 @@ mod tests {
             &format!("\"0{}\"", u128::MAX),
             1,
         );
-        assert!(decode_probe_artifact_v1(nonminimal_u128.as_bytes()).is_err());
+        assert!(decode_probe_artifact_v2(nonminimal_u128.as_bytes()).is_err());
 
         let nonminimal_i64 = text.replacen("\"value\":\"-7\"", "\"value\":\"-07\"", 1);
-        assert!(decode_probe_artifact_v1(nonminimal_i64.as_bytes()).is_err());
+        assert!(decode_probe_artifact_v2(nonminimal_i64.as_bytes()).is_err());
 
         let uppercase_float = text.replacen("0123456789abcdef", "0123456789ABCDEF", 1);
-        assert!(decode_probe_artifact_v1(uppercase_float.as_bytes()).is_err());
+        assert!(decode_probe_artifact_v2(uppercase_float.as_bytes()).is_err());
 
         let unknown = text.replacen('{', "{\"unknown\":true,", 1);
-        assert!(decode_probe_artifact_v1(unknown.as_bytes()).is_err());
+        assert!(decode_probe_artifact_v2(unknown.as_bytes()).is_err());
     }
 
     #[test]
@@ -1396,7 +1524,7 @@ mod tests {
         let mut noncanonical_set = fixture();
         noncanonical_set.observations[0].configuration[0].value =
             ExploreValue::Set(vec![ExploreValue::Int(2), ExploreValue::Int(10)]);
-        assert!(encode_probe_artifact_v1(&noncanonical_set).is_err());
+        assert!(encode_probe_artifact_v2(&noncanonical_set).is_err());
 
         let mut duplicate_fields = fixture();
         duplicate_fields.observations[0].configuration[0].value = ExploreValue::Constructor {
@@ -1408,6 +1536,6 @@ mod tests {
                 ("left".to_string(), ExploreValue::Int(2)),
             ],
         };
-        assert!(encode_probe_artifact_v1(&duplicate_fields).is_err());
+        assert!(encode_probe_artifact_v2(&duplicate_fields).is_err());
     }
 }

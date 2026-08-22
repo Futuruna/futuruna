@@ -149,7 +149,7 @@ pub(super) fn prepare_source_proof_plan(
     profile_limit: NonZeroUsize,
 ) -> Result<SourceProofPlan, SourceProofPlanError> {
     // A caller-specific cap would produce a different probe plan under the
-    // same durable run identity. Keep this legacy argument strict until the
+    // same durable run identity. Keep this argument strict until the
     // probe phase itself gains a resumable, identity-bound cursor.
     if profile_limit != DEFAULT_SOURCE_PROOF_PROFILE_LIMIT {
         return Err(SourceProofPlanError::Preparation(format!(
@@ -169,7 +169,7 @@ pub(super) fn prepare_source_proof_plan(
                 "selected checked-query index is outside the exploration universe".to_string(),
             )
         })?;
-    let boundary = query.universe.boundary.as_ref().ok_or_else(|| {
+    let boundary = query.boundary_hint().ok_or_else(|| {
         SourceProofPlanError::SchedulerUnavailable(
             "selected query has no boundary axis".to_string(),
         )
@@ -198,9 +198,7 @@ pub(super) fn prepare_source_proof_plan(
     .map_err(|error| SourceProofPlanError::Preparation(error.to_string()))?;
     let query = prepared.checked_query();
     let boundary_dimension = query
-        .universe
-        .boundary
-        .as_ref()
+        .boundary_hint()
         .ok_or_else(|| {
             SourceProofPlanError::Preparation("selected checked query has no boundary".to_string())
         })?

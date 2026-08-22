@@ -90,7 +90,7 @@ pub(in crate::explore) struct ResolvedEventAdapterRequest<'a> {
     pub(in crate::explore) accepted_query_index: usize,
     pub(in crate::explore) analysis_program_hash: &'a str,
     pub(in crate::explore) query_hash: &'a str,
-    /// Source-order ordinals for all dimensions except the boundary axis.
+    /// Canonical generator-axis ordinals for all dimensions except the boundary axis.
     pub(in crate::explore) outer_ordinals: &'a [u128],
     pub(in crate::explore) limits: ResolvedEventAdapterLimits,
 }
@@ -113,6 +113,7 @@ pub(in crate::explore) enum ResolvedEventAdapterError {
     AnalysisProgramHashMismatch,
     InvalidQueryHash,
     QueryHasNoBoundary,
+    TransitionShapeUnsupported,
     InvalidBoundaryAxis,
     CheckedQueryAccess(CheckedExploreQueryAccessError),
     OuterOrdinalArityMismatch {
@@ -169,6 +170,9 @@ impl fmt::Display for ResolvedEventAdapterError {
             ),
             Self::QueryHasNoBoundary => formatter.write_str(
                 "resolved source-event adaptation requires a boundary query",
+            ),
+            Self::TransitionShapeUnsupported => formatter.write_str(
+                "resolved source-event adaptation does not yet certify this canonical transition shape",
             ),
             Self::InvalidBoundaryAxis => formatter.write_str(
                 "checked boundary axis/index/step contract is internally inconsistent",
@@ -370,6 +374,12 @@ fn statement_iteration_width(statement: &Stmt) -> usize {
         Stmt::Explore(query) => query
             .bounds
             .len()
+            .saturating_add(
+                query
+                    .transition
+                    .as_ref()
+                    .map_or(0, |transition| transition.after_fields.len()),
+            )
             .saturating_add(query.boundary.is_some() as usize)
             .saturating_add(query.output.key.len())
             .saturating_add(query.output.extrema.len())
@@ -824,6 +834,7 @@ impl<'a> CheckedProgramSiteIndex<'a> {
 fn occurrence(declaration: &SourcedStmt) -> CheckedDeclarationOccurrenceId {
     CheckedDeclarationOccurrenceId {
         declaration: declaration.id.clone(),
+        declaration_occurrence_ordinal: declaration.declaration_occurrence_ordinal,
         normalized_ordinal: declaration.normalized_ordinal,
     }
 }
@@ -894,10 +905,23 @@ fn query_roots(
 ) -> Result<QueryRoots, ResolvedEventAdapterError> {
     let sites = &artifact.sites;
     if sites.bounds.len() != query.query.bounds.len()
+        || sites.transition_after.len()
+            != query
+                .query
+                .transition
+                .after_fields
+                .iter()
+                .filter(|field| {
+                    matches!(
+                        &field.source,
+                        crate::TypedExploreAfterFieldSource::Derived { .. }
+                    )
+                })
+                .count()
         || sites.key.len() != query.query.output.key.len()
         || sites.extrema.len() != query.query.output.extrema.len()
         || sites.show.len() != query.query.output.show.len()
-        || sites.boundary_step.is_some() != query.query.boundary.is_some()
+        || sites.boundary_step.is_some() != query.query.boundary_hint().is_some()
         || sites.representative_objective.is_some()
             != !matches!(
                 &query.query.output.representative,
@@ -909,6 +933,7 @@ fn query_roots(
     let root_count = sites
         .bounds
         .len()
+        .saturating_add(sites.transition_after.len())
         .saturating_add(sites.boundary_step.is_some() as usize)
         .saturating_add(sites.key.len())
         .saturating_add(sites.extrema.len())
@@ -957,6 +982,10 @@ fn query_roots(
     }
     if let Some(site) = &sites.boundary_step {
         all.insert(site.clone());
+    }
+    for site in &sites.transition_after {
+        all.insert(site.clone());
+        validity.push(site.clone());
     }
     for site in sites
         .key
@@ -1374,7 +1403,7 @@ pub(in crate::explore) fn preflight_checked_query_access(
     accepted_query_index: usize,
     limits: ResolvedEventAdapterLimits,
 ) -> Result<(), ResolvedEventAdapterError> {
-    // These compatibility-vector reads are resource guards only. Identity and
+    // These public-projection reads are resource guards only. Identity and
     // selection still come exclusively from checked_exploration_query below.
     let (Some(query), Some(artifact)) = (
         artifacts.exploration_universes.get(accepted_query_index),
@@ -1490,13 +1519,14 @@ impl<'a> PreparedResolvedEventAdapter<'a> {
             .map_err(ResolvedEventAdapterError::CheckedQueryAccess)?;
         let artifact = checked.artifact;
         let query = checked.closed_query;
+        if query.transition.flat_aliases.is_empty() {
+            return Err(ResolvedEventAdapterError::TransitionShapeUnsupported);
+        }
         if !is_lowercase_sha256(&artifact.identity.digest) {
             return Err(ResolvedEventAdapterError::AcceptedQueryArtifactDiverged);
         }
         let boundary = query
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .ok_or(ResolvedEventAdapterError::QueryHasNoBoundary)?;
         let dimension = query
             .universe
@@ -2013,9 +2043,7 @@ impl<'prepared, 'artifacts> AdapterContext<'prepared, 'artifacts> {
         let query = prepared.query;
         let limits = prepared.limits;
         let boundary = query
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .ok_or(ResolvedEventAdapterError::QueryHasNoBoundary)?;
         let dimension = query
             .universe
@@ -5869,9 +5897,7 @@ fn query_profile_env(
     roots: &QueryRoots,
 ) -> Result<(AbstractEnv, BTreeMap<String, AbstractValue>), ResolvedEventAdapterError> {
     let boundary = query
-        .universe
-        .boundary
-        .as_ref()
+        .boundary_hint()
         .ok_or(ResolvedEventAdapterError::QueryHasNoBoundary)?;
     let profile_limit = context.limits.max_collection_items.get();
     if query.universe.dimensions.len() > profile_limit

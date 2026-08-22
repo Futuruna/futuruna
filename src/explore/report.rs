@@ -8,14 +8,15 @@ use std::collections::BTreeSet;
 
 use super::{
     case_graph::{CaseDecisionDag, CaseTerminal, CheckedCardinality},
-    ExplorePolarity, ExploreValue,
+    ExploreGeneratorAxisRole, ExplorePolarity, ExploreValue,
 };
 
 /// Canonical identity of one declared configuration.
 ///
 /// Each component is the canonical ordinal of one independently varied
-/// dimension, in bound source order. Values and field names live in the
-/// report schema and (when authorized) the configuration ledger.
+/// dimension, in Context → Before → independent-After field order. Values and
+/// structured axis descriptors live in the report schema and (when
+/// authorized) the configuration ledger.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct ExploreCaseId(Box<[u128]>);
 
@@ -66,10 +67,39 @@ pub(crate) enum ExploreGroupFilter {
     Varies { extrema_index: usize },
 }
 
-/// Field names shared by every value-bearing row in one report.
+/// Canonical descriptor of one independently varied generator axis.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ExploreReportDimension {
+    pub(crate) bound_index: usize,
+    pub(crate) role: ExploreGeneratorAxisRole,
+    pub(crate) role_field_index: usize,
+    pub(crate) label: String,
+}
+
+impl ExploreReportDimension {
+    pub(crate) fn qualified_label(&self) -> String {
+        let role = match self.role {
+            ExploreGeneratorAxisRole::Context => "context",
+            ExploreGeneratorAxisRole::Before => "before",
+            ExploreGeneratorAxisRole::AfterIndependent => "after",
+        };
+        format!("{role}.{}", self.label)
+    }
+
+    fn canonical_order_key(&self) -> (u8, usize, usize) {
+        let role = match self.role {
+            ExploreGeneratorAxisRole::Context => 0,
+            ExploreGeneratorAxisRole::Before => 1,
+            ExploreGeneratorAxisRole::AfterIndependent => 2,
+        };
+        (role, self.role_field_index, self.bound_index)
+    }
+}
+
+/// Field identities and labels shared by every value-bearing row in one report.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExploreReportSchema {
-    pub(crate) dimension_names: Box<[String]>,
+    pub(crate) dimensions: Box<[ExploreReportDimension]>,
     pub(crate) axis_cardinalities: Box<[u128]>,
     pub(crate) key_names: Box<[String]>,
     pub(crate) extrema_names: Box<[String]>,
@@ -79,13 +109,13 @@ pub(crate) struct ExploreReportSchema {
 
 impl ExploreReportSchema {
     pub(crate) fn new(
-        dimension_names: impl Into<Box<[String]>>,
+        dimensions: impl Into<Box<[ExploreReportDimension]>>,
         axis_cardinalities: impl Into<Box<[u128]>>,
         key_names: impl Into<Box<[String]>>,
         shown_names: impl Into<Box<[String]>>,
     ) -> Result<Self, String> {
         let schema = Self {
-            dimension_names: dimension_names.into(),
+            dimensions: dimensions.into(),
             axis_cardinalities: axis_cardinalities.into(),
             key_names: key_names.into(),
             extrema_names: Vec::<String>::new().into_boxed_slice(),
@@ -97,7 +127,7 @@ impl ExploreReportSchema {
     }
 
     pub(crate) fn with_grouped_extrema(
-        dimension_names: impl Into<Box<[String]>>,
+        dimensions: impl Into<Box<[ExploreReportDimension]>>,
         axis_cardinalities: impl Into<Box<[u128]>>,
         key_names: impl Into<Box<[String]>>,
         extrema_names: impl Into<Box<[String]>>,
@@ -105,7 +135,7 @@ impl ExploreReportSchema {
         group_filter: ExploreGroupFilter,
     ) -> Result<Self, String> {
         let schema = Self {
-            dimension_names: dimension_names.into(),
+            dimensions: dimensions.into(),
             axis_cardinalities: axis_cardinalities.into(),
             key_names: key_names.into(),
             extrema_names: extrema_names.into(),
@@ -117,11 +147,39 @@ impl ExploreReportSchema {
     }
 
     pub(crate) fn validate(&self) -> Result<(), String> {
-        validate_unique_names("case dimension", &self.dimension_names)?;
-        if self.dimension_names.len() != self.axis_cardinalities.len() {
+        let mut roles = BTreeSet::new();
+        let mut bound_indices = BTreeSet::new();
+        for dimension in &self.dimensions {
+            if dimension.label.is_empty() {
+                return Err("Explore case dimension label must not be empty".to_string());
+            }
+            if !roles.insert((dimension.role, dimension.role_field_index)) {
+                return Err(format!(
+                    "Explore case dimension role {:?} field {} occurs more than once",
+                    dimension.role, dimension.role_field_index
+                ));
+            }
+            if !bound_indices.insert(dimension.bound_index) {
+                return Err(format!(
+                    "Explore case dimension bound {} occurs more than once",
+                    dimension.bound_index
+                ));
+            }
+        }
+        if self
+            .dimensions
+            .windows(2)
+            .any(|pair| pair[0].canonical_order_key() >= pair[1].canonical_order_key())
+        {
+            return Err(
+                "Explore case dimensions are not in canonical Context → Before → independent-After field order"
+                    .to_string(),
+            );
+        }
+        if self.dimensions.len() != self.axis_cardinalities.len() {
             return Err(format!(
-                "Explore schema has {} dimension names but {} axis cardinalities",
-                self.dimension_names.len(),
+                "Explore schema has {} dimension descriptors but {} axis cardinalities",
+                self.dimensions.len(),
                 self.axis_cardinalities.len()
             ));
         }
@@ -1359,11 +1417,11 @@ impl ExploreExactEvidence {
         for row in rows {
             validate_case_id(&row.case_id, &self.schema)?;
             validate_matching_case(case_graph, &row.case_id, "matching-ledger row")?;
-            if row.dimensions.len() != self.schema.dimension_names.len() {
+            if row.dimensions.len() != self.schema.dimensions.len() {
                 return Err(format!(
                     "Explore ledger row has {} dimension values for {} schema fields",
                     row.dimensions.len(),
-                    self.schema.dimension_names.len()
+                    self.schema.dimensions.len()
                 ));
             }
             if row.key.len() != self.schema.key_names.len() {
@@ -1410,11 +1468,11 @@ impl ExploreExactEvidence {
 }
 
 fn validate_case_id(case_id: &ExploreCaseId, schema: &ExploreReportSchema) -> Result<(), String> {
-    if case_id.len() != schema.dimension_names.len() {
+    if case_id.len() != schema.dimensions.len() {
         return Err(format!(
             "Explore case ID has {} ordinals for {} declared dimensions",
             case_id.len(),
-            schema.dimension_names.len()
+            schema.dimensions.len()
         ));
     }
     for (dimension, (&ordinal, &cardinality)) in case_id
@@ -1758,7 +1816,12 @@ mod tests {
             axis_cardinalities
                 .iter()
                 .enumerate()
-                .map(|(index, _)| format!("axis_{index}"))
+                .map(|(index, _)| ExploreReportDimension {
+                    bound_index: index,
+                    role: ExploreGeneratorAxisRole::Before,
+                    role_field_index: index,
+                    label: format!("axis_{index}"),
+                })
                 .collect::<Vec<_>>(),
             axis_cardinalities,
             vec!["kind".to_string()],
@@ -1773,6 +1836,35 @@ mod tests {
             ExplorePolarity::Matches,
             outcome,
         )
+    }
+
+    #[test]
+    fn equal_field_labels_in_different_transition_roles_are_distinct_axes() {
+        let dimensions = vec![
+            ExploreReportDimension {
+                bound_index: 0,
+                role: ExploreGeneratorAxisRole::Context,
+                role_field_index: 0,
+                label: "rate".to_string(),
+            },
+            ExploreReportDimension {
+                bound_index: 1,
+                role: ExploreGeneratorAxisRole::Before,
+                role_field_index: 0,
+                label: "rate".to_string(),
+            },
+        ];
+        let schema = ExploreReportSchema::new(
+            dimensions,
+            vec![2, 3],
+            vec!["result".to_string()],
+            Vec::<String>::new(),
+        )
+        .expect("role-indexed dimensions must not collide by presentation label");
+
+        assert_eq!(schema.dimensions[0].qualified_label(), "context.rate");
+        assert_eq!(schema.dimensions[1].qualified_label(), "before.rate");
+        assert_eq!(schema.declared_assignment_count(), Ok(6));
     }
 
     fn complete_evidence(

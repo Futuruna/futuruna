@@ -3202,6 +3202,7 @@ mod tests {
             source_order: path as usize,
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration.clone(),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             statement_path: vec![path].into_boxed_slice(),
@@ -3221,6 +3222,7 @@ mod tests {
         let callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("policy-callable"),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),
@@ -3831,6 +3833,7 @@ mod tests {
         let callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("checked-policy-callable"),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),
@@ -3871,6 +3874,7 @@ mod tests {
         let different_callable = CheckedCallableId {
             declaration: CheckedDeclarationOccurrenceId {
                 declaration: declaration("different-policy-callable"),
+                declaration_occurrence_ordinal: 0,
                 normalized_ordinal: 0,
             },
             structural_path: Box::default(),

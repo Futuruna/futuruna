@@ -43,7 +43,7 @@ pub(super) type ProfileBoundaryPlan<Certificate> =
     BoundaryPlan<CaseTerminal, Option<Infallible>, BoundaryClosureCertificate<Certificate>, ()>;
 
 /// One source-derived scheduling hint guarded by an exact outer profile.
-/// `outer_ordinals` contains every source-order axis except the boundary axis.
+/// `outer_ordinals` contains every canonical generator axis except the boundary axis.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct BoundarySearchCandidate<Hint> {
     outer_ordinals: Box<[u128]>,
@@ -1588,7 +1588,7 @@ where
     }
 }
 
-/// Lazy lexicographic cursor over full source-order CaseIds with one axis
+/// Lazy lexicographic cursor over full canonical-axis CaseIds with one axis
 /// restricted to a contiguous eligible ordinal interval.
 #[derive(Debug, Clone)]
 struct CanonicalEligibleCursor {
@@ -1625,7 +1625,7 @@ impl CanonicalEligibleCursor {
         }
     }
 
-    /// Fast-forward a closed interval only when no trailing source-order axis
+    /// Fast-forward a closed interval only when no trailing canonical axis
     /// can interleave another profile inside it.
     fn skip_current_boundary_interval(
         &mut self,
@@ -1813,7 +1813,7 @@ impl fmt::Display for BoundarySearchError {
                 axis_count,
             } => write!(
                 formatter,
-                "boundary dimension {dimension} is outside {axis_count} source-order axes"
+                "boundary dimension {dimension} is outside {axis_count} canonical axes"
             ),
             Self::BoundaryCardinalityMismatch { axis, declared } => write!(
                 formatter,

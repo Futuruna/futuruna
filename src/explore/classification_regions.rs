@@ -111,9 +111,7 @@ impl CertifiedBoundaryClassification {
     ) -> Result<(), ClassificationRegionError> {
         let query = prepared.checked_query();
         let boundary = query
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .ok_or(ClassificationRegionError::QueryHasNoBoundary)?;
         let dimension = query
             .universe
@@ -325,9 +323,7 @@ pub(super) fn certify_profile_classification_regions(
     // thereby change the polarity or domain under a valid-looking receipt.
     let query = prepared.checked_query();
     let boundary = query
-        .universe
-        .boundary
-        .as_ref()
+        .boundary_hint()
         .ok_or(ClassificationRegionError::QueryHasNoBoundary)?;
     let dimension = query
         .universe

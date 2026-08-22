@@ -28,7 +28,7 @@ use super::{ExploreCardinality, ExploreExactDomain, ExploreQueryIr, ExploreValue
 pub(crate) const PROBE_SCHEDULER_TIE_BREAK_V1: &str =
     "selectors-source-order;lifts-origin-then-candidate;frontier-largest-then-case-id.v1";
 
-const PROBE_FRONTIER_HASH_DOMAIN_V1: &str = "futuruna.explore.probe-frontier.v1";
+const PROBE_FRONTIER_HASH_DOMAIN_V2: &str = "futuruna.explore.probe-frontier.v2";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum ProbeSchedulerUnsupported {
@@ -360,41 +360,58 @@ impl ProbeSchedulingDomain {
                 "probe contract polarity disagrees with the checked Explore query",
             ));
         }
-        if contract.dimension_names.len() != query.universe.dimensions.len() {
+        if contract.dimensions.len() != query.universe.dimensions.len() {
             return Err(invalid(format!(
                 "probe contract has {} dimensions but the checked query has {}",
-                contract.dimension_names.len(),
+                contract.dimensions.len(),
                 query.universe.dimensions.len()
             )));
         }
 
         let mut axis_cardinalities = Vec::with_capacity(query.universe.dimensions.len());
-        for (axis, (contract_name, dimension)) in contract
-            .dimension_names
+        for (axis, (contract_dimension, dimension)) in contract
+            .dimensions
             .iter()
             .zip(&query.universe.dimensions)
             .enumerate()
         {
-            if contract_name != &dimension.name {
+            if contract_dimension.bound_index != dimension.bound_index
+                || contract_dimension.role != dimension.role
+                || contract_dimension.role_field_index != dimension.role_field_index
+                || contract_dimension.label != dimension.name
+            {
                 return Err(invalid(format!(
-                    "probe dimension {axis} is `{contract_name}`, checked query has `{}`",
+                    "probe dimension {axis} descriptor {:?}/field {}/bound {} `{}` disagrees with checked {:?}/field {}/bound {} `{}`",
+                    contract_dimension.role,
+                    contract_dimension.role_field_index,
+                    contract_dimension.bound_index,
+                    contract_dimension.label,
+                    dimension.role,
+                    dimension.role_field_index,
+                    dimension.bound_index,
                     dimension.name
                 )));
             }
             let cardinality = exact_cardinality(
                 dimension.domain.cardinality(),
-                &format!("probe dimension `{contract_name}`"),
+                &format!(
+                    "probe {:?} field {} dimension `{}`",
+                    contract_dimension.role,
+                    contract_dimension.role_field_index,
+                    contract_dimension.label
+                ),
             )?;
             if contract.axis_cardinalities[axis] != cardinality {
                 return Err(invalid(format!(
-                    "probe dimension `{contract_name}` has contract cardinality {}, checked cardinality {cardinality}",
+                    "probe dimension {axis} `{}` has contract cardinality {}, checked cardinality {cardinality}",
+                    contract_dimension.label,
                     contract.axis_cardinalities[axis]
                 )));
             }
             axis_cardinalities.push(cardinality);
         }
 
-        let boundary = match (contract.boundary, query.universe.boundary.as_ref()) {
+        let boundary = match (contract.boundary, query.boundary_hint()) {
             (None, None) => None,
             (Some(contract_boundary), Some(query_boundary)) => {
                 if contract_boundary.axis != query_boundary.axis_dimension_index
@@ -410,11 +427,6 @@ impl ProbeSchedulingDomain {
                     .dimensions
                     .get(contract_boundary.axis)
                     .ok_or_else(|| invalid("probe boundary axis is outside checked dimensions"))?;
-                if dimension.name != query_boundary.axis {
-                    return Err(invalid(
-                        "checked Explore boundary name disagrees with its dimension",
-                    ));
-                }
                 Some(BoundarySchedulingDomain::from_exact(
                     contract_boundary.axis,
                     contract_boundary.step,
@@ -442,15 +454,7 @@ impl ProbeSchedulingDomain {
             .checked_mul(endpoint_axis_count)
             .ok_or_else(|| invalid("probe endpoint case count exceeds u128::MAX"))?;
 
-        let mut lift_dimensions = Vec::with_capacity(contract.lift_dimension_names.len());
-        for name in contract.lift_dimension_names.iter() {
-            let axis = contract
-                .dimension_names
-                .iter()
-                .position(|dimension| dimension == name)
-                .ok_or_else(|| invalid(format!("unknown probe lift dimension `{name}`")))?;
-            lift_dimensions.push(axis);
-        }
+        let lift_dimensions = contract.lift_dimension_indices.to_vec();
 
         Ok(Self {
             axis_cardinalities: axis_cardinalities.into_boxed_slice(),
@@ -466,6 +470,11 @@ impl ProbeSchedulingDomain {
         if self.axis_cardinalities.as_ref() != contract.axis_cardinalities.as_ref() {
             return Err(invalid(
                 "probe scheduling domain cardinalities disagree with the contract",
+            ));
+        }
+        if self.lift_dimensions.as_ref() != contract.lift_dimension_indices.as_ref() {
+            return Err(invalid(
+                "probe scheduling lift dimensions disagree with the contract",
             ));
         }
         match (&self.boundary, contract.boundary) {
@@ -1291,7 +1300,7 @@ struct CanonicalHasher(Sha256);
 impl CanonicalHasher {
     fn new() -> Self {
         let mut hasher = Self(Sha256::new());
-        hasher.field(PROBE_FRONTIER_HASH_DOMAIN_V1.as_bytes());
+        hasher.field(PROBE_FRONTIER_HASH_DOMAIN_V2.as_bytes());
         hasher
     }
 
@@ -1369,22 +1378,29 @@ fn hash_frontier(
             ProbeSelector::FrontierMidpoints => "frontier_midpoints",
         });
     }
-    hash.u128(contract.dimension_names.len() as u128);
-    for (name, cardinality) in contract
-        .dimension_names
+    hash.u128(contract.dimensions.len() as u128);
+    for (dimension, cardinality) in contract
+        .dimensions
         .iter()
         .zip(contract.axis_cardinalities.iter())
     {
-        hash.str(name);
+        hash.usize(dimension.bound_index);
+        hash.str(match dimension.role {
+            super::ExploreGeneratorAxisRole::Context => "context",
+            super::ExploreGeneratorAxisRole::Before => "before",
+            super::ExploreGeneratorAxisRole::AfterIndependent => "after_independent",
+        });
+        hash.usize(dimension.role_field_index);
+        hash.str(&dimension.label);
         hash.u128(*cardinality);
     }
-    hash.u128(contract.lift_dimension_names.len() as u128);
-    for name in contract.lift_dimension_names.iter() {
-        hash.str(name);
+    hash.u128(contract.lift_dimension_indices.len() as u128);
+    for dimension_index in contract.lift_dimension_indices.iter() {
+        hash.usize(*dimension_index);
     }
-    hash.u128(contract.retained_configuration_names.len() as u128);
-    for name in contract.retained_configuration_names.iter() {
-        hash.str(name);
+    hash.u128(contract.retained_configuration_dimension_indices.len() as u128);
+    for dimension_index in contract.retained_configuration_dimension_indices.iter() {
+        hash.usize(*dimension_index);
     }
     hash.u128(contract.retained_key_names.len() as u128);
     for name in contract.retained_key_names.iter() {
@@ -1476,10 +1492,10 @@ mod tests {
     use super::*;
     use crate::explore::probe::{
         ProbeArtifactState, ProbeBoundaryContract, ProbeBoundaryEndpoint, ProbeBoundaryValues,
-        ProbeCursor, ProbeEndpointState, ProbeNamedValue, ProbeObservation, ProbePartialReason,
-        ProbeRetainedOutputs, ProbeSemanticIdentity, PROBE_ARTIFACT_SCHEMA_V1,
+        ProbeCursor, ProbeDimensionDescriptor, ProbeEndpointState, ProbeObservation,
+        ProbePartialReason, ProbeRetainedOutputs, ProbeSemanticIdentity, PROBE_ARTIFACT_SCHEMA_V2,
     };
-    use crate::ExplorePolarity;
+    use crate::{ExploreGeneratorAxisRole, ExplorePolarity, Lexer, Parser, TypeChecker};
 
     fn digest(seed: &str) -> Box<str> {
         format!(
@@ -1497,8 +1513,8 @@ mod tests {
         cap: u128,
     ) -> ProbePlanContract {
         ProbePlanContract {
-            artifact_schema: PROBE_ARTIFACT_SCHEMA_V1.into(),
-            normalization_version: "probe-normalization-v1".into(),
+            artifact_schema: PROBE_ARTIFACT_SCHEMA_V2.into(),
+            normalization_version: "probe-normalization-v2".into(),
             selector_tie_break_version: PROBE_SCHEDULER_TIE_BREAK_V1.into(),
             query_name: "probe_canary".into(),
             identity: ProbeSemanticIdentity {
@@ -1510,8 +1526,13 @@ mod tests {
                 evaluator_contract_hash: digest("evaluator"),
             },
             polarity: ExplorePolarity::Matches,
-            dimension_names: (0..cardinalities.len())
-                .map(|axis| format!("axis_{axis}"))
+            dimensions: (0..cardinalities.len())
+                .map(|axis| ProbeDimensionDescriptor {
+                    bound_index: axis,
+                    role: ExploreGeneratorAxisRole::Before,
+                    role_field_index: axis,
+                    label: format!("axis_{axis}"),
+                })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
             axis_cardinalities: cardinalities.to_vec().into_boxed_slice(),
@@ -1523,8 +1544,8 @@ mod tests {
             selectors: selectors.to_vec().into_boxed_slice(),
             semantic_case_cap: NonZeroU128::new(cap).unwrap(),
             initial_frontier: ProbeFrontierId::new(digest("placeholder")).unwrap(),
-            lift_dimension_names: Box::new([]),
-            retained_configuration_names: Box::new([]),
+            lift_dimension_indices: Box::new([]),
+            retained_configuration_dimension_indices: Box::new([]),
             retained_key_names: Box::new([]),
             retained_shown_names: Box::new([]),
             mechanism_trace_authorized: false,
@@ -1579,6 +1600,83 @@ mod tests {
             ProbeScheduleOutcome::Scheduled(scheduled) => scheduled,
             other => panic!("expected scheduled case, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn role_colliding_dimension_labels_reconcile_structurally_from_query() {
+        let source = r#"
+# RateState = RateState(rate: Int)
+# RateContext = RateContext(rate: Int)
+
+| changed(before: RateState, after: RateState, context: RateContext) ->
+    after.rate > before.rate under context.rate >= 0
+
+? explore rate_change {
+    over changed(before, after, context)
+    find matches
+    bounds {
+        context.rate in range(1, 3)
+        before.rate in range(10, 14)
+    }
+    transition as RateState context RateContext {
+        relative
+        after.rate = before.rate + 1
+    }
+    boundaries on before.rate by 1
+    output {
+        key [rate = before.rate]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse role-colliding probe fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_universes[0];
+        let selectors = [
+            ProbeSelector::BoundaryEndpoints,
+            ProbeSelector::FrontierMidpoints,
+        ];
+        let mut contract = contract(&[2, 4], &selectors, 4);
+        contract.dimensions = query
+            .universe
+            .dimensions
+            .iter()
+            .map(|dimension| ProbeDimensionDescriptor {
+                bound_index: dimension.bound_index,
+                role: dimension.role,
+                role_field_index: dimension.role_field_index,
+                label: dimension.name.clone(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        contract.lift_dimension_indices = vec![0].into_boxed_slice();
+
+        let domain = ProbeSchedulingDomain::from_query(&contract, query)
+            .expect("structural dimension reconciliation");
+        assert_eq!(contract.dimensions[0].label, "rate");
+        assert_eq!(contract.dimensions[1].label, "rate");
+        assert_eq!(
+            contract.dimensions[0].role,
+            ExploreGeneratorAxisRole::Context
+        );
+        assert_eq!(
+            contract.dimensions[1].role,
+            ExploreGeneratorAxisRole::Before
+        );
+        assert_eq!(domain.lift_dimensions.as_ref(), [0]);
+        assert_eq!(
+            domain.boundary.as_ref().map(|boundary| boundary.axis),
+            Some(1)
+        );
+        assert_eq!(contract.selectors.as_ref(), selectors);
     }
 
     #[test]
@@ -1647,7 +1745,7 @@ mod tests {
         let mut domain = dense_domain(&[3, 3]);
         domain.lift_dimensions = vec![0].into_boxed_slice();
         let mut contract = contract(&[3, 3], &selectors, 4);
-        contract.lift_dimension_names = vec!["axis_0".to_string()].into_boxed_slice();
+        contract.lift_dimension_indices = vec![0].into_boxed_slice();
         contract.initial_frontier =
             hash_frontier(&contract, &domain, &SchedulerState::initial()).unwrap();
         let mut scheduler = ProbeScheduler::from_domain(&contract, domain).unwrap();
@@ -1722,7 +1820,7 @@ mod tests {
         let lower = 100 + scheduled.case_id.ordinals()[1] as i64;
         ProbeObservation {
             case_id: scheduled.case_id.clone(),
-            configuration: Box::<[ProbeNamedValue]>::default(),
+            configuration: Box::new([]),
             boundary_values: ProbeBoundaryValues {
                 lower: Some(ProbeBoundaryEndpoint {
                     value: ExploreValue::Int(lower),

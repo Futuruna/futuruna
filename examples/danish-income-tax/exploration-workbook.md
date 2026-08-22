@@ -43,11 +43,18 @@ That formulation identifies all of the pieces the program needs:
 - the metric: gross income in øre minus exact final tax in øre
 - the witness: a pair for which the metric falls
 
-The first-class Explore architecture treats every case as a transition:
+The first-class Explore architecture calls the finite declared coordinate space
+`U_D` and treats every coordinate in its structurally constructible subset
+`U_C` as a transition:
 
 ```text
 (context, before state) -> after state
 ```
+
+`U_D \ U_C` contains structurally excluded coordinates—for example the last
+income when its requested successor lies outside the bounded domain. Those
+coordinates retain `CaseId` support in the case DAG but do not mint a fictitious
+after state or `TransitionId`.
 
 The question may compare after with before, or state an absolute condition on
 after while before remains available. A policy-version comparison changes the
@@ -55,8 +62,21 @@ policy field. A municipality comparison can frame the income and profile,
 vary only `after.municipality`, recompute tax, and ask which after state is
 lower—emitting nothing when the declared `having varies(...)` group proves no
 difference. “Can total tax be negative?” is an absolute predicate over the
-after endpoint; a legacy point query lowers to an identity transition. These
+after endpoint; a compact point query normalizes to an identity transition. These
 are variations of one transition relation, not separate tax-cliff machinery.
+
+Here the generator declares the comparison—for example, an income increase of
+1 DKK. It does not say the tax rules caused that input change. Replay instead
+describes both endpoint computations and how their encoded rule paths differ,
+if a mechanism observation was requested and admitted. That distinction lets
+the same transition architecture support counterfactual inputs, policy
+comparisons and derived state changes without confusing any of them with a
+claim about what caused the input intervention.
+
+Derived after fields may explicitly project `after.OTHER`, so a recomputed tax
+can depend on `after.income` and after resources can then depend on that tax.
+Those projections close to field-indexed dependency edges: source order is not
+execution order, cycles fail at compile time, and each derived node runs once.
 
 ## 2. Define the metric and fix the facts
 
@@ -514,14 +534,27 @@ shared mechanism DAG  ------> changed rules, dispatch, and branches
 ```
 
 The search decision DAG is the exact proof/compression object over declared
-finite axes. It shares equal suffixes while retaining disconnected paths. The
+finite axes. Each report/snapshot axis is structurally identified by
+`(role, role_field_index, bound_index)`; its income, municipality or profile
+name is presentation only, and graph nodes use `dimension_index`. The DAG
+shares equal suffixes while retaining disconnected paths. The
 semantic transition graph is the case graph we mean in the domain: role-neutral
 state nodes connected by directional before-to-after edges. A state can be
 reused across edges, while each edge retains its exact supporting `CaseId` or
-proved region. The current snapshot-v5 and sealed exact-answer-v4
-`graph.case_graph` fields still refer to the search decision DAG; a future
-schema must add the semantic graph under a
-new field rather than changing that field's meaning.
+proved region. The in-process exact accumulator now constructs
+collision-checked `StateId`, directional `TransitionId` and singleton
+`CaseId -> TransitionId` support for constructible transactions it accepts.
+The durable journal does not yet retain that index. `TransitionId` is the
+extensional typed Context+Before→After identity:
+mode, after-recipe/DAG topology, query and generator coordinates, and mechanism
+path are excluded. Declared State/Context schema identity uses the resolved
+occurrence-sensitive owner and checked layout. The runtime derives typed
+32-byte State, Context and transition-type schema IDs from those canonical
+preimages before deriving state and edge identities. Snapshot v6 and
+exact-answer v5 can publish the search DAG under `graph.case_graph` when
+requested and admitted; they do not serialize that semantic support. The final
+public contract names the two graphs separately as `search_decision_dag` and
+`semantic_transition_graph`.
 
 The mechanism DAG answers how the encoded execution differs across a declared
 edge under one explicit observation request. Fresh endpoint replay records
@@ -547,10 +580,11 @@ transition cases while the semantic graph is omitted and mechanism replay is
 still open. Conversely, every traced transition is confirmed evidence even
 before the requested mechanism population closes.
 
-Always name the population: declared transition cases, admissible transition
-cases, matching transition cases, distinct before states, distinct after
-states, distinct state nodes, distinct transition edges, projected findings,
-or distinct mechanism signatures. A `CaseId` count is weighted search support;
+Always name the population: declared generator cases, constructible transition
+cases, admissible transition cases, matching transition cases, distinct before
+states, distinct after states, distinct state nodes, distinct transition edges,
+projected findings, or distinct mechanism signatures. A `CaseId` count is
+weighted search support;
 a `TransitionId` count is semantic edges; neither is a state-node or mechanism
 count. Closing the search population does not close distinct-edge or state
 counts until `tau`'s image is fully reduced or certified; graph serialization

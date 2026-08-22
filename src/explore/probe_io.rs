@@ -25,7 +25,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::os::unix::fs::{MetadataExt, OpenOptionsExt, PermissionsExt};
 
 use super::probe::{CorruptProbeArtifact, ProbeArtifact};
-use super::probe_codec::{decode_probe_artifact_v1, encode_probe_artifact_v1, ProbeCodecError};
+use super::probe_codec::{decode_probe_artifact_v2, encode_probe_artifact_v2, ProbeCodecError};
 
 const LOCK_SUFFIX: &str = ".probe-lock";
 const TEMP_SUFFIX: &str = ".probe-tmp";
@@ -397,7 +397,7 @@ impl ProbeArtifactStore {
                 error.valid_up_to()
             )));
         }
-        Ok(match decode_probe_artifact_v1(&bytes) {
+        Ok(match decode_probe_artifact_v2(&bytes) {
             Ok(artifact) => StoredProbeArtifact::Canonical(artifact),
             Err(error) => corrupt(format!(
                 "probe artifact target is corrupt or noncanonical: {error}"
@@ -426,7 +426,7 @@ impl ProbeArtifactStore {
         {
             self.verify_guard()?;
             // Validate and encode before a temporary name exists.
-            let bytes = encode_probe_artifact_v1(artifact)?;
+            let bytes = encode_probe_artifact_v2(artifact)?;
             self.verify_guard()?;
             self.verify_replaceable_target()?;
             let mut temporary = self.create_temporary()?;
@@ -589,7 +589,7 @@ mod tests {
     use crate::explore::probe::{
         ProbeArtifactState, ProbeCompletionReason, ProbeCounts, ProbeCursor, ProbeFrontierId,
         ProbeFrontierState, ProbePlanContract, ProbeSelector, ProbeSemanticIdentity,
-        PROBE_ARTIFACT_SCHEMA_V1,
+        PROBE_ARTIFACT_SCHEMA_V2,
     };
     use crate::ExplorePolarity;
 
@@ -630,8 +630,8 @@ mod tests {
 
     fn fixture() -> ProbeArtifact {
         let contract = ProbePlanContract {
-            artifact_schema: PROBE_ARTIFACT_SCHEMA_V1.into(),
-            normalization_version: "probe-normalization-v1".into(),
+            artifact_schema: PROBE_ARTIFACT_SCHEMA_V2.into(),
+            normalization_version: "probe-normalization-v2".into(),
             selector_tie_break_version: "probe-tie-break-v1".into(),
             query_name: "empty_probe".into(),
             identity: ProbeSemanticIdentity {
@@ -643,14 +643,14 @@ mod tests {
                 evaluator_contract_hash: digest(6),
             },
             polarity: ExplorePolarity::Matches,
-            dimension_names: Box::new([]),
+            dimensions: Box::new([]),
             axis_cardinalities: Box::new([]),
             boundary: None,
             selectors: vec![ProbeSelector::FrontierMidpoints].into_boxed_slice(),
             semantic_case_cap: NonZeroU128::new(1).unwrap(),
             initial_frontier: ProbeFrontierId::new(digest(7)).unwrap(),
-            lift_dimension_names: Box::new([]),
-            retained_configuration_names: Box::new([]),
+            lift_dimension_indices: Box::new([]),
+            retained_configuration_dimension_indices: Box::new([]),
             retained_key_names: Box::new([]),
             retained_shown_names: Box::new([]),
             mechanism_trace_authorized: false,
@@ -690,7 +690,7 @@ mod tests {
             StoredProbeArtifact::Canonical(artifact.clone())
         );
 
-        let mut noncanonical = encode_probe_artifact_v1(&artifact).unwrap();
+        let mut noncanonical = encode_probe_artifact_v2(&artifact).unwrap();
         noncanonical.push(b'\n');
         fs::write(&target, noncanonical).unwrap();
         assert!(matches!(
@@ -709,7 +709,7 @@ mod tests {
     fn symlink_dangling_and_non_regular_targets_are_never_missing_or_followed() {
         let directory = TestDirectory::new();
         let canonical = directory.target("canonical.json");
-        fs::write(&canonical, encode_probe_artifact_v1(&fixture()).unwrap()).unwrap();
+        fs::write(&canonical, encode_probe_artifact_v2(&fixture()).unwrap()).unwrap();
 
         let linked = directory.target("linked.json");
         symlink(&canonical, &linked).unwrap();

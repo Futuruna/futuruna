@@ -47,15 +47,15 @@ use super::stream_proof::{
 };
 use super::{
     ExploreEnumeratedSource, ExploreExactDomain, ExploreFactValue, ExploreFiniteTypePlan,
-    ExploreQueryIr, ExploreValue,
+    ExploreGeneratorAxisRole, ExploreQueryIr, ExploreValue,
 };
 use crate::ExplorePolarity;
 
 /// Content-addressed kind for cursor-bearing observable snapshots.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v5";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_BLOB_KIND_V1: &str = "exact-observable-snapshot-v6";
 
 /// Schema name written into every cursor-bearing observable snapshot.
-pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v5";
+pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_SCHEMA_V1: &str = "futuruna.explore.snapshot.v6";
 
 /// Content-addressed kind for a bounded observer receipt reporting that one
 /// admitted full-snapshot attempt was unavailable because of capacity.
@@ -67,15 +67,15 @@ pub(crate) const EXACT_OBSERVABLE_SNAPSHOT_UNAVAILABLE_SCHEMA_V1: &str =
     "futuruna.explore.snapshot-unavailable.v1";
 
 /// Content-addressed kind for history-independent semantic answers.
-pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v4";
+pub(crate) const EXACT_SEMANTIC_ANSWER_BLOB_KIND_V1: &str = "exact-semantic-answer-v5";
 
 /// Internal schema for the evidence-derived answer committed by a terminal
 /// payload hash. A public terminal report may wrap this object with additional
 /// checked-query presentation metadata.
-pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v4";
+pub(crate) const EXACT_SEMANTIC_ANSWER_SCHEMA_V1: &str = "futuruna.explore.exact-answer.v5";
 
-const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 5;
-const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 4;
+const OBSERVABLE_SCHEMA_VERSION_V1: u64 = 6;
+const SEMANTIC_ANSWER_SCHEMA_VERSION_V1: u64 = 5;
 pub(crate) const MAX_CANONICAL_JSON_BYTES: usize = 64 * 1024 * 1024;
 /// Cumulative terminal row budget. The remaining 16 MiB is reserved for answer
 /// metadata, projection labels, JSON escaping, and the enclosing writer.
@@ -214,7 +214,7 @@ pub(crate) fn validate_exact_snapshot_presentation_v1(
     for fact in &query.universe.facts {
         budget.charge("fact name", &fact.name)?;
     }
-    if let Some(boundary) = &query.universe.boundary {
+    if let Some(boundary) = query.boundary_hint() {
         budget.charge("boundary axis", &boundary.axis)?;
     }
     Ok(())
@@ -505,14 +505,36 @@ enum ExactObservableEnumeratedSourceV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExactObservableAxisV1 {
     name: String,
+    bound_index: usize,
+    role: ExploreGeneratorAxisRole,
+    role_field_index: usize,
     domain: ExactObservableDomainV1,
+}
+
+fn generator_axis_role_name(role: ExploreGeneratorAxisRole) -> &'static str {
+    match role {
+        ExploreGeneratorAxisRole::Context => "context",
+        ExploreGeneratorAxisRole::Before => "before",
+        ExploreGeneratorAxisRole::AfterIndependent => "after_independent",
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExactObservableFixedFactV1 {
     name: String,
+    bound_index: usize,
+    role: ExploreGeneratorAxisRole,
+    role_field_index: usize,
     value: Option<ExploreValue>,
     omission_reason: Option<ExactObservableValueOmissionV1>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExactObservableDerivedFactV1 {
+    name: String,
+    bound_index: usize,
+    role: ExploreGeneratorAxisRole,
+    role_field_index: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -564,6 +586,7 @@ impl ExactObservableValueBudgetV1 {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct ExactObservableBoundaryV1 {
     axis: String,
+    axis_dimension_index: usize,
     step: i64,
     requires_both_endpoints_in_domain: bool,
 }
@@ -587,7 +610,7 @@ struct ExactObservableConfigurationV1 {
     universe_case_count: u128,
     axes: Box<[ExactObservableAxisV1]>,
     fixed_facts: Box<[ExactObservableFixedFactV1]>,
-    derived_fact_names: Box<[String]>,
+    derived_facts: Box<[ExactObservableDerivedFactV1]>,
     constraint_count: u128,
     boundary: Option<ExactObservableBoundaryV1>,
 }
@@ -699,6 +722,9 @@ impl ExactObservableConfigurationV1 {
                 };
                 Ok(ExactObservableAxisV1 {
                     name: axis.name.clone(),
+                    bound_index: axis.bound_index,
+                    role: axis.role,
+                    role_field_index: axis.role_field_index,
                     domain,
                 })
             })
@@ -716,27 +742,34 @@ impl ExactObservableConfigurationV1 {
             };
             fixed_facts.push(ExactObservableFixedFactV1 {
                 name: fact.name.clone(),
+                bound_index: fact.bound_index,
+                role: fact.role,
+                role_field_index: fact.role_field_index,
                 value,
                 omission_reason,
             });
         }
         let fixed_facts = fixed_facts.into_boxed_slice();
-        let derived_fact_names = query
+        let derived_facts = query
             .universe
             .facts
             .iter()
             .filter_map(|fact| match &fact.value {
-                ExploreFactValue::Derived { .. } => Some(fact.name.clone()),
+                ExploreFactValue::Derived { .. } => Some(ExactObservableDerivedFactV1 {
+                    name: fact.name.clone(),
+                    bound_index: fact.bound_index,
+                    role: fact.role,
+                    role_field_index: fact.role_field_index,
+                }),
                 ExploreFactValue::Fixed(_) => None,
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
         let boundary = query
-            .universe
-            .boundary
-            .as_ref()
+            .boundary_hint()
             .map(|boundary| ExactObservableBoundaryV1 {
                 axis: boundary.axis.clone(),
+                axis_dimension_index: boundary.axis_dimension_index,
                 step: boundary.step,
                 requires_both_endpoints_in_domain: boundary.requires_both_endpoints_in_domain,
             });
@@ -754,7 +787,7 @@ impl ExactObservableConfigurationV1 {
             universe_case_count: stream.header().case_universe().case_count(),
             axes,
             fixed_facts,
-            derived_fact_names,
+            derived_facts,
             constraint_count: query.universe.constraints.len() as u128,
             boundary,
         })
@@ -1760,6 +1793,12 @@ fn write_observable_configuration(
         }
         writer.raw(b"{")?;
         writer.member_string("name", &axis.name)?;
+        writer.raw(b",")?;
+        writer.member_decimal("bound_index", axis.bound_index as u128)?;
+        writer.raw(b",")?;
+        writer.member_string("role", generator_axis_role_name(axis.role))?;
+        writer.raw(b",")?;
+        writer.member_decimal("role_field_index", axis.role_field_index as u128)?;
         writer.raw(b",\"domain\":")?;
         write_observable_domain(writer, &axis.domain)?;
         writer.raw(b"}")?;
@@ -1771,6 +1810,12 @@ fn write_observable_configuration(
         }
         writer.raw(b"{")?;
         writer.member_string("name", &fact.name)?;
+        writer.raw(b",")?;
+        writer.member_decimal("bound_index", fact.bound_index as u128)?;
+        writer.raw(b",")?;
+        writer.member_string("role", generator_axis_role_name(fact.role))?;
+        writer.raw(b",")?;
+        writer.member_decimal("role_field_index", fact.role_field_index as u128)?;
         writer.raw(b",\"value\":")?;
         if let Some(value) = &fact.value {
             write_value(writer, value)?;
@@ -1784,8 +1829,21 @@ fn write_observable_configuration(
         )?;
         writer.raw(b"}")?;
     }
-    writer.raw(b"],\"derived_fact_names\":[")?;
-    write_strings(writer, &configuration.derived_fact_names)?;
+    writer.raw(b"],\"derived\":[")?;
+    for (index, fact) in configuration.derived_facts.iter().enumerate() {
+        if index != 0 {
+            writer.raw(b",")?;
+        }
+        writer.raw(b"{")?;
+        writer.member_string("name", &fact.name)?;
+        writer.raw(b",")?;
+        writer.member_decimal("bound_index", fact.bound_index as u128)?;
+        writer.raw(b",")?;
+        writer.member_string("role", generator_axis_role_name(fact.role))?;
+        writer.raw(b",")?;
+        writer.member_decimal("role_field_index", fact.role_field_index as u128)?;
+        writer.raw(b"}")?;
+    }
     writer.raw(b"],")?;
     writer.member_decimal("constraint_count", configuration.constraint_count)?;
     writer.raw(b",")?;
@@ -1794,6 +1852,11 @@ fn write_observable_configuration(
     if let Some(boundary) = &configuration.boundary {
         writer.raw(b"{")?;
         writer.member_string("axis", &boundary.axis)?;
+        writer.raw(b",")?;
+        writer.member_decimal(
+            "axis_dimension_index",
+            boundary.axis_dimension_index as u128,
+        )?;
         writer.raw(b",")?;
         writer.member_signed_decimal("step", boundary.step)?;
         writer.raw(b",")?;

@@ -129,7 +129,7 @@ pub(crate) fn build_checked_mechanism_request_v1(
                 "cannot select checked Explore query for mechanism tracing: {error:?}"
             ))
         })?;
-    if checked.closed_query.universe.boundary.is_none() {
+    if checked.closed_query.boundary_hint().is_none() {
         return Err(invalid(
             "differential mechanism tracing requires a checked boundary query",
         ));

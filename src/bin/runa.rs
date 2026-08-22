@@ -6596,14 +6596,22 @@ fn render_explore_cost_plan_human(plan: &explore::ExploreCostPlan) {
     println!("Explore cost/search plan: {}", plan.query_name);
     println!("PLAN ONLY: no cases were evaluated; this is not result evidence or closure.");
     println!();
-    println!("Axes (source order):");
+    println!("Axes (canonical transition-role order):");
     if plan.axes.is_empty() {
         println!("  (none)");
     } else {
         for axis in &plan.axes {
+            let role = match axis.role {
+                ExploreGeneratorAxisRole::Context => "context",
+                ExploreGeneratorAxisRole::Before => "before",
+                ExploreGeneratorAxisRole::AfterIndependent => "after",
+            };
             println!(
-                "  {}: {}",
+                "  {}.{} [field {}, bound {}]: {}",
+                role,
                 axis.name,
+                axis.role_field_index,
+                axis.bound_index,
                 explore_cardinality_text(&axis.cardinality)
             );
         }
@@ -6613,7 +6621,10 @@ fn render_explore_cost_plan_human(plan: &explore::ExploreCostPlan) {
         explore_cardinality_text(&plan.declared_cartesian_count)
     );
     if let Some(boundary) = &plan.boundary {
-        println!("Boundary axis: {}", boundary.axis);
+        println!(
+            "Boundary axis: before.{} [dimension {}]",
+            boundary.axis, boundary.axis_dimension_index
+        );
         println!("Boundary step: {}", boundary.step);
         println!(
             "Boundary-eligible unconstrained pairs: {}",
@@ -7778,7 +7789,7 @@ fn run_exact_explore(
 ) {
     if json {
         eprintln!(
-            "error: one-shot compatibility Explore has no JSON surface; use a durable --run-state invocation for `futuruna.explore.invocation.v1`"
+            "error: non-durable Explore has no JSON surface; use a durable --run-state invocation for `futuruna.explore.invocation.v1`"
         );
         std::process::exit(1);
     }
@@ -7848,11 +7859,7 @@ fn run_explore_preview(
         user_stmts
     };
     let source_dir = source_dir_for(filename);
-    let artifacts = TypeChecker::check_with_exhaustive_preview_artifacts(
-        &statements,
-        source_dir.clone(),
-        source,
-    );
+    let artifacts = TypeChecker::check_with_artifacts(&statements, source_dir.clone(), source);
     if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
         std::process::exit(1);
     }
@@ -7861,7 +7868,7 @@ fn run_explore_preview(
         artifacts
             .exploration_universes
             .iter()
-            .find(|candidate| candidate.query.name.as_deref() == Some(query_name))
+            .position(|candidate| candidate.query.name.as_deref() == Some(query_name))
             .unwrap_or_else(|| {
                 eprintln!(
                     "error: exploration `{}` was not found in {}",
@@ -7870,7 +7877,7 @@ fn run_explore_preview(
                 std::process::exit(1);
             })
     } else if artifacts.exploration_universes.len() == 1 {
-        &artifacts.exploration_universes[0]
+        0
     } else if artifacts.exploration_universes.is_empty() {
         eprintln!("error: {} contains no selectable exploration", filename);
         std::process::exit(1);
@@ -49828,21 +49835,26 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             polarity: ExplorePolarity::Matches,
             bounds: vec![
                 ExploreBound::Domain {
+                    role: None,
                     name: "axis".to_string(),
                     domain: coverage_expr("explore_domain"),
                     span: Span::dummy(),
                 },
                 ExploreBound::Value {
+                    role: None,
                     name: "derived".to_string(),
                     value: coverage_expr("explore_value"),
                     span: Span::dummy(),
                 },
                 ExploreBound::Where {
+                    scope: None,
                     predicate: coverage_expr("explore_where"),
                     span: Span::dummy(),
                 },
             ],
+            transition: None,
             boundary: Some(ExploreBoundary {
+                axis_role: None,
                 axis: "axis".to_string(),
                 step: coverage_expr("explore_step"),
                 span: Span::dummy(),

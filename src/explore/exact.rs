@@ -29,15 +29,17 @@ use super::report::{
     ExploreExactEvidence, ExploreExactOutcome, ExploreExactReport, ExploreExecutionBudget,
     ExploreExtremaSummary, ExploreGroupCounts, ExploreGroupFilter, ExploreLayerClosures,
     ExploreLedgerEvidence, ExploreLedgerRequest, ExploreLedgerRow, ExploreLimitResource,
-    ExploreReportRequest, ExploreReportSchema, ExploreResultKey, ExploreResultRow,
-    ExploreSearchEvidence, ExploreStopReason,
+    ExploreReportDimension, ExploreReportRequest, ExploreReportSchema, ExploreResultKey,
+    ExploreResultRow, ExploreSearchEvidence, ExploreStopReason,
 };
 use super::source_events::{SourceEventExtraction, SourceEventLabel};
 use super::source_proof_plan::SourceProofPlan;
+use super::transition::{TransitionInstance, TransitionSchemaIdentities, TransitionSupportIndex};
 use super::*;
 use sha2::{Digest, Sha256};
 
-const EXACT_STREAM_EVALUATOR_RECEIPT_V1: &[u8] = b"futuruna.explore.exact-evaluator-receipt.v1";
+const EXACT_STREAM_EVALUATOR_RECEIPT_V2: &[u8] =
+    b"futuruna.explore.exact-transition-evaluator-receipt.v2";
 
 impl ExploreFiniteTypePlan {
     /// Return the inhabitant at `ordinal` in the same canonical order used by
@@ -554,31 +556,46 @@ fn required_runtime_roots(query: &ExploreQueryIr) -> BTreeSet<ExploreRuntimeRoot
         arity: query.query.rule_arity,
     }]);
     let mut bound = query
-        .universe
-        .dimensions
+        .query
+        .inputs
         .iter()
-        .map(|dimension| dimension.name.clone())
-        .chain(query.query.inputs.iter().map(|input| input.name.clone()))
+        .map(|input| input.name.clone())
         .collect::<BTreeSet<_>>();
     let mut typed_receivers = query
-        .universe
-        .dimensions
+        .query
+        .inputs
         .iter()
-        .filter_map(|dimension| {
-            type_name(&dimension.value_ty).map(|ty| (dimension.name.clone(), ty.to_string()))
-        })
-        .chain(query.query.inputs.iter().filter_map(|input| {
-            type_name(&input.ty).map(|ty| (input.name.clone(), ty.to_string()))
-        }))
+        .filter_map(|input| type_name(&input.ty).map(|ty| (input.name.clone(), ty.to_string())))
         .collect::<BTreeMap<_, _>>();
 
-    for fact in &query.universe.facts {
+    // Only normalized compact aliases introduce bare generator names into the
+    // runtime environment. Explicit State/Context field labels are not
+    // bindings and therefore must not shadow or suppress same-named roots.
+    for alias in &query.transition.flat_aliases {
+        let ExploreFlatAliasSource::Dimension { dimension_index } = alias.source else {
+            continue;
+        };
+        let Some(dimension) = query.universe.dimensions.get(dimension_index) else {
+            continue;
+        };
+        bound.insert(alias.name.clone());
+        if let Some(ty) = type_name(&dimension.value_ty) {
+            typed_receivers.insert(alias.name.clone(), ty.to_string());
+        }
+    }
+
+    for (fact_index, fact) in query.universe.facts.iter().enumerate() {
         if let ExploreFactValue::Derived { expression, .. } = &fact.value {
             collect_typed_explore_runtime_roots(expression, &mut roots, &bound, &typed_receivers);
         }
-        bound.insert(fact.name.clone());
-        if let Some(ty) = type_name(&fact.value_ty) {
-            typed_receivers.insert(fact.name.clone(), ty.to_string());
+        for alias in &query.transition.flat_aliases {
+            if alias.source != (ExploreFlatAliasSource::Fact { fact_index }) {
+                continue;
+            }
+            bound.insert(alias.name.clone());
+            if let Some(ty) = type_name(&fact.value_ty) {
+                typed_receivers.insert(alias.name.clone(), ty.to_string());
+            }
         }
     }
     for constraint in &query.universe.constraints {
@@ -588,6 +605,27 @@ fn required_runtime_roots(query: &ExploreQueryIr) -> BTreeSet<ExploreRuntimeRoot
             &bound,
             &typed_receivers,
         );
+    }
+    for schema in [
+        &query.transition.state_schema,
+        &query.transition.context_schema,
+    ] {
+        for field in &schema.fields {
+            if let ExploreProductFieldSourceIr::TransitionExpression { expression } = &field.source
+            {
+                collect_typed_explore_runtime_roots(
+                    expression,
+                    &mut roots,
+                    &bound,
+                    &typed_receivers,
+                );
+            }
+        }
+    }
+    for field in &query.transition.after_fields {
+        if let ExploreAfterFieldSourceIr::Derived { expression, .. } = &field.source {
+            collect_typed_explore_runtime_roots(expression, &mut roots, &bound, &typed_receivers);
+        }
     }
     for field in &query.query.output.key {
         collect_typed_explore_runtime_roots(&field.value, &mut roots, &bound, &typed_receivers);
@@ -635,12 +673,63 @@ fn bind_canonical(env: &mut Env, name: &str, value: &ExploreValue) {
     env.set(name.to_string(), runtime_value_from_explore_value(value));
 }
 
-fn build_lower_environment(
-    runtime: &mut ExactRuntime,
-    runtime_context: &ExactRuntimeContext<'_>,
+struct ExactSourceConstruction {
+    env: Env,
+    dimension_values: Vec<ExploreValue>,
+    fact_values: Vec<Option<ExploreValue>>,
+}
+
+struct ExactProductValue {
+    canonical: ExploreValue,
+    runtime: Value,
+    fields: Vec<ExploreValue>,
+}
+
+/// One fully materialized semantic transition. Endpoint-local environments
+/// are views of the same canonical values: the transition view retains compact
+/// scalar aliases at `before`, while the after view replaces only compact
+/// state aliases with their after values.
+struct ExactTransitionFrame {
+    context: ExploreValue,
+    before: ExploreValue,
+    after: ExploreValue,
+    endpoint_membership: bool,
+    transition_env: Env,
+    after_endpoint_env: Env,
+}
+
+impl ExactTransitionFrame {
+    fn transition_env(&self) -> &Env {
+        &self.transition_env
+    }
+
+    fn after_endpoint_env(&self) -> &Env {
+        &self.after_endpoint_env
+    }
+
+    fn into_semantic_transition(self, schemas: &TransitionSchemaIdentities) -> TransitionInstance {
+        schemas.instantiate(self.context, self.before, self.after)
+    }
+}
+
+fn bind_flat_aliases_for_source(
+    env: &mut Env,
+    query: &ExploreQueryIr,
+    source: ExploreFlatAliasSource,
+    value: &ExploreValue,
+) {
+    for alias in &query.transition.flat_aliases {
+        if alias.source == source {
+            bind_canonical(env, &alias.name, value);
+        }
+    }
+}
+
+fn build_source_construction(
+    runtime: &ExactRuntime,
     query: &ExploreQueryIr,
     assignment: &[ExploreValue],
-) -> Result<Env, ExactEngineFailure> {
+) -> Result<ExactSourceConstruction, ExactEngineFailure> {
     if assignment.len() != query.universe.dimensions.len() {
         return Err(ExactEngineFailure::Error(format!(
             "assignment has {} values for {} Explore dimensions",
@@ -650,15 +739,50 @@ fn build_lower_environment(
     }
 
     let mut env = runtime.base_env.child();
-    for (dimension, value) in query.universe.dimensions.iter().zip(assignment) {
-        bind_canonical(&mut env, &dimension.name, value);
+    let dimension_values = assignment.to_vec();
+    for (dimension_index, value) in dimension_values.iter().enumerate() {
+        bind_flat_aliases_for_source(
+            &mut env,
+            query,
+            ExploreFlatAliasSource::Dimension { dimension_index },
+            value,
+        );
     }
-    for fact in &query.universe.facts {
+    Ok(ExactSourceConstruction {
+        env,
+        dimension_values,
+        fact_values: vec![None; query.universe.facts.len()],
+    })
+}
+
+fn evaluate_fact_phase(
+    runtime: &mut ExactRuntime,
+    runtime_context: &ExactRuntimeContext<'_>,
+    query: &ExploreQueryIr,
+    source: &mut ExactSourceConstruction,
+    role: ExploreGeneratorAxisRole,
+) -> Result<(), ExactEngineFailure> {
+    for (fact_index, fact) in query.universe.facts.iter().enumerate() {
+        if fact.role != role {
+            continue;
+        }
+        if fact.role_field_index
+            >= match role {
+                ExploreGeneratorAxisRole::Context => query.transition.context_schema.fields.len(),
+                ExploreGeneratorAxisRole::Before => query.transition.state_schema.fields.len(),
+                ExploreGeneratorAxisRole::AfterIndependent => 0,
+            }
+        {
+            return Err(ExactEngineFailure::Error(format!(
+                "Explore fact `{}` has invalid {:?} field index {}",
+                fact.name, role, fact.role_field_index
+            )));
+        }
         let value = match &fact.value {
             ExploreFactValue::Fixed(value) => value.clone(),
             ExploreFactValue::Derived { expression, .. } => runtime.eval_value(
                 expression,
-                &env,
+                &source.env,
                 &fact.value_ty,
                 runtime_context.catalog,
                 runtime_context.step_limit,
@@ -669,69 +793,581 @@ fn build_lower_environment(
                 }),
             )?,
         };
-        bind_canonical(&mut env, &fact.name, &value);
+        bind_flat_aliases_for_source(
+            &mut source.env,
+            query,
+            ExploreFlatAliasSource::Fact { fact_index },
+            &value,
+        );
+        let slot = &mut source.fact_values[fact_index];
+        if slot.replace(value).is_some() {
+            return Err(ExactEngineFailure::Error(format!(
+                "Explore fact `{}` was evaluated more than once",
+                fact.name
+            )));
+        }
     }
-    Ok(env)
+    Ok(())
 }
 
-fn build_upper_environment(
+fn materialize_product_values(
+    schema: &ExploreProductSchemaIr,
+    values: Vec<ExploreValue>,
+    role: &str,
+) -> Result<ExactProductValue, ExactEngineFailure> {
+    if values.len() != schema.fields.len() {
+        return Err(ExactEngineFailure::Error(format!(
+            "{role} value has {} fields for schema width {}",
+            values.len(),
+            schema.fields.len()
+        )));
+    }
+    let (canonical, runtime) = match &schema.identity {
+        TypedExploreProductSchemaIdentity::Unit => {
+            if !values.is_empty() {
+                return Err(ExactEngineFailure::Error(format!(
+                    "unit {role} schema unexpectedly contains {} fields",
+                    values.len()
+                )));
+            }
+            (ExploreValue::Unit, Value::Unit)
+        }
+        TypedExploreProductSchemaIdentity::Synthetic { .. } => (
+            ExploreValue::Tuple(values.clone()),
+            Value::Tuple(
+                values
+                    .iter()
+                    .map(runtime_value_from_explore_value)
+                    .collect(),
+            ),
+        ),
+        TypedExploreProductSchemaIdentity::Declared { ty } => {
+            let Ty::Name(type_name) = ty else {
+                return Err(ExactEngineFailure::Error(format!(
+                    "declared {role} schema `{ty}` is not a nominal product type"
+                )));
+            };
+            (
+                ExploreValue::Tuple(values.clone()),
+                Value::NamedConstructor(
+                    type_name.clone(),
+                    schema
+                        .fields
+                        .iter()
+                        .zip(values.iter())
+                        .map(|(field, value)| {
+                            (field.name.clone(), runtime_value_from_explore_value(value))
+                        })
+                        .collect::<Vec<_>>()
+                        .into(),
+                ),
+            )
+        }
+    };
+    Ok(ExactProductValue {
+        canonical,
+        runtime,
+        fields: values,
+    })
+}
+
+/// Build the runtime-only partial `after` product visible while evaluating one
+/// derived field. Static dependency checks guarantee that the expression can
+/// observe only fields whose values are already present; unit placeholders for
+/// other fields are therefore unreachable and never enter canonical state.
+fn materialize_partial_after_runtime(
+    schema: &ExploreProductSchemaIr,
+    values: &[Option<ExploreValue>],
+) -> Result<Value, ExactEngineFailure> {
+    if values.len() != schema.fields.len() {
+        return Err(ExactEngineFailure::Error(format!(
+            "partial after value has {} fields for schema width {}",
+            values.len(),
+            schema.fields.len()
+        )));
+    }
+    let runtime_value = |value: &Option<ExploreValue>| {
+        value
+            .as_ref()
+            .map(runtime_value_from_explore_value)
+            .unwrap_or(Value::Unit)
+    };
+    match &schema.identity {
+        TypedExploreProductSchemaIdentity::Unit => Ok(Value::Unit),
+        TypedExploreProductSchemaIdentity::Synthetic { .. } => {
+            Ok(Value::Tuple(values.iter().map(runtime_value).collect()))
+        }
+        TypedExploreProductSchemaIdentity::Declared { ty } => {
+            let Ty::Name(type_name) = ty else {
+                return Err(ExactEngineFailure::Error(format!(
+                    "declared partial after schema `{ty}` is not a nominal product type"
+                )));
+            };
+            Ok(Value::NamedConstructor(
+                type_name.clone(),
+                schema
+                    .fields
+                    .iter()
+                    .zip(values)
+                    .map(|(field, value)| (field.name.clone(), runtime_value(value)))
+                    .collect::<Vec<_>>()
+                    .into(),
+            ))
+        }
+    }
+}
+
+fn build_product_value(
+    runtime: &mut ExactRuntime,
+    runtime_context: &ExactRuntimeContext<'_>,
+    schema: &ExploreProductSchemaIr,
+    source: &ExactSourceConstruction,
+    role: &str,
+) -> Result<ExactProductValue, ExactEngineFailure> {
+    let mut values = Vec::with_capacity(schema.fields.len());
+    for field in &schema.fields {
+        if field.field_index != values.len() {
+            return Err(ExactEngineFailure::Error(format!(
+                "{role} field `{}` has index {}, expected {}",
+                field.name,
+                field.field_index,
+                values.len()
+            )));
+        }
+        let value = match &field.source {
+            ExploreProductFieldSourceIr::Dimension { dimension_index } => source
+                .dimension_values
+                .get(*dimension_index)
+                .cloned()
+                .ok_or_else(|| {
+                    ExactEngineFailure::Error(format!(
+                        "{role} field `{}` references absent dimension {}",
+                        field.name, dimension_index
+                    ))
+                })?,
+            ExploreProductFieldSourceIr::Fact { fact_index } => source
+                .fact_values
+                .get(*fact_index)
+                .and_then(Option::as_ref)
+                .cloned()
+                .ok_or_else(|| {
+                    ExactEngineFailure::Error(format!(
+                        "{role} field `{}` references absent fact {}",
+                        field.name, fact_index
+                    ))
+                })?,
+            ExploreProductFieldSourceIr::TransitionExpression { expression } => runtime
+                .eval_value(
+                    expression,
+                    &source.env,
+                    &field.value_ty,
+                    runtime_context.catalog,
+                    runtime_context.step_limit,
+                    runtime_context.collection_limit,
+                    &format!("constructing {role} field `{}`", field.name),
+                    runtime_context.phase(ExploreEvaluationPhase::DerivedFact {
+                        name: field.name.clone(),
+                    }),
+                )?,
+        };
+        values.push(value);
+    }
+
+    materialize_product_values(schema, values, role)
+}
+
+fn build_after_values(
     runtime: &mut ExactRuntime,
     runtime_context: &ExactRuntimeContext<'_>,
     query: &ExploreQueryIr,
-    lower_env: &Env,
-    upper_axis_value: i64,
-) -> Result<Env, ExactEngineFailure> {
-    let boundary = query.universe.boundary.as_ref().ok_or_else(|| {
-        ExactEngineFailure::Error("upper Explore environment requested without a boundary".into())
-    })?;
-    let mut upper_env = lower_env.child();
-    bind_canonical(
-        &mut upper_env,
-        &boundary.axis,
-        &ExploreValue::Int(upper_axis_value),
-    );
-
-    let mut prior_index = None;
-    for &fact_index in &boundary.recomputed_fact_indices {
-        if prior_index.is_some_and(|prior| prior >= fact_index) {
-            return Err(ExactEngineFailure::Error(
-                "boundary-derived fact recomputation indices are not strictly source ordered"
-                    .to_string(),
-            ));
-        }
-        prior_index = Some(fact_index);
-        let fact = query.universe.facts.get(fact_index).ok_or_else(|| {
-            ExactEngineFailure::Error(format!(
-                "boundary recomputation references absent fact index {fact_index}"
-            ))
-        })?;
-        let ExploreFactValue::Derived { expression, .. } = &fact.value else {
+    source: &ExactSourceConstruction,
+    before_values: &[ExploreValue],
+    construction_env: &Env,
+) -> Result<(Vec<ExploreValue>, bool), ExactEngineFailure> {
+    let mut after_values = vec![None; query.transition.after_fields.len()];
+    let mut pending_derived = BTreeSet::new();
+    for (expected_index, field) in query.transition.after_fields.iter().enumerate() {
+        if field.field_index != expected_index {
             return Err(ExactEngineFailure::Error(format!(
-                "boundary recomputation references fixed fact `{}`",
-                fact.name
+                "after field `{}` has index {}, expected {}",
+                field.name, field.field_index, expected_index
+            )));
+        }
+        let value = match &field.source {
+            ExploreAfterFieldSourceIr::FrameBefore { before_field_index } => {
+                let before_field = query
+                    .transition
+                    .state_schema
+                    .fields
+                    .get(*before_field_index)
+                    .ok_or_else(|| {
+                        ExactEngineFailure::Error(format!(
+                            "after field `{}` frames absent before field {}",
+                            field.name, before_field_index
+                        ))
+                    })?;
+                if before_field.name != field.name
+                    || !crate::checked_ty_structurally_equal(
+                        &before_field.value_ty,
+                        &field.value_ty,
+                    )
+                {
+                    return Err(ExactEngineFailure::Error(format!(
+                        "after field `{}` does not exactly frame before field {}",
+                        field.name, before_field_index
+                    )));
+                }
+                Some(
+                    before_values
+                        .get(*before_field_index)
+                        .cloned()
+                        .ok_or_else(|| {
+                            ExactEngineFailure::Error(format!(
+                                "after field `{}` frames absent before value {}",
+                                field.name, before_field_index
+                            ))
+                        })?,
+                )
+            }
+            ExploreAfterFieldSourceIr::Derived { .. } => {
+                pending_derived.insert(field.field_index);
+                None
+            }
+            ExploreAfterFieldSourceIr::IndependentDomain { dimension_index } => {
+                let dimension =
+                    query
+                        .universe
+                        .dimensions
+                        .get(*dimension_index)
+                        .ok_or_else(|| {
+                            ExactEngineFailure::Error(format!(
+                            "independent after field `{}` references absent generator dimension {}",
+                            field.name, dimension_index
+                        ))
+                        })?;
+                if dimension.role != ExploreGeneratorAxisRole::AfterIndependent
+                    || dimension.role_field_index != field.field_index
+                {
+                    return Err(ExactEngineFailure::Error(format!(
+                        "independent after field `{}` does not own generator dimension {}",
+                        field.name, dimension_index
+                    )));
+                }
+                let value = source
+                    .dimension_values
+                    .get(*dimension_index)
+                    .cloned()
+                    .ok_or_else(|| {
+                        ExactEngineFailure::Error(format!(
+                            "independent after field `{}` references absent dimension {}",
+                            field.name, dimension_index
+                        ))
+                    })?;
+                Some(value)
+            }
+        };
+        after_values[field.field_index] = value;
+    }
+
+    while !pending_derived.is_empty() {
+        let ready = pending_derived.iter().copied().find(|field_index| {
+            let Some(field) = query.transition.after_fields.get(*field_index) else {
+                return false;
+            };
+            let ExploreAfterFieldSourceIr::Derived {
+                after_dependencies, ..
+            } = &field.source
+            else {
+                return false;
+            };
+            after_dependencies.iter().all(|dependency| {
+                dependency.field_index < after_values.len()
+                    && after_values[dependency.field_index].is_some()
+            })
+        });
+        let Some(field_index) = ready else {
+            return Err(ExactEngineFailure::Error(format!(
+                "after-construction dependency graph is cyclic or references an absent field: {:?}",
+                pending_derived
             )));
         };
+        let field = &query.transition.after_fields[field_index];
+        let ExploreAfterFieldSourceIr::Derived {
+            expression,
+            after_dependencies,
+            ..
+        } = &field.source
+        else {
+            unreachable!("pending after-construction node must be derived")
+        };
+        if after_dependencies
+            .iter()
+            .any(|dependency| dependency.field_index == field_index)
+        {
+            return Err(ExactEngineFailure::Error(format!(
+                "derived after field `{}` depends on itself",
+                field.name
+            )));
+        }
+        let mut derived_env = construction_env.child();
+        for dependency in after_dependencies {
+            let dependency_field = query
+                .transition
+                .state_schema
+                .fields
+                .get(dependency.field_index)
+                .ok_or_else(|| {
+                    ExactEngineFailure::Error(format!(
+                        "derived after field `{}` references absent dependency {}",
+                        field.name, dependency.field_index
+                    ))
+                })?;
+            if dependency.binding_name != dependency_field.name {
+                return Err(ExactEngineFailure::Error(format!(
+                    "derived after dependency binding `{}` disagrees with state field `{}`",
+                    dependency.binding_name, dependency_field.name
+                )));
+            }
+            let dependency_value =
+                after_values[dependency.field_index]
+                    .as_ref()
+                    .ok_or_else(|| {
+                        ExactEngineFailure::Error(format!(
+                            "derived after field `{}` dependency `{}` is not constructed",
+                            field.name, dependency_field.name
+                        ))
+                    })?;
+            for alias in &query.transition.flat_aliases {
+                if matches!(
+                    alias.role,
+                    ExploreFlatAliasRole::State { field_index }
+                        if field_index == dependency.field_index
+                ) {
+                    bind_canonical(&mut derived_env, &alias.name, dependency_value);
+                }
+            }
+        }
+        derived_env.set(
+            "after".to_string(),
+            materialize_partial_after_runtime(&query.transition.state_schema, &after_values)?,
+        );
         let value = runtime.eval_value(
             expression,
-            &upper_env,
-            &fact.value_ty,
+            &derived_env,
+            &field.value_ty,
             runtime_context.catalog,
             runtime_context.step_limit,
             runtime_context.collection_limit,
-            &format!(
-                "recomputing boundary-derived Explore fact `{}` at the upper endpoint",
-                fact.name
-            ),
-            runtime_context.phase(ExploreEvaluationPhase::BoundaryEndpoint),
+            &format!("constructing derived after field `{}`", field.name),
+            runtime_context.phase(ExploreEvaluationPhase::DerivedFact {
+                name: field.name.clone(),
+            }),
         )?;
-        bind_canonical(&mut upper_env, &fact.name, &value);
+        after_values[field_index] = Some(value);
+        pending_derived.remove(&field_index);
     }
-    Ok(upper_env)
+
+    let after_values = after_values
+        .into_iter()
+        .enumerate()
+        .map(|(field_index, value)| {
+            value.ok_or_else(|| {
+                ExactEngineFailure::Error(format!(
+                    "after field {} was not constructed",
+                    field_index
+                ))
+            })
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut endpoint_membership = true;
+    for membership in &query.transition.after_membership {
+        let value = after_values
+            .get(membership.after_field_index)
+            .ok_or_else(|| {
+                ExactEngineFailure::Error(format!(
+                    "after-membership references absent field {}",
+                    membership.after_field_index
+                ))
+            })?;
+        let after = value.int().ok_or_else(|| {
+            ExactEngineFailure::Error(format!(
+                "after-membership field {} is not an Int",
+                membership.after_field_index
+            ))
+        })?;
+        let before_dimension = query
+            .universe
+            .dimensions
+            .get(membership.before_dimension_index)
+            .ok_or_else(|| {
+                ExactEngineFailure::Error(format!(
+                    "after-membership references absent before dimension {}",
+                    membership.before_dimension_index
+                ))
+            })?;
+        if before_dimension.role != ExploreGeneratorAxisRole::Before {
+            return Err(ExactEngineFailure::Error(format!(
+                "after-membership dimension `{}` is not a before-state axis",
+                before_dimension.name
+            )));
+        }
+        if !before_dimension
+            .domain
+            .contains_boundary_int(after)
+            .map_err(ExactEngineFailure::Error)?
+        {
+            endpoint_membership = false;
+        }
+    }
+    Ok((after_values, endpoint_membership))
+}
+
+fn bind_compact_after_aliases(
+    env: &mut Env,
+    query: &ExploreQueryIr,
+    after_values: &[ExploreValue],
+) -> Result<(), ExactEngineFailure> {
+    for alias in &query.transition.flat_aliases {
+        let ExploreFlatAliasRole::State { field_index } = alias.role else {
+            continue;
+        };
+        let value = after_values.get(field_index).ok_or_else(|| {
+            ExactEngineFailure::Error(format!(
+                "compact after alias `{}` references absent state field {}",
+                alias.name, field_index
+            ))
+        })?;
+        bind_canonical(env, &alias.name, value);
+    }
+    Ok(())
+}
+
+fn build_transition_frame(
+    runtime: &mut ExactRuntime,
+    runtime_context: &ExactRuntimeContext<'_>,
+    query: &ExploreQueryIr,
+    assignment: &[ExploreValue],
+) -> Result<ExactTransitionFrame, ExactEngineFailure> {
+    let mut source = build_source_construction(runtime, query, assignment)?;
+    evaluate_fact_phase(
+        runtime,
+        runtime_context,
+        query,
+        &mut source,
+        ExploreGeneratorAxisRole::Context,
+    )?;
+    let context = build_product_value(
+        runtime,
+        runtime_context,
+        &query.transition.context_schema,
+        &source,
+        "transition-context",
+    )?;
+    source
+        .env
+        .set("context".to_string(), context.runtime.clone());
+    evaluate_fact_phase(
+        runtime,
+        runtime_context,
+        query,
+        &mut source,
+        ExploreGeneratorAxisRole::Before,
+    )?;
+    let before = build_product_value(
+        runtime,
+        runtime_context,
+        &query.transition.state_schema,
+        &source,
+        "before-state",
+    )?;
+
+    let mut construction_env = source.env.child();
+    construction_env.set("before".to_string(), before.runtime.clone());
+    let (after_values, endpoint_membership) = build_after_values(
+        runtime,
+        runtime_context,
+        query,
+        &source,
+        &before.fields,
+        &construction_env,
+    )?;
+    let after = materialize_product_values(
+        &query.transition.state_schema,
+        after_values.clone(),
+        "after-state",
+    )?;
+
+    let mut transition_env = construction_env.child();
+    transition_env.set("after".to_string(), after.runtime.clone());
+    let mut after_endpoint_env = transition_env.child();
+    bind_compact_after_aliases(&mut after_endpoint_env, query, &after_values)?;
+
+    Ok(ExactTransitionFrame {
+        context: context.canonical,
+        before: before.canonical,
+        after: after.canonical,
+        endpoint_membership,
+        transition_env,
+        after_endpoint_env,
+    })
 }
 
 enum Admissibility {
-    Excluded,
-    Admissible(Env),
+    /// The generator coordinate cannot denote a total typed transition. It is
+    /// closed as outside the structural transition universe before any fact
+    /// or after-field expression is evaluated, and therefore has no
+    /// TransitionId/support edge.
+    StructurallyExcluded,
+    Excluded(ExactTransitionFrame),
+    Admissible(ExactTransitionFrame),
+}
+
+pub(super) fn endpoint_memberships_are_structurally_eligible(
+    query: &ExploreQueryIr,
+    assignment: &[ExploreValue],
+) -> Result<bool, String> {
+    for membership in &query.transition.after_membership {
+        let dimension = query
+            .universe
+            .dimensions
+            .get(membership.before_dimension_index)
+            .ok_or_else(|| {
+                format!(
+                    "endpoint-membership dimension {} is outside {} dimensions",
+                    membership.before_dimension_index,
+                    query.universe.dimensions.len()
+                )
+            })?;
+        if dimension.role != ExploreGeneratorAxisRole::Before
+            || dimension.role_field_index != membership.after_field_index
+        {
+            return Err(format!(
+                "endpoint-membership field {} is not paired with its indexed Before dimension",
+                membership.after_field_index
+            ));
+        }
+        let lower = assignment
+            .get(membership.before_dimension_index)
+            .and_then(ExploreValue::int)
+            .ok_or_else(|| {
+                format!(
+                    "endpoint-membership Before dimension `{}` is not an Int assignment",
+                    dimension.name
+                )
+            })?;
+        let after = match membership.preconstruction {
+            ExploreAfterMembershipPreconstructionIr::RelativeIntStep { step } => {
+                let Some(after) = lower.checked_add(step) else {
+                    return Ok(false);
+                };
+                after
+            }
+        };
+        if !dimension.domain.contains_boundary_int(after)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn evaluate_admissibility(
@@ -740,108 +1376,94 @@ fn evaluate_admissibility(
     query: &ExploreQueryIr,
     assignment: &[ExploreValue],
 ) -> Result<Admissibility, ExactEngineFailure> {
-    // Endpoint membership is structural eligibility.  Decide it before any
-    // derived fact is evaluated so an assignment that cannot form a boundary
-    // pair cannot consume a runtime budget or observe a runtime failure.
-    let upper_axis_value = if let Some(boundary) = &query.universe.boundary {
-        if !boundary.requires_both_endpoints_in_domain {
-            return Err(ExactEngineFailure::Unsupported(
-                "the exact-finite executor requires both boundary endpoints to belong to the declared axis domain"
-                    .to_string(),
-            ));
-        }
-        let lower = assignment
-            .get(boundary.axis_dimension_index)
-            .and_then(ExploreValue::int)
-            .ok_or_else(|| {
-                ExactEngineFailure::Error(format!(
-                    "boundary axis `{}` is not an Int assignment",
-                    boundary.axis
-                ))
-            })?;
-        let Some(upper) = lower.checked_add(boundary.step) else {
-            return Ok(Admissibility::Excluded);
-        };
-        let axis = query
-            .universe
-            .dimensions
-            .get(boundary.axis_dimension_index)
-            .ok_or_else(|| {
-                ExactEngineFailure::Error(format!(
-                    "boundary axis index {} is outside {} dimensions",
-                    boundary.axis_dimension_index,
-                    query.universe.dimensions.len()
-                ))
-            })?;
-        if axis.name != boundary.axis {
-            return Err(ExactEngineFailure::Error(format!(
-                "boundary axis index names `{}` but the boundary names `{}`",
-                axis.name, boundary.axis
-            )));
-        }
-        if !axis
-            .domain
-            .contains_boundary_int(upper)
-            .map_err(ExactEngineFailure::Error)?
-        {
-            return Ok(Admissibility::Excluded);
-        }
-        Some(upper)
-    } else {
-        None
-    };
-
-    let lower_env = build_lower_environment(runtime, runtime_context, query, assignment)?;
-    let upper_env = if let Some(upper) = upper_axis_value {
-        Some(build_upper_environment(
-            runtime,
-            runtime_context,
-            query,
-            &lower_env,
-            upper,
-        )?)
-    } else {
-        None
-    };
+    // Boundary membership is a structural contract, not a fallible after
+    // computation. Close the ineligible coordinate before derived facts so an
+    // out-of-domain or overflowing successor cannot consume runtime budget or
+    // turn a finite search into an evaluator error.
+    if !endpoint_memberships_are_structurally_eligible(query, assignment)
+        .map_err(ExactEngineFailure::Error)?
+    {
+        return Ok(Admissibility::StructurallyExcluded);
+    }
+    let frame = build_transition_frame(runtime, runtime_context, query, assignment)?;
+    if !frame.endpoint_membership {
+        return Ok(Admissibility::Excluded(frame));
+    }
 
     for (index, constraint) in query.universe.constraints.iter().enumerate() {
         let context = format!("evaluating Explore `where` constraint {}", index + 1);
-        if !runtime.eval_bool(
-            &constraint.predicate,
-            &lower_env,
-            runtime_context.catalog,
-            runtime_context.step_limit,
-            runtime_context.collection_limit,
-            &context,
-            runtime_context.phase(ExploreEvaluationPhase::Constraint { index }),
-        )? {
-            return Ok(Admissibility::Excluded);
-        }
         match constraint.scope {
-            ExploreConstraintScope::Candidate => {}
-            ExploreConstraintScope::BothBoundaryEndpoints => {
-                let upper_env = upper_env.as_ref().ok_or_else(|| {
-                    ExactEngineFailure::Error(
-                        "both-endpoint constraint exists without a boundary environment"
-                            .to_string(),
-                    )
-                })?;
+            ExploreConstraintScope::Before => {
                 if !runtime.eval_bool(
                     &constraint.predicate,
-                    upper_env,
+                    frame.transition_env(),
+                    runtime_context.catalog,
+                    runtime_context.step_limit,
+                    runtime_context.collection_limit,
+                    &format!("{context} at the before endpoint"),
+                    runtime_context.phase(ExploreEvaluationPhase::Constraint { index }),
+                )? {
+                    return Ok(Admissibility::Excluded(frame));
+                }
+            }
+            ExploreConstraintScope::After | ExploreConstraintScope::Transition => {
+                let environment = match constraint.scope {
+                    ExploreConstraintScope::After => frame.after_endpoint_env(),
+                    ExploreConstraintScope::Transition => frame.transition_env(),
+                    ExploreConstraintScope::Before | ExploreConstraintScope::BothEndpoints => {
+                        unreachable!()
+                    }
+                };
+                if !runtime.eval_bool(
+                    &constraint.predicate,
+                    environment,
+                    runtime_context.catalog,
+                    runtime_context.step_limit,
+                    runtime_context.collection_limit,
+                    &match constraint.scope {
+                        ExploreConstraintScope::After => {
+                            format!("{context} at the after endpoint")
+                        }
+                        ExploreConstraintScope::Transition => {
+                            format!("{context} over the transition")
+                        }
+                        ExploreConstraintScope::Before | ExploreConstraintScope::BothEndpoints => {
+                            unreachable!()
+                        }
+                    },
+                    runtime_context.phase(ExploreEvaluationPhase::Constraint { index }),
+                )? {
+                    return Ok(Admissibility::Excluded(frame));
+                }
+            }
+            ExploreConstraintScope::BothEndpoints => {
+                if !runtime.eval_bool(
+                    &constraint.predicate,
+                    frame.transition_env(),
+                    runtime_context.catalog,
+                    runtime_context.step_limit,
+                    runtime_context.collection_limit,
+                    &format!("{context} at the before endpoint"),
+                    runtime_context.phase(ExploreEvaluationPhase::Constraint { index }),
+                )? {
+                    return Ok(Admissibility::Excluded(frame));
+                }
+                if !runtime.eval_bool(
+                    &constraint.predicate,
+                    frame.after_endpoint_env(),
                     runtime_context.catalog,
                     runtime_context.step_limit,
                     runtime_context.collection_limit,
                     &format!("{context} at the upper boundary endpoint"),
                     runtime_context.phase(ExploreEvaluationPhase::Constraint { index }),
                 )? {
-                    return Ok(Admissibility::Excluded);
+                    return Ok(Admissibility::Excluded(frame));
                 }
             }
         }
     }
 
-    Ok(Admissibility::Admissible(lower_env))
+    Ok(Admissibility::Admissible(frame))
 }
 
 fn evaluate_polarity(
@@ -1160,6 +1782,9 @@ struct ExactSearchState {
     selected_representatives: BTreeMap<Box<[ExploreValue]>, OrdinalCaseId>,
     candidates: BTreeMap<Box<[ExploreValue]>, SearchObservation>,
     ledger: Vec<SearchObservation>,
+    /// Semantic state/edge projection over exactly evaluated singleton cases.
+    /// This is distinct from the search-decision case DAG below.
+    transition_support: TransitionSupportIndex,
     case_graph: CaseDecisionDag,
     projection_observations_complete: bool,
     representative_selection_observations_complete: bool,
@@ -1184,6 +1809,7 @@ struct ExactAccumulator {
     selected_representatives: BTreeMap<Box<[ExploreValue]>, OrdinalCaseId>,
     candidates: BTreeMap<Box<[ExploreValue]>, SearchObservation>,
     ledger: Vec<SearchObservation>,
+    transition_support: TransitionSupportIndex,
     projection_observations_complete: bool,
     representative_selection_observations_complete: bool,
     ledger_observations_complete: bool,
@@ -1201,6 +1827,7 @@ impl ExactAccumulator {
             selected_representatives: BTreeMap::new(),
             candidates: BTreeMap::new(),
             ledger: Vec::new(),
+            transition_support: TransitionSupportIndex::default(),
             projection_observations_complete: true,
             representative_selection_observations_complete: true,
             ledger_observations_complete: true,
@@ -1224,6 +1851,7 @@ impl ExactAccumulator {
             selected_representatives: self.selected_representatives,
             candidates: self.candidates,
             ledger: self.ledger,
+            transition_support: self.transition_support,
             case_graph,
             projection_observations_complete: self.projection_observations_complete,
             representative_selection_observations_complete: self
@@ -1301,7 +1929,12 @@ fn report_schema(query: &ExploreQueryIr) -> Result<ExploreReportSchema, String> 
             .universe
             .dimensions
             .iter()
-            .map(|dimension| dimension.name.clone())
+            .map(|dimension| ExploreReportDimension {
+                bound_index: dimension.bound_index,
+                role: dimension.role,
+                role_field_index: dimension.role_field_index,
+                label: dimension.name.clone(),
+            })
             .collect::<Vec<_>>(),
         query_axis_cardinalities(query)?,
         query
@@ -1375,11 +2008,19 @@ fn prepare_group_extrema(
     }
 }
 
-/// A fully evaluated case that is safe to accept as one semantic unit.
+/// A fully evaluated CaseId and its one total semantic transition.
+///
+/// Classification and transition support are accepted as one transaction.
 /// Matching cases distinguish the projection-only `first` fast path from a
 /// materialized observation so a ledger request can never be accepted without
 /// its complete row.
-enum ExactCaseTransaction {
+struct ExactCaseTransaction {
+    case_id: OrdinalCaseId,
+    transition: TransitionInstance,
+    outcome: ExactCaseOutcome,
+}
+
+enum ExactCaseOutcome {
     Excluded,
     AdmissibleNonmatch,
     AdmissibleMatch(MatchingCaseTransaction),
@@ -1413,15 +2054,16 @@ impl MatchingCaseTransaction {
 }
 
 enum ExactCaseEvaluation {
+    StructurallyExcluded(OrdinalCaseId),
     Complete(ExactCaseTransaction),
     Open(ObservedCase),
 }
 
 fn finish_case_evaluation(
-    evaluation: Result<ExactCaseTransaction, ExactEngineFailure>,
+    evaluation: Result<ExactCaseEvaluation, ExactEngineFailure>,
 ) -> Result<ExactCaseEvaluation, ExactEngineFailure> {
     match evaluation {
-        Ok(transaction) => Ok(ExactCaseEvaluation::Complete(transaction)),
+        Ok(evaluation) => Ok(evaluation),
         Err(ExactEngineFailure::OperationalLimit(stop)) => {
             Ok(ExactCaseEvaluation::Open(ObservedCase {
                 // The durable retry unit is the whole CaseId. Even when an
@@ -1443,25 +2085,39 @@ fn evaluate_case_transaction(
     runtime: &mut ExactRuntime,
     runtime_context: &ExactRuntimeContext<'_>,
     query: &ExploreQueryIr,
+    transition_schemas: &TransitionSchemaIdentities,
     question: &Expr,
     ordinals: &[u128],
     retain_ledger: bool,
 ) -> Result<ExactCaseEvaluation, ExactEngineFailure> {
     let evaluation = (|| {
         let assignment = assignment_values(query, ordinals).map_err(ExactEngineFailure::Error)?;
-        let lower_env = match evaluate_admissibility(runtime, runtime_context, query, &assignment)?
-        {
-            Admissibility::Excluded => return Ok(ExactCaseTransaction::Excluded),
-            Admissibility::Admissible(env) => env,
+        let case_id = OrdinalCaseId(ordinals.to_vec().into_boxed_slice());
+        let frame = match evaluate_admissibility(runtime, runtime_context, query, &assignment)? {
+            Admissibility::StructurallyExcluded => {
+                return Ok(ExactCaseEvaluation::StructurallyExcluded(case_id))
+            }
+            Admissibility::Excluded(frame) => {
+                return Ok(ExactCaseEvaluation::Complete(ExactCaseTransaction {
+                    case_id,
+                    transition: frame.into_semantic_transition(transition_schemas),
+                    outcome: ExactCaseOutcome::Excluded,
+                }))
+            }
+            Admissibility::Admissible(frame) => frame,
         };
+        let transition_env = frame.transition_env();
 
-        if !evaluate_polarity(runtime, runtime_context, query, question, &lower_env)? {
-            return Ok(ExactCaseTransaction::AdmissibleNonmatch);
+        if !evaluate_polarity(runtime, runtime_context, query, question, transition_env)? {
+            return Ok(ExactCaseEvaluation::Complete(ExactCaseTransaction {
+                case_id,
+                transition: frame.into_semantic_transition(transition_schemas),
+                outcome: ExactCaseOutcome::AdmissibleNonmatch,
+            }));
         }
 
-        let key = evaluate_key(runtime, runtime_context, query, &lower_env)?;
-        let extrema = evaluate_extrema(runtime, runtime_context, query, &lower_env)?;
-        let case_id = OrdinalCaseId(ordinals.to_vec().into_boxed_slice());
+        let key = evaluate_key(runtime, runtime_context, query, transition_env)?;
+        let extrema = evaluate_extrema(runtime, runtime_context, query, transition_env)?;
         let is_first = matches!(
             &query.query.output.representative,
             ExploreRepresentative::First { .. }
@@ -1474,7 +2130,7 @@ fn evaluate_case_transaction(
         let representative_needs_values = if is_first { first_replaces } else { true };
         let matching = if !retain_ledger && !representative_needs_values {
             MatchingCaseTransaction::ProjectionOnly {
-                case_id,
+                case_id: case_id.clone(),
                 key,
                 extrema,
             }
@@ -1483,12 +2139,12 @@ fn evaluate_case_transaction(
                 runtime,
                 runtime_context,
                 query,
-                &lower_env,
+                transition_env,
                 &extrema,
             )?;
             MatchingCaseTransaction::Materialized {
                 observation: SearchObservation {
-                    case_id,
+                    case_id: case_id.clone(),
                     key,
                     extrema,
                     shown,
@@ -1497,7 +2153,11 @@ fn evaluate_case_transaction(
                 retain_ledger,
             }
         };
-        Ok(ExactCaseTransaction::AdmissibleMatch(matching))
+        Ok(ExactCaseEvaluation::Complete(ExactCaseTransaction {
+            case_id,
+            transition: frame.into_semantic_transition(transition_schemas),
+            outcome: ExactCaseOutcome::AdmissibleMatch(matching),
+        }))
     })();
     finish_case_evaluation(evaluation)
 }
@@ -1510,21 +2170,46 @@ fn accept_case_transaction(
     representative: &ExploreRepresentative,
     transaction: ExactCaseTransaction,
 ) -> Result<ObservedCase, ExactEngineFailure> {
-    let terminal = match transaction {
-        ExactCaseTransaction::Excluded => {
+    let ExactCaseTransaction {
+        case_id,
+        transition,
+        outcome,
+    } = transaction;
+    let prepared_transition = accumulator
+        .transition_support
+        .prepare_intern(transition, ExploreCaseId::new(case_id.0.clone()))
+        .map_err(|error| {
+            ExactEngineFailure::Error(format!(
+                "cannot accept canonical Explore transition support: {error}"
+            ))
+        })?;
+
+    let terminal = match outcome {
+        ExactCaseOutcome::Excluded => {
             let classified = incremented_counter(accumulator.classified, "classified-case")?;
+            accumulator
+                .transition_support
+                .commit_prepared(prepared_transition);
             accumulator.classified = classified;
             CaseTerminal::Excluded
         }
-        ExactCaseTransaction::AdmissibleNonmatch => {
+        ExactCaseOutcome::AdmissibleNonmatch => {
             let classified = incremented_counter(accumulator.classified, "classified-case")?;
             let admissible = incremented_counter(accumulator.admissible, "admissible-case")?;
+            accumulator
+                .transition_support
+                .commit_prepared(prepared_transition);
             accumulator.classified = classified;
             accumulator.admissible = admissible;
             CaseTerminal::AdmissibleNonmatch
         }
-        ExactCaseTransaction::AdmissibleMatch(matching) => {
-            let (case_id, key, extrema) = matching.projection();
+        ExactCaseOutcome::AdmissibleMatch(matching) => {
+            let (matching_case_id, key, extrema) = matching.projection();
+            if matching_case_id != &case_id {
+                return Err(ExactEngineFailure::Error(
+                    "matching Explore projection belongs to another CaseId".to_string(),
+                ));
+            }
             let classified = incremented_counter(accumulator.classified, "classified-case")?;
             let admissible = incremented_counter(accumulator.admissible, "admissible-case")?;
             let matching_count = incremented_counter(accumulator.matching, "matching-case")?;
@@ -1533,7 +2218,7 @@ fn accept_case_transaction(
                 "result-key support",
             )?;
             let group_extrema =
-                prepare_group_extrema(&accumulator.key_extrema, key, extrema, case_id)?;
+                prepare_group_extrema(&accumulator.key_extrema, key, extrema, &case_id)?;
             let replace_representative = match &matching {
                 MatchingCaseTransaction::ProjectionOnly { .. } => {
                     if !matches!(representative, ExploreRepresentative::First { .. }) {
@@ -1545,7 +2230,7 @@ fn accept_case_transaction(
                     if accumulator
                         .selected_representatives
                         .get(key)
-                        .is_none_or(|incumbent| case_id < incumbent)
+                        .is_none_or(|incumbent| &case_id < incumbent)
                     {
                         return Err(ExactEngineFailure::Error(
                             "first Explore representative transaction omitted required materialized values"
@@ -1558,7 +2243,7 @@ fn accept_case_transaction(
                     ExploreRepresentative::First { .. } => accumulator
                         .selected_representatives
                         .get(key)
-                        .is_none_or(|incumbent| case_id < incumbent),
+                        .is_none_or(|incumbent| &case_id < incumbent),
                     ExploreRepresentative::Maximize { .. }
                     | ExploreRepresentative::Minimize { .. } => accumulator
                         .candidates
@@ -1573,6 +2258,9 @@ fn accept_case_transaction(
 
             // Every check above reads immutable state. From here onward the
             // complete transaction is applied with no semantic failure point.
+            accumulator
+                .transition_support
+                .commit_prepared(prepared_transition);
             accumulator.classified = classified;
             accumulator.admissible = admissible;
             accumulator.matching = matching_count;
@@ -1589,7 +2277,7 @@ fn accept_case_transaction(
                         .get_mut(key)
                         .expect("prechecked Explore extrema group exists");
                     for (extrema_accumulator, value) in group.iter_mut().zip(extrema) {
-                        extrema_accumulator.observe_prechecked(*value, case_id);
+                        extrema_accumulator.observe_prechecked(*value, &case_id);
                     }
                 }
                 PreparedGroupExtrema::New(group) => {
@@ -1633,6 +2321,7 @@ fn evaluate_and_observe_case(
     runtime: &mut ExactRuntime,
     runtime_context: &ExactRuntimeContext<'_>,
     query: &ExploreQueryIr,
+    transition_schemas: &TransitionSchemaIdentities,
     question: &Expr,
     ordinals: &[u128],
     retain_ledger: bool,
@@ -1642,10 +2331,19 @@ fn evaluate_and_observe_case(
         runtime,
         runtime_context,
         query,
+        transition_schemas,
         question,
         ordinals,
         retain_ledger,
     )? {
+        ExactCaseEvaluation::StructurallyExcluded(_) => {
+            accumulator.classified =
+                incremented_counter(accumulator.classified, "classified-case")?;
+            Ok(ObservedCase {
+                terminal: CaseTerminal::Excluded,
+                stop: None,
+            })
+        }
         ExactCaseEvaluation::Complete(transaction) => {
             accept_case_transaction(accumulator, &query.query.output.representative, transaction)
         }
@@ -1663,6 +2361,7 @@ pub(super) struct ExactStreamEvaluator<'a> {
     source_dir: Option<&'a str>,
     artifacts: &'a TypeCheckArtifacts,
     query: &'a ExploreQueryIr,
+    transition_schemas: TransitionSchemaIdentities,
     checked_show_sites: Box<[ExprSiteId]>,
     checked_mechanism_query_id: MechanismQueryId,
     mechanism_runtime_root_authorized: bool,
@@ -1866,6 +2565,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             })?;
         let mechanism_runtime_root_authorized =
             artifacts.require_mechanism_runtime_root_v1().is_ok();
+        let transition_schemas = checked.transition_schemas().clone();
         let checked_show_sites = checked.artifact.sites.show.clone();
         if checked_show_sites.len() != query.query.output.show.len() {
             return Err(ExactStreamEvaluatorPrepareError::Failure(
@@ -1899,6 +2599,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             source_dir,
             artifacts,
             query,
+            transition_schemas,
             checked_show_sites,
             checked_mechanism_query_id,
             mechanism_runtime_root_authorized,
@@ -1961,31 +2662,31 @@ impl<'a> ExactStreamEvaluator<'a> {
             .map_err(exact_fresh_match_replay_error)?;
         let assignment = assignment_values(self.query, &ordinals)
             .map_err(ExactFreshMatchReplayError::Failure)?;
-        let lower_env =
-            match evaluate_admissibility(&mut runtime, &context, self.query, &assignment)
-                .map_err(exact_fresh_match_replay_error)?
-            {
-                Admissibility::Excluded => {
-                    return Err(ExactFreshMatchReplayError::NotConfirmedMatch)
-                }
-                Admissibility::Admissible(environment) => environment,
-            };
+        let frame = match evaluate_admissibility(&mut runtime, &context, self.query, &assignment)
+            .map_err(exact_fresh_match_replay_error)?
+        {
+            Admissibility::StructurallyExcluded | Admissibility::Excluded(_) => {
+                return Err(ExactFreshMatchReplayError::NotConfirmedMatch)
+            }
+            Admissibility::Admissible(frame) => frame,
+        };
+        let transition_env = frame.transition_env();
         if !evaluate_polarity(
             &mut runtime,
             &context,
             self.query,
             &self.question,
-            &lower_env,
+            transition_env,
         )
         .map_err(exact_fresh_match_replay_error)?
         {
             return Err(ExactFreshMatchReplayError::NotConfirmedMatch);
         }
-        evaluate_key(&mut runtime, &context, self.query, &lower_env)
+        evaluate_key(&mut runtime, &context, self.query, transition_env)
             .map_err(exact_fresh_match_replay_error)?;
-        let extrema = evaluate_extrema(&mut runtime, &context, self.query, &lower_env)
+        let extrema = evaluate_extrema(&mut runtime, &context, self.query, transition_env)
             .map_err(exact_fresh_match_replay_error)?;
-        let mut output_env = lower_env.child();
+        let mut output_env = transition_env.child();
         for (field, value) in self.query.query.output.extrema.iter().zip(extrema.iter()) {
             output_env.set(field.name.clone(), Value::Int(*value));
         }
@@ -2036,8 +2737,8 @@ impl<'a> ExactStreamEvaluator<'a> {
     }
 
     /// Evaluate one rank as a whole-CaseId retry unit. Matching cases always
-    /// materialize every projected field even when the representative policy
-    /// could have skipped them in the legacy one-shot fast path.
+    /// materialize every projected field even when an in-memory representative
+    /// optimization could otherwise skip them.
     pub(super) fn evaluate_rank(&mut self, rank: u128) -> Result<ExactStreamCaseAttempt, String> {
         let ordinals = unrank_product(
             self.query
@@ -2062,6 +2763,7 @@ impl<'a> ExactStreamEvaluator<'a> {
             &mut self.runtime,
             &context,
             self.query,
+            &self.transition_schemas,
             &self.question,
             &ordinals,
             // Durable observations are deliberately fully materialized.
@@ -2076,36 +2778,56 @@ impl<'a> ExactStreamEvaluator<'a> {
                 })?;
                 return Ok(ExactStreamCaseAttempt::Open(stop));
             }
-            ExactCaseEvaluation::Complete(ExactCaseTransaction::Excluded) => {
-                (ExactClosedClassificationV1::Excluded, None)
-            }
-            ExactCaseEvaluation::Complete(ExactCaseTransaction::AdmissibleNonmatch) => {
-                (ExactClosedClassificationV1::AdmissibleNonmatch, None)
-            }
-            ExactCaseEvaluation::Complete(ExactCaseTransaction::AdmissibleMatch(
-                MatchingCaseTransaction::Materialized { observation, .. },
-            )) => {
-                if observation.case_id.0.as_ref() != ordinals.as_slice() {
+            ExactCaseEvaluation::StructurallyExcluded(case_id) => {
+                if case_id.0.as_ref() != ordinals.as_slice() {
                     return Err(
-                        "durable evaluator returned a projection for another CaseId".to_string()
+                        "durable evaluator structurally excluded another CaseId".to_string()
                     );
                 }
-                let projection = ExactMatchProjectionV1::new(
-                    observation.key,
-                    observation.extrema,
-                    observation.shown,
-                    observation.objective,
-                )
-                .map_err(|error| error.to_string())?;
-                (
-                    ExactClosedClassificationV1::AdmissibleMatch,
-                    Some(projection),
-                )
+                (ExactClosedClassificationV1::Excluded, None)
             }
-            ExactCaseEvaluation::Complete(ExactCaseTransaction::AdmissibleMatch(
-                MatchingCaseTransaction::ProjectionOnly { .. },
-            )) => {
-                return Err("durable evaluator produced a projection-only matching case".to_string())
+            ExactCaseEvaluation::Complete(ExactCaseTransaction {
+                case_id, outcome, ..
+            }) => {
+                if case_id.0.as_ref() != ordinals.as_slice() {
+                    return Err(
+                        "durable evaluator returned a transaction for another CaseId".to_string(),
+                    );
+                }
+                match outcome {
+                    ExactCaseOutcome::Excluded => (ExactClosedClassificationV1::Excluded, None),
+                    ExactCaseOutcome::AdmissibleNonmatch => {
+                        (ExactClosedClassificationV1::AdmissibleNonmatch, None)
+                    }
+                    ExactCaseOutcome::AdmissibleMatch(MatchingCaseTransaction::Materialized {
+                        observation,
+                        ..
+                    }) => {
+                        if observation.case_id != case_id {
+                            return Err(
+                                "durable evaluator returned a projection for another CaseId"
+                                    .to_string(),
+                            );
+                        }
+                        let projection = ExactMatchProjectionV1::new(
+                            observation.key,
+                            observation.extrema,
+                            observation.shown,
+                            observation.objective,
+                        )
+                        .map_err(|error| error.to_string())?;
+                        (
+                            ExactClosedClassificationV1::AdmissibleMatch,
+                            Some(projection),
+                        )
+                    }
+                    ExactCaseOutcome::AdmissibleMatch(
+                        MatchingCaseTransaction::ProjectionOnly { .. },
+                    ) => {
+                        return Err("durable evaluator produced a projection-only matching case"
+                            .to_string())
+                    }
+                }
             }
         };
 
@@ -2119,7 +2841,7 @@ impl<'a> ExactStreamEvaluator<'a> {
         let provisional =
             encode_exact_case_observation_v1(&proposal).map_err(|error| error.to_string())?;
         let mut receipt = Sha256::new();
-        receipt.update(EXACT_STREAM_EVALUATOR_RECEIPT_V1);
+        receipt.update(EXACT_STREAM_EVALUATOR_RECEIPT_V2);
         receipt.update((provisional.len() as u64).to_le_bytes());
         receipt.update(&provisional);
         proposal.validation_receipt_digest =
@@ -2309,34 +3031,45 @@ fn replay_and_confirm(
         .case_id
         .assignment(query)
         .map_err(ExactEngineFailure::Error)?;
-    let lower_env = match evaluate_admissibility(&mut runtime, &replay_context, query, &assignment)?
-    {
-        Admissibility::Excluded => {
+    let frame = match evaluate_admissibility(&mut runtime, &replay_context, query, &assignment)? {
+        Admissibility::StructurallyExcluded | Admissibility::Excluded(_) => {
             return Err(ExactEngineFailure::Error(
                 "fresh Explore replay excluded a previously matching configuration".to_string(),
             ))
         }
-        Admissibility::Admissible(env) => env,
+        Admissibility::Admissible(frame) => frame,
     };
-    if !evaluate_polarity(&mut runtime, &replay_context, query, question, &lower_env)? {
+    let transition_env = frame.transition_env();
+    if !evaluate_polarity(
+        &mut runtime,
+        &replay_context,
+        query,
+        question,
+        transition_env,
+    )? {
         return Err(ExactEngineFailure::Error(
             "fresh Explore replay changed a previously matching question result".to_string(),
         ));
     }
-    let key = evaluate_key(&mut runtime, &replay_context, query, &lower_env)?;
+    let key = evaluate_key(&mut runtime, &replay_context, query, transition_env)?;
     if key != expected.key {
         return Err(ExactEngineFailure::Error(
             "fresh Explore replay disagreed with the enumerated result key".to_string(),
         ));
     }
-    let extrema = evaluate_extrema(&mut runtime, &replay_context, query, &lower_env)?;
+    let extrema = evaluate_extrema(&mut runtime, &replay_context, query, transition_env)?;
     if extrema != expected.extrema {
         return Err(ExactEngineFailure::Error(
             "fresh Explore replay disagreed with the enumerated extrema values".to_string(),
         ));
     }
-    let (shown, objective) =
-        evaluate_shown_and_objective(&mut runtime, &replay_context, query, &lower_env, &extrema)?;
+    let (shown, objective) = evaluate_shown_and_objective(
+        &mut runtime,
+        &replay_context,
+        query,
+        transition_env,
+        &extrema,
+    )?;
     if shown != expected.shown {
         return Err(ExactEngineFailure::Error(
             "fresh Explore replay disagreed with the enumerated shown values".to_string(),
@@ -2368,21 +3101,27 @@ fn replay_and_confirm_extrema_witness(
     let assignment = case_id
         .assignment(query)
         .map_err(ExactEngineFailure::Error)?;
-    let lower_env = match evaluate_admissibility(&mut runtime, &replay_context, query, &assignment)?
-    {
-        Admissibility::Excluded => {
+    let frame = match evaluate_admissibility(&mut runtime, &replay_context, query, &assignment)? {
+        Admissibility::StructurallyExcluded | Admissibility::Excluded(_) => {
             return Err(ExactEngineFailure::Error(
                 "fresh Explore replay excluded an extrema endpoint witness".to_string(),
             ))
         }
-        Admissibility::Admissible(env) => env,
+        Admissibility::Admissible(frame) => frame,
     };
-    if !evaluate_polarity(&mut runtime, &replay_context, query, question, &lower_env)? {
+    let transition_env = frame.transition_env();
+    if !evaluate_polarity(
+        &mut runtime,
+        &replay_context,
+        query,
+        question,
+        transition_env,
+    )? {
         return Err(ExactEngineFailure::Error(
             "fresh Explore replay changed an extrema endpoint witness to a nonmatch".to_string(),
         ));
     }
-    let key = evaluate_key(&mut runtime, &replay_context, query, &lower_env)?;
+    let key = evaluate_key(&mut runtime, &replay_context, query, transition_env)?;
     if expectations
         .iter()
         .any(|expectation| expectation.key.as_ref() != key.as_ref())
@@ -2399,7 +3138,7 @@ fn replay_and_confirm_extrema_witness(
                 &mut runtime,
                 &replay_context,
                 query,
-                &lower_env,
+                transition_env,
                 expectation.extrema_index,
             )?;
             replayed_values.insert(expectation.extrema_index, value);
@@ -2452,6 +3191,13 @@ fn finalize_report(
         state.admissible,
         state.matching,
     )?;
+    let transition_support_cases = state.transition_support.case_len() as u128;
+    if transition_support_cases > case_closure.closed_cases {
+        return Err(format!(
+            "semantic transition support contains {transition_support_cases} singleton cases but the case DAG closes only {}",
+            case_closure.closed_cases
+        ));
+    }
 
     let aggregate_projection_materialized = state.key_extrema.len() == state.keys_seen.len()
         && state.keys_seen.iter().all(|key| {
@@ -2881,7 +3627,7 @@ pub(super) fn execute_exact_finite(
     statements: &[Stmt],
     source_dir: Option<&str>,
     artifacts: &TypeCheckArtifacts,
-    query: &ExploreQueryIr,
+    accepted_query_index: usize,
     request: ExploreReportRequest,
     budget: ExploreExecutionBudget,
 ) -> Result<ExploreExactReport, String> {
@@ -2889,7 +3635,7 @@ pub(super) fn execute_exact_finite(
         statements,
         source_dir,
         artifacts,
-        query,
+        accepted_query_index,
         request,
         budget,
         ExactWorkOrder::Canonical,
@@ -2904,7 +3650,7 @@ pub(super) fn execute_exact_finite_candidate_first(
     statements: &[Stmt],
     source_dir: Option<&str>,
     artifacts: &TypeCheckArtifacts,
-    query: &ExploreQueryIr,
+    accepted_query_index: usize,
     request: ExploreReportRequest,
     budget: ExploreExecutionBudget,
     plan: &SourceProofPlan,
@@ -2913,7 +3659,7 @@ pub(super) fn execute_exact_finite_candidate_first(
         statements,
         source_dir,
         artifacts,
-        query,
+        accepted_query_index,
         request,
         budget,
         ExactWorkOrder::DenseSourceCandidateFirst { plan },
@@ -2924,11 +3670,16 @@ fn execute_exact_finite_with_order(
     statements: &[Stmt],
     source_dir: Option<&str>,
     artifacts: &TypeCheckArtifacts,
-    query: &ExploreQueryIr,
+    accepted_query_index: usize,
     request: ExploreReportRequest,
     budget: ExploreExecutionBudget,
     work_order: ExactWorkOrder<'_>,
 ) -> Result<ExploreExactReport, String> {
+    let checked = artifacts
+        .checked_exploration_query(accepted_query_index)
+        .map_err(|error| format!("cannot revalidate exact evaluator query: {error:?}"))?;
+    let query = checked.closed_query;
+    let transition_schemas = checked.transition_schemas();
     if budget.step_limit == 0 || budget.collection_limit == 0 {
         return failure_report(
             query,
@@ -3153,6 +3904,7 @@ fn execute_exact_finite_with_order(
             declared,
             retain_ledger,
             budget.case_limit,
+            transition_schemas,
         ),
         Some(search) => run_candidate_first_order(
             &mut runtime,
@@ -3164,6 +3916,7 @@ fn execute_exact_finite_with_order(
             retain_ledger,
             budget.case_limit,
             search,
+            transition_schemas,
         ),
     };
     let state = match state {
@@ -3216,7 +3969,7 @@ fn build_dense_candidate_search(
     axis_cardinalities: &[u128],
     extractions: &[SourceEventExtraction],
 ) -> Result<DenseCandidateSearch, String> {
-    let boundary = query.universe.boundary.as_ref().ok_or_else(|| {
+    let boundary = query.boundary_hint().ok_or_else(|| {
         "source-candidate-first execution requires a checked boundary query".to_string()
     })?;
     let dimension = query
@@ -3472,6 +4225,7 @@ fn run_canonical_order(
     declared: u128,
     retain_ledger: bool,
     case_limit: Option<u128>,
+    transition_schemas: &TransitionSchemaIdentities,
 ) -> Result<ExactSearchState, ExactEngineFailure> {
     let mut accumulator = ExactAccumulator::new();
     let mut graph_builder = CaseGraphBuilder::new(axis_cardinalities.to_vec());
@@ -3489,6 +4243,7 @@ fn run_canonical_order(
             runtime,
             runtime_context,
             query,
+            transition_schemas,
             question,
             &ordinals,
             retain_ledger,
@@ -3522,6 +4277,7 @@ fn run_candidate_first_order(
     retain_ledger: bool,
     case_limit: Option<u128>,
     search: &mut DenseCandidateSearch,
+    transition_schemas: &TransitionSchemaIdentities,
 ) -> Result<ExactSearchState, ExactEngineFailure> {
     let mut accumulator = ExactAccumulator::new();
     let mut classifications = BTreeMap::<ExploreCaseId, CaseTerminal>::new();
@@ -3556,6 +4312,7 @@ fn run_candidate_first_order(
             runtime,
             runtime_context,
             query,
+            transition_schemas,
             question,
             case_id.ordinals(),
             retain_ledger,
@@ -3637,6 +4394,20 @@ mod atomic_case_tests {
         }
     }
 
+    fn semantic_transition() -> TransitionInstance {
+        semantic_transition_to(2)
+    }
+
+    fn semantic_transition_to(after: i64) -> TransitionInstance {
+        TransitionInstance::new(
+            b"test.state-schema.v1".as_slice(),
+            b"test.transition-schema.v1".as_slice(),
+            ExploreValue::Unit,
+            ExploreValue::Tuple(vec![ExploreValue::Int(1)]),
+            ExploreValue::Tuple(vec![ExploreValue::Int(after)]),
+        )
+    }
+
     #[test]
     fn operational_limit_leaves_the_whole_case_eligibility_open() {
         let evaluation = finish_case_evaluation(Err(ExactEngineFailure::OperationalLimit(
@@ -3675,6 +4446,64 @@ mod atomic_case_tests {
     }
 
     #[test]
+    fn excluded_and_nonmatching_cases_retain_exact_transition_support() {
+        let mut accumulator = ExactAccumulator::new();
+        for (ordinal, outcome) in [
+            (0, ExactCaseOutcome::Excluded),
+            (1, ExactCaseOutcome::AdmissibleNonmatch),
+        ] {
+            accept_case_transaction(
+                &mut accumulator,
+                &first_representative(),
+                ExactCaseTransaction {
+                    case_id: OrdinalCaseId(vec![ordinal].into_boxed_slice()),
+                    transition: semantic_transition(),
+                    outcome,
+                },
+            )
+            .expect("closed classification should retain its transition");
+        }
+
+        assert_eq!(accumulator.classified, 2);
+        assert_eq!(accumulator.admissible, 1);
+        assert_eq!(accumulator.matching, 0);
+        assert_eq!(accumulator.transition_support.case_len(), 2);
+        assert_eq!(accumulator.transition_support.len(), 1);
+    }
+
+    #[test]
+    fn transition_remap_rejection_does_not_reclassify_a_case() {
+        let mut accumulator = ExactAccumulator::new();
+        let case_id = OrdinalCaseId(vec![0].into_boxed_slice());
+        accept_case_transaction(
+            &mut accumulator,
+            &first_representative(),
+            ExactCaseTransaction {
+                case_id: case_id.clone(),
+                transition: semantic_transition(),
+                outcome: ExactCaseOutcome::Excluded,
+            },
+        )
+        .expect("first complete case should be accepted");
+
+        let rejected = accept_case_transaction(
+            &mut accumulator,
+            &first_representative(),
+            ExactCaseTransaction {
+                case_id,
+                transition: semantic_transition_to(3),
+                outcome: ExactCaseOutcome::AdmissibleNonmatch,
+            },
+        );
+
+        assert!(matches!(rejected, Err(ExactEngineFailure::Error(_))));
+        assert_eq!(accumulator.classified, 1);
+        assert_eq!(accumulator.admissible, 0);
+        assert_eq!(accumulator.transition_support.case_len(), 1);
+        assert_eq!(accumulator.transition_support.len(), 1);
+    }
+
+    #[test]
     fn matching_acceptance_commits_counts_projection_representative_and_ledger_together() {
         let mut accumulator = ExactAccumulator::new();
         let key = vec![ExploreValue::Int(7)].into_boxed_slice();
@@ -3682,16 +4511,20 @@ mod atomic_case_tests {
         let observed = accept_case_transaction(
             &mut accumulator,
             &first_representative(),
-            ExactCaseTransaction::AdmissibleMatch(MatchingCaseTransaction::Materialized {
-                observation: SearchObservation {
-                    case_id: case_id.clone(),
-                    key: key.clone(),
-                    extrema: vec![10].into_boxed_slice(),
-                    shown: vec![ExploreValue::Int(20)].into_boxed_slice(),
-                    objective: None,
-                },
-                retain_ledger: true,
-            }),
+            ExactCaseTransaction {
+                case_id: case_id.clone(),
+                transition: semantic_transition(),
+                outcome: ExactCaseOutcome::AdmissibleMatch(MatchingCaseTransaction::Materialized {
+                    observation: SearchObservation {
+                        case_id: case_id.clone(),
+                        key: key.clone(),
+                        extrema: vec![10].into_boxed_slice(),
+                        shown: vec![ExploreValue::Int(20)].into_boxed_slice(),
+                        objective: None,
+                    },
+                    retain_ledger: true,
+                }),
+            },
         )
         .expect("complete matching transaction should be accepted");
 
@@ -3707,6 +4540,7 @@ mod atomic_case_tests {
         );
         assert_eq!(accumulator.candidates[&key].case_id, case_id);
         assert_eq!(accumulator.ledger.len(), 1);
+        assert_eq!(accumulator.transition_support.case_len(), 1);
     }
 
     #[test]
@@ -3739,11 +4573,17 @@ mod atomic_case_tests {
         let result = accept_case_transaction(
             &mut accumulator,
             &first_representative(),
-            ExactCaseTransaction::AdmissibleMatch(MatchingCaseTransaction::ProjectionOnly {
+            ExactCaseTransaction {
                 case_id: OrdinalCaseId(vec![1].into_boxed_slice()),
-                key: key.clone(),
-                extrema: vec![10].into_boxed_slice(),
-            }),
+                transition: semantic_transition(),
+                outcome: ExactCaseOutcome::AdmissibleMatch(
+                    MatchingCaseTransaction::ProjectionOnly {
+                        case_id: OrdinalCaseId(vec![1].into_boxed_slice()),
+                        key: key.clone(),
+                        extrema: vec![10].into_boxed_slice(),
+                    },
+                ),
+            },
         );
 
         assert!(matches!(result, Err(ExactEngineFailure::Error(_))));
@@ -3755,6 +4595,7 @@ mod atomic_case_tests {
         assert_eq!(accumulator.keys_seen.len(), 1);
         assert!(accumulator.candidates.is_empty());
         assert!(accumulator.ledger.is_empty());
+        assert!(accumulator.transition_support.is_empty());
     }
 }
 
