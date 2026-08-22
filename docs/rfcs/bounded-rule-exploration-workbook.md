@@ -33,15 +33,21 @@ seal a small enough closed answer; a larger answer pauses at an honest
 finalization limit for future chunking. An explicit durable
 `--case-graph full` request now enables
 bounded, all-or-nothing publication of a total current-evidence case DAG.
-A private developer-only mechanism path now executes one deliberately narrow
-profile: two positional shown expressions must call the same checked top-level
-function whose body is exactly one `if`. It fresh-replays confirmed matching
-cases in canonical output order, appends complete signature observations, and
-publishes count-only mechanism checkpoints that survive a crash/reopen. A
-checked numeric shown field can also populate private half-open bin incidence
-from its canonical replayed value. It has no CLI selector, general
-nested-call/event tracing, public bin surface, or mechanism-DAG/terminal
-publication yet. Those surfaces, user-authored
+A private developer-only mechanism path now executes two deliberately narrow
+profiles. The first pairs two positional shown calls to one checked top-level
+function whose body is exactly one `if`; it can also populate private half-open
+bin incidence from a checked numeric shown value. The second observes the
+canonical shown-value evaluation in place when a common checked endpoint makes
+one direct positional call to one checked helper and that helper executes one
+`if`. Both paths fresh-replay confirmed matching cases, append complete
+signature observations, and publish count-only mechanism checkpoints that
+survive crash/reopen. Mechanism replay V1 owns an immutable checked root-module
+snapshot and refuses every external Futuruna import before stream creation;
+import support waits for a boundary-preserving frozen module graph rather than
+rereading live files or flattening module initialization. The paths have no CLI
+selector, general multi-event/rule-call
+tracing, public bin surface, or mechanism-DAG/terminal publication yet. Those
+surfaces, user-authored
 `probes`, typed `output as` rows, `after`, detached following, parallel workers
 and resumable chunked terminal publication are subsequent slices described
 below. Ordinary snapshot v5 therefore still reports mechanism evidence as
@@ -981,13 +987,94 @@ The mechanism DAG cannot be derived by the same shortcut. The private durable
 path now has identity-bound trace authorization, typed signature/incidence
 batches, an arrival-order-independent reducer, explicit untraced support and
 count-only mechanism/bin checkpoints. Its executable producer remains limited
-to one stable `if` site in the same checked top-level function, however. The
-ordinary evaluator does not yet carry structural `ExprSiteId` context through
-nested calls, rule attempts, `match` arms and short circuits, and no public
-mechanism DAG is assembled. Consequently, result groups remain separate from
-mechanisms; the ordinary CLI still reports mechanisms as
+to one stable `if`: either directly in the paired function or inside exactly
+one checked nested helper activation. The ordinary evaluator now carries
+structural `ExprSiteId` context through that narrow function/`if` path, but not
+through rule attempts, `match`, short circuits or general event graphs, and no
+public mechanism DAG is assembled. Consequently, result groups remain separate
+from mechanisms; the ordinary CLI still reports mechanisms as
 `unavailable_deferred`, while the private stream may publish only the lower
 bounds or exact counts its replayed incidence actually proves.
+
+#### Implemented first nested mechanism slice
+
+The first nested slice is implemented privately. The two paired shown
+expressions resolve to the same checked top-level endpoint function, which
+remains the implicit root. During each canonical endpoint evaluation that
+function makes exactly one nested, direct, positional call to one checked
+top-level helper, and the helper actually executes exactly one `if` decision
+once. Only the helper contributes an activation-path frame. The trace contains
+the `IfDecision` outcome produced by the canonical evaluation itself; neither
+its condition nor either body is replayed separately.
+
+The frozen-profile selector refuses source containing short-circuit Boolean
+control, `match`, rule calls, recursion, named arguments, another nested
+activation, repeated invocation of the event-bearing helper or multiple
+dynamic-control events before a mechanism stream can be authorized. The
+instrumented expression subset is deliberately explicit: variables, literals,
+unit, non-short-circuit binary and unary operations, the two direct endpoint
+calls, the one direct helper call, the selected `if`, and one-expression blocks
+around those forms. Lists, tuples, fields, indexing, lambdas, pipes, effects,
+extra applications and other expression forms cause plan refusal even in an
+unreachable branch. Runtime checks remain defense in depth and cannot flatten
+away an unsupported or integrity-failed event. `DynamicControlV1` retains the
+complete supported executed control trace for each endpoint in this slice;
+there is no relevance-pruning pass yet.
+
+The evaluator revalidates and executes the artifact-owned immutable root syntax,
+not a later-mutated caller buffer. Before a mechanism-enabled store is opened,
+every checked declaration must belong to that root and the complete root AST is
+recursively checked for plain, qualified or hash imports. Any external import
+is refused until the runtime can retain immutable module nodes, origin
+directories and occurrence-bound import edges. A flat imported statement list
+is deliberately insufficient because it changes declaration-hoisting and
+binding-initialization order.
+
+Fresh initialization also attaches an interpreter-private capability to every
+actual root top-level closure that can be matched unambiguously to its producer-
+minted checked occurrence. Both the implicit endpoint and nested helper must
+present that capability before the trace installs a checked body site. Missing
+or unequal capabilities are hard replay failures and commit no mechanism
+evidence. They are not permanent `observation_unsupported` cases. A resource
+limit is different: it returns the same rank as operationally open, also
+without a journal commit, so a later slice can retry it with a larger budget.
+The older direct-`if` profile still reconstructs its checked condition so it
+can retain its wider pure-expression subset, but it authenticates the actual
+canonical show endpoint closure immediately beforehand. A shadowing value or
+different same-named closure therefore fails before reconstructed evidence can
+be minted.
+
+That no-pruning rule deliberately postpones an identity problem rather than
+hiding it. Repeated event-bearing calls currently need local invocation and
+visit ordinals, but an earlier call reached at only one endpoint can shift a
+later ordinal. Pruning first can create the same error by deleting the anchor
+against which an ordinal was assigned. Before either repeated event-bearing
+invocations or relevance pruning is enabled, the runtime contract must define
+a checked call anchor and correspondence rule over the complete executed trace;
+incompatible multiplicity must remain unpaired rather than be guessed.
+
+Endpoint state is isolated: the lower and upper evaluations do not share a
+trace stack or ordinal counters. Cached endpoint reuse is not mechanism
+evidence unless the cache entry binds the same analysis program, mechanism
+request, checked call anchor and canonical inputs and carries the complete
+result/trace provenance. A cached value by itself is insufficient. This V1
+slice traces confirmed matching cases only (`S_req = M`); representative and
+nonmatching trace populations remain later profiles. These restrictions narrow
+only the executable producer, not the general mechanism-DAG model above.
+
+The executable four-income fixture yields three exact matching cases and three
+exact signatures. Their endpoint outcomes are `Else/Else`, `Else/Then` and
+`Then/Then`, each with support one. Every signature contains the same one-node
+checked shape—one helper activation frame and its actual `IfDecision`—while the
+outcome pair distinguishes the signatures. The experiment commits the first
+case, drops and reopens the coordinator, requires identical reduced evidence at
+that cursor, and then closes all three cases with no untraced remainder.
+A second focused source-boundary experiment checks the same shape through a
+plain-import helper and requires plan construction to fail with the frozen-
+module-graph requirement. The rejection happens before a mechanism stream is
+opened or evidence can be minted. Import-capable replay is intentionally held
+for the frozen module graph rather than made dependent on whether a live file
+happens to remain unchanged.
 
 ### Shown values and representatives
 

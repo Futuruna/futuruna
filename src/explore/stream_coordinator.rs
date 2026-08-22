@@ -38,6 +38,7 @@ use super::case_graph::{
 };
 use super::exact::{
     seal_local_evaluator_observation_batch_v1, ExactStreamCaseAttempt, ExactStreamEvaluator,
+    ExactStreamEvaluatorPrepareError,
 };
 use super::exact_stream::{
     decode_exact_case_observation_batch_v1, decode_exact_closed_region_batch_v1,
@@ -53,8 +54,9 @@ use super::mechanism::{
     CheckedMechanismObservationRequestV1, MechanismObservedEvidence, MechanismQueryId,
 };
 use super::mechanism_runtime::{
-    mint_single_if_mechanism_observation_v1, seal_runtime_confirmed_mechanism_observation_v1,
-    CheckedSingleIfMechanismRuntimePlanV1,
+    mint_nested_if_mechanism_observation_v1, mint_single_if_mechanism_observation_v1,
+    seal_runtime_confirmed_mechanism_observation_v1, CheckedNestedIfMechanismRuntimePlanV1,
+    CheckedSingleIfMechanismRuntimePlanV1, MechanismRuntimeMintErrorV1,
 };
 use super::mechanism_snapshot::{
     render_mechanism_observable_checkpoint_json_line_v1,
@@ -192,6 +194,12 @@ impl fmt::Display for ExactStreamCoordinatorError {
 
 impl Error for ExactStreamCoordinatorError {}
 
+#[derive(Debug)]
+enum ExactEvaluatorEnsureError {
+    OperationalLimit(ExploreStopReason),
+    Failure(ExactStreamCoordinatorError),
+}
+
 /// One deliberately small scheduler step.  An operationally open case is not
 /// committed at all, so the same CaseId remains an atomic retry unit.
 #[derive(Debug)]
@@ -208,11 +216,16 @@ pub(super) enum ExactStreamAdvance {
 }
 
 /// One atomic fresh-replay mechanism step over an already confirmed matching
-/// CaseId. No backlog means classification can continue; a committed result
+/// CaseId. No backlog means classification can continue; an operationally open
+/// result leaves the same rank pending without an append; a committed result
 /// has crossed the blob -> journal -> reducer boundary.
-#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub(super) enum MechanismStreamAdvanceV1 {
     NoConfirmedTargetBacklog,
+    CaseOpen {
+        rank: u128,
+        reason: ExploreStopReason,
+    },
     Committed {
         rank: u128,
         canonical_blob_bytes: usize,
@@ -537,6 +550,15 @@ impl<'a> ExactStreamCoordinator<'a> {
                 ))
             })?;
         if let Some(request) = mechanism_request.as_ref() {
+            artifacts
+                .validate_checked_runtime_entry_v1(statements, source_dir)
+                .and_then(|()| artifacts.require_mechanism_runtime_root_v1())
+                .map_err(|error| {
+                    ExactStreamCoordinatorError::context(
+                        "cannot authorize mechanism runtime source snapshot",
+                        error,
+                    )
+                })?;
             validate_mechanism_request_for_checked_query(request, &checked)?;
         }
         let query = checked.closed_query;
@@ -1347,13 +1369,25 @@ impl<'a> ExactStreamCoordinator<'a> {
             return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
         };
         let confirmed = {
-            let evaluator = self.ensure_evaluator()?;
-            mint_single_if_mechanism_observation_v1(plan, evaluator, rank).map_err(|error| {
-                ExactStreamCoordinatorError::context(
-                    "cannot fresh-replay confirmed mechanism case",
-                    error,
-                )
-            })?
+            let evaluator = match self.ensure_evaluator_classified() {
+                Ok(evaluator) => evaluator,
+                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
+            };
+            match mint_single_if_mechanism_observation_v1(plan, evaluator, rank) {
+                Ok(confirmed) => confirmed,
+                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
+                    return Err(ExactStreamCoordinatorError::context(
+                        "cannot fresh-replay confirmed mechanism case",
+                        error,
+                    ));
+                }
+            }
         };
         if confirmed.rank() != rank {
             return Err(ExactStreamCoordinatorError::invalid(format!(
@@ -1361,10 +1395,75 @@ impl<'a> ExactStreamCoordinator<'a> {
                 confirmed.rank()
             )));
         }
-        let validated =
-            seal_runtime_confirmed_mechanism_observation_v1(plan, confirmed).map_err(|error| {
+        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
+            .map_err(|error| {
                 ExactStreamCoordinatorError::context(
                     "cannot seal fresh-replay-confirmed mechanism case",
+                    error,
+                )
+            })?;
+        let canonical_blob_bytes = self.commit_validated_mechanism_observation_batch(validated)?;
+        Ok(MechanismStreamAdvanceV1::Committed {
+            rank,
+            canonical_blob_bytes,
+        })
+    }
+
+    /// Fresh-replay and commit one confirmed matching case through the first
+    /// checked nested-activation trace profile.
+    pub(super) fn advance_one_nested_if_mechanism_case(
+        &mut self,
+        plan: &CheckedNestedIfMechanismRuntimePlanV1,
+    ) -> Result<MechanismStreamAdvanceV1, ExactStreamCoordinatorError> {
+        if !self.probe_phase_complete() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "mechanism replay cannot precede the completed source-probe milestone",
+            ));
+        }
+        let request = self.mechanism_request.as_ref().ok_or_else(|| {
+            ExactStreamCoordinatorError::invalid(
+                "this Explore stream identity does not authorize mechanism replay",
+            )
+        })?;
+        if request != plan.request() {
+            return Err(ExactStreamCoordinatorError::invalid(
+                "nested-if mechanism runtime plan disagrees with sequence-zero request identity",
+            ));
+        }
+        let Some(rank) = self.next_mechanism_rank_hint()? else {
+            return Ok(MechanismStreamAdvanceV1::NoConfirmedTargetBacklog);
+        };
+        let confirmed = {
+            let evaluator = match self.ensure_evaluator_classified() {
+                Ok(evaluator) => evaluator,
+                Err(ExactEvaluatorEnsureError::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
+            };
+            match mint_nested_if_mechanism_observation_v1(plan, evaluator, rank) {
+                Ok(confirmed) => confirmed,
+                Err(MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
+                    return Ok(MechanismStreamAdvanceV1::CaseOpen { rank, reason });
+                }
+                Err(MechanismRuntimeMintErrorV1::Failure(error)) => {
+                    return Err(ExactStreamCoordinatorError::context(
+                        "cannot fresh-replay confirmed nested mechanism case",
+                        error,
+                    ));
+                }
+            }
+        };
+        if confirmed.rank() != rank {
+            return Err(ExactStreamCoordinatorError::invalid(format!(
+                "nested mechanism runtime returned rank {} while coordinating rank {rank}",
+                confirmed.rank()
+            )));
+        }
+        let validated = seal_runtime_confirmed_mechanism_observation_v1(plan.request(), confirmed)
+            .map_err(|error| {
+                ExactStreamCoordinatorError::context(
+                    "cannot seal fresh-replay-confirmed nested mechanism case",
                     error,
                 )
             })?;
@@ -3229,32 +3328,36 @@ impl<'a> ExactStreamCoordinator<'a> {
         })
     }
 
-    fn ensure_evaluator(
+    fn ensure_evaluator_classified(
         &mut self,
-    ) -> Result<&mut ExactStreamEvaluator<'a>, ExactStreamCoordinatorError> {
+    ) -> Result<&mut ExactStreamEvaluator<'a>, ExactEvaluatorEnsureError> {
         if self.evaluator.is_none() {
             self.evaluator = Some(
-                ExactStreamEvaluator::prepare(
+                ExactStreamEvaluator::prepare_classified(
                     self.statements,
                     self.source_dir,
                     self.artifacts,
                     self.accepted_query_index,
-                    self.query,
                     DEFAULT_EXPLORE_STEP_LIMIT,
                     DEFAULT_EXPLORE_COLLECTION_LIMIT,
                 )
-                .map_err(|error| {
-                    ExactStreamCoordinatorError::context(
-                        "cannot lazily prepare exact stream evaluator",
-                        error,
-                    )
+                .map_err(|error| match error {
+                    ExactStreamEvaluatorPrepareError::OperationalLimit(stop) => {
+                        ExactEvaluatorEnsureError::OperationalLimit(stop)
+                    }
+                    ExactStreamEvaluatorPrepareError::Failure(error) => {
+                        ExactEvaluatorEnsureError::Failure(ExactStreamCoordinatorError::context(
+                            "cannot lazily prepare exact stream evaluator",
+                            error,
+                        ))
+                    }
                 })?,
             );
         }
         self.evaluator.as_mut().ok_or_else(|| {
-            ExactStreamCoordinatorError::invalid(
+            ExactEvaluatorEnsureError::Failure(ExactStreamCoordinatorError::invalid(
                 "exact stream evaluator initialization did not publish its instance",
-            )
+            ))
         })
     }
 
@@ -3263,7 +3366,14 @@ impl<'a> ExactStreamCoordinator<'a> {
         rank: u128,
         context: &'static str,
     ) -> Result<ExactStreamCaseAttempt, ExactStreamCoordinatorError> {
-        self.ensure_evaluator()?
+        let evaluator = match self.ensure_evaluator_classified() {
+            Ok(evaluator) => evaluator,
+            Err(ExactEvaluatorEnsureError::OperationalLimit(stop)) => {
+                return Ok(ExactStreamCaseAttempt::Open(stop));
+            }
+            Err(ExactEvaluatorEnsureError::Failure(error)) => return Err(error),
+        };
+        evaluator
             .evaluate_rank(rank)
             .map_err(|error| ExactStreamCoordinatorError::context(context, error))
     }

@@ -433,6 +433,7 @@ impl ExactRuntimeContext<'_> {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.install_rule_dispatch_metadata(self.artifacts);
+        interpreter.install_checked_runtime_callable_tokens_v1(self.artifacts);
         interpreter.source_dir = self.source_dir.map(str::to_string);
         let mut base_env = interpreter.default_env();
         interpreter
@@ -471,8 +472,43 @@ impl ExactRuntime {
             .eval_exact_exploration(expression, env, step_limit, collection_limit)
             .map_err(|failure| runtime_failure(failure, phase))
             .map_err(|failure| failure.contextualize(context))?;
-        runtime_value_to_explore_value(&runtime, expected, catalog)
-            .map_err(|message| ExactEngineFailure::Error(format!("while {context}: {message}")))
+        match runtime_value_to_explore_value(&runtime, expected, catalog) {
+            Ok(value) => Ok(value),
+            Err(message) => {
+                self.interpreter.abort_checked_runtime_trace_v1();
+                Err(ExactEngineFailure::Error(format!(
+                    "while {context}: {message}"
+                )))
+            }
+        }
+    }
+
+    fn eval_value_at(
+        &mut self,
+        expression: &Expr,
+        env: &Env,
+        root_site: &ExprSiteId,
+        expected: &Ty,
+        catalog: &calculate::TypeCatalog,
+        step_limit: usize,
+        collection_limit: usize,
+        context: &str,
+        phase: ExploreEvaluationPhase,
+    ) -> Result<ExploreValue, ExactEngineFailure> {
+        let runtime = self
+            .interpreter
+            .eval_exact_exploration_at(expression, env, root_site, step_limit, collection_limit)
+            .map_err(|failure| runtime_failure(failure, phase))
+            .map_err(|failure| failure.contextualize(context))?;
+        match runtime_value_to_explore_value(&runtime, expected, catalog) {
+            Ok(value) => Ok(value),
+            Err(message) => {
+                self.interpreter.abort_checked_runtime_trace_v1();
+                Err(ExactEngineFailure::Error(format!(
+                    "while {context}: {message}"
+                )))
+            }
+        }
     }
 
     fn eval_bool(
@@ -1619,13 +1655,32 @@ pub(super) struct ExactStreamEvaluator<'a> {
     source_dir: Option<&'a str>,
     artifacts: &'a TypeCheckArtifacts,
     query: &'a ExploreQueryIr,
+    checked_show_sites: Box<[ExprSiteId]>,
     checked_mechanism_query_id: MechanismQueryId,
+    mechanism_runtime_root_authorized: bool,
     catalog: calculate::TypeCatalog,
     roots: BTreeSet<ExploreRuntimeRoot>,
     runtime: ExactRuntime,
     question: Expr,
     step_limit: usize,
     collection_limit: usize,
+}
+
+#[derive(Debug)]
+pub(super) enum ExactStreamEvaluatorPrepareError {
+    OperationalLimit(ExploreStopReason),
+    Failure(String),
+}
+
+impl ExactStreamEvaluatorPrepareError {
+    fn into_message(self) -> String {
+        match self {
+            Self::OperationalLimit(stop) => {
+                format!("durable exact evaluator hit an operational limit: {stop:?}")
+            }
+            Self::Failure(message) => message,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -1654,6 +1709,7 @@ pub(super) trait ExactFreshMatchShowObserver {
     fn before_show(
         &mut self,
         show_index: usize,
+        show_site: &ExprSiteId,
         interpreter: &mut Interpreter,
         environment: &Env,
         step_limit: usize,
@@ -1663,6 +1719,7 @@ pub(super) trait ExactFreshMatchShowObserver {
     fn after_show(
         &mut self,
         show_index: usize,
+        show_site: &ExprSiteId,
         interpreter: &mut Interpreter,
         environment: &Env,
         value: &ExploreValue,
@@ -1676,9 +1733,10 @@ fn exact_fresh_match_replay_error(failure: ExactEngineFailure) -> ExactFreshMatc
         ExactEngineFailure::OperationalLimit(stop) => {
             ExactFreshMatchReplayError::OperationalLimit(stop)
         }
-        ExactEngineFailure::Unsupported(message) | ExactEngineFailure::Error(message) => {
-            ExactFreshMatchReplayError::Failure(message)
+        ExactEngineFailure::Unsupported(message) => {
+            ExactFreshMatchReplayError::ObservationUnsupported(message)
         }
+        ExactEngineFailure::Error(message) => ExactFreshMatchReplayError::Failure(message),
     }
 }
 
@@ -1731,36 +1789,81 @@ pub(super) fn seal_local_evaluator_observation_batch_v1(
 
 impl<'a> ExactStreamEvaluator<'a> {
     pub(super) fn prepare(
-        statements: &'a [Stmt],
-        source_dir: Option<&'a str>,
+        supplied_statements: &'a [Stmt],
+        supplied_source_dir: Option<&'a str>,
         artifacts: &'a TypeCheckArtifacts,
         accepted_query_index: usize,
-        query: &'a ExploreQueryIr,
         step_limit: usize,
         collection_limit: usize,
     ) -> Result<Self, String> {
+        Self::prepare_classified(
+            supplied_statements,
+            supplied_source_dir,
+            artifacts,
+            accepted_query_index,
+            step_limit,
+            collection_limit,
+        )
+        .map_err(ExactStreamEvaluatorPrepareError::into_message)
+    }
+
+    pub(super) fn prepare_classified(
+        supplied_statements: &'a [Stmt],
+        supplied_source_dir: Option<&'a str>,
+        artifacts: &'a TypeCheckArtifacts,
+        accepted_query_index: usize,
+        step_limit: usize,
+        collection_limit: usize,
+    ) -> Result<Self, ExactStreamEvaluatorPrepareError> {
         if step_limit == 0 || collection_limit == 0 {
-            return Err(
+            return Err(ExactStreamEvaluatorPrepareError::Failure(
                 "durable exact evaluation requires positive step and collection limits".to_string(),
-            );
+            ));
         }
+        artifacts
+            .validate_checked_runtime_entry_v1(supplied_statements, supplied_source_dir)
+            .map_err(|error| {
+                ExactStreamEvaluatorPrepareError::Failure(format!(
+                    "cannot select immutable exact runtime entry: {error}"
+                ))
+            })?;
+        let (statements, source_dir) =
+            artifacts
+                .checked_runtime_root_program_v1()
+                .map_err(|error| {
+                    ExactStreamEvaluatorPrepareError::Failure(format!(
+                        "cannot select immutable exact runtime root: {error}"
+                    ))
+                })?;
         let checked = artifacts
             .checked_exploration_query(accepted_query_index)
-            .map_err(|error| format!("cannot revalidate exact evaluator query: {error:?}"))?;
-        if !std::ptr::eq(checked.closed_query, query) {
-            return Err(
-                "exact evaluator query does not match its producer-minted checked query"
+            .map_err(|error| {
+                ExactStreamEvaluatorPrepareError::Failure(format!(
+                    "cannot revalidate exact evaluator query: {error:?}"
+                ))
+            })?;
+        let query = checked.closed_query;
+        let checked_mechanism_query_id =
+            MechanismQueryId::from_checked_query(&checked).map_err(|error| {
+                ExactStreamEvaluatorPrepareError::Failure(format!(
+                    "cannot bind exact evaluator query identity: {error}"
+                ))
+            })?;
+        let mechanism_runtime_root_authorized =
+            artifacts.require_mechanism_runtime_root_v1().is_ok();
+        let checked_show_sites = checked.artifact.sites.show.clone();
+        if checked_show_sites.len() != query.query.output.show.len() {
+            return Err(ExactStreamEvaluatorPrepareError::Failure(
+                "checked Explore show-site width disagrees with the exact output schema"
                     .to_string(),
-            );
+            ));
         }
-        let checked_mechanism_query_id = MechanismQueryId::from_checked_query(&checked)
-            .map_err(|error| format!("cannot bind exact evaluator query identity: {error}"))?;
         let catalog = calculate::TypeCatalog::collect_checked(statements, source_dir).map_err(
             |diagnostics| {
-                format!(
+                ExactStreamEvaluatorPrepareError::Failure(format!(
                     "cannot construct durable exact Explore type catalog: {}",
                     diagnostics.join("; ")
-                )
+                ))
             },
         )?;
         let roots = required_runtime_roots(query);
@@ -1775,13 +1878,15 @@ impl<'a> ExactStreamEvaluator<'a> {
             phase_override: None,
         }
         .fresh()
-        .map_err(exact_stream_failure_message)?;
+        .map_err(exact_stream_prepare_error)?;
         Ok(Self {
             statements,
             source_dir,
             artifacts,
             query,
+            checked_show_sites,
             checked_mechanism_query_id,
+            mechanism_runtime_root_authorized,
             catalog,
             roots,
             runtime,
@@ -1805,6 +1910,10 @@ impl<'a> ExactStreamEvaluator<'a> {
 
     pub(super) fn checked_mechanism_query_id(&self) -> &MechanismQueryId {
         &self.checked_mechanism_query_id
+    }
+
+    pub(super) const fn mechanism_runtime_root_authorized(&self) -> bool {
+        self.mechanism_runtime_root_authorized
     }
 
     /// Reconstruct one coordinator-confirmed matching case in a fresh exact
@@ -1863,18 +1972,28 @@ impl<'a> ExactStreamEvaluator<'a> {
         for (field, value) in self.query.query.output.extrema.iter().zip(extrema.iter()) {
             output_env.set(field.name.clone(), Value::Int(*value));
         }
-        for (show_index, field) in self.query.query.output.show.iter().enumerate() {
+        for (show_index, (field, show_site)) in self
+            .query
+            .query
+            .output
+            .show
+            .iter()
+            .zip(self.checked_show_sites.iter())
+            .enumerate()
+        {
             observer.before_show(
                 show_index,
+                show_site,
                 &mut runtime.interpreter,
                 &output_env,
                 self.step_limit,
                 self.collection_limit,
             )?;
             let value = runtime
-                .eval_value(
+                .eval_value_at(
                     &field.value,
                     &output_env,
+                    show_site,
                     &field.ty,
                     context.catalog,
                     context.step_limit,
@@ -1887,6 +2006,7 @@ impl<'a> ExactStreamEvaluator<'a> {
                 .map_err(exact_fresh_match_replay_error)?;
             observer.after_show(
                 show_index,
+                show_site,
                 &mut runtime.interpreter,
                 &output_env,
                 &value,
@@ -1990,6 +2110,17 @@ impl<'a> ExactStreamEvaluator<'a> {
         Ok(ExactStreamCaseAttempt::Complete(
             ExactEvaluatorConfirmedObservationV1 { proposal },
         ))
+    }
+}
+
+fn exact_stream_prepare_error(failure: ExactEngineFailure) -> ExactStreamEvaluatorPrepareError {
+    match failure {
+        ExactEngineFailure::OperationalLimit(stop) => {
+            ExactStreamEvaluatorPrepareError::OperationalLimit(stop)
+        }
+        ExactEngineFailure::Unsupported(message) | ExactEngineFailure::Error(message) => {
+            ExactStreamEvaluatorPrepareError::Failure(message)
+        }
     }
 }
 
@@ -3506,6 +3637,23 @@ mod atomic_case_tests {
         assert!(matches!(
             observed.stop,
             Some(ExploreStopReason::CaseLimit { limit: 7 })
+        ));
+    }
+
+    #[test]
+    fn stream_preparation_preserves_initialization_limit_as_retryable() {
+        let stop = ExploreStopReason::RuntimeLimit {
+            resource: ExploreLimitResource::Steps,
+            limit: 10,
+            observed: 11,
+            phase: ExploreEvaluationPhase::Initialization,
+        };
+        let classified =
+            exact_stream_prepare_error(ExactEngineFailure::OperationalLimit(stop.clone()));
+
+        assert!(matches!(
+            classified,
+            ExactStreamEvaluatorPrepareError::OperationalLimit(reason) if reason == stop
         ));
     }
 

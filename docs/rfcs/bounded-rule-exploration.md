@@ -14,15 +14,19 @@ first macOS-supervised single-worker durable stream: checked source probes,
 candidate-first evaluation, authenticated frontier deltas, bounded published
 checkpoints, pause/resume, and explicit bounded atomic terminal sealing.
 An explicit durable-only `--case-graph full` request now publishes a bounded,
-total current-evidence case DAG. A private first executable mechanism-stream
-slice source-binds two positional `show` call roots, admits only the same
-checked top-level function with one `if`, fresh-replays each confirmed matching
-case in its canonical output environment, journals replay-confirmed signature
-blocks, and publishes resumable count-only mechanism checkpoints with
-`scope_open`, `incidence_open`, or `matching_closed` status. Checked numeric
-`show` roots can now reuse their canonical replayed `Int` values to publish
-exact or lower-bound distinct-mechanism counts in requested half-open bins.
-General runtime event instrumentation, mechanism-DAG publication and public
+total current-evidence case DAG. A private executable mechanism stream now has
+two narrow profiles: one checked top-level endpoint containing one `if`, and one
+checked endpoint making one direct positional call to a checked helper that
+executes one `if`. Both fresh-replay each confirmed matching case in its
+canonical output environment, journal replay-confirmed signature blocks, and
+publish resumable count-only mechanism checkpoints with `scope_open`,
+`incidence_open`, or `matching_closed` status. Checked numeric `show` roots can
+also reuse their canonical replayed `Int` values to publish exact or lower-bound
+distinct-mechanism counts in requested half-open bins. This V1 runtime owns and
+revalidates the checked root AST and refuses every external Futuruna import
+before a mechanism stream is opened; import support requires a future frozen
+module graph that preserves module boundaries and origins. General multi-event
+and rule-attempt instrumentation, mechanism-DAG publication and public
 mechanism-aware terminal schemas remain later slices, so the ordinary CLI
 continues to fail closed with mechanisms deferred. Symbolic/SMT closure,
 typed output rows, result continuations, detached observation, parallel
@@ -1094,6 +1098,95 @@ Local visit or invocation ordinals may participate in the correspondence only
 when the matching semantic group has compatible multiplicity at both
 endpoints. Otherwise an earlier endpoint-only repetition could silently shift
 the ordinals, so pairing is unavailable rather than guessed.
+
+#### Implemented first nested trace profile
+
+The first private nested profile is implemented narrowly. The paired lower and
+upper shown expressions MUST resolve to the same checked top-level function.
+That common endpoint call is the implicit trace root. Its execution at each
+endpoint MUST contain exactly one nested, direct, positional activation of one
+other checked top-level function, and that helper MUST execute exactly one `if`
+decision exactly once. The helper call alone contributes one outcome-free
+activation frame; the endpoint root is not repeated as a frame. The resulting
+endpoint trace contains exactly one actual `IfDecision` from the canonical
+shown-value evaluation.
+
+The trace sink MUST observe that canonical evaluation in place. It MUST NOT
+evaluate the condition, selected body or helper call separately to reconstruct
+an outcome. The frozen-profile selector rejects source slices containing
+short-circuit Boolean operators, `match`, rule dispatch, recursion, named
+arguments, more than one nested activation, repeated activation of the event-
+bearing helper, or more than one dynamic-control event; that source cannot
+authorize a mechanism stream. The admitted expression subset is limited to
+variables, literals, unit, non-short-circuit binary and unary operations, the
+two direct endpoint calls, the one direct helper call, the selected `if`, and
+one-expression blocks containing those forms. Lists, tuples, fields, indexing,
+lambdas, pipes, effects, extra applications and every other expression form are
+rejected during plan construction, including when they occur in an unreachable
+branch. Runtime checks remain a defense against artifact/execution divergence;
+they MUST never represent an unsupported or integrity-failed event by silently
+omitting it.
+
+The mechanism runtime MUST execute the immutable root syntax owned by the
+checked artifact, after revalidating both its complete root digest and root
+`ModuleId`; a caller-owned statement buffer is not replay authority. Every
+checked declaration MUST have root origin, and a recursive AST walk MUST reject
+plain, qualified and hash imports before the run store is opened. Import support
+requires a frozen module graph whose nodes retain immutable AST, origin
+directory and local module identity and whose edges bind parent module plus
+import occurrence to a target. A flattened import sequence is not equivalent
+because it can change function hoisting and binding initialization order.
+
+The runtime MUST also authenticate the actual closure before assigning any
+checked callable or body site. Fresh initialization mints an opaque interpreter-
+local capability only when a root top-level closure is unambiguously located at
+its checked declaration occurrence; the capability binds both
+`AnalysisProgramId` and `CheckedCallableId`. The implicit endpoint and nested
+helper MUST each match the plan target. A missing or unequal capability is a
+hard replay-integrity failure: no mechanism observation or permanent-untraced
+evidence may be committed. By contrast, an operational resource limit leaves
+the same mechanism rank open and uncommitted for retry.
+
+The older direct-`if` profile MAY continue to reconstruct its checked condition
+to retain its wider pure-expression subset, but it MUST authenticate the actual
+canonical show endpoint closure immediately before doing so. A shadowing value
+or different same-named closure is an integrity failure and MUST NOT authorize
+reconstructed mechanism evidence.
+
+`DynamicControlV1` currently retains the complete supported executed control
+trace beneath each endpoint root; it performs no relevance pruning. In the
+frozen profile that complete trace has one occurrence. Before relevance
+pruning or repeated event-bearing invocations can be admitted, the
+correspondence contract needs a call anchor that remains sound when an earlier
+endpoint-only invocation is retained on one side or pruned from another.
+Recorder-local visit and invocation ordinals MUST be assigned against the
+complete executed trace, never renumbered after pruning, and pairing MUST stay
+unavailable where the checked call anchor and compatible multiplicity do not
+establish correspondence.
+
+Before and after endpoints have isolated runtime and trace state: activation
+stacks, visit ordinals and invocation ordinals never flow from one endpoint to
+the other. A future endpoint-value cache may stand in for execution only when
+the cached entry carries identity-bound result and complete trace provenance
+for the same analysis program, mechanism request, checked call anchor and
+canonical inputs. A value-only cache cannot mint mechanism evidence. This
+first profile is matching-only: its requested mechanism population is all
+confirmed matching configurations (`S_req = M`), not representatives or
+nonmatching cases. General target scopes remain part of the RFC but outside
+this executable slice.
+
+The focused executable fixture has four declared incomes and three valid lower
+boundary cases. It closes with three exact signatures—`Else/Else`,
+`Else/Then`, and `Then/Then`, each with support one—and zero known target cases
+left untraced. Each signature contains the same checked helper activation and
+`if` site; only the endpoint outcome pair differs. Recovery after the first
+committed mechanism block reconstructs identical reduced evidence before the
+remaining two blocks are minted.
+
+A separate source-boundary fixture supplies the same helper through a plain
+import and proves that plan construction refuses the live module graph with the
+frozen-module-graph requirement. The refusal happens before store creation or
+mechanism minting; unchanged live files are not treated as immutable evidence.
 
 A boundary mechanism compares the computations for the lower and upper
 endpoints and retains the dynamic data/control slice relevant to the roots

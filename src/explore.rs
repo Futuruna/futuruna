@@ -6998,6 +6998,9 @@ mod tests {
                     stream_coordinator::MechanismStreamAdvanceV1::NoConfirmedTargetBacklog => {
                         panic!("mechanism backlog disappeared before its selected replay")
                     }
+                    stream_coordinator::MechanismStreamAdvanceV1::CaseOpen { reason, .. } => {
+                        panic!("tiny mechanism replay hit an operational limit: {reason:?}")
+                    }
                 }
             }
             if coordinator.next_open_rank_hint().is_none() {
@@ -7024,6 +7027,9 @@ mod tests {
                 }
                 stream_coordinator::MechanismStreamAdvanceV1::NoConfirmedTargetBacklog => {
                     panic!("final mechanism backlog disappeared before replay")
+                }
+                stream_coordinator::MechanismStreamAdvanceV1::CaseOpen { reason, .. } => {
+                    panic!("tiny final mechanism replay hit an operational limit: {reason:?}")
                 }
             }
         }
@@ -7086,6 +7092,423 @@ mod tests {
     }
 
     #[test]
+    fn nested_mechanism_stream_traces_actual_helper_if_and_recovers() {
+        let source = r#"
+> adjustment(income: Int) -> Int {
+    if income >= 200 { 20 } else { 0 }
+}
+> net_income(income: Int) -> Int {
+    income - adjustment(income)
+}
+| eligible(income: Int, step: Int) -> True
+? explore nested_mechanism_stream_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = net_income(income),
+            after = net_income(income + step)
+        ]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse nested mechanism stream fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let selected = 0;
+        let plan = mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
+            &artifacts, selected, 0, 1,
+        )
+        .expect("check nested-if mechanism runtime plan");
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_nested_mechanism_stream_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let report_request = report::ExploreReportRequest {
+            case_graph: report::ExploreCaseGraphRequest::Omit,
+            ledger: report::ExploreLedgerRequest::Omit,
+        };
+        let mechanism_request = plan.request().clone();
+        let open = || {
+            stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+                &directory,
+                run_store::RunStoreLimits::default(),
+                &statements,
+                None,
+                &artifacts,
+                selected,
+                report_request,
+                mechanism_request.clone(),
+            )
+        };
+        let mut coordinator = open().expect("create nested mechanism stream");
+        coordinator
+            .persist_probe_fallback_manifest()
+            .expect("persist bounded canonical probe fallback");
+        coordinator
+            .accept_prepared_probe_coverage(NonZeroU64::new(1).expect("one is nonzero"))
+            .expect("accept bounded probe coverage");
+        assert!(coordinator
+            .complete_prepared_probe()
+            .expect("complete source-probe milestone")
+            .complete());
+
+        assert!(matches!(
+            coordinator
+                .advance_one_case()
+                .expect("classify first nested mechanism case"),
+            stream_coordinator::ExactStreamAdvance::Committed { rank: 0, .. }
+        ));
+        assert!(matches!(
+            coordinator
+                .advance_one_nested_if_mechanism_case(&plan)
+                .expect("trace first nested mechanism case"),
+            stream_coordinator::MechanismStreamAdvanceV1::Committed { rank: 0, .. }
+        ));
+        let partial_before_recovery = coordinator
+            .mechanism_snapshot()
+            .expect("materialize partial nested mechanism evidence")
+            .expect("nested mechanism evidence is enabled");
+        drop(coordinator);
+
+        let recovered_plan =
+            mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
+                &artifacts, selected, 0, 1,
+            )
+            .expect("rebuild nested-if plan after recovery");
+        let mut coordinator = open().expect("recover partial nested mechanism stream");
+        let partial_after_recovery = coordinator
+            .mechanism_snapshot()
+            .expect("materialize recovered partial nested mechanism evidence")
+            .expect("recovered nested mechanism evidence is enabled");
+        assert_eq!(partial_after_recovery, partial_before_recovery);
+
+        loop {
+            while coordinator
+                .next_mechanism_rank_hint()
+                .expect("select nested mechanism backlog")
+                .is_some()
+            {
+                assert!(matches!(
+                    coordinator
+                        .advance_one_nested_if_mechanism_case(&recovered_plan)
+                        .expect("trace nested mechanism case"),
+                    stream_coordinator::MechanismStreamAdvanceV1::Committed { .. }
+                ));
+            }
+            if coordinator.next_open_rank_hint().is_none() {
+                break;
+            }
+            assert!(matches!(
+                coordinator
+                    .advance_one_case()
+                    .expect("classify nested mechanism case"),
+                stream_coordinator::ExactStreamAdvance::Committed { .. }
+            ));
+        }
+        while coordinator
+            .next_mechanism_rank_hint()
+            .expect("select final nested mechanism backlog")
+            .is_some()
+        {
+            assert!(matches!(
+                coordinator
+                    .advance_one_nested_if_mechanism_case(&recovered_plan)
+                    .expect("trace final nested mechanism case"),
+                stream_coordinator::MechanismStreamAdvanceV1::Committed { .. }
+            ));
+        }
+
+        let evidence = coordinator
+            .mechanism_snapshot()
+            .expect("materialize complete nested mechanism evidence")
+            .expect("complete nested mechanism evidence is enabled");
+        assert_eq!(
+            evidence.population.status,
+            mechanism::MechanismEvidenceStatus::MatchingClosed
+        );
+        assert_eq!(
+            evidence.population.requested_target,
+            mechanism::MechanismCount::Exact(3)
+        );
+        assert_eq!(evidence.population.traced, 3);
+        assert_eq!(evidence.population.known_target_untraced, 0);
+        assert_eq!(evidence.signatures.len(), 3);
+        assert!(evidence.bin_fields.is_empty());
+
+        let mut outcomes = BTreeSet::new();
+        let mut stable_shape = None;
+        for signature in evidence.signatures.values() {
+            assert_eq!(signature.observed_support, 1);
+            assert_eq!(signature.signature.nodes.len(), 1);
+            assert_eq!(signature.signature.before_roots.len(), 1);
+            assert_eq!(signature.signature.after_roots.len(), 1);
+            let node = signature
+                .signature
+                .nodes
+                .values()
+                .next()
+                .expect("one nested mechanism node");
+            assert_eq!(node.slot.kind, mechanism::DynamicEventKind::IfDecision);
+            assert_eq!(node.slot.visit_ordinal, 0);
+            assert_eq!(node.slot.activation_path.len(), 1);
+            assert!(node.before_dependencies.is_empty());
+            assert!(node.after_dependencies.is_empty());
+            let activation = &node.slot.activation_path[0];
+            assert_eq!(activation.invocation_ordinal, 0);
+            let before = match node.before.as_ref() {
+                Some(mechanism::DynamicEventOutcome::IfDecision(outcome)) => *outcome,
+                other => panic!("unexpected before nested mechanism outcome: {other:?}"),
+            };
+            let after = match node.after.as_ref() {
+                Some(mechanism::DynamicEventOutcome::IfDecision(outcome)) => *outcome,
+                other => panic!("unexpected after nested mechanism outcome: {other:?}"),
+            };
+            outcomes.insert((before, after));
+            let shape = (
+                activation.call_site.clone(),
+                activation.callee.clone(),
+                node.slot.site.clone(),
+            );
+            if let Some(expected) = &stable_shape {
+                assert_eq!(&shape, expected);
+            } else {
+                stable_shape = Some(shape);
+            }
+        }
+        assert_eq!(
+            outcomes,
+            BTreeSet::from([
+                (
+                    mechanism::IfDecisionOutcome::Else,
+                    mechanism::IfDecisionOutcome::Else,
+                ),
+                (
+                    mechanism::IfDecisionOutcome::Else,
+                    mechanism::IfDecisionOutcome::Then,
+                ),
+                (
+                    mechanism::IfDecisionOutcome::Then,
+                    mechanism::IfDecisionOutcome::Then,
+                ),
+            ])
+        );
+        drop(coordinator);
+        std::fs::remove_dir_all(&directory)
+            .expect("remove nested mechanism stream fixture directory");
+    }
+
+    #[test]
+    fn nested_mechanism_profile_rejects_unsupported_show_argument_before_replay() {
+        let source = r#"
+> adjustment(income: Int) -> Int {
+    if income >= 200 { 20 } else { 0 }
+}
+> net_income(values: List(Int)) -> Int {
+    adjustment(200)
+}
+| eligible(income: Int, step: Int) -> True
+? explore nested_mechanism_show_subset_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = net_income([income]),
+            after = net_income([income + step])
+        ]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse unsupported nested mechanism show fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let error = mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
+            &artifacts, 0, 0, 1,
+        )
+        .err()
+        .expect("unsupported show argument must fail during static profile selection");
+        assert!(error.contains("outside the nested trace subset"), "{error}");
+    }
+
+    #[test]
+    fn nested_mechanism_runtime_refuses_live_import_graph_before_stream_creation() {
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_nested_mechanism_import_drift_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).expect("create import-drift fixture directory");
+        let helper_path = directory.join("adjustment.runa");
+        let checked_helper = r#"
+> adjustment(income: Int) -> Int {
+    if income >= 200 { 20 } else { 0 }
+}
+"#;
+        std::fs::write(&helper_path, checked_helper).expect("write checked helper module");
+        let source = r#"
+@ import ./adjustment
+> net_income(income: Int) -> Int {
+    income - adjustment(income)
+}
+| eligible(income: Int, step: Int) -> True
+? explore nested_mechanism_import_drift_fixture {
+    over eligible(income, step)
+    find matches
+    bounds {
+        income in range(198, 202)
+        step = 1
+    }
+    boundaries on income by step
+    output {
+        key [income]
+        show [
+            before = net_income(income),
+            after = net_income(income + step)
+        ]
+        representative first
+    }
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse import-drift mechanism fixture");
+        let source_dir = directory.to_string_lossy().to_string();
+        let artifacts =
+            TypeChecker::check_with_artifacts(&statements, Some(source_dir.clone()), source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let error = mechanism_runtime::CheckedNestedIfMechanismRuntimePlanV1::from_show_call_roots(
+            &artifacts, 0, 0, 1,
+        )
+        .err()
+        .expect("a live imported helper must not authorize durable mechanism replay");
+        assert!(error.contains("frozen module graph"), "{error}");
+
+        let request = mechanism_request::build_checked_mechanism_request_v1(
+            &artifacts,
+            0,
+            mechanism_request::MechanismTraceSelectionV1 {
+                before_show_index: 0,
+                after_show_index: 1,
+                bin_fields: Box::default(),
+                retained_examples_per_signature: 1,
+            },
+        )
+        .expect("build identity-only request independently of runtime profile");
+        let stream_directory = directory.join("mechanism-stream");
+        let coordinator_error =
+            stream_coordinator::ExactStreamCoordinator::open_or_create_with_mechanism(
+                &stream_directory,
+                run_store::RunStoreLimits::default(),
+                &statements,
+                Some(&source_dir),
+                &artifacts,
+                0,
+                report::ExploreReportRequest {
+                    case_graph: report::ExploreCaseGraphRequest::Omit,
+                    ledger: report::ExploreLedgerRequest::Omit,
+                },
+                request,
+            )
+            .err()
+            .expect("coordinator must refuse imports before opening its run store");
+        assert!(
+            coordinator_error
+                .to_string()
+                .contains("frozen module graph"),
+            "{coordinator_error}"
+        );
+        assert!(
+            !stream_directory.exists(),
+            "rejected mechanism source created a durable run directory"
+        );
+
+        std::fs::remove_dir_all(&directory)
+            .expect("remove live-import mechanism fixture directory");
+    }
+
+    #[test]
+    fn exact_stream_evaluator_rejects_caller_root_drift_after_checking() {
+        let checked_source = r#"
+> score(value: Int) -> Int { value }
+| eligible(value: Int) -> True
+? explore immutable_runtime_root_fixture {
+    over eligible(value)
+    find matches
+    bounds { value in [1] }
+    output { key [value] show [result = score(value)] representative first }
+}
+"#;
+        let mut lexer = Lexer::new(checked_source);
+        let checked_statements = Parser::new(lexer.tokenize(), checked_source)
+            .parse_program()
+            .expect("parse checked immutable-root fixture");
+        let artifacts =
+            TypeChecker::check_with_artifacts(&checked_statements, None, checked_source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+
+        let drifted_source = checked_source.replace("{ value }", "{ value + 1 }");
+        let mut lexer = Lexer::new(&drifted_source);
+        let drifted_statements = Parser::new(lexer.tokenize(), &drifted_source)
+            .parse_program()
+            .expect("parse drifted immutable-root fixture");
+        let error = exact::ExactStreamEvaluator::prepare(
+            &drifted_statements,
+            None,
+            &artifacts,
+            0,
+            report::DEFAULT_EXPLORE_STEP_LIMIT,
+            report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
+        )
+        .err()
+        .expect("caller root drift must not replace the checked runtime snapshot");
+        assert!(error.contains("runtime entry syntax differs"), "{error}");
+    }
+
+    #[test]
     fn mechanism_runtime_rejects_equal_shape_query_identity_drift() {
         let source = r#"
 > net_income(income: Int) -> Int {
@@ -7135,15 +7558,11 @@ mod tests {
             &artifacts, 0, 0, 1,
         )
         .expect("check first mechanism plan");
-        let second = artifacts
-            .checked_exploration_query(1)
-            .expect("select second checked query");
         let evaluator = exact::ExactStreamEvaluator::prepare(
             &statements,
             None,
             &artifacts,
             1,
-            second.closed_query,
             report::DEFAULT_EXPLORE_STEP_LIMIT,
             report::DEFAULT_EXPLORE_COLLECTION_LIMIT,
         )
@@ -7152,7 +7571,10 @@ mod tests {
             &plan, &evaluator, 0,
         ) {
             Ok(_) => panic!("another checked query minted this plan's evidence"),
-            Err(error) => error,
+            Err(mechanism_runtime::MechanismRuntimeMintErrorV1::Failure(error)) => error,
+            Err(mechanism_runtime::MechanismRuntimeMintErrorV1::OperationalLimit(reason)) => {
+                panic!("equal-shape identity test hit an operational limit: {reason:?}")
+            }
         };
         assert!(error.contains("different checked queries"), "{error}");
     }
