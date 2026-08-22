@@ -1238,9 +1238,9 @@
 )
 = personskat_felt_ægtefælle = Beregningsfelt(
     path = pathof(PersonskatInput::ægtefælle::$variant),
-    label = "Ægtefælle",
-    question = Some("Skal beregningen omfatte en ægtefælle?"),
-    help = Some("Vælg en ægtefælle, når ægtefællernes indkomst- og skatteforhold kan påvirke hinandens beregning."),
+    label = "Ægtefælleforhold",
+    question = Some("Hvilket ægtefælleforhold gjaldt for personen i indkomståret?"),
+    help = Some("Vælg ud fra dokumenterede ægtefælleforhold. Felter under MedÆgtefælle aktiveres kun, når dette valg bruges; deres synlighed i projektmappen gør dem ikke i sig selv påkrævede."),
     unit = None
 )
 = personskat_felt_ægtefælle_samliv = Beregningsfelt(

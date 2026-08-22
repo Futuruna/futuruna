@@ -1376,7 +1376,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             "Etablerings- eller iværksætterkonto",
             "Faktisk indskud på etableringskonto",
             "Faktisk indskud på iværksætterkonto",
-            "Ægtefælle",
+            "Ægtefælleforhold",
             "Samlevende med ægtefællen ved årets udløb",
             "Ægtefællens årlige bruttoløn",
             "Ægtefællens renteudgifter",

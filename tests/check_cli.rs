@@ -1,20 +1,27 @@
 use std::fs;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn test_workspace() -> PathBuf {
+    static NEXT_WORKSPACE_ID: AtomicU64 = AtomicU64::new(0);
+
     let nonce = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system time after epoch")
         .as_nanos();
-    std::env::temp_dir().join(format!("futuruna-check-cli-{}-{nonce}", std::process::id()))
+    let sequence = NEXT_WORKSPACE_ID.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!(
+        "futuruna-check-cli-{}-{nonce}-{sequence}",
+        std::process::id()
+    ))
 }
 
 #[test]
 fn concurrent_checks_do_not_share_generated_rust_files() {
     let workspace = test_workspace();
-    fs::create_dir_all(&workspace).expect("create check CLI workspace");
+    fs::create_dir(&workspace).expect("create check CLI workspace");
 
     let valid = workspace.join("valid.runa");
     let invalid = workspace.join("invalid.runa");
@@ -69,7 +76,7 @@ fn concurrent_checks_do_not_share_generated_rust_files() {
 #[test]
 fn frontend_check_succeeds_without_rust_toolchain() {
     let workspace = test_workspace();
-    fs::create_dir_all(&workspace).expect("create frontend check workspace");
+    fs::create_dir(&workspace).expect("create frontend check workspace");
     let empty_path = workspace.join("empty-path");
     let empty_home = workspace.join("empty-home");
     fs::create_dir_all(&empty_path).expect("create empty PATH directory");
@@ -107,7 +114,7 @@ fn frontend_check_succeeds_without_rust_toolchain() {
 #[test]
 fn frontend_check_includes_compiler_validation() {
     let workspace = test_workspace();
-    fs::create_dir_all(&workspace).expect("create frontend validation workspace");
+    fs::create_dir(&workspace).expect("create frontend validation workspace");
     let source = workspace.join("invalid-named-argument.runa");
     fs::write(
         &source,

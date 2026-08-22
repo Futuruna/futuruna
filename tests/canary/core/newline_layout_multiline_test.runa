@@ -1,0 +1,115 @@
+-- Multiline half of the newline-layout parity canary. It exercises runtime
+-- delimiter families, trailing commas, and soft statement breaks.
+
+# LayoutEvent = Created(
+    code: Int,
+    tags: List(
+        String,
+    ),
+) |
+    Closed(
+        Int,
+    )
+
+# LayoutCase(
+    base: Int,
+    values: List(
+        Int,
+    ),
+) {
+    | amount(
+        extra: Int,
+    ) ->
+        base +
+        sum(values) +
+        extra
+    | amount(
+        extra: Int,
+    ) -> 99
+        under extra > 10
+}
+
+> event_code(
+    event: LayoutEvent,
+) -> Int {
+    match event {
+        | Created(
+            code: value,
+            tags: _,
+        ) -> value
+        | Closed(
+            value,
+        ) -> value
+    }
+}
+
+> combine(
+    left: Int,
+    right: Int,
+) -> Int {
+    left +
+    right
+}
+
+= adjust = |
+    value: Int,
+    delta: Int,
+| value + delta
+
+= event = Created(
+    code = 7,
+    tags = [
+        "primary",
+        "verified",
+    ],
+)
+
+= layout_case = LayoutCase(
+    base = 10,
+    values = [
+        1,
+        2,
+        3,
+    ],
+)
+
+= default_amount =
+    layout_case.amount(
+        extra = 2,
+    )
+
+= exception_amount = layout_case.amount(
+    extra = 11,
+)
+
+= event_result = event_code(
+    event,
+)
+
+= combined = combine(
+    left = 2,
+    right = 3,
+)
+
+= adjusted = adjust(
+    combined,
+    2,
+)
+
+= report =
+    "layout-parity=" +
+    show(default_amount) +
+    ":" +
+    show(exception_amount) +
+    ":" +
+    show(event_result) +
+    ":" +
+    show(adjusted)
+
+| multiline_layout_result: report ->
+    report == "layout-parity=18:99:7:7"
+? multiline_layout_result
+
+@ print(
+    report,
+)

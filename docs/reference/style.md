@@ -11,7 +11,10 @@ feature_stage_surfaces:
 
 ## The rune decides
 
-Every line starts with a rune. The rune is not decoration — it classifies what the statement *is*. Choosing the wrong rune is a category error, not a style preference.
+Every statement starts with a rune. Continuation lines belong to that statement
+and are indented by the formatter. The rune is not decoration — it classifies
+what the statement *is*. Choosing the wrong rune is a category error, not a
+style preference.
 
 ```
 #  what exists       — the world has this shape

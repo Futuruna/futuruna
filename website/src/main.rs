@@ -113,6 +113,8 @@ fn PageMeta(
         document::Meta { property: "og:description", content: description }
         document::Meta { property: "og:url", content: canonical }
         document::Meta { property: "og:image", content: social_image.clone() }
+        document::Meta { property: "og:image:secure_url", content: social_image.clone() }
+        document::Meta { property: "og:image:type", content: "image/png" }
         document::Meta { property: "og:image:width", content: "512" }
         document::Meta { property: "og:image:height", content: "512" }
         document::Meta { property: "og:image:alt", content: "Futuruna logo" }
@@ -273,7 +275,10 @@ fn Shell() -> Element {
 
     rsx! {
         document::Link { rel: "stylesheet", href: CSS }
-        document::Link { rel: "icon", href: FAVICON }
+        document::Link { rel: "icon", href: FAVICON, r#type: "image/svg+xml", sizes: "any" }
+        document::Link { rel: "icon", href: "/favicon.png", r#type: "image/png", sizes: "64x64" }
+        document::Link { rel: "shortcut icon", href: "/favicon.ico" }
+        document::Link { rel: "apple-touch-icon", href: "/apple-touch-icon.png", sizes: "180x180" }
         Nav {}
         Outlet::<Route> {}
         Footer {}
@@ -591,34 +596,18 @@ fn AiGuide() -> Element {
                     "Give the setup guide to "
                     a {
                         class: "ai-guide-product-link",
-                        href: "https://claude.com/product/claude-code",
+                        href: "https://claude.com/download/",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        "Claude Code"
+                        "Claude"
                     }
-                    ", "
+                    " or "
                     a {
                         class: "ai-guide-product-link",
-                        href: "https://claude.com/product/cowork",
+                        href: "https://chatgpt.com/download/",
                         target: "_blank",
                         rel: "noopener noreferrer",
-                        "Claude Cowork"
-                    }
-                    ", "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://openai.com/codex/",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "Codex"
-                    }
-                    ", or "
-                    a {
-                        class: "ai-guide-product-link",
-                        href: "https://openai.com/chatgpt-work/",
-                        target: "_blank",
-                        rel: "noopener noreferrer",
-                        "ChatGPT Work"
+                        "ChatGPT"
                     }
                     ". Your AI will install Futuruna and run the first example with you."
                 }
@@ -630,8 +619,8 @@ fn AiGuide() -> Element {
                     }
                     div { class: "ai-guide-fact",
                         span { class: "ai-guide-fact-label", "Installation" }
-                        strong { "Your AI does the setup" }
-                        small { "You approve any software changes" }
+                        strong { "Futuruna runs locally" }
+                        small { "Your AI installs it with your approval" }
                     }
                     div { class: "ai-guide-fact",
                         span { class: "ai-guide-fact-label", "Before it finishes" }
@@ -687,7 +676,15 @@ fn AiGuide() -> Element {
                         span { class: "ai-guide-option-label", "Denmark" }
                         h3 { "Audit your Annual Tax Report (Årsopgørelse)" }
                         p {
-                            "If you are from Denmark, let the AI interview you into Futuruna's formal Personskat rule model, then compare the deterministic result with your own Annual Tax Report."
+                            "Download your Årsopgørelse as a PDF from "
+                            a {
+                                class: "ai-guide-product-link",
+                                href: "https://skat.dk/borger/aarsopgoerelse/aarsopgoerelsen",
+                                target: "_blank",
+                                rel: "noopener noreferrer",
+                                "SKAT"
+                            }
+                            ", keep it private, and let your AI help enter the relevant facts into Futuruna's formal Personskat model. Futuruna can then recompute the supported tax rules and compare the result with the report."
                         }
                     }
                     article { class: "ai-guide-option",
@@ -2524,7 +2521,7 @@ const EXAMPLE_BOOT: &str = r##"-- Futuruna Boot Sequence
 -- Build the boot log as a stream of messages
 = modules = ["consciousness", "entropy", "runes", "streams", "rules", "verification", "effects"]
 
-= log = ["FUTURUNA v0.1.0", "================", ""]
+= log = ["FUTURUNA v0.1.1", "================", ""]
 = log = push(log, "[init] Booting language runtime...")
 = log = push(log, "")
 for m in modules {
@@ -3052,7 +3049,7 @@ fn docs_page(active_doc: usize) -> Element {
                 a { class: "docs-sidebar-link", href: "/docs/tutorial", "Tutorial" }
                 hr { class: "docs-sidebar-divider" }
                 h3 { class: "docs-sidebar-title", "Reference" }
-                span { class: "docs-version", "v0.1.0" }
+                span { class: "docs-version", "v0.1.1" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
                     a {
                         class: if active_doc == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },

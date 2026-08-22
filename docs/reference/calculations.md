@@ -282,6 +282,11 @@ and recursive or opaque leaves remain canonical JSON cells when they cannot be
 expanded to a finite unambiguous layout. Cells and child rows belonging to an
 inactive alternative are rejected.
 
+When an AI or person fills a generated workbook, resolve `$variant` choices
+before asking for their payload fields. Variant-qualified columns describe what
+the contract can accept; they are required only when their alternative is
+selected. Do not infer requiredness from a column merely being visible.
+
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes
 instead of coercing the data.

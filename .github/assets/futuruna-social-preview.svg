@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title description">
+  <title id="title">Futuruna</title>
+  <desc id="description">The Futuruna logo beside the words A programming language for law.</desc>
+  <defs>
+    <radialGradient id="card-left" cx="0.18" cy="0.5" r="0.58">
+      <stop offset="0" stop-color="#7c6ff0" stop-opacity="0.16"/>
+      <stop offset="1" stop-color="#7c6ff0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="card-right" cx="0.9" cy="0.12" r="0.58">
+      <stop offset="0" stop-color="#e0a040" stop-opacity="0.11"/>
+      <stop offset="1" stop-color="#e0a040" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="card-rule" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7c6ff0"/>
+      <stop offset="0.5" stop-color="#50c0c0"/>
+      <stop offset="1" stop-color="#e08050"/>
+    </linearGradient>
+    <radialGradient id="logo-g1" cx="0.15" cy="0.15" r="0.7">
+      <stop offset="0" stop-color="#e06070" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#e06070" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g2" cx="0.85" cy="0.1" r="0.65">
+      <stop offset="0" stop-color="#50b060" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#50b060" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g3" cx="0.1" cy="0.55" r="0.6">
+      <stop offset="0" stop-color="#5090e0" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#5090e0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g4" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#c060e0" stop-opacity="0.7"/>
+      <stop offset="1" stop-color="#c060e0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g5" cx="0.9" cy="0.5" r="0.6">
+      <stop offset="0" stop-color="#e0a040" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#e0a040" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g6" cx="0.2" cy="0.9" r="0.65">
+      <stop offset="0" stop-color="#50c0c0" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#50c0c0" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="logo-g7" cx="0.8" cy="0.85" r="0.6">
+      <stop offset="0" stop-color="#e08050" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#e08050" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="640" fill="#0a0a0f"/>
+  <rect width="1280" height="640" fill="url(#card-left)"/>
+  <rect width="1280" height="640" fill="url(#card-right)"/>
+
+  <g transform="translate(64 64)">
+    <rect width="512" height="512" rx="64" fill="#0a0a0f"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g1)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g2)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g3)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g4)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g5)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g6)"/>
+    <rect width="512" height="512" rx="64" fill="url(#logo-g7)"/>
+    <g stroke="#ffffff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round" transform="translate(270 256) scale(5.5) translate(-32 -32)">
+      <line x1="21" y1="58" x2="21" y2="6"/>
+      <line x1="21" y1="28" x2="43" y2="6"/>
+      <line x1="21" y1="43" x2="43" y2="21"/>
+    </g>
+  </g>
+
+  <g transform="translate(648 0)">
+    <text x="0" y="163" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="28" font-weight="700" letter-spacing="18">
+      <tspan fill="#e06070">#</tspan>
+      <tspan fill="#50b060">&gt;</tspan>
+      <tspan fill="#5090e0">|</tspan>
+      <tspan fill="#e0a040">=</tspan>
+      <tspan fill="#c060e0">~</tspan>
+      <tspan fill="#50c0c0">@</tspan>
+      <tspan fill="#e08050">?</tspan>
+    </text>
+    <text x="-5" y="304" fill="#f3f1f7" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="96" font-weight="700" letter-spacing="-4">Futuruna</text>
+    <rect x="0" y="346" width="508" height="4" rx="2" fill="url(#card-rule)"/>
+    <text x="0" y="420" fill="#e8e6f0" font-family="Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="35" font-weight="500">A programming language for law.</text>
+    <text x="2" y="529" fill="#918c9e" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="23" font-weight="600" letter-spacing="1.5">futuruna.com</text>
+  </g>
+</svg>

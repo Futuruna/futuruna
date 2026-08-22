@@ -1,51 +1,55 @@
-<p align="center">
-  <a href="https://futuruna.com">
-    <img src="website/assets/logo.svg" width="128" alt="Futuruna logo">
-  </a>
-</p>
+[![Futuruna logo](https://futuruna.com/apple-touch-icon.png)](https://futuruna.com)
 
-<h1 align="center">Futuruna - Law Programming</h1>
+# Futuruna
 
-<p align="center">
-  <a href="Cargo.toml">Version 0.1.0</a>
-  ·
-  <a href="https://futuruna.com">futuruna.com</a>
-  ·
-  <a href="LICENSE">MIT License</a>
-</p>
+**A programming language for law.**
 
-## Welcome to Futuruna
+Write laws, contracts, and policies you can run, test, and audit.
 
-Futuruna is a programming language, able to encode complex law, but preserving strength in normal programming structures and algorithms.
+[Version 0.1.1](Cargo.toml) · [futuruna.com](https://futuruna.com) ·
+[MIT License](LICENSE)
 
-It allows combining different paradigms through partitioned syntax, using front-runes for each approach-category. Designed for humans and AIs alike.
+## What Futuruna does
 
-## AI Setup
+Futuruna turns legal rules into programs that people and AI assistants can
+inspect together. It keeps rules, defaults, exceptions, calculations, and
+ordinary programming in one execution space.
 
-I recommend setting up Futuruna using Codex, Claude Code, ChatGPT Work, Claude Cowork and the strong models it provides (ChatGPT Sol or above, Claude Fable or above, Grok 4.7 or above)
+Use Futuruna to:
+
+- encode laws, contracts, and policies as explicit rule models;
+- run examples and test the behavior of those rules;
+- check invariants and audit decisions against their source-backed model; and
+- combine formal rules with normal functions, collections, effects, and streams.
+
+## Set up Futuruna with AI
+
+Use the [Claude app](https://claude.com/download/) or
+[ChatGPT app](https://chatgpt.com/download/). For a terminal workflow, use
+[Claude Code](https://code.claude.com/docs/en/quickstart) or the
+[Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
 
 Give the AI this instruction:
 
 > Read https://futuruna.com/ai-setup.md and set up Futuruna for me.
 
-The guide helps your AI install the right Futuruna version for your computer,
-check the download, and run a working example. If no ready-made download exists
-for your computer, the AI builds Futuruna there instead.
+The guide helps your AI install Futuruna locally, verify the download, and run a
+working example. If no ready-made download exists for your computer, the AI
+installs it with Cargo or builds Futuruna there instead.
 
-## Skills, Integration and Examples
+## The seven runes
 
-Futuruna is designed so people and AI assistants can work from the same formal
-rule model.
+Futuruna uses seven front runes to make the role of each declaration visible:
 
-When you encode rules, you are able to generate an Excel sheet of the rule model for the law, contract or compliance you set out to formalize. The AI can then interview you back, helping you fill out this sheet, so that you can check how your own case stacks up.
-
-Futuruna has encoded the entire Danish Income Tax Law, and you should be able to audit your own Annual Tax Report using Futuruna's code. This is an active research project, so I am very interested in feedback and results from such audits. I truly believe Futuruna can help make a more transparent, just and fair world, encoding the law in an unbiased and auditable fashion. Let us walk into that future, together (be kind in your issue reports) :)
-
-## The Basics
-
-Futuruna can define types (#), functions (>), rules (|), streams (~), assignments (=), proofs (?), and effects (@).
-
-Each front rune has their own rules for syntax, which might sound like it gets complicated, but as you will quickly experience, it creates non-competing syntax within each category space and actually lowers complexity of programs. More punch per character through high optionality for the authors yet less uncertainty for the readers.
+| Rune | Role |
+| --- | --- |
+| `#` | Types |
+| `>` | Functions |
+| `\|` | Rules and exceptions |
+| `=` | Values |
+| `~` | Streams |
+| `@` | Effects |
+| `?` | Checks and proofs |
 
 Here is a complete synthetic tax policy: income is taxed at 25%, except that a
 person with at least two children pays 20%.
@@ -65,31 +69,18 @@ person with at least two children pays 20%.
 @ print(show(tax_due(parent))) -- 100000
 ```
 
-Work through the [guided tutorial](https://futuruna.com/docs/tutorial), or use
-the [full language documentation](https://futuruna.com/docs) as a reference.
+## Learn and explore
 
-## Why Futuruna - The Manifest
+- [Guided tutorial](https://futuruna.com/docs/tutorial)
+- [Language documentation](https://futuruna.com/docs)
+- [Why Futuruna](https://futuruna.com/why)
+- [Browser playground](https://futuruna.com/playground)
+- [Feature stages](docs/feature-stages.md)
 
-([The Why Futuruna Article](https://futuruna.com/why))
+Futuruna includes active research models for law and tax. Treat those models as
+auditable research software, preserve their sources and assumptions, and do not
+use them as individual legal or tax advice.
 
-## MIT License
+## License
 
-Copyright (c) 2026 Andreas Rudolph
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Futuruna is available under the [MIT License](LICENSE).

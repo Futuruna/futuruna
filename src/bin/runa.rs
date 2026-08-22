@@ -623,7 +623,7 @@ fn main_inner() {
                 i += 1;
             }
             "--version" | "-V" => {
-                println!("runa 0.1.0");
+                println!("runa {}", env!("CARGO_PKG_VERSION"));
                 std::process::exit(0);
             }
             "--help" | "-h" | "help" if mode == "from-rust" => {
@@ -10806,7 +10806,10 @@ fn run_codegen_check(dir: &str, use_prelude: bool) {
 }
 
 fn run_repl() {
-    println!("Futuruna v0.1 — the language designed by measuring consciousness");
+    println!(
+        "Futuruna v{} — a programming language for law",
+        env!("CARGO_PKG_VERSION")
+    );
     println!("Runes: > define  | rule  # type  @ annotate  = bind");
     println!("Type :quit to exit, :env to show bindings\n");
 
@@ -17420,7 +17423,9 @@ fn format_runa_source(source: &str) -> String {
     let lines: Vec<&str> = source.lines().collect();
     let mut result: Vec<String> = Vec::new();
     let mut depth: i32 = 0;
-    let mut continuation_stack: Vec<(char, usize)> = Vec::new();
+    let mut continuation_stack: Vec<(char, usize, usize)> = Vec::new();
+    let mut previous_line_requires_continuation = false;
+    let mut statement_rune_depth: Option<i32> = None;
     let mut prev_blank = false;
     let mut in_block_comment_dash = false;
     let mut in_block_comment_brace = false;
@@ -17571,17 +17576,41 @@ fn format_runa_source(source: &str) -> String {
         // close. Openers on the same source line form one continuation level,
         // so `outer(Inner(` does not double-indent its first named field.
         let continuation_depth = fmt_continuation_depth_before_line(trimmed, &continuation_stack);
+        let starts_rune_statement = fmt_line_starts_rune_statement(trimmed);
+        let starts_continuation = fmt_line_starts_continuation(trimmed);
+        let starts_closing_delimiter = fmt_line_starts_with_closing_delimiter(trimmed);
+        if starts_rune_statement {
+            statement_rune_depth = Some(depth);
+        } else if continuation_stack.is_empty()
+            && !previous_line_requires_continuation
+            && !starts_continuation
+            && !starts_closing_delimiter
+        {
+            statement_rune_depth = None;
+        }
+        let statement_continuation = continuation_stack.is_empty()
+            && statement_rune_depth.is_some()
+            && !fmt_line_starts_with_closing_delimiter(trimmed)
+            && !starts_rune_statement
+            && (previous_line_requires_continuation || starts_continuation);
         result.push(format!(
             "{}{}",
-            fmt_indent(depth + continuation_depth as i32),
+            fmt_indent(depth + continuation_depth as i32 + i32::from(statement_continuation)),
             trimmed
         ));
 
-        fmt_update_continuation_stack(trimmed, i, &mut continuation_stack);
+        fmt_update_continuation_stack(
+            trimmed,
+            i,
+            usize::from(statement_continuation),
+            &mut continuation_stack,
+        );
+        previous_line_requires_continuation = fmt_line_requires_continuation(trimmed);
 
         // Increase depth if line ends with { (outside strings/comments)
         if let Some('{') = fmt_effective_last_char(trimmed) {
             depth += 1;
+            statement_rune_depth = None;
         }
 
         i += 1;
@@ -17916,24 +17945,76 @@ fn fmt_indent(depth: i32) -> String {
     "    ".repeat(depth.max(0) as usize)
 }
 
-fn fmt_continuation_depth_before_line(line: &str, stack: &[(char, usize)]) -> usize {
+fn fmt_line_starts_with_closing_delimiter(line: &str) -> bool {
+    let line = line.trim_start();
+    matches!(line.chars().next(), Some(')' | ']' | '}')) || line == "|" || line.starts_with("| ")
+}
+
+fn fmt_line_starts_rune_statement(line: &str) -> bool {
+    let line = line.trim_start();
+    match line.chars().next() {
+        Some('#' | '~' | '@') => true,
+        Some('>') => !line.starts_with(">="),
+        Some('=') => !line.starts_with("=="),
+        Some('?') => !line.starts_with("?.") && !line.starts_with("?:"),
+        Some('|') => !line.starts_with("|>") && !line.starts_with("||"),
+        _ => false,
+    }
+}
+
+fn fmt_line_starts_continuation(line: &str) -> bool {
+    let code = fmt_split_comment(line).0;
+    let code = code.trim_start();
+    [
+        "&&", "==", "!=", "<=", ">=", "<", "*", "/", "%", "^", "|>", "?.", "?:", ".",
+    ]
+    .iter()
+    .any(|prefix| code.starts_with(prefix))
+        || code == "under"
+        || code.starts_with("under ")
+        || code == "and"
+        || code.starts_with("and ")
+}
+
+fn fmt_line_requires_continuation(line: &str) -> bool {
+    let code = fmt_split_comment(line).0;
+    let code = code.trim_end();
+    [
+        "->", "=>", "<-", "|>", "?:", "?.", "==", "!=", "<=", ">=", "&&", "||", "+", "-", "*", "/",
+        "%", "<", ">", "=", ",", ":", ".", "|", "^",
+    ]
+    .iter()
+    .any(|suffix| code.ends_with(suffix))
+}
+
+fn fmt_continuation_depth_before_line(line: &str, stack: &[(char, usize, usize)]) -> usize {
     let mut preview = stack.to_vec();
+    let opening_base = stack.first().map_or(0, |(_, _, base)| *base);
+    let mut popped = false;
 
     for c in line.chars() {
         match c {
-            ')' | ']' => fmt_pop_continuation(c, &mut preview),
+            ')' | ']' => {
+                fmt_pop_continuation(c, &mut preview);
+                popped = true;
+            }
             ',' | ' ' | '\t' => {}
             _ => break,
         }
     }
 
-    fmt_continuation_depth(&preview)
+    let depth = fmt_continuation_depth(&preview);
+    if popped && preview.is_empty() {
+        opening_base
+    } else {
+        depth
+    }
 }
 
-fn fmt_continuation_depth(stack: &[(char, usize)]) -> usize {
-    stack
+fn fmt_continuation_depth(stack: &[(char, usize, usize)]) -> usize {
+    let delimiter_depth = stack
         .iter()
-        .map(|(_, group)| *group)
+        .map(|(_, group, _)| *group)
         .fold((0, None), |(count, previous), group| {
             if previous == Some(group) {
                 (count, previous)
@@ -17941,10 +18022,16 @@ fn fmt_continuation_depth(stack: &[(char, usize)]) -> usize {
                 (count + 1, Some(group))
             }
         })
-        .0
+        .0;
+    delimiter_depth + stack.first().map_or(0, |(_, _, base)| *base)
 }
 
-fn fmt_update_continuation_stack(line: &str, group: usize, stack: &mut Vec<(char, usize)>) {
+fn fmt_update_continuation_stack(
+    line: &str,
+    group: usize,
+    base: usize,
+    stack: &mut Vec<(char, usize, usize)>,
+) {
     let chars: Vec<char> = line.chars().collect();
     let mut in_string = false;
     let mut escape = false;
@@ -17977,7 +18064,7 @@ fn fmt_update_continuation_stack(line: &str, group: usize, stack: &mut Vec<(char
         }
 
         match c {
-            '(' | '[' => stack.push((c, group)),
+            '(' | '[' => stack.push((c, group, base)),
             ')' | ']' => fmt_pop_continuation(c, stack),
             _ => {}
         }
@@ -17985,13 +18072,13 @@ fn fmt_update_continuation_stack(line: &str, group: usize, stack: &mut Vec<(char
     }
 }
 
-fn fmt_pop_continuation(closing: char, stack: &mut Vec<(char, usize)>) {
+fn fmt_pop_continuation(closing: char, stack: &mut Vec<(char, usize, usize)>) {
     let expected = match closing {
         ')' => '(',
         ']' => '[',
         _ => return,
     };
-    if stack.last().map(|(opening, _)| *opening) == Some(expected) {
+    if stack.last().map(|(opening, _, _)| *opening) == Some(expected) {
         stack.pop();
     }
 }
@@ -18351,7 +18438,7 @@ fn lsp_server_capabilities() -> serde_json::Value {
             "hoverProvider": true,
             "definitionProvider": true
         },
-        "serverInfo": {"name": "runa-lsp", "version": "0.1.0"}
+        "serverInfo": {"name": "runa-lsp", "version": env!("CARGO_PKG_VERSION")}
     })
 }
 
@@ -29586,7 +29673,7 @@ impl RustCodegen {
 
         // Header
         out.push_str("// Generated by runa --emit rust\n");
-        out.push_str("// Futuruna: the language designed by measuring consciousness\n\n");
+        out.push_str("// Futuruna: a programming language for law\n\n");
         out.push_str(
             "#![allow(unused, non_snake_case, non_camel_case_types, non_shorthand_field_patterns)]\n",
         );
@@ -47107,6 +47194,33 @@ mod tests {
         let mut parser = Parser::new(tokens, &formatted);
         let statements = parser.parse_program().expect("parse formatted exploration");
         assert!(matches!(statements.first(), Some(Stmt::Explore(_))));
+    }
+
+    #[test]
+    fn formatter_indents_soft_statement_continuations_once() {
+        let source = "= total =\nbase +\nadjustment\n|> cap(limit)\n| rate(case) ->\ncase.income *\ncase.rate\nunder case.active\n";
+        let expected = "= total =\n    base +\n    adjustment\n    |> cap(limit)\n| rate(case) ->\n    case.income *\n    case.rate\n    under case.active\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
+    }
+
+    #[test]
+    fn formatter_uses_delimiter_layout_for_multiline_type_syntax() {
+        let source = "# Event = Created(\ncode: Int,\nlabels: List(\nString,\n),\n) |\nClosed\n\n> combine(\nleft: Int,\nright: Int,\n) -> Int { left + right }\n";
+        let expected = "# Event = Created(\n    code: Int,\n    labels: List(\n        String,\n    ),\n) |\n    Closed\n\n> combine(\n    left: Int,\n    right: Int,\n) -> Int { left + right }\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
+    }
+
+    #[test]
+    fn formatter_canonicalizes_specialized_multiline_sequences() {
+        let source = "@ use std::collections::{\nHashMap,\nBTreeMap,\n}\n\n? proof by {\n| (\nleft: Int,\nright: Int,\n) -> apply theorem(\nrefl,\n)\n}\n";
+        let expected = "@ use std::collections::{\n    HashMap,\n    BTreeMap,\n}\n\n? proof by {\n    | (\n        left: Int,\n        right: Int,\n    ) -> apply theorem(\n        refl,\n    )\n}\n";
+
+        assert_eq!(format_runa_source(source), expected);
+        assert_eq!(format_runa_source(expected), expected);
     }
 
     #[test]

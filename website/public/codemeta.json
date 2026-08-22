@@ -4,7 +4,7 @@
   "@id": "https://github.com/Futuruna/futuruna",
   "name": "Futuruna",
   "description": "Futuruna is a programming language for expressing, running, testing, and auditing laws, contracts, policies, and ordinary programs in one execution space.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "url": "https://futuruna.com",
   "codeRepository": "https://github.com/Futuruna/futuruna",
   "issueTracker": "https://github.com/Futuruna/futuruna/issues",

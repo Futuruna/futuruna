@@ -31,6 +31,9 @@
     </radialGradient>
   </defs>
 
+  <!-- Opaque canvas for share cards and installed-app icons. -->
+  <rect width="512" height="512" fill="#0a0a0f"/>
+
   <!-- Dark base -->
   <rect width="512" height="512" rx="64" fill="#0a0a0f"/>
 

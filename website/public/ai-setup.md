@@ -1,11 +1,11 @@
 # Set Up Futuruna With Your AI
 
 This guide lets an AI coding assistant install Futuruna on your computer, check
-that it works, and help you begin a first project. Use
-[Claude Code](https://claude.com/product/claude-code),
-[Claude Cowork](https://claude.com/product/cowork),
-[Codex](https://openai.com/codex/), or
-[ChatGPT Work](https://openai.com/chatgpt-work/) to follow it.
+that it works, and help you begin a first project. Use the
+[Claude app](https://claude.com/download/) or
+[ChatGPT app](https://chatgpt.com/download/), or work from a terminal with
+[Claude Code](https://code.claude.com/docs/en/quickstart) or the
+[Codex CLI](https://learn.chatgpt.com/docs/codex/cli).
 
 If you are a person, give your AI this instruction:
 
@@ -16,6 +16,7 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 ## Setup at a glance
 
 - **Installation:** Use the verified Futuruna download made for the user's computer when one is available. Otherwise, install it with Cargo or build it on that computer.
+- **Local result:** Leave the user with a working local `runa` executable and, when they want the examples or legal models, a local Futuruna checkout they can use after this AI session ends.
 - **Time:** A download normally takes 1–3 minutes. Building Futuruna normally takes 5–10 minutes when Rust and Cargo are already installed.
 - **Rust:** The downloaded program can check, format, run, and audit Futuruna code without installing Rust. Building Futuruna or using `runa build` still requires Rust.
 - **Final check:** Print the Futuruna version and run a known example on the computer where the user will work. Do not run the full project test suite merely to check an installation.
@@ -23,8 +24,8 @@ If you are the AI, follow the guide below. Adapt commands to the user's operatin
 ## Your task
 
 1. Establish which operating system and processor will actually run `runa`.
-2. Get the Futuruna repository when the user wants the examples and legal models.
-3. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna there.
+2. Fetch the Futuruna repository onto that computer when the user wants the examples and legal models.
+3. Install a local Futuruna executable there. Prefer the verified download for that computer; otherwise use crates.io or build Futuruna locally.
 4. Verify Futuruna on the user's computer.
 5. Ask the user which first project they want to explore.
 6. Help them complete that project without guessing facts or silently changing source material.
@@ -104,11 +105,9 @@ cd ../..
 ```
 
 Stop if the download or checksum is unavailable, the checksum line is missing,
-or verification fails. The GitHub release page states whether its macOS binaries
-are Apple-notarized. If macOS blocks an unsigned download, do not remove its
-quarantine attribute or disable Gatekeeper automatically. Tell the user and use
-Cargo or a local source build instead unless the user explicitly decides
-otherwise.
+or verification fails. If the operating system blocks the downloaded program,
+show the user the exact message and ask before changing any security setting.
+Use Cargo or a local source build when that is the safer available route.
 
 If there is no download for the user's computer, use one of the installation
 methods below instead of trying to build from an unrelated AI sandbox.
@@ -132,7 +131,7 @@ diagnose the error before continuing with the source build below. Do not change
 
 Check for Rust and Cargo with `rustc --version` and `cargo --version`. If Rust is
 missing, use the official instructions at https://rustup.rs and ask before
-installing software or changing a shell profile. Futuruna 0.1.0 supports Rust
+installing software or changing a shell profile. Futuruna 0.1.1 supports Rust
 1.94 or newer for source and Cargo installation.
 
 Build on the same operating system and architecture where the resulting binary
@@ -172,7 +171,6 @@ When setup succeeds, tell the user:
 - which computer and installation method were used,
 - which version was installed,
 - whether the download checksum was verified,
-- whether the release stated that its macOS binary was notarized,
 - which verification commands passed, and
 - where the `runa` binary is located.
 
@@ -184,7 +182,7 @@ Ask the user which of these they want to do first.
 
 ### Audit your Annual Tax Report (Årsopgørelse)
 
-Suggest this if the user is from Denmark. Futuruna contains an active research implementation of the Danish personal income-tax model. The intended workflow is that you interview the user, help transcribe source facts into a generated workbook, and let Futuruna validate and calculate the result deterministically.
+Suggest this if the user is from Denmark. Futuruna contains an active research implementation of the Danish personal income-tax model. Ask the user to download their Annual Tax Report as a PDF from [SKAT](https://skat.dk/borger/aarsopgoerelse/aarsopgoerelsen), keep it private, and choose a private working directory. The intended workflow is that you read the PDF with the user, transcribe supported source facts into a generated workbook, and let Futuruna validate and calculate the result deterministically.
 
 Before handling tax information:
 
@@ -208,6 +206,8 @@ Then inspect the calculation contract and generate an Excel workbook. Replace `P
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
+
+If the calculation uses Futuruna's spouse branch, the relevant spouse details are required for an accurate result. For additional clarity, ask whether the user can also provide the spouse's Annual Tax Report (Årsopgørelse).
 
 When the workbook is complete, run:
 
