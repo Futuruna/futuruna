@@ -4941,7 +4941,6 @@ pub struct ExploreAfterField {
 pub struct ExploreTransition {
     pub state_ty: Ty,
     pub context_ty: Ty,
-    pub mode: ExploreTransitionMode,
     pub after_fields: Vec<ExploreAfterField>,
     pub span: Span,
 }
@@ -5043,19 +5042,12 @@ pub const EXPLORE_SYNTHETIC_PRODUCT_SCHEMA_VERSION: u32 = 1;
 
 /// Version of source-to-transition normalization shared by every Explore
 /// spelling.
-pub const EXPLORE_TRANSITION_NORMALIZATION_VERSION: u32 = 1;
+pub const EXPLORE_TRANSITION_NORMALIZATION_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExploreTransitionSyntax {
     FlatSugar,
     Explicit,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreTransitionMode {
-    Identity,
-    Relative,
-    Independent,
 }
 
 /// Semantic role of one finite generator dimension in canonical CaseId order.
@@ -5167,7 +5159,6 @@ pub struct TypedExploreAfterMembership {
 #[derive(Debug, Clone)]
 pub struct TypedExploreTransition {
     pub normalization_version: u32,
-    pub mode: ExploreTransitionMode,
     pub state_schema: TypedExploreProductSchema,
     pub context_schema: TypedExploreProductSchema,
     pub after_fields: Vec<TypedExploreAfterField>,
@@ -5312,12 +5303,6 @@ fn normalize_flat_explore_transition(
     let step_bound_index = boundary_hint
         .as_ref()
         .and_then(|boundary| flat_boundary_step_bound_index(bounds, boundary));
-    let mode = if boundary_hint.is_some() {
-        ExploreTransitionMode::Relative
-    } else {
-        ExploreTransitionMode::Identity
-    };
-
     let state_fields = bounds
         .iter()
         .enumerate()
@@ -5473,7 +5458,6 @@ fn normalize_flat_explore_transition(
 
     TypedExploreTransition {
         normalization_version: EXPLORE_TRANSITION_NORMALIZATION_VERSION,
-        mode,
         state_schema: TypedExploreProductSchema {
             identity: TypedExploreProductSchemaIdentity::Synthetic {
                 version: EXPLORE_SYNTHETIC_PRODUCT_SCHEMA_VERSION,
@@ -8116,7 +8100,6 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
             .map(|transition| ExploreTransition {
                 state_ty: transition.state_ty.clone(),
                 context_ty: transition.context_ty.clone(),
-                mode: transition.mode,
                 after_fields: transition
                     .after_fields
                     .iter()
@@ -9456,24 +9439,6 @@ impl Parser {
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
 
-        let mode = if self.peek_word("identity") {
-            self.advance();
-            ExploreTransitionMode::Identity
-        } else if self.peek_word("relative") {
-            self.advance();
-            ExploreTransitionMode::Relative
-        } else if self.peek_word("independent") {
-            self.advance();
-            ExploreTransitionMode::Independent
-        } else {
-            let token = self.peek();
-            return Err(format!(
-                "{}:{}: exploration transition must begin with `identity`, `relative`, or `independent`",
-                token.line, token.col
-            ));
-        };
-        self.finish_explore_transition_clause()?;
-
         let mut after_fields = Vec::new();
         let mut names = BTreeSet::new();
         while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
@@ -9514,7 +9479,6 @@ impl Parser {
         Ok(ExploreTransition {
             state_ty,
             context_ty,
-            mode,
             after_fields,
             span: self.span_since(&start),
         })
@@ -23129,6 +23093,10 @@ pub(crate) enum CheckedExploreFinitePlanNode {
 #[derive(Debug, Clone)]
 pub(crate) struct CheckedExploreQueryArtifact {
     pub(crate) identity: CheckedExploreQueryId,
+    /// Producer-minted identity of the normalized exploration relation and
+    /// matches/violations selection. Query names, result views, mechanism
+    /// observations, and operational plans are deliberately outside it.
+    pub(crate) relation_id: explore::RelationId,
     /// Producer-minted identity of the normalized finite domain and CaseId
     /// convention, independently revalidated by the checked accessor.
     pub(crate) domain_digest: Box<str>,
@@ -23202,6 +23170,11 @@ impl CheckedExploreQueryView<'_> {
     /// Producer-minted identity of this query's normalized finite domain.
     pub(crate) fn domain_hash(&self) -> &str {
         &self.artifact.domain_digest
+    }
+
+    /// Producer-owned identity of the normalized relation and selection.
+    pub(crate) const fn relation_id(&self) -> explore::RelationId {
+        self.artifact.relation_id
     }
 
     /// Producer-owned semantic schema identity used by every exact evaluator.
@@ -23406,6 +23379,8 @@ impl TypeCheckArtifacts {
             &ground_constructors,
             &finite_plan_facts,
         );
+        let relation_id =
+            checked_explore_relation_id(&self.analysis_program, &artifact.question, closed_query);
         let digest = checked_explore_query_digest(
             &self.analysis_program,
             declaration,
@@ -23416,7 +23391,8 @@ impl TypeCheckArtifacts {
             &ground_constructors,
             &finite_plan_facts,
         );
-        if domain_digest.as_ref() != artifact.domain_digest.as_ref()
+        if relation_id != artifact.relation_id
+            || domain_digest.as_ref() != artifact.domain_digest.as_ref()
             || digest.as_ref() != artifact.identity.digest.as_ref()
         {
             return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
@@ -24231,15 +24207,6 @@ fn hash_checked_typed_transition(hasher: &mut Sha256, transition: &TypedExploreT
         "transition-normalization-version",
         &transition.normalization_version.to_string(),
     );
-    checked_query_hash_component(
-        hasher,
-        "transition-mode",
-        match transition.mode {
-            ExploreTransitionMode::Identity => "identity",
-            ExploreTransitionMode::Relative => "relative",
-            ExploreTransitionMode::Independent => "independent",
-        },
-    );
     hash_checked_product_schema(hasher, "state", &transition.state_schema);
     hash_checked_product_schema(hasher, "context", &transition.context_schema);
     checked_query_hash_component(
@@ -24370,8 +24337,7 @@ fn hash_checked_typed_bound_target(hasher: &mut Sha256, target: &TypedExploreBou
     }
 }
 
-fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
-    checked_query_hash_component(hasher, "name", &format!("{:?}", query.name));
+fn hash_checked_explore_question_selection(hasher: &mut Sha256, query: &TypedExploreQuery) {
     checked_query_hash_component(hasher, "rule", &query.rule_name);
     checked_query_hash_component(hasher, "rule-arity", &query.rule_arity.to_string());
     checked_query_hash_component(hasher, "polarity", &format!("{:?}", query.polarity));
@@ -24389,6 +24355,11 @@ fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
         checked_query_hash_component(hasher, "sliced-name", &input.name);
         checked_query_hash_component(hasher, "sliced-type", &format!("{:?}", input.ty));
     }
+}
+
+fn hash_checked_typed_query(hasher: &mut Sha256, query: &TypedExploreQuery) {
+    checked_query_hash_component(hasher, "name", &format!("{:?}", query.name));
+    hash_checked_explore_question_selection(hasher, query);
     checked_query_hash_component(hasher, "bound-count", &query.bounds.len().to_string());
     for bound in &query.bounds {
         match bound {
@@ -24710,15 +24681,6 @@ fn hash_checked_transition_ir(hasher: &mut Sha256, transition: &explore::Explore
         "closed-transition-normalization-version",
         &transition.normalization_version.to_string(),
     );
-    checked_query_hash_component(
-        hasher,
-        "closed-transition-mode",
-        match transition.mode {
-            ExploreTransitionMode::Identity => "identity",
-            ExploreTransitionMode::Relative => "relative",
-            ExploreTransitionMode::Independent => "independent",
-        },
-    );
     hash_checked_closed_product_schema(hasher, "closed-state", &transition.state_schema);
     hash_checked_closed_product_schema(hasher, "closed-context", &transition.context_schema);
     checked_query_hash_component(
@@ -25008,6 +24970,103 @@ fn hash_checked_explore_closed_provenance(
     }
 }
 
+/// Seal the normalized checked model without importing any Explore
+/// declaration body or occurrence coordinate. Non-Explore declarations remain
+/// ordered and occurrence-sensitive because rule dispatch, shadowing, and
+/// import provenance may depend on that order.
+fn hash_checked_explore_relation_model(hasher: &mut Sha256, program: &CheckedAnalysisProgram) {
+    let declarations = program
+        .declarations
+        .iter()
+        .filter(|declaration| !matches!(&*declaration.statement, Stmt::Explore(_)))
+        .collect::<Vec<_>>();
+    checked_query_hash_component(
+        hasher,
+        "model-declaration-count",
+        &declarations.len().to_string(),
+    );
+    let mut equal_occurrences = BTreeMap::<(Box<str>, Box<str>), usize>::new();
+    for (model_ordinal, declaration) in declarations.into_iter().enumerate() {
+        let origin = match &declaration.import_kind {
+            SourcedImportKind::Root => "root".to_string(),
+            SourcedImportKind::PlainImport => "plain-import".to_string(),
+            SourcedImportKind::HashImport { selected_hash } => {
+                format!("hash-import:{selected_hash}")
+            }
+            SourcedImportKind::QualifiedImport { module_name } => {
+                format!("qualified-import:{module_name}")
+            }
+        };
+        let canonical = TypeChecker::canonical_analysis_statement(&declaration.statement);
+        let occurrence = equal_occurrences
+            .entry((
+                origin.clone().into_boxed_str(),
+                canonical.clone().into_boxed_str(),
+            ))
+            .or_default();
+        let occurrence_index = *occurrence;
+        checked_query_hash_component(hasher, "model-ordinal", &model_ordinal.to_string());
+        checked_query_hash_component(
+            hasher,
+            "model-equal-occurrence",
+            &occurrence_index.to_string(),
+        );
+        *occurrence = occurrence_index
+            .checked_add(1)
+            .expect("checked model declaration occurrence count fits usize");
+        checked_query_hash_component(hasher, "model-origin", &origin);
+        if let Some(target) = &declaration.qualified_target_module {
+            checked_query_hash_component(
+                hasher,
+                "model-qualified-target-content",
+                &target.content_hash,
+            );
+            checked_query_hash_component(
+                hasher,
+                "model-qualified-target-path",
+                &target.internal_path.join("/"),
+            );
+        }
+        checked_query_hash_component(hasher, "model-declaration", &canonical);
+    }
+}
+
+/// Versioned semantic identity of the finite relation and its selected
+/// matches/violations population.
+///
+/// The checked model plus closed transition/universe jointly resolve State and
+/// Context schemas, source rows, successor construction and membership, and
+/// scoped admission. The question key and typed input mapping bind the
+/// predicate and polarity. Query display name, declaration/site coordinates,
+/// output/view fields, mechanism observation, probes, scheduling, reports and
+/// execution limits are intentionally absent.
+fn checked_explore_relation_id(
+    program: &CheckedAnalysisProgram,
+    question: &RuleDispatchKey,
+    closed_query: &explore::ExploreQueryIr,
+) -> explore::RelationId {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-relation.v1\0");
+    hash_checked_explore_relation_model(&mut hasher, program);
+    checked_query_hash_component(
+        &mut hasher,
+        "question-scope",
+        question.scope.as_deref().unwrap_or(""),
+    );
+    checked_query_hash_component(&mut hasher, "question-name", &question.name);
+    checked_query_hash_component(&mut hasher, "question-arity", &question.arity.to_string());
+    hash_checked_explore_question_selection(&mut hasher, &closed_query.query);
+    hash_checked_transition_ir(&mut hasher, &closed_query.transition);
+    hash_checked_universe(&mut hasher, &closed_query.universe);
+    let semantic_digest: [u8; 32] = hasher.finalize().into();
+
+    // TODO(explore-relations): TransitionSchemaIdentities still bind declared
+    // owners through DeclarationId.module.content_hash. RelationId is stable
+    // across view-only edits, but TransitionId needs its own schema-version
+    // migration before that same cross-view stability can be claimed.
+    explore::RelationId::from_canonical_semantic_digest(semantic_digest)
+}
+
 /// Producer-owned identity of the normalized finite universe independently of
 /// the queried rule, polarity and result projection. The explicit CaseId tags
 /// prevent a future rank-order change from silently reinterpreting durable
@@ -25133,6 +25192,7 @@ fn build_checked_explore_query_artifacts(
             &ground_constructors,
             &finite_plan_facts,
         );
+        let relation_id = checked_explore_relation_id(program, &question, closed_query);
         let digest = checked_explore_query_digest(
             program,
             declaration,
@@ -25149,6 +25209,7 @@ fn build_checked_explore_query_artifacts(
                 declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
                 digest,
             },
+            relation_id,
             domain_digest,
             transition_schemas,
             mechanism_observation,
@@ -36174,8 +36235,6 @@ impl TypeChecker {
                     );
                 }
             }
-            let mut derived_count = 0_usize;
-            let mut independent_count = 0_usize;
             let mut independent_bound_indices = BTreeMap::<String, usize>::new();
             for field in &transition.after_fields {
                 let ExploreAfterFieldSource::IndependentDomain { domain } = &field.source else {
@@ -36188,13 +36247,6 @@ impl TypeChecker {
                     continue;
                 };
                 let field_ty = &state_fields[field_index].1;
-                if transition.mode != ExploreTransitionMode::Independent {
-                    self.error_at_span(
-                        field.span,
-                        "`after.FIELD in DOMAIN` requires an `independent` exploration transition",
-                    );
-                }
-                independent_count += 1;
                 self.check_explore_available_references(
                     domain,
                     &reserved_names,
@@ -36229,16 +36281,8 @@ impl TypeChecker {
                     },
                     Some(ExploreAfterField {
                         source: ExploreAfterFieldSource::Derived { expression },
-                        span,
                         ..
                     }) => {
-                        if transition.mode == ExploreTransitionMode::Identity {
-                            self.error_at_span(
-                                *span,
-                                "an `identity` exploration transition cannot assign after fields",
-                            );
-                        }
-                        derived_count += 1;
                         self.check_explore_available_references(
                             expression,
                             &reserved_names,
@@ -36301,21 +36345,6 @@ impl TypeChecker {
                         .map_or(transition.span, |field| field.span),
                 });
             }
-            match transition.mode {
-                ExploreTransitionMode::Identity if !transition.after_fields.is_empty() => {}
-                ExploreTransitionMode::Identity => {}
-                ExploreTransitionMode::Relative if derived_count == 0 => self.error_at_span(
-                    transition.span,
-                    "a `relative` exploration transition must derive at least one after field",
-                ),
-                ExploreTransitionMode::Relative => {}
-                ExploreTransitionMode::Independent if independent_count == 0 => self.error_at_span(
-                    transition.span,
-                    "an `independent` exploration transition must give at least one after field a finite domain",
-                ),
-                ExploreTransitionMode::Independent => {}
-            }
-
             let typed_state_fields = state_fields
                 .iter()
                 .enumerate()
@@ -36522,12 +36551,6 @@ impl TypeChecker {
         });
 
         if let (Some(transition), Some(boundary)) = (&query.transition, &query.boundary) {
-            if transition.mode != ExploreTransitionMode::Relative {
-                self.error_at_span(
-                    boundary.span,
-                    "`boundaries` defines an endpoint-membership contract only for a `relative` explicit transition",
-                );
-            }
             let boundary_field_index =
                 explicit_product_fields
                     .as_ref()
@@ -36855,7 +36878,7 @@ impl TypeChecker {
         self.pop_scope();
 
         if selectable && self.diagnostics.len() == diagnostic_start {
-            let transition = if let Some(source_transition) = &query.transition {
+            let transition = if query.transition.is_some() {
                 let (state_schema, context_schema, after_fields) = explicit_transition_parts
                     .expect("diagnostic-free explicit transition has complete product bindings");
                 let after_membership = typed_boundary
@@ -36886,7 +36909,6 @@ impl TypeChecker {
                     .collect();
                 TypedExploreTransition {
                     normalization_version: EXPLORE_TRANSITION_NORMALIZATION_VERSION,
-                    mode: source_transition.mode,
                     state_schema,
                     context_schema,
                     after_fields,
@@ -39884,7 +39906,6 @@ mod tests {
         where transition after.income >= before.income
     }
     transition as IncomeState context IncomeChange {
-        independent
         after.income = before.income + context.step
         after.municipality in municipalities
     }
@@ -39940,7 +39961,7 @@ mod tests {
         let transition = query.transition.as_ref().expect("explicit transition AST");
         assert_eq!(transition.state_ty.to_string(), "IncomeState");
         assert_eq!(transition.context_ty.to_string(), "IncomeChange");
-        assert_eq!(transition.mode, ExploreTransitionMode::Independent);
+        assert_eq!(transition.after_fields.len(), 2);
         assert!(matches!(
             &transition.after_fields[0].source,
             ExploreAfterFieldSource::Derived { .. }
@@ -39966,7 +39987,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40152,6 +40172,18 @@ mod tests {
                 "expected `output` in exploration, found `boundaries`",
             ),
             (
+                "? explore bad { over p(before, after, context) find matches bounds { before.x in [1] } transition as State context () { relative after.x = before.x } output { key [before.x] representative first } }",
+                "expected `after` in exploration, found `relative`",
+            ),
+            (
+                "? explore bad { over p(before, after, context) find matches bounds { before.x in [1] } transition as State context () { identity } output { key [before.x] representative first } }",
+                "expected `after` in exploration, found `identity`",
+            ),
+            (
+                "? explore bad { over p(before, after, context) find matches bounds { before.x in [1] } transition as State context () { independent after.x in [1] } output { key [before.x] representative first } }",
+                "expected `after` in exploration, found `independent`",
+            ),
+            (
                 "? explore bad { over p(x) find matches bounds { x in [1] } output { show [x] key [x] representative first } }",
                 "expected `key` in exploration output, found `show`",
             ),
@@ -40261,7 +40293,6 @@ mod tests {
             )),
             Some(("income", "Int".to_string(), "Int".to_string()))
         );
-        assert_eq!(query.transition.mode, ExploreTransitionMode::Relative);
         assert_eq!(
             query
                 .transition
@@ -40315,7 +40346,7 @@ mod tests {
     #[test]
     fn explore_typechecker_builds_nominal_explicit_transition_ir() {
         let source = r#"
-# IncomeState = IncomeState(income: Int, municipality: Int)
+# IncomeState = IncomeState(income: Int, municipality: Int, filing_status: Int)
 # IncomeChange = IncomeChange(step: Int)
 
 | changed(before: IncomeState, after: IncomeState, context: IncomeChange) ->
@@ -40328,12 +40359,12 @@ mod tests {
         context.step = 1
         before.income in range(0, 10)
         before.municipality = 1
+        before.filing_status = 7
         where before before.income >= 0
         where after after.income >= 0
         where transition after.municipality != before.municipality
     }
     transition as IncomeState context IncomeChange {
-        independent
         after.income = before.income + context.step
         after.municipality in [1, 2]
     }
@@ -40353,7 +40384,6 @@ mod tests {
         );
         let query = &artifacts.exploration_queries[0];
         assert_eq!(query.source_syntax, ExploreTransitionSyntax::Explicit);
-        assert_eq!(query.transition.mode, ExploreTransitionMode::Independent);
         assert!(matches!(
             &query.transition.state_schema.identity,
             TypedExploreProductSchemaIdentity::Declared { .. }
@@ -40362,7 +40392,7 @@ mod tests {
             &query.transition.context_schema.identity,
             TypedExploreProductSchemaIdentity::Declared { .. }
         ));
-        assert_eq!(query.bounds.len(), 7);
+        assert_eq!(query.bounds.len(), 8);
         assert!(matches!(
             &query.bounds[0],
             TypedExploreBound::Value {
@@ -40378,7 +40408,7 @@ mod tests {
             }
         ));
         assert!(matches!(
-            &query.bounds[6],
+            &query.bounds[7],
             TypedExploreBound::Domain {
                 target: TypedExploreBoundTarget::AfterIndependent { field_index: 1 },
                 ..
@@ -40390,24 +40420,30 @@ mod tests {
         ));
         assert!(matches!(
             &query.transition.after_fields[1].source,
-            TypedExploreAfterFieldSource::IndependentDomain { bound_index: 6 }
+            TypedExploreAfterFieldSource::IndependentDomain { bound_index: 7 }
         ));
         assert!(matches!(
-            &query.bounds[3],
+            &query.transition.after_fields[2].source,
+            TypedExploreAfterFieldSource::FrameBefore {
+                before_field_index: 2
+            }
+        ));
+        assert!(matches!(
+            &query.bounds[4],
             TypedExploreBound::Where {
                 scope: ExploreConstraintScope::Before,
                 ..
             }
         ));
         assert!(matches!(
-            &query.bounds[4],
+            &query.bounds[5],
             TypedExploreBound::Where {
                 scope: ExploreConstraintScope::After,
                 ..
             }
         ));
         assert!(matches!(
-            &query.bounds[5],
+            &query.bounds[6],
             TypedExploreBound::Where {
                 scope: ExploreConstraintScope::Transition,
                 ..
@@ -40436,7 +40472,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40510,7 +40545,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40554,7 +40588,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40600,7 +40633,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40645,7 +40677,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40689,7 +40720,6 @@ mod tests {
         before.income in range(0, 3)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     observe mechanisms with observe_income
@@ -40721,7 +40751,6 @@ mod tests {
         before.later in range(0, 4)
     }
     transition as OrderedState context () {
-        relative
         after.earlier = after.later + 1
         after.later = before.later + 1
     }
@@ -40785,7 +40814,6 @@ mod tests {
         before.second = 0
     }
     transition as CyclicState context () {
-        relative
         after.first = after.second
         after.second = after.first
     }
@@ -40825,7 +40853,6 @@ mod tests {
         before.second = 1
     }
     transition as ShadowState context () {
-        relative
         after.first = foldl([before], 0, |sum: Int, after: ShadowState| sum + shadow_second(after))
         after.second = after.first + 1
     }
@@ -40990,19 +41017,121 @@ mod tests {
             Err(CheckedExploreQueryAccessError::ArtifactDiverged)
         ));
         artifacts.exploration_universes[0].universe.dimensions[0].role = original_role;
-        let original_mode = artifacts.exploration_universes[0].transition.mode;
-        artifacts.exploration_universes[0].transition.mode = ExploreTransitionMode::Identity;
+        let original_normalization_version = artifacts.exploration_universes[0]
+            .transition
+            .normalization_version;
+        artifacts.exploration_universes[0]
+            .transition
+            .normalization_version += 1;
         assert!(matches!(
             artifacts.checked_exploration_query(0),
             Err(CheckedExploreQueryAccessError::ArtifactDiverged)
         ));
-        artifacts.exploration_universes[0].transition.mode = original_mode;
+        artifacts.exploration_universes[0]
+            .transition
+            .normalization_version = original_normalization_version;
         artifacts.exploration_universes[0].query.polarity = ExplorePolarity::Violations;
         assert!(matches!(
             artifacts.checked_exploration_query(0),
             Err(CheckedExploreQueryAccessError::ArtifactDiverged)
         ));
         assert_eq!(digest.len(), 64);
+    }
+
+    fn checked_relation_id_for_source(source: &str) -> explore::RelationId {
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        artifacts
+            .checked_exploration_query(0)
+            .expect("producer-minted checked relation")
+            .relation_id()
+    }
+
+    fn checked_relation_identity_source() -> &'static str {
+        r#"
+# IncomeState = IncomeState(income: Int)
+# IncomeChange = IncomeChange(step: Int)
+
+| improves(before: IncomeState, after: IncomeState, context: IncomeChange) ->
+    after.income >= before.income
+
+> observe_income(state: IncomeState, context: IncomeChange) -> Int {
+    state.income + context.step
+}
+> observe_income_alt(state: IncomeState, context: IncomeChange) -> Int {
+    state.income - context.step
+}
+
+? explore scan {
+    over improves(before, after, context)
+    find matches
+    bounds {
+        context.step = 1
+        before.income in range(0, 4)
+        where before before.income >= 0
+    }
+    transition as IncomeState context IncomeChange {
+        after.income = before.income + context.step
+    }
+    observe mechanisms with observe_income
+    output {
+        key [before.income]
+        show [after.income]
+        representative first
+    }
+}
+"#
+    }
+
+    #[test]
+    fn checked_relation_id_excludes_name_output_and_mechanism_observer() {
+        let source = checked_relation_identity_source();
+        let relation_id = checked_relation_id_for_source(source);
+
+        for changed in [
+            source.replace("? explore scan {", "? explore renamed {"),
+            source.replace("key [before.income]", "key [after.income]"),
+            source.replace(
+                "observe mechanisms with observe_income\n",
+                "observe mechanisms with observe_income_alt\n",
+            ),
+        ] {
+            assert_eq!(checked_relation_id_for_source(&changed), relation_id);
+        }
+    }
+
+    #[test]
+    fn checked_relation_id_binds_source_successor_admission_and_selection() {
+        let source = checked_relation_identity_source();
+        let relation_id = checked_relation_id_for_source(source);
+        let changes = [
+            source.replace("range(0, 4)", "range(0, 5)"),
+            source.replace(
+                "after.income = before.income + context.step",
+                "after.income = before.income + context.step + 1",
+            ),
+            source.replace(
+                "where before before.income >= 0",
+                "where before before.income > 0",
+            ),
+            source.replace("find matches", "find violations"),
+        ];
+        for changed in &changes {
+            assert_ne!(checked_relation_id_for_source(changed), relation_id);
+        }
+
+        let mut artifacts = explore_artifacts_for_source(source);
+        assert!(artifacts.diagnostics.is_empty());
+        artifacts.checked_exploration_queries[0].relation_id =
+            checked_relation_id_for_source(&changes[0]);
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
     }
 
     #[test]

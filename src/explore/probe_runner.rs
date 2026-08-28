@@ -1619,7 +1619,6 @@ mod tests {
         before.rate in range(10, 14)
     }
     transition as RateState context RateContext {
-        relative
         after.rate = before.rate + 1
     }
     boundaries on before.rate by 1

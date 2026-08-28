@@ -14,8 +14,8 @@ candidate facts -> canonical rules -> typed results -> filter -> rank -> prove
 The proposed first-class north star developed in section 9 is:
 
 ```text
-finite profile relation -> finite successor relation -> classify ->
-case and transition evidence -> future mechanism provenance -> relational views
+finite profile and successor relations + authenticated frontier ->
+content-stable cases -> classify -> named views + explicit-target provenance
 ```
 
 This workbook uses Futuruna's existing lists, `range`, `map`, `flat_map`,
@@ -522,9 +522,18 @@ One possible relational spelling is:
 ? explore personskat_income_cliffs_2026 {
     from {
         context = SalaryChange(amount_kroner = 1)
-        before in declared_personskat_before_states_2026(
+        source in declared_personskat_source_rows_2026(
+            profiles = coherent_personskat_profile_rows_2026(
+                municipalities = supported_municipalities_2026(),
+                church_tax_statuses = supported_church_tax_statuses_2026(),
+                households = supported_household_profiles_2026(),
+                commutes = supported_commute_profiles_2026(),
+                income_compositions = supported_income_compositions_2026(),
+                pensions = supported_pension_profiles_2026()
+            ),
             gross_salary_kroner = range(0, 1_500_000)
         )
+        before = personskat_state_from_source(source)
     }
 
     to after = before with {
@@ -560,21 +569,27 @@ One possible relational spelling is:
 }
 ```
 
-`declared_personskat_before_states_2026(...)` is not selected because its rows
-are already expected to be interesting. It is a finite, inspectable and
-canonically ordered typed relation spanning the profile and gross-salary fields
-the model and claim support. A materialized list of typed rows is a sound first
-implementation when it exposes stable schema, row identity, cardinality,
-canonical order and lineage. The target relational IR should additionally
-retain component descriptors so the decision structure and relevance analysis
-can share or eliminate profile columns without treating the whole profile as
-one opaque axis.
+`coherent_personskat_profile_rows_2026(...)` is a dependent relation, not an
+instruction to cross those catalogs blindly. It joins and derives them into
+whole typed profile rows; each `source` row then pairs one coherent profile with
+one lower salary endpoint. Neither relation is prefiltered because its rows are
+already expected to be interesting. A materialized list is a sound first
+implementation when it exposes stable schema, cardinality, canonical order and
+lineage. The target relational IR should retain component descriptors so the
+decision structure and relevance analysis can share or eliminate profile
+columns without treating the whole profile as one opaque axis.
 
-`RelationId` seals the resolved schemas, program/model identity, normalized
-source and successor definitions, lineage and—when rows are materialized—the
-canonical content hash. A target `CaseId` derives from that identity plus
-canonical source and successor keys, not arrival order. This lets enumeration
-pause before cardinality is known without changing the IDs already emitted.
+Fixed facts are optional, visible conditioning on that relation. For example,
+a Copenhagen calibration could add:
+
+```runa
+where before before.profile.municipality == Municipality.Copenhagen
+where before before.profile.church_tax_status == ChurchTaxStatus.NotMember
+```
+
+Those conditions narrow the declared question and its identity. Without them,
+the exploration ranges over the whole declared coherent profile relation;
+there are no hidden “fixed profile facts.”
 
 The end-exclusive source range supplies lower salary endpoints through
 1,499,999 DKK; the successor reaches 1,500,000 DKK. `to after` constructs that
@@ -583,9 +598,26 @@ from valid nonmatches. `find` states the question. `results cliffs` defines a
 named view of the evidence, and the mechanism root names the endpoint
 computation whose Before/After executions are compared.
 
-The spelling is still open to refinement. The durable algebra is not: finite
-source relation, finite successor relation, explicit admission, explicit
-selection, relational result view, and replay-derived provenance.
+The smallest final-architecture sequence is:
+
+1. Seal the source and successor schemas, program/model identity, normalized
+   producer definitions and lineage contract in `RelationId`. If a complete
+   materialized relation is supplied at open, its canonical content hash is
+   also sealed; an incrementally enumerated relation instead authenticates its
+   discovered content and open producer frontier in the evidence journal.
+2. Enumerate source rows and each row's dependent successors in canonical set
+   semantics. Derive content-stable `SourceKey`, `SuccessorKey` and `CaseId`
+   values from canonical content, never discovery order or a temporary
+   ordinal. The stream can pause and publish lower bounds before enumeration
+   closes without renaming committed cases.
+3. Classify each discovered case against admission and `find` independently of presentation.
+   A complete exploration with zero result views is valid.
+4. Materialize zero or more named `ViewId` projections over that classified
+   relation without changing its cases or classification evidence.
+5. Replay an explicit mechanism request against either `selected` cases or the
+   `chosen` cases of a named view; the latter target seals that `ViewId`.
+
+The spelling remains open to refinement; this ordering does not.
 
 ### Explore coherent profiles, not a bag of switches
 
@@ -629,9 +661,12 @@ or mechanisms.
 Suppose, hypothetically, Carl's `199,999 -> 200,000` transition and John's
 `9,999 -> 10,000` transition both increase gross income but reduce the modeled
 after-tax resource metric through the same replay-derived rule change. They
-remain different cases and normally different semantic transitions, yet both
-can point to one shared mechanism signature. The names and amounts are
-illustrative configurations, not observed people or Personskat findings:
+remain different cases and normally different semantic transitions. Profile
+equality or difference belongs to case support—for example the incidence from
+each `CaseId` to its declared `ProfileKeyId`—not to mechanism identity. Their
+shared replay signature is what unifies the mechanism while preserving both
+supports. The names and amounts are illustrative configurations, not observed
+people or Personskat findings:
 
 ```text
 CaseId(Carl, 199999) -> TransitionId(T1) --\
@@ -721,17 +756,24 @@ SQL's bag semantics, null rules or nondeterministic limits:
 | `select` | public projection and privacy allow-list |
 | `choose` | explicit one-row, all-ties or frontier cardinality policy |
 
+The closest SQL analogy for `to after in successors(before, context)` is a
+`LATERAL` join or `CROSS APPLY`: the finite successor relation is evaluated for
+each source row and may return a different number of rows. That is the crucial
+generalization beyond a Cartesian list of profile switches. `results` blocks
+are named `SELECT`-like views; mechanism replay is the extra provenance layer
+ordinary SQL does not provide.
+
 The current `output.key` hides a semantic `GROUP BY` inside a presentation
 block. The next surface should make grouping, measurement and representative
 choice explicit. `find all` is equally important: “which municipality minimizes
 tax?” is an optimization over admissible alternatives, not an artificial
 always-true Boolean witness search.
 
-The exact case relation remains primary. One exploration may define zero or
-more named result views over it; no mandatory grouping key should force a
-choice between hiding profile multiplicity and emitting an unreadable row for
-every profile field. `each case` preserves `CaseId` as logical row identity, so
-two cases remain distinct even when every selected display value is equal.
+The exact case relation remains primary. Named views are projections over it;
+no mandatory grouping key should force a choice between hiding profile
+multiplicity and emitting an unreadable row for every profile field. `each
+case` preserves `CaseId` as logical row identity, so two cases remain distinct
+even when every selected display value is equal.
 
 Five layers should remain separate:
 

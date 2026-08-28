@@ -3519,7 +3519,7 @@ fn read_nested_values(
 
 #[cfg(test)]
 mod tests {
-    use crate::{CheckedDataTypeId, ExploreTransitionMode, Span};
+    use crate::{CheckedDataTypeId, Span};
 
     use super::super::{
         ExploreAfterFieldIr, ExploreAfterFieldSourceIr, ExploreProductFieldIr,
@@ -3550,7 +3550,6 @@ mod tests {
     fn transition_schemas() -> TransitionSchemaIdentities {
         let transition = ExploreTransitionIr {
             normalization_version: 1,
-            mode: ExploreTransitionMode::Relative,
             state_schema: ExploreProductSchemaIr {
                 identity: TypedExploreProductSchemaIdentity::Synthetic { version: 1 },
                 fields: vec![ExploreProductFieldIr {

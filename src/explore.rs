@@ -28,6 +28,12 @@ mod probe;
 mod probe_codec;
 mod probe_io;
 mod probe_runner;
+mod relation;
+pub(crate) use relation::{
+    CatalogSource, CatalogSuccessor, RelationCatalog, RelationCatalogBuilder, RelationCatalogError,
+    RelationId, RelationLineageId, RelationProvenance, RelationSupportId, RelationalCaseId,
+    RelationalCaseRef, SourceKey, SourceRow, SuccessorKey, SuccessorRow,
+};
 mod report;
 mod resource_governor;
 mod resource_sampler;
@@ -654,12 +660,11 @@ pub struct ExploreFlatAliasIr {
 }
 
 /// Closed, non-optional before/context/after transition contract consumed by
-/// exact execution. Mode, field sources, endpoint membership, and scoped
-/// validity define semantics; `boundary_hint` can only accelerate them.
+/// exact execution. Field sources, endpoint membership, and scoped validity
+/// define semantics; `boundary_hint` can only accelerate them.
 #[derive(Debug, Clone)]
 pub struct ExploreTransitionIr {
     pub normalization_version: u32,
-    pub mode: ExploreTransitionMode,
     pub state_schema: ExploreProductSchemaIr,
     pub context_schema: ExploreProductSchemaIr,
     pub after_fields: Vec<ExploreAfterFieldIr>,
@@ -7529,7 +7534,6 @@ fn elaborate_query(
 
     let transition = ExploreTransitionIr {
         normalization_version: query.transition.normalization_version,
-        mode: query.transition.mode,
         state_schema,
         context_schema,
         after_fields,
@@ -7717,7 +7721,6 @@ mod tests {
         before.later in range(0, 2)
     }
     transition as OrderedState context () {
-        relative
         after.earlier = after.later + later(before.earlier)
         after.later = later(before.later)
     }
@@ -7807,7 +7810,6 @@ mod tests {
         where transition after.municipality != before.municipality
     }
     transition as IncomeState context IncomeContext {
-        independent
         after.income = before.income + context.step
         after.municipality in [1, 2]
     }
@@ -7880,7 +7882,6 @@ mod tests {
         before.income in [9223372036854775807]
     }
     transition as BoundaryState context BoundaryContext {
-        relative
         after.income = before.income + context.step
     }
     boundaries on before.income by context.step
@@ -8620,10 +8621,6 @@ mod tests {
         assert_eq!(boundary.axis_dimension_index, 1);
         assert!(boundary.requires_both_endpoints_in_domain);
         assert_eq!(boundary.recomputed_fact_indices, vec![1, 2]);
-        assert_eq!(
-            closed_query.transition.mode,
-            ExploreTransitionMode::Relative
-        );
         assert!(universe
             .dimensions
             .iter()
@@ -8661,10 +8658,6 @@ mod tests {
             .dimensions
             .iter()
             .all(|dimension| dimension.domain.cardinality() == ExploreCardinality::Exact(0)));
-        assert_eq!(
-            closed_query.transition.mode,
-            ExploreTransitionMode::Identity
-        );
         assert!(closed_query.transition.context_schema.fields.is_empty());
         assert!(closed_query
             .transition

@@ -24,6 +24,7 @@ const CONTEXT_SCHEMA_ENCODING_V1: &[u8] = b"futuruna.explore.context-schema.v1";
 const TRANSITION_TYPE_ENCODING_V1: &[u8] = b"futuruna.explore.transition-type-id.v1";
 const STATE_ID_HASH_V1: &[u8] = b"futuruna.explore.state-id.v1";
 const TRANSITION_ID_HASH_V1: &[u8] = b"futuruna.explore.transition-id.v1";
+const EXPLORE_VALUE_ID_HASH_V1: &[u8] = b"futuruna.explore.value-id.v1";
 
 const STATE_SCHEMA_ROLE: u8 = 0x01;
 const STATE_VALUE_ROLE: u8 = 0x02;
@@ -1541,6 +1542,17 @@ fn hash_explore_value(hasher: &mut CanonicalHasher, value: &ExploreValue) {
     }
 }
 
+/// Content identity for one canonical Explore value.
+///
+/// Relational source and successor identities use this narrow entry point so
+/// they share the transition graph's versioned value traversal without
+/// exposing its hasher or duplicating the wire contract.
+pub(super) fn canonical_explore_value_digest(value: &ExploreValue) -> [u8; 32] {
+    let mut hasher = CanonicalHasher::new(EXPLORE_VALUE_ID_HASH_V1);
+    hash_explore_value(&mut hasher, value);
+    hasher.finish()
+}
+
 /// Canonical schema preimage retained behind every derived schema identity.
 /// Keeping the bytes, rather than only their digest, lets the support index
 /// reject a schema-hash collision when it checks state and edge preimages.
@@ -1617,7 +1629,7 @@ impl CanonicalHasher {
 
 #[cfg(test)]
 mod tests {
-    use crate::{ExploreTransitionMode, Span};
+    use crate::Span;
 
     use super::super::{
         ExploreAfterFieldIr, ExploreAfterFieldSourceIr, ExploreProductFieldIr,
@@ -1688,13 +1700,11 @@ mod tests {
     }
 
     fn minimal_transition_ir(
-        mode: ExploreTransitionMode,
         after_source: ExploreAfterFieldSourceIr,
         context_schema_version: u32,
     ) -> ExploreTransitionIr {
         ExploreTransitionIr {
             normalization_version: 1,
-            mode,
             state_schema: ExploreProductSchemaIr {
                 identity: TypedExploreProductSchemaIdentity::Synthetic { version: 1 },
                 fields: vec![ExploreProductFieldIr {
@@ -1733,23 +1743,14 @@ mod tests {
     }
 
     #[test]
-    fn relation_identity_excludes_mode_and_after_construction_topology() {
+    fn transition_schema_identity_excludes_after_construction_topology() {
         let baseline = minimal_transition_ir(
-            ExploreTransitionMode::Relative,
-            ExploreAfterFieldSourceIr::FrameBefore {
-                before_field_index: 0,
-            },
-            1,
-        );
-        let different_mode = minimal_transition_ir(
-            ExploreTransitionMode::Independent,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
             1,
         );
         let different_topology = minimal_transition_ir(
-            ExploreTransitionMode::Relative,
             ExploreAfterFieldSourceIr::IndependentDomain { dimension_index: 1 },
             1,
         );
@@ -1757,28 +1758,31 @@ mod tests {
         let owners = intrinsic_type_owners();
         let baseline =
             TransitionSchemaIdentities::derive_checked(&baseline, None, None, &owners).unwrap();
-        let different_mode =
-            TransitionSchemaIdentities::derive_checked(&different_mode, None, None, &owners)
-                .unwrap();
         let different_topology =
             TransitionSchemaIdentities::derive_checked(&different_topology, None, None, &owners)
                 .unwrap();
 
-        for schemas in [&different_mode, &different_topology] {
-            assert_eq!(baseline.state_schema_id(), schemas.state_schema_id());
-            assert_eq!(baseline.context_schema_id(), schemas.context_schema_id());
-            assert_eq!(baseline.transition_type_id(), schemas.transition_type_id());
-            assert_eq!(
-                minimal_semantic_edge(&baseline).id(),
-                minimal_semantic_edge(schemas).id()
-            );
-        }
+        assert_eq!(
+            baseline.state_schema_id(),
+            different_topology.state_schema_id()
+        );
+        assert_eq!(
+            baseline.context_schema_id(),
+            different_topology.context_schema_id()
+        );
+        assert_eq!(
+            baseline.transition_type_id(),
+            different_topology.transition_type_id()
+        );
+        assert_eq!(
+            minimal_semantic_edge(&baseline).id(),
+            minimal_semantic_edge(&different_topology).id()
+        );
     }
 
     #[test]
     fn relation_schema_identity_encodes_context_before_state() {
         let transition = minimal_transition_ir(
-            ExploreTransitionMode::Relative,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
@@ -1814,14 +1818,12 @@ mod tests {
     #[test]
     fn context_schema_identity_changes_relation_and_transition_identity() {
         let context_v1 = minimal_transition_ir(
-            ExploreTransitionMode::Relative,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
             1,
         );
         let context_v2 = minimal_transition_ir(
-            ExploreTransitionMode::Relative,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
@@ -1853,7 +1855,6 @@ mod tests {
     #[test]
     fn declared_product_schema_identity_includes_checked_owner() {
         let mut transition = minimal_transition_ir(
-            ExploreTransitionMode::Identity,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
@@ -1903,7 +1904,6 @@ mod tests {
     #[test]
     fn declared_product_schema_identity_includes_nested_checked_owners() {
         let mut transition = minimal_transition_ir(
-            ExploreTransitionMode::Identity,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
@@ -1955,7 +1955,6 @@ mod tests {
     #[test]
     fn optional_sugar_and_option_application_share_schema_identity() {
         let mut sugar = minimal_transition_ir(
-            ExploreTransitionMode::Identity,
             ExploreAfterFieldSourceIr::FrameBefore {
                 before_field_index: 0,
             },
@@ -2234,7 +2233,6 @@ mod tests {
     fn canonical_transition_rehydration_rederives_every_claimed_id() {
         let schemas = TransitionSchemaIdentities::derive_checked(
             &minimal_transition_ir(
-                ExploreTransitionMode::Relative,
                 ExploreAfterFieldSourceIr::FrameBefore {
                     before_field_index: 0,
                 },

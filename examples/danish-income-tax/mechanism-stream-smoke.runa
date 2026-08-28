@@ -32,7 +32,6 @@
         before.income in range(198, 202)
     }
     transition as IncomeState context IncomeContext {
-        relative
         after.income = before.income + context.step
     }
     boundaries on before.income by context.step

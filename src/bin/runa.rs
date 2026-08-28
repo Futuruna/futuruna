@@ -46844,8 +46844,8 @@ mod tests {
 
     #[test]
     fn formatter_preserves_query_owned_mechanism_observation_idempotently() {
-        let source = "? explore observed {\nover changed(before,after,context)\nfind matches\nbounds {\ncontext.step = 1\nbefore.income in range(0,3)\n}\ntransition as IncomeState context IncomeContext {\nrelative\nafter.income = before.income + context.step\n}\nobserve mechanisms with observe_income\noutput {\nkey [income = before.income]\nrepresentative first\n}\n}\n";
-        let expected = "? explore observed {\n    over changed(before,after,context)\n    find matches\n    bounds {\n        context.step = 1\n        before.income in range(0,3)\n    }\n    transition as IncomeState context IncomeContext {\n        relative\n        after.income = before.income + context.step\n    }\n    observe mechanisms with observe_income\n    output {\n        key [income = before.income]\n        representative first\n    }\n}\n";
+        let source = "? explore observed {\nover changed(before,after,context)\nfind matches\nbounds {\ncontext.step = 1\nbefore.income in range(0,3)\n}\ntransition as IncomeState context IncomeContext {\nafter.income = before.income + context.step\n}\nobserve mechanisms with observe_income\noutput {\nkey [income = before.income]\nrepresentative first\n}\n}\n";
+        let expected = "? explore observed {\n    over changed(before,after,context)\n    find matches\n    bounds {\n        context.step = 1\n        before.income in range(0,3)\n    }\n    transition as IncomeState context IncomeContext {\n        after.income = before.income + context.step\n    }\n    observe mechanisms with observe_income\n    output {\n        key [income = before.income]\n        representative first\n    }\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
