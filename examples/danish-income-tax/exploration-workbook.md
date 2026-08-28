@@ -373,36 +373,57 @@ Run the complete executable audit from the repository root:
 
 ## 8. Extend to multi-dimensional and relational questions
 
-The following is an adaptation skeleton: define the domain values, result type,
-and model-specific functions for the question first. Use nested `flat_map` to
-explore combinations. Each outer value returns a list;
-`flat_map` joins those lists into one search space, while the innermost `map`
-creates the cases:
+The following adaptation skeleton starts with a dependent relation. Define the
+domain values, result type and model-specific functions for the question first.
+Each outer value returns a finite list; `flat_map` joins those fibers into one
+search space, while the innermost `map` creates canonical case values:
 
 ```runa
 = search_cases = flat_map(years, |year: Heltal| {
-    flat_map(municipalities, |municipality: Municipality| {
-        map(incomes, |income: Heltal| {
+    flat_map(supported_profiles(year), |profile: PersonskatProfile| {
+        map(supported_income_states(year, profile), |income_state: IncomeState| {
             SearchCase(
                 year = year,
-                municipality = municipality,
-                income = income
+                profile = profile,
+                income_state = income_state
             )
         })
     })
 })
 
-| search_space_has_expected_size: search_cases ->
-    length(search_cases) ==
-        length(years) * length(municipalities) * length(incomes)
+= expected_search_case_count = foldl(years, 0, |year_count: Heltal, year: Heltal|
+    year_count + foldl(
+        supported_profiles(year),
+        0,
+        |profile_count: Heltal, profile: PersonskatProfile|
+            profile_count + length(supported_income_states(year, profile))
+    )
+)
 
-? search_space_has_expected_size
+= relational_search_cases = distinct(search_cases)
+
+| producer_paths_have_expected_size: search_cases ->
+    length(search_cases) == expected_search_case_count
+
+| producer_paths_are_unique: relational_search_cases ->
+    length(relational_search_cases) == expected_search_case_count
+
+? producer_paths_have_expected_size
+? producer_paths_are_unique
 ```
+
+This count is a sum of dependent fiber sizes. Only when year, municipality and
+income are genuinely independent does it reduce to the familiar product
+`length(years) * length(municipalities) * length(incomes)`. Multiplication is a
+special case, not the default mental model for a legal profile. The first proof
+counts producer paths; the second additionally proves they are duplicate-free.
+If convergence is intentional, `length(relational_search_cases)` is the exact
+set count and the larger path count is only provenance diagnostics.
 
 Then apply the same pipeline:
 
 ```runa
-= results = map(search_cases, evaluate_case)
+= results = map(relational_search_cases, evaluate_case)
 = valid_results = filter(results, |result| result.valid)
 = witnesses = filter(valid_results, |result| searched_relationship(result))
 = worst = if length(witnesses) > 0 {
@@ -425,11 +446,11 @@ narrow the answer.
 A Cartesian product is correct only for genuinely independent axes. Real legal
 profiles are often a finite relation instead: one choice may determine another,
 make only some successors legal, or supply a dated parameter record. Prefer a
-typed `valid_profiles` or `feasible_successors(before, context)` relation over a
-large product followed by silent rejection. Derived facts do not add cases;
-excluded combinations retain their classification when they are part of the
-declared world; and an unsupported part of the model must remain visibly
-outside the claim.
+typed `supported_profiles(year)` or `feasible_successors(before, context)`
+relation over a large product followed by silent rejection. Derived facts do
+not add cases; excluded combinations retain their classification when they are
+part of the declared world; and an unsupported part of the model must remain
+visibly outside the claim.
 
 For income cliffs, the useful object is not merely an income list. It is the
 relation between a complete supported profile, an income coordinate, and its
@@ -491,6 +512,27 @@ The general transition contract is:
 successors(context, before) -> finite set of after states
 ```
 
+The algebra fixes the semantic order without imposing a batch execution order:
+
+```text
+R          = distinct source rows (context, before) produced by FROM
+C_R        = { (context, before, after) | (context, before) in R,
+                                           after in successors(context, before) }
+D_A        = { case in C_R | admission_A(case) }
+S_Q        = { case in D_A | selection_Q(case) }
+V_case     = a named relational view over S_Q
+M(target)  = differential signature incidence for a named case target
+V_evidence = a named relational view over the incidence relation produced by M
+```
+
+`RelationId`, `AdmissionId`, `QuestionId`, `ViewId` and
+`MechanismRequestId` name those layers respectively. Cases must exist
+extensionally before a mechanism can claim their support, but the observable
+scheduler may enumerate, classify and replay different committed cases in an
+interleaved stream. This resolves the apparent “cases or mechanisms first?”
+choice: cases come first in semantic dependency; neither requires a global
+phase barrier in execution.
+
 It may return the unchanged state, one derived successor, or several finite
 alternatives. The current `identity`, `relative`, and `independent` labels are
 useful inferred IR and optimizer properties, but they are not clean user-level
@@ -501,11 +543,13 @@ inflate case counts.
 
 Source deduplication, successor deduplication and canonical value order are part
 of the relation contract; discovery or storage order is not. Equal canonical
-source rows collapse unless an explicit source key distinguishes them. If two
-choices reaching the same After state are meaningfully different interventions,
-their action identity belongs in Context; otherwise they collapse within that
-source. Distinct `CaseId` coordinates may still support one extensional
-`TransitionId` when their canonical Context/Before/After values are equal.
+`(Context, Before)` rows collapse and union their exact producer support. Equal
+After values under one source do the same, so one canonical triple has one
+`CaseId` within a `RelationId`. There is no opaque source-key escape hatch. If
+two choices reaching the same After state are meaningfully different
+interventions, their typed action identity belongs in Context; otherwise they
+are the same case. Equal extensional transitions from different relations may
+still share a global `TransitionId` while retaining relation-scoped CaseIds.
 Variable successor cardinality therefore needs a dependent decision structure
 with stable per-source support, not merely a Cartesian axis bolted onto the
 existing generator.
@@ -521,25 +565,25 @@ One possible relational spelling is:
 ```runa
 ? explore personskat_income_cliffs_2026 {
     from {
-        context = SalaryChange(amount_kroner = 1)
-        source in declared_personskat_source_rows_2026(
-            profiles = coherent_personskat_profile_rows_2026(
+        profile in coherent_personskat_profiles_2026(
+            PersonskatProfileSpace2026(
                 municipalities = supported_municipalities_2026(),
                 church_tax_statuses = supported_church_tax_statuses_2026(),
                 households = supported_household_profiles_2026(),
                 commutes = supported_commute_profiles_2026(),
                 income_compositions = supported_income_compositions_2026(),
                 pensions = supported_pension_profiles_2026()
-            ),
-            gross_salary_kroner = range(0, 1_500_000)
+            )
         )
-        before = personskat_state_from_source(source)
+        coordinate in supported_income_coordinates_2026(
+            profile,
+            range(0, 1_500_000)
+        )
+        context = SalaryChange(amount_kroner = 1)
+        before = personskat_state_2026(profile, coordinate)
     }
 
-    to after = before with {
-        gross_salary_kroner =
-            before.gross_salary_kroner + context.amount_kroner
-    }
+    to after = apply_salary_change(before, context)
 
     where before personskat_supported(before)
     where after personskat_supported(after)
@@ -565,57 +609,142 @@ One possible relational spelling is:
         ]
     }
 
-    mechanisms for selected from assess_personskat
+    mechanisms cliff_paths for selected from assess_personskat
+
+    results mechanism_loss_bins_50_dkk from mechanisms cliff_paths {
+        group by [
+            bin_start_ore = floor_to_bin(
+                modeled_after_tax_resources_ore(before) -
+                    modeled_after_tax_resources_ore(after),
+                5_000
+            )
+        ]
+        aggregate [
+            mechanisms = count_distinct(signature_id),
+            cases = count_distinct(case_id)
+        ]
+        select [bin_start_ore, mechanisms, cases]
+    }
 }
 ```
 
-`coherent_personskat_profile_rows_2026(...)` is a dependent relation, not an
-instruction to cross those catalogs blindly. It joins and derives them into
-whole typed profile rows; each `source` row then pairs one coherent profile with
-one lower salary endpoint. Neither relation is prefiltered because its rows are
-already expected to be interesting. A materialized list is a sound first
-implementation when it exposes stable schema, cardinality, canonical order and
-lineage. The target relational IR should retain component descriptors so the
-decision structure and relevance analysis can share or eliminate profile
-columns without treating the whole profile as one opaque axis.
+The final `results` block is downstream of mechanism replay. Its typed input
+row joins each authorized incidence to `case_id`, `transition_id`,
+`signature_id`, Context, Before and After, so it can group signatures by a
+case-derived loss interval without copying raw trace internals into the public
+view. `aggregate count_distinct(...)` is a closed-group reducer; unlike retained
+examples, it cannot claim exactness until the mechanism-incidence frontier for
+that view has closed.
 
-Fixed facts are optional, visible conditioning on that relation. For example,
-a Copenhagen calibration could add:
+`coherent_personskat_profiles_2026(...)` is a dependent relation, not an
+instruction to cross those catalogs blindly. It joins and derives them into
+whole typed profile rows. The next `in` is genuinely lateral:
+`supported_income_coordinates_2026(profile, ...)` may return a different finite
+set for each profile because income composition, hours, pension facts or model
+support can constrain the meaningful salary coordinates. Each resulting
+`before` pairs one coherent profile with one supported lower endpoint. A
+materialized list is a sound first implementation when it exposes stable
+schema, finite closure, canonical order and lineage. The target relational IR
+should retain producer dependencies so the decision structure and relevance
+analysis can share evaluation or compress equal behavior without dropping any
+declared profile column, SourceKey or support count.
+
+Bindings in `from` are ordered. `name = expression` contributes one value;
+`name in finite_expression` performs a dependent finite expansion in the style
+of SQL `LATERAL`. Each expression can see only earlier bindings. The block must
+ultimately bind exactly one semantic `context` and one semantic `before`;
+auxiliary bindings such as `source` remain authenticated construction lineage,
+not extra hidden fields in case identity. Several independent `in` bindings do
+form a product, but coherent-profile helpers let the author express a join
+instead of generating nonsense combinations and filtering them afterward.
+The closed IR resolves local binders to ordered indices, so alpha-renaming an
+auxiliary spelling such as `profile` does not rename an otherwise identical
+`RelationId`.
+
+There is no Personskat-only producer primitive. Any checked pure expression of
+an exact-finite collection type can appear after `in`. The closed IR records its
+resolved expression, element schema, dependencies on earlier bindings,
+set-normalization, canonical enumerator and lineage contract. A list is the
+smallest implementation; a range, indexed relation or certified symbolic cell
+may implement the same finite interface without changing query semantics.
+
+Names such as `initial_person`, `current_household`, `profile_space` and
+`planning_limits` in these sketches denote checked immutable module or scenario
+values, not ambient mutable configuration. Their resolved declaration closure
+is sealed into producer semantics, and their realized Before or Context value
+is content-addressed in the source row. A future external parameter mechanism
+must materialize typed values under the same rule; changing an unstated process
+variable must never change the explored world behind an unchanged identity.
+
+`apply_salary_change` is an ordinary checked pure function. It frames every
+fact that the salary intervention does not change, replaces the declared gross
+salary component, and derives any state fields whose definition depends on that
+component. Keeping state construction in an ordinary function avoids giving
+Explore a bespoke record-update language and makes the same transition usable
+outside a search.
+
+Fixed facts are optional, visible source conditioning. If Copenhagen and
+non-membership of the national church define the calibration world rather than
+the validity of an already constructed case, restrict the finite producer in
+`from`, for example:
 
 ```runa
-where before before.profile.municipality == Municipality.Copenhagen
-where before before.profile.church_tax_status == ChurchTaxStatus.NotMember
+all_profiles = coherent_personskat_profiles_2026(profile_space)
+profile in filter(
+    all_profiles,
+    |candidate: PersonskatProfile2026|
+        candidate.municipality == Municipality.Copenhagen &&
+        candidate.church_tax_status == ChurchTaxStatus.NotMember
+)
 ```
 
-Those conditions narrow the declared question and its identity. Without them,
-the exploration ranges over the whole declared coherent profile relation;
-there are no hidden “fixed profile facts.”
+That source restriction changes `RelationId` because it declares a smaller
+finite world. By contrast, scoped `where before`, `where after` and
+`where transition` clauses classify constructed cases as admissible and belong
+to `AdmissionId`. Optimizers may push a safe admission predicate into producer
+execution, but that physical shortcut must not change either identity or its
+population counts. Without explicit source conditioning, the relation ranges
+over the whole declared coherent profile relation; there are no hidden “fixed
+profile facts.”
+
+Several scoped `where` clauses are a pure conjunction. Source order and repeated
+identical conjuncts remain available for diagnostics but normalize away from
+`AdmissionId`; scope plus resolved predicate semantics define the admission.
 
 The end-exclusive source range supplies lower salary endpoints through
 1,499,999 DKK; the successor reaches 1,500,000 DKK. `to after` constructs that
 comparison. Scoped `where` clauses distinguish unsupported or invalid cases
 from valid nonmatches. `find` states the question. `results cliffs` defines a
 named view of the evidence, and the mechanism root names the endpoint
-computation whose Before/After executions are compared.
+computation whose Before/After executions are compared. The downstream loss-bin
+view waits for that request's incidence relation.
 
 The smallest final-architecture sequence is:
 
 1. Seal the source and successor schemas, program/model identity, normalized
-   producer definitions and lineage contract in `RelationId`. If a complete
-   materialized relation is supplied at open, its canonical content hash is
-   also sealed; an incrementally enumerated relation instead authenticates its
-   discovered content and open producer frontier in the evidence journal.
+   producer definitions and lineage contract in `RelationId`. Representation
+   strategy is absent: an eager list and an incremental producer with the same
+   semantics have the same identity. A separate canonical `RelationContentRoot`
+   commits discovered rows and closure—immediately for an eager list or
+   incrementally in the evidence journal—and must converge to the same root.
 2. Enumerate source rows and each row's dependent successors in canonical set
    semantics. Derive content-stable `SourceKey`, `SuccessorKey` and `CaseId`
    values from canonical content, never discovery order or a temporary
    ordinal. The stream can pause and publish lower bounds before enumeration
    closes without renaming committed cases.
-3. Classify each discovered case against admission and `find` independently of presentation.
-   A complete exploration with zero result views is valid.
+3. Seal scoped admission in `AdmissionId`, then seal `find` in `QuestionId`.
+   Classify each discovered case under those identities independently of
+   presentation. Changing only admission or the question does not rename the
+   case universe. A complete exploration with zero result views is valid.
 4. Materialize zero or more named `ViewId` projections over that classified
    relation without changing its cases or classification evidence.
-5. Replay an explicit mechanism request against either `selected` cases or the
-   `chosen` cases of a named view; the latter target seals that `ViewId`.
+5. Replay an explicitly named mechanism request against either `selected`
+   cases or the `chosen` cases of a named view; the latter target seals that
+   `ViewId`. The request name is an address, while its semantic identity comes
+   from its question, target, observer and normalization contract.
+6. Materialize zero or more mechanism-incidence views whose source seals the
+   resolved `MechanismRequestId`. Exact distinct-signature aggregation waits for
+   that request frontier to close; it never feeds back into its own target.
 
 The spelling remains open to refinement; this ordering does not.
 
@@ -640,9 +769,10 @@ domain:
 These are not automatically independent axes. Municipal parameters derive from
 tax year and municipality. Some residence variants imply legal facts. Spouse
 and pension choices can constrain one another. The source relation must produce
-coherent profiles, or the declaration must classify incoherent coordinates as
-excluded. It must never silently pair unrelated facts and then call the product
-a population of people.
+coherent structural profiles. It must never pair impossible variants and then
+call the product a population of people. `AdmissionId` may classify a coherent
+constructed profile as unsupported or legally invalid for the requested model;
+it is not a cleanup stage for structurally nonsensical source rows.
 
 Prefer domain variants such as `Single | Couple(...)` and
 `NoCommute | Commute(...)` over independent flags that can describe impossible
@@ -669,15 +799,16 @@ supports. The names and amounts are illustrative configurations, not observed
 people or Personskat findings:
 
 ```text
-CaseId(Carl, 199999) -> TransitionId(T1) --\
-                                           > MechanismSignatureId(Σ)
-CaseId(John,   9999) -> TransitionId(T2) --/
+Carl configuration --supports--> CaseId(C1) -> TransitionId(T1) --\
+                                                                  > MechanismSignatureId(Σ)
+John configuration --supports--> CaseId(C2) -> TransitionId(T2) --/
 ```
 
 `T1` and `T2` stand for extensional typed Context/Before/After identities; a
 person label appears in a transition identity only when it is genuinely part of
-the modeled state. Case coordinates are never collapsed merely because their
-displayed fields look alike.
+the modeled state. `C1` and `C2` are content-derived hashes, not encodings of
+the display names in this diagram. Case coordinates are never collapsed merely
+because their displayed fields look alike.
 
 The mechanism does not create the salary intervention. The transition
 generator establishes
@@ -749,9 +880,12 @@ SQL's bag semantics, null rules or nondeterministic limits:
 | `to after` | dependent finite successor relation |
 | scoped `where` | Before, After and transition admission |
 | `find matches`, `find violations`, `find all` | selected transition relation |
+| `results NAME` / `from selected` | named view over selected cases |
+| `mechanisms NAME ...` | named differential-signature incidence relation |
+| `results NAME from mechanisms REQUEST` | named post-replay incidence view |
 | `group by` or `group all` | finding equivalence |
 | `measure` | named exact per-case scalars |
-| grouping reducers | exact group minima, maxima, spread, support and ties |
+| `aggregate` and grouping reducers | exact distinct counts, minima, maxima, spread, support and ties |
 | `having` | group filter applied after its required closure |
 | `select` | public projection and privacy allow-list |
 | `choose` | explicit one-row, all-ties or frontier cardinality policy |
@@ -762,6 +896,22 @@ each source row and may return a different number of rows. That is the crucial
 generalization beyond a Cartesian list of profile switches. `results` blocks
 are named `SELECT`-like views; mechanism replay is the extra provenance layer
 ordinary SQL does not provide.
+
+Named views and mechanism requests form a typed dependency DAG after `find`.
+An unqualified `results NAME { ... }` is shorthand for `from selected`.
+Mechanisms may target selected cases or the chosen rows of an already resolved
+case view; a post-replay view may read a mechanism request's incidence rows.
+Names resolve to semantic IDs, and the checker rejects dependency cycles such
+as a mechanism targeting a view that itself depends on that mechanism. This is
+the result-DAG extension needed for mechanism histograms; forcing every view to
+pretend it reads raw cases would hide a real semantic dependency.
+
+Entries in `group by`, `measure`, `aggregate` and `select` use
+`name = expression`; a bare `name` is shorthand for `name = name`. Names are
+unique within their result schema. Measures are evaluated per input row in
+declaration order; aggregates consume closed groups; later view clauses can
+refer to earlier names without making evaluation order or alias resolution
+implicit.
 
 The current `output.key` hides a semantic `GROUP BY` inside a presentation
 block. The next surface should make grouping, measurement and representative
@@ -775,28 +925,48 @@ multiplicity and emitting an unreadable row for every profile field. `each
 case` preserves `CaseId` as logical row identity, so two cases remain distinct
 even when every selected display value is equal.
 
-Five layers should remain separate:
+Seven layers should remain separate:
 
-- **exploration-relation identity**: resolved program and model, state and
-  context schemas, typed source domains and relations, canonical successor
-  semantics and endpoint membership, admission, and the normalized question
-  with its selected polarity;
-- **mechanism-request identity**: explicit canonical endpoint observation
-  roots, target scope and signature normalization; a representative-scoped
-  request also references its `ViewId`;
-- **view identity**: grouping, measures, group filters, selected public fields,
+- **base relation identity (`RelationId`)**: stable model/type owners, state and
+  context schemas, ordered finite source producers, canonical dependent
+  successor semantics, endpoint membership and lineage contracts;
+- **admission identity (`AdmissionId`)**: one `RelationId` plus scoped Before,
+  After and transition validity predicates;
+- **question identity (`QuestionId`)**: one `AdmissionId` plus the normalized
+  `find` expression and polarity, including the predicate-free `find all`;
+- **view identity (`ViewId`)**: one typed input-relation identity—normally a
+  `QuestionId` selected relation or `MechanismRequestId` incidence relation—
+  plus grouping, measures, aggregates, group filters, selected public fields,
   ordering, choice and privacy policy;
-- **durable-evidence identity**: immutable relation and mechanism requests plus
-  evidence-retention authorization, bound to evaluator, journal and
-  serialization-schema contracts; and
+- **mechanism-request identity (`MechanismRequestId`)**: one `QuestionId`, an
+  explicit selected or view-chosen target, canonical endpoint observation
+  roots and signature normalization; a view-scoped target references its
+  `ViewId`;
+- **durable-evidence identity**: immutable relation, question, requested view
+  DAG and mechanism requests plus evidence-retention authorization, bound to
+  evaluator, journal and serialization-schema contracts; and
 - **operational records**: each invocation's run-state path, time and resource
   limits and workers, plus scheduler and pause events accumulated in the
   journal across resumes.
 
+`SourceKey`, `SuccessorKey` and `CaseId` derive from `RelationId` and canonical
+row content. They therefore survive a new admission predicate, a switch from
+`matches` to `violations`, or an additional view. Admission classifications are
+keyed by `(AdmissionId, CaseId)` and selection classifications by
+`(QuestionId, CaseId)`. This is not only a hash detail: it is what lets one
+authenticated transition relation answer another authorized question without
+pretending that the underlying cases changed.
+
+Explore query names, `results NAME` block names and mechanism request names are
+unique source addresses, not semantic hash inputs. Renaming a view and updating
+references preserves its `ViewId`; the grouping, expressions, field names,
+choice and privacy schema do not. Likewise a view-scoped mechanism request
+seals the resolved `ViewId`, never the raw view spelling.
+
 This separation allows one durable body of evidence to support another
-authorized result view without pretending that a new grouping changed the
-finite world. A derived view artifact has its own identity over
-`(EvidenceRoot, ViewId, report schema)`; it does not mutate the underlying
+authorized question or result view without pretending that a new predicate or
+grouping changed the finite world. A derived view artifact has its own identity
+over `(EvidenceRoot, ViewId, report schema)`; it does not mutate the underlying
 `RunId`. Retention and privacy may limit which later views can be materialized,
 but presentation should not define case or mechanism identity. This is a design
 correction: the current Experimental query hash still closes output and
@@ -832,7 +1002,7 @@ tax-municipality alternative and asks for a global optimum:
         choose all minimizing tax_ore
     }
 
-    mechanisms for view lowest_tax chosen from assess_personskat
+    mechanisms municipality_paths for view lowest_tax chosen from assess_personskat
 }
 ```
 
@@ -855,10 +1025,10 @@ pretending every labor and pension choice is independent:
 ? explore household_reallocation {
     from {
         before = current_household
-        context in candidate_household_actions(before, planning_limits)
+        context = HouseholdPlanningRequest(limits = planning_limits)
     }
 
-    to after = apply_household_action(before, context)
+    to after in candidate_household_successors(before, context)
 
     where before household_supported(before)
     where after household_supported(after)
@@ -871,7 +1041,7 @@ pretending every labor and pension choice is independent:
     find matches of resources_not_below_floor(
         before,
         after,
-        planning_limits.resource_tolerance
+        context.limits.resource_tolerance
     )
 
     results tradeoffs {
@@ -882,7 +1052,7 @@ pretending every labor and pension choice is independent:
             own_hours = after.self.hours,
             spouse_pension_ore = after.spouse.pension_ore
         ]
-        select [action = context, after, disposable_ore]
+        select [request = context, plan = after, disposable_ore]
         choose pareto [
             maximize disposable_ore,
             minimize spouse_hours,
@@ -891,32 +1061,39 @@ pretending every labor and pension choice is independent:
         ]
     }
 
-    mechanisms for view tradeoffs chosen from assess_household_plan
+    mechanisms household_paths for view tradeoffs chosen from assess_household_plan
 }
 ```
 
 This query can expose the trade-off frontier; it cannot infer what the couple
 “should” prefer. The one-sided floor permits plans that improve resources while
-rejecting plans more than the stated tolerance below Before. Candidate actions
-derive earnings from hours and wage assumptions, conserve declared household
-transfers, assign pension payer and ownership explicitly, and do not vary
-correlated amounts independently. Materially different payment or transfer
-paths remain in Context even when they reach the same After value. Feasibility
-and whether objectives are lexicographic, weighted or Pareto are explicit parts
-of the question. General dependent relations and Pareto result views are design
-goals, not current compiler capabilities. `choose pareto` is set-valued: it
-returns every nondominated selected row. A member observed during an open search
-is provisional; only group closure can prove that no unseen case dominates it.
+rejecting plans more than the stated tolerance below Before. This example
+deliberately exercises a real successor fiber: the single canonical source may
+have zero, one or many finite After rows, and its successor frontier closes
+independently. `candidate_household_successors` derives earnings from hours and
+wage assumptions, conserves declared household transfers, assigns pension
+payer and ownership explicitly, and does not vary correlated amounts
+independently. A materially different payment route must be represented in the
+typed After plan, or split into typed Context sources when route identity is not
+state; it cannot hide in producer provenance and survive as another case.
+Feasibility and whether objectives are lexicographic, weighted or Pareto are
+explicit parts of the question. General dependent relations and Pareto result
+views are design goals, not current compiler capabilities. `choose pareto` is
+set-valued: it returns every nondominated selected row. A member observed during
+an open search is provisional; only group closure can prove that no unseen case
+dominates it.
 
-Every `mechanisms` clause names both its target and an explicit canonical
-endpoint observation. `for selected` means every case selected by `find` before
-view processing. `for view NAME chosen` waits for that view's closure, targets
-its chosen rows, and seals the referenced `ViewId` into mechanism-request
-identity. Presentation fields and measures do not infer the observation root.
-Here `assess_household_plan` must expose the modeled resources, hours, pension
-and tax dependencies needed by the question and objectives. A future
-convenience inference is possible only after its normalization is specified; it
-is not implicit in this design.
+Every `mechanisms` clause declares a unique request name, a target and an
+explicit canonical endpoint observation. The name makes several requests using
+the same observer independently addressable without defining semantic
+identity. `for selected` means every case selected by `find` before view
+processing. `for view NAME chosen` waits for that view's closure, targets its
+chosen rows, and seals the referenced `ViewId` into mechanism-request identity.
+Presentation fields and measures do not infer the observation root. Here
+`assess_household_plan` must expose the modeled resources, hours, pension and
+tax dependencies needed by the question and objectives. A future convenience
+inference is possible only after its normalization is specified; it is not
+implicit in this design.
 
 The named observer resolves to one checked pure callable of shape
 `(State, Context) -> Observation`, evaluated independently at Before and After
@@ -924,6 +1101,14 @@ and total over the declared endpoint scope. Its reachable rule and call closure,
 not every theoretical value of those types, is sealed into mechanism-request
 identity. Failure to prove that contract makes mechanism evidence unavailable;
 it does not silently fall back to tracing selected display fields.
+
+Mechanism replay over `view NAME chosen` explains the chosen transitions; it
+does not prove that they minimize a measure or lie on the Pareto frontier. That
+proof comes from exact selected-relation closure plus the view's closed
+reducers, `having` and `choose` semantics. A request for comparative causal
+explanation must instead target all selected alternatives or name a separate
+checked group-comparison observer. Mechanism counts and optimum proofs therefore
+remain distinct even when they are published together.
 
 ### The result is graph-backed, but not every graph is a DAG
 
@@ -954,7 +1139,9 @@ Call it a transition or case graph unless a monotone rank proves acyclicity.
 The layered evidence incidence `CaseId -> TransitionId -> MechanismSignatureId`
 is acyclic even when the state graph is not.
 
-Different cases may denote one semantic transition, and different transitions
+Within one `RelationId`, CaseId-to-TransitionId is injective: equal canonical
+Context/Before/After triples already collapsed to one case. The same global
+`TransitionId` may recur in another RelationId, and many different transitions
 may share one mechanism. For a fixed question and observation request, exact
 support retains the incidence triple—or equivalent exact fibers—rather than
 only a bare transition-to-signature edge. One result group may contain several
@@ -962,13 +1149,17 @@ mechanisms; one mechanism may span several groups, profiles, incomes, loss
 values and disconnected regions. Neither a graph's node count nor a displayed
 row count substitutes for a population count.
 
-For the broad income-cliff result, report at least four distinct populations:
+For the broad income-cliff result, report at least three independent
+populations:
 
 - matching profile-by-income transition cases;
-- distinct semantic transitions;
 - distinct affected profile configurations, because one profile configuration
   may support several cliffs; and
 - distinct complete differential mechanism signatures.
+
+The distinct-transition count may still be published as a conservation check,
+but inside one relation it must equal the case count rather than masquerading as
+another population.
 
 In the proposed income view, `before.profile` is a declared canonical product
 that excludes `gross_salary_kroner` and computed outputs.
@@ -990,30 +1181,27 @@ One case may traverse several shared mechanism atoms, so atom supports overlap
 and are not additive. These configuration counts are model-space support, not
 population estimates.
 
-The seven current case and transition populations remain useful:
+The relational result reports set populations, not the number of paths through
+the producer. A producer-coordinate count may remain useful diagnostics, but
+duplicates that converge on the same canonical row contribute provenance, not
+extra people or cases. The primary populations are:
 
-- `U_D`: declared generator cases;
-- `U_C`: constructible transition cases;
-- `U_T`: distinct declared transitions;
-- `D_C`: admissible transition cases;
-- `D_T`: distinct admissible transitions;
-- `M_C`: matching transition cases; and
-- `M_T`: distinct matching transitions.
+- `U_S`: distinct constructible `(Context, Before)` source rows;
+- `U_C`: distinct constructible source/successor cases;
+- `D_C`: cases admitted by an `AdmissionId`; and
+- `S_C`: cases selected by that question's `find`.
 
-The current fixed-product slice knows `U_D` exactly when the run opens. A
-general dependent relation also reports `U_S`, its distinct canonical source
-rows, and a source/successor-enumeration frontier. If every relation exposes
-exact cardinality and order statically, `U_S` and `U_D` are exact at open;
-otherwise their observed values are lower bounds until that enumeration
-frontier closes. Content-stable source and successor keys keep already emitted
-`CaseId` values unchanged. `U_C`, `U_T`, `D_C`, `D_T`, `M_C` and `M_T` become
-exact only after their own required frontiers close.
-
-The current names use `M` for the selected matching or violating polarity. The
-general algebra should call these `S_C` and `S_T`: for `find all`, the selected
-relation is the admissible relation, so `S_C = D_C` and `S_T = D_T`. Mechanism
-counts have their own incidence frontier. With no confirmed mechanism evidence
-yet, the honest count may be unknown rather than zero.
+For `find all`, the selected relation is the admissible relation, so
+`S_C = D_C`. The corresponding transition counts are conservation equalities
+`U_T = U_C`, `D_T = D_C` and `S_T = S_C` within one RelationId. If every
+relation exposes exact cardinality and order statically, `U_S` and `U_C` may be
+exact at open; otherwise their observed values are lower bounds until the
+source and every dependent successor frontier close. Content-stable source and
+successor keys keep already emitted `CaseId` values unchanged. Admission and
+selection counts become exact only after their own required frontiers close.
+Mechanism counts have a separate request-relative incidence frontier. With no
+confirmed mechanism evidence yet, the honest count may be unknown rather than
+zero.
 
 Intermediate extrema require directional honesty too: an observed maximum is a
 lower bound on the final maximum, an observed minimum is an upper bound on the
@@ -1033,7 +1221,7 @@ Support may be `lower_bound(n)` while its incidence frontier is open,
 counting closes. A cap on retained examples alone does not degrade an exact
 scalar support count: the report may retain only `c` examples while still
 counting every incidence. Report the number of counting-capped signatures
-separately. Thus the useful summary is “X signatures, Y classified cases, Z
+separately. Thus the useful summary is “X signatures, Y selected cases, Z
 signatures with censored support,” not “Z infinite mechanisms.” A cap must not
 stop signature assignment for later cases; if it does, signature count and
 incidence remain open rather than merely censored.
@@ -1054,7 +1242,7 @@ resolutions:
 
 An eventual report can therefore honestly say “Y concrete profile-transition
 cases across P profiles share X complete mechanisms; Z signatures have support
-of at least c because their materialization cap was reached,” followed by an
+of at least c because their support-counting cap was reached,” followed by an
 exact or lower-bound 50-DKK histogram and links to the corresponding case and
 incidence views. JSON is a reproducible materialization of named evidence, not
 the authority from which the graphs are reconstructed.
@@ -1087,9 +1275,11 @@ execution target:
    `find all`.
 2. Give coherent profile relations and dependent successors canonical schemas,
    identities, cardinalities, order and lineage.
-3. Separate relation, mechanism, view, durable-evidence and operational layers
-   while preserving explicit privacy and retention authorization; make
-   grouping, measures, all-ties choice and Pareto choice deterministic.
+3. Separate base relation, admission, question, view, mechanism request,
+   durable-evidence and operational layers while preserving explicit privacy
+   and retention authorization; type-check the case-view/mechanism/evidence-view
+   dependency DAG; make grouping, measures, distinct aggregates, all-ties
+   choice and Pareto choice deterministic.
 4. Replay explicit canonical endpoint observations and publish exact
    case/transition/signature incidence.
 5. Close large cells by proving regional transition images with relevance,
