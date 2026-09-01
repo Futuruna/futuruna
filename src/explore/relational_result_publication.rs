@@ -44,6 +44,9 @@ use std::num::{NonZeroU16, NonZeroUsize};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+#[cfg(unix)]
+use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
+
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map as JsonMap, Value as JsonValue};
 use sha2::{Digest, Sha256};
@@ -151,6 +154,10 @@ const STRUCTURAL_DEFINITION_CHUNK_ITEMS: usize = 128;
 const MECHANISM_STARTER_PAGE_MEMBER_LIMIT: NonZeroU16 =
     NonZeroU16::new(64).expect("nonzero constant");
 const CONTROL_TEMP_ATTEMPTS: u64 = 128;
+#[cfg(unix)]
+const OWNER_ONLY_DIRECTORY_MODE: u32 = 0o700;
+#[cfg(unix)]
+const OWNER_ONLY_FILE_MODE: u32 = 0o600;
 
 static CONTROL_TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
 
@@ -2193,23 +2200,20 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     }
     let mut ordinal_index = PublicationOrdinalIndex::from_journal(journal, plan)?;
 
-    fs::create_dir_all(output_directory).map_err(|error| io_error(output_directory, error))?;
+    create_owner_only_directory(output_directory)
+        .map_err(|error| io_error(output_directory, error))?;
     validate_publication_namespace(
         output_directory,
         plan,
         cursor_path_exists(output_directory),
         limits,
     )?;
+    prepare_owner_only_publication_namespace(
+        output_directory,
+        plan.artifacts.iter().map(PublicationArtifactPlan::path),
+    )?;
     let cursor_path = output_directory.join(CURSOR_FILE);
     let mut cursor = load_or_create_cursor(&cursor_path, output_directory, plan, current, limits)?;
-    fs::create_dir_all(output_directory.join("views"))
-        .map_err(|error| io_error(output_directory.join("views"), error))?;
-    fs::create_dir_all(output_directory.join("mechanisms"))
-        .map_err(|error| io_error(output_directory.join("mechanisms"), error))?;
-    fs::create_dir_all(output_directory.join("starters"))
-        .map_err(|error| io_error(output_directory.join("starters"), error))?;
-    fs::create_dir_all(output_directory.join("graphs"))
-        .map_err(|error| io_error(output_directory.join("graphs"), error))?;
     validate_cursor_plan(&cursor, plan)?;
     authenticate_cursor(authority, &cursor)?;
     let manifest_path = output_directory.join(MANIFEST_FILE);
@@ -2281,6 +2285,113 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
 
 fn cursor_path_exists(output_directory: &Path) -> bool {
     output_directory.join(CURSOR_FILE).exists()
+}
+
+fn create_owner_only_directory(path: &Path) -> std::io::Result<()> {
+    let mut builder = fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    builder.mode(OWNER_ONLY_DIRECTORY_MODE);
+    builder.create(path)
+}
+
+#[cfg(unix)]
+fn tighten_directory_permissions(path: &Path) -> Result<(), RelationalPublicationError> {
+    let metadata = fs::symlink_metadata(path).map_err(|error| io_error(path, error))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(RelationalPublicationError::UnsafeOutputPath(
+            path.to_path_buf(),
+        ));
+    }
+    fs::set_permissions(path, fs::Permissions::from_mode(OWNER_ONLY_DIRECTORY_MODE))
+        .map_err(|error| io_error(path, error))
+}
+
+#[cfg(not(unix))]
+fn tighten_directory_permissions(_path: &Path) -> Result<(), RelationalPublicationError> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn tighten_file_permissions_if_present(path: &Path) -> Result<(), RelationalPublicationError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(io_error(path, error)),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(RelationalPublicationError::UnsafeOutputPath(
+            path.to_path_buf(),
+        ));
+    }
+    fs::set_permissions(path, fs::Permissions::from_mode(OWNER_ONLY_FILE_MODE))
+        .map_err(|error| io_error(path, error))
+}
+
+#[cfg(not(unix))]
+fn tighten_file_permissions_if_present(_path: &Path) -> Result<(), RelationalPublicationError> {
+    Ok(())
+}
+
+fn prepare_owner_only_publication_namespace<'a>(
+    output_directory: &Path,
+    artifact_paths: impl IntoIterator<Item = &'a Path>,
+) -> Result<(), RelationalPublicationError> {
+    // Namespace validation has already established that these paths belong to
+    // this publication. Tightening before reading the cursor closes legacy
+    // group/world access on every authenticated resume.
+    tighten_directory_permissions(output_directory)?;
+    for name in ["views", "mechanisms", "starters", "graphs"] {
+        let directory = output_directory.join(name);
+        create_owner_only_directory(&directory).map_err(|error| io_error(&directory, error))?;
+        tighten_directory_permissions(&directory)?;
+    }
+    for name in [CURSOR_FILE, MANIFEST_FILE] {
+        tighten_file_permissions_if_present(&output_directory.join(name))?;
+    }
+    for relative in artifact_paths {
+        tighten_file_permissions_if_present(&output_directory.join(relative))?;
+    }
+    for entry in
+        fs::read_dir(output_directory).map_err(|error| io_error(output_directory, error))?
+    {
+        let entry = entry.map_err(|error| io_error(output_directory, error))?;
+        if entry
+            .file_name()
+            .to_str()
+            .is_some_and(|name| name.starts_with(".futuruna-publication-tmp-"))
+        {
+            tighten_file_permissions_if_present(&entry.path())?;
+        }
+    }
+    Ok(())
+}
+
+fn owner_only_open_options() -> OpenOptions {
+    let mut options = OpenOptions::new();
+    #[cfg(unix)]
+    options.mode(OWNER_ONLY_FILE_MODE);
+    options
+}
+
+fn tighten_open_file_permissions(file: &File) -> std::io::Result<()> {
+    #[cfg(unix)]
+    file.set_permissions(fs::Permissions::from_mode(OWNER_ONLY_FILE_MODE))?;
+    Ok(())
+}
+
+fn open_owner_only_append_file(path: &Path) -> std::io::Result<File> {
+    let mut options = owner_only_open_options();
+    let file = options.create(true).append(true).open(path)?;
+    tighten_open_file_permissions(&file)?;
+    Ok(file)
+}
+
+fn create_new_owner_only_file(path: &Path) -> std::io::Result<File> {
+    let mut options = owner_only_open_options();
+    let file = options.write(true).create_new(true).open(path)?;
+    tighten_open_file_permissions(&file)?;
+    Ok(file)
 }
 
 fn is_ignored_macos_metadata(entry: &fs::DirEntry, file_type: &fs::FileType) -> bool {
@@ -3135,11 +3246,7 @@ fn append_artifact_batch(
 
     let path = output_directory.join(artifact.path());
     ensure_safe_artifact_target(&path)?;
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&path)
-        .map_err(|error| io_error(&path, error))?;
+    let mut file = open_owner_only_append_file(&path).map_err(|error| io_error(&path, error))?;
     let mut working = initial;
     let opened_len = file
         .metadata()
@@ -8822,11 +8929,7 @@ fn atomic_replace(path: &Path, bytes: &[u8]) -> Result<(), RelationalPublication
             ".futuruna-publication-tmp-{}-{nonce}",
             std::process::id()
         ));
-        match OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&candidate)
-        {
+        match create_new_owner_only_file(&candidate) {
             Ok(file) => {
                 temporary = Some((candidate, file));
                 break;
@@ -9341,6 +9444,109 @@ impl Error for RelationalPublicationError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(unix)]
+    struct PermissionTestDirectory(PathBuf);
+
+    #[cfg(unix)]
+    impl PermissionTestDirectory {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "futuruna-publication-permissions-{}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock")
+                    .as_nanos(),
+                CONTROL_TEMP_NONCE.fetch_add(1, Ordering::Relaxed),
+            ));
+            fs::create_dir(&path).expect("create permission test directory");
+            Self(path)
+        }
+
+        fn path(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    #[cfg(unix)]
+    impl Drop for PermissionTestDirectory {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).ok();
+        }
+    }
+
+    #[cfg(unix)]
+    fn permission_mode(path: &Path) -> u32 {
+        fs::symlink_metadata(path)
+            .unwrap_or_else(|error| panic!("read permissions for {}: {error}", path.display()))
+            .permissions()
+            .mode()
+            & 0o777
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publication_namespace_is_owner_only_at_creation_and_resume() {
+        let directory = PermissionTestDirectory::new();
+        let output = directory.path();
+        fs::set_permissions(output, fs::Permissions::from_mode(0o777))
+            .expect("make legacy output directory permissive");
+
+        for name in ["views", "mechanisms", "starters", "graphs"] {
+            let path = output.join(name);
+            fs::create_dir(&path).expect("create legacy publication subdirectory");
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o777))
+                .expect("make legacy publication subdirectory permissive");
+        }
+
+        let existing_view = output.join("views/cases.ndjson");
+        let existing_graph = output.join("graphs/cases.ndjson");
+        let existing_temporary = output.join(".futuruna-publication-tmp-abandoned");
+        let existing_files = [
+            output.join(CURSOR_FILE),
+            output.join(MANIFEST_FILE),
+            existing_view.clone(),
+            existing_graph.clone(),
+            existing_temporary.clone(),
+        ];
+        for path in &existing_files {
+            fs::write(path, b"legacy\n").expect("write legacy publication file");
+            fs::set_permissions(path, fs::Permissions::from_mode(0o666))
+                .expect("make legacy publication file permissive");
+        }
+
+        prepare_owner_only_publication_namespace(
+            output,
+            [existing_view.as_path(), existing_graph.as_path()],
+        )
+        .expect("tighten publication namespace");
+
+        assert_eq!(permission_mode(output), OWNER_ONLY_DIRECTORY_MODE);
+        for name in ["views", "mechanisms", "starters", "graphs"] {
+            assert_eq!(
+                permission_mode(&output.join(name)),
+                OWNER_ONLY_DIRECTORY_MODE
+            );
+        }
+        for path in &existing_files {
+            assert_eq!(permission_mode(path), OWNER_ONLY_FILE_MODE);
+        }
+
+        let new_artifact = output.join("mechanisms/new.ndjson");
+        drop(open_owner_only_append_file(&new_artifact).expect("create private artifact"));
+        assert_eq!(permission_mode(&new_artifact), OWNER_ONLY_FILE_MODE);
+
+        let new_temporary = output.join(".futuruna-publication-tmp-new");
+        drop(create_new_owner_only_file(&new_temporary).expect("create private temporary"));
+        assert_eq!(permission_mode(&new_temporary), OWNER_ONLY_FILE_MODE);
+
+        atomic_replace(&output.join(CURSOR_FILE), b"{}\n").expect("replace private cursor");
+        assert_eq!(
+            permission_mode(&output.join(CURSOR_FILE)),
+            OWNER_ONLY_FILE_MODE
+        );
+    }
 
     #[test]
     fn explicit_consumers_and_case_transitions_are_additive_cursor_extensions() {

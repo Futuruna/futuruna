@@ -2159,11 +2159,76 @@ The historical closed 10,500-case commuter journal would have been the natural
 first attachment audit, but it was minted under an earlier journal contract
 and the current reader correctly rejects its prior-head identity. There is
 therefore no authenticated publication-v9 case-transition artifact for those
-16 selected cases. The tiny relational oracle proves that a compatible closed
-stream can attach this lane with zero new semantic events or mechanism replay;
-the exact Personskat artifact facts belong below only after a new compatible
-bounded stream exists. The design does not manufacture a new 341xxx/342xxx
-input fixture to obtain them.
+16 historical selected cases. The design did not convert that journal or
+manufacture a new 341xxx/342xxx input fixture to obtain a convenient answer.
+
+A fresh current-contract audit has now closed the same authored 10,500-edge
+relation from a new journal. Its lifecycle, relation, FIND frontier and analysis
+frontier are all exact:
+
+- sources, cases, admitted and FIND-classified transitions: **10,500 exact**;
+- rejected transitions: **0 exact**; not selected: **10,484 exact**;
+- harmful selected transitions: **16 exact**;
+- raw signatures, structural mechanisms and execution profiles: **2 exact**
+  of each; and
+- successful mechanism incidences: **16 exact**, with **0 replay-unavailable**
+  cases.
+
+This independently reproduces the substantive coarse-lattice result without
+treating the old bundle as authority. The selected starters are eight salaries
+at 100 km and the same eight at 150 km: `342,400, 343,400, ..., 349,400 DKK`,
+each followed by the declared 100-DKK promotion. No 50-km starter is selected.
+The modeled loss is **8,161--8,185 øre**. The single 50-DKK loss bin beginning
+at 5,000 øre contains **2 exact structural mechanisms**, 2 raw signatures, 16
+cases and two affected starting profiles. These are exact only for the declared
+50/100/150-km by 100-DKK lattice and its conditioned profile facts; they do not
+rule out a narrower endpoint cliff or generalize to unsearched profiles.
+
+The publication-v9 semantic case graph now exists at
+`graphs/case-transitions.ndjson`. Its 18 records are one header, 16 selected
+edges and one exact closure. It authenticates **16 distinct CaseIds**, **16
+distinct directional TransitionIds** and **32 distinct role-neutral StateIds**
+under content root
+`502a33ce4473e11c90260bfe485d8270b49c80cd8c7d47d45cd4ba803bae1c7f`.
+All selected-view CaseIds equal the graph CaseId set and the mechanism-incidence
+CaseId set; graph and mechanism TransitionId sets also agree exactly. Thus the
+case graph and mechanism DAG are joined by authenticated identities rather than
+by matching displayed salaries after the fact.
+
+The two current structural mechanisms have different request-relative IDs from
+the historical experiment. Mechanism
+`209897c89a8a3393f66e0ff631314a50eeb787dec688e9ee618944cc862a9d9d`
+has exactly eight cases and eight distinct starters, all at 100 km. Mechanism
+`e993d97f96fb14ed7717649a633a98c727f7e828f01f38491a4e34d0b6f110af`
+has exactly eight cases and eight distinct starters, all at 150 km. Their shared
+support residual is empty. Source coverage labels commute distance and salary
+as varied finite dimensions, the composed profile/Before fields as derived
+from those dimensions, and Copenhagen, year, church status, promotion amount
+and the remaining fixed facts as conditioned restrictions. This is the
+executable form of the rule above: a mechanism owns a request-conditioned
+starter support overlay without absorbing those starter values into its
+structural identity.
+
+After the first exact closure, two trailing single-subject `starters`
+consumers were added for those discovered IDs. Resuming the same journal
+performed **0 semantic events** and appended only six publication records:
+header, one bounded eight-member page and exact closure for each mechanism.
+The closures independently certify eight cases and eight deduplicated
+`(Context, Before)` starters while retaining each typed `After` successor.
+The journal remained at sequence **5,236** and head
+`4906f0f56f10091984c7766beca8027c4ec68bcc38175ff3e14dcb078f8814b2`.
+One further identical resume appended **0 semantic events and 0 publication
+records**, proving both computation and publication are resumably caught up.
+
+The fresh run stayed inside its automatic one-worker, 80%-CPU and 6-GiB outer
+memory envelope and reached exact closure within one 20-minute invocation.
+The durable artifact timestamps span about **3 minutes 51 seconds**; that is an
+artifact-production window, not a claimed end-to-end wall-clock benchmark.
+The closed journal occupies about 154 MiB and its published bundle about 524
+MiB. Because the graph and starter lanes contain typed state, context and
+successor values, the external state/output trees are treated as confidential
+and restricted to owner-only access. They remain execution evidence outside
+the checkout, not tracked fixtures.
 
 The final source-result closure did not replay the 10,500 tax transitions. A
 checked ProductRank grouped-distinct theorem proved the lattice as three exact

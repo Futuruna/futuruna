@@ -56,6 +56,14 @@ inputs. The mechanism views count distinct replay-derived signatures directly,
 including distinct signatures in each 50-DKK loss bin; they never infer a
 mechanism count from a case count.
 
+The two trailing `starters` consumers were appended after an exact first run
+identified the current structural mechanism IDs. They authorize typed starter
+fibers for those two subjects only. They do not alter or seed the source
+relation, selected cases, mechanism replay or structural quotient; removing
+them leaves the answer-defining analysis identity unchanged. Their 100/150-km
+names describe the subsequently authenticated fibers rather than candidate
+coordinates supplied to the search.
+
 The imported Personskat model carries the legal-source provenance for the
 calculation. This file is a bounded model audit, not individual tax advice.
 ----
@@ -413,4 +421,8 @@ calculation. This file is a bounded model audit, not individual tax advice.
         ]
         select [bin_start_ore, mechanisms, raw_signatures, cases, starting_profiles]
     }
+
+    starters cliff_mechanism_100_km from mechanisms cliff_paths for mechanism "209897c89a8a3393f66e0ff631314a50eeb787dec688e9ee618944cc862a9d9d" using values from cliffs
+
+    starters cliff_mechanism_150_km from mechanisms cliff_paths for mechanism "e993d97f96fb14ed7717649a633a98c727f7e828f01f38491a4e34d0b6f110af" using values from cliffs
 }

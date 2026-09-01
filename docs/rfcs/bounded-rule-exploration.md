@@ -1104,6 +1104,14 @@ re-evaluate a case, replay a mechanism, or change the journal head. The typed
 graph is confidential output under the same explicit value authorization as
 its authorizing view.
 
+On supported Unix hosts, every publication invocation MUST create or tighten
+the operator-selected output root and its owned subdirectories to mode `0700`
+and every cursor, manifest, artifact and atomic temporary to mode `0600`,
+including an existing owned namespace being resumed. Failure to establish
+those permissions is a publication error. Owner-only filesystem access reduces
+accidental local disclosure; it is not anonymization and does not make a typed
+bundle safe to publish or share.
+
 Projection V1 collision-checks and counts at most 65,536 selected edges in
 memory. If discovery proves at least 65,537, the file retains that stable
 65,536-edge prefix and appends `capacity_limited`; it MUST NOT claim an exact
