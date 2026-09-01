@@ -13389,6 +13389,37 @@ fn checked_exact_observer_memo_encode_arguments(arguments: &[Value]) -> Option<B
 const RUNTIME_COLLECTION_KEY_PREFIX: &str = "__futuruna_value_digest_v2__";
 const RUNTIME_MAP_ENTRY_MARKER: &str = "__futuruna_map_entry_v2__";
 
+#[cfg(test)]
+thread_local! {
+    static FORCED_RUNTIME_COLLECTION_SEMANTIC_KEY: RefCell<Option<String>> =
+        const { RefCell::new(None) };
+}
+
+#[cfg(test)]
+struct ForcedRuntimeCollectionSemanticKeyGuard {
+    previous: Option<String>,
+}
+
+#[cfg(test)]
+impl Drop for ForcedRuntimeCollectionSemanticKeyGuard {
+    fn drop(&mut self) {
+        FORCED_RUNTIME_COLLECTION_SEMANTIC_KEY.with(|slot| {
+            slot.replace(self.previous.take());
+        });
+    }
+}
+
+#[cfg(test)]
+fn with_forced_runtime_collection_semantic_key<R>(
+    semantic_key: &str,
+    operation: impl FnOnce() -> R,
+) -> R {
+    let previous = FORCED_RUNTIME_COLLECTION_SEMANTIC_KEY
+        .with(|slot| slot.replace(Some(semantic_key.to_string())));
+    let _guard = ForcedRuntimeCollectionSemanticKeyGuard { previous };
+    operation()
+}
+
 fn runtime_hash_len(hasher: &mut Sha256, len: usize) {
     hasher.update(u64::try_from(len).unwrap_or(u64::MAX).to_le_bytes());
 }
@@ -13635,6 +13666,12 @@ fn runtime_value_structural_digest(value: &Value) -> [u8; 32] {
 }
 
 pub(crate) fn runtime_value_semantic_key(value: &Value) -> String {
+    #[cfg(test)]
+    if let Some(forced) = FORCED_RUNTIME_COLLECTION_SEMANTIC_KEY.with(|slot| slot.borrow().clone())
+    {
+        return forced;
+    }
+
     let digest = runtime_value_structural_digest(value);
     let mut key = String::with_capacity(65);
     key.push('v');
@@ -57679,7 +57716,13 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
     #[test]
     fn structural_collection_keys_are_total_beyond_the_observer_memo_cap() {
-        let value = Value::Str("x".repeat(CHECKED_EXACT_OBSERVER_MEMO_SINGLE_VALUE_BYTE_LIMIT + 1));
+        let value = Value::Constructor(
+            "LargeValue".into(),
+            vec![Value::Str("x".repeat(
+                CHECKED_EXACT_OBSERVER_MEMO_SINGLE_VALUE_BYTE_LIMIT + 1,
+            ))]
+            .into(),
+        );
         assert!(
             checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&value)).is_none(),
             "the observer memo must retain its deliberate single-value cap"
@@ -57687,6 +57730,22 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let semantic_key = runtime_value_semantic_key(&value);
         assert_eq!(semantic_key.len(), 65);
+        let mut map = BTreeMap::new();
+        assert!(runtime_map_insert_value(
+            &mut map,
+            value.clone(),
+            Value::Int(7)
+        ));
+        assert!(matches!(
+            runtime_map_get_value(&map, &value),
+            Some(Value::Int(7))
+        ));
+        assert!(matches!(
+            runtime_map_remove_value(&mut map, &value),
+            Some(Value::Int(7))
+        ));
+        assert!(map.is_empty());
+
         let mut set = BTreeMap::new();
         assert!(runtime_set_insert_value(&mut set, value));
         assert_eq!(set.len(), 1);
@@ -57706,10 +57765,15 @@ starters first from mechanisms paths for node activation "{digest}" using values
             Value::Int(1),
         );
         let normalized_map = Value::Map(normalized_map);
-        assert_eq!(
-            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_map)),
+        let raw_map_encoding =
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_map))
+                .expect("raw Map memo encoding");
+        let normalized_map_encoding =
             checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&normalized_map))
-        );
+                .expect("normalized Map memo encoding");
+        assert!(!raw_map_encoding.is_empty());
+        assert!(!normalized_map_encoding.is_empty());
+        assert_eq!(raw_map_encoding, normalized_map_encoding);
         assert!(!normalized_map
             .to_string()
             .contains(RUNTIME_COLLECTION_KEY_PREFIX));
@@ -57721,10 +57785,106 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let mut normalized_set = BTreeMap::new();
         runtime_set_insert_value(&mut normalized_set, Value::Str("member".into()));
         let normalized_set = Value::Set(normalized_set);
-        assert_eq!(
-            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_set)),
+        let raw_set_encoding =
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_set))
+                .expect("raw Set memo encoding");
+        let normalized_set_encoding =
             checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&normalized_set))
-        );
+                .expect("normalized Set memo encoding");
+        assert!(!raw_set_encoding.is_empty());
+        assert!(!normalized_set_encoding.is_empty());
+        assert_eq!(raw_set_encoding, normalized_set_encoding);
+    }
+
+    #[test]
+    fn collection_digest_collisions_retain_exact_map_and_set_witnesses() {
+        with_forced_runtime_collection_semantic_key("vforced-collision", || {
+            let bucket = format!("{}{}:", RUNTIME_COLLECTION_KEY_PREFIX, "vforced-collision");
+            let slot_zero = format!("{bucket}{:016x}", 0);
+            let slot_one = format!("{bucket}{:016x}", 1);
+            let first = Value::Str("first".into());
+            let second = Value::Str("second".into());
+
+            let mut map = BTreeMap::new();
+            assert!(runtime_map_insert_value(
+                &mut map,
+                first.clone(),
+                Value::Int(10)
+            ));
+            assert!(runtime_map_insert_value(
+                &mut map,
+                second.clone(),
+                Value::Int(20)
+            ));
+            assert_eq!(
+                map.keys().cloned().collect::<Vec<_>>(),
+                [slot_zero.clone(), slot_one.clone()]
+            );
+            assert!(matches!(
+                runtime_map_get_value(&map, &first),
+                Some(Value::Int(10))
+            ));
+            assert!(matches!(
+                runtime_map_get_value(&map, &second),
+                Some(Value::Int(20))
+            ));
+            assert!(runtime_map_find_storage_key(&map, &first).is_some());
+            assert!(runtime_map_find_storage_key(&map, &second).is_some());
+
+            assert!(!runtime_map_insert_value(
+                &mut map,
+                second.clone(),
+                Value::Int(21)
+            ));
+            assert_eq!(
+                map.keys().cloned().collect::<Vec<_>>(),
+                [slot_zero.clone(), slot_one.clone()]
+            );
+            assert!(matches!(
+                runtime_map_get_value(&map, &second),
+                Some(Value::Int(21))
+            ));
+            assert!(matches!(
+                runtime_map_remove_value(&mut map, &first),
+                Some(Value::Int(10))
+            ));
+            assert_eq!(map.keys().cloned().collect::<Vec<_>>(), [slot_one.clone()]);
+            assert!(runtime_map_get_value(&map, &first).is_none());
+            assert!(matches!(
+                runtime_map_get_value(&map, &second),
+                Some(Value::Int(21))
+            ));
+            assert!(matches!(
+                runtime_map_remove_value(&mut map, &second),
+                Some(Value::Int(21))
+            ));
+            assert!(map.is_empty());
+
+            let mut set = BTreeMap::new();
+            assert!(runtime_set_insert_value(&mut set, first.clone()));
+            assert!(runtime_set_insert_value(&mut set, second.clone()));
+            assert_eq!(
+                set.keys().cloned().collect::<Vec<_>>(),
+                [slot_zero.clone(), slot_one.clone()]
+            );
+            assert!(runtime_set_find_storage_key(&set, &first).is_some());
+            assert!(runtime_set_find_storage_key(&set, &second).is_some());
+            assert!(!runtime_set_insert_value(&mut set, second.clone()));
+            assert_eq!(
+                set.keys().cloned().collect::<Vec<_>>(),
+                [slot_zero, slot_one.clone()]
+            );
+            assert!(
+                matches!(runtime_set_remove_value(&mut set, &first), Some(Value::Str(value)) if value == "first")
+            );
+            assert_eq!(set.keys().cloned().collect::<Vec<_>>(), [slot_one]);
+            assert!(runtime_set_find_storage_key(&set, &first).is_none());
+            assert!(runtime_set_find_storage_key(&set, &second).is_some());
+            assert!(
+                matches!(runtime_set_remove_value(&mut set, &second), Some(Value::Str(value)) if value == "second")
+            );
+            assert!(set.is_empty());
+        });
     }
 
     #[test]

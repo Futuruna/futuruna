@@ -4646,7 +4646,7 @@ mod calculation_execution_tests {
             "tags": ["first", "second"]
         });
         let decoded = contract.decode_input(&input).expect("decode collections");
-        let Value::NamedConstructor(_, fields) = &decoded else {
+        let Value::NamedConstructor(record_name, fields) = &decoded else {
             panic!("expected decoded collection record");
         };
         let values = fields
@@ -4695,7 +4695,7 @@ mod calculation_execution_tests {
             ),
             Value::Int(9)
         ));
-        let removed = interpreter.eval_builtin(
+        let removed_values = interpreter.eval_builtin(
             "map_remove",
             vec![replaced, Value::Str("beta".into())],
             &env,
@@ -4703,7 +4703,7 @@ mod calculation_execution_tests {
         assert!(matches!(
             interpreter.eval_builtin(
                 "map_contains",
-                vec![removed, Value::Str("beta".into())],
+                vec![removed_values.clone(), Value::Str("beta".into())],
                 &env,
             ),
             Value::Bool(false)
@@ -4726,7 +4726,7 @@ mod calculation_execution_tests {
             interpreter.eval_builtin("set_len", vec![duplicate.clone()], &env),
             Value::Int(2)
         ));
-        let removed = interpreter.eval_builtin(
+        let removed_tags = interpreter.eval_builtin(
             "set_remove",
             vec![duplicate, Value::Str("second".into())],
             &env,
@@ -4734,7 +4734,7 @@ mod calculation_execution_tests {
         assert!(matches!(
             interpreter.eval_builtin(
                 "set_contains",
-                vec![removed, Value::Str("second".into())],
+                vec![removed_tags.clone(), Value::Str("second".into())],
                 &env,
             ),
             Value::Bool(false)
@@ -4755,6 +4755,36 @@ mod calculation_execution_tests {
         let encoded_json = serde_json::to_string(&encoded).expect("serialize encoded collections");
         assert!(!encoded_json.contains(RUNTIME_COLLECTION_KEY_PREFIX));
         assert!(!encoded_json.contains(RUNTIME_MAP_ENTRY_MARKER));
+
+        let mutated = Value::NamedConstructor(
+            record_name.clone(),
+            fields
+                .iter()
+                .map(|(name, value)| {
+                    let value = match name.as_str() {
+                        "values" => removed_values.clone(),
+                        "tags" => removed_tags.clone(),
+                        _ => value.clone(),
+                    };
+                    (name.clone(), value)
+                })
+                .collect::<Vec<_>>()
+                .into(),
+        );
+        let mutated_encoded = contract
+            .encode_output(&mutated)
+            .expect("encode mutated collections");
+        assert_eq!(
+            mutated_encoded,
+            serde_json::json!({
+                "values": {"alpha": 9},
+                "tags": ["first"]
+            })
+        );
+        let mutated_json =
+            serde_json::to_string(&mutated_encoded).expect("serialize mutated collections");
+        assert!(!mutated_json.contains(RUNTIME_COLLECTION_KEY_PREFIX));
+        assert!(!mutated_json.contains(RUNTIME_MAP_ENTRY_MARKER));
 
         let duplicate_error = contract
             .decode_input(&serde_json::json!({
