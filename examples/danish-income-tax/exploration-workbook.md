@@ -2202,6 +2202,34 @@ mechanism/node/edge starter fibers join through SourceKey/SuccessorKey. This is
 the concrete bridge between the case graph and mechanism DAG, without a
 `cases x mechanism subjects` expansion.
 
+That convenient selected typed edge list is deliberately not the complete
+case graph. The SQL-like trailing declaration
+
+```runa
+transitions income_cliff_case_graph from all cases
+```
+
+requests a distinct identity-only artifact at
+`graphs/income_cliff_case_graph.ndjson`. Its semantic journal index exists
+regardless of whether the consumer is declared: successor discovery grows U,
+admission grows D, and the question-selected population grows M. Records are
+canonical StateId/TransitionId nodes plus U/D/M CaseId support; Context,
+Before and After values do not leak through this declaration. Each support row
+does retain `SourceKey` and `SuccessorKey`: that authenticated route preserves
+which `(Context, Before)` starter and which per-starter After fiber produced a
+case in this relation. It does not redefine the global semantic `TransitionId`,
+which already binds canonical Context/Before/After, or disclose those typed
+values. The previously described `S_C` selected count and this graph's `M_C`
+count name the same question-relative population.
+
+This distinction is important for resumability. A fresh small graph request
+may make concrete traversal the cheapest materialization strategy, while a
+late request on a symbolically closed journal must either use an already
+authenticated materializer or say `unmaterialized`. It may not restart the
+question invisibly. Exact graphs page directly from authenticated ID-ordered
+indexes; oversized graphs terminate honestly as `capacity_limited` rather
+than cloning an O(N) terminal value or treating a cap as an exact case count.
+
 The historical closed 10,500-case commuter journal would have been the natural
 first attachment audit, but it was minted under an earlier journal contract
 and the current reader correctly rejects its prior-head identity. There is

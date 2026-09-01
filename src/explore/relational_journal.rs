@@ -91,6 +91,10 @@ use super::relational_support_planner::{
     RelationalSourceAssignmentImageProof, RelationalStagedObligationDescriptor,
     RelationalSuccessorRecipeKind, RelationalSupportPlan, RelationalSupportPlanRoot,
 };
+use super::relational_transition_support::{
+    RelationalTransitionSupportCounts, RelationalTransitionSupportError,
+    RelationalTransitionSupportIndex, RelationalTransitionSupportRoot,
+};
 use super::relational_uniform_admission_proof::{
     reverify_relational_uniform_admission_artifact, RelationalUniformAdmissionProofArtifact,
     RelationalUniformAdmissionProofError,
@@ -110,21 +114,22 @@ use super::support_evidence::{
 };
 use super::support_journal::{SupportJournalError, SupportJournalEvent};
 use super::transition::canonical_explore_value_digest;
+use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 16;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 17;
 
-const JOURNAL_CONTRACT_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-contract.v16";
-const JOURNAL_GENESIS_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-genesis.v16";
+const JOURNAL_CONTRACT_HASH_V17: &[u8] = b"futuruna.explore.relational-journal-contract.v17";
+const JOURNAL_GENESIS_HASH_V17: &[u8] = b"futuruna.explore.relational-journal-genesis.v17";
 const JOURNAL_EVENT_HASH_V15: &[u8] = b"futuruna.explore.relational-journal-event.v15";
-const JOURNAL_ENTRY_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-entry.v16";
-const CORE_EVIDENCE_ROOT_HASH_V4: &[u8] = b"futuruna.explore.relational-core-evidence-root.v4";
+const JOURNAL_ENTRY_HASH_V17: &[u8] = b"futuruna.explore.relational-journal-entry.v17";
+const CORE_EVIDENCE_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-core-evidence-root.v5";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
 const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exhaustion-evidence-root.v2";
-const EXTENSIONAL_CONTENT_ROOT_HASH_V3: &[u8] =
-    b"futuruna.explore.relational-extensional-content-root.v3";
+const EXTENSIONAL_CONTENT_ROOT_HASH_V4: &[u8] =
+    b"futuruna.explore.relational-extensional-content-root.v4";
 const CHECKPOINT_ROOT_HASH_V4: &[u8] = b"futuruna.explore.relational-checkpoint-root.v4";
 
 /// Semantic replay bound for every independently authenticated mechanism-
@@ -375,6 +380,9 @@ pub(crate) struct RelationalJournalContract {
     relation_id: RelationId,
     admission_id: AdmissionId,
     question_id: QuestionId,
+    state_schema_id: StateSchemaId,
+    context_schema_id: ContextSchemaId,
+    transition_type_id: TransitionTypeId,
     analysis_graph_digest: [u8; 32],
 }
 
@@ -383,12 +391,18 @@ impl RelationalJournalContract {
         relation_id: RelationId,
         admission_id: AdmissionId,
         question_id: QuestionId,
+        state_schema_id: StateSchemaId,
+        context_schema_id: ContextSchemaId,
+        transition_type_id: TransitionTypeId,
         analysis_graph_digest: [u8; 32],
     ) -> Self {
         Self {
             relation_id,
             admission_id,
             question_id,
+            state_schema_id,
+            context_schema_id,
+            transition_type_id,
             analysis_graph_digest,
         }
     }
@@ -405,16 +419,31 @@ impl RelationalJournalContract {
         self.question_id
     }
 
+    pub(crate) const fn state_schema_id(self) -> StateSchemaId {
+        self.state_schema_id
+    }
+
+    pub(crate) const fn context_schema_id(self) -> ContextSchemaId {
+        self.context_schema_id
+    }
+
+    pub(crate) const fn transition_type_id(self) -> TransitionTypeId {
+        self.transition_type_id
+    }
+
     pub(crate) const fn analysis_graph_digest(self) -> [u8; 32] {
         self.analysis_graph_digest
     }
 
     pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V16);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V17);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
         hasher.digest(self.question_id.bytes());
+        hasher.digest(self.state_schema_id.bytes());
+        hasher.digest(self.context_schema_id.bytes());
+        hasher.digest(self.transition_type_id.bytes());
         hasher.digest(self.analysis_graph_digest);
         RelationalJournalId(hasher.finish())
     }
@@ -434,7 +463,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V16);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V17);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -1208,6 +1237,7 @@ struct RelationalEvidenceState {
     relation: RelationCatalogBuilder,
     admission: AdmissionCatalogBuilder,
     question: QuestionCatalogBuilder,
+    transition_support: RelationalTransitionSupportIndex,
     analysis_plan: Option<RelationalAnalysisPlan>,
     analysis: Option<RelationalAnalysisJournalState>,
     support_plan: Option<RelationalSupportPlan>,
@@ -1312,6 +1342,11 @@ impl RelationalEvidenceState {
                 contract.relation_id,
                 contract.admission_id,
                 contract.question_id,
+            ),
+            transition_support: RelationalTransitionSupportIndex::new(
+                contract.state_schema_id,
+                contract.context_schema_id,
+                contract.transition_type_id,
             ),
             analysis_plan: None,
             analysis: None,
@@ -1561,7 +1596,26 @@ impl RelationalEvidenceState {
                         derived: derived_case,
                     });
                 }
-                self.relation.insert_successor(*source_key, row.clone())?;
+                let source = self.relation.source_row(*source_key).ok_or(
+                    RelationCatalogError::UnknownSource {
+                        source_key: *source_key,
+                    },
+                )?;
+                let prepared_transition = self.transition_support.preflight_universe(
+                    &self.relation,
+                    *case_id,
+                    *source_key,
+                    source,
+                    *successor_key,
+                    row,
+                )?;
+                let prepared_relation = self
+                    .relation
+                    .preflight_insert_successor(*source_key, row.clone())?;
+                debug_assert_eq!(prepared_relation.successor_key(), *successor_key);
+                debug_assert_eq!(prepared_relation.case_id(), *case_id);
+                self.relation.commit_preflight_successor(prepared_relation);
+                self.transition_support.commit_universe(prepared_transition);
             }
             RelationalEvidenceEvent::SuccessorFiberExhaustionAccepted {
                 receipt_id,
@@ -1613,16 +1667,31 @@ impl RelationalEvidenceState {
                         );
                     }
                 }
+                let insert =
+                    self.admission
+                        .preflight_classify_open(&self.relation, *case_id, *decision)?;
+                let prepared_transition = self
+                    .transition_support
+                    .preflight_admission(*case_id, *decision)?;
+                self.transition_support
+                    .commit_classification(prepared_transition);
                 self.admission
-                    .classify_open(&self.relation, *case_id, *decision)?;
+                    .commit_preflight_classification(*case_id, *decision, insert);
             }
             RelationalEvidenceEvent::QuestionClassified { case_id, decision } => {
-                self.question.classify_open(
+                let insert = self.question.preflight_classify_open(
                     &self.relation,
                     &self.admission,
                     *case_id,
                     *decision,
                 )?;
+                let prepared_transition = self
+                    .transition_support
+                    .preflight_question(*case_id, *decision)?;
+                self.transition_support
+                    .commit_classification(prepared_transition);
+                self.question
+                    .commit_preflight_classification(*case_id, *decision, insert);
             }
             RelationalEvidenceEvent::Support(event) => {
                 self.apply_support_event(event)?;
@@ -2721,11 +2790,36 @@ impl RelationalEvidenceState {
         }
         let retained_artifact = artifact.clone();
 
+        // The sparse materializer represents admitted-and-selected cases, so
+        // it extends all three semantic transition layers. Stage that bounded
+        // authenticated delta independently before any durable catalog is
+        // mutated. This makes a transition collision or allocation failure an
+        // all-or-nothing rejection alongside the relation/classification
+        // batch instead of exposing a partially installed selected witness.
+        let mut staged_transition_support = self.transition_support.clone();
+        for record in verified.cases().iter() {
+            let universe = staged_transition_support.preflight_universe(
+                &self.relation,
+                record.case_id(),
+                record.source_key(),
+                record.source(),
+                record.successor_key(),
+                record.successor(),
+            )?;
+            staged_transition_support.commit_universe(universe);
+            let admitted = staged_transition_support
+                .preflight_admission(record.case_id(), AdmissionDecision::Admitted)?;
+            staged_transition_support.commit_classification(admitted);
+            let matched = staged_transition_support
+                .preflight_question(record.case_id(), SelectionDecision::Selected)?;
+            staged_transition_support.commit_classification(matched);
+        }
+
         // Validate against the durable prefixes and build one bounded local
-        // relation delta before mutating any of the three concrete catalogs.
-        // The final merge has no semantic failure path and does not clone the
-        // selected prefix. No enumeration seal is minted here: these remain
-        // sparse witnesses emerging from an open certified population.
+        // relation delta before mutating any concrete catalog. The final merge
+        // has no semantic failure path and does not clone the selected prefix.
+        // No enumeration seal is minted here: these remain sparse witnesses
+        // emerging from an open certified population.
         install_selected_case_batch(
             &mut self.relation,
             &mut self.admission,
@@ -2740,10 +2834,10 @@ impl RelationalEvidenceState {
                 )
             }),
         )?;
+        self.transition_support = staged_transition_support;
 
         // All semantic conflicts were rejected before the batch merge. These
-        // two indexes were likewise collision-checked above; their insertion
-        // only publishes the already accepted bounded artifact.
+        // two indexes only publish the already accepted bounded artifact.
         let previous = self
             .selected_run_materializations
             .insert(run_cell_id, retained_artifact);
@@ -3629,6 +3723,10 @@ impl<'a> RelationalSchedulerView<'a> {
         self.journal.head
     }
 
+    pub(crate) const fn transition_support(self) -> &'a RelationalTransitionSupportIndex {
+        &self.journal.state.transition_support
+    }
+
     pub(crate) fn analysis_plan_root(self) -> Option<RelationalAnalysisPlanRoot> {
         self.journal
             .state
@@ -3916,6 +4014,15 @@ impl<'a> RelationalSchedulerView<'a> {
 
     pub(crate) fn relation_enumeration_is_complete(self) -> bool {
         self.journal.state.relation.enumeration_is_complete()
+    }
+
+    /// Whether the concrete U/D/M transition relation is extensionally
+    /// complete. Proof closure alone does not satisfy this predicate: a
+    /// symbolic answer may still require its authenticated materializer.
+    pub(crate) fn transition_support_is_extentionally_closed(self) -> bool {
+        self.relation_enumeration_is_complete()
+            && self.admission_decision_count() == self.case_count()
+            && self.question_decision_count() == self.admitted_count()
     }
 
     pub(crate) fn source_row(self, source_key: SourceKey) -> Option<&'a SourceRow> {
@@ -4498,6 +4605,7 @@ impl RelationalJournal {
             relation.frontier_root(),
             admission_frontier_root,
             question_frontier_root,
+            self.state.transition_support.root(),
             support.root(),
         );
         let analysis_scope_root = self
@@ -4545,6 +4653,8 @@ impl RelationalJournal {
             relation_frontier_root: relation.frontier_root(),
             admission_frontier_root,
             question_frontier_root,
+            transition_support_root: self.state.transition_support.root(),
+            transition_support_counts: self.state.transition_support.counts(),
             analysis_plan_root,
             support_plan_root,
             source_traversal_frontier_root,
@@ -4653,6 +4763,7 @@ impl RelationalJournal {
             relation,
             admission,
             question,
+            transition_support,
             analysis_plan,
             analysis,
             support_plan,
@@ -4698,6 +4809,7 @@ impl RelationalJournal {
             relation_frontier_root,
             admission_frontier_root,
             question_frontier_root,
+            transition_support.root(),
             support.root(),
         );
         let relation = relation.finish()?;
@@ -4712,6 +4824,7 @@ impl RelationalJournal {
             relation.content_root(),
             admission.content_root(),
             question.content_root(),
+            transition_support.root(),
             support.root(),
         );
         let checkpoint_root = relational_checkpoint_root(
@@ -4745,6 +4858,7 @@ impl RelationalJournal {
             relation,
             admission,
             question,
+            transition_support,
             support,
         })
     }
@@ -4845,6 +4959,8 @@ pub(crate) struct RelationalJournalSnapshot {
     relation_frontier_root: RelationFrontierRoot,
     admission_frontier_root: AdmissionFrontierRoot,
     question_frontier_root: QuestionFrontierRoot,
+    transition_support_root: RelationalTransitionSupportRoot,
+    transition_support_counts: RelationalTransitionSupportCounts,
     analysis_plan_root: Option<RelationalAnalysisPlanRoot>,
     support_plan_root: Option<RelationalSupportPlanRoot>,
     source_traversal_frontier_root: Option<SourceTraversalFrontierRoot>,
@@ -4893,6 +5009,14 @@ impl RelationalJournalSnapshot {
 
     pub(crate) const fn question_frontier_root(&self) -> QuestionFrontierRoot {
         self.question_frontier_root
+    }
+
+    pub(crate) const fn transition_support_root(&self) -> RelationalTransitionSupportRoot {
+        self.transition_support_root
+    }
+
+    pub(crate) const fn transition_support_counts(&self) -> RelationalTransitionSupportCounts {
+        self.transition_support_counts
     }
 
     pub(crate) const fn analysis_plan_root(&self) -> Option<RelationalAnalysisPlanRoot> {
@@ -5002,6 +5126,7 @@ pub(crate) struct ClosedExtensionalRelationalEvidence {
     relation: RelationCatalog,
     admission: AdmissionCatalog,
     question: QuestionCatalog,
+    transition_support: RelationalTransitionSupportIndex,
     support: SupportEvidenceSnapshot,
 }
 
@@ -5024,6 +5149,10 @@ impl ClosedExtensionalRelationalEvidence {
 
     pub(crate) const fn question_content_root(&self) -> QuestionContentRoot {
         self.question_content_root
+    }
+
+    pub(crate) const fn transition_support(&self) -> &RelationalTransitionSupportIndex {
+        &self.transition_support
     }
 
     pub(crate) const fn analysis_plan_root(&self) -> RelationalAnalysisPlanRoot {
@@ -5105,6 +5234,7 @@ impl ClosedExtensionalRelationalEvidence {
 pub(crate) enum RelationalJournalError {
     Relation(RelationCatalogError),
     Classification(RelationClassificationError),
+    TransitionSupport(RelationalTransitionSupportError),
     SupportEvidence(SupportEvidenceError),
     SupportJournal(SupportJournalError),
     CaseImageProof(RelationalCaseImageInjectivityProofError),
@@ -5344,6 +5474,12 @@ impl From<RelationClassificationError> for RelationalJournalError {
     }
 }
 
+impl From<RelationalTransitionSupportError> for RelationalJournalError {
+    fn from(error: RelationalTransitionSupportError) -> Self {
+        Self::TransitionSupport(error)
+    }
+}
+
 impl From<SelectedCaseBatchError> for RelationalJournalError {
     fn from(error: SelectedCaseBatchError) -> Self {
         match error {
@@ -5458,6 +5594,7 @@ impl fmt::Display for RelationalJournalError {
         match self {
             Self::Relation(error) => fmt::Display::fmt(error, formatter),
             Self::Classification(error) => fmt::Display::fmt(error, formatter),
+            Self::TransitionSupport(error) => fmt::Display::fmt(error, formatter),
             Self::SupportEvidence(error) => fmt::Display::fmt(error, formatter),
             Self::SupportJournal(error) => fmt::Display::fmt(error, formatter),
             Self::CaseImageProof(error) => fmt::Display::fmt(error, formatter),
@@ -5798,6 +5935,7 @@ impl fmt::Display for RelationalJournalError {
 impl Error for RelationalJournalError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match self {
+            Self::TransitionSupport(error) => Some(error),
             Self::CaseImageProof(error) => Some(error),
             Self::SourceImageProof(error) => Some(error),
             Self::CertifiedSourceSummary(error) => Some(error),
@@ -5819,9 +5957,10 @@ fn relational_core_evidence_root(
     relation: RelationFrontierRoot,
     admission: AdmissionFrontierRoot,
     question: QuestionFrontierRoot,
+    transition_support: RelationalTransitionSupportRoot,
     support: SupportEvidenceRoot,
 ) -> RelationalCoreEvidenceRoot {
-    let mut hasher = ChainHasher::new(CORE_EVIDENCE_ROOT_HASH_V4);
+    let mut hasher = ChainHasher::new(CORE_EVIDENCE_ROOT_HASH_V5);
     hasher.digest(contract.id().bytes());
     match analysis_plan {
         Some(root) => {
@@ -5841,6 +5980,7 @@ fn relational_core_evidence_root(
     hasher.digest(relation.bytes());
     hasher.digest(admission.bytes());
     hasher.digest(question.bytes());
+    hasher.digest(transition_support.bytes());
     hasher.digest(support.bytes());
     RelationalCoreEvidenceRoot(hasher.finish())
 }
@@ -5896,9 +6036,10 @@ fn relational_extensional_content_root(
     relation: RelationContentRoot,
     admission: AdmissionContentRoot,
     question: QuestionContentRoot,
+    transition_support: RelationalTransitionSupportRoot,
     support: SupportEvidenceRoot,
 ) -> RelationalExtensionalContentRoot {
-    let mut hasher = ChainHasher::new(EXTENSIONAL_CONTENT_ROOT_HASH_V3);
+    let mut hasher = ChainHasher::new(EXTENSIONAL_CONTENT_ROOT_HASH_V4);
     hasher.digest(contract.id().bytes());
     hasher.digest(analysis_plan.bytes());
     hasher.digest(support_plan.bytes());
@@ -5907,6 +6048,7 @@ fn relational_extensional_content_root(
     hasher.digest(relation.bytes());
     hasher.digest(admission.bytes());
     hasher.digest(question.bytes());
+    hasher.digest(transition_support.bytes());
     hasher.digest(support.bytes());
     RelationalExtensionalContentRoot(hasher.finish())
 }
@@ -5997,7 +6139,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V16);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V17);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -6486,8 +6628,9 @@ impl ChainHasher {
 mod tests {
     use super::*;
     use crate::explore::{
-        ExploreValue, RelationalBoundValue, RelationalCaseExecutor, RelationalExpressionRuntime,
-        RelationalSourceEnumerator, RelationalSuccessorAdvance, RelationalSupportPlanner,
+        ExploreValue, RelationalAnalysisPlan, RelationalBoundValue, RelationalCaseExecutor,
+        RelationalExpressionRuntime, RelationalSourceEnumerator, RelationalSuccessorAdvance,
+        RelationalSupportPlanner, RelationalTransitionLayer,
     };
     use crate::{Expr, ExprKind, Lexer, Literal, Parser, Ty, TypeChecker};
 
@@ -6534,6 +6677,8 @@ mod tests {
         let checked = artifacts
             .checked_exploration_query(0)
             .expect("joined checked Explore query");
+        let analysis_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("plan analysis DAG");
         let support_plan = RelationalSupportPlanner::from_checked(&checked)
             .and_then(|planner| planner.plan())
             .expect("plan exact source support");
@@ -6541,9 +6686,17 @@ mod tests {
             checked.relation_id(),
             checked.admission_id(),
             checked.question_id(),
-            Sha256::digest(b"journal-test-analysis").into(),
+            checked.transition_schemas().state_schema_id(),
+            checked.transition_schemas().context_schema_id(),
+            checked.transition_schemas().transition_type_id(),
+            analysis_plan.producer_graph_digest().bytes(),
         );
         let mut journal = RelationalJournal::new(contract);
+        journal
+            .append(RelationalJournalEvent::analysis_plan_registered(
+                analysis_plan,
+            ))
+            .unwrap();
         journal
             .append(RelationalJournalEvent::support_plan_registered(
                 support_plan,
@@ -6615,6 +6768,7 @@ mod tests {
             other => panic!("singleton successor must yield one case: {other:?}"),
         };
         let case_id = case.case_id();
+        let successor_key = case.successor_key();
         journal.append(case.discovered_event()).unwrap();
 
         let case_ready =
@@ -6761,6 +6915,26 @@ mod tests {
             closed_snapshot.question().selected(),
             RelationCountEvidence::Exact(1)
         );
+        let transition_counts = closed_snapshot.transition_support_counts();
+        assert_eq!(transition_counts.states(), 2);
+        for layer in [
+            RelationalTransitionLayer::Universe,
+            RelationalTransitionLayer::Admitted,
+            RelationalTransitionLayer::Matched,
+        ] {
+            assert_eq!(transition_counts.cases(layer), 1);
+            assert_eq!(transition_counts.transitions(layer), 1);
+            let support = journal
+                .scheduler_view()
+                .unwrap()
+                .transition_support()
+                .support_at_ordinal(layer, 0)
+                .unwrap()
+                .unwrap();
+            assert_eq!(support.case_id(), case_id);
+            assert_eq!(support.source_key(), source_key);
+            assert_eq!(support.successor_key(), successor_key);
+        }
         assert!(closed_snapshot
             .work()
             .nodes
@@ -6788,6 +6962,14 @@ mod tests {
         assert_eq!(
             replayed_snapshot.core_evidence_root(),
             closed_snapshot.core_evidence_root()
+        );
+        assert_eq!(
+            replayed_snapshot.transition_support_root(),
+            closed_snapshot.transition_support_root()
+        );
+        assert_eq!(
+            replayed_snapshot.transition_support_counts(),
+            closed_snapshot.transition_support_counts()
         );
 
         let mut tampered = entries;

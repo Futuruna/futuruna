@@ -39,6 +39,20 @@ An Explore declaration has six semantic stages:
 6. named `mechanisms` requests replay explicit endpoint observations and expose
    typed signature-incidence relations to later result views.
 
+Trailing publication declarations are not a seventh evaluator stage. In
+particular, `transitions NAME from all cases` requests an independently
+resumable, identity-only materialization of the already defined relation:
+
+```runa
+    transitions full_case_graph from all cases
+```
+
+Adding, removing or renaming that consumer MUST NOT rename the RelationId,
+AdmissionId, QuestionId, analysis graph, journal contract, or evidence already
+minted for the question. The journal contract always contains the checked
+StateSchemaId, ContextSchemaId and TransitionTypeId, whether or not this
+consumer is attached.
+
 Cases precede mechanisms in semantic dependency. Execution MAY interleave
 source discovery, classification, view reduction and replay for different
 cases; no global phase barrier follows from the algebra.
@@ -378,6 +392,12 @@ The primary relation populations are:
 - `U_C`: distinct constructible source/successor cases;
 - `D_C`: cases admitted by an `AdmissionId`; and
 - `S_C`: cases selected by a `QuestionId`.
+
+The full semantic graph calls the selected/question-matching layer `M`; within
+one question `M_C` is the same population as `S_C`. It records three explicit
+support relations `(TransitionId, CaseId)`: `U`, `D`, and `M`. This makes the
+scope of each transition count auditable rather than deriving it from an
+arbitrary retained case cap.
 
 For `find all`, `S_C = D_C`. Inside one RelationId the corresponding extensional
 transition counts are conservation equalities: `U_T = U_C`, `D_T = D_C` and
@@ -1156,6 +1176,34 @@ artifact and updating publication cursor/manifest state; it MUST NOT
 re-evaluate a case, replay a mechanism, or change the journal head. The typed
 graph is confidential output under the same explicit value authorization as
 its authorizing view.
+
+The explicit `transitions NAME from all cases` consumer is a separate full
+graph, not an alias for that selected typed edge list. It publishes only
+StateIds, TransitionIds, endpoint StateId links, and canonical U/D/M
+`(TransitionId, CaseId)` support. Every support member also binds its
+`SourceKey` and `SuccessorKey`, giving an authenticated route back to the
+relation-scoped `(Context, Before)` starter and its per-starter After fiber.
+This route does not redefine the global semantic `TransitionId`, which already
+binds its canonical Context/Before/After triple, and the coordinate hashes do
+not reveal those typed values. The graph MUST NOT implicitly publish Context,
+Before or After values; those remain behind the existing checked value
+authorization.
+`SuccessorDiscovered` adds U support, an admitted
+`AdmissionClassified` adds D support, and a selected `QuestionClassified` adds
+M support. A structurally excluded successor emits no transition at all.
+
+The journal preflights relation identity, state/transition collisions and
+classification containment before mutating each affected layer. Replay folds
+the same events into CaseId-, StateId- and TransitionId-ordered authenticated
+sets, so append order cannot change the graph root. Publication is paged from
+those indexes after stable extensional closure and never clones the whole
+graph into one terminal array. If the bounded publication capacity is
+exceeded it emits `capacity_limited`. If a consumer is attached to a
+proof-closed run whose cases were not extensionally retained and no existing
+authenticated materializer can satisfy the demand, it emits
+`unmaterialized`; it MUST NOT silently rerun the question or change its answer
+identity. A fresh safely bounded run MAY choose concrete traversal as an
+operational strategy for satisfying the declared materialization obligation.
 
 On supported Unix hosts, every publication invocation MUST create or tighten
 the operator-selected output root and its owned subdirectories to mode `0700`

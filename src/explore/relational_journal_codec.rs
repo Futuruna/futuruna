@@ -6786,7 +6786,15 @@ mod tests {
             b"old-schema question",
             FindPolarity::All,
         );
-        let contract = RelationalJournalContract::new(relation, admission, question, [0; 32]);
+        let contract = RelationalJournalContract::new(
+            relation,
+            admission,
+            question,
+            super::super::StateSchemaId::from_bytes([1; 32]),
+            super::super::ContextSchemaId::from_bytes([2; 32]),
+            super::super::TransitionTypeId::from_bytes([3; 32]),
+            [0; 32],
+        );
         let journal = RelationalJournal::new(contract);
 
         let mut bytes = Vec::new();

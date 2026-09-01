@@ -14,7 +14,7 @@ use crate::{
     ExploreAdmissionScope, ExploreChooseCardinality, ExploreOptimizeDirection,
     ExploreRelationMultiplicity, ExploreStarterProjectionFacet, Expr, ExprKind, Span, Ty,
     TypedExploreStarterProjection, TypedExploreStarterProjectionSubject,
-    EXPLORE_RELATION_NORMALIZATION_VERSION,
+    TypedExploreTransitionGraph, EXPLORE_RELATION_NORMALIZATION_VERSION,
 };
 
 /// Compare the checked type shapes carried into relational IR without relying
@@ -381,6 +381,24 @@ impl ExploreStarterProjectionIr {
     }
 }
 
+/// One explicitly named, identity-only publication of the complete semantic
+/// transition relation. It remains outside the analysis DAG so attaching,
+/// removing, or renaming it cannot perturb any upstream semantic identity.
+#[derive(Debug, Clone)]
+pub(crate) struct ExploreTransitionGraphIr {
+    pub(crate) name: String,
+    pub(crate) span: Span,
+}
+
+impl ExploreTransitionGraphIr {
+    pub(crate) fn lower(graph: &TypedExploreTransitionGraph) -> Self {
+        Self {
+            name: graph.name.clone(),
+            span: graph.span,
+        }
+    }
+}
+
 /// One node in declaration order. Positional references form a closed DAG:
 /// every input or target edge must point to a strictly earlier compatible
 /// node.
@@ -420,6 +438,7 @@ pub struct ExploreQueryIr {
     pub find: ExploreFindIr,
     pub analysis: Box<[ExploreAnalysisNodeIr]>,
     pub(crate) starter_projections: Box<[ExploreStarterProjectionIr]>,
+    pub(crate) transition_graphs: Box<[ExploreTransitionGraphIr]>,
     pub span: Span,
 }
 
@@ -444,6 +463,7 @@ impl ExploreQueryIr {
 
         self.validate_analysis()?;
         self.validate_starter_projections()?;
+        self.validate_transition_graphs()?;
 
         Ok(())
     }
@@ -548,6 +568,28 @@ impl ExploreQueryIr {
                 return Err(format!(
                     "starter projection `{}` requires a lossless selected-input each-case value view",
                     projection.name
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_transition_graphs(&self) -> Result<(), String> {
+        let mut names = self
+            .analysis
+            .iter()
+            .map(ExploreAnalysisNodeIr::name)
+            .chain(
+                self.starter_projections
+                    .iter()
+                    .map(|projection| projection.name.as_str()),
+            )
+            .collect::<BTreeSet<_>>();
+        for graph in self.transition_graphs.iter() {
+            if !names.insert(graph.name.as_str()) {
+                return Err(format!(
+                    "duplicate exploration declaration `{}`",
+                    graph.name
                 ));
             }
         }

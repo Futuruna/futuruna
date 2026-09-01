@@ -5104,6 +5104,17 @@ pub struct ExploreStarterProjection {
     pub span: Span,
 }
 
+/// One explicitly requested full semantic transition-graph publication.
+///
+/// The graph is identity-only: typed endpoint values require a separately
+/// checked value-bearing consumer and are never disclosed by this declaration.
+/// Like starter projections, this consumer is outside the core analysis DAG.
+#[derive(Debug, Clone)]
+pub struct ExploreTransitionGraph {
+    pub name: String,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExploreAnalysisNode {
     Result(ExploreResultView),
@@ -5140,6 +5151,8 @@ pub struct ExploreQuery {
     /// Explicit publication consumers over already-declared analysis nodes.
     /// They never participate in the core analysis graph identity.
     pub starter_projections: Vec<ExploreStarterProjection>,
+    /// Explicit identity-only semantic transition-graph consumers.
+    pub transition_graphs: Vec<ExploreTransitionGraph>,
     pub span: Span,
 }
 
@@ -5350,6 +5363,12 @@ pub(crate) struct TypedExploreStarterProjection {
     pub(crate) span: Span,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct TypedExploreTransitionGraph {
+    pub(crate) name: String,
+    pub(crate) span: Span,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum TypedExploreStarterProjectionSubject {
     Mechanism(explore::StructuralMechanismId),
@@ -5405,6 +5424,7 @@ pub struct TypedExploreQuery {
     pub selection: TypedExploreSelection,
     pub analysis: Vec<TypedExploreAnalysisNode>,
     pub(crate) starter_projections: Vec<TypedExploreStarterProjection>,
+    pub(crate) transition_graphs: Vec<TypedExploreTransitionGraph>,
     pub span: Span,
 }
 
@@ -8141,6 +8161,10 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
         // program and every upstream Explore identity stable when a consumer
         // is attached to an existing run.
         starter_projections: Vec::new(),
+        // Full transition-graph declarations are publication consumers too.
+        // They must never rename the relation/admission/question or analysis
+        // program whose durable journal they observe.
+        transition_graphs: Vec::new(),
         span: Span::dummy(),
     }
 }
@@ -9778,6 +9802,18 @@ impl Parser {
         }
     }
 
+    fn parse_explore_transition_graph(&mut self) -> Result<ExploreTransitionGraph, String> {
+        let start = self.expect_explore_word("transitions")?;
+        let (name, _) = self.expect_explore_binder("transition graph name")?;
+        self.expect_explore_word("from")?;
+        self.expect_explore_word("all")?;
+        self.expect_explore_word("cases")?;
+        Ok(ExploreTransitionGraph {
+            name,
+            span: self.span_since(&start),
+        })
+    }
+
     fn parse_explore_query(&mut self, question_token: &Token) -> Result<Stmt, String> {
         self.expect_explore_word("explore")?;
         let (name, _) = self.expect_explore_binder("query name")?;
@@ -9918,7 +9954,21 @@ impl Parser {
             self.skip_semis();
         }
         let mut starter_projections = Vec::new();
-        while self.peek_word("starters") {
+        let mut transition_graphs = Vec::new();
+        while self.peek_word("starters") || self.peek_word("transitions") {
+            if self.peek_word("transitions") {
+                let graph = self.parse_explore_transition_graph()?;
+                if !analysis_names.insert(graph.name.clone()) {
+                    return Err(format!(
+                        "duplicate exploration declaration `{}`",
+                        graph.name
+                    ));
+                }
+                transition_graphs.push(graph);
+                self.skip_semis();
+                continue;
+            }
+
             let projection = self.parse_explore_starter_projection()?;
             match analysis
                 .iter()
@@ -9968,7 +10018,7 @@ impl Parser {
         if self.peek_kind() != TokenKind::RBrace {
             let token = self.peek();
             return Err(format!(
-                "{}:{}: unexpected exploration clause `{}`; post-`find` declarations must be `results`, `mechanisms`, or trailing `starters` consumers and may depend only on earlier declarations",
+                "{}:{}: unexpected exploration clause `{}`; post-`find` declarations must be `results`, `mechanisms`, or trailing `starters`/`transitions` consumers and may depend only on earlier declarations",
                 token.line, token.col, token.source_text
             ));
         }
@@ -9982,6 +10032,7 @@ impl Parser {
             selection,
             analysis,
             starter_projections,
+            transition_graphs,
             span: self.span_since(question_token),
         }))
     }
@@ -27572,6 +27623,8 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
 pub(crate) const CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_ROUTED_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION: u32 = 1;
 
 /// Durable identity of one explicitly named starter publication consumer.
 ///
@@ -27601,6 +27654,36 @@ impl CheckedExploreStarterConsumerSetId {
     }
 }
 
+/// Durable identity of one explicitly named full semantic-transition graph
+/// consumer. The name addresses the independent artifact; the question and
+/// schema tuple bind which identity-only relation it is allowed to publish.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreTransitionGraphId([u8; 32]);
+
+impl CheckedExploreTransitionGraphId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreTransitionGraphConsumerSetId([u8; 32]);
+
+impl CheckedExploreTransitionGraphConsumerSetId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CheckedExploreTransitionGraphIdentity {
+    pub(crate) id: CheckedExploreTransitionGraphId,
+    pub(crate) question_id: explore::QuestionId,
+    pub(crate) state_schema_id: explore::StateSchemaId,
+    pub(crate) context_schema_id: explore::ContextSchemaId,
+    pub(crate) transition_type_id: explore::TransitionTypeId,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CheckedExploreStarterProjectionIdentity {
     pub(crate) id: CheckedExploreStarterProjectionId,
@@ -27624,6 +27707,8 @@ struct CheckedExploreIdentityLadder {
     analysis_graph_digest: Box<str>,
     starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
     starter_consumer_set_id: CheckedExploreStarterConsumerSetId,
+    transition_graphs: Box<[CheckedExploreTransitionGraphIdentity]>,
+    transition_graph_consumer_set_id: CheckedExploreTransitionGraphConsumerSetId,
     source_coverage: CheckedExploreSourceCoverageManifest,
     source_image_projection: Option<CheckedExploreSourceImageProjectionCertificate>,
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
@@ -28140,6 +28225,10 @@ pub(crate) struct CheckedExploreQueryArtifact {
     pub(crate) starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
     /// Order-independent identity of the attached starter consumer set.
     pub(crate) starter_consumer_set_id: CheckedExploreStarterConsumerSetId,
+    /// Explicit full transition-graph consumers, independent of the core
+    /// analysis DAG and of the selected typed edge-list projection.
+    pub(crate) transition_graphs: Box<[CheckedExploreTransitionGraphIdentity]>,
+    pub(crate) transition_graph_consumer_set_id: CheckedExploreTransitionGraphConsumerSetId,
     /// Conservative, producer-owned account of the finite source breadth and
     /// every immutable input reachable from its checked FROM-only semantic
     /// closure. Successor/question/analysis inputs are deliberately excluded.
@@ -28292,6 +28381,12 @@ impl CheckedExploreQueryView<'_> {
         self.artifact.starter_consumer_set_id
     }
 
+    pub(crate) const fn transition_graph_consumer_set_id(
+        &self,
+    ) -> CheckedExploreTransitionGraphConsumerSetId {
+        self.artifact.transition_graph_consumer_set_id
+    }
+
     /// Starter declarations paired with their producer-minted publication
     /// identities. The declaration name remains the output address; the
     /// checked identity binds that address to its request, subject, optional
@@ -28308,6 +28403,20 @@ impl CheckedExploreQueryView<'_> {
             .starter_projections
             .iter()
             .zip(self.artifact.starter_projections.iter())
+    }
+
+    pub(crate) fn transition_graph_consumers(
+        &self,
+    ) -> impl ExactSizeIterator<
+        Item = (
+            &explore::ExploreTransitionGraphIr,
+            &CheckedExploreTransitionGraphIdentity,
+        ),
+    > + '_ {
+        self.closed_query
+            .transition_graphs
+            .iter()
+            .zip(self.artifact.transition_graphs.iter())
     }
 
     /// Normalized analysis nodes paired with their producer-minted identities
@@ -29266,6 +29375,8 @@ impl TypeCheckArtifacts {
             || ladder.analysis_graph_digest.as_ref() != artifact.analysis_graph_digest.as_ref()
             || ladder.starter_projections.as_ref() != artifact.starter_projections.as_ref()
             || ladder.starter_consumer_set_id != artifact.starter_consumer_set_id
+            || ladder.transition_graphs.as_ref() != artifact.transition_graphs.as_ref()
+            || ladder.transition_graph_consumer_set_id != artifact.transition_graph_consumer_set_id
             || ladder.source_coverage != artifact.source_coverage
             || ladder.source_image_projection != artifact.source_image_projection
             || ladder.product_rank_grouped_distinct.as_ref()
@@ -38247,6 +38358,50 @@ fn checked_explore_starter_projection_identities(
     ))
 }
 
+fn checked_explore_transition_graph_identities(
+    query: &explore::ExploreQueryIr,
+    question_id: explore::QuestionId,
+    schemas: &explore::TransitionSchemaIdentities,
+) -> (
+    Box<[CheckedExploreTransitionGraphIdentity]>,
+    CheckedExploreTransitionGraphConsumerSetId,
+) {
+    let mut identities = Vec::with_capacity(query.transition_graphs.len());
+    let mut canonical_set = BTreeSet::new();
+    for graph in query.transition_graphs.iter() {
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-explore-transition-graph-id.v1\0");
+        hasher.update(CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION.to_le_bytes());
+        checked_query_hash_component(&mut hasher, "consumer-name", &graph.name);
+        hasher.update(question_id.bytes());
+        hasher.update(schemas.state_schema_id().bytes());
+        hasher.update(schemas.context_schema_id().bytes());
+        hasher.update(schemas.transition_type_id().bytes());
+        let id = CheckedExploreTransitionGraphId(hasher.finalize().into());
+        canonical_set.insert(id);
+        identities.push(CheckedExploreTransitionGraphIdentity {
+            id,
+            question_id,
+            state_schema_id: schemas.state_schema_id(),
+            context_schema_id: schemas.context_schema_id(),
+            transition_type_id: schemas.transition_type_id(),
+        });
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-transition-graph-consumer-set-id.v1\0");
+    hasher.update(CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION.to_le_bytes());
+    hasher.update(question_id.bytes());
+    hasher.update((canonical_set.len() as u64).to_le_bytes());
+    for id in canonical_set {
+        hasher.update(id.bytes());
+    }
+    (
+        identities.into_boxed_slice(),
+        CheckedExploreTransitionGraphConsumerSetId(hasher.finalize().into()),
+    )
+}
+
 fn checked_explore_relation_id(
     resolutions: &CheckedResolutionArtifacts,
     query: &explore::ExploreQueryIr,
@@ -38419,6 +38574,8 @@ fn checked_explore_identity_ladder_with_index(
         checked_explore_analysis_graph_digest(query, question_id, &analysis)?;
     let (starter_projections, starter_consumer_set_id) =
         checked_explore_starter_projection_identities(query, question_id, &analysis)?;
+    let (transition_graphs, transition_graph_consumer_set_id) =
+        checked_explore_transition_graph_identities(query, question_id, &transition_schemas);
     Ok(CheckedExploreIdentityLadder {
         relation_id,
         admission_id,
@@ -38436,6 +38593,8 @@ fn checked_explore_identity_ladder_with_index(
         analysis_graph_digest,
         starter_projections,
         starter_consumer_set_id,
+        transition_graphs,
+        transition_graph_consumer_set_id,
         source_coverage,
         source_image_projection,
         product_rank_grouped_distinct,
@@ -38510,6 +38669,8 @@ fn build_checked_explore_query_artifacts(
             analysis_graph_digest: ladder.analysis_graph_digest,
             starter_projections: ladder.starter_projections,
             starter_consumer_set_id: ladder.starter_consumer_set_id,
+            transition_graphs: ladder.transition_graphs,
+            transition_graph_consumer_set_id: ladder.transition_graph_consumer_set_id,
             source_coverage: ladder.source_coverage,
             source_image_projection: ladder.source_image_projection,
             product_rank_grouped_distinct: ladder.product_rank_grouped_distinct,
@@ -51570,6 +51731,19 @@ impl TypeChecker {
                 span: projection.span,
             });
         }
+        let mut typed_transition_graphs = Vec::with_capacity(query.transition_graphs.len());
+        for graph in &query.transition_graphs {
+            if !projection_names.insert(graph.name.clone()) {
+                self.error_at_span(
+                    graph.span,
+                    format!("duplicate exploration declaration {}", graph.name),
+                );
+            }
+            typed_transition_graphs.push(TypedExploreTransitionGraph {
+                name: graph.name.clone(),
+                span: graph.span,
+            });
+        }
 
         self.pop_scope();
 
@@ -51595,6 +51769,7 @@ impl TypeChecker {
                 selection: typed_selection,
                 analysis: typed_analysis,
                 starter_projections: typed_starter_projections,
+                transition_graphs: typed_transition_graphs,
                 span: query.span,
             });
         }
@@ -55381,6 +55556,129 @@ mod tests {
 }}
 "#
         )
+    }
+
+    fn explore_transition_graph_source(consumers: &str) -> String {
+        format!(
+            r#"
+? explore transition_graph {{
+    from {{ before in [1, 2]
+        context = () }}
+    to after = before + 1
+    find matches of after > before
+    {consumers}
+}}
+"#
+        )
+    }
+
+    #[test]
+    fn explore_transition_graph_is_a_checked_publication_only_consumer() {
+        let source = explore_transition_graph_source("transitions full_case_graph from all cases");
+        let statements = parse_test_program(&source).expect("parse transition graph consumer");
+        let Stmt::Explore(query) = &statements[0] else {
+            panic!("expected Explore declaration");
+        };
+        assert_eq!(query.transition_graphs.len(), 1);
+        assert_eq!(query.transition_graphs[0].name, "full_case_graph");
+
+        let baseline_artifacts = explore_artifacts_for_source(&explore_transition_graph_source(""));
+        let graph_artifacts = explore_artifacts_for_source(&source);
+        assert!(
+            baseline_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            baseline_artifacts.diagnostics
+        );
+        assert!(
+            graph_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            graph_artifacts.diagnostics
+        );
+        let baseline = baseline_artifacts
+            .checked_exploration_query(0)
+            .expect("checked baseline query");
+        let graph = graph_artifacts
+            .checked_exploration_query(0)
+            .expect("checked graph query");
+        assert_eq!(baseline.program_hash(), graph.program_hash());
+        assert_eq!(baseline.relation_id(), graph.relation_id());
+        assert_eq!(baseline.admission_id(), graph.admission_id());
+        assert_eq!(baseline.question_id(), graph.question_id());
+        assert_eq!(baseline.analysis_graph_hash(), graph.analysis_graph_hash());
+        assert_eq!(
+            baseline.transition_schemas().state_schema_id(),
+            graph.transition_schemas().state_schema_id()
+        );
+        assert_eq!(
+            baseline.transition_schemas().context_schema_id(),
+            graph.transition_schemas().context_schema_id()
+        );
+        assert_eq!(
+            baseline.transition_schemas().transition_type_id(),
+            graph.transition_schemas().transition_type_id()
+        );
+        assert_eq!(baseline.transition_graph_consumers().len(), 0);
+        let consumer = graph
+            .transition_graph_consumers()
+            .next()
+            .expect("checked graph consumer");
+        assert_eq!(consumer.0.name, "full_case_graph");
+        assert_ne!(
+            baseline.transition_graph_consumer_set_id(),
+            graph.transition_graph_consumer_set_id()
+        );
+
+        let renamed_artifacts = explore_artifacts_for_source(&explore_transition_graph_source(
+            "transitions renamed from all cases",
+        ));
+        let renamed = renamed_artifacts
+            .checked_exploration_query(0)
+            .expect("checked renamed graph consumer");
+        assert_eq!(graph.relation_id(), renamed.relation_id());
+        assert_eq!(graph.question_id(), renamed.question_id());
+        assert_ne!(
+            consumer.1.id,
+            renamed
+                .transition_graph_consumers()
+                .next()
+                .expect("renamed graph consumer")
+                .1
+                .id
+        );
+
+        let ordered = explore_artifacts_for_source(&explore_transition_graph_source(
+            "transitions first from all cases\ntransitions second from all cases",
+        ));
+        let reversed = explore_artifacts_for_source(&explore_transition_graph_source(
+            "transitions second from all cases\ntransitions first from all cases",
+        ));
+        assert_eq!(
+            ordered
+                .checked_exploration_query(0)
+                .unwrap()
+                .transition_graph_consumer_set_id(),
+            reversed
+                .checked_exploration_query(0)
+                .unwrap()
+                .transition_graph_consumer_set_id(),
+            "consumer-set identity is independent of declaration order"
+        );
+    }
+
+    #[test]
+    fn explore_transition_graph_rejects_non_total_or_duplicate_declarations() {
+        let malformed = explore_transition_graph_source("transitions graph from selected cases");
+        let error = parse_test_program(&malformed).expect_err("graph source must be all cases");
+        assert!(error.contains("expected `all` in exploration"), "{error}");
+
+        let duplicate = explore_transition_graph_source(
+            "transitions graph from all cases\ntransitions graph from all cases",
+        );
+        let error = parse_test_program(&duplicate).expect_err("reject duplicate graph name");
+        assert!(
+            error.contains("duplicate exploration declaration"),
+            "{error}"
+        );
     }
 
     #[test]
@@ -60221,6 +60519,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         }),
                     ],
                     starter_projections: Vec::new(),
+                    transition_graphs: Vec::new(),
                     span: Span::dummy(),
                 }),
                 coverage: visits,

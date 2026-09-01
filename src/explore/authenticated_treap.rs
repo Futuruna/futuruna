@@ -148,6 +148,36 @@ impl AuthenticatedTreapMap {
     pub(super) fn total_weight(&self) -> u128 {
         subtree_total_weight(&self.root)
     }
+
+    /// Borrow the entry at one canonical key-order ordinal without flattening
+    /// or cloning the authenticated map. This is the bounded publication path
+    /// for large, already closed semantic indexes.
+    pub(super) fn entry_at_ordinal(
+        &self,
+        mut ordinal: u128,
+    ) -> Result<Option<(&[u8], AuthenticatedTreapValue)>, AuthenticatedTreapError> {
+        let mut cursor = self.root.as_deref();
+        let mut depth = 0u16;
+        while let Some(node) = cursor {
+            if depth >= AUTHENTICATED_TREAP_MAX_DEPTH {
+                return Err(AuthenticatedTreapError::DepthLimit);
+            }
+            depth += 1;
+            let left_count = subtree_entry_count(&node.left);
+            if ordinal < left_count {
+                cursor = node.left.as_deref();
+            } else if ordinal == left_count {
+                return Ok(Some((node.key.as_ref(), node.value)));
+            } else {
+                ordinal = ordinal
+                    .checked_sub(left_count)
+                    .and_then(|value| value.checked_sub(1))
+                    .ok_or(AuthenticatedTreapError::AggregateOverflow)?;
+                cursor = node.right.as_deref();
+            }
+        }
+        Ok(None)
+    }
 }
 
 #[derive(Clone)]
@@ -469,7 +499,7 @@ fn check_depth(depth: u16) -> Result<(), AuthenticatedTreapError> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum AuthenticatedTreapError {
+pub(crate) enum AuthenticatedTreapError {
     ExistingKey,
     MissingKey,
     AggregateOverflow,

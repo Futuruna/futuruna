@@ -1077,6 +1077,24 @@ pub(crate) struct RelationCatalogBuilder {
     case_claims: BTreeMap<RelationalCaseId, (SourceKey, SuccessorKey)>,
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct PreparedSuccessorInsert {
+    source_key: SourceKey,
+    successor_key: SuccessorKey,
+    case_id: RelationalCaseId,
+    row: SuccessorRow,
+}
+
+impl PreparedSuccessorInsert {
+    pub(crate) const fn successor_key(&self) -> SuccessorKey {
+        self.successor_key
+    }
+
+    pub(crate) const fn case_id(&self) -> RelationalCaseId {
+        self.case_id
+    }
+}
+
 impl RelationCatalogBuilder {
     pub(crate) fn new(relation_id: RelationId) -> Self {
         Self {
@@ -1284,6 +1302,17 @@ impl RelationCatalogBuilder {
         source_key: SourceKey,
         row: SuccessorRow,
     ) -> Result<(SuccessorKey, RelationalCaseId), RelationCatalogError> {
+        let prepared = self.preflight_insert_successor(source_key, row)?;
+        Ok(self.commit_preflight_successor(prepared))
+    }
+
+    /// Validate all identity, collision and closure conditions for one
+    /// successor without mutating the relation layer.
+    pub(crate) fn preflight_insert_successor(
+        &self,
+        source_key: SourceKey,
+        row: SuccessorRow,
+    ) -> Result<PreparedSuccessorInsert, RelationCatalogError> {
         let source = self
             .sources
             .get(&source_key)
@@ -1310,6 +1339,24 @@ impl RelationCatalogBuilder {
             }
         }
 
+        Ok(PreparedSuccessorInsert {
+            source_key,
+            successor_key,
+            case_id,
+            row,
+        })
+    }
+
+    pub(crate) fn commit_preflight_successor(
+        &mut self,
+        prepared: PreparedSuccessorInsert,
+    ) -> (SuccessorKey, RelationalCaseId) {
+        let PreparedSuccessorInsert {
+            source_key,
+            successor_key,
+            case_id,
+            row,
+        } = prepared;
         self.successor_claims
             .entry(successor_key)
             .or_insert_with(|| (source_key, row.after.clone()));
@@ -1330,7 +1377,7 @@ impl RelationCatalogBuilder {
         }
         debug_assert_eq!(source.successors.values().len(), source.successors.len());
 
-        Ok((successor_key, case_id))
+        (successor_key, case_id)
     }
 
     /// Merge a batch-local relation overlay after every semantic check has
@@ -2118,13 +2165,47 @@ impl AdmissionCatalogBuilder {
         case_id: RelationalCaseId,
         decision: AdmissionDecision,
     ) -> Result<bool, RelationClassificationError> {
+        let insert = self.preflight_classify_open(relation, case_id, decision)?;
+        Ok(self.commit_preflight_classification(case_id, decision, insert))
+    }
+
+    /// Validate one admission event without mutating the classification
+    /// layer. Journal transactions use this together with downstream semantic
+    /// transition preflights before committing either layer.
+    pub(crate) fn preflight_classify_open(
+        &self,
+        relation: &RelationCatalogBuilder,
+        case_id: RelationalCaseId,
+        decision: AdmissionDecision,
+    ) -> Result<bool, RelationClassificationError> {
         if relation.relation_id() != self.relation_id {
             return Err(RelationClassificationError::RelationIdentityMismatch);
         }
         if !relation.contains_case(case_id) {
             return Err(RelationClassificationError::UnknownCase { case_id });
         }
-        self.classify_known_case(case_id, decision)
+        match self.decisions.get(&case_id) {
+            Some(existing) if *existing == decision => Ok(false),
+            Some(_) => Err(RelationClassificationError::AdmissionDecisionConflict { case_id }),
+            None => Ok(true),
+        }
+    }
+
+    pub(crate) fn commit_preflight_classification(
+        &mut self,
+        case_id: RelationalCaseId,
+        decision: AdmissionDecision,
+        insert: bool,
+    ) -> bool {
+        if !insert {
+            return false;
+        }
+        let previous = self.decisions.insert(case_id, decision);
+        debug_assert!(previous.is_none());
+        if decision == AdmissionDecision::Admitted {
+            self.admitted_count += 1;
+        }
+        true
     }
 
     fn classify_known_case(
@@ -2625,11 +2706,52 @@ impl QuestionCatalogBuilder {
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     ) -> Result<bool, RelationClassificationError> {
+        let insert = self.preflight_classify_open(relation, admission, case_id, decision)?;
+        Ok(self.commit_preflight_classification(case_id, decision, insert))
+    }
+
+    /// Validate one FIND decision without mutating its layer. This keeps the
+    /// question and semantic M-support commits behind one shared preflight.
+    pub(crate) fn preflight_classify_open(
+        &self,
+        relation: &RelationCatalogBuilder,
+        admission: &AdmissionCatalogBuilder,
+        case_id: RelationalCaseId,
+        decision: SelectionDecision,
+    ) -> Result<bool, RelationClassificationError> {
         self.validate_open_builder_inputs(relation, admission)?;
         if !relation.contains_case(case_id) {
             return Err(RelationClassificationError::UnknownCase { case_id });
         }
-        self.classify_admitted_case(admission, case_id, decision)
+        match admission.decision(case_id) {
+            Some(AdmissionDecision::Admitted) => {}
+            Some(AdmissionDecision::Rejected) => {
+                return Err(RelationClassificationError::SelectionForRejectedCase { case_id });
+            }
+            None => return Err(RelationClassificationError::UnknownCase { case_id }),
+        }
+        match self.decisions.get(&case_id) {
+            Some(existing) if *existing == decision => Ok(false),
+            Some(_) => Err(RelationClassificationError::SelectionDecisionConflict { case_id }),
+            None => Ok(true),
+        }
+    }
+
+    pub(crate) fn commit_preflight_classification(
+        &mut self,
+        case_id: RelationalCaseId,
+        decision: SelectionDecision,
+        insert: bool,
+    ) -> bool {
+        if !insert {
+            return false;
+        }
+        let previous = self.decisions.insert(case_id, decision);
+        debug_assert!(previous.is_none());
+        if decision == SelectionDecision::Selected {
+            self.selected_discovery_order.push(case_id);
+        }
+        true
     }
 
     fn classify_admitted_case(

@@ -341,6 +341,9 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         if contract.relation_id() != checked.relation_id()
             || contract.admission_id() != checked.admission_id()
             || contract.question_id() != checked.question_id()
+            || contract.state_schema_id() != checked.transition_schemas().state_schema_id()
+            || contract.context_schema_id() != checked.transition_schemas().context_schema_id()
+            || contract.transition_type_id() != checked.transition_schemas().transition_type_id()
         {
             return Err(RelationalSelectedRunStepDriverError::JournalScopeMismatch);
         }

@@ -120,6 +120,12 @@ use super::relational_public::{
     ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
     ExploreStreamMechanismTarget, ExploreStreamPauseReason, ExploreStreamSliceReport,
 };
+use super::relational_semantic_transition_graph_projection::{
+    RelationalSemanticTransitionGraphProjection, RelationalSemanticTransitionGraphProjectionId,
+    RelationalSemanticTransitionGraphRecord,
+    RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_SCHEMA,
+    RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION,
+};
 use super::result_projection::{IndexedResultProjectionRecord, ResultProjectionRecord};
 use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewInputRowId};
 use super::structural_mechanism::{
@@ -371,6 +377,12 @@ enum PublicationArtifactPlan {
         authorization: RelationalMechanismStarterValueAuthorization,
         transition_schemas: TransitionSchemaIdentities,
     },
+    SemanticTransitionGraph {
+        key: Box<str>,
+        name: Box<str>,
+        path: PathBuf,
+        consumer_id: [u8; 32],
+    },
 }
 
 impl PublicationArtifactPlan {
@@ -381,7 +393,8 @@ impl PublicationArtifactPlan {
             | Self::MechanismDefinitions { key, .. }
             | Self::MechanismStructural { key, .. }
             | Self::MechanismStructuralDefinitions { key, .. }
-            | Self::SubjectStarters { key, .. } => key,
+            | Self::SubjectStarters { key, .. }
+            | Self::SemanticTransitionGraph { key, .. } => key,
             Self::CaseSupport { .. } => CASE_SUPPORT_ARTIFACT_KEY,
             Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_KEY,
         }
@@ -394,7 +407,8 @@ impl PublicationArtifactPlan {
             | Self::MechanismDefinitions { name, .. }
             | Self::MechanismStructural { name, .. }
             | Self::MechanismStructuralDefinitions { name, .. }
-            | Self::SubjectStarters { name, .. } => name,
+            | Self::SubjectStarters { name, .. }
+            | Self::SemanticTransitionGraph { name, .. } => name,
             Self::CaseSupport { .. } => CASE_SUPPORT_ARTIFACT_NAME,
             Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_NAME,
         }
@@ -407,7 +421,8 @@ impl PublicationArtifactPlan {
             | Self::MechanismDefinitions { path, .. }
             | Self::MechanismStructural { path, .. }
             | Self::MechanismStructuralDefinitions { path, .. }
-            | Self::SubjectStarters { path, .. } => path,
+            | Self::SubjectStarters { path, .. }
+            | Self::SemanticTransitionGraph { path, .. } => path,
             Self::CaseSupport { .. } => Path::new(CASE_SUPPORT_ARTIFACT_PATH),
             Self::CaseTransitions { .. } => Path::new(CASE_TRANSITIONS_ARTIFACT_PATH),
         }
@@ -423,6 +438,7 @@ impl PublicationArtifactPlan {
             Self::SubjectStarters { .. } => "subject_starter_support",
             Self::CaseSupport { .. } => "case_support_graph",
             Self::CaseTransitions { .. } => "selected_case_transition_graph",
+            Self::SemanticTransitionGraph { .. } => "semantic_transition_graph",
         }
     }
 }
@@ -435,6 +451,7 @@ pub(crate) struct RelationalPublicationPlan {
     contract: RelationalJournalContract,
     journal_id: [u8; 32],
     starter_consumer_set_id: [u8; 32],
+    transition_graph_consumer_set_id: [u8; 32],
     artifacts: Box<[PublicationArtifactPlan]>,
 }
 
@@ -446,6 +463,9 @@ impl RelationalPublicationPlan {
         if contract.relation_id() != checked.relation_id()
             || contract.admission_id() != checked.admission_id()
             || contract.question_id() != checked.question_id()
+            || contract.state_schema_id() != checked.transition_schemas().state_schema_id()
+            || contract.context_schema_id() != checked.transition_schemas().context_schema_id()
+            || contract.transition_type_id() != checked.transition_schemas().transition_type_id()
             || hex(contract.analysis_graph_digest()) != checked.analysis_graph_hash()
         {
             return Err(RelationalPublicationError::PlanIdentityMismatch);
@@ -458,6 +478,7 @@ impl RelationalPublicationPlan {
                 .len()
                 .checked_mul(4)
                 .and_then(|count| count.checked_add(checked.starter_projection_consumers().len()))
+                .and_then(|count| count.checked_add(checked.transition_graph_consumers().len()))
                 .and_then(|count| count.checked_add(2))
                 .ok_or(RelationalPublicationError::ArithmeticOverflow)?,
         );
@@ -684,6 +705,29 @@ impl RelationalPublicationPlan {
             }
             artifacts.push(artifact);
         }
+        for (graph, identity) in checked.transition_graph_consumers() {
+            if identity.question_id != checked.question_id()
+                || identity.state_schema_id != checked.transition_schemas().state_schema_id()
+                || identity.context_schema_id != checked.transition_schemas().context_schema_id()
+                || identity.transition_type_id != checked.transition_schemas().transition_type_id()
+            {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+            let safe_name = safe_artifact_name(&graph.name)?;
+            let artifact = PublicationArtifactPlan::SemanticTransitionGraph {
+                key: format!("semantic-transition-graph:{}", hex(identity.id.bytes()))
+                    .into_boxed_str(),
+                name: graph.name.clone().into_boxed_str(),
+                path: PathBuf::from("graphs").join(format!("{safe_name}.ndjson")),
+                consumer_id: identity.id.bytes(),
+            };
+            if !paths.insert(artifact.path().to_path_buf()) {
+                return Err(RelationalPublicationError::ArtifactPathCollision(
+                    artifact.path().to_path_buf(),
+                ));
+            }
+            artifacts.push(artifact);
+        }
         let case_support = PublicationArtifactPlan::CaseSupport {
             authorization: checked_case_id_publication_authorization(checked),
         };
@@ -730,6 +774,7 @@ impl RelationalPublicationPlan {
             contract,
             journal_id: contract.id().bytes(),
             starter_consumer_set_id: checked.starter_consumer_set_id().bytes(),
+            transition_graph_consumer_set_id: checked.transition_graph_consumer_set_id().bytes(),
             artifacts: artifacts.into_boxed_slice(),
         })
     }
@@ -1381,7 +1426,8 @@ fn source_cursor_matches_artifact(
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
-            | PublicationArtifactPlan::CaseTransitions { .. },
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. },
         )
         | (
             ArtifactSourceCursor::MechanismDiscovery { .. },
@@ -1429,7 +1475,8 @@ fn pending_source_end_matches_artifact(
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
-            | PublicationArtifactPlan::CaseTransitions { .. },
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. },
         ) => true,
         (
             PendingArtifactSourceEnd::MechanismDiscovery { closure_root, .. },
@@ -1906,6 +1953,8 @@ impl RelationalClassificationSummaryProjection<'_> {
 struct PublicationOrdinalIndex<'journal> {
     case_support: Option<PublicationCaseSupportProjection<'journal>>,
     case_transitions: Option<RelationalCaseTransitionProjection>,
+    semantic_transition_graphs:
+        BTreeMap<[u8; 32], RelationalSemanticTransitionGraphProjection<'journal>>,
     mechanisms: BTreeMap<MechanismRequestId, MechanismDefinitionOrdinalIndex>,
 }
 
@@ -1939,7 +1988,8 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
             | PublicationArtifactPlan::SubjectStarters { .. }
-            | PublicationArtifactPlan::CaseTransitions { .. } => None,
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. } => None,
         }) else {
             return Err(RelationalPublicationError::PlanIdentityMismatch);
         };
@@ -1957,7 +2007,8 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
                 | PublicationArtifactPlan::MechanismStructural { .. }
                 | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
                 | PublicationArtifactPlan::SubjectStarters { .. }
-                | PublicationArtifactPlan::CaseSupport { .. } => None,
+                | PublicationArtifactPlan::CaseSupport { .. }
+                | PublicationArtifactPlan::SemanticTransitionGraph { .. } => None,
             })
             .map(|(authorization, transition_schemas)| {
                 let scheduler = journal
@@ -1975,9 +2026,33 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
                 .map_err(|error| RelationalPublicationError::CaseTransitions(error.to_string()))
             })
             .transpose()?;
+        let scheduler = journal
+            .scheduler_view()
+            .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+        let mut semantic_transition_graphs = BTreeMap::new();
+        for artifact in plan.artifacts.iter() {
+            let PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. } = artifact
+            else {
+                continue;
+            };
+            let projection = RelationalSemanticTransitionGraphProjection::derive(
+                scheduler,
+                RelationalSemanticTransitionGraphProjectionId::from_checked_consumer(*consumer_id),
+            )
+            .map_err(|error| {
+                RelationalPublicationError::SemanticTransitionGraph(error.to_string())
+            })?;
+            if semantic_transition_graphs
+                .insert(*consumer_id, projection)
+                .is_some()
+            {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+        }
         Ok(Self {
             case_support: derive_case_support_for_publication(journal, authorization)?,
             case_transitions,
+            semantic_transition_graphs,
             mechanisms: BTreeMap::new(),
         })
     }
@@ -2658,6 +2733,7 @@ fn load_or_create_cursor(
                         artifact,
                         PublicationArtifactPlan::SubjectStarters { .. }
                             | PublicationArtifactPlan::CaseTransitions { .. }
+                            | PublicationArtifactPlan::SemanticTransitionGraph { .. }
                     ),
                 )
             }),
@@ -2751,9 +2827,12 @@ fn initial_artifact_cursor(
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
-            | PublicationArtifactPlan::CaseTransitions { .. } => ArtifactSourceCursor::Flat {
-                next_source_ordinal: 0,
-            },
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {
+                ArtifactSourceCursor::Flat {
+                    next_source_ordinal: 0,
+                }
+            }
             PublicationArtifactPlan::Mechanism { .. } => ArtifactSourceCursor::MechanismDiscovery {
                 event_ordinal: 0,
                 closure_emitted: false,
@@ -2922,7 +3001,8 @@ fn validate_source_cursors(
                 PublicationArtifactPlan::Result { .. }
                 | PublicationArtifactPlan::MechanismStructural { .. }
                 | PublicationArtifactPlan::CaseSupport { .. }
-                | PublicationArtifactPlan::CaseTransitions { .. },
+                | PublicationArtifactPlan::CaseTransitions { .. }
+                | PublicationArtifactPlan::SemanticTransitionGraph { .. },
                 ArtifactSourceCursor::Flat {
                     next_source_ordinal,
                 },
@@ -3563,6 +3643,20 @@ fn record_at(
             case_support_record(
                 artifact,
                 ordinal_index.case_support.as_ref(),
+                next_source_ordinal,
+            )?,
+        ),
+        (
+            PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => address_flat_record(
+            artifact,
+            next_source_ordinal,
+            semantic_transition_graph_record(
+                artifact,
+                ordinal_index.semantic_transition_graphs.get(consumer_id),
                 next_source_ordinal,
             )?,
         ),
@@ -4942,6 +5036,155 @@ fn case_support_record(
     })
 }
 
+fn semantic_transition_graph_record(
+    artifact: &PublicationArtifactPlan,
+    projection: Option<&RelationalSemanticTransitionGraphProjection<'_>>,
+    source_ordinal: u128,
+) -> Result<PublicationRecord, RelationalPublicationError> {
+    let Some(projection) = projection else {
+        return if source_ordinal == 0 {
+            Ok(PublicationRecord::NotReady)
+        } else {
+            Err(RelationalPublicationError::PublicationSourceAhead {
+                artifact: artifact.key().into(),
+                next_source_ordinal: source_ordinal,
+                available: 0,
+            })
+        };
+    };
+    let available = projection.available_source_record_count();
+    if source_ordinal > available {
+        return Err(RelationalPublicationError::PublicationSourceAhead {
+            artifact: artifact.key().into(),
+            next_source_ordinal: source_ordinal,
+            available,
+        });
+    }
+    if let Some(record) = projection
+        .record_at(source_ordinal)
+        .map_err(|error| RelationalPublicationError::SemanticTransitionGraph(error.to_string()))?
+    {
+        return Ok(PublicationRecord::Emit(
+            public_semantic_transition_graph_record(artifact, record)?,
+        ));
+    }
+    if source_ordinal != available {
+        return Err(RelationalPublicationError::SemanticTransitionGraph(
+            "semantic transition graph omitted an addressable source ordinal".into(),
+        ));
+    }
+    Ok(if projection.is_open() {
+        PublicationRecord::NotReady
+    } else {
+        PublicationRecord::Exhausted
+    })
+}
+
+fn public_semantic_transition_graph_record(
+    artifact: &PublicationArtifactPlan,
+    record: RelationalSemanticTransitionGraphRecord,
+) -> Result<JsonValue, RelationalPublicationError> {
+    let PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. } = artifact else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    Ok(match record {
+        RelationalSemanticTransitionGraphRecord::Header {
+            projection_id,
+            contract,
+        } => {
+            if projection_id.bytes() != *consumer_id {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+            json!({
+                "kind": "header",
+                "projection_schema": RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_SCHEMA,
+                "projection_version": RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION,
+                "projection_id": hex(projection_id.bytes()),
+                "relation_id": hex(contract.relation_id().bytes()),
+                "admission_id": hex(contract.admission_id().bytes()),
+                "question_id": hex(contract.question_id().bytes()),
+                "state_schema_id": hex(contract.state_schema_id().bytes()),
+                "context_schema_id": hex(contract.context_schema_id().bytes()),
+                "transition_type_id": hex(contract.transition_type_id().bytes()),
+                "source_order": ["state_id", "transition_id", "layer", "transition_id", "case_id"],
+                "identity_only": true,
+                "contains_typed_values": false,
+            })
+        }
+        RelationalSemanticTransitionGraphRecord::State(state_id) => json!({
+            "kind": "state",
+            "state_id": hex(state_id.bytes()),
+        }),
+        RelationalSemanticTransitionGraphRecord::Transition(transition) => json!({
+            "kind": "transition",
+            "transition_id": hex(transition.transition_id().bytes()),
+            "before_state_id": hex(transition.before_state_id().bytes()),
+            "after_state_id": hex(transition.after_state_id().bytes()),
+        }),
+        RelationalSemanticTransitionGraphRecord::CaseSupport(support) => json!({
+            "kind": "case_support",
+            "layer": match support.layer() {
+                super::RelationalTransitionLayer::Universe => "U",
+                super::RelationalTransitionLayer::Admitted => "D",
+                super::RelationalTransitionLayer::Matched => "M",
+            },
+            "transition_id": hex(support.transition_id().bytes()),
+            "case_id": hex(support.case_id().bytes()),
+            "source_key": hex(support.source_key().bytes()),
+            "successor_key": hex(support.successor_key().bytes()),
+        }),
+        RelationalSemanticTransitionGraphRecord::Closure(closure) => {
+            let counts = closure.counts();
+            json!({
+                "kind": "closure",
+                "frontier": "exact",
+                "content_root": hex(closure.root().bytes()),
+                "data_record_count": closure.data_record_count().to_string(),
+                "counts": {
+                    "state_nodes": counts.states().to_string(),
+                    "U_C_cases": counts.cases(super::RelationalTransitionLayer::Universe).to_string(),
+                    "U_T_transitions": counts.transitions(super::RelationalTransitionLayer::Universe).to_string(),
+                    "D_C_cases": counts.cases(super::RelationalTransitionLayer::Admitted).to_string(),
+                    "D_T_transitions": counts.transitions(super::RelationalTransitionLayer::Admitted).to_string(),
+                    "M_C_cases": counts.cases(super::RelationalTransitionLayer::Matched).to_string(),
+                    "M_T_transitions": counts.transitions(super::RelationalTransitionLayer::Matched).to_string(),
+                },
+            })
+        }
+        RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity) => {
+            let counts = capacity.counts();
+            json!({
+                "kind": "capacity_limited",
+                "frontier": "capacity_limited",
+                "complete": false,
+                "content_root": hex(capacity.root().bytes()),
+                "maximum_data_records": capacity.maximum_data_records().to_string(),
+                "required_data_records": capacity.required_data_records().to_string(),
+                "counts": {
+                    "state_nodes": counts.states().to_string(),
+                    "U_C_cases": counts.cases(super::RelationalTransitionLayer::Universe).to_string(),
+                    "U_T_transitions": counts.transitions(super::RelationalTransitionLayer::Universe).to_string(),
+                    "D_C_cases": counts.cases(super::RelationalTransitionLayer::Admitted).to_string(),
+                    "D_T_transitions": counts.transitions(super::RelationalTransitionLayer::Admitted).to_string(),
+                    "M_C_cases": counts.cases(super::RelationalTransitionLayer::Matched).to_string(),
+                    "M_T_transitions": counts.transitions(super::RelationalTransitionLayer::Matched).to_string(),
+                },
+                "reason": "identity_graph_publication_capacity",
+            })
+        }
+        RelationalSemanticTransitionGraphRecord::Unmaterialized(status) => json!({
+            "kind": "unmaterialized",
+            "frontier": "unmaterialized",
+            "complete": false,
+            "logical_universe_cases": status.logical_universe_cases().to_string(),
+            "materialized_universe_cases": status.materialized_universe_cases().to_string(),
+            "materialized_content_root": hex(status.materialized_root().bytes()),
+            "reason": "proof_closed_relation_requires_authenticated_extensional_materializer",
+            "answer_identity_changed": false,
+        }),
+    })
+}
+
 fn case_transition_record(
     artifact: &PublicationArtifactPlan,
     journal: &RelationalJournal,
@@ -5502,6 +5745,44 @@ fn public_case_transition_projection_metadata(
     })
 }
 
+fn public_semantic_transition_graph_projection_metadata(
+    projection: &RelationalSemanticTransitionGraphProjection<'_>,
+) -> JsonValue {
+    let frontier = match projection.terminal_record() {
+        None => json!({
+            "status": "open",
+            "reason": "awaiting_extensional_U_D_M_closure",
+        }),
+        Some(RelationalSemanticTransitionGraphRecord::Closure(closure)) => json!({
+            "status": "exact",
+            "content_root": hex(closure.root().bytes()),
+            "data_record_count": closure.data_record_count().to_string(),
+        }),
+        Some(RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity)) => json!({
+            "status": "capacity_limited",
+            "content_root": hex(capacity.root().bytes()),
+            "maximum_data_records": capacity.maximum_data_records().to_string(),
+            "required_data_records": capacity.required_data_records().to_string(),
+        }),
+        Some(RelationalSemanticTransitionGraphRecord::Unmaterialized(status)) => json!({
+            "status": "unmaterialized",
+            "logical_universe_cases": status.logical_universe_cases().to_string(),
+            "materialized_universe_cases": status.materialized_universe_cases().to_string(),
+            "materialized_content_root": hex(status.materialized_root().bytes()),
+        }),
+        Some(
+            RelationalSemanticTransitionGraphRecord::Header { .. }
+            | RelationalSemanticTransitionGraphRecord::State(_)
+            | RelationalSemanticTransitionGraphRecord::Transition(_)
+            | RelationalSemanticTransitionGraphRecord::CaseSupport(_),
+        ) => unreachable!("terminal record accessor returns only terminal records"),
+    };
+    json!({
+        "frontier": frontier,
+        "available_source_records": projection.available_source_record_count().to_string(),
+    })
+}
+
 fn public_case_support_count(count: RelationalCaseSupportCount) -> JsonValue {
     json!({
         "status": if count.is_exact() { "exact" } else { "lower_bound" },
@@ -6029,7 +6310,8 @@ fn pending_source_end(
         PublicationArtifactPlan::Result { .. }
         | PublicationArtifactPlan::MechanismStructural { .. }
         | PublicationArtifactPlan::CaseSupport { .. }
-        | PublicationArtifactPlan::CaseTransitions { .. } => {
+        | PublicationArtifactPlan::CaseTransitions { .. }
+        | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {
             let source_end = available_source_record_count(artifact, journal, ordinal_index)?
                 .ok_or(RelationalPublicationError::PendingCursorMismatch)?;
             return Ok(PendingArtifactSourceEnd::Flat { source_end });
@@ -8112,6 +8394,40 @@ fn build_manifest(
                 );
                 object.insert("contains_typed_case_values".into(), JsonValue::Bool(true));
             }
+            if let PublicationArtifactPlan::SemanticTransitionGraph {
+                consumer_id, ..
+            } = artifact
+            {
+                object.insert(
+                    "record_schema".into(),
+                    JsonValue::String(
+                        RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_SCHEMA.into(),
+                    ),
+                );
+                object.insert(
+                    "record_schema_version".into(),
+                    JsonValue::Number(
+                        RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION.into(),
+                    ),
+                );
+                object.insert("projection_id".into(), JsonValue::String(hex(*consumer_id)));
+                object.insert("identity_only".into(), JsonValue::Bool(true));
+                object.insert("contains_typed_case_values".into(), JsonValue::Bool(false));
+                object.insert(
+                    "graph_projection".into(),
+                    ordinal_index
+                        .semantic_transition_graphs
+                        .get(consumer_id)
+                        .map_or_else(
+                            || json!({ "frontier": { "status": "open" } }),
+                            public_semantic_transition_graph_projection_metadata,
+                        ),
+                );
+                object.insert(
+                    "source_order".into(),
+                    json!(["state_id", "transition_id", "layer", "transition_id", "case_id"]),
+                );
+            }
             Ok((
                 descriptor,
                 RelationalPublicationArtifactSummary {
@@ -8143,6 +8459,7 @@ fn build_manifest(
                 "question_id": report.identity.question_id,
                 "analysis_graph_digest": report.identity.analysis_graph_digest,
                 "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
+                "transition_graph_consumer_set_id": hex(plan.transition_graph_consumer_set_id),
                 "journal_id": report.identity.journal_id,
             },
             "source_coverage": public_source_coverage_json(report),
@@ -8227,6 +8544,12 @@ fn available_source_record_count(
                 RelationalCaseTransitionProjection::available_source_record_count,
             )))
         }
+        PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. } => Ok(Some(
+            ordinal_index
+                .semantic_transition_graphs
+                .get(consumer_id)
+                .map_or(0, |projection| projection.available_source_record_count()),
+        )),
         PublicationArtifactPlan::MechanismStructural { request_id, .. } => Ok(Some(
             structural_sidecar_authority(journal, *request_id)?.available_source_record_count()?,
         )),
@@ -8332,6 +8655,18 @@ fn artifact_is_caught_up(
                 .as_ref()
                 .is_none_or(PublicationCaseSupportProjection::is_open);
             if is_open {
+                return next_source_ordinal == available;
+            }
+        }
+        (
+            PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => {
+            let projection = ordinal_index.semantic_transition_graphs.get(consumer_id);
+            let available = projection.map_or(0, |value| value.available_source_record_count());
+            if projection.is_none_or(RelationalSemanticTransitionGraphProjection::is_open) {
                 return next_source_ordinal == available;
             }
         }
@@ -8529,6 +8864,39 @@ fn artifact_layer_roots(
             }),
         }));
     }
+    if let PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. } = artifact {
+        let Some(projection) = ordinal_index.semantic_transition_graphs.get(consumer_id) else {
+            return Ok(JsonValue::Null);
+        };
+        return Ok(match projection.terminal_record() {
+            Some(RelationalSemanticTransitionGraphRecord::Closure(closure)) => json!({
+                "projection_id": hex(*consumer_id),
+                "transition_support_root": hex(closure.root().bytes()),
+                "frontier": "exact",
+            }),
+            Some(RelationalSemanticTransitionGraphRecord::Unmaterialized(status)) => json!({
+                "projection_id": hex(*consumer_id),
+                "transition_support_root": hex(status.materialized_root().bytes()),
+                "frontier": "unmaterialized",
+            }),
+            Some(RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity)) => json!({
+                "projection_id": hex(*consumer_id),
+                "transition_support_root": hex(capacity.root().bytes()),
+                "frontier": "capacity_limited",
+            }),
+            None => json!({
+                "projection_id": hex(*consumer_id),
+                "transition_support_root": null,
+                "frontier": "open",
+            }),
+            Some(
+                RelationalSemanticTransitionGraphRecord::Header { .. }
+                | RelationalSemanticTransitionGraphRecord::State(_)
+                | RelationalSemanticTransitionGraphRecord::Transition(_)
+                | RelationalSemanticTransitionGraphRecord::CaseSupport(_),
+            ) => unreachable!("terminal record accessor returns only terminal records"),
+        });
+    }
     let Some(analysis) = journal.analysis_state() else {
         return Ok(JsonValue::Null);
     };
@@ -8707,6 +9075,9 @@ fn artifact_layer_roots(
         }
         PublicationArtifactPlan::CaseTransitions { .. } => {
             unreachable!("case-transition roots return before consulting the analysis catalog")
+        }
+        PublicationArtifactPlan::SemanticTransitionGraph { .. } => {
+            unreachable!("semantic-transition roots return before consulting analysis")
         }
     }
 }
@@ -9391,6 +9762,7 @@ pub(crate) enum RelationalPublicationError {
     Analysis(String),
     CaseSupport(String),
     CaseTransitions(String),
+    SemanticTransitionGraph(String),
     Json(String),
     Io {
         path: PathBuf,
@@ -9632,6 +10004,7 @@ impl fmt::Display for RelationalPublicationError {
             | Self::Analysis(message)
             | Self::CaseSupport(message)
             | Self::CaseTransitions(message)
+            | Self::SemanticTransitionGraph(message)
             | Self::Json(message) => formatter.write_str(message),
             Self::Io { path, message } => {
                 write!(
@@ -9826,6 +10199,7 @@ mod tests {
                 ("subject-starters:old".to_string(), true),
                 ("subject-starters:new".to_string(), true),
                 (CASE_TRANSITIONS_ARTIFACT_KEY.to_string(), true),
+                ("semantic-transition-graph:new".to_string(), true),
             ],
         )
         .expect("new publication consumers are appendable");
@@ -9835,6 +10209,7 @@ mod tests {
             BTreeSet::from([
                 "subject-starters:new".to_string(),
                 CASE_TRANSITIONS_ARTIFACT_KEY.to_string(),
+                "semantic-transition-graph:new".to_string(),
             ])
         );
         assert!(matches!(

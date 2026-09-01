@@ -149,6 +149,7 @@ pub use relational_ir::{
 };
 pub(crate) use relational_ir::{
     ExploreStarterProjectionFacetIr, ExploreStarterProjectionIr, ExploreStarterProjectionSubjectIr,
+    ExploreTransitionGraphIr,
 };
 mod relational_analysis_plan;
 pub(crate) use relational_analysis_plan::{
@@ -228,6 +229,23 @@ pub(crate) use relational_native_classifier::{
 };
 mod relational_case_support_projection;
 mod relational_case_transition_projection;
+mod relational_semantic_transition_graph_projection;
+pub(crate) use relational_semantic_transition_graph_projection::{
+    RelationalSemanticTransitionGraphCapacity, RelationalSemanticTransitionGraphClosure,
+    RelationalSemanticTransitionGraphProjection, RelationalSemanticTransitionGraphProjectionError,
+    RelationalSemanticTransitionGraphProjectionId, RelationalSemanticTransitionGraphRecord,
+    RelationalSemanticTransitionGraphUnmaterialized,
+    RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1,
+    RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_SCHEMA,
+    RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION,
+};
+mod relational_transition_support;
+pub(crate) use relational_transition_support::{
+    PreparedTransitionClassification, PreparedUniverseTransition, RelationalSemanticTransition,
+    RelationalTransitionCaseSupport, RelationalTransitionLayer, RelationalTransitionSupportCounts,
+    RelationalTransitionSupportError, RelationalTransitionSupportIndex,
+    RelationalTransitionSupportRoot, RELATIONAL_TRANSITION_SUPPORT_VERSION,
+};
 mod relational_selected_run_materialization;
 pub(crate) use relational_selected_run_materialization::{
     materialize_relational_selected_run, reverify_relational_selected_run_materialization_artifact,
@@ -473,7 +491,10 @@ mod stream_resource;
 mod stream_snapshot;
 mod transition;
 
-pub(crate) use transition::TransitionSchemaIdentities;
+pub(crate) use transition::{
+    ContextSchemaId, StateId, StateSchemaId, TransitionId, TransitionSchemaIdentities,
+    TransitionTypeId,
+};
 
 const EXPLORE_GROUND_COLLECTION_LIMIT: u64 = 1_000_000;
 const EXPLORE_GROUND_WORK_LIMIT: u64 = 4_000_000;
@@ -7355,6 +7376,12 @@ fn elaborate_query(
             .starter_projections
             .iter()
             .map(ExploreStarterProjectionIr::lower)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        transition_graphs: query
+            .transition_graphs
+            .iter()
+            .map(ExploreTransitionGraphIr::lower)
             .collect::<Vec<_>>()
             .into_boxed_slice(),
         span: query.span,

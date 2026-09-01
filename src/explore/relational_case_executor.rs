@@ -1517,6 +1517,7 @@ mod tests {
             find,
             analysis: Box::new([]),
             starter_projections: Box::new([]),
+            transition_graphs: Box::new([]),
             span: Span::dummy(),
         }
     }

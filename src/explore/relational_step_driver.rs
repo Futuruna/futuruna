@@ -66,6 +66,7 @@ use super::relational_selected_run_step_driver::{
     RelationalSelectedRunStepDriver, RelationalSelectedRunStepDriverError,
     RelationalSelectedRunStepOutcome, RelationalSelectedRunStepQuantum,
 };
+use super::relational_semantic_transition_graph_projection::RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1;
 use super::relational_support_planner::{RelationalSupportPlan, RelationalSupportPlanRoot};
 use super::relational_support_step_driver::{
     RelationalSupportStepDriver, RelationalSupportStepDriverError, RelationalSupportStepOutcome,
@@ -244,6 +245,11 @@ pub(crate) struct RelationalStepDriver<'query> {
     /// without a classified chunk partition so the ordinary fused singleton
     /// path can share its bounded call cache across stream slices.
     classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
+    /// Operational obligation for a newly declared, safely bounded full graph.
+    /// It never enters the journal contract. If proof closure is already
+    /// present when this driver attaches, the branch remains closed and the
+    /// publisher reports `unmaterialized` instead of silently retraversing.
+    full_transition_materialization_requested: bool,
     /// Purely operational batch bound. It is absent from every event, work
     /// identity, evidence root, and journal contract.
     max_members_per_quantum: NonZeroU16,
@@ -359,18 +365,28 @@ impl<'query> RelationalStepDriver<'query> {
         }
 
         let support = RelationalSupportStepDriver::from_plan(support_plan)?;
-        let classified_sweep = if support.has_case_chunk_partition() {
-            Some(
-                RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
-                    checked,
-                    support_plan,
-                    native_classifier.clone(),
-                    classification_evaluator,
-                )?,
-            )
-        } else {
-            None
-        };
+        let full_transition_materialization_requested = checked.transition_graph_consumers().len()
+            != 0
+            && support_plan
+                .root_obligations()
+                .resolved_exact_cardinality()
+                .is_some_and(|count| {
+                    count != 0
+                        && count <= RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1 / 6
+                });
+        let classified_sweep =
+            if support.has_case_chunk_partition() && !full_transition_materialization_requested {
+                Some(
+                    RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
+                        checked,
+                        support_plan,
+                        native_classifier.clone(),
+                        classification_evaluator,
+                    )?,
+                )
+            } else {
+                None
+            };
         let selected_runs = if classified_sweep.is_some() {
             Some(RelationalSelectedRunStepDriver::from_checked(
                 checked,
@@ -398,6 +414,7 @@ impl<'query> RelationalStepDriver<'query> {
             ),
             native_classifier,
             classification_evaluator,
+            full_transition_materialization_requested,
             max_members_per_quantum,
             completed_work_compaction_trigger,
             max_compaction_nodes,
@@ -455,43 +472,53 @@ impl<'query> RelationalStepDriver<'query> {
         // prefix before support closure can advance. One missing selected run
         // is materialized per invocation, in canonical chunk/run order, so an
         // interesting case becomes observable before the full sweep ends.
-        if let Some(selected_runs) = &self.selected_runs {
-            match selected_runs.step(journal, runtime)? {
-                RelationalSelectedRunStepOutcome::Emitted(batch) => {
-                    debug_assert_eq!(batch.expected_sequence(), view.sequence());
-                    debug_assert_eq!(batch.expected_head(), view.head());
-                    return Ok(self.batch(
-                        view,
-                        RelationalStepQuantum::SelectedRunMaterialization(batch.quantum()),
-                        Vec::from(batch.into_events()),
-                    ));
+        if !self.full_transition_materialization_requested {
+            if let Some(selected_runs) = &self.selected_runs {
+                match selected_runs.step(journal, runtime)? {
+                    RelationalSelectedRunStepOutcome::Emitted(batch) => {
+                        debug_assert_eq!(batch.expected_sequence(), view.sequence());
+                        debug_assert_eq!(batch.expected_head(), view.head());
+                        return Ok(self.batch(
+                            view,
+                            RelationalStepQuantum::SelectedRunMaterialization(batch.quantum()),
+                            Vec::from(batch.into_events()),
+                        ));
+                    }
+                    RelationalSelectedRunStepOutcome::CaughtUp => {}
                 }
-                RelationalSelectedRunStepOutcome::CaughtUp => {}
             }
         }
 
-        match self.support.step(view)? {
-            RelationalSupportStepOutcome::Emitted(batch) => {
-                debug_assert_eq!(batch.expected_sequence(), view.sequence());
-                debug_assert_eq!(batch.expected_head(), view.head());
-                let quantum = batch.quantum();
-                return Ok(self.batch(
-                    view,
-                    RelationalStepQuantum::Support(quantum),
-                    Vec::from(batch.into_events()),
-                ));
+        let defer_symbolic_support = self.full_transition_materialization_requested
+            && !view.support_catalog_is_sealed()
+            && !view.concrete_base_is_classified();
+        if !defer_symbolic_support {
+            match self.support.step(view)? {
+                RelationalSupportStepOutcome::Emitted(batch) => {
+                    debug_assert_eq!(batch.expected_sequence(), view.sequence());
+                    debug_assert_eq!(batch.expected_head(), view.head());
+                    let quantum = batch.quantum();
+                    return Ok(self.batch(
+                        view,
+                        RelationalStepQuantum::Support(quantum),
+                        Vec::from(batch.into_events()),
+                    ));
+                }
+                RelationalSupportStepOutcome::AwaitingSupportPlanRegistration => {
+                    return Err(RelationalStepDriverError::SupportPlanRegistrationMissing);
+                }
+                RelationalSupportStepOutcome::CaughtUp => {}
             }
-            RelationalSupportStepOutcome::AwaitingSupportPlanRegistration => {
-                return Err(RelationalStepDriverError::SupportPlanRegistrationMissing);
-            }
-            RelationalSupportStepOutcome::CaughtUp => {}
         }
 
         // Symbolic proof closure wins before concrete work seeding. In
         // particular, a statically exact-empty case population reaches this
         // branch immediately after support-plan registration and never mints
         // a synthetic CaseId or an extensional relation claim.
-        if view.support_catalog_is_sealed() {
+        if view.support_catalog_is_sealed()
+            && !(self.full_transition_materialization_requested
+                && view.source_traversal_is_started())
+        {
             return Ok(RelationalStepOutcome::Quiescent(
                 RelationalConcreteQuiescence::SupportEvidenceClosed {
                     support_plan_root: self.support_plan.root(),
