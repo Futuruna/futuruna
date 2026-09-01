@@ -30,6 +30,7 @@ use super::relational_classified_sweep::{
 };
 use super::relational_executor::RelationalExpressionRuntime;
 use super::ExploreValue;
+use crate::runtime_nominal_declared_type_name;
 
 const MAX_CAPSULE_EVALUATION_DEPTH: usize = 1_024;
 const MAX_COMPLETE_CALL_CACHE_LOGICAL_BYTES: usize = 32 * 1024 * 1024;
@@ -915,7 +916,7 @@ impl CapsuleBatchEvaluator<'_, '_, '_, '_> {
                         ),
                     );
                 };
-                if type_name.as_str() != shape.type_name.as_ref() {
+                if runtime_nominal_declared_type_name(type_name) != shape.type_name.as_ref() {
                     return Err(
                         RelationalClassificationEvaluatorFallbackReason::RuntimeShapeMismatch(
                             node_id,
@@ -1189,7 +1190,7 @@ fn validated_constructor_fields<'value>(
     else {
         return None;
     };
-    (type_name.as_str() == shape.type_name.as_ref()
+    (runtime_nominal_declared_type_name(type_name) == shape.type_name.as_ref()
         && variant.as_str() == shape.variant_name.as_ref()
         && *positional == shape.layout.is_positional()
         && fields.len() == shape.field_names.len()

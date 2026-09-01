@@ -6,6 +6,7 @@
 
 use super::*;
 use std::path::PathBuf;
+use std::rc::Rc;
 use std::sync::Arc;
 
 mod authenticated_treap;
@@ -532,10 +533,8 @@ fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
             values
                 .iter()
                 .map(|value| {
-                    (
-                        value.runtime_display_key(),
-                        runtime_value_from_explore_value(value),
-                    )
+                    let runtime = runtime_value_from_explore_value(value);
+                    (runtime_value_semantic_key(&runtime), runtime)
                 })
                 .collect(),
         ),
@@ -546,31 +545,49 @@ fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
                 .collect(),
         ),
         ExploreValue::Constructor {
+            type_name,
             variant,
             positional: true,
             fields,
-            ..
-        } => Value::Constructor(
-            variant.clone(),
-            fields
+        } => {
+            let arguments = fields
                 .iter()
                 .map(|(_, value)| runtime_value_from_explore_value(value))
                 .collect::<Vec<_>>()
-                .into(),
-        ),
+                .into();
+            if let Some((owner, _)) = runtime_nominal_type_parts(type_name) {
+                Value::NamespacedConstructor {
+                    namespace: RuntimeNamespace::detached(Rc::<str>::from(owner)),
+                    name: variant.clone(),
+                    arguments,
+                    declaration_env: None,
+                }
+            } else {
+                Value::Constructor(variant.clone(), arguments)
+            }
+        }
         ExploreValue::Constructor {
+            type_name,
             variant,
             positional: false,
             fields,
-            ..
-        } => Value::NamedConstructor(
-            variant.clone(),
-            fields
+        } => {
+            let fields = fields
                 .iter()
                 .map(|(name, value)| (name.clone(), runtime_value_from_explore_value(value)))
                 .collect::<Vec<_>>()
-                .into(),
-        ),
+                .into();
+            if let Some((owner, _)) = runtime_nominal_type_parts(type_name) {
+                Value::NamespacedNamedConstructor {
+                    namespace: RuntimeNamespace::detached(Rc::<str>::from(owner)),
+                    name: variant.clone(),
+                    fields,
+                    declaration_env: None,
+                }
+            } else {
+                Value::NamedConstructor(variant.clone(), fields)
+            }
+        }
     }
 }
 
@@ -3927,9 +3944,7 @@ impl<'a> ExploreGroundEvaluator<'a> {
                     let item_ty = collection_item_ty(expected);
                     let inserted = self.eval(&arguments[1], item_ty.as_ref())?;
                     let mut values = runtime_set_map(values);
-                    values
-                        .entry(inserted.runtime_display_key())
-                        .or_insert(inserted);
+                    values.entry(inserted.clone()).or_insert(inserted);
                     if values.len() > EXPLORE_GROUND_COLLECTION_LIMIT as usize {
                         return Err(format!(
                             "ground `set_insert` has {} members, exceeding materialization limit {}",
@@ -3953,7 +3968,7 @@ impl<'a> ExploreGroundEvaluator<'a> {
                     let removed = self.eval(&arguments[1], item_ty.as_ref())?;
                     self.charge_work(values.len() as u64, "set removal traversal")?;
                     let mut values = runtime_set_map(values);
-                    values.remove(&removed.runtime_display_key());
+                    values.remove(&removed);
                     return Ok(ExploreValue::Set(values.into_values().collect()));
                 }
                 self.eval_constructor(expected, name, arguments)
@@ -4866,19 +4881,22 @@ fn ground_runtime_equality(left: &ExploreValue, right: &ExploreValue) -> Option<
         (ExploreValue::Boolean(left), ExploreValue::Boolean(right)) => Some(left == right),
         (
             ExploreValue::Constructor {
+                type_name: left_type,
                 variant: left_variant,
                 positional: true,
                 fields: left_fields,
                 ..
             },
             ExploreValue::Constructor {
+                type_name: right_type,
                 variant: right_variant,
                 positional: true,
                 fields: right_fields,
                 ..
             },
         ) => Some(
-            left_variant == right_variant
+            left_type == right_type
+                && left_variant == right_variant
                 && left_fields.len() == right_fields.len()
                 && left_fields
                     .iter()
@@ -4927,19 +4945,22 @@ fn ground_values_equal(left: &ExploreValue, right: &ExploreValue) -> bool {
         (ExploreValue::Character(left), ExploreValue::Character(right)) => left == right,
         (
             ExploreValue::Constructor {
+                type_name: left_type,
                 variant: left_variant,
                 positional: left_positional,
                 fields: left_fields,
                 ..
             },
             ExploreValue::Constructor {
+                type_name: right_type,
                 variant: right_variant,
                 positional: right_positional,
                 fields: right_fields,
                 ..
             },
         ) => {
-            left_positional == right_positional
+            left_type == right_type
+                && left_positional == right_positional
                 && left_variant == right_variant
                 && left_fields.len() == right_fields.len()
                 && left_fields.iter().zip(right_fields.iter()).all(
@@ -5150,8 +5171,12 @@ fn runtime_value_to_explore_value(
             type_name
         ));
     }
-    let (variant_name, positional, runtime_fields): (&str, bool, Vec<(&str, &Value)>) = match value
-    {
+    let (variant_name, positional, runtime_fields, nominal_owner): (
+        &str,
+        bool,
+        Vec<(&str, &Value)>,
+        Option<&RuntimeNamespace>,
+    ) = match value {
         Value::Constructor(name, fields) => (
             name,
             true,
@@ -5163,6 +5188,7 @@ fn runtime_value_to_explore_value(
                     ("", value)
                 })
                 .collect(),
+            None,
         ),
         Value::NamedConstructor(name, fields) => (
             name,
@@ -5171,6 +5197,32 @@ fn runtime_value_to_explore_value(
                 .iter()
                 .map(|(name, value)| (name.as_str(), value))
                 .collect(),
+            None,
+        ),
+        Value::NamespacedConstructor {
+            namespace,
+            name,
+            arguments,
+            ..
+        } => (
+            name,
+            true,
+            arguments.iter().map(|value| ("", value)).collect(),
+            Some(namespace),
+        ),
+        Value::NamespacedNamedConstructor {
+            namespace,
+            name,
+            fields,
+            ..
+        } => (
+            name,
+            false,
+            fields
+                .iter()
+                .map(|(name, value)| (name.as_str(), value))
+                .collect(),
+            Some(namespace),
         ),
         _ => {
             return Err(format!(
@@ -5220,7 +5272,9 @@ fn runtime_value_to_explore_value(
         ));
     }
     Ok(ExploreValue::Constructor {
-        type_name,
+        type_name: nominal_owner
+            .map(|owner| runtime_nominal_type_name(owner, &type_name))
+            .unwrap_or(type_name),
         variant: variant_name.to_string(),
         // Normalize both runtime spellings of a nullary constructor to the
         // single declared inhabitant used by finite-type enumeration.
@@ -6831,14 +6885,14 @@ fn deduplicate_runtime_list(values: Vec<ExploreValue>) -> Vec<ExploreValue> {
     let mut seen = BTreeSet::new();
     values
         .into_iter()
-        .filter(|value| seen.insert(value.runtime_display_key()))
+        .filter(|value| seen.insert(value.clone()))
         .collect()
 }
 
-fn runtime_set_map(values: Vec<ExploreValue>) -> BTreeMap<String, ExploreValue> {
+fn runtime_set_map(values: Vec<ExploreValue>) -> BTreeMap<ExploreValue, ExploreValue> {
     let mut set = BTreeMap::new();
     for value in values {
-        set.entry(value.runtime_display_key()).or_insert(value);
+        set.entry(value.clone()).or_insert(value);
     }
     set
 }
@@ -8708,7 +8762,7 @@ mod tests {
     }
 
     #[test]
-    fn ground_set_and_distinct_keep_stable_runtime_display_identity() {
+    fn ground_set_and_distinct_use_structural_identity_not_display() {
         let set = ground_binding_value(
             r#"
 = pairs: Set(Tuple(String, String)) = set_from_list([
@@ -8719,7 +8773,7 @@ mod tests {
             "pairs",
         )
         .expect("evaluate runtime Set identity");
-        assert!(matches!(set, ExploreValue::Set(values) if values.len() == 1));
+        assert!(matches!(set, ExploreValue::Set(values) if values.len() == 2));
 
         let distinct = ground_binding_value(
             r#"
@@ -8731,7 +8785,106 @@ mod tests {
             "pairs",
         )
         .expect("evaluate runtime distinct identity");
-        assert!(matches!(distinct, ExploreValue::List(values) if values.len() == 1));
+        assert!(matches!(distinct, ExploreValue::List(values) if values.len() == 2));
+    }
+
+    #[test]
+    fn demanded_qualified_constructors_retain_nominal_owner_across_exact_conversion() {
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_explore_qualified_nominal_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).expect("create qualified nominal fixture");
+        let dependency = r#"
+@ export
+# Positional = PWrapped(Int)
+@ export
+# Named = NWrapped(value: Int)
+"#;
+        std::fs::write(directory.join("domain.runa"), dependency)
+            .expect("write qualified nominal dependency");
+        let source = r#"
+@ import A from ./domain
+@ import B from ./domain
+= a_pos = A.PWrapped(7)
+= b_pos = B.PWrapped(7)
+= a_named = A.NWrapped(value = 8)
+= b_named = B.NWrapped(value = 8)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let statements = Parser::new(tokens, source)
+            .parse_program()
+            .expect("parse qualified nominal root");
+        let mut dependency_lexer = Lexer::new(dependency);
+        let dependency_tokens = dependency_lexer.tokenize();
+        let dependency_statements = Parser::new(dependency_tokens, dependency)
+            .parse_program()
+            .expect("parse qualified nominal dependency");
+        let catalog = calculate::TypeCatalog::collect_checked(&dependency_statements, None)
+            .expect("collect qualified nominal types");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(directory.to_string_lossy().to_string());
+        let mut env = interpreter.default_env();
+        let roots = ["a_pos", "b_pos", "a_named", "b_named"]
+            .into_iter()
+            .map(|name| ExploreRuntimeRoot::Value {
+                name: name.to_string(),
+            })
+            .collect();
+        interpreter
+            .initialize_exploration_program(&roots, &statements, &mut env, 10_000, 1_000)
+            .expect("initialize demanded qualified constructors");
+
+        for (left_name, right_name, ty) in [
+            ("a_pos", "b_pos", Ty::Name("Positional".to_string())),
+            ("a_named", "b_named", Ty::Name("Named".to_string())),
+        ] {
+            let left_runtime = env.get(left_name).expect("left qualified constructor");
+            let right_runtime = env.get(right_name).expect("right qualified constructor");
+            let left = runtime_value_to_explore_value(left_runtime, &ty, &catalog)
+                .expect("convert left qualified constructor");
+            let right = runtime_value_to_explore_value(right_runtime, &ty, &catalog)
+                .expect("convert right qualified constructor");
+            let (
+                ExploreValue::Constructor {
+                    type_name: left_type,
+                    ..
+                },
+                ExploreValue::Constructor {
+                    type_name: right_type,
+                    ..
+                },
+            ) = (&left, &right)
+            else {
+                panic!("qualified runtime constructors must remain constructors");
+            };
+            let (left_owner, left_declared) = runtime_nominal_type_parts(left_type)
+                .expect("left exact value carries nominal owner");
+            let (right_owner, right_declared) = runtime_nominal_type_parts(right_type)
+                .expect("right exact value carries nominal owner");
+            assert_ne!(
+                left_owner, right_owner,
+                "aliases are distinct nominal instances"
+            );
+            assert_eq!(left_declared, ty.to_string());
+            assert_eq!(right_declared, ty.to_string());
+            assert_ne!(left, right);
+            assert!(values_equal(
+                left_runtime,
+                &runtime_value_from_explore_value(&left)
+            ));
+            assert!(values_equal(
+                right_runtime,
+                &runtime_value_from_explore_value(&right)
+            ));
+        }
+
+        let _ = std::fs::remove_dir_all(&directory);
     }
 
     #[test]

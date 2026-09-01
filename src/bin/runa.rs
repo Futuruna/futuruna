@@ -14836,11 +14836,7 @@ fn audit_calculation_reachability_source(
         .filter(|callable| !callable.reachable)
         .map(|callable| callable.declaration.qualified_name.clone())
         .collect::<Vec<_>>();
-    let mut loaded_sources = interpreter
-        .imported
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
+    let mut loaded_sources = interpreter.loaded_runtime_sources();
     loaded_sources.insert(
         std::fs::canonicalize(filename)
             .map(|path| path.to_string_lossy().to_string())
@@ -14955,13 +14951,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     }
 
     // Build constructor → parent type map from interpreter's registered types
-    let ctor_to_parent: BTreeMap<String, String> = {
-        let mut map = BTreeMap::new();
-        for (ctor_name, parent_type) in &interp.ctor_to_type {
-            map.insert(ctor_name.clone(), parent_type.clone());
-        }
-        map
-    };
+    let ctor_to_parent = interp.registered_root_constructor_parents();
 
     // Classify a Value into its type domain
     let classify_value = |val: &Value| -> (String, Option<String>) {
@@ -15345,11 +15335,12 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     }
 
     // ── 3e: INVARIANT COVERAGE — which rules are tested, which aren't ──
-    let invariant_count = interp.invariants.len();
+    let invariants = interp.registered_root_invariants();
+    let invariant_count = invariants.len();
     let mut covered_rules: BTreeSet<String> = BTreeSet::new();
 
     // Scan invariant subjects and predicates for rule references
-    for (_inv_name, (subject, predicate)) in &interp.invariants {
+    for (_inv_name, (subject, predicate)) in &invariants {
         collect_rule_refs(subject, &mut covered_rules);
         collect_rule_refs(predicate, &mut covered_rules);
     }
@@ -15637,7 +15628,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     let mut type_analysis_output = Vec::new();
 
-    for (type_name, variants) in &interp.type_variants {
+    for (type_name, variants) in &interp.registered_root_type_variants() {
         if variants.is_empty() {
             continue;
         }

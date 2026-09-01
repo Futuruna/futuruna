@@ -28,7 +28,10 @@ use super::{
     ExploreCardinality, ExploreEnumeratedSource, ExploreExactDomain, ExploreFiniteTypePlan,
     ExploreValue,
 };
-use crate::{ExploreRelationMultiplicity, Expr, Ty, EXPLORE_RELATION_NORMALIZATION_VERSION};
+use crate::{
+    runtime_nominal_declared_type_name, ExploreRelationMultiplicity, Expr, Ty,
+    EXPLORE_RELATION_NORMALIZATION_VERSION,
+};
 
 pub(crate) const RELATIONAL_SOURCE_CURSOR_VERSION: u32 = 1;
 pub(crate) const SOURCE_BINDING_EXHAUSTION_RECEIPT_VERSION: u32 = 1;
@@ -1770,7 +1773,7 @@ fn finite_type_ordinal_of(
                 positional,
                 fields: value_fields,
             },
-        ) if type_name == value_type => {
+        ) if type_name == runtime_nominal_declared_type_name(value_type) => {
             let mut preceding = 0u128;
             for variant in variants {
                 let cardinalities = variant
