@@ -26,8 +26,9 @@
 //! catalog in fixed typed chunks. Automatic structural rows never construct the
 //! correlated starter union or expand a structural subject into subject x case
 //! rows. Each explicitly authored starter consumer names one mechanism, node,
-//! or edge facet plus one checked selected-case value view; its independently
-//! resumable sidecar pages exactly that subject's typed starter relation from
+//! or edge facet, optionally refines a node/edge by one enclosing mechanism,
+//! and names one checked selected-case value view; its independently resumable
+//! sidecar pages exactly that support slice's typed starter relation from
 //! closed support authority. A fixed case/support graph follows the same
 //! crash-resumable flat cursor. Classified support runs
 //! expose the structural path from their bounded partition; a fully
@@ -61,8 +62,8 @@ use super::mechanism_incidence::{
 use super::mechanism_support::{
     MechanismClosedSubjectStarterProjectionAuthority, MechanismFactorizedStarterBoundBasis,
     MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportCount,
-    MechanismSupportFacet, MechanismSupportKey, MechanismSupportStarterCursor,
-    MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
+    MechanismSupportFacet, MechanismSupportKey, MechanismSupportSlice,
+    MechanismSupportStarterCursor, MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
     MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION, MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
     MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
 };
@@ -357,6 +358,7 @@ enum PublicationArtifactPlan {
         request_id: MechanismRequestId,
         target: MechanismTargetId,
         subject: MechanismSupportSubject,
+        within_mechanism: Option<StructuralMechanismId>,
         authorization: RelationalMechanismStarterValueAuthorization,
         transition_schemas: TransitionSchemaIdentities,
         structural_artifact_key: Box<str>,
@@ -631,7 +633,9 @@ impl RelationalPublicationPlan {
         // closure-gated. They follow the compact structural support which
         // names the factorized plan identities they select.
         for (projection, identity) in checked.starter_projection_consumers() {
-            if projection.subject != identity.subject {
+            if projection.subject != identity.subject
+                || projection.within_mechanism != identity.within_mechanism
+            {
                 return Err(RelationalPublicationError::PlanIdentityMismatch);
             }
             let Some((target, structural_artifact_key, structural_artifact_path)) =
@@ -667,6 +671,7 @@ impl RelationalPublicationPlan {
                 request_id: identity.request_id,
                 target: *target,
                 subject: mechanism_support_subject(identity.subject),
+                within_mechanism: identity.within_mechanism,
                 authorization,
                 transition_schemas: checked.transition_schemas().clone(),
                 structural_artifact_key: structural_artifact_key.clone(),
@@ -1032,6 +1037,8 @@ struct SubjectStarterCursorIdentity {
     request_id: CursorDigest,
     target: SubjectStarterTargetCursor,
     subject: SubjectStarterSubjectCursor,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    within_mechanism: Option<CursorDigest>,
 }
 
 impl SubjectStarterCursorIdentity {
@@ -1040,12 +1047,17 @@ impl SubjectStarterCursorIdentity {
         request_id: MechanismRequestId,
         target: MechanismTargetId,
         subject: MechanismSupportSubject,
+        within_mechanism: Option<StructuralMechanismId>,
     ) -> Self {
         Self {
             consumer_id: CursorDigest::new(consumer_id),
             request_id: CursorDigest::new(request_id.bytes()),
             target: SubjectStarterTargetCursor::from_semantic(target),
             subject: SubjectStarterSubjectCursor::from_semantic(subject),
+            within_mechanism: match within_mechanism {
+                Some(mechanism_id) => Some(CursorDigest::new(mechanism_id.bytes())),
+                None => None,
+            },
         }
     }
 }
@@ -1390,11 +1402,18 @@ fn source_cursor_matches_artifact(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 ..
             },
         ) => {
             identity
-                == SubjectStarterCursorIdentity::new(*consumer_id, *request_id, *target, *subject)
+                == SubjectStarterCursorIdentity::new(
+                    *consumer_id,
+                    *request_id,
+                    *target,
+                    *subject,
+                    *within_mechanism,
+                )
         }
         _ => false,
     }
@@ -1455,11 +1474,18 @@ fn pending_source_end_matches_artifact(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 ..
             },
         ) => {
             *identity
-                == SubjectStarterCursorIdentity::new(*consumer_id, *request_id, *target, *subject)
+                == SubjectStarterCursorIdentity::new(
+                    *consumer_id,
+                    *request_id,
+                    *target,
+                    *subject,
+                    *within_mechanism,
+                )
                 && matches!(
                     (
                         structural_quotient_root,
@@ -2752,6 +2778,7 @@ fn initial_artifact_cursor(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 ..
             } => ArtifactSourceCursor::SubjectStarters {
                 identity: SubjectStarterCursorIdentity::new(
@@ -2759,6 +2786,7 @@ fn initial_artifact_cursor(
                     *request_id,
                     *target,
                     *subject,
+                    *within_mechanism,
                 ),
                 header_emitted: false,
                 accumulator: None,
@@ -3610,6 +3638,7 @@ fn record_at(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 authorization,
                 transition_schemas,
                 structural_artifact_key,
@@ -3629,6 +3658,7 @@ fn record_at(
             *request_id,
             *target,
             *subject,
+            *within_mechanism,
             authorization,
             transition_schemas,
             structural_artifact_key,
@@ -4257,6 +4287,7 @@ fn subject_starter_publication_authority<'journal>(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
 ) -> Result<Option<SubjectStarterPublicationAuthority<'journal>>, RelationalPublicationError> {
     let authority = structural_sidecar_authority(journal, request_id)?;
     let (Some(structural), Some(structural_closure), Some((support, support_closure))) = (
@@ -4273,6 +4304,10 @@ fn subject_starter_publication_authority<'journal>(
         return Ok(None);
     }
     let key = MechanismSupportKey::new(support.scope(), subject);
+    let slice = within_mechanism.map_or_else(
+        || MechanismSupportSlice::total(key),
+        |mechanism_id| MechanismSupportSlice::within_mechanism(key, mechanism_id),
+    );
     if key.request_id() != request_id
         || key.target() != target
         || support_closure.request_id() != request_id
@@ -4281,11 +4316,12 @@ fn subject_starter_publication_authority<'journal>(
         return Err(RelationalPublicationError::MechanismStarterSourceCoordinateMismatch);
     }
     let key_authority = support
-        .derive_closed_subject_starter_projection_authority(key, structural)
+        .derive_closed_support_slice_starter_projection_authority(slice, structural)
         .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
     if key_authority.structural_root() != structural_closure.root()
         || key_authority.support_root() != support_closure.root()
         || key_authority.subject() != subject
+        || key_authority.enclosing_mechanism() != within_mechanism
     {
         return Err(RelationalPublicationError::MechanismStarterSourceCoordinateMismatch);
     }
@@ -4319,6 +4355,7 @@ fn checked_subject_starter_publication_authority<'journal>(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
     transition_schemas: &TransitionSchemaIdentities,
     authorization: &RelationalMechanismStarterValueAuthorization,
     source_end: Option<&PendingArtifactSourceEnd>,
@@ -4329,7 +4366,13 @@ fn checked_subject_starter_publication_authority<'journal>(
     )>,
     RelationalPublicationError,
 > {
-    let live = subject_starter_publication_authority(journal, request_id, target, subject)?;
+    let live = subject_starter_publication_authority(
+        journal,
+        request_id,
+        target,
+        subject,
+        within_mechanism,
+    )?;
     let Some(source_end) = source_end else {
         return live
             .map(|authority| {
@@ -4388,6 +4431,7 @@ fn subject_starter_record(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
     authorization: &RelationalMechanismStarterValueAuthorization,
     transition_schemas: &TransitionSchemaIdentities,
     structural_artifact_key: &str,
@@ -4399,8 +4443,13 @@ fn subject_starter_record(
     source_end: Option<&PendingArtifactSourceEnd>,
     line_budget: Option<PublicationLineBudget>,
 ) -> Result<AddressedPublicationRecord, RelationalPublicationError> {
-    let expected_identity =
-        SubjectStarterCursorIdentity::new(consumer_id, request_id, target, subject);
+    let expected_identity = SubjectStarterCursorIdentity::new(
+        consumer_id,
+        request_id,
+        target,
+        subject,
+        within_mechanism,
+    );
     if !authorization.validate_identity()
         || authorization.question_id() != journal.contract().question_id()
         || identity != expected_identity
@@ -4414,6 +4463,7 @@ fn subject_starter_record(
         request_id,
         target,
         subject,
+        within_mechanism,
         transition_schemas,
         authorization,
         source_end,
@@ -4455,6 +4505,7 @@ fn subject_starter_record(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 authority.key_authority,
                 job,
                 authorization,
@@ -4484,6 +4535,7 @@ fn subject_starter_record(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 job,
                 authorization,
                 closure,
@@ -4510,6 +4562,7 @@ fn subject_starter_record(
             request_id,
             target,
             subject,
+            within_mechanism,
             job,
             authorization,
             &page,
@@ -4582,13 +4635,14 @@ fn public_subject_starter_header(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
     authority: MechanismClosedSubjectStarterProjectionAuthority,
     job: RelationalMechanismStarterProjectionJob,
     authorization: &RelationalMechanismStarterValueAuthorization,
     structural_artifact_key: &str,
     structural_artifact_path: &str,
 ) -> JsonValue {
-    json!({
+    let mut record = json!({
         "kind": "subject_starters_header",
         "consumer_id": hex(consumer_id),
         "request_id": hex(request_id.bytes()),
@@ -4609,7 +4663,9 @@ fn public_subject_starter_header(
             "path": structural_artifact_path,
         },
         "page_member_limit": MECHANISM_STARTER_PAGE_MEMBER_LIMIT.get(),
-    })
+    });
+    insert_public_mechanism_support_slice(&mut record, within_mechanism);
+    record
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -4618,11 +4674,12 @@ fn public_subject_starter_page(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
     job: RelationalMechanismStarterProjectionJob,
     authorization: &RelationalMechanismStarterValueAuthorization,
     page: &RelationalMechanismStarterProjectionPage,
 ) -> JsonValue {
-    json!({
+    let mut record = json!({
         "kind": "subject_starters_page",
         "consumer_id": hex(consumer_id),
         "request_id": hex(request_id.bytes()),
@@ -4650,7 +4707,9 @@ fn public_subject_starter_page(
             "successor_key": hex(member.successor_key().bytes()),
             "after": public_explore_value(member.after()),
         })).collect::<Vec<_>>(),
-    })
+    });
+    insert_public_mechanism_support_slice(&mut record, within_mechanism);
+    record
 }
 
 fn public_mechanism_starter_key_cursor(cursor: Option<MechanismSupportStarterCursor>) -> JsonValue {
@@ -4668,11 +4727,12 @@ fn public_subject_starter_closure(
     request_id: MechanismRequestId,
     target: MechanismTargetId,
     subject: MechanismSupportSubject,
+    within_mechanism: Option<StructuralMechanismId>,
     job: RelationalMechanismStarterProjectionJob,
     authorization: &RelationalMechanismStarterValueAuthorization,
     closure: RelationalMechanismStarterProjectionClosure,
 ) -> JsonValue {
-    json!({
+    let mut record = json!({
         "kind": "subject_starters_closure",
         "consumer_id": hex(consumer_id),
         "request_id": hex(request_id.bytes()),
@@ -4689,6 +4749,31 @@ fn public_subject_starter_closure(
         "page_manifest_root": hex(closure.page_manifest_root().bytes()),
         "structural_quotient_root": hex(job.authority().structural_root().bytes()),
         "mechanism_support_closure_root": hex(job.authority().support_root().bytes()),
+    });
+    insert_public_mechanism_support_slice(&mut record, within_mechanism);
+    record
+}
+
+fn insert_public_mechanism_support_slice(
+    record: &mut JsonValue,
+    within_mechanism: Option<StructuralMechanismId>,
+) {
+    let Some(mechanism_id) = within_mechanism else {
+        return;
+    };
+    record
+        .as_object_mut()
+        .expect("starter publication records are JSON objects")
+        .insert(
+            "support_slice".into(),
+            public_mechanism_support_slice(mechanism_id),
+        );
+}
+
+fn public_mechanism_support_slice(mechanism_id: StructuralMechanismId) -> JsonValue {
+    json!({
+        "kind": "within_mechanism",
+        "structural_mechanism_id": hex(mechanism_id.bytes()),
     })
 }
 
@@ -5893,14 +5978,25 @@ fn pending_source_end(
             request_id,
             target,
             subject,
+            within_mechanism,
             authorization,
             transition_schemas,
             ..
         } => {
-            let identity =
-                SubjectStarterCursorIdentity::new(*consumer_id, *request_id, *target, *subject);
-            let Some(authority) =
-                subject_starter_publication_authority(journal, *request_id, *target, *subject)?
+            let identity = SubjectStarterCursorIdentity::new(
+                *consumer_id,
+                *request_id,
+                *target,
+                *subject,
+                *within_mechanism,
+            );
+            let Some(authority) = subject_starter_publication_authority(
+                journal,
+                *request_id,
+                *target,
+                *subject,
+                *within_mechanism,
+            )?
             else {
                 return Ok(PendingArtifactSourceEnd::SubjectStarters {
                     identity,
@@ -7773,19 +7869,26 @@ fn build_manifest(
                 request_id,
                 target,
                 subject,
+                within_mechanism,
                 authorization,
                 structural_artifact_key,
                 structural_artifact_path,
                 ..
             } = artifact
             {
+                let (record_schema, record_schema_version) =
+                    if within_mechanism.is_some() {
+                        ("futuruna.relational-subject-starters-v2", 2u32)
+                    } else {
+                        ("futuruna.relational-subject-starters-v1", 1u32)
+                    };
                 object.insert(
                     "record_schema".into(),
-                    JsonValue::String("futuruna.relational-subject-starters-v1".into()),
+                    JsonValue::String(record_schema.into()),
                 );
                 object.insert(
                     "record_schema_version".into(),
-                    JsonValue::Number(1u32.into()),
+                    JsonValue::Number(record_schema_version.into()),
                 );
                 object.insert(
                     "consumer_id".into(),
@@ -7797,6 +7900,12 @@ fn build_manifest(
                 );
                 object.insert("target".into(), public_mechanism_target_id(*target));
                 object.insert("subject".into(), public_mechanism_support_subject(*subject));
+                if let Some(mechanism_id) = within_mechanism {
+                    object.insert(
+                        "support_slice".into(),
+                        public_mechanism_support_slice(*mechanism_id),
+                    );
+                }
                 let availability = match mechanism_starter_unavailable_residual_case_count(
                     journal,
                     *request_id,
@@ -7811,6 +7920,7 @@ fn build_manifest(
                         *request_id,
                         *target,
                         *subject,
+                        *within_mechanism,
                     )?
                     .is_some() =>
                     {
@@ -8073,7 +8183,7 @@ fn build_manifest(
                 "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
                 "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
                 "Structural support publishes a hard-bounded signature-fiber summary for each request-target-conditioned mechanism or node/edge facet; capped scans widen bounds and never fall back to a full case/starter union.",
-                "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet through its named checked value view.",
+                "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet, optionally within one enclosing mechanism, through its named checked value view.",
                 "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
                 "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
                 "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
@@ -8555,12 +8665,18 @@ fn artifact_layer_roots(
             request_id,
             target,
             subject,
+            within_mechanism,
             authorization,
             transition_schemas,
             ..
         } => {
-            let Some(authority) =
-                subject_starter_publication_authority(journal, *request_id, *target, *subject)?
+            let Some(authority) = subject_starter_publication_authority(
+                journal,
+                *request_id,
+                *target,
+                *subject,
+                *within_mechanism,
+            )?
             else {
                 return Ok(JsonValue::Null);
             };
@@ -8570,7 +8686,7 @@ fn artifact_layer_roots(
                 transition_schemas,
                 authorization,
             )?;
-            Ok(json!({
+            let mut roots = json!({
                 "consumer_id": hex(*consumer_id),
                 "request_id": hex(request_id.bytes()),
                 "target": public_mechanism_target_id(*target),
@@ -8582,7 +8698,9 @@ fn artifact_layer_roots(
                 "raw_incidence_root": hex(authority.support_closure.incidence_root().bytes()),
                 "structural_quotient_root": hex(authority.structural_closure.root().bytes()),
                 "mechanism_support_closure_root": hex(authority.support_closure.root().bytes()),
-            }))
+            });
+            insert_public_mechanism_support_slice(&mut roots, *within_mechanism);
+            Ok(roots)
         }
         PublicationArtifactPlan::CaseSupport { .. } => {
             unreachable!("case-support roots return before consulting the analysis catalog")
@@ -9664,7 +9782,7 @@ mod tests {
     }
 
     #[test]
-    fn subject_starter_cursor_identity_binds_consumer_request_target_and_subject() {
+    fn subject_starter_cursor_identity_binds_consumer_request_target_subject_and_route() {
         let request_id = MechanismRequestId::from_journal_codec_bytes([0x21; 32]);
         let node_id = StructuralNodeId::from_checked_source_bytes([0x31; 32]);
         let base = SubjectStarterCursorIdentity::new(
@@ -9675,6 +9793,7 @@ mod tests {
                 facet: MechanismSupportFacet::Activation,
                 node_id,
             },
+            None,
         );
 
         assert_ne!(
@@ -9687,6 +9806,7 @@ mod tests {
                     facet: MechanismSupportFacet::Activation,
                     node_id,
                 },
+                None,
             )
         );
         assert_ne!(
@@ -9699,6 +9819,7 @@ mod tests {
                     facet: MechanismSupportFacet::Activation,
                     node_id,
                 },
+                None,
             )
         );
         assert_ne!(
@@ -9711,6 +9832,7 @@ mod tests {
                     facet: MechanismSupportFacet::Activation,
                     node_id,
                 },
+                None,
             )
         );
         assert_ne!(
@@ -9723,7 +9845,35 @@ mod tests {
                     facet: MechanismSupportFacet::DifferentialParticipation,
                     node_id,
                 },
+                None,
             )
         );
+        let routed = SubjectStarterCursorIdentity::new(
+            [0x11; 32],
+            request_id,
+            MechanismTargetId::Selected,
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id,
+            },
+            Some(StructuralMechanismId::from_checked_source_bytes([0x51; 32])),
+        );
+        assert_ne!(
+            base, routed,
+            "the enclosing mechanism route is part of the resumable cursor coordinate"
+        );
+        let total_wire = serde_json::to_value(base).expect("serialize total-subject cursor");
+        let routed_wire = serde_json::to_value(routed).expect("serialize routed cursor");
+        assert!(
+            !total_wire
+                .as_object()
+                .expect("cursor JSON object")
+                .contains_key("within_mechanism"),
+            "unqualified v1 cursor bytes omit the additive route coordinate"
+        );
+        assert!(routed_wire
+            .as_object()
+            .expect("cursor JSON object")
+            .contains_key("within_mechanism"));
     }
 }

@@ -363,6 +363,7 @@ pub(crate) struct ExploreStarterProjectionIr {
     pub(crate) name: String,
     pub(crate) request_node_index: usize,
     pub(crate) subject: ExploreStarterProjectionSubjectIr,
+    pub(crate) within_mechanism: Option<StructuralMechanismId>,
     pub(crate) value_view_node_index: usize,
     pub(crate) span: Span,
 }
@@ -373,6 +374,7 @@ impl ExploreStarterProjectionIr {
             name: projection.name.clone(),
             request_node_index: projection.request_node_index,
             subject: projection.subject.into(),
+            within_mechanism: projection.within_mechanism,
             value_view_node_index: projection.value_view_node_index,
             span: projection.span,
         }
@@ -516,6 +518,17 @@ impl ExploreQueryIr {
                 return Err(format!(
                     "starter projection `{}` does not resolve mechanism node index {}",
                     projection.name, projection.request_node_index
+                ));
+            }
+            if projection.within_mechanism.is_some()
+                && matches!(
+                    projection.subject,
+                    ExploreStarterProjectionSubjectIr::Mechanism(_)
+                )
+            {
+                return Err(format!(
+                    "starter projection `{}` cannot refine a whole mechanism within another mechanism",
+                    projection.name
                 ));
             }
             let Some(ExploreAnalysisNodeIr::Result(value_view)) =

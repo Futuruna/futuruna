@@ -408,7 +408,7 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
 }
 
 #[test]
-fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration() {
+fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexploration() {
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("state");
@@ -677,6 +677,11 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_eq!(raw_signatures.len(), 1);
     assert_eq!(structural_mechanisms.len(), 1);
     assert_eq!(execution_profiles.len(), 1);
+    let mechanism_id = structural_mechanisms
+        .iter()
+        .next()
+        .expect("one structural mechanism ID")
+        .to_string();
 
     let case_transitions = read_ndjson(&artifact_path(
         &manifest,
@@ -904,9 +909,10 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         .rfind('}')
         .expect("first Explore fixture query closing brace");
     let projected_source = format!(
-        "{}    starters selected_activation_node from mechanisms paths for node activation \"{}\" using values from selected_cases\n{}",
+        "{}    starters selected_activation_node_in_path from mechanisms paths for node activation \"{}\" within mechanism \"{}\" using values from selected_cases\n{}",
         &fixture_source[..closing_brace],
         node_id,
+        mechanism_id,
         &fixture_source[closing_brace..],
     );
     let projected_fixture = temp
@@ -1005,15 +1011,20 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         .iter()
         .find(|artifact| {
             artifact["kind"] == "subject_starter_support"
-                && artifact["name"] == "selected_activation_node"
+                && artifact["name"] == "selected_activation_node_in_path"
         })
         .expect("explicit node starter artifact");
     assert_eq!(
         starter_artifact["path"],
-        "starters/selected_activation_node.ndjson"
+        "starters/selected_activation_node_in_path.ndjson"
     );
     assert_eq!(starter_artifact["published_lines"], "3");
     assert_eq!(starter_artifact["scope"], "one_explicit_structural_subject");
+    assert_eq!(
+        starter_artifact["record_schema"],
+        "futuruna.relational-subject-starters-v2"
+    );
+    assert_eq!(starter_artifact["record_schema_version"], 2);
     assert_eq!(
         starter_artifact["availability"]["status"],
         "exact_projection_available"
@@ -1021,6 +1032,14 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_eq!(starter_artifact["subject"]["kind"], "node");
     assert_eq!(starter_artifact["subject"]["facet"], "activation");
     assert_eq!(starter_artifact["subject"]["structural_node_id"], node_id);
+    assert_eq!(
+        starter_artifact["support_slice"]["kind"],
+        "within_mechanism"
+    );
+    assert_eq!(
+        starter_artifact["support_slice"]["structural_mechanism_id"],
+        mechanism_id
+    );
     assert_eq!(starter_artifact["contains_node_edge_projections"], true);
     assert_eq!(starter_artifact["contains_typed_values"], true);
     assert_eq!(
@@ -1056,14 +1075,22 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         ]
     );
     let starter_header = &starter_records[0]["record"];
+    assert_ne!(
+        starter_header["projection_plan_id"], node_projection_plan_id,
+        "route-conditioned plan identity must differ from total-node support"
+    );
     assert_eq!(
-        starter_header["projection_plan_id"],
-        node_projection_plan_id
+        starter_header["support_slice"],
+        starter_artifact["support_slice"]
     );
     assert_eq!(starter_header["exact_case_count"], "2");
     assert_eq!(starter_header["exact_distinct_starter_count"], Value::Null);
 
     let starter_page = &starter_records[1]["record"];
+    assert_eq!(
+        starter_page["support_slice"],
+        starter_artifact["support_slice"]
+    );
     assert_eq!(starter_page["page_ordinal"], "0");
     assert_eq!(starter_page["start_after"], Value::Null);
     assert_eq!(starter_page["exhausted"], true);
@@ -1102,6 +1129,10 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     );
 
     let starter_closure = &starter_records[2]["record"];
+    assert_eq!(
+        starter_closure["support_slice"],
+        starter_artifact["support_slice"]
+    );
     assert_eq!(starter_closure["exact_case_count"], "2");
     assert_eq!(starter_closure["exact_distinct_starter_count"], "2");
     assert_eq!(starter_closure["page_count"], "1");
@@ -1128,7 +1159,7 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         vec![
             PathBuf::from("graphs/case-transitions.ndjson"),
             PathBuf::from("manifest.json"),
-            PathBuf::from("starters/selected_activation_node.ndjson"),
+            PathBuf::from("starters/selected_activation_node_in_path.ndjson"),
         ]
     );
 

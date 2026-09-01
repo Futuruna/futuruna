@@ -47,9 +47,15 @@ const DEFAULT_HOT_SUBJECT_PROJECTION_LIMIT: usize = 1;
 const SUPPORT_VIEW_ROOT_V4: &[u8] = b"futuruna.explore.mechanism-support-view-root.v4";
 const FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-factorized-subject-signature-prefix-root.v2";
+const FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-slice-signature-prefix-root.v1";
 const FACTORIZED_SUBJECT_SUMMARY_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-factorized-subject-summary-root.v2";
+const FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-slice-summary-root.v1";
 const SUPPORT_FIBER_EXPR_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-fiber-expr-root.v1";
+const SUPPORT_SLICE_FIBER_EXPR_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-slice-fiber-expr-root.v1";
 const FIBER_EXPR_FACTORIZED_SUBJECT_UNION: u8 = 0x01;
 const FIBER_EXPR_MATERIALIZED_PROJECTION: u8 = 0x02;
 const FIBER_EXPR_POSSIBLE_SUPPORT_ENVELOPE: u8 = 0x03;
@@ -58,6 +64,8 @@ const FIBER_EXPR_SOURCE_CONTEXT_BEFORE: u8 = 0x01;
 const FIBER_EXPR_SUCCESSOR_AFTER: u8 = 0x01;
 const STARTER_PROJECTION_PLAN_ID_V2: &[u8] =
     b"futuruna.explore.mechanism-subject-starter-projection-plan-id.v2";
+const SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-slice-starter-projection-plan-id.v1";
 const SUPPORT_FRONTIER_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v1";
 const SUPPORT_CLOSURE_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-closure-root.v1";
 const SHARED_RESIDUAL_ROOT_V2: &[u8] =
@@ -150,6 +158,47 @@ impl MechanismSupportKey {
 
     pub(crate) const fn subject(self) -> MechanismSupportSubject {
         self.subject
+    }
+}
+
+/// One structural subject's total support or its support along one enclosing
+/// mechanism route. The underlying [`MechanismSupportKey`] remains unchanged:
+/// route conditioning is a derived intersection of the subject and mechanism
+/// signature indexes, never a second structural node identity.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismSupportSlice {
+    key: MechanismSupportKey,
+    within_mechanism: Option<StructuralMechanismId>,
+}
+
+impl MechanismSupportSlice {
+    pub(crate) const fn total(key: MechanismSupportKey) -> Self {
+        Self {
+            key,
+            within_mechanism: None,
+        }
+    }
+
+    pub(crate) const fn within_mechanism(
+        key: MechanismSupportKey,
+        mechanism_id: StructuralMechanismId,
+    ) -> Self {
+        Self {
+            key,
+            within_mechanism: Some(mechanism_id),
+        }
+    }
+
+    pub(crate) const fn key(self) -> MechanismSupportKey {
+        self.key
+    }
+
+    pub(crate) const fn subject(self) -> MechanismSupportSubject {
+        self.key.subject()
+    }
+
+    pub(crate) const fn enclosing_mechanism(self) -> Option<StructuralMechanismId> {
+        self.within_mechanism
     }
 }
 
@@ -282,7 +331,7 @@ impl MechanismStarterProjectionPlanId {
 /// publication boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MechanismClosedSubjectStarterProjectionAuthority {
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     question_id: QuestionId,
     projection_plan_id: MechanismStarterProjectionPlanId,
     correlated_fiber_expr_root: MechanismSupportFiberExprRoot,
@@ -292,8 +341,12 @@ pub(crate) struct MechanismClosedSubjectStarterProjectionAuthority {
 }
 
 impl MechanismClosedSubjectStarterProjectionAuthority {
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
     pub(crate) const fn key(self) -> MechanismSupportKey {
-        self.key
+        self.slice.key()
     }
 
     pub(crate) const fn question_id(self) -> QuestionId {
@@ -301,7 +354,11 @@ impl MechanismClosedSubjectStarterProjectionAuthority {
     }
 
     pub(crate) const fn subject(self) -> MechanismSupportSubject {
-        self.key.subject()
+        self.slice.subject()
+    }
+
+    pub(crate) const fn enclosing_mechanism(self) -> Option<StructuralMechanismId> {
+        self.slice.enclosing_mechanism()
     }
 
     pub(crate) const fn projection_plan_id(self) -> MechanismStarterProjectionPlanId {
@@ -498,7 +555,7 @@ pub(crate) enum MechanismFactorizedStarterBoundBasis {
 /// bounds or a scalar bound have collapsed.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MechanismFactorizedSubjectSummary {
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     root: MechanismFactorizedSubjectSummaryRoot,
     projection_plan_id: MechanismStarterProjectionPlanId,
     inner_fiber_expr_root: MechanismSupportFiberExprRoot,
@@ -514,8 +571,12 @@ pub(crate) struct MechanismFactorizedSubjectSummary {
 }
 
 impl MechanismFactorizedSubjectSummary {
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
     pub(crate) const fn key(self) -> MechanismSupportKey {
-        self.key
+        self.slice.key()
     }
 
     pub(crate) const fn root(self) -> MechanismFactorizedSubjectSummaryRoot {
@@ -1746,6 +1807,22 @@ impl MechanismSupportCatalogBuilder {
         key: MechanismSupportKey,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<MechanismFactorizedSubjectSummary, MechanismSupportError> {
+        self.derive_closed_factorized_support_slice_summary(
+            MechanismSupportSlice::total(key),
+            structural,
+        )
+    }
+
+    /// Derive the same bounded factorized summary for either total subject
+    /// support or the subject's support within one enclosing mechanism. Route
+    /// conditioning intersects the two immutable signature indexes before any
+    /// case fiber is inspected.
+    pub(crate) fn derive_closed_factorized_support_slice_summary(
+        &self,
+        slice: MechanismSupportSlice,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<MechanismFactorizedSubjectSummary, MechanismSupportError> {
+        let key = slice.key();
         if key.request_id != self.scope.request_id()
             || key.target != self.scope.target()
             || structural.request_id() != self.scope.request_id()
@@ -1813,50 +1890,45 @@ impl MechanismSupportCatalogBuilder {
         if closure_encoder.finish() != support_closure.root().bytes() {
             return Err(MechanismSupportError::ClosureConflict);
         }
-        validate_structural_subject(structural, key.subject)?;
+        validate_structural_subject(structural, slice.subject())?;
 
-        let signatures = supporting_signatures(structural, key.subject);
-        let contributing_signature_count = signatures.map_or(0, |set| set.len() as u128);
-        let mut prefix_encoder = SupportEncoder::new(FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2);
-        prefix_encoder.u32(MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION);
-        encode_support_key(&mut prefix_encoder, key);
+        let signatures = supporting_signatures_for_slice(structural, slice)?;
+        let contributing_signature_count = signatures.len() as u128;
+        let mut prefix_encoder = factorized_support_slice_signature_prefix_encoder(slice);
         prefix_encoder.u128(contributing_signature_count);
         prefix_encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
 
         let mut inspected_signature_count = 0u128;
         let mut case_lower_bound = 0u128;
         let mut starter_lower_bound = 0u128;
-        if let Some(signatures) = signatures {
-            for signature_id in signatures
-                .iter()
-                .copied()
-                .take(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT)
-            {
-                let fiber = self
-                    .signature_fibers
-                    .get(&signature_id)
-                    .ok_or(MechanismSupportError::ClosureConflict)?;
-                let summary = signature_fiber_summary(fiber);
-                let signature_bytes = signature_id.bytes();
-                let authenticated_summary = self
-                    .signature_fiber_index
-                    .get(&signature_bytes)
-                    .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
-                if authenticated_summary != Some(signature_fiber_value(signature_id, summary)) {
-                    return Err(MechanismSupportError::ClosureConflict);
-                }
-                inspected_signature_count = inspected_signature_count
-                    .checked_add(1)
-                    .ok_or(MechanismSupportError::CountOverflow)?;
-                case_lower_bound = case_lower_bound
-                    .checked_add(summary.case_count)
-                    .ok_or(MechanismSupportError::CountOverflow)?;
-                starter_lower_bound = starter_lower_bound.max(summary.starter_count);
-                prefix_encoder.digest(signature_bytes);
-                prefix_encoder.digest(summary.root);
-                prefix_encoder.u128(summary.case_count);
-                prefix_encoder.u128(summary.starter_count);
+        for signature_id in signatures
+            .iter()
+            .take(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT)
+        {
+            let fiber = self
+                .signature_fibers
+                .get(&signature_id)
+                .ok_or(MechanismSupportError::ClosureConflict)?;
+            let summary = signature_fiber_summary(fiber);
+            let signature_bytes = signature_id.bytes();
+            let authenticated_summary = self
+                .signature_fiber_index
+                .get(&signature_bytes)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
+            if authenticated_summary != Some(signature_fiber_value(signature_id, summary)) {
+                return Err(MechanismSupportError::ClosureConflict);
             }
+            inspected_signature_count = inspected_signature_count
+                .checked_add(1)
+                .ok_or(MechanismSupportError::CountOverflow)?;
+            case_lower_bound = case_lower_bound
+                .checked_add(summary.case_count)
+                .ok_or(MechanismSupportError::CountOverflow)?;
+            starter_lower_bound = starter_lower_bound.max(summary.starter_count);
+            prefix_encoder.digest(signature_bytes);
+            prefix_encoder.digest(summary.root);
+            prefix_encoder.u128(summary.case_count);
+            prefix_encoder.u128(summary.starter_count);
         }
         prefix_encoder.u128(inspected_signature_count);
         let signature_prefix_root = prefix_encoder.finish();
@@ -1922,24 +1994,24 @@ impl MechanismSupportCatalogBuilder {
         };
 
         let projection_plan_id = derive_starter_projection_plan_id(
-            key,
+            slice,
             structural_closure.root(),
             support_closure.root(),
         );
         let inner_fiber_expr_root = derive_factorized_inner_fiber_expr_root(
-            key,
+            slice,
             structural_closure.root(),
             self.signature_fiber_index.root_hash(),
         );
         let outer_fiber_expr_root = derive_outer_fiber_expr_root(
-            key,
+            slice,
             inner_fiber_expr_root,
             residual.root,
             residual.case_count,
             target_frontier_open,
         );
         let root = derive_factorized_subject_summary_root(
-            key,
+            slice,
             structural_closure.root(),
             support_closure.root(),
             self.signature_fiber_index.root_hash(),
@@ -1957,7 +2029,7 @@ impl MechanismSupportCatalogBuilder {
             outer_fiber_expr_root,
         );
         Ok(MechanismFactorizedSubjectSummary {
-            key,
+            slice,
             root,
             projection_plan_id,
             inner_fiber_expr_root,
@@ -1983,7 +2055,21 @@ impl MechanismSupportCatalogBuilder {
         key: MechanismSupportKey,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<MechanismClosedSubjectStarterProjectionAuthority, MechanismSupportError> {
-        let summary = self.derive_closed_factorized_subject_summary(key, structural)?;
+        self.derive_closed_support_slice_starter_projection_authority(
+            MechanismSupportSlice::total(key),
+            structural,
+        )
+    }
+
+    /// Freeze exact key-only paging authority for a total or route-conditioned
+    /// support slice. Both forms use the same correlated signature fibers; the
+    /// slice only changes which raw signatures participate.
+    pub(crate) fn derive_closed_support_slice_starter_projection_authority(
+        &self,
+        slice: MechanismSupportSlice,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<MechanismClosedSubjectStarterProjectionAuthority, MechanismSupportError> {
+        let summary = self.derive_closed_factorized_support_slice_summary(slice, structural)?;
         let support_closure = self
             .closure
             .ok_or(MechanismSupportError::ClosurePrerequisite(
@@ -2009,43 +2095,39 @@ impl MechanismSupportCatalogBuilder {
         // existence. An absent differential signature index therefore means
         // exact empty support for this facet; it must not be conflated with an
         // unknown node or edge.
-        let signatures = supporting_signatures(structural, key.subject);
+        let signatures = supporting_signatures_for_slice(structural, slice)?;
         let mut exact_case_count = 0u128;
-        if let Some(signatures) = signatures {
-            for signature_id in signatures.iter().copied() {
-                let assignment = structural
-                    .assignment(signature_id)
-                    .ok_or(MechanismSupportError::ClosureConflict)?;
-                if !assignment_supports_subject(assignment, key.subject) {
-                    return Err(MechanismSupportError::ClosureConflict);
-                }
-                let fiber = self
-                    .signature_fibers
-                    .get(&signature_id)
-                    .ok_or(MechanismSupportError::ClosureConflict)?;
-                let fiber_summary = signature_fiber_summary(fiber);
-                let authenticated_summary = self
-                    .signature_fiber_index
-                    .get(&signature_id.bytes())
-                    .map_err(|_| {
-                    MechanismSupportError::AuthenticatedIndex("signature fibers")
-                })?;
-                if authenticated_summary != Some(signature_fiber_value(signature_id, fiber_summary))
-                    || fiber_summary.case_count != fiber.cases.len() as u128
-                    || fiber_summary.case_count
-                        != fiber
-                            .starters
-                            .values()
-                            .map(|successors| successors.len() as u128)
-                            .try_fold(0u128, |count, successors| count.checked_add(successors))
-                            .ok_or(MechanismSupportError::CountOverflow)?
-                {
-                    return Err(MechanismSupportError::ClosureConflict);
-                }
-                exact_case_count = exact_case_count
-                    .checked_add(fiber_summary.case_count)
-                    .ok_or(MechanismSupportError::CountOverflow)?;
+        for signature_id in signatures.iter() {
+            let assignment = structural
+                .assignment(signature_id)
+                .ok_or(MechanismSupportError::ClosureConflict)?;
+            if !assignment_supports_slice(assignment, slice) {
+                return Err(MechanismSupportError::ClosureConflict);
             }
+            let fiber = self
+                .signature_fibers
+                .get(&signature_id)
+                .ok_or(MechanismSupportError::ClosureConflict)?;
+            let fiber_summary = signature_fiber_summary(fiber);
+            let authenticated_summary = self
+                .signature_fiber_index
+                .get(&signature_id.bytes())
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
+            if authenticated_summary != Some(signature_fiber_value(signature_id, fiber_summary))
+                || fiber_summary.case_count != fiber.cases.len() as u128
+                || fiber_summary.case_count
+                    != fiber
+                        .starters
+                        .values()
+                        .map(|successors| successors.len() as u128)
+                        .try_fold(0u128, |count, successors| count.checked_add(successors))
+                        .ok_or(MechanismSupportError::CountOverflow)?
+            {
+                return Err(MechanismSupportError::ClosureConflict);
+            }
+            exact_case_count = exact_case_count
+                .checked_add(fiber_summary.case_count)
+                .ok_or(MechanismSupportError::CountOverflow)?;
         }
         if exact_case_count > support_closure.successful_case_count()
             || summary.case_count().lower_bound() > exact_case_count
@@ -2058,7 +2140,7 @@ impl MechanismSupportCatalogBuilder {
         }
 
         Ok(MechanismClosedSubjectStarterProjectionAuthority {
-            key,
+            slice,
             question_id: self.scope.question_id(),
             projection_plan_id: summary.projection_plan_id(),
             correlated_fiber_expr_root: summary.inner_fiber_expr_root(),
@@ -2136,24 +2218,24 @@ impl MechanismSupportCatalogBuilder {
         start_after: Option<MechanismSupportStarterCursor>,
         maximum_members: NonZeroU16,
     ) -> Result<MechanismSupportSubjectStarterPage, MechanismSupportError> {
-        let current =
-            self.derive_closed_subject_starter_projection_authority(authority.key(), structural)?;
+        let current = self.derive_closed_support_slice_starter_projection_authority(
+            authority.slice(),
+            structural,
+        )?;
         if current != authority {
             return Err(MechanismSupportError::ClosureConflict);
         }
-        let signatures = supporting_signatures(structural, authority.subject());
+        let signatures = supporting_signatures_for_slice(structural, authority.slice())?;
         let mut candidates = BTreeSet::new();
-        if let Some(signatures) = signatures {
-            for signature_id in signatures.iter().copied() {
-                let fiber = self
-                    .signature_fibers
-                    .get(&signature_id)
-                    .ok_or(MechanismSupportError::ClosureConflict)?;
-                if let Some((source_key, successor_key)) =
-                    first_signature_starter_after(fiber, start_after)
-                {
-                    candidates.insert((source_key, successor_key, signature_id));
-                }
+        for signature_id in signatures.iter() {
+            let fiber = self
+                .signature_fibers
+                .get(&signature_id)
+                .ok_or(MechanismSupportError::ClosureConflict)?;
+            if let Some((source_key, successor_key)) =
+                first_signature_starter_after(fiber, start_after)
+            {
+                candidates.insert((source_key, successor_key, signature_id));
             }
         }
 
@@ -2336,10 +2418,11 @@ impl MechanismSupportCatalogBuilder {
         let shared_residual = self.factorized_residual()?;
         let residual_cases = shared_residual.case_count;
         let target_frontier_open = !self.target_is_complete();
+        let total_slice = MechanismSupportSlice::total(key);
         let inner_fiber_expr_root =
-            derive_materialized_inner_fiber_expr_root(key, inner_starter_root);
+            derive_materialized_inner_fiber_expr_root(total_slice, inner_starter_root);
         let outer_fiber_expr_root = derive_outer_fiber_expr_root(
-            key,
+            total_slice,
             inner_fiber_expr_root,
             shared_residual.root,
             residual_cases,
@@ -2504,6 +2587,63 @@ fn assignment_supports_subject(
     }
 }
 
+fn assignment_supports_slice(
+    assignment: &StructuralSignatureAssignment,
+    slice: MechanismSupportSlice,
+) -> bool {
+    assignment_supports_subject(assignment, slice.subject())
+        && slice
+            .enclosing_mechanism()
+            .is_none_or(|mechanism_id| assignment.mechanism_id() == mechanism_id)
+}
+
+enum SupportingSignatureSlice<'a> {
+    Empty,
+    Total(&'a BTreeSet<MechanismSignatureId>),
+    Intersection {
+        subject: &'a BTreeSet<MechanismSignatureId>,
+        mechanism: &'a BTreeSet<MechanismSignatureId>,
+    },
+}
+
+impl SupportingSignatureSlice<'_> {
+    fn len(&self) -> usize {
+        self.iter().count()
+    }
+
+    fn iter(&self) -> SupportingSignatureSliceIter<'_> {
+        match self {
+            Self::Empty => SupportingSignatureSliceIter::Empty,
+            Self::Total(signatures) => {
+                SupportingSignatureSliceIter::Total(signatures.iter().copied())
+            }
+            Self::Intersection { subject, mechanism } => {
+                SupportingSignatureSliceIter::Intersection(subject.intersection(mechanism).copied())
+            }
+        }
+    }
+}
+
+enum SupportingSignatureSliceIter<'a> {
+    Empty,
+    Total(std::iter::Copied<std::collections::btree_set::Iter<'a, MechanismSignatureId>>),
+    Intersection(
+        std::iter::Copied<std::collections::btree_set::Intersection<'a, MechanismSignatureId>>,
+    ),
+}
+
+impl Iterator for SupportingSignatureSliceIter<'_> {
+    type Item = MechanismSignatureId;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Self::Empty => None,
+            Self::Total(iter) => iter.next(),
+            Self::Intersection(iter) => iter.next(),
+        }
+    }
+}
+
 fn supporting_signatures<'a>(
     structural: &'a StructuralMechanismCatalogBuilder,
     subject: MechanismSupportSubject,
@@ -2521,6 +2661,30 @@ fn supporting_signatures<'a>(
             facet == MechanismSupportFacet::DifferentialParticipation,
         ),
     }
+}
+
+fn supporting_signatures_for_slice<'a>(
+    structural: &'a StructuralMechanismCatalogBuilder,
+    slice: MechanismSupportSlice,
+) -> Result<SupportingSignatureSlice<'a>, MechanismSupportError> {
+    let mechanism_signatures = match slice.enclosing_mechanism() {
+        Some(mechanism_id) => Some(
+            structural
+                .signatures_for_mechanism(mechanism_id)
+                .ok_or(MechanismSupportError::UnknownStructuralSubject)?,
+        ),
+        None => None,
+    };
+    let Some(subject_signatures) = supporting_signatures(structural, slice.subject()) else {
+        return Ok(SupportingSignatureSlice::Empty);
+    };
+    Ok(match mechanism_signatures {
+        Some(mechanism) => SupportingSignatureSlice::Intersection {
+            subject: subject_signatures,
+            mechanism,
+        },
+        None => SupportingSignatureSlice::Total(subject_signatures),
+    })
 }
 
 fn first_signature_starter_after(
@@ -2801,40 +2965,44 @@ fn signature_key(signature_id: MechanismSignatureId) -> Box<[u8]> {
 }
 
 fn derive_starter_projection_plan_id(
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     structural_root: StructuralQuotientClosureRoot,
     support_root: MechanismSupportClosureRoot,
 ) -> MechanismStarterProjectionPlanId {
-    let mut encoder = SupportEncoder::new(STARTER_PROJECTION_PLAN_ID_V2);
+    let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
+        SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1
+    } else {
+        STARTER_PROJECTION_PLAN_ID_V2
+    });
     encoder.u32(MECHANISM_STARTER_PROJECTION_PLAN_VERSION);
-    encode_support_key(&mut encoder, key);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.digest(structural_root.bytes());
     encoder.digest(support_root.bytes());
     MechanismStarterProjectionPlanId(encoder.finish())
 }
 
 fn derive_factorized_inner_fiber_expr_root(
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     structural_root: StructuralQuotientClosureRoot,
     signature_fiber_root: [u8; 32],
 ) -> MechanismSupportFiberExprRoot {
-    let mut encoder = support_fiber_expr_encoder(key, FIBER_EXPR_FACTORIZED_SUBJECT_UNION);
+    let mut encoder = support_fiber_expr_encoder(slice, FIBER_EXPR_FACTORIZED_SUBJECT_UNION);
     encoder.digest(structural_root.bytes());
     encoder.digest(signature_fiber_root);
     MechanismSupportFiberExprRoot(encoder.finish())
 }
 
 fn derive_materialized_inner_fiber_expr_root(
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     correlated_starter_root: [u8; 32],
 ) -> MechanismSupportFiberExprRoot {
-    let mut encoder = support_fiber_expr_encoder(key, FIBER_EXPR_MATERIALIZED_PROJECTION);
+    let mut encoder = support_fiber_expr_encoder(slice, FIBER_EXPR_MATERIALIZED_PROJECTION);
     encoder.digest(correlated_starter_root);
     MechanismSupportFiberExprRoot(encoder.finish())
 }
 
 fn derive_outer_fiber_expr_root(
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     inner: MechanismSupportFiberExprRoot,
     shared_residual_root: MechanismSupportResidualRoot,
     shared_residual_case_count: u128,
@@ -2843,7 +3011,7 @@ fn derive_outer_fiber_expr_root(
     if shared_residual_case_count == 0 && !opaque_undiscovered_target {
         return inner;
     }
-    let mut encoder = support_fiber_expr_encoder(key, FIBER_EXPR_POSSIBLE_SUPPORT_ENVELOPE);
+    let mut encoder = support_fiber_expr_encoder(slice, FIBER_EXPR_POSSIBLE_SUPPORT_ENVELOPE);
     encoder.digest(inner.bytes());
     encoder.digest(shared_residual_root.bytes());
     encoder.u128(shared_residual_case_count);
@@ -2851,22 +3019,26 @@ fn derive_outer_fiber_expr_root(
     MechanismSupportFiberExprRoot(encoder.finish())
 }
 
-fn support_fiber_expr_encoder(key: MechanismSupportKey, expression_kind: u8) -> SupportEncoder {
-    let mut encoder = SupportEncoder::new(SUPPORT_FIBER_EXPR_ROOT_V1);
+fn support_fiber_expr_encoder(slice: MechanismSupportSlice, expression_kind: u8) -> SupportEncoder {
+    let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
+        SUPPORT_SLICE_FIBER_EXPR_ROOT_V1
+    } else {
+        SUPPORT_FIBER_EXPR_ROOT_V1
+    });
     encoder.u32(MECHANISM_SUPPORT_FIBER_EXPR_VERSION);
     // Coordinate contract: origin SourceKey `(Context, Before)` mapped to a
     // set of SuccessorKey `After` members in the request's typed relation.
     encoder.u8(FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE);
     encoder.u8(FIBER_EXPR_SOURCE_CONTEXT_BEFORE);
     encoder.u8(FIBER_EXPR_SUCCESSOR_AFTER);
-    encode_support_key(&mut encoder, key);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.u8(expression_kind);
     encoder
 }
 
 #[allow(clippy::too_many_arguments)]
 fn derive_factorized_subject_summary_root(
-    key: MechanismSupportKey,
+    slice: MechanismSupportSlice,
     structural_root: StructuralQuotientClosureRoot,
     support_root: MechanismSupportClosureRoot,
     signature_fiber_root: [u8; 32],
@@ -2883,9 +3055,13 @@ fn derive_factorized_subject_summary_root(
     inner_fiber_expr_root: MechanismSupportFiberExprRoot,
     outer_fiber_expr_root: MechanismSupportFiberExprRoot,
 ) -> MechanismFactorizedSubjectSummaryRoot {
-    let mut encoder = SupportEncoder::new(FACTORIZED_SUBJECT_SUMMARY_ROOT_V2);
+    let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
+        FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V1
+    } else {
+        FACTORIZED_SUBJECT_SUMMARY_ROOT_V2
+    });
     encoder.u32(MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION);
-    encode_support_key(&mut encoder, key);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.digest(structural_root.bytes());
     encoder.digest(support_root.bytes());
     encoder.digest(signature_fiber_root);
@@ -2903,6 +3079,33 @@ fn derive_factorized_subject_summary_root(
     encoder.digest(inner_fiber_expr_root.bytes());
     encoder.digest(outer_fiber_expr_root.bytes());
     MechanismFactorizedSubjectSummaryRoot(encoder.finish())
+}
+
+fn factorized_support_slice_signature_prefix_encoder(
+    slice: MechanismSupportSlice,
+) -> SupportEncoder {
+    let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
+        FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1
+    } else {
+        FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2
+    });
+    encoder.u32(MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder
+}
+
+fn encode_total_or_conditioned_support_slice(
+    encoder: &mut SupportEncoder,
+    slice: MechanismSupportSlice,
+) {
+    encode_support_key(encoder, slice.key());
+    if let Some(mechanism_id) = slice.enclosing_mechanism() {
+        // The conditioned form has a distinct domain separator. The tag
+        // leaves room for additional selector forms without reinterpreting
+        // this mechanism-route identity.
+        encoder.u8(0x01);
+        encoder.digest(mechanism_id.bytes());
+    }
 }
 
 fn encode_support_key(encoder: &mut SupportEncoder, key: MechanismSupportKey) {
@@ -3246,6 +3449,7 @@ pub(super) struct ClosedSubjectStarterFixture {
     pub(super) support: MechanismSupportCatalogBuilder,
     pub(super) structural: StructuralMechanismCatalogBuilder,
     pub(super) mechanism_id: StructuralMechanismId,
+    pub(super) mechanism_ids: Box<[StructuralMechanismId]>,
     pub(super) node_ids: Box<[StructuralNodeId]>,
     pub(super) edge_ids: Box<[StructuralEdgeId]>,
 }
@@ -3255,14 +3459,22 @@ pub(super) struct ClosedSubjectStarterFixture {
 /// activation support is exact two while differential support is exact empty.
 #[cfg(test)]
 pub(super) fn closed_subject_starter_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, false, false)
+    subject_starter_fixture(false, false, false, false)
 }
 
 /// Two complete raw signatures which quotient to the same structural subject
 /// support and whose cases are distinct successors of one shared origin.
 #[cfg(test)]
 fn multi_signature_shared_starter_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, true, true)
+    subject_starter_fixture(false, true, true, false)
+}
+
+/// Two raw signatures on different mechanism routes. The second route extends
+/// the same base DAG, so both mechanisms retain stable membership in at least
+/// one common node while their structural mechanism identities differ.
+#[cfg(test)]
+fn multi_mechanism_shared_node_fixture() -> ClosedSubjectStarterFixture {
+    subject_starter_fixture(false, true, true, true)
 }
 
 /// Variant of the shared subject fixture which can leave the second case
@@ -3274,6 +3486,7 @@ fn subject_starter_fixture(
     second_case_unavailable: bool,
     shared_starter: bool,
     split_raw_signatures: bool,
+    split_structural_mechanisms: bool,
 ) -> ClosedSubjectStarterFixture {
     use super::mechanism_incidence::{
         MechanismIncidenceCatalogBuilder, MechanismSignatureDefinition,
@@ -3335,6 +3548,7 @@ fn subject_starter_fixture(
     }
 
     assert!(!split_raw_signatures || !second_case_unavailable);
+    assert!(!split_structural_mechanisms || split_raw_signatures);
 
     let relation_id = RelationId::from_canonical_semantic_preimage(b"subject-starter-fixture");
     let admission_id =
@@ -3481,14 +3695,33 @@ fn subject_starter_fixture(
     ];
     let artifacts = signatures
         .iter()
-        .map(|signature| {
+        .enumerate()
+        .map(|(ordinal, signature)| {
+            let extended_route = split_structural_mechanisms && ordinal == 1;
+            let mut artifact_occurrences = occurrences.to_vec();
+            let artifact_edges = vec![(0, 1)];
+            if extended_route {
+                let then_outcome = Some(RelationalMechanismEventOutcome::IfDecision(
+                    RelationalIfDecisionOutcome::Then,
+                ));
+                artifact_occurrences.push(StructuralOccurrenceInputV1 {
+                    before_owner_activation: Some(0),
+                    after_owner_activation: Some(0),
+                    site: expression_site(&program, "fixture_route_extension", 14),
+                    kind: RelationalMechanismEventKind::IfDecision,
+                    before_outcome: then_outcome.clone(),
+                    after_outcome: then_outcome,
+                    before_root: true,
+                    after_root: true,
+                });
+            }
             let mut budget = relational_structural_derivation_budget();
             budget.admit_source(0).expect("fixture source budget");
             budget
                 .admit_activations(2)
                 .expect("fixture activation budget");
             budget
-                .admit_occurrences(4)
+                .admit_occurrences(if extended_route { 6 } else { 4 })
                 .expect("fixture occurrence budget");
             budget.admit_edges(2).expect("fixture edge budget");
             budget
@@ -3499,9 +3732,9 @@ fn subject_starter_fixture(
                     signature_id: signature.id(),
                     before_activations: vec![activation.clone()].into_boxed_slice(),
                     after_activations: vec![activation.clone()].into_boxed_slice(),
-                    occurrences: occurrences.clone().into(),
-                    before_edges: vec![(0, 1)].into_boxed_slice(),
-                    after_edges: vec![(0, 1)].into_boxed_slice(),
+                    occurrences: artifact_occurrences.into_boxed_slice(),
+                    before_edges: artifact_edges.clone().into_boxed_slice(),
+                    after_edges: artifact_edges.into_boxed_slice(),
                 },
                 budget,
             )
@@ -3512,13 +3745,48 @@ fn subject_starter_fixture(
     assert!(first_artifact.differential_node_membership().is_empty());
     assert!(first_artifact.differential_edge_membership().is_empty());
     let mechanism_id = first_artifact.mechanism().id();
-    let node_ids = first_artifact.node_membership().to_vec().into_boxed_slice();
-    let edge_ids = first_artifact.edge_membership().to_vec().into_boxed_slice();
+    let mechanism_ids = artifacts
+        .iter()
+        .map(|artifact| artifact.mechanism().id())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    assert_eq!(
+        mechanism_ids.len(),
+        if split_structural_mechanisms { 2 } else { 1 }
+    );
+    let node_ids = first_artifact
+        .node_membership()
+        .iter()
+        .copied()
+        .filter(|node_id| {
+            artifacts
+                .iter()
+                .all(|artifact| artifact.node_membership().binary_search(node_id).is_ok())
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    let edge_ids = first_artifact
+        .edge_membership()
+        .iter()
+        .copied()
+        .filter(|edge_id| {
+            artifacts
+                .iter()
+                .all(|artifact| artifact.edge_membership().binary_search(edge_id).is_ok())
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    assert!(!node_ids.is_empty());
+    assert!(!edge_ids.is_empty());
     let mut structural = StructuralMechanismCatalogBuilder::new(request_id);
     for artifact in &artifacts {
-        assert_eq!(artifact.mechanism().id(), mechanism_id);
-        assert_eq!(artifact.node_membership(), node_ids.as_ref());
-        assert_eq!(artifact.edge_membership(), edge_ids.as_ref());
+        if !split_structural_mechanisms {
+            assert_eq!(artifact.mechanism().id(), mechanism_id);
+            assert_eq!(artifact.node_membership(), node_ids.as_ref());
+            assert_eq!(artifact.edge_membership(), edge_ids.as_ref());
+        }
         assert!(artifact.differential_node_membership().is_empty());
         assert!(artifact.differential_edge_membership().is_empty());
         structural
@@ -3576,6 +3844,7 @@ fn subject_starter_fixture(
         support,
         structural,
         mechanism_id,
+        mechanism_ids,
         node_ids,
         edge_ids,
     }
@@ -3628,7 +3897,7 @@ mod tests {
 
     #[test]
     fn sealed_unavailable_residual_keeps_subject_case_and_starter_counts_interval_valued() {
-        let fixture = subject_starter_fixture(true, false, false);
+        let fixture = subject_starter_fixture(true, false, false, false);
         let summary = fixture
             .support
             .derive_closed_factorized_subject_summary(
@@ -3660,7 +3929,7 @@ mod tests {
 
     #[test]
     fn target_starter_saturation_closes_only_the_distinct_starter_count() {
-        let fixture = subject_starter_fixture(true, true, false);
+        let fixture = subject_starter_fixture(true, true, false, false);
         let key = mechanism_support_key(&fixture);
         let summary = fixture
             .support
@@ -3865,6 +4134,233 @@ mod tests {
         assert_ne!(
             overlapping_starter_count,
             support_closure.target_starter_count()
+        );
+    }
+
+    #[test]
+    fn shared_node_support_can_be_sliced_by_enclosing_mechanism_route() {
+        let fixture = multi_mechanism_shared_node_fixture();
+        let scope = fixture.support.scope();
+        let structural_closure = fixture
+            .structural
+            .closure()
+            .expect("fixture structural closure");
+        assert_eq!(structural_closure.counts().mechanisms(), 2);
+        assert_eq!(fixture.mechanism_ids.len(), 2);
+
+        let subject = MechanismSupportSubject::Node {
+            facet: MechanismSupportFacet::Activation,
+            node_id: fixture.node_ids[0],
+        };
+        let key = MechanismSupportKey::new(scope, subject);
+        let total_slice = MechanismSupportSlice::total(key);
+        let first_route = MechanismSupportSlice::within_mechanism(key, fixture.mechanism_ids[0]);
+        let second_route = MechanismSupportSlice::within_mechanism(key, fixture.mechanism_ids[1]);
+
+        for slice in [total_slice, first_route, second_route] {
+            assert_eq!(slice.key(), key);
+            assert_eq!(slice.subject(), subject);
+            assert_eq!(slice.key().request_id(), scope.request_id());
+            assert_eq!(slice.key().target(), scope.target());
+            assert_eq!(slice.key().facet(), Some(MechanismSupportFacet::Activation));
+        }
+        assert_eq!(total_slice.enclosing_mechanism(), None);
+        assert_eq!(
+            first_route.enclosing_mechanism(),
+            Some(fixture.mechanism_ids[0])
+        );
+        assert_eq!(
+            second_route.enclosing_mechanism(),
+            Some(fixture.mechanism_ids[1])
+        );
+
+        let total_summary = fixture
+            .support
+            .derive_closed_factorized_support_slice_summary(total_slice, &fixture.structural)
+            .expect("total shared-node summary");
+        let first_summary = fixture
+            .support
+            .derive_closed_factorized_support_slice_summary(first_route, &fixture.structural)
+            .expect("first route summary");
+        let second_summary = fixture
+            .support
+            .derive_closed_factorized_support_slice_summary(second_route, &fixture.structural)
+            .expect("second route summary");
+
+        assert_eq!(total_summary.slice(), total_slice);
+        assert_eq!(total_summary.contributing_signature_count(), 2);
+        assert_eq!(total_summary.case_count(), MechanismSupportCount::Exact(2));
+        assert_eq!(
+            total_summary.starter_count(),
+            MechanismSupportCount::Exact(1)
+        );
+        for (summary, slice) in [(first_summary, first_route), (second_summary, second_route)] {
+            assert_eq!(summary.slice(), slice);
+            assert_eq!(summary.key(), key);
+            assert_eq!(summary.contributing_signature_count(), 1);
+            assert_eq!(summary.case_count(), MechanismSupportCount::Exact(1));
+            assert_eq!(summary.starter_count(), MechanismSupportCount::Exact(1));
+        }
+        assert_ne!(total_summary.root(), first_summary.root());
+        assert_ne!(total_summary.root(), second_summary.root());
+        assert_ne!(first_summary.root(), second_summary.root());
+        assert_ne!(
+            first_summary.projection_plan_id(),
+            second_summary.projection_plan_id()
+        );
+        assert_ne!(
+            first_summary.inner_fiber_expr_root(),
+            second_summary.inner_fiber_expr_root()
+        );
+
+        let total_authority = fixture
+            .support
+            .derive_closed_support_slice_starter_projection_authority(
+                total_slice,
+                &fixture.structural,
+            )
+            .expect("total shared-node authority");
+        let first_authority = fixture
+            .support
+            .derive_closed_support_slice_starter_projection_authority(
+                first_route,
+                &fixture.structural,
+            )
+            .expect("first route authority");
+        let second_authority = fixture
+            .support
+            .derive_closed_support_slice_starter_projection_authority(
+                second_route,
+                &fixture.structural,
+            )
+            .expect("second route authority");
+        assert_eq!(total_authority.slice(), total_slice);
+        assert_eq!(total_authority.exact_case_count(), 2);
+        assert_eq!(first_authority.slice(), first_route);
+        assert_eq!(first_authority.exact_case_count(), 1);
+        assert_eq!(second_authority.slice(), second_route);
+        assert_eq!(second_authority.exact_case_count(), 1);
+        assert_ne!(
+            first_authority.projection_plan_id(),
+            second_authority.projection_plan_id()
+        );
+
+        let alternate_request_key = MechanismSupportKey {
+            request_id: MechanismRequestId::from_journal_codec_bytes([0x71; 32]),
+            ..key
+        };
+        let alternate_target_key = MechanismSupportKey {
+            target: MechanismTargetId::ChosenView(
+                super::super::relation::ViewId::from_journal_codec_bytes([0x72; 32]),
+            ),
+            ..key
+        };
+        let alternate_facet_key = MechanismSupportKey {
+            subject: MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::DifferentialParticipation,
+                node_id: fixture.node_ids[0],
+            },
+            ..key
+        };
+        let support_root = fixture.support.closure().expect("support closure").root();
+        for changed_slice in [
+            MechanismSupportSlice::within_mechanism(
+                alternate_request_key,
+                fixture.mechanism_ids[0],
+            ),
+            MechanismSupportSlice::within_mechanism(alternate_target_key, fixture.mechanism_ids[0]),
+            MechanismSupportSlice::within_mechanism(alternate_facet_key, fixture.mechanism_ids[0]),
+        ] {
+            assert_ne!(
+                derive_starter_projection_plan_id(
+                    changed_slice,
+                    structural_closure.root(),
+                    support_root,
+                ),
+                first_authority.projection_plan_id()
+            );
+        }
+
+        let total_page = fixture
+            .support
+            .closed_subject_starter_page(
+                total_authority,
+                &fixture.structural,
+                fixture.relation_id,
+                None,
+                NonZeroU16::new(8).unwrap(),
+            )
+            .expect("total shared-node page");
+        let first_page = fixture
+            .support
+            .closed_subject_starter_page(
+                first_authority,
+                &fixture.structural,
+                fixture.relation_id,
+                None,
+                NonZeroU16::new(8).unwrap(),
+            )
+            .expect("first route page");
+        let second_page = fixture
+            .support
+            .closed_subject_starter_page(
+                second_authority,
+                &fixture.structural,
+                fixture.relation_id,
+                None,
+                NonZeroU16::new(8).unwrap(),
+            )
+            .expect("second route page");
+
+        assert_eq!(total_page.members().len(), 2);
+        assert_eq!(first_page.members().len(), 1);
+        assert_eq!(second_page.members().len(), 1);
+        assert!(total_page.exhausted());
+        assert!(first_page.exhausted());
+        assert!(second_page.exhausted());
+        let total_sources = total_page
+            .members()
+            .iter()
+            .map(|member| member.source_key())
+            .collect::<BTreeSet<_>>();
+        let total_successors = total_page
+            .members()
+            .iter()
+            .map(|member| member.successor_key())
+            .collect::<BTreeSet<_>>();
+        let total_signatures = total_page
+            .members()
+            .iter()
+            .map(|member| member.raw_signature_id())
+            .collect::<BTreeSet<_>>();
+        let first_signatures = first_page
+            .members()
+            .iter()
+            .map(|member| member.raw_signature_id())
+            .collect::<BTreeSet<_>>();
+        let second_signatures = second_page
+            .members()
+            .iter()
+            .map(|member| member.raw_signature_id())
+            .collect::<BTreeSet<_>>();
+        assert_eq!(total_sources.len(), 1);
+        assert_eq!(total_successors.len(), 2);
+        assert_eq!(total_signatures.len(), 2);
+        assert!(first_signatures.is_disjoint(&second_signatures));
+        assert_eq!(
+            first_signatures
+                .union(&second_signatures)
+                .copied()
+                .collect::<BTreeSet<_>>(),
+            total_signatures
+        );
+        assert_eq!(
+            first_page.members()[0].source_key(),
+            total_page.members()[0].source_key()
+        );
+        assert_eq!(
+            second_page.members()[0].source_key(),
+            total_page.members()[0].source_key()
         );
     }
 

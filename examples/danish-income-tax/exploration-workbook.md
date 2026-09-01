@@ -1711,6 +1711,26 @@ for node differential "<StructuralNodeId>"
 using values from cliffs
 ```
 
+For a shared node or edge, one enclosing mechanism may be selected explicitly:
+
+```runa
+starters selected_cliff_node_in_path
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+within mechanism "<StructuralMechanismId>"
+using values from cliffs
+```
+
+The first form is the deduplicated total support. The second intersects the
+node/edge signature index with the named mechanism's signature index. It binds
+the route into the publication plan and resume cursor without renaming the
+structural subject, request, question or analysis DAG.
+
+The route-qualified artifact uses subject-starter record schema v2. An
+unqualified consumer omits that optional coordinate and retains its existing
+v1 ID, roots, cursor bytes and records, so a qualified consumer can be appended
+to a closed publication-v9 output rather than forcing a republish.
+
 The subject may instead be one structural mechanism or an
 activation/differential node or edge. It is deliberately singular: v1 has no
 wildcard or list which could fan out into a hidden `cases x DAG` export. For a chosen
@@ -1737,7 +1757,8 @@ catalog implements factorized **total** support summaries for mechanism, node
 and edge subjects. Those rows retain `not_materialized` correlated content even
 when one typed subject projection is authored: selection schedules a separate
 `starters/<name>.ndjson` artifact and must not emit the whole DAG eagerly.
-Route-conditioned starter projection remains future work.
+Mechanism-route conditioning reuses that same bounded projection; arbitrary
+path predicates and local-entry regions remain separate future work.
 
 The shared frontier is itself factorized into pending cases, unavailable cases,
 and complete signature fibers which do not yet have a validated structural
@@ -2089,6 +2110,17 @@ starter subbound is an **exact request-conditioned correlated support**, not a
 range inferred from its case count and not part of the mechanism's stable
 identity.
 
+The same separation applies below a mechanism. Structural mechanism, node and
+edge IDs stay stable; request, target and support facet select a correlated
+`(Context, Before) -> Set<After>` overlay, and an enclosing-mechanism route may
+refine that overlay further. Every grain keeps case and starter bounds separate
+and preserves successors as conditional fibers beneath each starter. A shared
+node's total support is the deduplicated union of its
+route-conditioned supports, while `node | mechanism` is their route-aware
+intersection inside the same target incidence. Because two mechanisms can share
+starters or successors, marginal counts cannot be summed or multiplied into a
+case population without a disjointness proof.
+
 The public values needed to read those two fibers were already authorized by
 the checked `cliffs` selected-case view. In the historical publication-v8
 experiment, that authorization automatically scheduled a separate
@@ -2248,12 +2280,25 @@ authenticated inner/outer fiber-expression identities for the correlated
 typed content `not_materialized`. Publication v9 can turn one closed exact
 mechanism, node-facet or edge-facet expression into the separate authorized
 typed starter artifact described above without inventing a Cartesian product.
+For node and edge subjects it may bind one enclosing mechanism and derive the
+route-conditioned intersection from the existing signature indexes.
 The compact row remains `not_materialized` because the selected artifact is a
 separate appendable consumer, not inline content.
 
-What remains is route-conditioned selection and a human-readable region
-compression which labels dimensions as conditioned, explored, derived, proved
-irrelevant or coverage gaps. Compact unselected rows correctly remain
+Publication v9 now implements the one-enclosing-mechanism selector. A focused
+two-mechanism/shared-node fixture proves that total-node support contains two
+cases but one deduplicated starter, while each `node | mechanism` slice contains
+one case and the same one starter. Their plan and fiber identities are distinct,
+and paging retains the two different successors beneath that shared Source. A
+separate CLI attachment fixture closes a small journal first, adds a qualified
+node consumer afterward, and observes zero new semantic batches/events,
+unchanged relation/question/analysis/journal identities, a route-bound v2
+starter artifact, and a byte-identical no-op resume. This is implementation
+evidence for the projection architecture, not a new Personskat execution.
+
+What remains is arbitrary path-conditioned selection and a human-readable
+region compression which labels dimensions as conditioned, explored, derived,
+proved irrelevant or coverage gaps. Compact unselected rows correctly remain
 `not_materialized` rather than implying that opaque roots or per-field
 marginals are readable correlated subbounds.
 
@@ -2524,6 +2569,23 @@ execution target:
    pure-call results across adjacent Before/After endpoints. Unsupported
    checked sites or operations residualize the whole classification lane and
    fall back atomically to the ordinary checked evaluator.
+
+   The present 350,000-DKK commuter query marks that boundary precisely. Its
+   finite FROM construction and deterministic TO successor fit capsule V1, but
+   the Before/After validity predicates and FIND cross the multi-statement
+   Personskat observation, and the transition predicate includes structured
+   profile equality. Admission/FIND therefore residualize and capsule execution
+   delegates the complete batch. The published exact 10,500-case result above
+   came through the query-bound native V2 classifier and checked parity canary;
+   it is not evidence that capsule V1 executes the Personskat rule graph.
+
+   The meaningful next capsule extension is a sealed checked-observer leaf. It
+   would bind the exact checked observation call into capsule identity, evaluate
+   and cache it independently for Before and After, and leave the surrounding
+   projections and comparisons in the canonical graph. This creates the desired
+   adjacent-endpoint reuse without pretending that merely lowering a local
+   binding has made all deeper Personskat collections and dispatch executable
+   in capsule V1.
 
    The remaining symbolic blocker is narrower. The capsule-bound one-axis
    proof producer can replay exact scalar quasi-affine/Boolean graphs and

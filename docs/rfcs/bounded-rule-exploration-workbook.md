@@ -987,6 +987,19 @@ support plan/root cell, specialization and provenance. Its bounded exact
 evaluator is threaded through concrete classified sweeps and falls back
 atomically whenever any lane residualizes.
 
+That fallback is the honest current boundary for the 350,000-DKK commuter
+query. Its finite FROM bindings and deterministic TO successor fit capsule V1,
+but both endpoint-validity predicates and FIND call the multi-statement checked
+Personskat observation, while the transition predicate also compares a
+structured profile value. Those Admission/FIND lanes therefore residualize and
+the capsule evaluator delegates the complete batch. The published exact
+10,500-transition result was classified by the query-bound native V2 sidecar,
+with its checked parity canary, not by capsule V1. The useful next capsule
+extension is a sealed checked-observer leaf: bind one exact checked observation
+call into capsule identity, evaluate and cache it independently at Before and
+After, then retain projections and comparisons in the canonical graph. Merely
+lowering local bindings would still stop at the deeper Personskat residuals.
+
 The remaining proof work is scheduler and replay authority plus wider checked
 rule semantics. The first capsule-bound one-axis proof producer can normalize
 exact scalar quasi-affine/Boolean graphs and acyclic calls, but it is not yet a
@@ -1016,6 +1029,18 @@ program, relation/admission/question IDs, support-plan/root-cell IDs,
 fixed-value specialization and provenance. Proof artifacts bind the capsule,
 not a runtime function name, AST address, dispatch-key spelling or digest by
 itself.
+
+Mechanism, node and edge identities remain structural and stable across this
+request binding. Their starter evidence is a separate overlay keyed by request,
+target and support facet, with an enclosing-mechanism route when that grain is
+requested. Each overlay preserves the correlated relation
+`Source = (Context, Before) -> Set<After>`. Case and distinct-Source bounds are
+separate, while successor support remains conditional beneath each Source;
+none can be recovered by relabeling another count. For a shared node, total support is the deduplicated
+union of its route-conditioned supports. `node | mechanism` is the corresponding
+route-aware intersection of node and enclosing-mechanism incidence within the
+same target evidence. Route fibers may overlap, so their counts are never added
+unless disjointness is itself proved.
 
 The implemented V1 graph has typed input/constant/constructor/projection and
 variant-test nodes; ordered checked integer and Boolean operations;
@@ -1343,6 +1368,29 @@ for node differential "<StructuralNodeId>"
 using values from cliffs
 ```
 
+A node or edge consumer may additionally select one enclosing structural
+mechanism route without changing the node/edge identity:
+
+```runa
+starters selected_cliff_node_in_path
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+within mechanism "<StructuralMechanismId>"
+using values from cliffs
+```
+
+The unqualified form is total subject support. The qualified form intersects
+the existing subject and mechanism signature indexes, then reuses the same
+correlated `SourceKey -> Set<SuccessorKey>` merge. The route is bound into the
+consumer, plan, job, cursor, checkpoint and public record identities; it never
+renames the structural node or the core analysis DAG.
+
+Qualified artifacts use subject-starter record schema v2. The optional route
+field is omitted from unqualified cursors and records, preserving their v1
+consumer IDs, roots and publication-v9 bytes. A route-qualified consumer can
+therefore attach to an existing closed v9 output as a new artifact without
+replacing its total-subject lane.
+
 It writes `starters/<name>.ndjson` in pages of at most 64 members, adaptively
 shortens a page to the byte limit, and uses a k-way merge whose peak memory is
 proportional to the contributing raw signatures plus one page. V1 has no
@@ -1350,11 +1398,12 @@ wildcard or list selector; multiple subjects require multiple named consumers.
 The declaration belongs to the appendable publication-consumer graph, not the
 analysis DAG, so copying a node ID from an existing structural sidecar and
 resuming does not re-explore any cases. A fixed-fan-in external merge and
-path-conditioned selectors remain future scaling work. The whole structural
-catalog MUST NOT be eagerly materialized merely because it exists.
+arbitrary path-conditioned selectors remain future scaling work. The whole
+structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v9 splits each mechanism request and authored projection into independently
-resumable artifacts. `mechanisms/<name>.ndjson` is the answer lane: its compact
+Publication schema v9 splits each mechanism request and authored projection
+into independently resumable artifacts. `mechanisms/<name>.ndjson` is the
+answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
 reason or case terminal, followed by the incidence closure when authorized.
 First intern still precedes a terminal that refers to it, but one descriptor

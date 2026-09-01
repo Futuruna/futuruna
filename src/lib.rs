@@ -5076,6 +5076,10 @@ pub struct ExploreStarterProjection {
     pub name: String,
     pub request_name: String,
     pub subject: ExploreStarterProjectionSubject,
+    /// Optional enclosing structural mechanism used to refine a shared node
+    /// or edge's total support. This is a publication-time support slice; it
+    /// never participates in the structural subject's identity.
+    pub within_mechanism: Option<[u8; 32]>,
     pub value_view_name: String,
     pub span: Span,
 }
@@ -5320,6 +5324,7 @@ pub(crate) struct TypedExploreStarterProjection {
     pub(crate) request_name: String,
     pub(crate) request_node_index: usize,
     pub(crate) subject: TypedExploreStarterProjectionSubject,
+    pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
     pub(crate) value_view_name: String,
     pub(crate) value_view_node_index: usize,
     pub(crate) span: Span,
@@ -9705,6 +9710,20 @@ impl Parser {
                 token.line, token.col
             ));
         };
+        let within_mechanism = if self.peek_word("within") {
+            self.advance();
+            self.expect_explore_word("mechanism")?;
+            if matches!(subject, ExploreStarterProjectionSubject::Mechanism(_)) {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: whole-mechanism starter support cannot be refined `within mechanism`; select the mechanism directly",
+                    token.line, token.col
+                ));
+            }
+            Some(self.parse_explore_structural_digest("enclosing structural mechanism ID")?)
+        } else {
+            None
+        };
         self.expect_explore_word("using")?;
         self.expect_explore_word("values")?;
         self.expect_explore_word("from")?;
@@ -9713,6 +9732,7 @@ impl Parser {
             name,
             request_name,
             subject,
+            within_mechanism,
             value_view_name,
             span: self.span_since(&start),
         })
@@ -24995,14 +25015,16 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
 }
 
 pub(crate) const CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_ROUTED_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 1;
 
 /// Durable identity of one explicitly named starter publication consumer.
 ///
 /// This identity is deliberately outside the core analysis DAG. Its authored
 /// name participates because a rename denotes a new output artifact/cursor,
-/// while the request, structural subject, and authorizing view bind exactly
-/// which checked data that artifact may expose.
+/// while the request, structural subject, optional enclosing-mechanism slice,
+/// and authorizing view bind exactly which checked data that artifact may
+/// expose.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CheckedExploreStarterProjectionId([u8; 32]);
 
@@ -25029,6 +25051,7 @@ pub(crate) struct CheckedExploreStarterProjectionIdentity {
     pub(crate) id: CheckedExploreStarterProjectionId,
     pub(crate) request_id: explore::MechanismRequestId,
     pub(crate) subject: explore::ExploreStarterProjectionSubjectIr,
+    pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
     pub(crate) authorizing_view_id: explore::ViewId,
 }
 
@@ -25628,7 +25651,8 @@ impl CheckedExploreQueryView<'_> {
 
     /// Starter declarations paired with their producer-minted publication
     /// identities. The declaration name remains the output address; the
-    /// checked identity binds that address to its request, subject and view.
+    /// checked identity binds that address to its request, subject, optional
+    /// enclosing mechanism and view.
     pub(crate) fn starter_projection_consumers(
         &self,
     ) -> impl ExactSizeIterator<
@@ -35130,14 +35154,26 @@ fn checked_explore_starter_projection_id(
     name: &str,
     request_id: explore::MechanismRequestId,
     subject: explore::ExploreStarterProjectionSubjectIr,
+    within_mechanism: Option<explore::StructuralMechanismId>,
     authorizing_view_id: explore::ViewId,
 ) -> CheckedExploreStarterProjectionId {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-starter-projection-id.v1\0");
-    hasher.update(CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION.to_le_bytes());
+    match within_mechanism {
+        Some(_) => {
+            hasher.update(b"futuruna.checked-explore-routed-starter-projection-id.v1\0");
+            hasher.update(CHECKED_EXPLORE_ROUTED_STARTER_PROJECTION_ID_VERSION.to_le_bytes());
+        }
+        None => {
+            hasher.update(b"futuruna.checked-explore-starter-projection-id.v1\0");
+            hasher.update(CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION.to_le_bytes());
+        }
+    }
     checked_query_hash_component(&mut hasher, "consumer-name", name);
     hasher.update(request_id.bytes());
     hash_checked_explore_starter_subject(&mut hasher, subject);
+    if let Some(mechanism_id) = within_mechanism {
+        hasher.update(mechanism_id.bytes());
+    }
     hasher.update(authorizing_view_id.bytes());
     CheckedExploreStarterProjectionId(hasher.finalize().into())
 }
@@ -35178,6 +35214,7 @@ fn checked_explore_starter_projection_identities(
             &projection.name,
             request_id,
             projection.subject,
+            projection.within_mechanism,
             authorizing_view_id,
         );
         canonical_set.insert(id);
@@ -35185,6 +35222,7 @@ fn checked_explore_starter_projection_identities(
             id,
             request_id,
             subject: projection.subject,
+            within_mechanism: projection.within_mechanism,
             authorizing_view_id,
         });
     }
@@ -48518,6 +48556,9 @@ impl TypeChecker {
                 request_name: projection.request_name.clone(),
                 request_node_index,
                 subject: projection.subject.into(),
+                within_mechanism: projection
+                    .within_mechanism
+                    .map(explore::StructuralMechanismId::from_checked_source_bytes),
                 value_view_name: projection.value_view_name.clone(),
                 value_view_node_index,
                 span: projection.span,
@@ -51993,13 +52034,14 @@ mod tests {
     #[test]
     fn explore_starter_projection_parser_accepts_explicit_single_subject_facets() {
         let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let route = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
         let projections = format!(
             r#"
 starters whole from mechanisms paths for mechanism "{digest}" using values from starter_values
 starters node_activation from mechanisms paths for node activation "{digest}" using values from starter_values
 starters node_differential from mechanisms paths for node differential "{digest}" using values from starter_values
 starters edge_activation from mechanisms paths for edge activation "{digest}" using values from starter_values
-starters edge_differential from mechanisms paths for edge differential "{digest}" using values from starter_values
+starters edge_differential from mechanisms paths for edge differential "{digest}" within mechanism "{route}" using values from starter_values
 "#
         );
         let source = explore_starter_projection_source(&projections);
@@ -52040,6 +52082,8 @@ starters edge_differential from mechanisms paths for edge differential "{digest}
                 ..
             }
         ));
+        assert_eq!(query.starter_projections[0].within_mechanism, None);
+        assert!(query.starter_projections[4].within_mechanism.is_some());
     }
 
     #[test]
@@ -52073,6 +52117,16 @@ starters values from mechanisms paths for mechanism "{digest}" using values from
         let error = parse_test_program(&duplicate).expect_err("reject duplicate declaration name");
         assert!(
             error.contains("duplicate exploration declaration"),
+            "{error}"
+        );
+
+        let whole_within = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for mechanism \"{digest}\" within mechanism \"{digest}\" using values from starter_values"
+        ));
+        let error = parse_test_program(&whole_within)
+            .expect_err("whole-mechanism support has no enclosing route selector");
+        assert!(
+            error.contains("cannot be refined `within mechanism`"),
             "{error}"
         );
     }
@@ -52176,6 +52230,45 @@ starters values from mechanisms paths for mechanism "{digest}" using values from
                 .1
                 .id,
             "the declaration name is part of publication/cursor identity"
+        );
+
+        let route = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+        let total_node_source = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for node activation \"{digest}\" using values from starter_values"
+        ));
+        let routed_node_source = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for node activation \"{digest}\" within mechanism \"{route}\" using values from starter_values"
+        ));
+        let total_node_artifacts = explore_artifacts_for_source(&total_node_source);
+        let routed_node_artifacts = explore_artifacts_for_source(&routed_node_source);
+        let total_node = total_node_artifacts
+            .checked_exploration_query(0)
+            .expect("checked total-node consumer");
+        let routed_node = routed_node_artifacts
+            .checked_exploration_query(0)
+            .expect("checked route-conditioned node consumer");
+        assert_eq!(total_node.relation_id(), routed_node.relation_id());
+        assert_eq!(total_node.question_id(), routed_node.question_id());
+        assert_eq!(
+            total_node.analysis_graph_hash(),
+            routed_node.analysis_graph_hash(),
+            "publication-only route conditioning cannot rename the analysis DAG"
+        );
+        let total_identity = total_node
+            .starter_projection_consumers()
+            .next()
+            .expect("total-node consumer")
+            .1;
+        let routed_identity = routed_node
+            .starter_projection_consumers()
+            .next()
+            .expect("routed-node consumer")
+            .1;
+        assert_eq!(total_identity.within_mechanism, None);
+        assert!(routed_identity.within_mechanism.is_some());
+        assert_ne!(
+            total_identity.id, routed_identity.id,
+            "the enclosing route must bind publication/cursor identity"
         );
 
         let first_then_second = explore_starter_projection_source(&format!(

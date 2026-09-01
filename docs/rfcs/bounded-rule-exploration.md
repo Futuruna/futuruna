@@ -619,10 +619,39 @@ for node differential "<StructuralNodeId>"
 using values from cliff_cases
 ```
 
+For a node or edge, an optional enclosing-mechanism route refines that same
+subject without changing its structural identity:
+
+```runa
+starters cliff_node_cases_in_path
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+within mechanism "<StructuralMechanismId>"
+using values from cliff_cases
+```
+
+Semantically, total subject support is the deduplicated union of all indexed
+signature fibers for the subject. The qualified form intersects that signature
+index with the named structural mechanism's signature index before paging the
+same correlated `SourceKey -> Set<SuccessorKey>` fibers. The selector MUST be
+bound into consumer, projection-plan, job, cursor/checkpoint and public-record
+identity, while RelationId, QuestionId, MechanismRequestId and the structural
+subject IDs remain unchanged. Two route slices may overlap; their counts MUST
+NOT be added without a checked disjointness proof.
+
+The qualified artifact uses subject-starter record schema v2 and adds the
+route to its cursor identity. The optional cursor field is omitted for an
+unqualified consumer, whose checked ID, projection roots, v1 records and
+publication-v9 bytes remain unchanged. Thus a route consumer is an additive
+artifact on an existing closed v9 publication, not a migration of total
+subject support.
+
 The selector is exactly one structural mechanism, activation/differential
-node, or activation/differential edge. V1 deliberately has no wildcard, list,
-or predicate selector: a declaration cannot accidentally authorize a
-DAG-wide case-by-subject export. `using values from` is mandatory and must name
+node, or activation/differential edge, optionally refined by one enclosing
+mechanism for node/edge subjects. This selector surface deliberately has no
+wildcard, list, or arbitrary path predicate: a declaration cannot accidentally
+authorize a DAG-wide case-by-subject export. `using values from` is mandatory
+and must name
 a prior compatible lossless selected-input, each-case view which directly
 exposes `case_id`, `context`, `before` and `after` without aggregation,
 `having`, or choice. For a chosen-view mechanism request, that receipt
@@ -631,7 +660,8 @@ target was derived; the choosing view itself need not be lossless.
 
 The declaration lowers into a publication-consumer graph beside, not inside,
 the answer-defining analysis DAG. Its checked ID binds its authored name,
-request, structural subject/facet and authorizing semantic ViewId. The
+request, structural subject/facet, optional enclosing mechanism and authorizing
+semantic ViewId. The
 canonical consumer-set identity is declaration-order-independent. Adding a
 new consumer to a completed stream leaves RelationId, QuestionId,
 MechanismRequestId, the analysis-graph root and journal head unchanged; cursor
@@ -640,7 +670,7 @@ must reject removal or rebinding of an already owned artifact.
 
 Each published member retains its raw signature ID, `CaseId`, `SourceKey`,
 typed `Context` and `Before`, `SuccessorKey`, and typed `After`. The job
-merge-deduplicates the mechanism's canonical signature fibers into immutable
+merge-deduplicates the selected support slice's canonical signature fibers into immutable
 pages of at most 64 members, using a key-based source/successor cursor and a
 page-boundary-independent semantic root. Before append, the publisher
 adaptively shortens a candidate page until its encoded NDJSON record fits the
