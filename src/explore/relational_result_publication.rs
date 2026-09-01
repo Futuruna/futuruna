@@ -10033,58 +10033,6 @@ impl Error for RelationalPublicationError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::explore::relation::{
-        AdmissionDecision, RelationCatalogBuilder, RelationId, RelationProvenance, SourceRow,
-        SuccessorRow,
-    };
-    use crate::explore::{
-        ContextSchemaId, RelationalSemanticTransitionGraphCapacity,
-        RelationalSemanticTransitionGraphUnmaterialized, RelationalTransitionSupportIndex,
-        SelectionDecision, StateSchemaId, TransitionTypeId,
-    };
-
-    fn semantic_transition_support_fixture() -> RelationalTransitionSupportIndex {
-        let relation_id = RelationId::from_canonical_semantic_digest([0x41; 32]);
-        let mut relation = RelationCatalogBuilder::new(relation_id);
-        let mut support = RelationalTransitionSupportIndex::new(
-            StateSchemaId::from_bytes([0x42; 32]),
-            ContextSchemaId::from_bytes([0x43; 32]),
-            TransitionTypeId::from_bytes([0x44; 32]),
-        );
-        let source = SourceRow::new(
-            ExploreValue::Int(10),
-            ExploreValue::Int(100),
-            RelationProvenance::default(),
-        );
-        let source_key = relation.insert_source(source.clone()).unwrap();
-        let successor = SuccessorRow::new(ExploreValue::Int(101), RelationProvenance::default());
-        let successor_key = SuccessorKey::derive(relation_id, source_key, &successor);
-        let case_id = RelationalCaseId::derive(relation_id, source_key, successor_key);
-        let transition = support
-            .preflight_universe(
-                &relation,
-                case_id,
-                source_key,
-                &source,
-                successor_key,
-                &successor,
-            )
-            .unwrap();
-        let relation_insert = relation
-            .preflight_insert_successor(source_key, successor)
-            .unwrap();
-        relation.commit_preflight_successor(relation_insert);
-        assert!(support.commit_universe(transition));
-        let admission = support
-            .preflight_admission(case_id, AdmissionDecision::Admitted)
-            .unwrap();
-        support.commit_classification(admission);
-        let question = support
-            .preflight_question(case_id, SelectionDecision::Selected)
-            .unwrap();
-        support.commit_classification(question);
-        support
-    }
 
     #[test]
     fn source_coverage_publication_json_preserves_v2_identity_preimages() {
@@ -10295,77 +10243,6 @@ mod tests {
             ),
             Err(RelationalPublicationError::CursorArtifactSetMismatch)
         ));
-    }
-
-    #[test]
-    fn graph_terminal_publication_retains_authenticated_counts_across_rebuild_and_resume() {
-        let forward = semantic_transition_support_fixture();
-        let rebuilt = semantic_transition_support_fixture();
-        assert_eq!(forward.root(), rebuilt.root());
-        assert_eq!(forward.counts(), rebuilt.counts());
-
-        let artifact = PublicationArtifactPlan::SemanticTransitionGraph {
-            key: "semantic-transition-graph:audit".into(),
-            name: "audit".into(),
-            path: PathBuf::from("graphs/audit.ndjson"),
-            consumer_id: [0x51; 32],
-        };
-        let expected_counts = json!({
-            "state_nodes": "2",
-            "U_C_cases": "1",
-            "U_T_transitions": "1",
-            "D_C_cases": "1",
-            "D_T_transitions": "1",
-            "M_C_cases": "1",
-            "M_T_transitions": "1",
-        });
-
-        let unmaterialized =
-            RelationalSemanticTransitionGraphUnmaterialized::from_retained_support(300, &forward);
-        let rebuilt_unmaterialized =
-            RelationalSemanticTransitionGraphUnmaterialized::from_retained_support(300, &rebuilt);
-        let unmaterialized_json = public_semantic_transition_graph_record(
-            &artifact,
-            RelationalSemanticTransitionGraphRecord::Unmaterialized(unmaterialized),
-        )
-        .unwrap();
-        let resumed_unmaterialized_json = public_semantic_transition_graph_record(
-            &artifact,
-            RelationalSemanticTransitionGraphRecord::Unmaterialized(rebuilt_unmaterialized),
-        )
-        .unwrap();
-        assert_eq!(unmaterialized_json, resumed_unmaterialized_json);
-        assert_eq!(unmaterialized_json["logical_universe_cases"], "300");
-        assert_eq!(unmaterialized_json["materialized_universe_cases"], "1");
-        assert_eq!(unmaterialized_json["counts"], expected_counts);
-        assert_eq!(
-            unmaterialized_json["materialized_content_root"],
-            hex(forward.root().bytes())
-        );
-
-        let capacity =
-            RelationalSemanticTransitionGraphCapacity::from_retained_support(5, &forward)
-                .unwrap()
-                .expect("the fixture needs six data records");
-        let rebuilt_capacity =
-            RelationalSemanticTransitionGraphCapacity::from_retained_support(5, &rebuilt)
-                .unwrap()
-                .expect("the rebuilt fixture needs six data records");
-        let capacity_json = public_semantic_transition_graph_record(
-            &artifact,
-            RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity),
-        )
-        .unwrap();
-        let resumed_capacity_json = public_semantic_transition_graph_record(
-            &artifact,
-            RelationalSemanticTransitionGraphRecord::CapacityLimited(rebuilt_capacity),
-        )
-        .unwrap();
-        assert_eq!(capacity_json, resumed_capacity_json);
-        assert_eq!(capacity_json["maximum_data_records"], "5");
-        assert_eq!(capacity_json["required_data_records"], "6");
-        assert_eq!(capacity_json["counts"], expected_counts);
-        assert_eq!(capacity_json["content_root"], hex(forward.root().bytes()));
     }
 
     #[test]

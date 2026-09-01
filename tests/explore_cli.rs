@@ -1,6 +1,7 @@
 #![cfg(target_os = "macos")]
 
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
@@ -245,6 +246,232 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
     assert_exact_count(&closure["counts"]["selected_cases"], "0");
     assert_exact_count(&closure["counts"]["state_nodes"], "0");
     assert_exact_count(&closure["counts"]["semantic_transitions"], "0");
+}
+
+#[test]
+fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exactly() {
+    let fixture = fixture();
+    let temp = TestDirectory::new();
+    let run_state = temp.path().join("transition-graph-recovery-state");
+    let output_directory = temp.path().join("transition-graph-recovery-output");
+
+    let fixture_source = std::fs::read_to_string(&fixture).expect("read Explore fixture");
+    let query_start = fixture_source
+        .find("? explore relational_stream_empty_smoke")
+        .expect("small durable publication fixture query");
+    let bounded_query = fixture_source[query_start..]
+        .replacen("before in range(0, 2)", "before in range(0, 257)", 1)
+        .replacen(
+            "where transition after == before + 1",
+            "where transition before == 0 || before == 2",
+            1,
+        )
+        .replacen(
+            "find matches of before < 0",
+            "find matches of before == 2",
+            1,
+        );
+    let nonuniform_source = format!("{}{bounded_query}", &fixture_source[..query_start]);
+    let nonuniform_fixture = temp
+        .path()
+        .join("relational-explore-nonuniform-admission.runa");
+    std::fs::write(&nonuniform_fixture, &nonuniform_source)
+        .expect("write nonuniform Explore fixture");
+    let initial = run_explore_query(
+        &nonuniform_fixture,
+        "relational_stream_empty_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&initial);
+    let initial_report = parse_stdout(&initial);
+    assert_eq!(initial_report["run"]["lifecycle"], "complete");
+
+    let closing_brace = nonuniform_source
+        .rfind('}')
+        .expect("bounded Explore fixture query closing brace");
+    let projected_source = format!(
+        "{}    transitions durable_case_graph from all cases\n{}",
+        &nonuniform_source[..closing_brace],
+        &nonuniform_source[closing_brace..],
+    );
+    let projected_fixture = temp.path().join("relational-explore-with-full-graph.runa");
+    std::fs::write(&projected_fixture, projected_source).expect("write projected Explore fixture");
+
+    let attached = run_explore_query(
+        &projected_fixture,
+        "relational_stream_empty_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&attached);
+    let attached_report = parse_stdout(&attached);
+    assert_eq!(attached_report["run"]["lifecycle"], "complete");
+    assert_eq!(attached_report["run"]["appended"]["semantic_events"], 0);
+
+    let manifest_path = output_directory.join("manifest.json");
+    let manifest_before_recovery = read_json(&manifest_path);
+    let graph_artifact_before_recovery = manifest_before_recovery["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "semantic_transition_graph"
+                && artifact["name"] == "durable_case_graph"
+        })
+        .expect("full semantic transition graph artifact")
+        .clone();
+    let graph_path = output_directory.join(
+        graph_artifact_before_recovery["path"]
+            .as_str()
+            .expect("semantic transition graph path"),
+    );
+    let graph_bytes_before_recovery = std::fs::read(&graph_path).expect("read graph publication");
+    let graph_records = read_ndjson(&graph_path);
+    assert_eq!(graph_records.len(), 2);
+    assert_eq!(graph_records[0]["record"]["kind"], "header");
+    let terminal = &graph_records[1]["record"];
+    assert_eq!(terminal["kind"], "unmaterialized");
+    let counts = terminal["counts"].clone();
+    assert_eq!(
+        counts
+            .as_object()
+            .expect("terminal count vector")
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "D_C_cases",
+            "D_T_transitions",
+            "M_C_cases",
+            "M_T_transitions",
+            "U_C_cases",
+            "U_T_transitions",
+            "state_nodes",
+        ])
+    );
+    assert_eq!(
+        terminal["materialized_universe_cases"], counts["U_C_cases"],
+        "the retained U_C count must match the explicit materialized universe"
+    );
+    assert_eq!(
+        graph_artifact_before_recovery["graph_projection"]["frontier"]["counts"],
+        counts
+    );
+    assert_eq!(
+        graph_artifact_before_recovery["layer_roots"]["counts"],
+        counts
+    );
+    assert_eq!(
+        graph_artifact_before_recovery["graph_projection"]["frontier"]["materialized_content_root"],
+        terminal["materialized_content_root"]
+    );
+    assert_eq!(
+        graph_artifact_before_recovery["layer_roots"]["transition_support_root"],
+        terminal["materialized_content_root"]
+    );
+
+    // Simulate a crash after both graph lines reached disk but before the
+    // pending publication cursor committed either line. Reopening must replay
+    // the durable journal, reconstruct the projection, authenticate the tail,
+    // and adopt the exact bytes without appending or rewriting them.
+    let cursor_path = output_directory.join(".publication-cursor-v9.json");
+    let mut cursor = read_json(&cursor_path);
+    let artifact_key = graph_artifact_before_recovery["key"]
+        .as_str()
+        .expect("semantic transition graph artifact key");
+    let final_graph_cursor = cursor["artifacts"][artifact_key].clone();
+    let mut genesis = Sha256::new();
+    genesis.update(b"futuruna.explore.publication-prefix.v9");
+    genesis.update((artifact_key.len() as u64).to_be_bytes());
+    genesis.update(artifact_key.as_bytes());
+    let genesis = genesis
+        .finalize()
+        .iter()
+        .fold(String::with_capacity(64), |mut encoded, byte| {
+            use std::fmt::Write as _;
+            write!(&mut encoded, "{byte:02x}").expect("write digest hex");
+            encoded
+        });
+    let checkpoint = cursor["checkpoint"].clone();
+    cursor["artifacts"][artifact_key] = serde_json::json!({
+        "kind": "semantic_transition_graph",
+        "path": graph_artifact_before_recovery["path"].clone(),
+        "source": {
+            "kind": "flat",
+            "next_source_ordinal": "0",
+        },
+        "line_count": "0",
+        "byte_len": 0,
+        "prefix_digest": genesis,
+        "last_line": null,
+    });
+    cursor["pending"] = serde_json::json!({
+        "checkpoint": checkpoint,
+        "artifact_key": artifact_key,
+        "first_source": {
+            "kind": "flat",
+            "next_source_ordinal": "0",
+        },
+        "source_end": {
+            "kind": "flat",
+            "source_end": "2",
+        },
+        "first_line_count": "0",
+        "first_byte_len": 0,
+        "first_prefix_digest": genesis,
+        "first_last_line": null,
+        "max_line_bytes": 1 << 20,
+    });
+    std::fs::write(
+        &cursor_path,
+        serde_json::to_vec(&cursor).expect("serialize pending publication cursor"),
+    )
+    .expect("install pending publication cursor");
+
+    let resumed = run_explore_query(
+        &projected_fixture,
+        "relational_stream_empty_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&resumed);
+    let resumed_report = parse_stdout(&resumed);
+    assert_eq!(resumed_report["run"]["appended"]["semantic_events"], 0);
+    assert_eq!(resumed_report["publication"]["lines_appended"], 0);
+    assert_eq!(
+        std::fs::read(&graph_path).expect("read recovered graph publication"),
+        graph_bytes_before_recovery,
+        "journal replay and cursor recovery must reproduce byte-identical graph records"
+    );
+    let recovered_cursor = read_json(&cursor_path);
+    assert_eq!(recovered_cursor["pending"], Value::Null);
+    assert_eq!(
+        recovered_cursor["artifacts"][artifact_key], final_graph_cursor,
+        "recovery must restore the same committed graph cursor"
+    );
+    let manifest_after_recovery = read_json(&manifest_path);
+    let graph_artifact_after_recovery = manifest_after_recovery["artifacts"]
+        .as_array()
+        .expect("recovered manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "semantic_transition_graph"
+                && artifact["name"] == "durable_case_graph"
+        })
+        .expect("recovered full semantic transition graph artifact");
+    assert_eq!(
+        graph_artifact_after_recovery, &graph_artifact_before_recovery,
+        "record metadata and layer roots must be deterministic after reopen"
+    );
+    assert_eq!(
+        graph_artifact_after_recovery["graph_projection"]["frontier"]["counts"],
+        terminal["counts"]
+    );
+    assert_eq!(
+        graph_artifact_after_recovery["layer_roots"]["counts"],
+        terminal["counts"]
+    );
 }
 
 #[test]
