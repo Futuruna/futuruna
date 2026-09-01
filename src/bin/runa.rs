@@ -54134,10 +54134,18 @@ mod tests {
         let Some(Stmt::Explore(query)) = statements.first() else {
             panic!("expected Explore query");
         };
-        assert_eq!(query.mechanisms.len(), 2);
-        assert_eq!(query.mechanisms[0].name, "cliff_paths");
-        assert_eq!(query.mechanisms[1].name, "winner_paths");
-        assert_eq!(query.mechanisms[1].callable_name, "Tax::observe_income");
+        let mechanisms = query
+            .analysis
+            .iter()
+            .filter_map(|node| match node {
+                ExploreAnalysisNode::Mechanisms(request) => Some(request),
+                ExploreAnalysisNode::Result(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(mechanisms.len(), 2);
+        assert_eq!(mechanisms[0].name, "cliff_paths");
+        assert_eq!(mechanisms[1].name, "winner_paths");
+        assert_eq!(mechanisms[1].callable_name, "Tax::observe_income");
     }
 
     #[test]
@@ -56773,46 +56781,51 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 predicate: coverage_expr("explore_find"),
                 span: Span::dummy(),
             },
-            results: vec![ExploreResultView {
-                name: "coverage_view".to_string(),
-                grain: ExploreResultGrain::GroupBy {
-                    fields: vec![ExploreResultField {
-                        name: "key".to_string(),
-                        value: coverage_expr("explore_key"),
+            analysis: vec![
+                ExploreAnalysisNode::Result(ExploreResultView {
+                    name: "coverage_view".to_string(),
+                    input: ExploreResultInput::Selected,
+                    grain: ExploreResultGrain::GroupBy {
+                        fields: vec![ExploreResultField {
+                            name: "key".to_string(),
+                            value: coverage_expr("explore_key"),
+                            span: Span::dummy(),
+                        }],
+                        span: Span::dummy(),
+                    },
+                    measures: vec![ExploreResultField {
+                        name: "measure".to_string(),
+                        value: coverage_expr("explore_measure"),
                         span: Span::dummy(),
                     }],
-                    span: Span::dummy(),
-                },
-                measures: vec![ExploreResultField {
-                    name: "measure".to_string(),
-                    value: coverage_expr("explore_measure"),
-                    span: Span::dummy(),
-                }],
-                having: Some(ExploreResultHaving::Varies {
-                    measure_name: "measure".to_string(),
-                    span: Span::dummy(),
-                }),
-                select: vec![ExploreResultField {
-                    name: "shown".to_string(),
-                    value: coverage_expr("explore_select"),
-                    span: Span::dummy(),
-                }],
-                choose: Some(ExploreResultChoice::Optimize {
-                    cardinality: ExploreChooseCardinality::All,
-                    direction: ExploreOptimizeDirection::Maximize,
-                    objective: coverage_expr("explore_choice"),
+                    aggregates: Vec::new(),
+                    having: Some(ExploreResultHaving::Varies {
+                        measure_name: "measure".to_string(),
+                        span: Span::dummy(),
+                    }),
+                    select: vec![ExploreResultField {
+                        name: "shown".to_string(),
+                        value: coverage_expr("explore_select"),
+                        span: Span::dummy(),
+                    }],
+                    choose: Some(ExploreResultChoice::Optimize {
+                        cardinality: ExploreChooseCardinality::All,
+                        direction: ExploreOptimizeDirection::Maximize,
+                        objective: coverage_expr("explore_choice"),
+                        span: Span::dummy(),
+                    }),
                     span: Span::dummy(),
                 }),
-                span: Span::dummy(),
-            }],
-            mechanisms: vec![ExploreMechanismRequest {
-                name: "coverage_mechanism".to_string(),
-                target: ExploreMechanismTarget::SelectedCases,
-                callable_name: "explore_mechanism".to_string(),
-                endpoint_template: coverage_expr("explore_mechanism"),
-                span: Span::dummy(),
-            }],
+                ExploreAnalysisNode::Mechanisms(ExploreMechanismRequest {
+                    name: "coverage_mechanism".to_string(),
+                    target: ExploreMechanismTarget::SelectedCases,
+                    callable_name: "explore_mechanism".to_string(),
+                    endpoint_template: coverage_expr("explore_mechanism"),
+                    span: Span::dummy(),
+                }),
+            ],
             starter_projections: Vec::new(),
+            transition_graphs: Vec::new(),
             span: Span::dummy(),
         })
     }
@@ -58480,11 +58493,7 @@ match stmt {
                 import_expr_snapshot(subject)
             )),
             Stmt::Prove { name, .. } => out.push_str(&format!("{}prove {}\n", pad, name)),
-            Stmt::Explore(query) => out.push_str(&format!(
-                "{}explore {}\n",
-                pad,
-                query.name.as_deref().unwrap_or("anonymous")
-            )),
+            Stmt::Explore(query) => out.push_str(&format!("{}explore {}\n", pad, query.name)),
             Stmt::Assert(name, args) => {
                 out.push_str(&format!("{}assert {} /{}\n", pad, name, args.len()))
             }
