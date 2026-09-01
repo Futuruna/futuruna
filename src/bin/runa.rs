@@ -25325,6 +25325,9 @@ struct RustCodegen {
     fn_once_mode: bool,
     /// True when emitting a method body where self is &self — skip boxed unboxing
     in_self_method: bool,
+    /// ADT-block methods are emitted as free functions, so their source `self`
+    /// parameter must use the non-keyword Rust identifier `self_` in the body.
+    in_standalone_adt_method: bool,
     /// Effects of the function currently being emitted (for routing op calls to handler params)
     current_effects: Vec<String>,
     /// Effects provided by `| handle` blocks (concrete struct types, need `&mut`)
@@ -30426,6 +30429,7 @@ impl RustCodegen {
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
+            in_standalone_adt_method: false,
             current_effects: Vec::new(),
             handle_scope_effects: BTreeSet::new(),
             var_types: BTreeMap::new(),
@@ -33800,30 +33804,51 @@ impl RustCodegen {
     }
 
     fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
+        let functions = fn_stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some((defn, None)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        self.compute_namespace_borrow_flags(&functions, false);
+    }
+
+    fn compute_namespace_borrow_flags(
+        &mut self,
+        functions: &[(&Defn, Option<&str>)],
+        require_stable_flags: bool,
+    ) {
         for _round in 0..8 {
-            let prev_count = self.borrow_only_params.len();
-            for stmt in fn_stmts {
-                if let Stmt::Defn(Defn::Fn {
+            let previous = self.borrow_only_params.clone();
+            let previous_count = previous.len();
+            for (defn, adt_owner) in functions {
+                if let Defn::Fn {
                     name,
                     params,
                     ret_ty,
                     body,
                     ..
-                }) = stmt
+                } = defn
                 {
+                    let effective_params = Self::namespace_function_params(params, *adt_owner);
                     let mut borrow_flags = analyze_borrow_only_params_named(
-                        params,
+                        &effective_params,
                         body,
                         ret_ty.as_ref(),
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(name, params, &mut borrow_flags);
+                    self.constrain_wasm_export_borrow_flags(
+                        name,
+                        &effective_params,
+                        &mut borrow_flags,
+                    );
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
                         collect_matched_vars(body, &mut matched_vars);
-                        for (idx, p) in params.iter().enumerate() {
+                        for (idx, p) in effective_params.iter().enumerate() {
                             if borrow_flags[idx] && matched_vars.contains(&p.name) {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
@@ -33871,13 +33896,15 @@ impl RustCodegen {
                         self.borrow_only_params.remove(name);
                     }
                     // Also pre-register inout params
-                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
+                    let inout_flags: Vec<bool> = effective_params.iter().map(|p| p.inout).collect();
                     if inout_flags.iter().any(|f| *f) {
                         self.types.inout_params.insert(name.clone(), inout_flags);
                     }
                 }
             }
-            if self.borrow_only_params.len() == prev_count {
+            if (require_stable_flags && self.borrow_only_params == previous)
+                || (!require_stable_flags && self.borrow_only_params.len() == previous_count)
+            {
                 break;
             }
         }
@@ -34953,6 +34980,14 @@ impl RustCodegen {
         }
         out.push_str("use std::fmt;\n");
         out.push_str("use std::collections::{BTreeMap, HashMap, HashSet};\n\n");
+        for collision in Self::prolog_ordinary_name_collisions(stmts) {
+            out.push_str(&format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "td-7b8851: generated Rust cannot safely lower same-owner ordinary-function/Prolog rule collision `{collision}`"
+                )
+            ));
+        }
         // __futuruna_show: format like the interpreter (Display, no string quotes)
         out.push_str(
             "fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n",
@@ -36363,6 +36398,86 @@ impl RustCodegen {
             }
         }
         rule_groups
+    }
+
+    /// Direct ordinary functions owned by one generated Rust namespace.
+    /// ADT-block methods are runtime namespace functions, not inherent methods,
+    /// so qualified modules must retain their callable ABI alongside `>` defs.
+    fn namespace_function_defns<'a>(stmts: &'a [Stmt]) -> Vec<(&'a Defn, Option<&'a str>)> {
+        let mut functions = Vec::new();
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => functions.push((defn, None)),
+                Stmt::TypeDecl(TypeDecl::ADT { name, methods, .. }) => {
+                    functions.extend(
+                        methods
+                            .iter()
+                            .filter(|method| matches!(method, Defn::Fn { .. }))
+                            .map(|method| (method, Some(name.as_str()))),
+                    );
+                }
+                _ => {}
+            }
+        }
+        functions
+    }
+
+    fn namespace_function_params(params: &[Param], adt_owner: Option<&str>) -> Vec<Param> {
+        params
+            .iter()
+            .enumerate()
+            .map(|(index, param)| {
+                if index == 0 && param.ty.is_none() {
+                    if let Some(adt_owner) = adt_owner {
+                        return Param {
+                            name: param.name.clone(),
+                            ty: Some(Ty::Name(adt_owner.to_string())),
+                            inout: param.inout,
+                        };
+                    }
+                }
+                param.clone()
+            })
+            .collect()
+    }
+
+    /// The current Prolog/value registries are keyed by bare name. Until
+    /// td-7b8851 replaces them, reject same-owner collisions atomically instead
+    /// of allowing a rule classification to change an ordinary function call.
+    fn prolog_ordinary_name_collisions(stmts: &[Stmt]) -> BTreeSet<String> {
+        fn collect(stmts: &[Stmt], owner: &[String], collisions: &mut BTreeSet<String>) {
+            let ordinary_names = RustCodegen::namespace_function_defns(stmts)
+                .into_iter()
+                .filter_map(|(defn, _)| match defn {
+                    Defn::Fn { name, .. } => Some(name.clone()),
+                    _ => None,
+                })
+                .collect::<BTreeSet<_>>();
+            for (rule_name, rules) in RustCodegen::collect_rule_groups_from_stmts(stmts) {
+                if ordinary_names.contains(&rule_name)
+                    && RustCodegen::rule_arity(&rules) > 0
+                    && RustCodegen::rules_have_prolog_features(&rules)
+                {
+                    let qualified = if owner.is_empty() {
+                        rule_name
+                    } else {
+                        format!("{}::{}", owner.join("::"), rule_name)
+                    };
+                    collisions.insert(qualified);
+                }
+            }
+            for stmt in stmts {
+                if let Stmt::Defn(Defn::Module { name, body }) = stmt {
+                    let mut child_owner = owner.to_vec();
+                    child_owner.push(sanitize_name(name));
+                    collect(body, &child_owner, collisions);
+                }
+            }
+        }
+
+        let mut collisions = BTreeSet::new();
+        collect(stmts, &[], &mut collisions);
+        collisions
     }
 
     fn collect_rule_scope_declarations<'a>(
@@ -39141,11 +39256,16 @@ impl RustCodegen {
                                 })
                                 .collect();
                             // Borrow inference: analyze if params are read-only
-                            let borrow_flags = analyze_borrow_only_params(
+                            let mut borrow_flags = analyze_borrow_only_params(
                                 &augmented_params,
                                 body,
                                 ret_ty.as_ref(),
                                 &self.borrow_only_params,
+                            );
+                            self.constrain_wasm_export_borrow_flags(
+                                mname,
+                                &augmented_params,
+                                &mut borrow_flags,
                             );
                             if borrow_flags.iter().any(|f| *f) {
                                 self.borrow_only_params
@@ -39155,27 +39275,35 @@ impl RustCodegen {
                                 .iter()
                                 .enumerate()
                                 .map(|(i, p)| {
-                                    if p.name == "self" {
-                                        format!("self_: &{}", self_type)
-                                    } else if i == 0 && p.ty.is_none() {
-                                        // First param without type = the ADT itself
-                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                        if borrow {
-                                            format!("{}: &{}", sanitize_name(&p.name), self_type)
-                                        } else {
-                                            format!("{}: {}", sanitize_name(&p.name), self_type)
-                                        }
+                                    let param_name = if p.name == "self" {
+                                        "self_".to_string()
                                     } else {
-                                        let ty =
-                                            p.ty.as_ref()
-                                                .map(|t| self.emit_type(t))
-                                                .unwrap_or_else(|| "String".into());
-                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                        if borrow {
-                                            format!("{}: &{}", sanitize_name(&p.name), ty)
+                                        sanitize_name(&p.name)
+                                    };
+                                    let ty = if p.name == "self" || (i == 0 && p.ty.is_none()) {
+                                        self_type.clone()
+                                    } else {
+                                        p.ty.as_ref()
+                                            .map(|ty| self.emit_type(ty))
+                                            .unwrap_or_else(|| "String".to_string())
+                                    };
+                                    if p.inout {
+                                        let inner_ty = match p.ty.as_ref() {
+                                            Some(Ty::Shared(inner)) => self.emit_type(inner),
+                                            _ => ty,
+                                        };
+                                        format!("{}: &mut {}", param_name, inner_ty)
+                                    } else if borrow_flags.get(i).copied().unwrap_or(false) {
+                                        let borrowed_ty = if self.wasm_mode
+                                            && matches!(p.ty.as_ref(), Some(Ty::Name(name)) if name == "String")
+                                        {
+                                            "str".to_string()
                                         } else {
-                                            format!("{}: {}", sanitize_name(&p.name), ty)
-                                        }
+                                            ty
+                                        };
+                                        format!("{}: &{}", param_name, borrowed_ty)
+                                    } else {
+                                        format!("{}: {}", param_name, ty)
                                     }
                                 })
                                 .collect();
@@ -39185,8 +39313,14 @@ impl RustCodegen {
                                 .unwrap_or_default();
                             let expected_ret_fir_ty =
                                 ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
+                            let pub_prefix = if self.name_is_exported_in_current_namespace(mname) {
+                                "pub "
+                            } else {
+                                ""
+                            };
                             out.push_str(&format!(
-                                "fn {}({}){} {{\n",
+                                "{}fn {}({}){} {{\n",
+                                pub_prefix,
                                 sanitize_name(mname),
                                 rust_params.join(", "),
                                 ret
@@ -39199,12 +39333,16 @@ impl RustCodegen {
                             self.var_use_counts = ownership.var_uses;
                             self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
+                            let saved_in_standalone_adt_method = self.in_standalone_adt_method;
+                            self.in_standalone_adt_method =
+                                mparams.iter().any(|param| param.name == "self");
                             self.indent = 1;
                             out.push_str(&self.emit_expr_as_return_with_expected_ty(
                                 body,
                                 expected_ret_fir_ty.as_ref(),
                             ));
                             self.indent = saved_indent;
+                            self.in_standalone_adt_method = saved_in_standalone_adt_method;
                             self.var_use_counts = prev_counts;
                             self.var_consuming_counts = prev_consuming;
                             self.copy_vars = prev_copy;
@@ -43201,10 +43339,16 @@ impl RustCodegen {
                 let saved_sync_subject_vars = self.sync_subject_vars.clone();
                 self.types.exported_names.clear();
                 let rule_groups = Self::collect_rule_groups_from_stmts(body);
+                let namespace_functions = Self::namespace_function_defns(body);
                 let mut local_owned_names = rule_groups.keys().cloned().collect::<BTreeSet<_>>();
+                local_owned_names.extend(namespace_functions.iter().filter_map(|(defn, _)| {
+                    match defn {
+                        Defn::Fn { name, .. } => Some(name.clone()),
+                        _ => None,
+                    }
+                }));
                 for stmt in body {
-                    if let Stmt::Defn(Defn::Fn { name, .. })
-                    | Stmt::Defn(Defn::Actor { name, .. })
+                    if let Stmt::Defn(Defn::Actor { name, .. })
                     | Stmt::Defn(Defn::Module { name, .. }) = stmt
                     {
                         local_owned_names.insert(name.clone());
@@ -43237,12 +43381,27 @@ impl RustCodegen {
                                 self.types.exported_names.insert(mod_name.clone());
                             }
                         }
-                        Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, .. }) => {
+                        Stmt::TypeDecl(TypeDecl::ADT {
+                            name: ty_name,
+                            methods,
+                            ..
+                        }) => {
                             if module_exports
                                 .as_ref()
                                 .map_or(true, |exports| exports.contains(ty_name.as_str()))
                             {
                                 self.types.exported_names.insert(ty_name.clone());
+                            }
+                            for method_name in methods.iter().filter_map(|method| match method {
+                                Defn::Fn { name, .. } => Some(name),
+                                _ => None,
+                            }) {
+                                if module_exports
+                                    .as_ref()
+                                    .map_or(true, |exports| exports.contains(method_name.as_str()))
+                                {
+                                    self.types.exported_names.insert(method_name.clone());
+                                }
                             }
                         }
                         Stmt::TypeDecl(TypeDecl::RuleScope { name: ty_name, .. }) => {
@@ -43425,27 +43584,31 @@ impl RustCodegen {
 
                 // Overlay direct module callables before inferring rules so private
                 // helpers and same-named root functions cannot supply their signatures.
-                for stmt in body {
-                    if let Stmt::Defn(Defn::Fn {
+                for (defn, adt_owner) in &namespace_functions {
+                    if let Defn::Fn {
                         name,
                         params,
                         ret_ty,
                         effects,
                         ..
-                    }) = stmt
+                    } = defn
                     {
+                        let effective_params = Self::namespace_function_params(params, *adt_owner);
                         self.ordinary_function_arities
-                            .insert((name.clone(), params.len()));
+                            .insert((name.clone(), effective_params.len()));
                         self.types.user_functions.insert(name.clone());
                         self.types.call_params.insert(
                             name.clone(),
-                            params.iter().map(|param| param.name.clone()).collect(),
+                            effective_params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
                         );
                         let mut fn_ty = ret_ty
                             .as_ref()
                             .map(|ty| self.source_ty_to_fir(ty))
                             .unwrap_or(FirTy::Unknown);
-                        for param in params.iter().rev() {
+                        for param in effective_params.iter().rev() {
                             let param_ty = param
                                 .ty
                                 .as_ref()
@@ -43456,11 +43619,11 @@ impl RustCodegen {
                         self.types.fn_types.insert(name.clone(), fn_ty.clone());
                         self.types
                             .fn_types_by_arity
-                            .insert((name.clone(), params.len()), fn_ty);
+                            .insert((name.clone(), effective_params.len()), fn_ty);
                         if !effects.is_empty() {
                             self.types.fn_effects.insert(name.clone(), effects.clone());
                         }
-                        let cow_flags = params
+                        let cow_flags = effective_params
                             .iter()
                             .map(|param| {
                                 param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -43479,11 +43642,7 @@ impl RustCodegen {
                     }
                 }
 
-                let module_fn_stmts = body
-                    .iter()
-                    .filter(|stmt| matches!(stmt, Stmt::Defn(Defn::Fn { .. })))
-                    .collect::<Vec<_>>();
-                self.compute_borrow_flags(&module_fn_stmts);
+                self.compute_namespace_borrow_flags(&namespace_functions, true);
                 for (rule_name, rules) in &rule_groups {
                     self.types.user_functions.insert(rule_name.clone());
                     self.types.prolog_rule_groups.insert(
@@ -43521,11 +43680,12 @@ impl RustCodegen {
                     }
                 }
                 let module_path = self.current_module_path.join("::");
-                for stmt in body {
-                    let Stmt::Defn(Defn::Fn { name, params, .. }) = stmt else {
+                for (defn, adt_owner) in &namespace_functions {
+                    let Defn::Fn { name, params, .. } = defn else {
                         continue;
                     };
-                    let arity = params.len();
+                    let effective_params = Self::namespace_function_params(params, *adt_owner);
+                    let arity = effective_params.len();
                     let return_type = self
                         .types
                         .fn_types_by_arity
@@ -43537,14 +43697,20 @@ impl RustCodegen {
                         (module_path.clone(), name.clone(), arity),
                         ModuleCallableMetadata {
                             emitted_name: sanitize_name(name),
-                            param_names: params.iter().map(|param| param.name.clone()).collect(),
+                            param_names: effective_params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
                             borrow_only_params: self
                                 .borrow_only_params
                                 .get(name)
                                 .cloned()
                                 .unwrap_or_else(|| vec![false; arity]),
-                            inout_params: params.iter().map(|param| param.inout).collect(),
-                            cow_params: params
+                            inout_params: effective_params
+                                .iter()
+                                .map(|param| param.inout)
+                                .collect(),
+                            cow_params: effective_params
                                 .iter()
                                 .map(|param| {
                                     param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
@@ -48991,6 +49157,9 @@ impl RustCodegen {
         }
         match &expr.kind {
             ExprKind::Var(name) => {
+                if self.in_standalone_adt_method && name == "self" {
+                    return "self_".to_string();
+                }
                 // Nullary constructor
                 if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                     return self
@@ -64068,6 +64237,125 @@ readings <- "score"
         assert_eq!(String::from_utf8_lossy(&output.stdout), "11\n22\n");
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_exported_adt_methods_are_owner_isolated() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-adt-method-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Remote = Remote(value: Int) {
+    > collide(self) -> Remote { Remote(self.value + 10) }
+    > hidden_amount(value) -> Int { value.value }
+}
+@ export collide
+
+@ export
+> remote_amount(value: Remote) -> Int { hidden_amount(value) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Local = Local(value: Int) {
+    > collide(self) -> Local { self }
+}
+> local_amount(value: Local) -> Int { value.value }
+
+@ import Q from ./dep
+
+@ print(show(local_amount(collide(Local(1)))))
+@ print(show(Q.remote_amount(Q.collide(Q.Remote(2)))))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let metadata = codegen
+            .module_callable_metadata
+            .get(&("Q".to_string(), "collide".to_string(), 1))
+            .expect("qualified ADT method metadata");
+        assert!(metadata.rules.is_none(), "method metadata: {metadata:#?}");
+        assert_eq!(
+            metadata.return_type,
+            FirTy::Named("crate::Q::Remote".to_string())
+        );
+        assert_eq!(metadata.borrow_only_params, vec![true]);
+        assert!(
+            rust.contains("pub fn collide(self_: &Remote) -> Remote"),
+            "generated Rust: {rust}"
+        );
+        assert!(
+            rust.contains("fn hidden_amount(value: &Remote) -> i64"),
+            "generated Rust: {rust}"
+        );
+        assert!(
+            !rust.contains("pub fn hidden_amount"),
+            "private ADT method leaked from module: {rust}"
+        );
+        let compiled = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            compiled.status.success(),
+            "generated qualified ADT-method binary failed: {}\n{}",
+            String::from_utf8_lossy(&compiled.stderr),
+            rust
+        );
+        assert_eq!(interpreted.trim(), "1\n12");
+        assert_eq!(String::from_utf8_lossy(&compiled.stdout).trim(), "1\n12");
+
+        let mut wasm_codegen = RustCodegen::new();
+        wasm_codegen.wasm_mode = true;
+        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        wasm_codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let wasm_rust = wasm_codegen.emit_program(&stmts);
+        assert_eq!(
+            wasm_codegen
+                .module_callable_metadata
+                .get(&("Q".to_string(), "collide".to_string(), 1))
+                .map(|metadata| metadata.borrow_only_params.as_slice()),
+            Some([false].as_slice())
+        );
+        assert!(
+            wasm_rust.contains("pub fn collide(self_: Remote) -> Remote"),
+            "generated WASM Rust: {wasm_rust}"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_codegen_prolog_ordinary_name_collision_fails_closed() {
+        let source = r#"
+> choose(value: Int) -> Option(Int) { Some(value + 1) }
+| choose(1) -> 99
+
+@ print(show(choose(1)))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-7b8851"), "generated Rust: {rust}");
+        assert!(
+            rust.contains("collision `choose`"),
+            "generated Rust: {rust}"
+        );
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-7b8851"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
     }
 
     #[test]
