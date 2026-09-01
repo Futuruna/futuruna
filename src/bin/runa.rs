@@ -6640,6 +6640,10 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
                 "projection_records": relational_explore_count_json(result.projection_records),
                 "projection_records_appended": result.projection_records_appended.to_string(),
             },
+            "grouped_preview": result
+                .grouped_preview
+                .as_ref()
+                .map(relational_explore_grouped_preview_json),
         }),
         explore::ExploreStreamLayer::Mechanisms(mechanism) => serde_json::json!({
             "kind": "mechanisms",
@@ -6668,6 +6672,163 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
                 "target_starters": totals.target_starters.to_string(),
             })),
         }),
+    }
+}
+
+fn relational_explore_grouped_preview_json(
+    preview: &explore::ExploreStreamGroupedResultPreview,
+) -> serde_json::Value {
+    serde_json::json!({
+        "columns": preview.columns,
+        "counts": {
+            "raw_groups": relational_explore_count_json(preview.raw_groups),
+            "output_groups": relational_explore_count_json(preview.output_groups),
+            "returned_rows": preview.rows.len().to_string(),
+            "scanned_projection_records": preview.scanned_projection_records.to_string(),
+        },
+        "preview": {
+            "status": relational_explore_preview_status_json(&preview.status),
+            "rows": preview
+                .rows
+                .iter()
+                .map(relational_explore_group_row_json)
+                .collect::<Vec<_>>(),
+        },
+        "evidence": {
+            "spec_root": preview.evidence.spec_root,
+            "projection_root": preview.evidence.projection_root,
+            "projection_record_count": preview.evidence.projection_record_count.to_string(),
+            "publication_id": preview.evidence.publication_id,
+            "evidence_root": preview.evidence.evidence_root,
+            "result_root": preview.evidence.result_root,
+        },
+    })
+}
+
+fn relational_explore_preview_status_json(
+    status: &explore::ExploreStreamPreviewStatus,
+) -> serde_json::Value {
+    match status {
+        explore::ExploreStreamPreviewStatus::Complete => serde_json::json!({
+            "kind": "complete",
+        }),
+        explore::ExploreStreamPreviewStatus::Truncated {
+            reason,
+            next_projection_ordinal,
+        } => serde_json::json!({
+            "kind": "truncated",
+            "reason": relational_explore_preview_limit_name(*reason),
+            "next_projection_ordinal": next_projection_ordinal.to_string(),
+        }),
+    }
+}
+
+fn relational_explore_preview_limit_name(
+    limit: explore::ExploreStreamPreviewLimit,
+) -> &'static str {
+    match limit {
+        explore::ExploreStreamPreviewLimit::RowsPerView => "rows_per_view",
+        explore::ExploreStreamPreviewLimit::RowsPerReport => "rows_per_report",
+        explore::ExploreStreamPreviewLimit::RecordsPerView => "records_per_view",
+        explore::ExploreStreamPreviewLimit::RecordsPerReport => "records_per_report",
+        explore::ExploreStreamPreviewLimit::ValueNodesPerReport => "value_nodes_per_report",
+        explore::ExploreStreamPreviewLimit::ValueBytesPerReport => "value_bytes_per_report",
+    }
+}
+
+fn relational_explore_group_row_json(
+    row: &explore::ExploreStreamResultGroupRow,
+) -> serde_json::Value {
+    let values = row
+        .fields
+        .iter()
+        .map(|field| {
+            (
+                field.name.clone(),
+                relational_explore_projected_value_json(&field.value),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    serde_json::json!({
+        "projection_ordinal": row.projection_ordinal.to_string(),
+        "values": values,
+    })
+}
+
+fn relational_explore_projected_value_json(
+    value: &explore::ExploreStreamProjectedValue,
+) -> serde_json::Value {
+    match value {
+        explore::ExploreStreamProjectedValue::Value(value) => relational_explore_value_json(value),
+        explore::ExploreStreamProjectedValue::CaseId(value) => {
+            serde_json::json!({ "kind": "case_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::TransitionId(value) => {
+            serde_json::json!({ "kind": "transition_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::SignatureId(value) => {
+            serde_json::json!({ "kind": "signature_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::StructuralMechanismId(value) => {
+            serde_json::json!({ "kind": "structural_mechanism_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::ExecutionProfileId(value) => {
+            serde_json::json!({ "kind": "execution_profile_id", "value": value })
+        }
+    }
+}
+
+fn relational_explore_value_json(value: &explore::ExploreValue) -> serde_json::Value {
+    match value {
+        explore::ExploreValue::Int(value) => serde_json::json!(value),
+        explore::ExploreValue::FloatBits(bits) => serde_json::json!({
+            "kind": "float_bits",
+            "bits": format!("{bits:016x}"),
+        }),
+        explore::ExploreValue::String(value) => serde_json::json!(value),
+        explore::ExploreValue::Character(value) => serde_json::json!(value.to_string()),
+        explore::ExploreValue::Boolean(value) => serde_json::json!(value),
+        explore::ExploreValue::Unit => serde_json::json!({ "kind": "unit" }),
+        explore::ExploreValue::List(values) => {
+            serde_json::Value::Array(values.iter().map(relational_explore_value_json).collect())
+        }
+        explore::ExploreValue::Set(values) => serde_json::json!({
+            "kind": "set",
+            "items": values.iter().map(relational_explore_value_json).collect::<Vec<_>>(),
+        }),
+        explore::ExploreValue::Tuple(values) => serde_json::json!({
+            "kind": "tuple",
+            "items": values.iter().map(relational_explore_value_json).collect::<Vec<_>>(),
+        }),
+        explore::ExploreValue::Constructor {
+            type_name,
+            variant,
+            positional,
+            fields,
+        } => {
+            let fields = if *positional {
+                serde_json::Value::Array(
+                    fields
+                        .iter()
+                        .map(|(_, value)| relational_explore_value_json(value))
+                        .collect(),
+                )
+            } else {
+                serde_json::Value::Object(
+                    fields
+                        .iter()
+                        .map(|(name, value)| (name.clone(), relational_explore_value_json(value)))
+                        .collect(),
+                )
+            };
+            serde_json::json!({
+                "kind": "constructor",
+                "type": type_name,
+                "variant": variant,
+                "layout": if *positional { "positional" } else { "named" },
+                "fields": fields,
+            })
+        }
     }
 }
 
@@ -6704,6 +6865,19 @@ fn relational_explore_answer_mechanism_json(
     })
 }
 
+fn relational_explore_answer_result_json(
+    result: &explore::ExploreStreamResultLayer,
+) -> Option<serde_json::Value> {
+    result.grouped_preview.as_ref().map(|preview| {
+        serde_json::json!({
+            "name": result.name,
+            "view_id": result.view_id,
+            "status": relational_explore_layer_status_name(result.status),
+            "grouped_result": relational_explore_grouped_preview_json(preview),
+        })
+    })
+}
+
 fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) -> serde_json::Value {
     serde_json::json!({
         "population": "selected_before_after_cases",
@@ -6715,6 +6889,16 @@ fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) ->
             "selected_cases": relational_explore_count_json(report.counts.selected),
             "admitted_cases": relational_explore_count_json(report.counts.admitted),
         },
+        "result_views": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Result(result) => {
+                    relational_explore_answer_result_json(result)
+                }
+                explore::ExploreStreamLayer::Mechanisms(_) => None,
+            })
+            .collect::<Vec<_>>(),
         "mechanism_requests": report
             .layers
             .iter()
@@ -6733,7 +6917,7 @@ fn relational_explore_report_json(
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v4",
+        "schema": "futuruna.explore.relational-stream.v5",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
         "query": {
@@ -6812,6 +6996,21 @@ fn relational_explore_report_json(
             "artifacts_caught_up": publication.artifacts_caught_up,
             "artifact_count": publication.artifact_count,
             "caught_up": publication.is_caught_up(),
+            "artifacts": publication
+                .artifacts
+                .iter()
+                .map(|artifact| serde_json::json!({
+                    "key": artifact.key,
+                    "name": artifact.name,
+                    "kind": artifact.kind,
+                    "relative_path": artifact.relative_path.display().to_string(),
+                    "published_lines": artifact.published_lines.to_string(),
+                    "published_bytes": artifact.published_bytes,
+                    "caught_up_to_journal_prefix": artifact.caught_up_to_journal_prefix,
+                    "prefix_digest": artifact.prefix_digest,
+                    "layer_roots": artifact.layer_roots,
+                }))
+                .collect::<Vec<_>>(),
         })),
     })
 }
@@ -6836,6 +7035,50 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
             println!(
                 "Answer so far: {confirmed} before-to-after case{} confirmed; the FIND frontier remains open.",
                 if confirmed == 1 { "" } else { "s" },
+            );
+        }
+    }
+
+    for layer in &report.layers {
+        let explore::ExploreStreamLayer::Result(result) = layer else {
+            continue;
+        };
+        let Some(preview) = &result.grouped_preview else {
+            continue;
+        };
+        println!(
+            "Result `{}`: {} in the exact grouped result.",
+            result.name,
+            relational_explore_answer_count_text(
+                preview.output_groups,
+                "output group",
+                "output groups",
+            ),
+        );
+        for row in &preview.rows {
+            let fields = row
+                .fields
+                .iter()
+                .map(|field| {
+                    format!(
+                        "{} = {}",
+                        field.name,
+                        relational_explore_projected_value_json(&field.value)
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(", ");
+            println!("  {fields}");
+        }
+        if let explore::ExploreStreamPreviewStatus::Truncated {
+            reason,
+            next_projection_ordinal,
+        } = preview.status
+        {
+            println!(
+                "  Preview stopped at projection record {} ({}); the saved result remains complete and resumable.",
+                next_projection_ordinal,
+                relational_explore_preview_limit_name(reason),
             );
         }
     }
@@ -6884,6 +7127,25 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
         );
     }
     if let Some(publication) = &report.publication {
+        for artifact in publication
+            .artifacts
+            .iter()
+            .filter(|artifact| artifact.kind == "result_view")
+        {
+            println!(
+                "Saved result `{}`: {} ({})",
+                artifact.name,
+                publication
+                    .output_directory
+                    .join(&artifact.relative_path)
+                    .display(),
+                if artifact.caught_up_to_journal_prefix {
+                    "caught up"
+                } else {
+                    "publication open"
+                },
+            );
+        }
         println!(
             "Saved authorized views, mechanism DAGs, and conditioned starter-support bounds: {}",
             publication.manifest_path.display(),

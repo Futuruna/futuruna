@@ -1454,6 +1454,10 @@ pub(crate) struct RelationalAnalysisJournalState {
     scope_root: Option<RelationalAnalysisJournalScopeRoot>,
     selected_question: Option<RelationalSelectedQuestionSeal>,
     open: Option<RelationalAnalysisCatalogBuilder>,
+    /// Replay-derived exact result closures retained across final analysis
+    /// closure for bounded reporting. The durable event is the authority; this
+    /// index is not hashed into the catalog or journal identity.
+    result_projection_closures: BTreeMap<ViewId, ResultProjectionClosure>,
     mechanism_closures: BTreeMap<MechanismRequestId, RelationalMechanismClosureReceipt>,
     /// Request-local structural quotient interners. These remain subordinate
     /// to raw incidence and become independently publishable only through an
@@ -1483,6 +1487,7 @@ impl RelationalAnalysisJournalState {
             scope_root: None,
             selected_question: None,
             open: Some(open),
+            result_projection_closures: BTreeMap::new(),
             mechanism_closures: BTreeMap::new(),
             structural_mechanisms: BTreeMap::new(),
             mechanism_supports: BTreeMap::new(),
@@ -1515,6 +1520,13 @@ impl RelationalAnalysisJournalState {
 
     pub(crate) const fn open_catalog(&self) -> Option<&RelationalAnalysisCatalogBuilder> {
         self.open.as_ref()
+    }
+
+    pub(crate) fn result_projection_closure(
+        &self,
+        view_id: ViewId,
+    ) -> Option<ResultProjectionClosure> {
+        self.result_projection_closures.get(&view_id).copied()
     }
 
     pub(crate) fn structural_mechanism_catalog(
@@ -2619,6 +2631,23 @@ impl RelationalAnalysisJournalState {
                         .open_catalog_mut_or_error()?
                         .publish_result_projection(*closure)?,
                 };
+                let closure_changed = match self.result_projection_closures.get(view_id) {
+                    Some(existing) if existing == closure => false,
+                    Some(_) => {
+                        return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                            "published result closure",
+                        ))
+                    }
+                    None => {
+                        self.result_projection_closures.insert(*view_id, *closure);
+                        true
+                    }
+                };
+                if changed != closure_changed {
+                    return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                        "published result closure replay state",
+                    ));
+                }
                 changed
             }
             RelationalAnalysisEvidenceEvent::MechanismTargetCaseAccepted {

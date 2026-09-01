@@ -25,7 +25,7 @@ use super::mechanism_incidence::MechanismCountEvidence;
 use super::relation::AdmissionDecision;
 use super::relational_analysis_catalog::{
     RelationalAnalysisLayerSnapshot, RelationalAnalysisLayerStatus,
-    RelationalResultLayerSnapshotState,
+    RelationalResultLayerSnapshotState, RelationalResultPublication,
 };
 use super::relational_analysis_plan::{RelationalAnalysisLayerId, RelationalAnalysisPlan};
 use super::relational_durable_journal::{RelationalDurableJournal, RelationalDurableJournalLimits};
@@ -48,6 +48,8 @@ use super::relational_stream_run_loop::{
     RelationalStreamSlicePauseReason,
 };
 use super::relational_support_planner::statically_evaluate_checked_int_range;
+use super::result_projection::{IndexedResultProjectionRecord, ResultProjectionRecord};
+use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewCount, ResultViewSpec};
 use super::stream_resource::ExactStreamOneWorkerEnvelope;
 use super::{
     ExploreAnalysisNodeIr, ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismTargetIr,
@@ -55,7 +57,14 @@ use super::{
     RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 4;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 5;
+
+const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
+const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
+const RESULT_PREVIEW_RECORDS_PER_VIEW: u128 = 256;
+const RESULT_PREVIEW_RECORDS_PER_REPORT: u128 = 1_024;
+const RESULT_PREVIEW_VALUE_NODES_PER_REPORT: usize = 4_096;
+const RESULT_PREVIEW_VALUE_BYTES_PER_REPORT: usize = 256 * 1024;
 
 /// Operational proof carried by a CLI slice that is already enclosed by the
 /// validated process-group supervisor.
@@ -692,6 +701,73 @@ pub enum ExploreStreamLayerStatus {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamProjectedValue {
+    Value(super::ExploreValue),
+    CaseId(String),
+    TransitionId(String),
+    SignatureId(String),
+    StructuralMechanismId(String),
+    ExecutionProfileId(String),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamResultField {
+    pub name: String,
+    pub value: ExploreStreamProjectedValue,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamResultGroupRow {
+    pub projection_ordinal: u128,
+    pub fields: Vec<ExploreStreamResultField>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamPreviewLimit {
+    RowsPerView,
+    RowsPerReport,
+    RecordsPerView,
+    RecordsPerReport,
+    ValueNodesPerReport,
+    ValueBytesPerReport,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamPreviewStatus {
+    Complete,
+    Truncated {
+        reason: ExploreStreamPreviewLimit,
+        next_projection_ordinal: u128,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamResultEvidence {
+    pub spec_root: String,
+    pub projection_root: String,
+    pub projection_record_count: u128,
+    pub publication_id: String,
+    pub evidence_root: String,
+    pub result_root: String,
+}
+
+/// A bounded, SELECT-authorized sample of one exact grouped result.
+///
+/// The full rows remain in the independently resumable NDJSON artifact. The
+/// preview is presentation only: its fixed caps never participate in query,
+/// journal, projection, or publication identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamGroupedResultPreview {
+    pub columns: Vec<String>,
+    pub raw_groups: ExploreStreamCount,
+    pub output_groups: ExploreStreamCount,
+    pub rows: Vec<ExploreStreamResultGroupRow>,
+    pub scanned_projection_records: u128,
+    pub status: ExploreStreamPreviewStatus,
+    pub evidence: ExploreStreamResultEvidence,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExploreStreamResultLayer {
     pub name: String,
     pub view_id: String,
@@ -702,6 +778,7 @@ pub struct ExploreStreamResultLayer {
     /// values remain in the journal-owned projection and can be copied to
     /// NDJSON by a separate cursor without materializing one report array.
     pub projection_records_appended: u128,
+    pub grouped_preview: Option<ExploreStreamGroupedResultPreview>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -730,6 +807,19 @@ pub struct ExploreStreamMechanismLayer {
 /// the journal may already be exact while a large NDJSON view is still being
 /// copied in resumable batches.
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamPublicationArtifact {
+    pub key: String,
+    pub name: String,
+    pub kind: String,
+    pub relative_path: PathBuf,
+    pub published_lines: u128,
+    pub published_bytes: u64,
+    pub caught_up_to_journal_prefix: bool,
+    pub prefix_digest: String,
+    pub layer_roots: serde_json::Value,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExploreStreamPublication {
     pub output_directory: PathBuf,
     pub manifest_path: PathBuf,
@@ -737,6 +827,7 @@ pub struct ExploreStreamPublication {
     pub source_ordinals_advanced: u64,
     pub artifacts_caught_up: usize,
     pub artifact_count: usize,
+    pub artifacts: Vec<ExploreStreamPublicationArtifact>,
 }
 
 impl ExploreStreamPublication {
@@ -1026,6 +1117,21 @@ impl RelationalExploreEpoch {
                 source_ordinals_advanced: publication.source_ordinals_advanced(),
                 artifacts_caught_up: publication.artifacts_caught_up(),
                 artifact_count: publication.artifact_count(),
+                artifacts: publication
+                    .artifacts()
+                    .iter()
+                    .map(|artifact| ExploreStreamPublicationArtifact {
+                        key: artifact.key().to_string(),
+                        name: artifact.name().to_string(),
+                        kind: artifact.kind().to_string(),
+                        relative_path: PathBuf::from(artifact.relative_path()),
+                        published_lines: artifact.published_lines(),
+                        published_bytes: artifact.published_bytes(),
+                        caught_up_to_journal_prefix: artifact.caught_up_to_journal_prefix(),
+                        prefix_digest: artifact.prefix_digest().to_string(),
+                        layer_roots: artifact.layer_roots().clone(),
+                    })
+                    .collect(),
             });
         }
         Ok(report)
@@ -1646,38 +1752,39 @@ fn analysis_layers(
     projection_starts: &[usize],
 ) -> Result<Vec<ExploreStreamLayer>, ExploreStreamPreparationError> {
     let analysis = journal.analysis_state();
-    checked
-        .analysis_nodes()
-        .enumerate()
-        .map(|(index, (node, identity))| {
-            let name = node.name().to_string();
-            match (node, identity) {
-                (
-                    ExploreAnalysisNodeIr::Result(_),
-                    CheckedExploreAnalysisIdentity::View { view_id },
-                ) => result_layer(
-                    analysis,
-                    name,
-                    *view_id,
-                    projection_starts.get(index).copied().unwrap_or(0),
-                )
-                .map(ExploreStreamLayer::Result),
-                (
-                    ExploreAnalysisNodeIr::Mechanisms(request),
-                    CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
-                ) => mechanism_layer(
-                    analysis,
-                    name,
-                    *request_id,
-                    public_mechanism_target(checked, &request.target)?,
-                )
-                .map(ExploreStreamLayer::Mechanisms),
-                _ => Err(ExploreStreamPreparationError::Execution(format!(
+    let mut layers = Vec::new();
+    let mut preview_budget = ExploreStreamPreviewBudget::default();
+    for (index, (node, identity)) in checked.analysis_nodes().enumerate() {
+        let name = node.name().to_string();
+        let layer = match (node, identity) {
+            (
+                ExploreAnalysisNodeIr::Result(_),
+                CheckedExploreAnalysisIdentity::View { view_id },
+            ) => ExploreStreamLayer::Result(result_layer(
+                analysis,
+                name,
+                *view_id,
+                projection_starts.get(index).copied().unwrap_or(0),
+                &mut preview_budget,
+            )?),
+            (
+                ExploreAnalysisNodeIr::Mechanisms(request),
+                CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
+            ) => ExploreStreamLayer::Mechanisms(mechanism_layer(
+                analysis,
+                name,
+                *request_id,
+                public_mechanism_target(checked, &request.target)?,
+            )?),
+            _ => {
+                return Err(ExploreStreamPreparationError::Execution(format!(
                     "checked analysis identity kind diverged at node {index}"
-                ))),
+                )))
             }
-        })
-        .collect()
+        };
+        layers.push(layer);
+    }
+    Ok(layers)
 }
 
 fn public_mechanism_target(
@@ -1708,11 +1815,20 @@ fn public_mechanism_target(
     }
 }
 
+#[derive(Default)]
+struct ExploreStreamPreviewBudget {
+    rows: usize,
+    records: u128,
+    value_nodes: usize,
+    value_bytes: usize,
+}
+
 fn result_layer(
     analysis: Option<&super::RelationalAnalysisJournalState>,
     name: String,
     view_id: super::ViewId,
     start: usize,
+    preview_budget: &mut ExploreStreamPreviewBudget,
 ) -> Result<ExploreStreamResultLayer, ExploreStreamPreparationError> {
     let absent = || ExploreStreamResultLayer {
         name: name.clone(),
@@ -1721,10 +1837,14 @@ fn result_layer(
         input_rows: ExploreStreamCount::LowerBound(0),
         projection_records: ExploreStreamCount::LowerBound(0),
         projection_records_appended: 0,
+        grouped_preview: None,
     };
     let Some(analysis) = analysis else {
         return Ok(absent());
     };
+    let published_output_groups = analysis
+        .result_projection_closure(view_id)
+        .and_then(|closure| closure.counts().output_groups());
     match (analysis.open_catalog(), analysis.closed_catalog()) {
         (Some(open), None) => {
             let status = open
@@ -1743,6 +1863,21 @@ fn result_layer(
             let projection = open
                 .result_projection(view_id)
                 .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let spec = open
+                .result_spec(view_id)
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let publication = open
+                .result_publication(view_id)
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let grouped_preview = grouped_result_preview(
+                spec,
+                projection.len() as u128,
+                projection.root().bytes(),
+                projection.records(),
+                publication,
+                published_output_groups,
+                preview_budget,
+            )?;
             Ok(ExploreStreamResultLayer {
                 name,
                 view_id: hex(view_id.bytes()),
@@ -1753,6 +1888,7 @@ fn result_layer(
                     status == RelationalAnalysisLayerStatus::ResultPublished,
                 ),
                 projection_records_appended: projection_suffix_len(projection.len(), start)?,
+                grouped_preview,
             })
         }
         (None, Some(closed)) => {
@@ -1770,7 +1906,7 @@ fn result_layer(
                 ));
             };
             let RelationalResultLayerSnapshotState::Registered {
-                spec: _,
+                spec,
                 evidence,
                 projection,
                 publication,
@@ -1779,6 +1915,15 @@ fn result_layer(
             else {
                 return Ok(absent());
             };
+            let grouped_preview = grouped_result_preview(
+                spec,
+                projection.records().len() as u128,
+                projection.root().bytes(),
+                projection.records().iter(),
+                *publication,
+                published_output_groups,
+                preview_budget,
+            )?;
             Ok(ExploreStreamResultLayer {
                 name,
                 view_id: hex(view_id.bytes()),
@@ -1792,11 +1937,249 @@ fn result_layer(
                     projection.records().len(),
                     start,
                 )?,
+                grouped_preview,
             })
         }
         _ => Err(ExploreStreamPreparationError::Execution(
             "analysis state does not own exactly one catalog".into(),
         )),
+    }
+}
+
+fn grouped_result_preview<'a>(
+    spec: &ResultViewSpec,
+    projection_record_count: u128,
+    projection_root: [u8; 32],
+    records: impl Iterator<Item = &'a IndexedResultProjectionRecord>,
+    publication: Option<RelationalResultPublication>,
+    published_output_groups: Option<ResultViewCount>,
+    budget: &mut ExploreStreamPreviewBudget,
+) -> Result<Option<ExploreStreamGroupedResultPreview>, ExploreStreamPreparationError> {
+    if !spec.grain().is_grouped() || spec.choice().is_some() {
+        return Ok(None);
+    }
+    let Some(publication) = publication else {
+        return Ok(None);
+    };
+    let exact_output_groups = match published_output_groups {
+        Some(ResultViewCount::Exact(value)) => value,
+        Some(ResultViewCount::LowerBound(_) | ResultViewCount::Provisional(_)) => {
+            return Err(preview_error(
+                "published grouped result retained a non-exact output-group count",
+            ))
+        }
+        None => {
+            return Err(preview_error(
+                "published grouped result omitted its authenticated closure count",
+            ))
+        }
+    };
+
+    let columns = spec
+        .projection_names()
+        .iter()
+        .map(|name| name.to_string())
+        .collect::<Vec<_>>();
+    let mut rows = Vec::new();
+    let mut scanned_projection_records = 0_u128;
+    let mut status = ExploreStreamPreviewStatus::Complete;
+
+    for indexed in records {
+        let next_projection_ordinal = indexed.ordinal();
+        let limit = if scanned_projection_records >= RESULT_PREVIEW_RECORDS_PER_VIEW {
+            Some(ExploreStreamPreviewLimit::RecordsPerView)
+        } else if budget.records >= RESULT_PREVIEW_RECORDS_PER_REPORT {
+            Some(ExploreStreamPreviewLimit::RecordsPerReport)
+        } else {
+            None
+        };
+        if let Some(reason) = limit {
+            status = ExploreStreamPreviewStatus::Truncated {
+                reason,
+                next_projection_ordinal,
+            };
+            break;
+        }
+        scanned_projection_records = scanned_projection_records
+            .checked_add(1)
+            .ok_or_else(|| preview_error("projection scan count overflow"))?;
+        budget.records = budget
+            .records
+            .checked_add(1)
+            .ok_or_else(|| preview_error("report projection scan count overflow"))?;
+
+        let ResultProjectionRecord::Group(group) = indexed.record() else {
+            return Err(preview_error(
+                "published grouped no-choice view contains a non-group projection record",
+            ));
+        };
+        match group.disposition() {
+            ResultGroupDisposition::ExactExcluded => continue,
+            ResultGroupDisposition::Provisional { .. } => {
+                return Err(preview_error(
+                    "published grouped result contains a provisional group",
+                ))
+            }
+            ResultGroupDisposition::ExactIncluded => {}
+        }
+        let values = group.projected_values().ok_or_else(|| {
+            preview_error("published grouped no-choice result omitted SELECT values")
+        })?;
+        if values.len() != columns.len() {
+            return Err(preview_error(
+                "published grouped result SELECT names and values diverged",
+            ));
+        }
+
+        let reason = if rows.len() >= RESULT_PREVIEW_ROWS_PER_VIEW {
+            Some(ExploreStreamPreviewLimit::RowsPerView)
+        } else if budget.rows >= RESULT_PREVIEW_ROWS_PER_REPORT {
+            Some(ExploreStreamPreviewLimit::RowsPerReport)
+        } else {
+            let (value_nodes, value_bytes) = result_values_weight(values)
+                .ok_or_else(|| preview_error("grouped result preview weight overflow"))?;
+            if budget
+                .value_nodes
+                .checked_add(value_nodes)
+                .is_none_or(|total| total > RESULT_PREVIEW_VALUE_NODES_PER_REPORT)
+            {
+                Some(ExploreStreamPreviewLimit::ValueNodesPerReport)
+            } else if budget
+                .value_bytes
+                .checked_add(value_bytes)
+                .is_none_or(|total| total > RESULT_PREVIEW_VALUE_BYTES_PER_REPORT)
+            {
+                Some(ExploreStreamPreviewLimit::ValueBytesPerReport)
+            } else {
+                budget.value_nodes += value_nodes;
+                budget.value_bytes += value_bytes;
+                None
+            }
+        };
+        if let Some(reason) = reason {
+            status = ExploreStreamPreviewStatus::Truncated {
+                reason,
+                next_projection_ordinal,
+            };
+            break;
+        }
+
+        let fields = columns
+            .iter()
+            .zip(values)
+            .map(|(name, value)| ExploreStreamResultField {
+                name: name.clone(),
+                value: public_projected_value(value),
+            })
+            .collect();
+        rows.push(ExploreStreamResultGroupRow {
+            projection_ordinal: indexed.ordinal(),
+            fields,
+        });
+        budget.rows += 1;
+    }
+
+    if matches!(status, ExploreStreamPreviewStatus::Complete)
+        && scanned_projection_records != projection_record_count
+    {
+        return Err(preview_error(
+            "published grouped result projection length diverged during reporting",
+        ));
+    }
+    if matches!(status, ExploreStreamPreviewStatus::Complete)
+        && rows.len() as u128 != exact_output_groups
+    {
+        return Err(preview_error(
+            "published grouped result closure count diverged from its projection",
+        ));
+    }
+    Ok(Some(ExploreStreamGroupedResultPreview {
+        columns,
+        raw_groups: ExploreStreamCount::Exact(projection_record_count),
+        output_groups: ExploreStreamCount::Exact(exact_output_groups),
+        rows,
+        scanned_projection_records,
+        status,
+        evidence: ExploreStreamResultEvidence {
+            spec_root: hex(publication.spec_root().bytes()),
+            projection_root: hex(projection_root),
+            projection_record_count,
+            publication_id: hex(publication.id().bytes()),
+            evidence_root: hex(publication.evidence_root().bytes()),
+            result_root: hex(publication.result_root().bytes()),
+        },
+    }))
+}
+
+fn preview_error(message: impl Into<String>) -> ExploreStreamPreparationError {
+    ExploreStreamPreparationError::Execution(message.into())
+}
+
+fn public_projected_value(value: &ResultValue) -> ExploreStreamProjectedValue {
+    match value {
+        ResultValue::Value(value) => ExploreStreamProjectedValue::Value(value.clone()),
+        ResultValue::CaseId(id) => ExploreStreamProjectedValue::CaseId(hex(id.bytes())),
+        ResultValue::TransitionId(id) => ExploreStreamProjectedValue::TransitionId(hex(id.bytes())),
+        ResultValue::SignatureId(id) => ExploreStreamProjectedValue::SignatureId(hex(id.bytes())),
+        ResultValue::StructuralMechanismId(id) => {
+            ExploreStreamProjectedValue::StructuralMechanismId(hex(id.bytes()))
+        }
+        ResultValue::ExecutionProfileId(id) => {
+            ExploreStreamProjectedValue::ExecutionProfileId(hex(id.bytes()))
+        }
+    }
+}
+
+fn result_values_weight(values: &[ResultValue]) -> Option<(usize, usize)> {
+    values.iter().try_fold((0_usize, 0_usize), |total, value| {
+        let weight = match value {
+            ResultValue::Value(value) => explore_value_weight(value)?,
+            ResultValue::CaseId(_)
+            | ResultValue::TransitionId(_)
+            | ResultValue::SignatureId(_)
+            | ResultValue::StructuralMechanismId(_)
+            | ResultValue::ExecutionProfileId(_) => (1, 64),
+        };
+        Some((
+            total.0.checked_add(weight.0)?,
+            total.1.checked_add(weight.1)?,
+        ))
+    })
+}
+
+fn explore_value_weight(value: &super::ExploreValue) -> Option<(usize, usize)> {
+    use super::ExploreValue;
+
+    match value {
+        ExploreValue::Int(_) | ExploreValue::FloatBits(_) => Some((1, 8)),
+        ExploreValue::String(value) => Some((1, value.len())),
+        ExploreValue::Character(_) => Some((1, 4)),
+        ExploreValue::Boolean(_) => Some((1, 1)),
+        ExploreValue::Unit => Some((1, 0)),
+        ExploreValue::List(values) | ExploreValue::Set(values) | ExploreValue::Tuple(values) => {
+            values.iter().try_fold((1_usize, 0_usize), |total, value| {
+                let weight = explore_value_weight(value)?;
+                Some((
+                    total.0.checked_add(weight.0)?,
+                    total.1.checked_add(weight.1)?,
+                ))
+            })
+        }
+        ExploreValue::Constructor {
+            type_name,
+            variant,
+            fields,
+            ..
+        } => fields.iter().try_fold(
+            (1_usize, type_name.len().checked_add(variant.len())?),
+            |total, (name, value)| {
+                let weight = explore_value_weight(value)?;
+                Some((
+                    total.0.checked_add(weight.0)?,
+                    total.1.checked_add(name.len())?.checked_add(weight.1)?,
+                ))
+            },
+        ),
     }
 }
 

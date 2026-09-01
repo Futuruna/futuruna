@@ -1581,5 +1581,9 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest; bulk case rows and grouped histograms remain streamable NDJSON rather
-than one in-memory answer array.
+manifest. Report v5 may inline a schema-capped prefix of a small exact grouped
+view directly from its authenticated projection journal; its evidence roots
+and truncation cursor make that preview auditable. The operational artifact
+index names the corresponding full NDJSON plus every case/mechanism/starter
+artifact and its catch-up state. Bulk case rows and large grouped histograms
+remain streamable NDJSON rather than one in-memory answer array.

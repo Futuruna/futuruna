@@ -2257,13 +2257,36 @@ irrelevant or coverage gaps. Compact unselected rows correctly remain
 `not_materialized` rather than implying that opaque roots or per-field
 marginals are readable correlated subbounds.
 
+The starting context is part of every case, not incidental metadata. Write a
+starter as `Source = (Context, Before)` and a case as one supported
+`Source -> After` transition. The starter support of a mechanism (or one of its
+nodes/edges) is the inverse image of its supported cases back onto `Source`.
+This is why one starter can contribute several cases when its After fiber has
+several successors, and why case count and distinct-starter count are separate
+grains. When a node is viewed inside one enclosing mechanism, its starter
+support is a subrelation of that mechanism's support; a shared node's total
+support may instead union overlapping routes from several mechanisms.
+
+These starter subbounds are request-conditioned overlays, not fields of the
+stable structural node. Their authoritative shape is the correlated relation
+`(Context, Before) -> Set<After>`, with confirmed inner support, an outer
+envelope or open obligation, and independently closed case/starter/successor
+counts. Income ranges, commune lists and other per-field bounds are useful
+projections for browsing, but cannot replace the relation: multiplying them
+would invent starting profiles that were never observed or proved reachable.
+
 The compact public answer now exposes this distinction directly. Relational
-stream JSON v4 names the closure-aware selected before-to-after case count and,
+stream JSON v5 names the closure-aware selected before-to-after case count and,
 for every mechanism request, the structural-mechanism, successful replay and
 unavailable-replay counts plus the exact sealed target's distinct starter
 count and evidence roots. Human output leads with the same answer before
-operational checkpoint telemetry and points to the publication manifest for
-authorized case rows, mechanism DAGs and conditioned starter-support bounds.
+operational checkpoint telemetry. Small exact grouped results are rendered
+inline from their authenticated projection journals, while the operational
+publication index names every complete or still-catching-up NDJSON artifact
+without loading bulk configurations into the answer. The manifest remains the
+full materialization index for authorized case rows, mechanism DAGs and
+conditioned starter-support bounds; the durable journal remains recovery
+authority.
 The sealed target starter count is request-wide; it is not relabeled as an
 individual mechanism or node's starter count. Those correlated subject fibers
 remain in their own authenticated result layer.

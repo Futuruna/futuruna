@@ -829,12 +829,64 @@ fn checked_case_id_publication_authorization(
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalPublicationArtifactSummary {
+    key: String,
+    name: String,
+    kind: String,
+    relative_path: String,
+    published_lines: u128,
+    published_bytes: u64,
+    caught_up_to_journal_prefix: bool,
+    prefix_digest: String,
+    layer_roots: JsonValue,
+}
+
+impl RelationalPublicationArtifactSummary {
+    pub(crate) fn key(&self) -> &str {
+        self.key.as_str()
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        self.name.as_str()
+    }
+
+    pub(crate) fn kind(&self) -> &str {
+        self.kind.as_str()
+    }
+
+    pub(crate) fn relative_path(&self) -> &str {
+        self.relative_path.as_str()
+    }
+
+    pub(crate) const fn published_lines(&self) -> u128 {
+        self.published_lines
+    }
+
+    pub(crate) const fn published_bytes(&self) -> u64 {
+        self.published_bytes
+    }
+
+    pub(crate) const fn caught_up_to_journal_prefix(&self) -> bool {
+        self.caught_up_to_journal_prefix
+    }
+
+    pub(crate) fn prefix_digest(&self) -> &str {
+        self.prefix_digest.as_str()
+    }
+
+    pub(crate) const fn layer_roots(&self) -> &JsonValue {
+        &self.layer_roots
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalPublicationSummary {
     manifest_path: PathBuf,
     lines_appended: u64,
     source_ordinals_advanced: u64,
     artifacts_caught_up: usize,
     artifact_count: usize,
+    artifacts: Vec<RelationalPublicationArtifactSummary>,
 }
 
 impl RelationalPublicationSummary {
@@ -856,6 +908,10 @@ impl RelationalPublicationSummary {
 
     pub(crate) const fn artifact_count(&self) -> usize {
         self.artifact_count
+    }
+
+    pub(crate) fn artifacts(&self) -> &[RelationalPublicationArtifactSummary] {
+        self.artifacts.as_slice()
     }
 }
 
@@ -2259,7 +2315,7 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     cursor.checkpoint = CursorCheckpoint::from_checkpoint(current);
     write_cursor(&cursor_path, &cursor, limits)?;
     let cursor_digest = digest_control_value(&cursor, limits)?;
-    let manifest = build_manifest(
+    let (manifest, artifacts) = build_manifest(
         plan,
         report,
         journal,
@@ -2269,17 +2325,18 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     )?;
     atomic_write_json(&manifest_path, &manifest, true, limits.max_control_bytes)?;
 
-    let artifacts_caught_up = plan
-        .artifacts
+    let artifacts_caught_up = artifacts
         .iter()
-        .filter(|artifact| artifact_is_caught_up(artifact, journal, &mut ordinal_index, &cursor))
+        .filter(|artifact| artifact.caught_up_to_journal_prefix())
         .count();
+    let artifact_count = artifacts.len();
     Ok(RelationalPublicationSummary {
         manifest_path,
         lines_appended: appended.lines,
         source_ordinals_advanced: appended.ordinals,
         artifacts_caught_up,
-        artifact_count: plan.artifacts.len(),
+        artifact_count,
+        artifacts,
     })
 }
 
@@ -7437,8 +7494,8 @@ fn build_manifest(
     ordinal_index: &mut PublicationOrdinalIndex<'_>,
     cursor: &PublicationCursor,
     cursor_digest: [u8; 32],
-) -> Result<JsonValue, RelationalPublicationError> {
-    let artifacts = plan
+) -> Result<(JsonValue, Vec<RelationalPublicationArtifactSummary>), RelationalPublicationError> {
+    let artifact_descriptors = plan
         .artifacts
         .iter()
         .map(|artifact| {
@@ -7446,6 +7503,9 @@ fn build_manifest(
                 .artifacts
                 .get(artifact.key())
                 .ok_or(RelationalPublicationError::CursorArtifactSetMismatch)?;
+            let caught_up_to_journal_prefix =
+                artifact_is_caught_up(artifact, journal, ordinal_index, cursor);
+            let layer_roots = artifact_layer_roots(artifact, journal, ordinal_index)?;
             let mut descriptor = json!({
                 "key": artifact.key(),
                 "kind": artifact.kind(),
@@ -7454,14 +7514,9 @@ fn build_manifest(
                 "encoding": "application/x-ndjson",
                 "published_lines": state.line_count.to_string(),
                 "published_bytes": state.byte_len,
-                "caught_up_to_journal_prefix": artifact_is_caught_up(
-                    artifact,
-                    journal,
-                    ordinal_index,
-                    cursor,
-                ),
+                "caught_up_to_journal_prefix": caught_up_to_journal_prefix,
                 "prefix_digest": state.prefix_digest,
-                "layer_roots": artifact_layer_roots(artifact, journal, ordinal_index)?,
+                "layer_roots": &layer_roots,
             });
             let object = descriptor
                 .as_object_mut()
@@ -7947,68 +8002,86 @@ fn build_manifest(
                 );
                 object.insert("contains_typed_case_values".into(), JsonValue::Bool(true));
             }
-            Ok(descriptor)
+            Ok((
+                descriptor,
+                RelationalPublicationArtifactSummary {
+                    key: artifact.key().into(),
+                    name: artifact.name().into(),
+                    kind: artifact.kind().into(),
+                    relative_path: state.path.clone(),
+                    published_lines: state.line_count,
+                    published_bytes: state.byte_len,
+                    caught_up_to_journal_prefix,
+                    prefix_digest: state.prefix_digest.clone(),
+                    layer_roots,
+                },
+            ))
         })
         .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
+    let (artifacts, artifact_summaries): (Vec<_>, Vec<_>) =
+        artifact_descriptors.into_iter().unzip();
 
-    Ok(json!({
-        "schema_version": RELATIONAL_PUBLICATION_SCHEMA_VERSION,
-        "authority": "durable_relational_journal",
-        "query": report.query_name,
-        "identity": {
-            "checked_program": report.identity.checked_program,
-            "relation_id": report.identity.relation_id,
-            "admission_id": report.identity.admission_id,
-            "question_id": report.identity.question_id,
-            "analysis_graph_digest": report.identity.analysis_graph_digest,
-            "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
-            "journal_id": report.identity.journal_id,
-        },
-        "source_coverage": public_source_coverage_json(report),
-        "journal": {
-            "next_sequence": report.checkpoint.next_sequence,
-            "head": report.checkpoint.journal_head,
-            "durable_segment_count": report.checkpoint.durable_segment_count,
-        },
-        "lifecycle": lifecycle_name(report.lifecycle),
-        "pause_reason": report.pause_reason.as_ref().map(public_pause_reason_json),
-        "closure": {
-            "relation": if report.relation_closed { "exact" } else { "open" },
-            "find": if report.find_closed { "exact" } else { "open" },
-            "analysis": if report.analysis_closed { "exact" } else { "open" },
-        },
-        "counts": {
-            "U_S_sources": public_count_json(report.counts.sources),
-            "U_C_cases": public_count_json(report.counts.cases),
-            "admission_classified": public_count_json(report.counts.admission_classified),
-            "D_C_admitted": public_count_json(report.counts.admitted),
-            "rejected": public_count_json(report.counts.rejected),
-            "find_classified": public_count_json(report.counts.find_classified),
-            "S_C_selected": public_count_json(report.counts.selected),
-            "not_selected": public_count_json(report.counts.not_selected),
-        },
-        "analysis_scope_root": report.analysis_scope_root,
-        "analysis_terminal_root": report.analysis_terminal_root,
-        "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
-        "artifacts": artifacts,
-        "publication_cursor": {
-            "file": CURSOR_FILE,
-            "digest": hex(cursor_digest),
-            "checkpoint": cursor.checkpoint,
-            "pending": cursor.pending.is_some(),
-        },
-        "limitations": [
-            "This is a materialized view; the durable journal is the recovery authority.",
-            "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
-            "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
-            "Structural support publishes a hard-bounded signature-fiber summary for each request-target-conditioned mechanism or node/edge facet; capped scans widen bounds and never fall back to a full case/starter union.",
-            "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet through its named checked value view.",
-            "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
-            "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
-            "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
-            "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
-        ],
-    }))
+    Ok((
+        json!({
+            "schema_version": RELATIONAL_PUBLICATION_SCHEMA_VERSION,
+            "authority": "durable_relational_journal",
+            "query": report.query_name,
+            "identity": {
+                "checked_program": report.identity.checked_program,
+                "relation_id": report.identity.relation_id,
+                "admission_id": report.identity.admission_id,
+                "question_id": report.identity.question_id,
+                "analysis_graph_digest": report.identity.analysis_graph_digest,
+                "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
+                "journal_id": report.identity.journal_id,
+            },
+            "source_coverage": public_source_coverage_json(report),
+            "journal": {
+                "next_sequence": report.checkpoint.next_sequence,
+                "head": report.checkpoint.journal_head,
+                "durable_segment_count": report.checkpoint.durable_segment_count,
+            },
+            "lifecycle": lifecycle_name(report.lifecycle),
+            "pause_reason": report.pause_reason.as_ref().map(public_pause_reason_json),
+            "closure": {
+                "relation": if report.relation_closed { "exact" } else { "open" },
+                "find": if report.find_closed { "exact" } else { "open" },
+                "analysis": if report.analysis_closed { "exact" } else { "open" },
+            },
+            "counts": {
+                "U_S_sources": public_count_json(report.counts.sources),
+                "U_C_cases": public_count_json(report.counts.cases),
+                "admission_classified": public_count_json(report.counts.admission_classified),
+                "D_C_admitted": public_count_json(report.counts.admitted),
+                "rejected": public_count_json(report.counts.rejected),
+                "find_classified": public_count_json(report.counts.find_classified),
+                "S_C_selected": public_count_json(report.counts.selected),
+                "not_selected": public_count_json(report.counts.not_selected),
+            },
+            "analysis_scope_root": report.analysis_scope_root,
+            "analysis_terminal_root": report.analysis_terminal_root,
+            "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
+            "artifacts": artifacts,
+            "publication_cursor": {
+                "file": CURSOR_FILE,
+                "digest": hex(cursor_digest),
+                "checkpoint": cursor.checkpoint,
+                "pending": cursor.pending.is_some(),
+            },
+            "limitations": [
+                "This is a materialized view; the durable journal is the recovery authority.",
+                "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
+                "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
+                "Structural support publishes a hard-bounded signature-fiber summary for each request-target-conditioned mechanism or node/edge facet; capped scans widen bounds and never fall back to a full case/starter union.",
+                "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet through its named checked value view.",
+                "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
+                "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
+                "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
+                "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
+            ],
+        }),
+        artifact_summaries,
+    ))
 }
 
 fn available_source_record_count(

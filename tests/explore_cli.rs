@@ -119,6 +119,15 @@ fn answer_mechanism<'a>(report: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("missing answer mechanism request `{name}`"))
 }
 
+fn answer_result<'a>(report: &'a Value, name: &str) -> &'a Value {
+    report["answer"]["result_views"]
+        .as_array()
+        .expect("answer result views")
+        .iter()
+        .find(|result| result["name"] == name)
+        .unwrap_or_else(|| panic!("missing answer result view `{name}`"))
+}
+
 fn read_json(path: &Path) -> Value {
     let bytes = std::fs::read(path).unwrap_or_else(|error| {
         panic!("read {}: {error}", path.display());
@@ -409,8 +418,8 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_success(&first_output);
     let first = parse_stdout(&first_output);
 
-    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v4");
-    assert_eq!(first["schema_version"], 4);
+    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v5");
+    assert_eq!(first["schema_version"], 5);
     assert_eq!(first["query"]["name"], "relational_stream_nonempty_smoke");
     assert_eq!(first["run"]["lifecycle"], "complete");
     assert!(first["run"].get("preparation_wall_milliseconds").is_none());
@@ -473,6 +482,30 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     let mechanism_summary = analysis_layer(&first, "result", "mechanism_summary");
     assert_eq!(mechanism_summary["status"], "result_published");
     assert_exact_count(&mechanism_summary["counts"]["projection_records"], "1");
+    let mechanism_preview = &mechanism_summary["grouped_preview"];
+    assert_exact_count(&mechanism_preview["counts"]["raw_groups"], "1");
+    assert_exact_count(&mechanism_preview["counts"]["output_groups"], "1");
+    assert_eq!(mechanism_preview["preview"]["status"]["kind"], "complete");
+    assert_eq!(
+        mechanism_preview["preview"]["rows"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    let mechanism_preview_row = &mechanism_preview["preview"]["rows"][0];
+    assert_eq!(mechanism_preview_row["projection_ordinal"], "0");
+    assert!(mechanism_preview_row.get("record_id").is_none());
+    assert!(mechanism_preview_row.get("member_count").is_none());
+    assert_eq!(mechanism_preview_row["values"]["mechanisms"], 1);
+    assert_eq!(mechanism_preview_row["values"]["execution_profiles"], 1);
+    assert_eq!(mechanism_preview_row["values"]["raw_signatures"], 1);
+    assert_eq!(mechanism_preview_row["values"]["explained_cases"], 2);
+    let answer_mechanism_summary = answer_result(&first, "mechanism_summary");
+    assert_eq!(
+        &answer_mechanism_summary["grouped_result"],
+        mechanism_preview
+    );
 
     assert_eq!(first["publication"]["caught_up"], true);
     assert_eq!(
@@ -488,6 +521,28 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     );
     let publication_cursor = read_json(&output_directory.join(".publication-cursor-v9.json"));
     assert_eq!(publication_cursor["schema_version"], 9);
+    let report_artifacts = first["publication"]["artifacts"]
+        .as_array()
+        .expect("report publication artifacts");
+    let manifest_artifacts = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts");
+    assert_eq!(report_artifacts.len(), manifest_artifacts.len());
+    for (reported, manifested) in report_artifacts.iter().zip(manifest_artifacts) {
+        for key in [
+            "key",
+            "name",
+            "kind",
+            "published_lines",
+            "published_bytes",
+            "caught_up_to_journal_prefix",
+            "prefix_digest",
+            "layer_roots",
+        ] {
+            assert_eq!(reported[key], manifested[key], "artifact `{key}` diverged");
+        }
+        assert_eq!(reported["relative_path"], manifested["path"]);
+    }
     assert!(manifest["artifacts"]
         .as_array()
         .expect("manifest artifacts")
