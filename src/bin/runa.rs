@@ -19446,10 +19446,16 @@ fn public_adt_constructor_names(
 }
 
 fn module_body_for<'a>(stmts: &'a [Stmt], module_name: &str) -> Option<&'a [Stmt]> {
-    stmts.iter().find_map(|stmt| match stmt {
-        Stmt::Defn(Defn::Module { name, body }) if name == module_name => Some(body.as_slice()),
-        _ => None,
-    })
+    let mut body = stmts;
+    for segment in module_name.split("::") {
+        body = body.iter().find_map(|stmt| match stmt {
+            Stmt::Defn(Defn::Module { name, body: nested }) if sanitize_name(name) == segment => {
+                Some(nested.as_slice())
+            }
+            _ => None,
+        })?;
+    }
+    Some(body)
 }
 
 fn render_import_normalization_contract(
@@ -24452,6 +24458,63 @@ struct PersistMigration {
 }
 
 #[derive(Debug, Clone)]
+struct ModuleVariantMetadata {
+    source_parent: String,
+    parent: String,
+    type_params: Vec<String>,
+    positional: bool,
+    fields: Vec<String>,
+    field_types: BTreeMap<String, Ty>,
+    boxed_args: Vec<usize>,
+    struct_type: bool,
+    uses_rc: bool,
+    /// Nested plain/hash imports share runtime nominal ownership across parents,
+    /// but generated Rust does not yet have their canonical hidden owner.
+    canonical_owner_uncertain: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ModuleRuleScopeMetadata {
+    rust_name: String,
+    fields: Vec<String>,
+    field_types: BTreeMap<String, Ty>,
+    member_params: BTreeMap<String, Vec<String>>,
+    member_fn_types: BTreeMap<String, FirTy>,
+    member_rules: BTreeMap<String, Vec<Rule>>,
+    canonical_owner_uncertain: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ModuleCallableMetadata {
+    emitted_name: String,
+    param_names: Vec<String>,
+    borrow_only_params: Vec<bool>,
+    inout_params: Vec<bool>,
+    cow_params: Vec<bool>,
+    prolog_param_types: Option<Vec<String>>,
+    prolog_value: bool,
+    return_type: FirTy,
+    /// Present only for a `|` family. Ordinary `>` functions take precedence
+    /// over same-named rules and must never be classified as static misses.
+    rules: Option<Vec<Rule>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum StaticRuleCallResolution {
+    EmitNormally,
+    NominalMiss,
+    Unsupported(&'static str),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StaticRuleParamRelation {
+    CompatibleOrUnknown,
+    NominallyDisjoint,
+    UnsupportedCanonicalOwner,
+    UnsupportedStructuralAbi,
+}
+
+#[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
@@ -24485,12 +24548,25 @@ struct TypeRegistry {
     variant_field_types: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Parent-qualified field types for constructors shared by ADTs.
     variant_field_types_by_parent: BTreeMap<(String, String), BTreeMap<String, Ty>>,
+    /// Qualified module path + constructor -> the exact Rust parent and layout.
+    /// Global `variant_parent` intentionally cannot represent two modules (or a
+    /// root and a module) that reuse the same constructor token.
+    module_variants: BTreeMap<(String, String), ModuleVariantMetadata>,
+    /// Qualified module path + RuleScope constructor -> its exact field layout.
+    module_rule_scopes: BTreeMap<(String, String), ModuleRuleScopeMetadata>,
+    /// RuleScope member families keyed by the currently active nominal scope.
+    rule_scope_member_rules: BTreeMap<(String, String), Vec<Rule>>,
+    /// Types introduced into a qualified parent through nested plain/hash
+    /// edges. Cross-parent Rust ownership for these is deferred to td-625bb9.
+    flattened_module_types: BTreeSet<(String, String)>,
     /// RuleScope member signatures: (scope type, member name) -> function type excluding self.
     rule_scope_member_fn_types: BTreeMap<(String, String), FirTy>,
     /// RuleScope member parameter names keyed by (scope type, member name).
     rule_scope_member_params: BTreeMap<(String, String), Vec<String>>,
     /// Types with explicit user-provided Display impl (skip auto-generation)
     explicit_display_impls: BTreeSet<String>,
+    /// Lexical module path + source type for explicit Display impls.
+    module_explicit_display_impls: BTreeSet<(String, String)>,
     /// Types that are structs (single-variant ADTs where variant name == type name)
     struct_types: BTreeSet<String>,
     /// User-defined ADTs whose emitted Rust type actually derives Default
@@ -24544,11 +24620,16 @@ struct TypeRegistry {
     /// Names exported from the root module after flat imports and local exports.
     /// Qualified-import member exports stay in `module_exports`.
     root_exported_names: BTreeSet<String>,
-    /// Module names from imports and inline modules
-    known_modules: BTreeSet<String>,
-    /// Qualified-import module name -> exported member names.
+    /// Full sanitized lexical paths for module declarations.
+    known_module_paths: BTreeSet<String>,
+    /// Full sanitized qualified-import module path -> exported member names.
     /// Inline modules are public-by-default and are not listed here.
     module_exports: BTreeMap<String, BTreeSet<String>>,
+    /// Qualified callable ABI mirrored into the shared lowering registry so
+    /// root Rule inference can resolve module calls before module emission.
+    module_callable_metadata: BTreeMap<(String, String, usize), ModuleCallableMetadata>,
+    /// Lexical module path active for AST-to-FIR lowering under an overlay.
+    active_module_path: Vec<String>,
     /// Module path -> top-level value bindings lowered as getter functions
     module_value_bindings: BTreeMap<String, BTreeSet<String>>,
     /// Module path -> top-level stream bindings lowered as getter functions
@@ -24580,9 +24661,14 @@ impl TypeRegistry {
             call_params: BTreeMap::new(),
             variant_field_types: BTreeMap::new(),
             variant_field_types_by_parent: BTreeMap::new(),
+            module_variants: BTreeMap::new(),
+            module_rule_scopes: BTreeMap::new(),
+            rule_scope_member_rules: BTreeMap::new(),
+            flattened_module_types: BTreeSet::new(),
             rule_scope_member_fn_types: BTreeMap::new(),
             rule_scope_member_params: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
+            module_explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             default_derive_types: BTreeSet::new(),
             default_derive_param_requirements: BTreeMap::new(),
@@ -24608,8 +24694,10 @@ impl TypeRegistry {
             fn_types_by_arity: BTreeMap::new(),
             exported_names: BTreeSet::new(),
             root_exported_names: BTreeSet::new(),
-            known_modules: BTreeSet::new(),
+            known_module_paths: BTreeSet::new(),
             module_exports: BTreeMap::new(),
+            module_callable_metadata: BTreeMap::new(),
+            active_module_path: Vec::new(),
             module_value_bindings: BTreeMap::new(),
             module_stream_bindings: BTreeMap::new(),
             comptime_values: BTreeMap::new(),
@@ -24617,6 +24705,178 @@ impl TypeRegistry {
             inout_params: BTreeMap::new(),
             cow_params: BTreeMap::new(),
         }
+    }
+
+    fn canonical_module_metadata_path(&self, path: &str) -> String {
+        // Qualified aliases are distinct runtime instances and nominal owners.
+        // Metadata therefore stays keyed by the authored lexical module path.
+        path.to_string()
+    }
+
+    fn module_path_is_known(&self, path: &str) -> bool {
+        self.known_module_paths.contains(path)
+            || self
+                .known_module_paths
+                .contains(&self.canonical_module_metadata_path(path))
+    }
+
+    fn lowering_module_path_key(
+        &self,
+        expr: &Expr,
+        value_bindings: &BTreeMap<String, FirTy>,
+    ) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) => {
+                if value_bindings.contains_key(name) {
+                    return None;
+                }
+                let name = sanitize_name(name);
+                for parent_len in (1..=self.active_module_path.len()).rev() {
+                    let relative = format!(
+                        "{}::{}",
+                        self.active_module_path[..parent_len].join("::"),
+                        name
+                    );
+                    if self.module_path_is_known(&relative) {
+                        return Some(relative);
+                    }
+                }
+                self.module_path_is_known(&name).then_some(name)
+            }
+            ExprKind::Field(parent, field) => {
+                let path = format!(
+                    "{}::{}",
+                    self.lowering_module_path_key(parent, value_bindings)?,
+                    sanitize_name(field)
+                );
+                self.module_path_is_known(&path).then_some(path)
+            }
+            _ => None,
+        }
+    }
+
+    fn qualified_type_parts(type_name: &str) -> Option<(String, String)> {
+        let qualified = type_name.strip_prefix("crate::")?;
+        let (module_path, rust_name) = qualified.rsplit_once("::")?;
+        Some((module_path.to_string(), rust_name.to_string()))
+    }
+
+    fn module_local_rust_type_name(
+        &self,
+        module_path: &str,
+        name: &str,
+    ) -> Option<(String, String)> {
+        let canonical_path = self.canonical_module_metadata_path(module_path);
+        let segments = canonical_path.split("::").collect::<Vec<_>>();
+        for ancestor_len in (1..=segments.len()).rev() {
+            let owner_path = segments[..ancestor_len].join("::");
+            if let Some(rust_name) = self
+                .module_variants
+                .iter()
+                .find_map(|((path, _), metadata)| {
+                    (path == &owner_path
+                        && (metadata.source_parent == name || metadata.parent == name))
+                        .then(|| metadata.parent.clone())
+                })
+                .or_else(|| {
+                    self.module_rule_scopes
+                        .iter()
+                        .find_map(|((path, source_name), metadata)| {
+                            (path == &owner_path
+                                && (source_name == name || metadata.rust_name == name))
+                                .then(|| metadata.rust_name.clone())
+                        })
+                })
+            {
+                return Some((owner_path, rust_name));
+            }
+        }
+        None
+    }
+
+    fn qualify_module_fir_ty(&self, module_path: &str, ty: FirTy) -> FirTy {
+        let module_path = self.canonical_module_metadata_path(module_path);
+        match ty {
+            FirTy::Named(name) if name.starts_with("crate::") => FirTy::Named(name),
+            FirTy::Named(name) => self
+                .module_local_rust_type_name(&module_path, &name)
+                .map(|(owner_path, rust_name)| {
+                    FirTy::Named(format!("crate::{}::{}", owner_path, rust_name))
+                })
+                .unwrap_or(FirTy::Named(name)),
+            FirTy::List(inner) => {
+                FirTy::List(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Option(inner) => {
+                FirTy::Option(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Result(ok, err) => FirTy::Result(
+                Box::new(self.qualify_module_fir_ty(&module_path, *ok)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *err)),
+            ),
+            FirTy::Tuple(items) => FirTy::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.qualify_module_fir_ty(&module_path, item))
+                    .collect(),
+            ),
+            FirTy::Map(key, value) => FirTy::Map(
+                Box::new(self.qualify_module_fir_ty(&module_path, *key)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *value)),
+            ),
+            FirTy::Set(inner) => {
+                FirTy::Set(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Arrow(param, ret) => FirTy::Arrow(
+                Box::new(self.qualify_module_fir_ty(&module_path, *param)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *ret)),
+            ),
+            other => other,
+        }
+    }
+
+    fn module_rule_scope_for_named_type(
+        &self,
+        type_name: &str,
+    ) -> Option<(String, &ModuleRuleScopeMetadata)> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        self.module_rule_scopes
+            .iter()
+            .find_map(|((path, _), metadata)| {
+                (path == &module_path && metadata.rust_name == rust_name)
+                    .then(|| (module_path.clone(), metadata))
+            })
+    }
+
+    fn module_variant_field_ty_for_named_type(
+        &self,
+        type_name: &str,
+        field: &str,
+    ) -> Option<(String, Ty)> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        self.module_variants
+            .iter()
+            .find_map(|((path, _), metadata)| {
+                (path == &module_path && metadata.parent == rust_name)
+                    .then(|| metadata.field_types.get(field).cloned())
+                    .flatten()
+                    .map(|ty| (module_path.clone(), ty))
+            })
+    }
+
+    fn module_variants_for_named_type(
+        &self,
+        type_name: &str,
+    ) -> Option<Vec<(String, ModuleVariantMetadata)>> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        let module_path = self.canonical_module_metadata_path(&module_path);
+        let variants = self
+            .module_variants
+            .iter()
+            .filter(|((path, _), metadata)| path == &module_path && metadata.parent == rust_name)
+            .map(|((_, constructor), metadata)| (constructor.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        (!variants.is_empty()).then_some(variants)
     }
 
     fn register_variant_parent(&mut self, variant: &str, parent: &str) {
@@ -24976,6 +25236,7 @@ enum RustCodegenIntArithmeticMode {
     ExploreClassifierExact,
 }
 
+#[derive(Clone)]
 struct RustCodegen {
     indent: usize,
     /// Shared type metadata
@@ -25036,6 +25297,18 @@ struct RustCodegen {
     source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     imported: BTreeSet<String>,
+    /// Qualified module instances already expanded in a parent namespace.
+    /// The source alias is part of instance identity: A and B stay isolated,
+    /// while repeating the same A/source edge is idempotent.
+    qualified_module_instances: BTreeSet<(String, String, String)>,
+    /// Full canonical module path + callable name/arity -> its emitted Rust ABI.
+    /// Qualified calls must not consult same-named root borrow/inout/rule facts.
+    module_callable_metadata: BTreeMap<(String, String, usize), ModuleCallableMetadata>,
+    /// Ordinary `>` declarations visible in the active lexical namespace.
+    /// They outrank same-named `|` families for direct-call lowering.
+    ordinary_function_arities: BTreeSet<(String, usize)>,
+    /// Source rule name/arity -> collision-free Rust symbol in the active namespace.
+    rule_emitted_names: BTreeMap<(String, usize), String>,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -25127,6 +25400,8 @@ struct RustCodegen {
     persist_tx_counter: usize,
     /// Persisted transaction guards currently surrounding emitted statements.
     persist_tx_stack: Vec<String>,
+    /// Sanitized Rust module path currently being emitted.
+    current_module_path: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -26371,6 +26646,25 @@ impl<'a> LoweringCtx<'a> {
             return FirTy::Unknown;
         };
 
+        if let Some((module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(ty) = metadata.field_types.get(field) {
+                let ty = Self::ty_to_fir_with_registry(ty, self.types);
+                return self.types.qualify_module_fir_ty(&module_path, ty);
+            }
+            if let Some(ty) = metadata.member_fn_types.get(field) {
+                return ty.clone();
+            }
+        }
+        if let Some((module_path, ty)) = self
+            .types
+            .module_variant_field_ty_for_named_type(type_name, field)
+        {
+            let ty = Self::ty_to_fir_with_registry(&ty, self.types);
+            return self.types.qualify_module_fir_ty(&module_path, ty);
+        }
+
         let mut candidate_types = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidate_types.push(renamed.clone());
@@ -26411,6 +26705,14 @@ impl<'a> LoweringCtx<'a> {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(member_ty) = metadata.member_fn_types.get(member) {
+                return Some(member_ty.clone());
+            }
+        }
 
         let mut candidate_types = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
@@ -26563,6 +26865,13 @@ impl<'a> LoweringCtx<'a> {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(params) = metadata.member_params.get(method) {
+                return Some(params.clone());
+            }
+        }
         let mut candidates = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidates.push(renamed.clone());
@@ -26654,6 +26963,38 @@ impl<'a> LoweringCtx<'a> {
                 };
                 let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
+                let qualified_return_ty = match &func.kind {
+                    ExprKind::Field(module, name) => self
+                        .types
+                        .lowering_module_path_key(module, &self.type_env)
+                        .and_then(|path| {
+                            let path = self.types.canonical_module_metadata_path(&path);
+                            self.types
+                                .module_rule_scopes
+                                .get(&(path.clone(), name.clone()))
+                                .map(|metadata| {
+                                    FirTy::Named(format!("crate::{}::{}", path, metadata.rust_name))
+                                })
+                                .or_else(|| {
+                                    self.types
+                                        .module_variants
+                                        .get(&(path.clone(), name.clone()))
+                                        .map(|metadata| {
+                                            FirTy::Named(format!(
+                                                "crate::{}::{}",
+                                                path, metadata.parent
+                                            ))
+                                        })
+                                })
+                                .or_else(|| {
+                                    self.types
+                                        .module_callable_metadata
+                                        .get(&(path, name.clone(), args_for_lowering.len()))
+                                        .map(|metadata| metadata.return_type.clone())
+                                })
+                        }),
+                    _ => None,
+                };
                 let mut fir_func = self.lower_expr(func);
                 if let ExprKind::Var(name) = &func.kind {
                     if let Some(fn_ty) = self
@@ -26678,6 +27019,14 @@ impl<'a> LoweringCtx<'a> {
                     .iter()
                     .map(|a| self.lower_expr(a))
                     .collect();
+
+                if let Some(ty) = qualified_return_ty {
+                    return FirExpr {
+                        kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                        span: expr.span,
+                        ty,
+                    };
+                }
 
                 if let ExprKind::Var(ref fn_name) = func.kind {
                     if let Some(ty) = self.constructor_app_ty(
@@ -27279,6 +27628,34 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::Field(obj, field) => {
+                if let Some(path) = self
+                    .types
+                    .lowering_module_path_key(obj, &self.type_env)
+                    .map(|path| self.types.canonical_module_metadata_path(&path))
+                {
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(path.clone(), field.clone()))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone()),
+                            span: expr.span,
+                            ty: FirTy::Named(format!("crate::{}::{}", path, metadata.rust_name)),
+                        };
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(path.clone(), field.clone()))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone()),
+                            span: expr.span,
+                            ty: FirTy::Named(format!("crate::{}::{}", path, metadata.parent)),
+                        };
+                    }
+                }
                 let fir_obj = self.lower_expr(obj);
                 let ty = self.field_ty(&fir_obj.ty, field);
                 FirExpr {
@@ -30038,6 +30415,10 @@ impl RustCodegen {
             has_raw_rust_blocks: false,
             source_dir: None,
             imported: BTreeSet::new(),
+            qualified_module_instances: BTreeSet::new(),
+            module_callable_metadata: BTreeMap::new(),
+            ordinary_function_arities: BTreeSet::new(),
+            rule_emitted_names: BTreeMap::new(),
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -30080,6 +30461,7 @@ impl RustCodegen {
             persist_tx_depth: 0,
             persist_tx_counter: 0,
             persist_tx_stack: Vec::new(),
+            current_module_path: Vec::new(),
         }
     }
 
@@ -30748,7 +31130,7 @@ impl RustCodegen {
         import_path: &str,
         dir: &str,
         seen: &mut BTreeSet<String>,
-    ) -> (Vec<Stmt>, String, Option<String>) {
+    ) -> (Vec<Stmt>, String, Option<String>, bool) {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
@@ -30760,13 +31142,18 @@ impl RustCodegen {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
             if !seen.insert(canon.clone()) {
-                return (Vec::new(), dir.to_string(), Some(canon));
+                return (Vec::new(), dir.to_string(), Some(canon), false);
             }
             let resolved_dir = std::path::Path::new(&file_path)
                 .parent()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| dir.to_string());
-            return (Self::parse_tau_file(&file_path), resolved_dir, Some(canon));
+            return (
+                Self::parse_tau_file(&file_path),
+                resolved_dir,
+                Some(canon),
+                true,
+            );
         }
 
         if let Some(toml_path) = find_runa_toml(&dir) {
@@ -30791,7 +31178,7 @@ impl RustCodegen {
                     if name == dep_name {
                         let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
                             Some(p) => p,
-                            None => return (Vec::new(), dir.to_string(), None),
+                            None => return (Vec::new(), dir.to_string(), None, false),
                         };
                         let dep_file = format!("{}/{}.runa", abs_dep, module);
                         let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
@@ -30807,20 +31194,25 @@ impl RustCodegen {
                             );
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string(), None);
+                            return (Vec::new(), dir.to_string(), None, false);
                         };
 
                         let canon = std::fs::canonicalize(&resolved)
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or(resolved.clone());
                         if !seen.insert(canon.clone()) {
-                            return (Vec::new(), dir.to_string(), Some(canon));
+                            return (Vec::new(), dir.to_string(), Some(canon), false);
                         }
                         let resolved_dir = std::path::Path::new(&resolved)
                             .parent()
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or_else(|| dir.to_string());
-                        return (Self::parse_tau_file(&resolved), resolved_dir, Some(canon));
+                        return (
+                            Self::parse_tau_file(&resolved),
+                            resolved_dir,
+                            Some(canon),
+                            true,
+                        );
                     }
                 }
             }
@@ -30830,13 +31222,18 @@ impl RustCodegen {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
         if !seen.insert(canon.clone()) {
-            return (Vec::new(), dir.to_string(), Some(canon));
+            return (Vec::new(), dir.to_string(), Some(canon), false);
         }
         let resolved_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| dir.to_string());
-        (Self::parse_tau_file(&file_path), resolved_dir, Some(canon))
+        (
+            Self::parse_tau_file(&file_path),
+            resolved_dir,
+            Some(canon),
+            true,
+        )
     }
 
     /// Parse a .runa file without import-cycle tracking (for hash imports).
@@ -31200,6 +31597,14 @@ impl RustCodegen {
             .unwrap_or_else(|| tau_name.to_string())
     }
 
+    fn declared_rust_type_name(source_name: &str) -> String {
+        if matches!(source_name, "Bool" | "Box" | "Vec" | "String") {
+            format!("Futuruna{}", source_name)
+        } else {
+            source_name.to_string()
+        }
+    }
+
     /// Returns "Rc" or "Arc" depending on whether the program uses async
     fn rc_name(&self) -> &str {
         if self.has_async {
@@ -31280,11 +31685,17 @@ impl RustCodegen {
                     | Stmt::Defn(Defn::Module { name, .. }) => {
                         exported.insert(name.clone());
                     }
-                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                    Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
                         exported.insert(name.clone());
+                        exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
                     Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
                         exported.insert(name.clone());
+                    }
+                    Stmt::Rule(rule) => {
+                        if let Some(name) = Self::rule_group_name(rule) {
+                            exported.insert(name);
+                        }
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
@@ -31293,7 +31704,6 @@ impl RustCodegen {
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
-                    | Stmt::Rule(_)
                     | Stmt::Use(_)
                     | Stmt::Import(_)
                     | Stmt::QualifiedImport(_, _)
@@ -31316,6 +31726,13 @@ impl RustCodegen {
                     | Stmt::Expr(_) => {}
                 }
                 is_export = false;
+            }
+        }
+        for stmt in stmts {
+            if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+                if exported.contains(name) {
+                    exported.extend(variants.iter().map(|variant| variant.name.clone()));
+                }
             }
         }
         exported
@@ -31375,7 +31792,11 @@ impl RustCodegen {
                     let Stmt::QualifiedImport(mod_name, path) = stmt else {
                         unreachable!("import classifier drifted for nested qualified import")
                     };
-                    out.push(self.build_qualified_import_module_stmt(&mod_name, &path, import_dir));
+                    if let Some(module) =
+                        self.build_qualified_import_module_stmt(&mod_name, &path, import_dir)
+                    {
+                        out.push(module);
+                    }
                 }
                 ImportedStmtExpansion::HashImport => {
                     let Stmt::HashImport(hash, path) = stmt else {
@@ -31395,12 +31816,29 @@ impl RustCodegen {
         }
     }
 
+    fn record_flattened_module_types(&mut self, stmts: &[Stmt], module_path: &[String]) {
+        let owner = module_path.join("::");
+        for stmt in stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                | Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    self.types
+                        .flattened_module_types
+                        .insert((owner.clone(), name.clone()));
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn expand_module_import_body(
         &mut self,
         imported: Vec<Stmt>,
         import_dir: &str,
         body: &mut Vec<Stmt>,
         seen: &mut BTreeSet<String>,
+        flattened: &mut BTreeSet<String>,
+        module_path: &[String],
     ) {
         for stmt in imported {
             match Self::classify_imported_stmt_for_expansion(&stmt) {
@@ -31408,29 +31846,49 @@ impl RustCodegen {
                     let Stmt::Import(path) = stmt else {
                         unreachable!("import classifier drifted for nested plain import")
                     };
-                    let (nested, nested_dir, canonical) =
+                    let (nested, nested_dir, canonical, inserted) =
                         self.resolve_import_from_dir_uncached(&path, import_dir, seen);
-                    if canonical
+                    let already_flattened = canonical
                         .as_ref()
-                        .map_or(false, |path| self.imported.contains(path))
-                    {
-                        continue;
+                        .is_some_and(|path| !flattened.insert(path.clone()));
+                    if !already_flattened {
+                        self.record_flattened_module_types(&nested, module_path);
+                        self.expand_module_import_body(
+                            nested,
+                            &nested_dir,
+                            body,
+                            seen,
+                            flattened,
+                            module_path,
+                        );
                     }
-                    self.expand_module_import_body(nested, &nested_dir, body, seen);
+                    if inserted {
+                        if let Some(canonical) = canonical {
+                            seen.remove(&canonical);
+                        }
+                    }
                 }
                 ImportedStmtExpansion::NestedQualifiedImport => {
                     let Stmt::QualifiedImport(mod_name, path) = stmt else {
                         unreachable!("import classifier drifted for nested qualified import")
                     };
-                    body.push(self.build_qualified_import_module_stmt_with_seen(
-                        &mod_name, &path, import_dir, seen,
-                    ));
+                    if let Some(module) = self.build_qualified_import_module_stmt_with_seen(
+                        &mod_name,
+                        &path,
+                        import_dir,
+                        seen,
+                        module_path,
+                    ) {
+                        body.push(module);
+                    }
                 }
                 ImportedStmtExpansion::HashImport => {
                     let Stmt::HashImport(hash, path) = stmt else {
                         unreachable!("import classifier drifted for hash import")
                     };
-                    body.extend(self.resolve_hash_import(&hash, &path));
+                    let matched = self.resolve_hash_import(&hash, &path);
+                    self.record_flattened_module_types(&matched, module_path);
+                    body.extend(matched);
                 }
                 ImportedStmtExpansion::CargoDependency => {
                     let Stmt::Depend(crate_name, version) = stmt else {
@@ -31449,9 +31907,15 @@ impl RustCodegen {
         mod_name: &str,
         path: &str,
         import_dir: &str,
-    ) -> Stmt {
+    ) -> Option<Stmt> {
         let mut seen = BTreeSet::new();
-        self.build_qualified_import_module_stmt_with_seen(mod_name, path, import_dir, &mut seen)
+        self.build_qualified_import_module_stmt_with_seen(
+            mod_name,
+            path,
+            import_dir,
+            &mut seen,
+            &[],
+        )
     }
 
     fn build_qualified_import_module_stmt_with_seen(
@@ -31460,23 +31924,52 @@ impl RustCodegen {
         path: &str,
         import_dir: &str,
         seen: &mut BTreeSet<String>,
-    ) -> Stmt {
-        let (imported, resolved_dir, _) =
+        namespace: &[String],
+    ) -> Option<Stmt> {
+        let (imported, resolved_dir, canonical, inserted) =
             self.resolve_import_from_dir_uncached(path, import_dir, seen);
         let mod_exported = self.collect_exported_names_from_stmts(&imported);
-        for name in &mod_exported {
-            self.types.exported_names.insert(name.clone());
-        }
+        let sanitized_module = sanitize_name(mod_name);
+        let namespace_key = namespace.join("::");
+        let module_path = if namespace_key.is_empty() {
+            sanitized_module.clone()
+        } else {
+            format!("{}::{}", namespace_key, sanitized_module)
+        };
+        self.types.known_module_paths.insert(module_path.clone());
         self.types
             .module_exports
-            .insert(mod_name.to_string(), mod_exported);
+            .insert(module_path.clone(), mod_exported);
+        if let Some(canonical) = canonical.as_ref() {
+            let instance_key = (namespace_key, sanitized_module.clone(), canonical.clone());
+            if !self.qualified_module_instances.insert(instance_key) {
+                if inserted {
+                    seen.remove(canonical);
+                }
+                return None;
+            }
+        }
         let mut mod_body = Vec::new();
-        self.expand_module_import_body(imported, &resolved_dir, &mut mod_body, seen);
-        self.types.known_modules.insert(mod_name.to_string());
-        Stmt::Defn(Defn::Module {
+        let mut child_namespace = namespace.to_vec();
+        child_namespace.push(sanitized_module);
+        let mut flattened = BTreeSet::new();
+        self.expand_module_import_body(
+            imported,
+            &resolved_dir,
+            &mut mod_body,
+            seen,
+            &mut flattened,
+            &child_namespace,
+        );
+        if inserted {
+            if let Some(canonical) = canonical {
+                seen.remove(&canonical);
+            }
+        }
+        Some(Stmt::Defn(Defn::Module {
             name: mod_name.to_string(),
             body: mod_body,
-        })
+        }))
     }
 
     /// Pass 1: Scan declarations — resolve imports, register types, detect async.
@@ -31485,13 +31978,19 @@ impl RustCodegen {
     fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
         self.types.module_exports.clear();
+        self.types.flattened_module_types.clear();
+        self.types.known_module_paths.clear();
         self.types.root_exported_names.clear();
+        self.qualified_module_instances.clear();
+        self.module_callable_metadata.clear();
+        self.ordinary_function_arities.clear();
+        self.rule_emitted_names.clear();
+        self.types.module_callable_metadata.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
         let root_dir = self.source_dir.clone().unwrap_or_default();
 
-        // Root flat imports establish the parent module's canonical type identity.
-        // Resolve them before qualified modules so source order cannot cause a
-        // qualified module to emit a second Rust type for the same dependency.
+        // Resolve flat imports first so their declarations keep source-order
+        // independence from later qualified module instances.
         for stmt in stmts {
             if let Stmt::Import(path) = stmt {
                 let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
@@ -31504,8 +32003,11 @@ impl RustCodegen {
                 Stmt::Import(_) => {}
                 Stmt::Use(_) => all_stmts.push(stmt.clone()),
                 Stmt::QualifiedImport(mod_name, path) => {
-                    all_stmts
-                        .push(self.build_qualified_import_module_stmt(mod_name, path, &root_dir));
+                    if let Some(module) =
+                        self.build_qualified_import_module_stmt(mod_name, path, &root_dir)
+                    {
+                        all_stmts.push(module);
+                    }
                 }
                 Stmt::HashImport(hash, path) => {
                     let matched = self.resolve_hash_import(hash, path);
@@ -31585,6 +32087,9 @@ impl RustCodegen {
 
         self.types.module_value_bindings.clear();
         self.types.module_stream_bindings.clear();
+        self.types.module_variants.clear();
+        self.types.module_rule_scopes.clear();
+        self.types.module_explicit_display_impls.clear();
         let mut module_path = Vec::new();
         self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
@@ -31622,13 +32127,23 @@ impl RustCodegen {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
-                        Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                        Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
+                            for variant in variants {
+                                self.types.exported_names.insert(variant.name.clone());
+                                self.types.root_exported_names.insert(variant.name.clone());
+                            }
                         }
                         Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
+                        }
+                        Stmt::Rule(rule) => {
+                            if let Some(name) = Self::rule_group_name(rule) {
+                                self.types.exported_names.insert(name.clone());
+                                self.types.root_exported_names.insert(name);
+                            }
                         }
                         Stmt::Bind(Pat::Var(name), _, _) => {
                             self.types.exported_names.insert(name.clone());
@@ -31643,7 +32158,6 @@ impl RustCodegen {
                         | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
-                        | Stmt::Rule(_)
                         | Stmt::Use(_)
                         | Stmt::Import(_)
                         | Stmt::QualifiedImport(_, _)
@@ -32537,7 +33051,6 @@ impl RustCodegen {
         }
 
         // Build type rename map + variant→parent lookup for all ADTs
-        let conflicting = ["Bool", "Box", "Vec", "String"];
         for stmt in stmts {
             if let Stmt::TypeDecl(TypeDecl::ADT {
                 name,
@@ -32547,11 +33060,7 @@ impl RustCodegen {
                 ..
             }) = stmt
             {
-                let rust_name = if conflicting.contains(&name.as_str()) {
-                    format!("Futuruna{}", name)
-                } else {
-                    name.clone()
-                };
+                let rust_name = Self::declared_rust_type_name(name);
                 if rust_name != *name {
                     self.types
                         .type_rename
@@ -32589,11 +33098,7 @@ impl RustCodegen {
                 }
             }
             if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = stmt {
-                let rust_name = if conflicting.contains(&name.as_str()) {
-                    format!("Futuruna{}", name)
-                } else {
-                    name.clone()
-                };
+                let rust_name = Self::declared_rust_type_name(name);
                 if rust_name != *name {
                     self.types
                         .type_rename
@@ -32642,118 +33147,6 @@ impl RustCodegen {
                 self.fn_return_types.insert(name.clone(), rust_name);
                 self.register_rule_scope_member_params(name, body);
             }
-            // Scan types inside modules too
-            if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
-                for inner_stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT {
-                        name,
-                        params,
-                        variants,
-                        methods,
-                        ..
-                    }) = inner_stmt
-                    {
-                        let rust_name = if conflicting.contains(&name.as_str()) {
-                            format!("Futuruna{}", name)
-                        } else {
-                            name.clone()
-                        };
-                        if rust_name != *name {
-                            self.types
-                                .type_rename
-                                .insert(name.clone(), rust_name.clone());
-                        }
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let variant_names: Vec<String> =
-                            variants.iter().map(|v| v.name.clone()).collect();
-                        for v in variants {
-                            let boxed: Vec<usize> = v
-                                .fields
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, f)| {
-                                    RustCodegen::type_references_adt_static(&f.ty, name)
-                                })
-                                .map(|(i, _)| i)
-                                .collect();
-                            self.types
-                                .register_variant_metadata(rust_name.as_str(), v, boxed);
-                        }
-                        if variants.len() == 1
-                            && variants[0].name == *name
-                            && !variants[0].fields.is_empty()
-                        {
-                            self.types.struct_types.insert(rust_name.clone());
-                        }
-                        self.types
-                            .type_decls
-                            .insert(rust_name, (param_names, variant_names));
-                        for method in methods {
-                            if let Defn::Fn { name, params, .. } = method {
-                                self.types.call_params.insert(
-                                    name.clone(),
-                                    params.iter().map(|param| param.name.clone()).collect(),
-                                );
-                            }
-                        }
-                    }
-                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = inner_stmt {
-                        let rust_name = if conflicting.contains(&name.as_str()) {
-                            format!("Futuruna{}", name)
-                        } else {
-                            name.clone()
-                        };
-                        if rust_name != *name {
-                            self.types
-                                .type_rename
-                                .insert(name.clone(), rust_name.clone());
-                        }
-                        self.types.struct_types.insert(rust_name.clone());
-                        let rule_scope_fields: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let rule_scope_field_types: BTreeMap<String, Ty> = params
-                            .iter()
-                            .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
-                            .collect();
-                        self.types
-                            .variant_fields
-                            .insert(name.clone(), rule_scope_fields.clone());
-                        self.types
-                            .variant_fields
-                            .insert(rust_name.clone(), rule_scope_fields);
-                        self.types.call_params.insert(
-                            name.clone(),
-                            params.iter().map(|param| param.name.clone()).collect(),
-                        );
-                        self.types
-                            .variant_field_types
-                            .insert(name.clone(), rule_scope_field_types.clone());
-                        self.types
-                            .variant_field_types
-                            .insert(rust_name.clone(), rule_scope_field_types);
-                        self.types
-                            .type_decls
-                            .insert(rust_name.clone(), (Vec::new(), Vec::new()));
-                        self.types.user_functions.insert(name.clone());
-                        let mut fn_ty = FirTy::Named(rust_name.clone());
-                        for param in params.iter().rev() {
-                            let param_ty = param
-                                .ty
-                                .as_ref()
-                                .map(|ty| self.source_ty_to_fir(ty))
-                                .unwrap_or(FirTy::Unknown);
-                            fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
-                        }
-                        self.types.fn_types.insert(name.clone(), fn_ty.clone());
-                        self.types
-                            .fn_types_by_arity
-                            .insert((name.clone(), params.len()), fn_ty);
-                        self.fn_return_types.insert(name.clone(), rust_name);
-                        self.register_rule_scope_member_params(name, body);
-                    }
-                }
-            }
             // Register user-defined function names
             if let Stmt::Defn(Defn::Fn {
                 name,
@@ -32762,6 +33155,8 @@ impl RustCodegen {
                 ..
             }) = stmt
             {
+                self.ordinary_function_arities
+                    .insert((name.clone(), params.len()));
                 self.types.user_functions.insert(name.clone());
                 self.types.call_params.insert(
                     name.clone(),
@@ -32848,6 +33243,9 @@ impl RustCodegen {
             self.types.rc_types = recursive_types;
         }
 
+        let mut module_path = Vec::new();
+        self.collect_module_variant_metadata(&all_stmts, &mut module_path);
+
         self.refresh_default_derive_types(stmts);
 
         // Pre-scan top-level bindings that can be addressed via getter functions.
@@ -32864,10 +33262,16 @@ impl RustCodegen {
     }
 
     fn refresh_default_derive_types(&mut self, stmts: &[Stmt]) {
+        self.types.default_derive_types.clear();
+        self.types.default_derive_param_requirements.clear();
+        self.extend_default_derive_types(stmts);
+    }
+
+    fn extend_default_derive_types(&mut self, stmts: &[Stmt]) {
         let mut adts = Vec::new();
         self.collect_adt_default_infos(stmts, &mut adts);
-        let mut default_types = BTreeSet::new();
-        let mut default_param_requirements = BTreeMap::new();
+        let mut default_types = self.types.default_derive_types.clone();
+        let mut default_param_requirements = self.types.default_derive_param_requirements.clone();
 
         loop {
             let mut changed = false;
@@ -32915,7 +33319,6 @@ impl RustCodegen {
                     params.iter().map(|p| p.name.clone()).collect(),
                     variants.clone(),
                 )),
-                Stmt::Defn(Defn::Module { body, .. }) => self.collect_adt_default_infos(body, out),
                 _ => {}
             }
         }
@@ -33078,8 +33481,9 @@ impl RustCodegen {
     fn collect_module_value_bindings(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
         for stmt in stmts {
             if let Stmt::Defn(Defn::Module { name, body }) = stmt {
-                module_path.push(name.clone());
+                module_path.push(sanitize_name(name));
                 let path = module_path.join("::");
+                self.types.known_module_paths.insert(path.clone());
                 let binding_names: BTreeSet<String> = body
                     .iter()
                     .filter_map(|stmt| match stmt {
@@ -33107,10 +33511,285 @@ impl RustCodegen {
             }
         }
     }
+
+    fn collect_module_variant_metadata(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
+        for stmt in stmts {
+            let Stmt::Defn(Defn::Module { name, body }) = stmt else {
+                continue;
+            };
+            module_path.push(sanitize_name(name));
+            let path = module_path.join("::");
+            for inner in body {
+                match inner {
+                    Stmt::TypeDecl(TypeDecl::ADT {
+                        name,
+                        params,
+                        variants,
+                        ..
+                    }) => {
+                        let parent = Self::declared_rust_type_name(name);
+                        let struct_type = variants.len() == 1
+                            && variants[0].name == *name
+                            && !variants[0].fields.is_empty();
+                        let uses_rc = variants.iter().any(|variant| {
+                            variant
+                                .fields
+                                .iter()
+                                .any(|field| Self::type_references_adt_static(&field.ty, name))
+                        });
+                        let canonical_owner_uncertain = self
+                            .types
+                            .flattened_module_types
+                            .contains(&(path.clone(), name.clone()));
+                        for variant in variants {
+                            let boxed_args = variant
+                                .fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| {
+                                    Self::type_references_adt_static(&field.ty, name)
+                                })
+                                .map(|(index, _)| index)
+                                .collect();
+                            self.types.module_variants.insert(
+                                (path.clone(), variant.name.clone()),
+                                ModuleVariantMetadata {
+                                    source_parent: name.clone(),
+                                    parent: parent.clone(),
+                                    type_params: params
+                                        .iter()
+                                        .map(|param| param.name.clone())
+                                        .collect(),
+                                    positional: variant.positional,
+                                    fields: variant
+                                        .fields
+                                        .iter()
+                                        .map(|field| field.name.clone())
+                                        .collect(),
+                                    field_types: variant
+                                        .fields
+                                        .iter()
+                                        .map(|field| (field.name.clone(), field.ty.clone()))
+                                        .collect(),
+                                    boxed_args,
+                                    struct_type,
+                                    uses_rc,
+                                    canonical_owner_uncertain,
+                                },
+                            );
+                        }
+                    }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                        let canonical_owner_uncertain = self
+                            .types
+                            .flattened_module_types
+                            .contains(&(path.clone(), name.clone()));
+                        self.types.module_rule_scopes.insert(
+                            (path.clone(), name.clone()),
+                            ModuleRuleScopeMetadata {
+                                rust_name: Self::declared_rust_type_name(name),
+                                fields: params.iter().map(|param| param.name.clone()).collect(),
+                                field_types: params
+                                    .iter()
+                                    .filter_map(|param| {
+                                        param.ty.as_ref().map(|ty| (param.name.clone(), ty.clone()))
+                                    })
+                                    .collect(),
+                                member_params: BTreeMap::new(),
+                                member_fn_types: BTreeMap::new(),
+                                member_rules: BTreeMap::new(),
+                                canonical_owner_uncertain,
+                            },
+                        );
+                    }
+                    Stmt::TypeDecl(TypeDecl::ImplBlock {
+                        trait_name,
+                        for_type,
+                        ..
+                    }) if matches!(
+                        trait_name.as_str(),
+                        "Display" | "fmt::Display" | "std::fmt::Display"
+                    ) =>
+                    {
+                        self.types
+                            .module_explicit_display_impls
+                            .insert((path.clone(), for_type.clone()));
+                    }
+                    _ => {}
+                }
+            }
+            self.collect_module_variant_metadata(body, module_path);
+            module_path.pop();
+        }
+    }
+
+    fn overlay_current_module_type_metadata(&mut self) {
+        let path = self.current_module_path.join("::");
+        let variants = self
+            .types
+            .module_variants
+            .iter()
+            .filter(|((module_path, _), _)| module_path == &path)
+            .map(|((_, constructor), metadata)| (constructor.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        let mut parents = BTreeMap::<String, (String, Vec<String>, Vec<String>)>::new();
+        for (constructor, metadata) in &variants {
+            let entry = parents.entry(metadata.parent.clone()).or_insert_with(|| {
+                (
+                    metadata.source_parent.clone(),
+                    metadata.type_params.clone(),
+                    Vec::new(),
+                )
+            });
+            entry.2.push(constructor.clone());
+        }
+        for (parent, (source_parent, type_params, constructors)) in parents {
+            let stale_constructors = self
+                .types
+                .variant_parent
+                .iter()
+                .filter(|(_, existing_parent)| *existing_parent == &parent)
+                .map(|(constructor, _)| constructor.clone())
+                .collect::<Vec<_>>();
+            for constructor in stale_constructors {
+                self.types.variant_parent.remove(&constructor);
+                self.types.variant_positional.remove(&constructor);
+                self.types.variant_fields.remove(&constructor);
+                self.types.variant_field_types.remove(&constructor);
+                self.types.variant_boxed_args.remove(&constructor);
+                if let Some(existing_parents) = self.types.variant_parents.get_mut(&constructor) {
+                    existing_parents.remove(&parent);
+                    if existing_parents.is_empty() {
+                        self.types.variant_parents.remove(&constructor);
+                    }
+                }
+            }
+            self.types
+                .variant_positional_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_fields_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_field_types_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_boxed_args_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types.struct_types.remove(&parent);
+            self.types.rc_types.remove(&parent);
+            self.types
+                .type_decls
+                .insert(parent.clone(), (type_params, constructors));
+            if source_parent != parent {
+                self.types.type_rename.insert(source_parent, parent);
+            }
+        }
+        for (constructor, metadata) in variants {
+            self.types
+                .variant_parent
+                .insert(constructor.clone(), metadata.parent.clone());
+            self.types.variant_parents.insert(
+                constructor.clone(),
+                BTreeSet::from([metadata.parent.clone()]),
+            );
+            let key = (metadata.parent.clone(), constructor.clone());
+            self.types
+                .variant_positional
+                .insert(constructor.clone(), metadata.positional);
+            self.types
+                .variant_positional_by_parent
+                .insert(key.clone(), metadata.positional);
+            if metadata.positional {
+                self.types.variant_fields.remove(&constructor);
+            } else {
+                self.types
+                    .variant_fields
+                    .insert(constructor.clone(), metadata.fields.clone());
+            }
+            self.types
+                .variant_fields_by_parent
+                .insert(key.clone(), metadata.fields.clone());
+            self.types
+                .variant_field_types
+                .insert(constructor.clone(), metadata.field_types.clone());
+            self.types
+                .variant_field_types_by_parent
+                .insert(key.clone(), metadata.field_types.clone());
+            if metadata.boxed_args.is_empty() {
+                self.types.variant_boxed_args.remove(&constructor);
+            } else {
+                self.types
+                    .variant_boxed_args
+                    .insert(constructor.clone(), metadata.boxed_args.clone());
+            }
+            self.types
+                .variant_boxed_args_by_parent
+                .insert(key, metadata.boxed_args.clone());
+            if metadata.struct_type {
+                self.types.struct_types.insert(metadata.parent.clone());
+            }
+            if metadata.uses_rc {
+                self.types.rc_types.insert(metadata.parent);
+            }
+        }
+
+        let rule_scopes = self
+            .types
+            .module_rule_scopes
+            .iter()
+            .filter(|((module_path, _), _)| module_path == &path)
+            .map(|((_, name), metadata)| (name.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        for (name, metadata) in rule_scopes {
+            if name != metadata.rust_name {
+                self.types
+                    .type_rename
+                    .insert(name.clone(), metadata.rust_name.clone());
+            }
+            self.types.struct_types.remove(&metadata.rust_name);
+            self.types.struct_types.insert(metadata.rust_name.clone());
+            self.types
+                .variant_fields
+                .insert(name.clone(), metadata.fields.clone());
+            self.types
+                .variant_fields
+                .insert(metadata.rust_name.clone(), metadata.fields.clone());
+            self.types
+                .variant_field_types
+                .insert(name.clone(), metadata.field_types.clone());
+            self.types
+                .variant_field_types
+                .insert(metadata.rust_name.clone(), metadata.field_types.clone());
+            self.types
+                .type_decls
+                .insert(metadata.rust_name.clone(), (Vec::new(), Vec::new()));
+            self.types.user_functions.insert(name.clone());
+            self.types
+                .call_params
+                .insert(name.clone(), metadata.fields.clone());
+            let mut fn_ty = FirTy::Named(metadata.rust_name.clone());
+            for field in metadata.fields.iter().rev() {
+                let param_ty = metadata
+                    .field_types
+                    .get(field)
+                    .map(|ty| self.source_ty_to_fir(ty))
+                    .unwrap_or(FirTy::Unknown);
+                fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+            }
+            self.types.fn_types.insert(name.clone(), fn_ty.clone());
+            self.types
+                .fn_types_by_arity
+                .insert((name.clone(), metadata.fields.len()), fn_ty);
+            self.fn_return_types
+                .insert(name, metadata.rust_name.clone());
+        }
+    }
+
     /// Pass 2: Compute borrow-only parameter flags for all functions.
     /// Iterates to fixed point so transitive borrow info propagates.
     fn constrain_wasm_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
-        if !(self.wasm_mode && self.types.exported_names.contains(name)) {
+        if !(self.wasm_mode && self.name_is_exported_in_current_namespace(name)) {
             return;
         }
         for (idx, p) in params.iter().enumerate() {
@@ -34140,6 +34819,20 @@ impl RustCodegen {
         None
     }
 
+    fn arrow_param_fir_ty(fn_ty: &FirTy, idx: usize) -> Option<FirTy> {
+        let mut ty = fn_ty;
+        for current_idx in 0..=idx {
+            let FirTy::Arrow(param, ret) = ty else {
+                return None;
+            };
+            if current_idx == idx {
+                return Some((**param).clone());
+            }
+            ty = ret.as_ref();
+        }
+        None
+    }
+
     fn infer_map_insert_value_rust_type(&self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
@@ -34191,6 +34884,41 @@ impl RustCodegen {
                 | "std::collections::HashMap"
                 | "std::collections::HashSet"
         )
+    }
+
+    /// Collect the exact ABI and escaped-type metadata for qualified module
+    /// callables before any root rule/function is inferred or emitted. Module
+    /// emission itself builds this metadata under the correct lexical overlays;
+    /// running that setup on an isolated clone avoids duplicating the delicate
+    /// name-shadowing logic while discarding all generated text and local state.
+    fn precollect_module_codegen_metadata(&mut self, stmts: &[Stmt]) {
+        fn module_count(stmts: &[Stmt]) -> usize {
+            stmts
+                .iter()
+                .map(|stmt| match stmt {
+                    Stmt::Defn(Defn::Module { body, .. }) => 1 + module_count(body),
+                    _ => 0,
+                })
+                .sum()
+        }
+
+        let mut collector = self.clone();
+        collector.module_callable_metadata.clear();
+        // Each pass can propagate one forward module edge. The number of module
+        // declarations therefore bounds convergence even for A -> B -> C chains.
+        for _ in 0..module_count(stmts).max(1) {
+            collector.current_module_path.clear();
+            collector.types.active_module_path.clear();
+            for stmt in stmts {
+                if let Stmt::Defn(defn @ Defn::Module { .. }) = stmt {
+                    let _ = collector.emit_defn(defn);
+                }
+            }
+            collector.types.module_callable_metadata = collector.module_callable_metadata.clone();
+        }
+        self.module_callable_metadata = collector.module_callable_metadata;
+        self.types.module_callable_metadata = self.module_callable_metadata.clone();
+        self.types.module_rule_scopes = collector.types.module_rule_scopes;
     }
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
@@ -34541,7 +35269,13 @@ impl RustCodegen {
 
         // Type registration + Rc computation done in scan_declarations (Pass 1).
         // Emit Rc/Arc import for transparent structural sharing
-        if !self.types.rc_types.is_empty() {
+        if !self.types.rc_types.is_empty()
+            || self
+                .types
+                .module_variants
+                .values()
+                .any(|metadata| metadata.uses_rc)
+        {
             if self.has_async {
                 out.push_str("use std::sync::Arc;\n");
             } else {
@@ -34567,7 +35301,9 @@ impl RustCodegen {
         }
 
         self.prepare_effect_metadata(stmts);
+        self.precollect_module_codegen_metadata(stmts);
         let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
+        self.register_active_rule_emitted_names(&rule_groups);
         self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
 
         // Collect all top-level bindings and effect calls into main()
@@ -34833,9 +35569,16 @@ impl RustCodegen {
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
                 // Register borrow flags: true for params whose type was inferred from fields
-                out.push_str(&self.emit_rule_function(fn_name, rules));
-                self.types.rule_clone_params.clear();
-                out.push('\n');
+                for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                    let emitted_name = self
+                        .rule_emitted_names
+                        .get(&(fn_name.clone(), arity))
+                        .cloned()
+                        .unwrap_or_else(|| sanitize_name(fn_name));
+                    out.push_str(&self.emit_rule_function_as(fn_name, &emitted_name, &arity_rules));
+                    self.types.rule_clone_params.clear();
+                    out.push('\n');
+                }
             }
         }
 
@@ -35714,15 +36457,7 @@ impl RustCodegen {
             }
         }
 
-        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
-        let return_type = self
-            .infer_rule_return_type(rules, &params, &param_tys)
-            .map(|ty| Self::normalize_rule_rust_type(&ty));
-        let result = RuleSignatureInference {
-            params,
-            param_tys,
-            return_type,
-        };
+        let result = self.infer_rule_signature_uncached(rules);
         self.rule_signature_inference_cache.insert(
             fn_name.to_string(),
             RuleSignatureInferenceCacheEntry {
@@ -35735,6 +36470,19 @@ impl RustCodegen {
             },
         );
         result
+    }
+
+    fn infer_rule_signature_uncached(&self, rules: &[&Rule]) -> RuleSignatureInference {
+        let params = Self::rule_params(rules);
+        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
+        let return_type = self
+            .infer_rule_return_type(rules, &params, &param_tys)
+            .map(|ty| Self::normalize_rule_rust_type(&ty));
+        RuleSignatureInference {
+            params,
+            param_tys,
+            return_type,
+        }
     }
 
     fn register_value_returning_rule_signatures<'a>(
@@ -35831,6 +36579,15 @@ impl RustCodegen {
     ) -> bool {
         let rust_name = self.rust_type_name(scope_name);
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
+        for (member, rules) in &rule_groups {
+            let rules = rules.iter().map(|rule| (*rule).clone()).collect::<Vec<_>>();
+            self.types
+                .rule_scope_member_rules
+                .insert((scope_name.to_string(), member.clone()), rules.clone());
+            self.types
+                .rule_scope_member_rules
+                .insert((rust_name.clone(), member.clone()), rules);
+        }
         let (_method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(scope_name, &rust_name, params, body, &rule_groups);
         let mut changed = false;
@@ -37140,7 +37897,7 @@ impl RustCodegen {
 
     fn emit_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) -> String {
         let rust_name = self.rust_type_name(name);
-        let pub_prefix = if self.types.exported_names.contains(name) {
+        let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
             "pub "
         } else {
             ""
@@ -37383,6 +38140,81 @@ impl RustCodegen {
                 self.types
                     .rule_scope_member_fn_types
                     .insert((rust_name.clone(), method_name), fn_ty);
+            }
+        }
+
+        // Preserve RuleScope member provenance outside the module overlay. A
+        // qualified instance may escape through a binding before a named-arg
+        // member call, so bare `(Policy, score)` metadata cannot distinguish it
+        // from a same-named root RuleScope.
+        if !self.current_module_path.is_empty() {
+            let module_path = self.current_module_path.join("::");
+            let mut qualified_params = method_params.clone();
+            for method in &value_methods {
+                if let Defn::Fn {
+                    name: method_name,
+                    params,
+                    ..
+                } = method
+                {
+                    qualified_params.insert(
+                        method_name.clone(),
+                        params
+                            .iter()
+                            .filter(|param| param.name != "self")
+                            .map(|param| param.name.clone())
+                            .collect(),
+                    );
+                }
+            }
+            let mut qualified_fn_types = BTreeMap::new();
+            let qualified_member_rules = rule_groups
+                .iter()
+                .map(|(member, rules)| {
+                    (
+                        member.clone(),
+                        rules.iter().map(|rule| (*rule).clone()).collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            for (method, param_tys) in &method_param_tys {
+                let ret_ty = method_return_tys
+                    .get(method)
+                    .cloned()
+                    .unwrap_or(FirTy::Bool);
+                let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
+                qualified_fn_types.insert(
+                    method.clone(),
+                    self.types.qualify_module_fir_ty(&module_path, fn_ty),
+                );
+            }
+            for method in &value_methods {
+                let Defn::Fn {
+                    name: method_name, ..
+                } = method
+                else {
+                    continue;
+                };
+                if let Some(fn_ty) = self
+                    .types
+                    .rule_scope_member_fn_types
+                    .get(&(rust_name.clone(), method_name.clone()))
+                    .cloned()
+                {
+                    qualified_fn_types.insert(
+                        method_name.clone(),
+                        self.types.qualify_module_fir_ty(&module_path, fn_ty),
+                    );
+                }
+            }
+            if let Some(metadata) = self
+                .types
+                .module_rule_scopes
+                .get_mut(&(module_path, name.to_string()))
+            {
+                metadata.member_params = qualified_params;
+                metadata.member_fn_types = qualified_fn_types;
+                metadata.member_rules = qualified_member_rules;
             }
         }
 
@@ -38013,7 +38845,7 @@ impl RustCodegen {
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
                 let derives_default = self.types.default_derive_types.contains(&rust_name);
-                let pub_prefix = if self.types.exported_names.contains(name) {
+                let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
                     "pub "
                 } else {
                     ""
@@ -38959,7 +39791,7 @@ impl RustCodegen {
                     ret_ty,
                     effects,
                     ..
-                }) if self.types.exported_names.contains(name) => {
+                }) if self.types.root_exported_names.contains(name) => {
                     seen_exports.insert(name.clone());
 
                     let mut type_vars = Vec::new();
@@ -38990,7 +39822,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::Defn(Defn::Actor { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -38999,7 +39831,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::Defn(Defn::Module { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -39008,7 +39840,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::TypeDecl(TypeDecl::ADT { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -39016,14 +39848,16 @@ impl RustCodegen {
                         name
                     ));
                 }
-                Stmt::Bind(Pat::Var(name), _, _) if self.types.exported_names.contains(name) => {
+                Stmt::Bind(Pat::Var(name), _, _)
+                    if self.types.root_exported_names.contains(name) =>
+                {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: value bindings are not JS-callable exports",
                         name
                     ));
                 }
-                Stmt::StreamBind(name, _) if self.types.exported_names.contains(name) => {
+                Stmt::StreamBind(name, _) if self.types.root_exported_names.contains(name) => {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: stream bindings are not JS-callable exports",
@@ -39034,7 +39868,7 @@ impl RustCodegen {
             }
         }
 
-        for export_name in &self.types.exported_names {
+        for export_name in &self.types.root_exported_names {
             if !seen_exports.contains(export_name) {
                 issues.push(format!(
                     "export `{}` could not be resolved to a supported top-level function for WASM",
@@ -39048,6 +39882,8 @@ impl RustCodegen {
 
     fn collect_compiler_validation_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
         let all_stmts = self.scan_declarations(input_stmts);
+        self.prepare_effect_metadata(&all_stmts);
+        self.precollect_module_codegen_metadata(&all_stmts);
         self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
         let mut diags = Vec::new();
         self.collect_scope_lifetime_stmt_list(&all_stmts, None, false, &mut diags);
@@ -39095,6 +39931,52 @@ impl RustCodegen {
                 None
             }
             ExprKind::Field(obj, method) => {
+                if let Some(module_path) = self.module_path_key(obj) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return Some((
+                            "constructor",
+                            format!("{}::{}", module_path, method),
+                            metadata.fields.clone(),
+                        ));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return Some((
+                            "constructor",
+                            format!("{}::{}", module_path, method),
+                            metadata.fields.clone(),
+                        ));
+                    }
+                    let exact = self.module_callable_metadata.get(&(
+                        metadata_path.clone(),
+                        method.clone(),
+                        args.len(),
+                    ));
+                    let metadata = exact.or_else(|| {
+                        let mut candidates = self
+                            .module_callable_metadata
+                            .iter()
+                            .filter(|((path, name, _), _)| path == &metadata_path && name == method)
+                            .map(|(_, metadata)| metadata);
+                        let first = candidates.next()?;
+                        candidates.next().is_none().then_some(first)
+                    });
+                    if let Some(metadata) = metadata {
+                        return Some((
+                            "function/rule",
+                            format!("{}::{}", module_path, method),
+                            metadata.param_names.clone(),
+                        ));
+                    }
+                }
                 let obj_ty = self.infer_expr_fir_ty(obj);
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
                 let scope = match obj_ty {
@@ -39888,6 +40770,50 @@ impl RustCodegen {
             .unwrap_or(0)
     }
 
+    fn rule_exact_arity(rule: &Rule) -> Option<usize> {
+        let head = match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
+            Rule::ReactiveScope { .. } => return None,
+        };
+        match &head.kind {
+            ExprKind::App(_, args) => Some(args.len()),
+            ExprKind::Var(_) => Some(0),
+            _ => None,
+        }
+    }
+
+    fn split_rule_group_by_arity<'a>(rules: &[&'a Rule]) -> BTreeMap<usize, Vec<&'a Rule>> {
+        let mut by_arity = BTreeMap::new();
+        for rule in rules {
+            if let Some(arity) = Self::rule_exact_arity(rule) {
+                by_arity.entry(arity).or_insert_with(Vec::new).push(*rule);
+            }
+        }
+        by_arity
+    }
+
+    fn overloaded_rule_rust_name(name: &str, arity: usize) -> String {
+        format!("{}__fut_arity_{}", sanitize_name(name), arity)
+    }
+
+    fn register_active_rule_emitted_names(&mut self, rule_groups: &BTreeMap<String, Vec<&Rule>>) {
+        for (name, rules) in rule_groups {
+            let by_arity = Self::split_rule_group_by_arity(rules);
+            let overloaded = by_arity.len() > 1;
+            for arity in by_arity.keys().copied() {
+                let emitted = if overloaded {
+                    Self::overloaded_rule_rust_name(name, arity)
+                } else {
+                    sanitize_name(name)
+                };
+                self.rule_emitted_names
+                    .insert((name.clone(), arity), emitted);
+            }
+        }
+    }
+
     fn rule_params(rules: &[&Rule]) -> Vec<String> {
         rules
             .iter()
@@ -40084,42 +41010,64 @@ impl RustCodegen {
         None
     }
 
-    /// Emit Prolog-style rule function with fact table + backtracking search
-    fn emit_prolog_rule_function(
-        &mut self,
-        fn_name: &str,
-        rules: &[&Rule],
-        arity: usize,
-    ) -> String {
-        let mut out = String::new();
-        let sanitized = sanitize_name(fn_name);
+    fn name_is_exported_in_current_namespace(&self, name: &str) -> bool {
+        if self.current_module_path.is_empty() {
+            self.types.root_exported_names.contains(name)
+        } else {
+            self.types.exported_names.contains(name)
+        }
+    }
 
-        // Determine param types from ground terms in any clause head
-        let mut param_types: Vec<String> = vec!["String".to_string(); arity];
-        for r in rules {
-            if let Rule::Clause { head, .. } = r {
+    fn rule_is_exported_in_current_namespace(&self, name: &str) -> bool {
+        self.name_is_exported_in_current_namespace(name)
+    }
+
+    fn prolog_rule_param_rust_types(&self, rules: &[&Rule], arity: usize) -> Vec<String> {
+        let mut param_types = vec!["String".to_string(); arity];
+        for rule in rules {
+            if let Rule::Clause { head, .. } = rule {
                 if let ExprKind::App(_, args) = &head.kind {
-                    for (i, arg) in args.iter().enumerate() {
+                    for (position, arg) in args.iter().enumerate() {
                         if let Some(rust_ty) = self.rule_head_arg_rust_type_hint(arg) {
-                            param_types[i] = rust_ty;
+                            param_types[position] = rust_ty;
                         }
                     }
                 }
             }
         }
+        param_types
+    }
+
+    fn prolog_param_type_strs_from_rust_types(param_types: &[String]) -> Vec<String> {
+        param_types
+            .iter()
+            .map(|ty| {
+                if ty == "String" {
+                    "&str".to_string()
+                } else {
+                    ty.clone()
+                }
+            })
+            .collect()
+    }
+
+    /// Emit Prolog-style rule function with fact table + backtracking search
+    fn emit_prolog_rule_function(
+        &mut self,
+        fn_name: &str,
+        emitted_name: &str,
+        rules: &[&Rule],
+        arity: usize,
+    ) -> String {
+        let mut out = String::new();
+        let sanitized = sanitize_name(emitted_name);
+
+        // Determine param types from ground terms in any clause head
+        let param_types = self.prolog_rule_param_rust_types(rules, arity);
         let param_fir_tys = Self::prolog_param_fir_tys(&param_types);
 
         // Register this function as Prolog-style so call sites can emit correct types
-        let param_type_strs: Vec<String> = param_types
-            .iter()
-            .map(|t| {
-                if t == "String" {
-                    "&str".to_string()
-                } else {
-                    t.clone()
-                }
-            })
-            .collect();
+        let param_type_strs = Self::prolog_param_type_strs_from_rust_types(&param_types);
         self.types
             .prolog_rule_fns
             .insert(fn_name.to_string(), param_type_strs);
@@ -40259,7 +41207,15 @@ impl RustCodegen {
             })
             .collect::<Vec<_>>()
             .join(", ");
-        out.push_str(&format!("fn {}({}) -> bool {{\n", sanitized, param_str));
+        let pub_prefix = if self.rule_is_exported_in_current_namespace(fn_name) {
+            "pub "
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "{}fn {}({}) -> bool {{\n",
+            pub_prefix, sanitized, param_str
+        ));
 
         // Emit rules with bodies (conjunction / backtracking)
         for r in rules {
@@ -41256,7 +42212,7 @@ impl RustCodegen {
     fn emit_prolog_value_function(
         &mut self,
         sanitized: &str,
-        _fn_name: &str,
+        fn_name: &str,
         rules: &[&Rule],
         arity: usize,
         param_types: &[String],
@@ -41346,9 +42302,14 @@ impl RustCodegen {
         } else {
             format!("Option<{}>", value_type_str)
         };
+        let pub_prefix = if self.rule_is_exported_in_current_namespace(fn_name) {
+            "pub "
+        } else {
+            ""
+        };
         out.push_str(&format!(
-            "fn {}({}) -> {} {{\n",
-            sanitized, param_str, ret_type
+            "{}fn {}({}) -> {} {{\n",
+            pub_prefix, sanitized, param_str, ret_type
         ));
 
         // Lookup in fact table
@@ -41478,16 +42439,30 @@ impl RustCodegen {
 
     /// Emit a group of rules with the same name as a single Rust function.
     /// Handles both Catala-style (exception/default/under) and Prolog-style (facts/conjunction).
+    #[cfg(test)]
     fn emit_rule_function(&mut self, fn_name: &str, rules: &[&Rule]) -> String {
+        self.emit_rule_function_as(fn_name, fn_name, rules)
+    }
+
+    fn emit_rule_function_as(
+        &mut self,
+        fn_name: &str,
+        emitted_name: &str,
+        rules: &[&Rule],
+    ) -> String {
         // Check if this rule group has Prolog-style features (ground terms or conjunction)
         let arity = Self::rule_arity(rules);
         if Self::rules_have_prolog_features(rules) && arity > 0 {
-            return self.emit_prolog_rule_function(fn_name, rules, arity);
+            return self.emit_prolog_rule_function(fn_name, emitted_name, rules, arity);
         }
 
         // --- Original Catala-style codegen ---
 
-        let inference = self.infer_rule_signature_cached(fn_name, rules);
+        let inference = if emitted_name == fn_name {
+            self.infer_rule_signature_cached(fn_name, rules)
+        } else {
+            self.infer_rule_signature_uncached(rules)
+        };
         let params = inference.params;
         let inferred_param_tys = inference.param_tys;
         let inferred_types: Vec<String> = inferred_param_tys
@@ -41537,11 +42512,18 @@ impl RustCodegen {
         let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
         self.binary_global_env_arg_in_scope = uses_binary_global_env;
         self.binary_global_value_refs_in_scope = uses_binary_global_env;
+        let prev_local_bindings = self.local_bindings.clone();
 
         let emitted = self.with_temporary_named_types(&params, &inferred_param_tys, |cg| {
+            let pub_prefix = if cg.rule_is_exported_in_current_namespace(fn_name) {
+                "pub "
+            } else {
+                ""
+            };
             let mut out = format!(
-                "fn {}({}) -> {} {{\n",
-                sanitize_name(fn_name),
+                "{}fn {}({}) -> {} {{\n",
+                pub_prefix,
+                sanitize_name(emitted_name),
                 rule_param_str,
                 ret_type
             );
@@ -41582,6 +42564,7 @@ impl RustCodegen {
                         continue;
                     }
                     if let Some((val, ty)) = cg.types.literal_bindings.get(name) {
+                        cg.local_bindings.insert(name.clone());
                         let rust_val = if ty == "i64" {
                             format!("{}i64", val)
                         } else if ty == "f64" {
@@ -41700,6 +42683,7 @@ impl RustCodegen {
         self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
         self.var_use_counts = prev_var_use_counts;
         self.var_consuming_counts = prev_var_consuming_counts;
+        self.local_bindings = prev_local_bindings;
 
         emitted
     }
@@ -41991,7 +42975,7 @@ impl RustCodegen {
                 let prev_effects = std::mem::take(&mut self.current_effects);
                 self.current_effects = merged_effects;
 
-                let is_exported = self.types.exported_names.contains(name);
+                let is_exported = self.name_is_exported_in_current_namespace(name);
                 let pub_prefix = if is_exported { "pub " } else { "" };
                 // M4: wasm-bindgen annotation for exported functions with compatible types
                 let wasm_issues = if self.wasm_mode && is_exported {
@@ -42099,7 +43083,7 @@ impl RustCodegen {
                     self.infer_actor_message_variant_types(name, state_param, handlers);
 
                 // Message enum
-                out.push_str(&format!("#[derive(Debug)]\n"));
+                out.push_str("#[derive(Debug)]\n");
                 out.push_str(&format!("enum {}Msg {{\n", sname));
                 for h in handlers {
                     let variant = self.emit_pattern_as_enum_variant(&h.msg_pat, &actor_msg_tys);
@@ -42174,24 +43158,70 @@ impl RustCodegen {
                 out
             }
             Defn::Module { name, body } => {
-                self.types.known_modules.insert(name.clone());
-                let pub_prefix = if self.types.exported_names.contains(name) {
+                let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
                     "pub "
                 } else {
                     ""
                 };
-                let mut out = format!("{}mod {} {{\n", pub_prefix, sanitize_name(name));
+                let rust_name = sanitize_name(name);
+                let module_path = if self.current_module_path.is_empty() {
+                    rust_name.clone()
+                } else {
+                    format!("{}::{}", self.current_module_path.join("::"), rust_name)
+                };
+                let mut out = format!("{}mod {} {{\n", pub_prefix, rust_name);
                 out.push_str("    use super::*;\n");
-                let module_exports = self.types.module_exports.get(name).cloned();
+                let module_exports = self.types.module_exports.get(&module_path).cloned();
                 // Inline modules are public-by-default. Qualified-import modules
                 // only expose names that were marked with `@ export`.
-                let saved_exported = self.types.exported_names.clone();
+                self.current_module_path.push(sanitize_name(name));
+                let saved_types = self.types.clone();
+                self.types.active_module_path = self.current_module_path.clone();
+                let saved_fn_return_types = self.fn_return_types.clone();
+                let saved_string_returning_fns = self.string_returning_fns.clone();
+                let saved_borrow_only_params = self.borrow_only_params.clone();
+                let saved_ordinary_function_arities = self.ordinary_function_arities.clone();
+                let saved_rule_emitted_names = self.rule_emitted_names.clone();
+                let saved_binary_global_env_fns = self.binary_global_env_fns.clone();
+                let saved_binary_global_env_fn_arities = self.binary_global_env_fn_arities.clone();
+                let saved_binary_global_env_rule_scope_methods =
+                    self.binary_global_env_rule_scope_methods.clone();
+                let saved_binary_global_binding_types = self.binary_global_binding_types.clone();
+                let saved_rule_signature_versions = self.rule_signature_versions.clone();
+                let saved_rule_scope_member_signature_versions =
+                    self.rule_scope_member_signature_versions.clone();
+                let saved_global_binding_type_revision = self.global_binding_type_revision;
+                let saved_rule_scope_inference_cache = self.rule_scope_inference_cache.clone();
+                let saved_rule_signature_inference_cache =
+                    self.rule_signature_inference_cache.clone();
+                let saved_rule_inference_environment_revision =
+                    self.rule_inference_environment_revision;
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
                 let saved_sync_subject_vars = self.sync_subject_vars.clone();
+                self.types.exported_names.clear();
+                let rule_groups = Self::collect_rule_groups_from_stmts(body);
+                let mut local_owned_names = rule_groups.keys().cloned().collect::<BTreeSet<_>>();
+                for stmt in body {
+                    if let Stmt::Defn(Defn::Fn { name, .. })
+                    | Stmt::Defn(Defn::Actor { name, .. })
+                    | Stmt::Defn(Defn::Module { name, .. }) = stmt
+                    {
+                        local_owned_names.insert(name.clone());
+                    }
+                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = stmt {
+                        local_owned_names.insert(name.clone());
+                    }
+                    if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+                        local_owned_names.insert(name.clone());
+                        local_owned_names
+                            .extend(variants.iter().map(|variant| variant.name.clone()));
+                    }
+                }
                 for stmt in body {
                     match stmt {
-                        Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
+                        Stmt::Defn(Defn::Fn { name: fn_name, .. })
+                        | Stmt::Defn(Defn::Actor { name: fn_name, .. }) => {
                             if module_exports
                                 .as_ref()
                                 .map_or(true, |exports| exports.contains(fn_name.as_str()))
@@ -42239,7 +43269,347 @@ impl RustCodegen {
                                 self.types.exported_names.insert(stream_name.clone());
                             }
                         }
+                        Stmt::Rule(rule) => {
+                            if let Some(rule_name) = Self::rule_group_name(rule) {
+                                if module_exports
+                                    .as_ref()
+                                    .map_or(true, |exports| exports.contains(&rule_name))
+                                {
+                                    self.types.exported_names.insert(rule_name);
+                                }
+                            }
+                        }
                         _ => {}
+                    }
+                }
+                for owned_name in &local_owned_names {
+                    self.ordinary_function_arities
+                        .retain(|(name, _)| name != owned_name);
+                    self.rule_emitted_names
+                        .retain(|(name, _), _| name != owned_name);
+                    self.types.fn_types.remove(owned_name);
+                    self.types
+                        .fn_types_by_arity
+                        .retain(|(name, _), _| name != owned_name);
+                    self.types.call_params.remove(owned_name);
+                    self.types.user_functions.remove(owned_name);
+                    self.types.prolog_rule_fns.remove(owned_name);
+                    self.types.prolog_rule_groups.remove(owned_name);
+                    self.types.prolog_value_fns.remove(owned_name);
+                    self.types.inout_params.remove(owned_name);
+                    self.types.cow_params.remove(owned_name);
+                    self.types.fn_effects.remove(owned_name);
+                    self.fn_return_types.remove(owned_name);
+                    self.string_returning_fns.remove(owned_name);
+                    self.borrow_only_params.remove(owned_name);
+                    self.rule_signature_versions.remove(owned_name);
+                    self.rule_signature_inference_cache.remove(owned_name);
+
+                    self.types.variant_parent.remove(owned_name);
+                    self.types.variant_parents.remove(owned_name);
+                    self.types.variant_positional.remove(owned_name);
+                    self.types.variant_fields.remove(owned_name);
+                    self.types.variant_field_types.remove(owned_name);
+                    self.types.variant_boxed_args.remove(owned_name);
+                    self.types
+                        .variant_positional_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_fields_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_field_types_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_boxed_args_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+
+                    let renamed_type = self.types.type_rename.remove(owned_name);
+                    for type_name in std::iter::once(owned_name).chain(renamed_type.as_ref()) {
+                        self.types.type_decls.remove(type_name);
+                        self.types.struct_types.remove(type_name);
+                        self.types.rc_types.remove(type_name);
+                        self.types.default_derive_types.remove(type_name);
+                        self.types
+                            .default_derive_param_requirements
+                            .remove(type_name);
+                    }
+                    self.types.explicit_display_impls.remove(owned_name);
+                }
+                self.register_active_rule_emitted_names(&rule_groups);
+                let current_module_path = self.current_module_path.join("::");
+                self.types.explicit_display_impls.extend(
+                    self.types
+                        .module_explicit_display_impls
+                        .iter()
+                        .filter(|(path, _)| path == &current_module_path)
+                        .map(|(_, type_name)| type_name.clone()),
+                );
+                self.overlay_current_module_type_metadata();
+                self.extend_default_derive_types(body);
+                for stmt in body {
+                    let Stmt::TypeDecl(TypeDecl::RuleScope {
+                        name,
+                        body: scope_body,
+                        ..
+                    }) = stmt
+                    else {
+                        continue;
+                    };
+                    let rust_name = self.rust_type_name(name);
+                    self.types
+                        .rule_scope_member_fn_types
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.types
+                        .rule_scope_member_params
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.types
+                        .rule_scope_member_rules
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.rule_scope_inference_cache.remove(name);
+                    for member in Self::collect_rule_groups_from_stmts(scope_body)
+                        .keys()
+                        .cloned()
+                        .chain(
+                            Self::rule_scope_defn_methods(scope_body)
+                                .into_iter()
+                                .filter_map(|method| match method {
+                                    Defn::Fn { name, .. } => Some(name.clone()),
+                                    _ => None,
+                                }),
+                        )
+                    {
+                        self.rule_scope_member_signature_versions.remove(&member);
+                    }
+                    self.register_rule_scope_member_params(name, scope_body);
+                }
+                // Qualified modules are a lexical Rust namespace. Root hidden-global
+                // requirements are keyed only by callable name, so carrying them into
+                // a same-named module callable would silently change its ABI.
+                self.binary_global_env_fns.clear();
+                self.binary_global_env_fn_arities.clear();
+                self.binary_global_env_rule_scope_methods.clear();
+                self.binary_global_binding_types.clear();
+                // Nested modules can see value and stream getters from their lexical
+                // parent through `use super::*`. Root getters must not leak into a
+                // top-level qualified-import module, though, so only retain this
+                // metadata once there is an actual module ancestor.
+                let inherit_parent_module_bindings = self.current_module_path.len() > 1;
+                if !inherit_parent_module_bindings {
+                    self.types.literal_bindings.clear();
+                }
+                for stmt in body {
+                    if let Stmt::Bind(Pat::Var(binding_name), _, _) = stmt {
+                        self.types.literal_bindings.remove(binding_name);
+                    }
+                }
+                for stmt in body {
+                    if let Stmt::Bind(
+                        Pat::Var(binding_name),
+                        _,
+                        Expr {
+                            kind: ExprKind::Lit(literal),
+                            ..
+                        },
+                    ) = stmt
+                    {
+                        self.types.literal_bindings.insert(
+                            binding_name.clone(),
+                            (
+                                Self::emit_literal_value(literal),
+                                Self::literal_rust_type(literal).to_string(),
+                            ),
+                        );
+                    }
+                }
+
+                // Overlay direct module callables before inferring rules so private
+                // helpers and same-named root functions cannot supply their signatures.
+                for stmt in body {
+                    if let Stmt::Defn(Defn::Fn {
+                        name,
+                        params,
+                        ret_ty,
+                        effects,
+                        ..
+                    }) = stmt
+                    {
+                        self.ordinary_function_arities
+                            .insert((name.clone(), params.len()));
+                        self.types.user_functions.insert(name.clone());
+                        self.types.call_params.insert(
+                            name.clone(),
+                            params.iter().map(|param| param.name.clone()).collect(),
+                        );
+                        let mut fn_ty = ret_ty
+                            .as_ref()
+                            .map(|ty| self.source_ty_to_fir(ty))
+                            .unwrap_or(FirTy::Unknown);
+                        for param in params.iter().rev() {
+                            let param_ty = param
+                                .ty
+                                .as_ref()
+                                .map(|ty| self.source_ty_to_fir(ty))
+                                .unwrap_or(FirTy::Unknown);
+                            fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+                        }
+                        self.types.fn_types.insert(name.clone(), fn_ty.clone());
+                        self.types
+                            .fn_types_by_arity
+                            .insert((name.clone(), params.len()), fn_ty);
+                        if !effects.is_empty() {
+                            self.types.fn_effects.insert(name.clone(), effects.clone());
+                        }
+                        let cow_flags = params
+                            .iter()
+                            .map(|param| {
+                                param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
+                            })
+                            .collect::<Vec<_>>();
+                        if cow_flags.iter().any(|flag| *flag) {
+                            self.types.cow_params.insert(name.clone(), cow_flags);
+                        }
+                        if let Some(ret_ty) = ret_ty {
+                            let emitted_ret_ty = self.emit_type(ret_ty);
+                            self.fn_return_types.insert(name.clone(), emitted_ret_ty);
+                            if matches!(ret_ty, Ty::Name(name) if name == "String") {
+                                self.string_returning_fns.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+
+                let module_fn_stmts = body
+                    .iter()
+                    .filter(|stmt| matches!(stmt, Stmt::Defn(Defn::Fn { .. })))
+                    .collect::<Vec<_>>();
+                self.compute_borrow_flags(&module_fn_stmts);
+                for (rule_name, rules) in &rule_groups {
+                    self.types.user_functions.insert(rule_name.clone());
+                    self.types.prolog_rule_groups.insert(
+                        rule_name.clone(),
+                        rules.iter().map(|rule| (*rule).clone()).collect(),
+                    );
+                    if let Some(params) = rules.first().and_then(|rule| match rule {
+                        Rule::Clause { head, .. }
+                        | Rule::Default { head, .. }
+                        | Rule::Exception { head, .. } => Self::rule_head_param_names(head),
+                        Rule::ReactiveScope { .. } => None,
+                    }) {
+                        self.types.call_params.insert(rule_name.clone(), params);
+                    }
+                }
+                self.rule_inference_environment_revision += 1;
+                self.prescan_value_rule_and_rule_scope_signatures(body, &rule_groups);
+                for (rule_name, rules) in &rule_groups {
+                    let arity = Self::rule_arity(rules);
+                    if arity > 0 && Self::rules_have_prolog_features(rules) {
+                        let param_types = self.prolog_rule_param_rust_types(rules, arity);
+                        let param_fir_tys = Self::prolog_param_fir_tys(&param_types);
+                        self.types.prolog_rule_fns.insert(
+                            rule_name.clone(),
+                            Self::prolog_param_type_strs_from_rust_types(&param_types),
+                        );
+                        if let Some(value_type) = self
+                            .infer_prolog_rules_value_type(rules, &param_fir_tys)
+                            .or_else(|| Self::prolog_rules_value_type(rules))
+                        {
+                            self.types
+                                .prolog_value_fns
+                                .insert(rule_name.clone(), value_type);
+                        }
+                    }
+                }
+                let module_path = self.current_module_path.join("::");
+                for stmt in body {
+                    let Stmt::Defn(Defn::Fn { name, params, .. }) = stmt else {
+                        continue;
+                    };
+                    let arity = params.len();
+                    let return_type = self
+                        .types
+                        .fn_types_by_arity
+                        .get(&(name.clone(), arity))
+                        .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                        .unwrap_or(FirTy::Unknown);
+                    let return_type = self.types.qualify_module_fir_ty(&module_path, return_type);
+                    self.module_callable_metadata.insert(
+                        (module_path.clone(), name.clone(), arity),
+                        ModuleCallableMetadata {
+                            emitted_name: sanitize_name(name),
+                            param_names: params.iter().map(|param| param.name.clone()).collect(),
+                            borrow_only_params: self
+                                .borrow_only_params
+                                .get(name)
+                                .cloned()
+                                .unwrap_or_else(|| vec![false; arity]),
+                            inout_params: params.iter().map(|param| param.inout).collect(),
+                            cow_params: params
+                                .iter()
+                                .map(|param| {
+                                    param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
+                                })
+                                .collect(),
+                            prolog_param_types: None,
+                            prolog_value: false,
+                            return_type,
+                            rules: None,
+                        },
+                    );
+                }
+                for (rule_name, rules) in &rule_groups {
+                    for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                        let inference = self.infer_rule_signature_uncached(&arity_rules);
+                        let prolog = arity > 0 && Self::rules_have_prolog_features(&arity_rules);
+                        let prolog_param_types = prolog.then(|| {
+                            let types = self.prolog_rule_param_rust_types(&arity_rules, arity);
+                            Self::prolog_param_type_strs_from_rust_types(&types)
+                        });
+                        let prolog_value = prolog
+                            && self
+                                .infer_prolog_rules_value_type(
+                                    &arity_rules,
+                                    &prolog_param_types
+                                        .as_ref()
+                                        .map(|types| Self::prolog_param_fir_tys(types))
+                                        .unwrap_or_default(),
+                                )
+                                .or_else(|| Self::prolog_rules_value_type(&arity_rules))
+                                .is_some();
+                        let return_type = inference
+                            .return_type
+                            .as_deref()
+                            .map(Self::rust_type_to_fir)
+                            .unwrap_or_else(|| if prolog { FirTy::Bool } else { FirTy::Unknown });
+                        let return_type =
+                            self.types.qualify_module_fir_ty(&module_path, return_type);
+                        let emitted_name = self
+                            .rule_emitted_names
+                            .get(&(rule_name.clone(), arity))
+                            .cloned()
+                            .unwrap_or_else(|| sanitize_name(rule_name));
+                        let key = (module_path.clone(), rule_name.clone(), arity);
+                        let metadata = ModuleCallableMetadata {
+                            emitted_name,
+                            param_names: inference.params,
+                            borrow_only_params: vec![false; arity],
+                            inout_params: vec![false; arity],
+                            cow_params: vec![false; arity],
+                            prolog_param_types,
+                            prolog_value,
+                            return_type,
+                            rules: Some(arity_rules.iter().map(|rule| (*rule).clone()).collect()),
+                        };
+                        // A later convergence pass may refine a rule ABI. Replace
+                        // rule metadata, but preserve a same-name ordinary `>`
+                        // function inserted above as the direct-call winner.
+                        if self
+                            .module_callable_metadata
+                            .get(&key)
+                            .map_or(true, |existing| existing.rules.is_some())
+                        {
+                            self.module_callable_metadata.insert(key, metadata);
+                        }
                     }
                 }
                 self.indent = 1;
@@ -42249,14 +43619,19 @@ impl RustCodegen {
                         matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _))
                     })
                     .collect();
-                self.lib_static_names = module_bind_stmts
+                let direct_module_bind_names = module_bind_stmts
                     .iter()
                     .filter_map(|stmt| match stmt {
                         Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
                         Stmt::StreamBind(name, _) => Some(name.clone()),
                         _ => None,
                     })
-                    .collect();
+                    .collect::<BTreeSet<_>>();
+                if inherit_parent_module_bindings {
+                    self.lib_static_names.extend(direct_module_bind_names);
+                } else {
+                    self.lib_static_names = direct_module_bind_names;
+                }
                 for stmt in body {
                     if let Stmt::StreamBind(name, _) = stmt {
                         self.sync_subject_vars.insert(name.clone());
@@ -42270,6 +43645,22 @@ impl RustCodegen {
                         module_exports.as_ref(),
                     ));
                 }
+                for (rule_name, rules) in &rule_groups {
+                    for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                        let emitted_name = self
+                            .rule_emitted_names
+                            .get(&(rule_name.clone(), arity))
+                            .cloned()
+                            .unwrap_or_else(|| sanitize_name(rule_name));
+                        out.push_str(&self.emit_rule_function_as(
+                            rule_name,
+                            &emitted_name,
+                            &arity_rules,
+                        ));
+                        self.types.rule_clone_params.clear();
+                        out.push('\n');
+                    }
+                }
                 for stmt in body {
                     if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _)) {
                         continue;
@@ -42281,7 +43672,28 @@ impl RustCodegen {
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
                 self.sync_subject_vars = saved_sync_subject_vars;
-                self.types.exported_names = saved_exported;
+                let module_rule_scopes = self.types.module_rule_scopes.clone();
+                self.types = saved_types;
+                self.types.module_rule_scopes = module_rule_scopes;
+                self.fn_return_types = saved_fn_return_types;
+                self.string_returning_fns = saved_string_returning_fns;
+                self.borrow_only_params = saved_borrow_only_params;
+                self.ordinary_function_arities = saved_ordinary_function_arities;
+                self.rule_emitted_names = saved_rule_emitted_names;
+                self.binary_global_env_fns = saved_binary_global_env_fns;
+                self.binary_global_env_fn_arities = saved_binary_global_env_fn_arities;
+                self.binary_global_env_rule_scope_methods =
+                    saved_binary_global_env_rule_scope_methods;
+                self.binary_global_binding_types = saved_binary_global_binding_types;
+                self.rule_signature_versions = saved_rule_signature_versions;
+                self.rule_scope_member_signature_versions =
+                    saved_rule_scope_member_signature_versions;
+                self.global_binding_type_revision = saved_global_binding_type_revision;
+                self.rule_scope_inference_cache = saved_rule_scope_inference_cache;
+                self.rule_signature_inference_cache = saved_rule_signature_inference_cache;
+                self.rule_inference_environment_revision =
+                    saved_rule_inference_environment_revision;
+                self.current_module_path.pop();
                 out
             }
         }
@@ -44216,13 +45628,95 @@ impl RustCodegen {
     }
 
     /// M3b: Check if an expression is a module path (for :: emission)
-    /// Returns true for Var("ModuleName") where ModuleName is a known module,
-    /// or for Field(module_path, "SubModule") chains.
+    /// Only exact module paths visible from the current lexical namespace count.
+    /// A bare-name registry is insufficient here: a nested `A::X` must not make
+    /// an unrelated root value named `X` render with Rust's `::` syntax.
     fn is_module_path(&self, expr: &Expr) -> bool {
+        self.module_path_key(expr).is_some()
+    }
+
+    fn visible_bare_module_path(&self, name: &str) -> Option<String> {
+        if self.local_bindings.contains(name)
+            || self.var_fir_types.contains_key(name)
+            || self.var_types.contains_key(name)
+            || self.binary_global_binding_types.contains_key(name)
+            || self.types.literal_bindings.contains_key(name)
+            || self.types.comptime_values.contains_key(name)
+        {
+            return None;
+        }
+        let name = sanitize_name(name);
+        for parent_len in (1..=self.current_module_path.len()).rev() {
+            let relative = format!(
+                "{}::{}",
+                self.current_module_path[..parent_len].join("::"),
+                name
+            );
+            if self.types.module_path_is_known(&relative) {
+                return Some(relative);
+            }
+        }
+        self.types.module_path_is_known(&name).then_some(name)
+    }
+
+    fn module_path_key(&self, expr: &Expr) -> Option<String> {
         match &expr.kind {
-            ExprKind::Var(name) => self.types.known_modules.contains(name),
-            ExprKind::Field(obj, _field) => self.is_module_path(obj),
-            _ => false,
+            ExprKind::Var(name) => self.visible_bare_module_path(name),
+            ExprKind::Field(obj, field) => {
+                let path = format!("{}::{}", self.module_path_key(obj)?, sanitize_name(field));
+                self.types.module_path_is_known(&path).then_some(path)
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve a source-level qualified alias to the module that owns the
+    /// emitted metadata. The Rust expression keeps the authored alias (whose
+    /// wrapper re-exports the original items), while constructor and binding
+    /// layout queries use the canonical module path.
+    fn canonical_module_metadata_path(&self, path: &str) -> String {
+        self.types.canonical_module_metadata_path(path)
+    }
+
+    fn qualified_module_callable_key(
+        &self,
+        func: &Expr,
+        arity: usize,
+    ) -> Option<(String, String, usize)> {
+        let ExprKind::Field(module, name) = &func.kind else {
+            return None;
+        };
+        let module_path = self.module_path_key(module)?;
+        Some((
+            self.canonical_module_metadata_path(&module_path),
+            name.clone(),
+            arity,
+        ))
+    }
+
+    fn emitted_free_rule_target(&mut self, func: &Expr, arity: usize) -> Option<String> {
+        match &func.kind {
+            ExprKind::Var(name)
+                if !self
+                    .ordinary_function_arities
+                    .contains(&(name.clone(), arity)) =>
+            {
+                self.rule_emitted_names.get(&(name.clone(), arity)).cloned()
+            }
+            ExprKind::Field(module, _) => {
+                let key = self.qualified_module_callable_key(func, arity)?;
+                let metadata = self.module_callable_metadata.get(&key)?;
+                if metadata.rules.is_none() {
+                    return None;
+                }
+                let emitted_name = metadata.emitted_name.clone();
+                Some(format!(
+                    "{}::{}",
+                    self.emit_module_path(module),
+                    emitted_name
+                ))
+            }
+            _ => None,
         }
     }
 
@@ -44562,6 +46056,67 @@ impl RustCodegen {
     }
 
     fn infer_expr_fir_ty(&self, expr: &Expr) -> FirTy {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                if let ExprKind::Field(module, name) = &func.as_ref().kind {
+                    if let Some(module_path) = self.module_path_key(module) {
+                        let metadata_path = self.canonical_module_metadata_path(&module_path);
+                        if let Some(metadata) = self
+                            .types
+                            .module_rule_scopes
+                            .get(&(metadata_path.clone(), name.clone()))
+                        {
+                            return FirTy::Named(format!(
+                                "crate::{}::{}",
+                                metadata_path, metadata.rust_name
+                            ));
+                        }
+                        if let Some(metadata) = self
+                            .types
+                            .module_variants
+                            .get(&(metadata_path.clone(), name.clone()))
+                        {
+                            return FirTy::Named(format!(
+                                "crate::{}::{}",
+                                metadata_path, metadata.parent
+                            ));
+                        }
+                        return self
+                            .module_callable_metadata
+                            .get(&(metadata_path, name.clone(), args.len()))
+                            .map(|metadata| metadata.return_type.clone())
+                            .unwrap_or(FirTy::Unknown);
+                    }
+                }
+            }
+            ExprKind::Field(module, name) => {
+                if let Some(module_path) = self.module_path_key(module) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), name.clone()))
+                    {
+                        return FirTy::Named(format!(
+                            "crate::{}::{}",
+                            metadata_path, metadata.rust_name
+                        ));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), name.clone()))
+                    {
+                        return FirTy::Named(format!(
+                            "crate::{}::{}",
+                            metadata_path, metadata.parent
+                        ));
+                    }
+                    return FirTy::Unknown;
+                }
+            }
+            _ => {}
+        }
         self.infer_expr_fir_ty_with_env(expr, self.current_type_env())
     }
 
@@ -44871,7 +46426,7 @@ impl RustCodegen {
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
-            && !self.types.known_modules.contains(name)
+            && self.visible_bare_module_path(name).is_none()
     }
 
     fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
@@ -45350,13 +46905,34 @@ impl RustCodegen {
     fn collect_inout_mutables_expr(&mut self, expr: &Expr) {
         match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(flags) = self.types.inout_params.get(fn_name.as_str()).cloned() {
-                        for (idx, arg) in args.iter().enumerate() {
-                            if flags.get(idx).copied().unwrap_or(false) {
-                                if let ExprKind::Var(var_name) = &arg.kind {
-                                    self.mutable_vars.insert(var_name.clone());
-                                }
+                let (inout_flags, param_names) = if let Some(key) =
+                    self.qualified_module_callable_key(func, args.len())
+                {
+                    self.module_callable_metadata.get(&key).map(|metadata| {
+                        (
+                            metadata.inout_params.clone(),
+                            Some(metadata.param_names.clone()),
+                        )
+                    })
+                } else if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                    self.types
+                        .inout_params
+                        .get(fn_name.as_str())
+                        .cloned()
+                        .map(|flags| (flags, self.types.call_params.get(fn_name.as_str()).cloned()))
+                } else {
+                    None
+                }
+                .unwrap_or_default();
+                if !inout_flags.is_empty() {
+                    let reordered_args = param_names
+                        .as_ref()
+                        .and_then(|params| reorder_named_args_by_names(params, args));
+                    let args_for_flags = reordered_args.as_deref().unwrap_or(args);
+                    for (idx, arg) in args_for_flags.iter().enumerate() {
+                        if inout_flags.get(idx).copied().unwrap_or(false) {
+                            if let ExprKind::Var(var_name) = &arg.kind {
+                                self.mutable_vars.insert(var_name.clone());
                             }
                         }
                     }
@@ -46769,6 +48345,13 @@ impl RustCodegen {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(params) = metadata.member_params.get(method) {
+                return Some(params.clone());
+            }
+        }
         let mut candidates = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidates.push(renamed.clone());
@@ -46783,6 +48366,29 @@ impl RustCodegen {
             }
         }
         None
+    }
+
+    fn rule_scope_member_fn_ty_for_type(&self, obj_ty: &FirTy, method: &str) -> Option<FirTy> {
+        let FirTy::Named(type_name) = obj_ty else {
+            return None;
+        };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(fn_ty) = metadata.member_fn_types.get(method) {
+                return Some(fn_ty.clone());
+            }
+        }
+        let mut candidates = vec![type_name.clone()];
+        if let Some(renamed) = self.types.type_rename.get(type_name) {
+            candidates.push(renamed.clone());
+        }
+        candidates.into_iter().find_map(|candidate| {
+            self.types
+                .rule_scope_member_fn_types
+                .get(&(candidate, method.to_string()))
+                .cloned()
+        })
     }
 
     fn rule_scope_method_uses_binary_global_env(&self, scope_name: &str, method: &str) -> bool {
@@ -46826,11 +48432,124 @@ impl RustCodegen {
                 )
             }
             ExprKind::Field(obj, method) => {
+                if let Some(module_path) = self.module_path_key(obj) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return reorder_named_args_by_names(&metadata.fields, args);
+                    }
+                    if let Some(metadata) = self.module_callable_metadata.get(&(
+                        metadata_path,
+                        method.clone(),
+                        args.len(),
+                    )) {
+                        return reorder_named_args_by_names(&metadata.param_names, args);
+                    }
+                }
                 let obj_ty = self.infer_expr_fir_ty(obj);
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
                 reorder_named_args_by_names(&params, args)
             }
             _ => None,
+        }
+    }
+
+    fn emit_qualified_module_constructor_app(
+        &mut self,
+        module: &Expr,
+        constructor: &str,
+        args: &[Expr],
+    ) -> Option<String> {
+        let module_path = self.module_path_key(module)?;
+        let emitted_module_path = self.emit_module_path(module);
+        let metadata_path = self.canonical_module_metadata_path(&module_path);
+        if let Some(metadata) = self
+            .types
+            .module_rule_scopes
+            .get(&(metadata_path.clone(), constructor.to_string()))
+            .cloned()
+        {
+            let reordered = has_named_args(args)
+                .then(|| reorder_named_args_by_names(&metadata.fields, args))
+                .flatten();
+            let args = reordered.as_deref().unwrap_or(args);
+            let emitted_args = args
+                .iter()
+                .enumerate()
+                .map(|(index, arg)| {
+                    let expected_ty = metadata
+                        .fields
+                        .get(index)
+                        .and_then(|field| metadata.field_types.get(field))
+                        .map(|ty| self.source_ty_to_fir(ty));
+                    if let Some(expected_ty) = expected_ty.as_ref() {
+                        self.emit_expr_with_expected_ty(arg, expected_ty)
+                    } else {
+                        self.emit_expr(arg)
+                    }
+                })
+                .collect::<Vec<_>>();
+            return Some(format!(
+                "{}::{}({})",
+                emitted_module_path,
+                metadata.rust_name,
+                emitted_args.join(", ")
+            ));
+        }
+        let metadata = self
+            .types
+            .module_variants
+            .get(&(metadata_path, constructor.to_string()))?
+            .clone();
+        let reordered = has_named_args(args)
+            .then(|| reorder_named_args_by_names(&metadata.fields, args))
+            .flatten();
+        let args = reordered.as_deref().unwrap_or(args);
+        let wrap_fn = if metadata.uses_rc {
+            format!("{}::new", self.rc_name())
+        } else {
+            "Box::new".to_string()
+        };
+        let emitted_args = args
+            .iter()
+            .enumerate()
+            .map(|(index, arg)| {
+                let expected_ty = metadata
+                    .fields
+                    .get(index)
+                    .and_then(|field| metadata.field_types.get(field))
+                    .map(|ty| self.source_ty_to_fir(ty));
+                let emitted = if let Some(expected_ty) = expected_ty.as_ref() {
+                    self.emit_expr_with_expected_ty(arg, expected_ty)
+                } else {
+                    self.emit_expr(arg)
+                };
+                if metadata.boxed_args.contains(&index) {
+                    format!("{}({})", wrap_fn, emitted)
+                } else {
+                    emitted
+                }
+            })
+            .collect::<Vec<_>>();
+        let parent_path = format!("{}::{}", emitted_module_path, metadata.parent);
+        let constructor_path = if metadata.struct_type {
+            parent_path
+        } else {
+            format!("{}::{}", parent_path, sanitize_name(constructor))
+        };
+        if metadata.positional {
+            Some(format!("{}({})", constructor_path, emitted_args.join(", ")))
+        } else {
+            let fields = metadata
+                .fields
+                .iter()
+                .zip(emitted_args)
+                .map(|(field, value)| format!("{}: {}", sanitize_name(field), value))
+                .collect::<Vec<_>>();
+            Some(format!("{} {{ {} }}", constructor_path, fields.join(", ")))
         }
     }
 
@@ -46891,6 +48610,378 @@ impl RustCodegen {
         self.emit_expr_with_expected_ty(expr, expected_ty)
     }
 
+    fn static_rule_family_for_call(
+        &self,
+        func: &Expr,
+        arity: usize,
+    ) -> Option<(Vec<Rule>, Option<String>, FirTy)> {
+        match &func.kind {
+            ExprKind::Field(obj, method) => {
+                if let Some(key) = self.qualified_module_callable_key(func, arity) {
+                    let metadata = self.module_callable_metadata.get(&key)?;
+                    return metadata
+                        .rules
+                        .clone()
+                        .map(|rules| (rules, Some(key.0), metadata.return_type.clone()));
+                }
+
+                let obj_ty = self.infer_expr_fir_ty(obj);
+                if let FirTy::Named(type_name) = &obj_ty {
+                    if let Some((module_path, metadata)) =
+                        self.types.module_rule_scope_for_named_type(type_name)
+                    {
+                        let rules = metadata.member_rules.get(method)?.clone();
+                        let return_type = metadata
+                            .member_fn_types
+                            .get(method)
+                            .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                            .unwrap_or(FirTy::Unknown);
+                        return Some((rules, Some(module_path), return_type));
+                    }
+
+                    let mut scope_names = vec![type_name.clone()];
+                    if let Some(renamed) = self.types.type_rename.get(type_name) {
+                        scope_names.push(renamed.clone());
+                    }
+                    for scope_name in scope_names {
+                        let Some(rules) = self
+                            .types
+                            .rule_scope_member_rules
+                            .get(&(scope_name.clone(), method.clone()))
+                        else {
+                            continue;
+                        };
+                        let return_type = self
+                            .types
+                            .rule_scope_member_fn_types
+                            .get(&(scope_name, method.clone()))
+                            .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                            .unwrap_or(FirTy::Unknown);
+                        return Some((rules.clone(), None, return_type));
+                    }
+                }
+                None
+            }
+            ExprKind::Var(name) => {
+                if self
+                    .ordinary_function_arities
+                    .contains(&(name.clone(), arity))
+                    || self.types.variant_parent.contains_key(name)
+                    || self.builtin_registry.contains_key(name)
+                    || (self.local_bindings.contains(name)
+                        && !self.static_call_bypasses_non_callable_local(name, arity))
+                    || self
+                        .types
+                        .effect_ops
+                        .values()
+                        .any(|operations| operations.contains(name))
+                {
+                    return None;
+                }
+
+                if self.current_rule_scope_methods.get(name) == Some(&arity) {
+                    let scope_name = self.current_rule_scope_name.as_ref()?;
+                    let rules = self
+                        .types
+                        .rule_scope_member_rules
+                        .get(&(scope_name.clone(), name.clone()))?
+                        .clone();
+                    let return_type = self
+                        .types
+                        .rule_scope_member_fn_types
+                        .get(&(scope_name.clone(), name.clone()))
+                        .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                        .unwrap_or(FirTy::Unknown);
+                    return Some((rules, None, return_type));
+                }
+
+                let rules = self.types.prolog_rule_groups.get(name)?.clone();
+                let return_type = self
+                    .types
+                    .fn_types_by_arity
+                    .get(&(name.clone(), arity))
+                    .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                    .unwrap_or(FirTy::Unknown);
+                Some((rules, None, return_type))
+            }
+            _ => None,
+        }
+    }
+
+    fn canonicalize_static_rule_ty(&self, owner_path: Option<&str>, ty: FirTy) -> FirTy {
+        let ty = if let Some(owner_path) = owner_path {
+            self.types.qualify_module_fir_ty(owner_path, ty)
+        } else {
+            ty
+        };
+        match ty {
+            FirTy::Named(name) => {
+                let qualified = if name.starts_with("crate::") {
+                    name
+                } else if name.contains('.') {
+                    format!(
+                        "crate::{}",
+                        name.split('.')
+                            .map(sanitize_name)
+                            .collect::<Vec<_>>()
+                            .join("::")
+                    )
+                } else if name.contains("::") {
+                    format!("crate::{}", name)
+                } else {
+                    return FirTy::Named(name);
+                };
+                if let Some((path, rust_name)) = TypeRegistry::qualified_type_parts(&qualified) {
+                    FirTy::Named(format!(
+                        "crate::{}::{}",
+                        self.canonical_module_metadata_path(&path),
+                        rust_name
+                    ))
+                } else {
+                    FirTy::Named(qualified)
+                }
+            }
+            FirTy::List(inner) => FirTy::List(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Option(inner) => FirTy::Option(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Result(ok, err) => FirTy::Result(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *ok)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *err)),
+            ),
+            FirTy::Tuple(items) => FirTy::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.canonicalize_static_rule_ty(owner_path, item))
+                    .collect(),
+            ),
+            FirTy::Map(key, value) => FirTy::Map(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *key)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *value)),
+            ),
+            FirTy::Set(inner) => FirTy::Set(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Arrow(param, ret) => FirTy::Arrow(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *param)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *ret)),
+            ),
+            other => other,
+        }
+    }
+
+    fn static_rule_ty_contains_qualified_nominal(ty: &FirTy) -> bool {
+        match ty {
+            FirTy::Named(name) => name.starts_with("crate::"),
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                Self::static_rule_ty_contains_qualified_nominal(inner)
+            }
+            FirTy::Result(left, right) | FirTy::Map(left, right) => {
+                Self::static_rule_ty_contains_qualified_nominal(left)
+                    || Self::static_rule_ty_contains_qualified_nominal(right)
+            }
+            FirTy::Tuple(items) => items
+                .iter()
+                .any(Self::static_rule_ty_contains_qualified_nominal),
+            FirTy::Arrow(param, ret) => {
+                Self::static_rule_ty_contains_qualified_nominal(param)
+                    || Self::static_rule_ty_contains_qualified_nominal(ret)
+            }
+            _ => false,
+        }
+    }
+
+    fn static_rule_named_owner_uncertain(&self, type_name: &str) -> bool {
+        let Some((path, rust_name)) = TypeRegistry::qualified_type_parts(type_name) else {
+            return false;
+        };
+        let path = self.canonical_module_metadata_path(&path);
+        self.types
+            .module_variants
+            .iter()
+            .any(|((module_path, _), metadata)| {
+                module_path == &path
+                    && metadata.parent == rust_name
+                    && metadata.canonical_owner_uncertain
+            })
+            || self
+                .types
+                .module_rule_scopes
+                .iter()
+                .any(|((module_path, _), metadata)| {
+                    module_path == &path
+                        && metadata.rust_name == rust_name
+                        && metadata.canonical_owner_uncertain
+                })
+    }
+
+    fn static_rule_nominal_inclusion_possible(&self, expected: &str, actual: &str) -> bool {
+        let expected_leaf = expected.rsplit("::").next().unwrap_or(expected);
+        let actual_leaf = actual.rsplit("::").next().unwrap_or(actual);
+        if let (Some((expected_path, expected_rust)), Some((actual_path, actual_rust))) = (
+            TypeRegistry::qualified_type_parts(expected),
+            TypeRegistry::qualified_type_parts(actual),
+        ) {
+            let expected_path = self.canonical_module_metadata_path(&expected_path);
+            let actual_path = self.canonical_module_metadata_path(&actual_path);
+            return expected_path == actual_path
+                && self.types.module_variants.iter().any(
+                    |((module_path, constructor), metadata)| {
+                        module_path == &expected_path
+                            && metadata.parent == expected_rust
+                            && (constructor == &actual_rust || constructor == actual_leaf)
+                    },
+                );
+        }
+
+        self.types
+            .type_decls
+            .get(expected_leaf)
+            .or_else(|| {
+                self.types
+                    .type_rename
+                    .iter()
+                    .find_map(|(source, rust)| (rust == expected_leaf).then(|| source))
+                    .and_then(|source| self.types.type_decls.get(source))
+            })
+            .is_some_and(|(_, variants)| variants.iter().any(|variant| variant == actual_leaf))
+    }
+
+    fn static_rule_param_relation(
+        &self,
+        expected: &FirTy,
+        actual: &FirTy,
+    ) -> StaticRuleParamRelation {
+        if expected == actual
+            || matches!(expected, FirTy::Unknown | FirTy::Var(_))
+            || matches!(actual, FirTy::Unknown | FirTy::Var(_))
+        {
+            return StaticRuleParamRelation::CompatibleOrUnknown;
+        }
+
+        if let (FirTy::Named(expected), FirTy::Named(actual)) = (expected, actual) {
+            if self.static_rule_named_owner_uncertain(expected)
+                || self.static_rule_named_owner_uncertain(actual)
+            {
+                return StaticRuleParamRelation::UnsupportedCanonicalOwner;
+            }
+            if self.static_rule_nominal_inclusion_possible(expected, actual)
+                || self.static_rule_nominal_inclusion_possible(actual, expected)
+            {
+                return StaticRuleParamRelation::CompatibleOrUnknown;
+            }
+            return StaticRuleParamRelation::NominallyDisjoint;
+        }
+
+        if Self::static_rule_ty_contains_qualified_nominal(expected)
+            || Self::static_rule_ty_contains_qualified_nominal(actual)
+        {
+            return StaticRuleParamRelation::UnsupportedStructuralAbi;
+        }
+        StaticRuleParamRelation::CompatibleOrUnknown
+    }
+
+    fn static_rule_call_resolution(&self, func: &Expr, args: &[Expr]) -> StaticRuleCallResolution {
+        let Some((rules, owner_path, return_type)) =
+            self.static_rule_family_for_call(func, args.len())
+        else {
+            return StaticRuleCallResolution::EmitNormally;
+        };
+        if return_type != FirTy::Bool {
+            return StaticRuleCallResolution::EmitNormally;
+        }
+
+        let reordered_args = self.reorder_named_app_args_for_emit(func, args);
+        let args = reordered_args.as_deref().unwrap_or(args);
+        let actual_tys = args
+            .iter()
+            .map(|arg| {
+                let arg = named_arg_parts(arg).map(|(_, value)| value).unwrap_or(arg);
+                self.canonicalize_static_rule_ty(None, self.infer_expr_fir_ty(arg))
+            })
+            .collect::<Vec<_>>();
+        let mut saw_candidate = false;
+        let mut unsupported = None;
+
+        for rule in &rules {
+            let head = match rule {
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. } => head,
+                Rule::ReactiveScope { .. } => continue,
+            };
+            let ExprKind::App(_, head_args) = &head.kind else {
+                continue;
+            };
+            if head_args.len() != args.len() {
+                continue;
+            }
+            saw_candidate = true;
+            let mut clause_is_disjoint = false;
+            let mut clause_unsupported = None;
+            for (head_arg, actual_ty) in head_args.iter().zip(&actual_tys) {
+                let Some(expected_ty) = self.typed_rule_arg_fir_ty(head_arg) else {
+                    continue;
+                };
+                let expected_ty =
+                    self.canonicalize_static_rule_ty(owner_path.as_deref(), expected_ty);
+                match self.static_rule_param_relation(&expected_ty, actual_ty) {
+                    StaticRuleParamRelation::CompatibleOrUnknown => {}
+                    StaticRuleParamRelation::NominallyDisjoint => {
+                        clause_is_disjoint = true;
+                    }
+                    StaticRuleParamRelation::UnsupportedCanonicalOwner => {
+                        clause_unsupported = Some(
+                            "td-625bb9: canonical plain/hash cross-parent type ownership is unsupported by generated Rust",
+                        );
+                    }
+                    StaticRuleParamRelation::UnsupportedStructuralAbi => {
+                        clause_unsupported = Some(
+                            "td-afa433: structural cross-namespace Rule ABI is unsupported by generated Rust",
+                        );
+                    }
+                }
+            }
+            if clause_is_disjoint {
+                continue;
+            }
+            if let Some(reason) = clause_unsupported {
+                unsupported = Some(reason);
+                continue;
+            }
+            return StaticRuleCallResolution::EmitNormally;
+        }
+
+        if !saw_candidate {
+            StaticRuleCallResolution::EmitNormally
+        } else if let Some(reason) = unsupported {
+            StaticRuleCallResolution::Unsupported(reason)
+        } else {
+            StaticRuleCallResolution::NominalMiss
+        }
+    }
+
+    fn emit_static_rule_nominal_miss(&mut self, func: &Expr, args: &[Expr]) -> String {
+        let mut evaluations = Vec::new();
+        if let ExprKind::Field(obj, _) = &func.kind {
+            if self.module_path_key(obj).is_none() {
+                evaluations.push(self.emit_expr(obj));
+            }
+        }
+        evaluations.extend(args.iter().map(|arg| {
+            let arg = named_arg_parts(arg).map(|(_, value)| value).unwrap_or(arg);
+            self.emit_expr(arg)
+        }));
+        let evaluations = evaluations
+            .into_iter()
+            .map(|value| format!("let _ = {};", value))
+            .collect::<Vec<_>>()
+            .join(" ");
+        format!("{{ {} false }}", evaluations)
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         if let Some(path) = pathof_canonical_path(expr) {
             return format!("{:?}.to_string()", path);
@@ -46943,7 +49034,7 @@ impl RustCodegen {
                 if self.in_iter_closure
                     && !self.closure_params.contains(name.as_str())
                     && !self.copy_vars.contains(name.as_str())
-                    && !self.types.known_modules.contains(name.as_str())
+                    && self.visible_bare_module_path(name).is_none()
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -46961,7 +49052,7 @@ impl RustCodegen {
                 // Multi-use non-Copy variables: clone to avoid move errors
                 // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
-                    && !self.types.known_modules.contains(name.as_str())
+                    && self.visible_bare_module_path(name).is_none()
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -46989,6 +49080,22 @@ impl RustCodegen {
                         "()".to_string()
                     };
                 }
+                if let ExprKind::Field(module, constructor) = &func.as_ref().kind {
+                    if let Some(emitted) =
+                        self.emit_qualified_module_constructor_app(module, constructor, args)
+                    {
+                        return emitted;
+                    }
+                }
+                match self.static_rule_call_resolution(func, args) {
+                    StaticRuleCallResolution::EmitNormally => {}
+                    StaticRuleCallResolution::NominalMiss => {
+                        return self.emit_static_rule_nominal_miss(func, args);
+                    }
+                    StaticRuleCallResolution::Unsupported(reason) => {
+                        return format!("{{ compile_error!({:?}); false }}", reason);
+                    }
+                }
                 let resolved_constructor_parent = match &func.as_ref().kind {
                     ExprKind::Var(name) => self.types.parent_for_variant_with_call_args(name, args),
                     _ => None,
@@ -47006,8 +49113,28 @@ impl RustCodegen {
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
                 let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");
-                // Method calls: string literal args stay as &str (no .to_string())
-                let is_method_call = matches!(func.as_ref().kind, ExprKind::Field(..));
+                let qualified_module_callable_key =
+                    self.qualified_module_callable_key(func, args.len());
+                let is_qualified_module_call = qualified_module_callable_key.is_some();
+                let module_callable_metadata = qualified_module_callable_key
+                    .as_ref()
+                    .and_then(|key| self.module_callable_metadata.get(key))
+                    .cloned();
+                let emitted_rule_target = self.emitted_free_rule_target(func, args.len());
+                // Object methods accept string literals as &str. Module-qualified
+                // free functions instead follow their captured module ABI.
+                let is_method_call =
+                    matches!(func.as_ref().kind, ExprKind::Field(..)) && !is_qualified_module_call;
+                let method_fn_ty = if let ExprKind::Field(obj, method) = &func.as_ref().kind {
+                    is_method_call
+                        .then(|| {
+                            let obj_ty = self.infer_expr_fir_ty(obj);
+                            self.rule_scope_member_fn_ty_for_type(&obj_ty, method)
+                        })
+                        .flatten()
+                } else {
+                    None
+                };
 
                 // Extract the function name (for Var or module-qualified Field access)
                 let resolved_fn_name: Option<&str> = match &func.as_ref().kind {
@@ -47016,23 +49143,39 @@ impl RustCodegen {
                     ExprKind::Field(_obj, fn_name) => Some(fn_name.as_str()),
                     _ => None,
                 };
-                let bypass_non_callable_local = resolved_fn_name.is_some_and(|name| {
-                    self.static_call_bypasses_non_callable_local(name, args.len())
-                });
+                let bypass_non_callable_local = !is_qualified_module_call
+                    && resolved_fn_name.is_some_and(|name| {
+                        self.static_call_bypasses_non_callable_local(name, args.len())
+                    });
 
                 // Prolog rule functions: take &str, not String
-                let is_prolog_call = resolved_fn_name
-                    .map(|n| self.types.prolog_rule_fns.contains_key(n))
-                    .unwrap_or(false);
+                let is_prolog_call = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .is_some_and(|metadata| metadata.prolog_param_types.is_some())
+                } else {
+                    resolved_fn_name
+                        .map(|n| self.types.prolog_rule_fns.contains_key(n))
+                        .unwrap_or(false)
+                };
 
                 // Check if the called function has inout params
-                let inout_flags =
-                    resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned());
+                let inout_flags = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .map(|metadata| metadata.inout_params.clone())
+                } else {
+                    resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned())
+                };
 
                 // Phase 2: Check if the called function has auto-borrow params
                 // Skip borrow flags for Prolog/Datalog rules — they take by value
                 let borrow_flags = if is_prolog_call {
                     None
+                } else if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .map(|metadata| metadata.borrow_only_params.clone())
                 } else {
                     resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned())
                 };
@@ -47049,10 +49192,18 @@ impl RustCodegen {
                         if is_inout {
                             if let ExprKind::Var(n) = &a.kind {
                                 // Copy-on-write: shared + inout → Arc::make_mut
-                                let is_cow = resolved_fn_name
-                                    .and_then(|fn_n| self.types.cow_params.get(fn_n))
-                                    .map(|f| f.get(idx).copied().unwrap_or(false))
-                                    .unwrap_or(false);
+                                let is_cow = if is_qualified_module_call {
+                                    module_callable_metadata
+                                        .as_ref()
+                                        .and_then(|metadata| metadata.cow_params.get(idx))
+                                        .copied()
+                                        .unwrap_or(false)
+                                } else {
+                                    resolved_fn_name
+                                        .and_then(|fn_n| self.types.cow_params.get(fn_n))
+                                        .map(|f| f.get(idx).copied().unwrap_or(false))
+                                        .unwrap_or(false)
+                                };
                                 if is_cow {
                                     return format!(
                                         "std::sync::Arc::make_mut(&mut {})",
@@ -47086,14 +49237,31 @@ impl RustCodegen {
                         );
                         let s = if is_method_call || is_prolog_call {
                             if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
-                                format!("{:?}", str_val) // &str, no .to_string()
+                                let method_takes_owned_string = method_fn_ty
+                                    .as_ref()
+                                    .and_then(|fn_ty| Self::arrow_param_fir_ty(fn_ty, idx))
+                                    .is_some_and(|ty| ty == FirTy::String);
+                                if is_prolog_call || !method_takes_owned_string {
+                                    format!("{:?}", str_val) // &str, no .to_string()
+                                } else {
+                                    self.emit_expr(a)
+                                }
                             } else if is_prolog_call {
                                 let base = self.emit_expr(a);
-                                let param_is_str = resolved_fn_name
-                                    .and_then(|n| self.types.prolog_rule_fns.get(n))
-                                    .and_then(|types| types.get(idx))
-                                    .map(|t| t == "&str")
-                                    .unwrap_or(false);
+                                let param_is_str = if is_qualified_module_call {
+                                    module_callable_metadata
+                                        .as_ref()
+                                        .and_then(|metadata| metadata.prolog_param_types.as_ref())
+                                        .and_then(|types| types.get(idx))
+                                        .map(|ty| ty == "&str")
+                                        .unwrap_or(false)
+                                } else {
+                                    resolved_fn_name
+                                        .and_then(|n| self.types.prolog_rule_fns.get(n))
+                                        .and_then(|types| types.get(idx))
+                                        .map(|ty| ty == "&str")
+                                        .unwrap_or(false)
+                                };
                                 if param_is_str
                                     && matches!(a.kind, ExprKind::Var(ref n) if n != "_")
                                 {
@@ -48014,6 +50182,8 @@ impl RustCodegen {
                         all_args.extend(effect_args);
                         let target = if bypass_non_callable_local {
                             format!("self::{}", sanitize_name(name))
+                        } else if let Some(target) = emitted_rule_target.as_ref() {
+                            target.clone()
                         } else {
                             sanitize_name(name)
                         };
@@ -48043,7 +50213,10 @@ impl RustCodegen {
                                 }
                             })
                             .collect();
-                        let call = format!("{}({})", sanitize_name(name), new_args.join(", "));
+                        let target = emitted_rule_target
+                            .clone()
+                            .unwrap_or_else(|| sanitize_name(name));
+                        let call = format!("{}({})", target, new_args.join(", "));
                         parts.push(call);
                         return format!("{{ {} }}", parts.join(" "));
                     }
@@ -48080,14 +50253,21 @@ impl RustCodegen {
                     ExprKind::Var(name) if bypass_non_callable_local => {
                         format!("self::{}", sanitize_name(name))
                     }
+                    _ if emitted_rule_target.is_some() => emitted_rule_target.unwrap(),
                     _ => self.emit_expr(func),
                 };
                 let call = format!("{}({})", f, args_str.join(", "));
                 // Value-returning Prolog functions return Option<T> — default on missing fact
-                if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if self.types.prolog_value_fns.contains_key(name.as_str()) {
-                        return format!("{}.unwrap_or_default()", call);
-                    }
+                let is_prolog_value_call = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .is_some_and(|metadata| metadata.prolog_value)
+                } else {
+                    matches!(&func.as_ref().kind, ExprKind::Var(name)
+                        if self.types.prolog_value_fns.contains_key(name.as_str()))
+                };
+                if is_prolog_value_call {
+                    return format!("{}.unwrap_or_default()", call);
                 }
                 call
             }
@@ -48502,20 +50682,31 @@ impl RustCodegen {
                 // Handles nested modules: App.Utils.func → App::Utils::func
                 if self.is_module_path(obj) {
                     let path = self.emit_module_path(obj);
+                    let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+                    let metadata_path = self.canonical_module_metadata_path(&metadata_key);
                     // If field is a variant constructor, insert the parent type
                     // e.g. Lib.Red → Lib::Color::Red (not Lib::Red)
-                    if let Some(parent) = self.types.variant_parent.get(field) {
-                        return format!(
-                            "{}::{}::{}",
-                            path,
-                            self.rust_type_name(parent),
-                            sanitize_name(field)
-                        );
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), field.clone()))
+                    {
+                        if metadata.struct_type {
+                            return format!("{}::{}", path, metadata.parent);
+                        }
+                        return format!("{}::{}::{}", path, metadata.parent, sanitize_name(field));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), field.clone()))
+                    {
+                        return format!("{}::{}", path, metadata.rust_name);
                     }
                     if self
                         .types
                         .module_value_bindings
-                        .get(&path)
+                        .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
                         return format!("{}::{}()", path, sanitize_name(field));
@@ -48523,7 +50714,7 @@ impl RustCodegen {
                     if self
                         .types
                         .module_stream_bindings
-                        .get(&path)
+                        .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
                         return format!("{}::{}()", path, sanitize_name(field));
@@ -48547,6 +50738,100 @@ impl RustCodegen {
                         _ => None,
                     },
                 };
+                if let Some(type_name) = obj_type_name.as_deref() {
+                    if let Some(module_variants) =
+                        self.types.module_variants_for_named_type(type_name)
+                    {
+                        if let Some((_constructor, metadata)) = module_variants
+                            .iter()
+                            .find(|(_, metadata)| metadata.struct_type)
+                        {
+                            if let Some(field_index) =
+                                metadata.fields.iter().position(|name| name == field)
+                            {
+                                let obj_str = self.emit_expr(obj);
+                                let is_boxed = metadata.boxed_args.contains(&field_index);
+                                let field_is_copy =
+                                    metadata.field_types.get(field).is_some_and(is_copy_type);
+                                let needs_clone = metadata.uses_rc
+                                    || match &obj.as_ref().kind {
+                                        ExprKind::Var(var_name) => {
+                                            self.current_borrow_params.contains(var_name.as_str())
+                                                || self
+                                                    .var_consuming_counts
+                                                    .get(var_name)
+                                                    .copied()
+                                                    .unwrap_or(0)
+                                                    > 1
+                                        }
+                                        _ => true,
+                                    };
+                                let clone_suffix = if needs_clone && !field_is_copy {
+                                    ".clone()"
+                                } else {
+                                    ""
+                                };
+                                if is_boxed {
+                                    return format!(
+                                        "(*{}.{}){}",
+                                        obj_str,
+                                        sanitize_name(field),
+                                        clone_suffix
+                                    );
+                                }
+                                return format!(
+                                    "{}.{}{}",
+                                    obj_str,
+                                    sanitize_name(field),
+                                    clone_suffix
+                                );
+                            }
+                        } else {
+                            let obj_str = self.emit_expr(obj);
+                            let mut arms = Vec::new();
+                            for (constructor, metadata) in module_variants {
+                                if metadata.positional {
+                                    continue;
+                                }
+                                let Some(field_index) =
+                                    metadata.fields.iter().position(|name| name == field)
+                                else {
+                                    continue;
+                                };
+                                let clone_expr = if metadata.boxed_args.contains(&field_index) {
+                                    "(**__f).clone()"
+                                } else {
+                                    "__f.clone()"
+                                };
+                                arms.push(format!(
+                                    "{}::{} {{ {}: ref __f, .. }} => {}",
+                                    type_name,
+                                    sanitize_name(&constructor),
+                                    sanitize_name(field),
+                                    clone_expr
+                                ));
+                            }
+                            if !arms.is_empty() {
+                                if arms.len() == 1 {
+                                    return format!(
+                                        "{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
+                                        arms[0].split(" => ").next().unwrap(),
+                                        obj_str,
+                                        arms[0].split(" => ").nth(1).unwrap()
+                                    );
+                                }
+                                arms.push(
+                                    "_ => panic!(\"field access on wrong variant\")".to_string(),
+                                );
+                                return format!(
+                                    "{{ match {} {{ {} }} }}",
+                                    obj_str,
+                                    arms.join(", ")
+                                );
+                            }
+                        }
+                    }
+                }
                 // Struct direct field access: check if the OBJECT's type is a struct
                 // by looking up the variable's type from params or bindings.
                 {
@@ -49135,7 +51420,7 @@ impl RustCodegen {
             || self.ref_match_bindings.contains(name.as_str());
         !self.types.variant_parent.contains_key(name.as_str())
             && !self.copy_vars.contains(name.as_str())
-            && (!self.types.known_modules.contains(name.as_str()) || runtime_binding)
+            && self.visible_bare_module_path(name).is_none()
             && (!self.types.user_functions.contains(name.as_str()) || runtime_binding)
             && (!self.types.prolog_rule_fns.contains_key(name.as_str()) || runtime_binding)
             && (!self.builtin_registry.contains_key(name.as_str()) || runtime_binding)
@@ -49171,15 +51456,17 @@ impl RustCodegen {
             return None;
         }
         let path = self.emit_module_path(obj);
+        let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+        let metadata_path = self.canonical_module_metadata_path(&metadata_key);
         let is_value_binding = self
             .types
             .module_value_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field));
         let is_stream_binding = self
             .types
             .module_stream_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field));
         if is_value_binding || is_stream_binding {
             Some(format!("{}::{}()", path, sanitize_name(field)))
@@ -49196,9 +51483,11 @@ impl RustCodegen {
             return None;
         }
         let path = self.emit_module_path(obj);
+        let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+        let metadata_path = self.canonical_module_metadata_path(&metadata_key);
         self.types
             .module_stream_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field))
             .then(|| format!("{}::{}()", path, sanitize_name(field)))
     }
@@ -50053,7 +52342,7 @@ impl RustCodegen {
 
     fn if_branch_var_needs_clone(&self, name: &str) -> bool {
         !self.copy_vars.contains(name)
-            && !self.types.known_modules.contains(name)
+            && self.visible_bare_module_path(name).is_none()
             && !self.types.user_functions.contains(name)
             && !self.types.prolog_rule_fns.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
@@ -56901,7 +59190,7 @@ module Local
             Some(main_path.to_str().expect("utf-8 test path")),
         );
 
-        let expected = r#"exports: consumer, read_threshold, reader, signature_symbol, threshold
+        let expected = r#"exports: consumer, reader, signature_symbol
 module-exports Config: read_threshold, threshold
 @ export
 fn signature_symbol/3
@@ -58237,7 +60526,14 @@ for x in [1, 2] {
         compile_and_capture_generated_test_code(&code)
     }
 
-    fn compile_and_capture_generated_test_code(code: &str) -> std::process::Output {
+    fn compile_generated_test_code(
+        code: &str,
+    ) -> (
+        std::process::Output,
+        std::path::PathBuf,
+        std::path::PathBuf,
+        std::path::PathBuf,
+    ) {
         let temp_name = format!(
             "futuruna_compiled_wrapper_{}_{}",
             std::process::id(),
@@ -58264,6 +60560,11 @@ for x in [1, 2] {
             ])
             .output()
             .unwrap();
+        (compile, temp_dir, rs_path, bin_path)
+    }
+
+    fn compile_and_capture_generated_test_code(code: &str) -> std::process::Output {
+        let (compile, temp_dir, rs_path, bin_path) = compile_generated_test_code(code);
         assert!(
             compile.status.success(),
             "generated Rust failed to compile:\nstdout:\n{}\nstderr:\n{}\ncode:\n{}",
@@ -58277,6 +60578,18 @@ for x in [1, 2] {
         let _ = std::fs::remove_file(&bin_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
         run
+    }
+
+    fn compile_generated_test_code_expect_failure(code: &str) -> std::process::Output {
+        let (compile, temp_dir, rs_path, bin_path) = compile_generated_test_code(code);
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert!(
+            !compile.status.success(),
+            "generated Rust unexpectedly compiled:\n{code}"
+        );
+        compile
     }
 
     fn compile_and_run_test_source(source: &str, filename: Option<&str>) -> String {
@@ -61684,49 +63997,1291 @@ readings <- "score"
     }
 
     #[test]
-    fn compiled_flat_and_qualified_imports_share_nested_type_identity() {
-        let temp_name = format!(
-            "futuruna_shared_import_type_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+    fn codegen_export_collection_includes_prefixed_rules_and_adt_variants() {
+        let stmts = parse_test_program(
+            r#"
+@ export
+| eligible(value: Int) -> value > 0
+@ export
+# Decision = Accepted | Rejected(reason: String)
+"#,
         );
-        let temp_dir = std::env::temp_dir().join(temp_name);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let codegen = RustCodegen::new();
+        let exports = codegen.collect_exported_names_from_stmts(&stmts);
+        assert_eq!(
+            exports,
+            BTreeSet::from([
+                "Accepted".to_string(),
+                "Decision".to_string(),
+                "Rejected".to_string(),
+                "eligible".to_string(),
+            ])
+        );
+    }
 
+    #[test]
+    fn codegen_qualified_import_supports_prefix_and_posthoc_exported_rules() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rule-export-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+| prefixed(value: Int) -> value + 10 under value > 0
+| posthoc(value: Int) -> value + 20 under value > 0
+@ export posthoc
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Policy from ./dep
+@ print(show(Policy.prefixed(1)))
+@ print(show(Policy.posthoc(2)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        // The runtime worktree owns the shared frontend export normalizer. Keep
+        // this branch-local regression at the codegen boundary so the independent
+        // patch proves both canonical forms without duplicating src/lib.rs changes.
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated prefix/posthoc rule binary failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "11\n22\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_import_rules_stay_in_each_module_namespace() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rule-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+> private_offset() -> Int { 100 }
+| private_adjust(value: Int) -> value + private_offset() under value > 0
+| route(left: Int, right: Int) -> private_adjust(left) + right under left > 0
+@ export route
+
+| tagged("remote")
+@ export tagged
+
+| label("remote") -> "found"
+@ export label
+
+@ export
+> wrapped_route(left: Int, right: Int) -> Int { route(left, right) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Remote from ./dep
+@ import Second from ./dep
+
+| private_adjust(value: Int, extra: Int) -> value + extra + 1000 under value > 0
+= root_delta = 1
+| route(value: Int) -> value + root_delta under value > 0
+> private_offset() -> Int { 1 }
+
+@ print(show(route(4)))
+@ print(show(Remote.route(1, 2)))
+@ print(show(Remote.wrapped_route(2, 3)))
+@ print(show(Second.route(3, 4)))
+@ print(show(Remote.tagged("remote")))
+@ print(show(Second.tagged("other")))
+@ print(Remote.label("remote"))
+@ print(Second.label("other"))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            compile_and_run_test_file(&main_path),
+            "5\n103\n105\n107\ntrue\nfalse\nfound\n\n"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_namespace_fixture_match() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/verify/qualified_namespace_parity.runa");
+        let expected = "2\n101\n101\n101\n11\n101\n23\n203\n101\n203";
+        let interpreted = interpret_test_file(&path);
+        let compiled = compile_and_run_test_file(&path);
+        assert_eq!(interpreted.trim(), expected);
+        assert_eq!(compiled.trim(), expected);
+        assert_eq!(compiled.trim(), interpreted.trim());
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_nominal_rule_miss_match() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-nominal-rule-miss");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Remote = Remote(value: Int)
+
+| accepts(value: Remote) -> True
+@ export accepts
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Local = Local(value: Int)
+@ import Q from ./dep
+
+@ print(show(Q.accepts(Q.Remote(1))))
+@ print(show(Q.accepts(Local(1))))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let compiled = compile_and_run_test_file(&main_path);
+        assert_eq!(interpreted.trim(), "true\nfalse");
+        assert_eq!(compiled.trim(), interpreted.trim());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_structural_rule_abi_fails_closed() {
+        let source = r#"
+# Local = Local(Int)
+> module Q {
+    # Remote = Remote(Int)
+    | accepts(values: List(Remote)) -> True
+}
+
+@ print(show(Q.accepts([Local(1)])))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-afa433"), "generated Rust: {rust}");
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-afa433"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+    }
+
+    #[test]
+    fn compiled_qualified_cross_parent_plain_import_ownership_fails_closed() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-canonical-owner");
+        std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::write(
             temp_dir.join("types.runa"),
-            "@ export\n# Item = Item(String)\n@ export\n> item_name(item: Item) -> String { match item { | Item(name) -> name } }\n",
+            r#"
+@ export
+# Item = Item(Int)
+"#,
         )
         .unwrap();
         std::fs::write(
-            temp_dir.join("shared.runa"),
-            "@ import ./types\n@ export\n> make_item(name: String) -> Item { Item(name) }\n",
+            temp_dir.join("left.runa"),
+            r#"
+@ import ./types
+| accepts(value: Item) -> True
+@ export accepts
+"#,
         )
         .unwrap();
         std::fs::write(
-            temp_dir.join("policy.runa"),
-            "@ import ./types\n@ export\n> label(item: Item) -> String { \"policy:\" + item_name(item) }\n",
+            temp_dir.join("right.runa"),
+            r#"
+@ import ./types
+@ export
+> make() -> Item { Item(1) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Left from ./left
+@ import Right from ./right
+@ print(show(Left.accepts(Right.make())))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-625bb9"), "generated Rust: {rust}");
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-625bb9"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_root_callables_use_precollected_qualified_abi() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-abi-precollect");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+| label("x") -> "ok"
+
+@ export
+> borrowed(value: String) -> Int { length(value) }
+
+@ export
+> append(values: inout List(Int), value: Int) -> () { push(values, value) }
+
+@ export
+> append_shared(values: inout shared List(Int), value: Int) -> () { push(values, value) }
+
+| route(left: Int, right: Int) -> left * 10 + right under left > 0
+@ export route
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+> before_import(value: String) -> Int { Q.borrowed(value) }
+
+@ import Q from ./dep
+
+| wrapped(name: String) -> Q.label(name)
+
+= values = [1]
+= shared_values = shared([1])
+@ print(wrapped("x"))
+@ print(show(before_import("abcd")))
+Q.append(value = 2, values = values)
+Q.append_shared(value = 3, values = shared_values)
+@ print(show(length(values)))
+@ print(show(shared_values[1]))
+@ print(show(Q.route(right = 2, left = 1)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated qualified ABI precollection binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "ok\n4\n2\n3\n12\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_forward_chain_precollects_nominal_return_type() {
+        let source = r#"
+> module A {
+    | make() -> B.make()
+}
+> module B {
+    | make() -> C.make()
+}
+> module C {
+    # Packet = Packet(value: Int)
+    | make() -> Packet(value = 4)
+}
+
+= packet = A.make()
+@ print(show(packet.value + 1))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        assert_eq!(
+            codegen
+                .module_callable_metadata
+                .get(&("A".to_string(), "make".to_string(), 0))
+                .map(|metadata| &metadata.return_type),
+            Some(&FirTy::Named("crate::C::Packet".to_string())),
+            "module metadata: {:#?}",
+            codegen.module_callable_metadata
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "5\n");
+    }
+
+    #[test]
+    fn compiler_validation_checks_qualified_named_arguments() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-named-validation");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(left: Int, right: Int)
+
+@ export
+> route(left: Int, right: Int) -> Int { left * 10 + right }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Q from ./dep
+= bad_packet = Q.Packet(nope = 1)
+= mixed = Q.route(left = 1, 2)
+= duplicate = Q.route(left = 1, left = 2)
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let diags = compiler_validation_diagnostics(
+            &stmts,
+            source_dir_for(main_path.to_str().unwrap()),
+            Some(main_path.to_string_lossy().to_string()),
+        );
+        let messages = diags
+            .iter()
+            .map(|diag| diag.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            messages.contains("constructor `Q::Packet` has no field `nope`"),
+            "missing qualified constructor-field diagnostic: {messages}"
+        );
+        assert!(
+            messages.contains("function/rule `Q::route` call mixes named and positional"),
+            "missing qualified mixed-argument diagnostic: {messages}"
+        );
+        assert!(
+            messages
+                .contains("function/rule `Q::route` parameter `left` was provided more than once"),
+            "missing qualified duplicate-argument diagnostic: {messages}"
+        );
+        assert!(
+            messages.contains("function/rule `Q::route` is missing named argument `right`"),
+            "missing qualified required-argument diagnostic: {messages}"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_module_owned_names_mask_root_cross_category_metadata() {
+        let temp_dir = unique_temp_workspace("futuruna-module-cross-category-shadow");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("callables.runa"),
+            r#"
+@ export
+> Packet(value: Int) -> Int { value + 1 }
+| Route(value: Int) -> value + 2 under value > 0
+
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+@ export Policy
+
+@ export
+> call_all() -> Int { Packet(1) + Route(1) + Policy(1, 2).score(1) }
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("constructors.runa"),
+            r#"
+@ export
+# RemoteValue = Build(Int)
+
+@ export
+> make_value(value: Int) -> RemoteValue { Build(value) }
+
+@ export
+> read_value(value: RemoteValue) -> Int {
+    match value { | Build(inner) -> inner }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Q from ./callables
+@ import C from ./constructors
+
+# RootTokens = Packet(Int) | Route(Int) | Policy(Int)
+> Build(value: Int) -> Int { value + 100 }
+
+@ print(show(Q.call_all()))
+@ print(show(Q.Packet(2)))
+@ print(show(C.read_value(C.make_value(4))))
+@ print(show(C.read_value(C.Build(6))))
+@ print(show(Build(4)))
+"#,
         )
         .unwrap();
 
-        let flat_first = temp_dir.join("flat_first.runa");
-        std::fs::write(
-            &flat_first,
-            "@ import ./shared\n@ import Policy from ./policy\n= item = make_item(\"one\")\n@ print(Policy.label(item))\n",
-        )
-        .unwrap();
-        assert_eq!(compile_and_run_test_file(&flat_first), "policy:one\n");
+        assert_eq!(compile_and_run_test_file(&main_path), "9\n3\n4\n6\n104\n");
 
-        let qualified_first = temp_dir.join("qualified_first.runa");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_constructor_uses_module_parent_and_layout() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-constructor-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::write(
-            &qualified_first,
-            "@ import Policy from ./policy\n@ import ./shared\n= item = make_item(\"two\")\n@ print(Policy.label(item))\n",
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(left: Int, right: Int)
+
+@ export
+> packet_total(packet: RemotePacket) -> Int {
+    match packet { | Packet(left: left, right: right) -> left + right }
+}
+"#,
         )
         .unwrap();
-        assert_eq!(compile_and_run_test_file(&qualified_first), "policy:two\n");
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# RootPacket = Packet(Int)
+@ import Remote from ./dep
+
+> root_total(packet: RootPacket) -> Int {
+    match packet { | Packet(value) -> value }
+}
+
+= root_packet = Packet(5)
+= remote_packet = Remote.Packet(7, 8)
+@ print(show(root_total(root_packet)))
+@ print(show(Remote.packet_total(remote_packet)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n15\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_module_recursive_adt_does_not_mark_same_named_root_adt_recursive() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-recursive-adt-collision");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+# Chain = Empty | Link(Int, Chain)
+@ export Chain
+
+> child_sum(chain: Chain) -> Int {
+    match chain {
+        | Empty -> 0
+        | Link(value, next) -> value + child_sum(next)
+    }
+}
+
+@ export
+> child_total() -> Int { child_sum(Link(2, Link(3, Empty))) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Chain = Link(Int)
+@ import Remote from ./dep
+
+> root_total(chain: Chain) -> Int {
+    match chain { | Link(value) -> value }
+}
+
+@ print(show(root_total(Link(5))))
+@ print(show(Remote.child_total()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n5\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_root_display_impl_does_not_suppress_module_auto_display() {
+        let source = r#"
+# Packet = Packet(value: Int)
+# impl std::fmt::Display for Packet {
+    > display_marker() -> Int { 0 }
+}
+> module Q {
+    # Packet = Packet(value: Int)
+}
+
+@ print(Packet(1))
+@ print(Q.Packet(2))
+"#;
+        let mut user_stmts = parse_test_program(source);
+        user_stmts.push(Stmt::RustBlock(
+            r#"impl std::fmt::Display for Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "root:{}", self.value)
+    }
+}"#
+            .to_string(),
+        ));
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated root/module Display isolation binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "root:1\nPacket(value: 2)\n"
+        );
+    }
+
+    #[test]
+    fn compiled_module_display_impl_is_precollected_and_does_not_suppress_root_auto_display() {
+        let source = r#"
+# Packet = Packet(value: Int)
+> module Q {
+    # Packet = Packet(value: Int)
+    # impl std::fmt::Display for Packet {
+        > display_marker() -> Int { 0 }
+    }
+}
+
+@ print(Packet(1))
+@ print(Q.Packet(2))
+"#;
+        let mut user_stmts = parse_test_program(source);
+        for stmt in &mut user_stmts {
+            let Stmt::Defn(Defn::Module { name, body }) = stmt else {
+                continue;
+            };
+            if name == "Q" {
+                body.push(Stmt::RustBlock(
+                    r#"impl std::fmt::Display for Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "child:{}", self.value)
+    }
+}"#
+                    .to_string(),
+                ));
+            }
+        }
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated module/root Display isolation binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "Packet(value: 1)\nchild:2\n"
+        );
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_aliases_keep_distinct_adt_owners() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-alias-type-owners");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(Int, Int)
+
+@ export
+> make_packet(left: Int, right: Int) -> RemotePacket { Packet(left, right) }
+
+@ export
+> consume_packet(packet: RemotePacket) -> Int {
+    match packet { | Packet(left, right) -> left + right }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Remote from ./dep
+@ import Remote from ./dep
+@ import Second from ./dep
+
+@ print(show(Remote.consume_packet(Remote.make_packet(2, 3))))
+@ print(show(Second.consume_packet(Second.make_packet(4, 5))))
+"#,
+        )
+        .unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let source = std::fs::read_to_string(&main_path).unwrap();
+        let user_stmts = parse_test_program(&source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(rust.contains("mod Remote {"), "generated Rust: {rust}");
+        assert!(rust.contains("mod Second {"), "generated Rust: {rust}");
+        assert!(
+            !rust.contains("pub use super::Remote::*"),
+            "aliases must not share one Rust owner: {rust}"
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert_eq!(interpreted.trim(), "5\n9");
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5\n9");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_aliases_keep_distinct_descendant_module_paths() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-alias-descendant-paths");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+> module Inner {
+    > value() -> Int { 10 }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import First from ./dep
+@ import Second from ./dep
+
+@ print(show(First.Inner.value()))
+@ print(show(Second.Inner.value()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "10\n10\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_can_read_ancestor_value_and_stream_getters() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-ancestor-module-getters");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+= secret = 7
+~ readings = subject(41)
+
+@ export
+> module Inner {
+    > total() -> Int { secret + readings.latest }
+    > reading_count() -> Int { readings.count }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./dep
+@ print(show(A.Inner.total()))
+@ print(show(A.Inner.reading_count()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "48\n1\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_qualified_imports_keep_parent_specific_exports() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-export-paths");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf_a.runa"),
+            "@ export\n> left() -> Int { 11 }\n> hidden_a() -> Int { 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("leaf_b.runa"),
+            "@ export\n> right() -> Int { 22 }\n> hidden_b() -> Int { 2 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_a.runa"),
+            "@ import X from ./leaf_a\n@ export\n> call_left() -> Int { X.left() }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_b.runa"),
+            "@ import X from ./leaf_b\n@ export\n> call_right() -> Int { X.right() }\n",
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./outer_a
+@ import B from ./outer_b
+
+@ print(show(A.call_left()))
+@ print(show(B.call_right()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "11\n22\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_qualified_shared_leaf_instantiates_under_each_parent() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-shared-leaf");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 10 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_a.runa"),
+            "@ import X from ./leaf\n@ export\n> total() -> Int { X.value() + 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_b.runa"),
+            "@ import X from ./leaf\n@ export\n> total() -> Int { X.value() + 2 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("hub.runa"),
+            r#"
+@ import A from ./outer_a
+@ import B from ./outer_b
+
+@ export
+> combined() -> Int { A.total() + B.total() }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            "@ import Q from ./hub\n@ print(show(Q.combined()))\n",
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "23\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_module_deduplicates_repeated_plain_imports() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-repeated-plain-import");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 10 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            r#"
+@ import ./leaf
+@ import ./leaf
+
+@ export
+> total() -> Int { value() + 1 }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            "@ import Q from ./outer\n@ print(show(Q.total()))\n",
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "11\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn codegen_nested_qualified_metadata_uses_full_lexical_path() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-metadata-path");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(Int, Int)
+
+@ export
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+
+@ export
+> packet_total(packet: RemotePacket) -> Int {
+    match packet { | Packet(left, right) -> left + right }
+}
+
+@ export
+> borrowed(value: String) -> Int { length(value) }
+
+@ export
+> append(values: inout List(Int), value: Int) -> () { push(values, value) }
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            r#"
+@ import X from ./leaf
+
+@ export
+> module Inner {
+    > nested_total() -> Int {
+        = values = [1]
+        X.append(values, 2)
+        X.packet_total(X.Packet(3, 4)) + X.borrowed("abc") + X.Policy(5, 6).score(1) + length(values)
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import A from ./outer
+
+# RootPacket = Packet(Int)
+# RootPolicy = Policy(Int)
+
+@ print(show(A.Inner.nested_total()))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        // Direct qualified RuleScope construction is still outside the shared
+        // frontend's accepted surface on this base revision. Exercise the
+        // generated-Rust boundary so all nested metadata paths compile and run.
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(
+            rust.contains("X::RemotePacket::Packet(3i64, 4i64)")
+                && rust.contains("X::Policy(5i64, 6i64)"),
+            "nested metadata should resolve through A::X while emitted Rust stays relative: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("A::X::RemotePacket") && !rust.contains("A::X::Policy"),
+            "nested emitted paths must not duplicate their current parent module: {}",
+            rust
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated nested qualified metadata binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "24\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_rulescope_uses_module_layout_and_members() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rulescope-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+
+@ export
+> policy_score(offset: Int, bonus: Int, value: Int) -> Int {
+    Policy(offset, bonus).score(value)
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Policy(offset: Int) {
+    | score(value: Int) -> value + offset under value > 0
+}
+@ import Remote from ./dep
+
+@ print(show(Policy(5).score(1)))
+@ print(show(Remote.policy_score(7, 3, 1)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "6\n11\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_escaped_qualified_rulescope_keeps_member_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rulescope-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Policy(seed: Int) {
+    | score(left: Int, right: String) -> seed + left + length(right) under left > 0
+}
+
+@ export
+> make_policy(seed: Int) -> Policy { Policy(seed) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Policy(seed: Int) {
+    | score(right: String, left: Int, extra: Int) -> right under left > 0
+}
+@ import Remote from ./dep
+
+= policy = Remote.make_policy(5)
+@ print(show(policy.score(right = "xx", left = 3)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated RuleScope provenance binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "10\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_escaped_qualified_adt_keeps_field_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-adt-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(value: Int)
+
+@ export
+> make_packet() -> Packet { Packet(value = 4) }
+
+@ export
+# Choice = Left(value: Int) | Right(value: Int)
+
+@ export
+> make_choice(left: Bool) -> Choice {
+    if left { Left(value = 4) } else { Right(value = 6) }
+}
+
+@ export
+# Chain = Chain(value: Int, next: Option(Chain))
+
+@ export
+> make_chain() -> Chain {
+    Chain(value = 1, next = Some(Chain(value = 2, next = None)))
+}
+
+@ export
+> next_value(next: Option(Chain)) -> Int {
+    match next {
+        | Some(chain) -> chain.value
+        | None -> 0
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Packet = Packet(value: String)
+# Choice = Left(value: String) | Right(value: String)
+# Chain = Chain(value: String, next: String)
+@ import Remote from ./dep
+
+= packet = Remote.make_packet()
+= left = Remote.make_choice(True)
+= right = Remote.make_choice(False)
+= chain = Remote.make_chain()
+@ print(show(packet.value + 1))
+@ print(show(left.value + 1))
+@ print(show(right.value + 1))
+@ print(show(Remote.next_value(chain.next)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n5\n7\n2\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_returns_keep_ancestor_type_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-ancestor-type-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(value: Int)
+
+@ export
+> module Inner {
+    > make() -> Packet { Packet(value = 4) }
+
+    # Factory(value: Int) {
+        > make() -> Packet { Packet(value = value) }
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Packet = Packet(value: String)
+@ import A from ./dep
+
+= direct = A.Inner.make()
+= member = A.Inner.Factory(6).make()
+@ print(show(direct.value + 1))
+@ print(show(member.value + 1))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated ancestor-provenance binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "5\n7\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_name_does_not_capture_root_value() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-module-value-shadow");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 99 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            "@ import X from ./leaf\n@ export\n> call() -> Int { X.value() }\n",
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./outer
+# Record = Record(value: Int)
+= X = Record(value = 7)
+> duplicate(X: String) -> String { X + X }
+@ print(show(X.value))
+@ print(duplicate("v"))
+@ print(show(A.call()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "7\nvv\n99\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn qualified_exports_do_not_make_same_named_root_item_public() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-export-root-isolation");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+> shared() -> Int { 10 }
+
+@ export
+# SharedType = SharedType(Int)
+
+@ export
+# SharedScope(seed: Int) {
+    | score() -> seed
+}
+
+@ export
+> module SharedModule {
+    > value() -> Int { 10 }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Q from ./dep
+# SharedType = SharedType(Int)
+# SharedScope(seed: Int) {
+    | score() -> seed
+}
+> module SharedModule {
+    > value() -> Int { 1 }
+}
+> shared() -> Int { 1 }
+@ print(show(shared()))
+@ print(show(Q.shared()))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(
+            rust.lines().any(|line| line == "fn shared() -> i64 {"),
+            "same-named root function should remain private: {rust}"
+        );
+        assert!(
+            rust.lines()
+                .any(|line| line.starts_with("struct SharedType")),
+            "same-named root ADT should remain private: {rust}"
+        );
+        assert!(
+            rust.lines().any(|line| line == "struct SharedScope {"),
+            "same-named root RuleScope should remain private: {rust}"
+        );
+        assert!(
+            rust.lines().any(|line| line == "mod SharedModule {"),
+            "same-named root module should remain private: {rust}"
+        );
+        assert!(
+            !codegen.types.root_exported_names.contains("shared"),
+            "qualified exports must not enter the root/WASM export set"
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "1\n10\n");
+
+        let mut wasm_validation = RustCodegen::new();
+        wasm_validation.source_dir = source_dir_for(main_path.to_str().unwrap());
+        let wasm_issues = wasm_validation.collect_wasm_export_issues(&stmts);
+        assert!(
+            wasm_issues.is_empty(),
+            "qualified exports must not be validated as root WASM exports: {wasm_issues:?}"
+        );
+
+        let mut wasm_codegen = RustCodegen::new();
+        wasm_codegen.wasm_mode = true;
+        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        let wasm_rust = wasm_codegen.emit_program(&stmts);
+        assert!(
+            wasm_rust.lines().any(|line| line == "fn shared() -> i64 {"),
+            "same-named root function must not receive a WASM export attribute: {wasm_rust}"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
