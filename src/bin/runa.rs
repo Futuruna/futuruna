@@ -12874,70 +12874,1179 @@ fn smt_imported_library_statement(statement: &Stmt) -> bool {
     )
 }
 
-fn resolve_smt_plain_imports(
-    statements: &[Stmt],
-    source_dir: &str,
-    visited: &mut BTreeSet<String>,
-    output: &mut Vec<Stmt>,
-) -> Result<(), String> {
-    for statement in statements {
-        let Stmt::Import(import_path) = statement else {
-            continue;
-        };
-        let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
-            .ok_or_else(|| {
-                format!(
-                    "cannot resolve imported module `{}` from `{}`",
-                    import_path, source_dir
-                )
-            })?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
-        if !visited.insert(canonical) {
-            continue;
-        }
-        let module = parse_source_module_file_cached(Path::new(&file_path))
-            .map_err(|error| format!("cannot parse imported module `{}`: {}", file_path, error))?;
-        let imported_dir = Path::new(&file_path)
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."))
-            .to_string_lossy()
-            .to_string();
-        resolve_smt_plain_imports(module.statements(), &imported_dir, visited, output)?;
-        output.extend(
-            module
-                .statements()
-                .iter()
-                .filter(|statement| smt_imported_library_statement(statement))
-                .cloned(),
-        );
-    }
-    Ok(())
+#[derive(Debug, Clone)]
+struct SmtResolvedNamespace {
+    identity: String,
+    display_name: String,
+    statements: Vec<Stmt>,
+    exports: BTreeSet<String>,
+    qualified_imports: BTreeMap<String, String>,
 }
 
-fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<Vec<Stmt>, String> {
-    let source_dir = Path::new(filename)
+#[derive(Debug, Clone)]
+struct SmtResolvedProgram {
+    root_identity: String,
+    namespaces: BTreeMap<String, SmtResolvedNamespace>,
+}
+
+#[derive(Default)]
+struct SmtProgramResolver {
+    namespaces: BTreeMap<String, SmtResolvedNamespace>,
+    active_sources: BTreeSet<String>,
+}
+
+fn smt_source_dir(file_path: &str) -> String {
+    Path::new(file_path)
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."))
         .to_string_lossy()
-        .to_string();
+        .to_string()
+}
+
+fn smt_canonical_source(file_path: &str) -> String {
+    std::fs::canonicalize(file_path)
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| file_path.to_string())
+}
+
+fn smt_exported_names(statements: &[Stmt]) -> BTreeSet<String> {
+    let mut exported = BTreeSet::new();
+    let mut export_next = false;
+    for statement in statements {
+        if let Stmt::Annot(name, arguments) = statement {
+            if name == "export" {
+                for argument in arguments {
+                    if let ExprKind::Var(name) = &argument.kind {
+                        exported.insert(name.clone());
+                    }
+                }
+                export_next = arguments.is_empty();
+                continue;
+            }
+        }
+        if !export_next {
+            continue;
+        }
+        match statement {
+            Stmt::Defn(Defn::Fn { name, .. })
+            | Stmt::Defn(Defn::Actor { name, .. })
+            | Stmt::Defn(Defn::Module { name, .. })
+            | Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+            | Stmt::TypeDecl(TypeDecl::RuleScope { name, .. })
+            | Stmt::Bind(Pat::Var(name), _, _)
+            | Stmt::StreamBind(name, _) => {
+                exported.insert(name.clone());
+            }
+            Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                if let Some((name, _)) = rule.callable_name_arity() {
+                    exported.insert(name);
+                }
+            }
+            _ => {}
+        }
+        export_next = false;
+    }
+    for statement in statements {
+        if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = statement {
+            if exported.contains(name) {
+                exported.extend(variants.iter().map(|variant| variant.name.clone()));
+            }
+        }
+    }
+    exported
+}
+
+impl SmtProgramResolver {
+    fn resolve(
+        mut self,
+        statements: &[Stmt],
+        filename: &str,
+    ) -> Result<SmtResolvedProgram, String> {
+        let root_identity = "root".to_string();
+        let root_canonical = smt_canonical_source(filename);
+        self.active_sources.insert(root_canonical.clone());
+        let mut visited = BTreeSet::from([root_canonical]);
+        self.resolve_namespace(
+            root_identity.clone(),
+            "root".to_string(),
+            statements,
+            &smt_source_dir(filename),
+            BTreeSet::new(),
+            &mut visited,
+            true,
+        )?;
+        self.active_sources.clear();
+        Ok(SmtResolvedProgram {
+            root_identity,
+            namespaces: self.namespaces,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_namespace(
+        &mut self,
+        identity: String,
+        display_name: String,
+        statements: &[Stmt],
+        source_dir: &str,
+        exports: BTreeSet<String>,
+        visited_plain_sources: &mut BTreeSet<String>,
+        retain_program_flow: bool,
+    ) -> Result<(), String> {
+        if self.namespaces.contains_key(&identity) {
+            return Ok(());
+        }
+        let mut resolved_statements = Vec::new();
+        let mut qualified_imports = BTreeMap::new();
+        self.collect_namespace_statements(
+            statements,
+            source_dir,
+            &identity,
+            &display_name,
+            visited_plain_sources,
+            retain_program_flow,
+            &mut resolved_statements,
+            &mut qualified_imports,
+        )?;
+        self.namespaces.insert(
+            identity.clone(),
+            SmtResolvedNamespace {
+                identity,
+                display_name,
+                statements: resolved_statements,
+                exports,
+                qualified_imports,
+            },
+        );
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn collect_namespace_statements(
+        &mut self,
+        statements: &[Stmt],
+        source_dir: &str,
+        namespace_identity: &str,
+        namespace_display_name: &str,
+        visited_plain_sources: &mut BTreeSet<String>,
+        retain_program_flow: bool,
+        output: &mut Vec<Stmt>,
+        qualified_imports: &mut BTreeMap<String, String>,
+    ) -> Result<(), String> {
+        // Plain imports are declaration overlays in the current namespace and
+        // precede the importing source, matching interpreter/codegen lookup.
+        for statement in statements {
+            let Stmt::Import(import_path) = statement else {
+                continue;
+            };
+            let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+                .ok_or_else(|| {
+                    format!(
+                        "cannot resolve imported module `{}` from `{}`",
+                        import_path, source_dir
+                    )
+                })?;
+            let canonical = smt_canonical_source(&file_path);
+            if !visited_plain_sources.insert(canonical.clone()) {
+                continue;
+            }
+            if self.active_sources.contains(&canonical) {
+                return Err(format!(
+                    "import cycle reaches `{}` from SMT namespace `{}`",
+                    file_path, namespace_display_name
+                ));
+            }
+            let module =
+                parse_source_module_file_cached(Path::new(&file_path)).map_err(|error| {
+                    format!("cannot parse imported module `{}`: {}", file_path, error)
+                })?;
+            self.active_sources.insert(canonical.clone());
+            let result = self.collect_namespace_statements(
+                module.statements(),
+                &smt_source_dir(&file_path),
+                namespace_identity,
+                namespace_display_name,
+                visited_plain_sources,
+                false,
+                output,
+                qualified_imports,
+            );
+            self.active_sources.remove(&canonical);
+            result?;
+        }
+
+        // Qualified sources are isolated namespace instances. Their identity
+        // mirrors RuntimeNamespace: parent + alias + canonical source + hash.
+        for statement in statements {
+            let Stmt::QualifiedImport(alias, import_path) = statement else {
+                continue;
+            };
+            let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+                .ok_or_else(|| {
+                    format!(
+                        "cannot resolve qualified module `{}` from `{}`",
+                        import_path, source_dir
+                    )
+                })?;
+            let canonical = smt_canonical_source(&file_path);
+            let module =
+                parse_source_module_file_cached(Path::new(&file_path)).map_err(|error| {
+                    format!("cannot parse qualified module `{}`: {}", file_path, error)
+                })?;
+            let child_identity = format!(
+                "{}/qualified:{}:{}:{}",
+                namespace_identity,
+                alias,
+                canonical,
+                module.content_hash()
+            );
+            if let Some(previous) = qualified_imports.get(alias) {
+                if previous != &child_identity {
+                    return Err(format!(
+                        "qualified import alias `{}` resolves to more than one module in `{}`",
+                        alias, namespace_display_name
+                    ));
+                }
+                continue;
+            }
+            if self.active_sources.contains(&canonical) {
+                return Err(format!(
+                    "qualified import cycle reaches `{}` from `{}`",
+                    file_path, namespace_display_name
+                ));
+            }
+            qualified_imports.insert(alias.clone(), child_identity.clone());
+            if !self.namespaces.contains_key(&child_identity) {
+                self.active_sources.insert(canonical.clone());
+                let mut child_visited = BTreeSet::from([canonical.clone()]);
+                let child_display_name = if namespace_display_name == "root" {
+                    alias.clone()
+                } else {
+                    format!("{}.{}", namespace_display_name, alias)
+                };
+                let result = self.resolve_namespace(
+                    child_identity,
+                    child_display_name,
+                    module.statements(),
+                    &smt_source_dir(&file_path),
+                    smt_exported_names(module.statements()),
+                    &mut child_visited,
+                    false,
+                );
+                self.active_sources.remove(&canonical);
+                result?;
+            }
+        }
+
+        output.extend(
+            statements
+                .iter()
+                .filter(|statement| {
+                    !matches!(statement, Stmt::Import(_) | Stmt::QualifiedImport(_, _))
+                        && (retain_program_flow || smt_imported_library_statement(statement))
+                })
+                .cloned(),
+        );
+        Ok(())
+    }
+}
+
+fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<SmtResolvedProgram, String> {
+    SmtProgramResolver::default().resolve(statements, filename)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SmtCallableKind {
+    Function,
+    Rule,
+    Binding,
+    UnresolvedFunction,
+    UnresolvedValue,
+}
+
+impl SmtCallableKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Function => "function",
+            Self::Rule => "rule",
+            Self::Binding => "binding",
+            Self::UnresolvedFunction => "unresolved-function",
+            Self::UnresolvedValue => "unresolved-value",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct SmtCallableIdentity {
+    namespace: String,
+    kind: SmtCallableKind,
+    scope: Option<String>,
+    name: String,
+    arity: usize,
+}
+
+impl SmtCallableIdentity {
+    fn symbol(&self) -> String {
+        let components = [
+            self.namespace.as_str(),
+            self.kind.label(),
+            self.scope.as_deref().unwrap_or(""),
+            self.name.as_str(),
+        ];
+        let mut encoded = format!("|runa_smt_v1_{}_", self.kind.label().replace('-', "_"));
+        for component in components {
+            use std::fmt::Write;
+            let _ = write!(encoded, "{}x", component.len());
+            for byte in component.as_bytes() {
+                let _ = write!(encoded, "{:02x}", byte);
+            }
+            encoded.push('_');
+        }
+        use std::fmt::Write;
+        let _ = write!(encoded, "{}|", self.arity);
+        encoded
+    }
+
+    fn internal_source_name(&self) -> String {
+        if self.namespace == "root" {
+            self.name.clone()
+        } else {
+            self.symbol()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmtNamespaceSymbols {
+    display_name: String,
+    exports: BTreeSet<String>,
+    qualified_imports: BTreeMap<String, String>,
+    functions: BTreeMap<(String, usize), SmtCallableIdentity>,
+    rules: BTreeMap<(String, usize), SmtCallableIdentity>,
+    bindings: BTreeMap<String, SmtCallableIdentity>,
+    constructors: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmtSymbolIndex {
+    namespaces: BTreeMap<String, SmtNamespaceSymbols>,
+    rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
+}
+
+impl SmtSymbolIndex {
+    fn from_program(program: &SmtResolvedProgram) -> Result<Self, String> {
+        let mut index = Self::default();
+        for namespace in program.namespaces.values() {
+            let mut symbols = SmtNamespaceSymbols {
+                display_name: namespace.display_name.clone(),
+                exports: namespace.exports.clone(),
+                qualified_imports: namespace.qualified_imports.clone(),
+                ..SmtNamespaceSymbols::default()
+            };
+            for statement in &namespace.statements {
+                match statement {
+                    Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                        let identity = SmtCallableIdentity {
+                            namespace: namespace.identity.clone(),
+                            kind: SmtCallableKind::Function,
+                            scope: None,
+                            name: name.clone(),
+                            arity: params.len(),
+                        };
+                        let key = (name.clone(), params.len());
+                        if symbols.functions.insert(key, identity).is_some() {
+                            return Err(format!(
+                                "duplicate function `{}` with arity {} in SMT namespace `{}`",
+                                name,
+                                params.len(),
+                                namespace.display_name
+                            ));
+                        }
+                    }
+                    Stmt::Rule(rule) => {
+                        let Some((name, arity)) = rule.callable_name_arity() else {
+                            continue;
+                        };
+                        let identity = SmtCallableIdentity {
+                            namespace: namespace.identity.clone(),
+                            kind: SmtCallableKind::Rule,
+                            scope: None,
+                            name: name.clone(),
+                            arity,
+                        };
+                        symbols.rules.entry((name, arity)).or_insert(identity);
+                    }
+                    Stmt::Bind(Pat::Var(name), _, _) => {
+                        symbols.bindings.entry(name.clone()).or_insert_with(|| {
+                            SmtCallableIdentity {
+                                namespace: namespace.identity.clone(),
+                                kind: SmtCallableKind::Binding,
+                                scope: None,
+                                name: name.clone(),
+                                arity: 0,
+                            }
+                        });
+                    }
+                    // Qualified nominal metadata is deliberately not merged into
+                    // the root SMT program. The direct qualified-call contract is
+                    // scalar-only until the typed namespace ABI is implemented.
+                    Stmt::TypeDecl(TypeDecl::ADT { variants, .. })
+                        if namespace.identity == program.root_identity =>
+                    {
+                        symbols
+                            .constructors
+                            .extend(variants.iter().map(|variant| variant.name.clone()));
+                    }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. })
+                        if namespace.identity == program.root_identity =>
+                    {
+                        symbols.constructors.insert(name.clone());
+                    }
+                    _ => {}
+                }
+            }
+            index.namespaces.insert(namespace.identity.clone(), symbols);
+        }
+
+        for symbols in index.namespaces.values() {
+            for identity in symbols.rules.values() {
+                index.rule_identities.insert(
+                    RuleDispatchKey {
+                        scope: identity.scope.clone(),
+                        name: identity.internal_source_name(),
+                        arity: identity.arity,
+                    },
+                    identity.clone(),
+                );
+            }
+        }
+        Ok(index)
+    }
+
+    fn namespace(&self, identity: &str) -> Result<&SmtNamespaceSymbols, String> {
+        self.namespaces
+            .get(identity)
+            .ok_or_else(|| format!("missing resolved SMT namespace `{}`", identity))
+    }
+
+    fn local_callable(
+        &self,
+        namespace: &str,
+        name: &str,
+        arity: usize,
+    ) -> Result<Option<&SmtCallableIdentity>, String> {
+        let symbols = self.namespace(namespace)?;
+        let function = symbols.functions.get(&(name.to_string(), arity));
+        let rule = symbols.rules.get(&(name.to_string(), arity));
+        match (function, rule) {
+            (Some(_), Some(_)) => Err(format!(
+                "SMT namespace `{}` has both a function and rule named `{}` with arity {}",
+                symbols.display_name, name, arity
+            )),
+            (Some(identity), None) | (None, Some(identity)) => Ok(Some(identity)),
+            (None, None) => Ok(None),
+        }
+    }
+
+    fn qualified_callable(
+        &self,
+        namespace: &str,
+        alias: &str,
+        member: &str,
+        arity: usize,
+    ) -> Result<&SmtCallableIdentity, String> {
+        let parent = self.namespace(namespace)?;
+        let child_identity = parent.qualified_imports.get(alias).ok_or_else(|| {
+            format!(
+                "`{}` is not a qualified import in SMT namespace `{}`",
+                alias, parent.display_name
+            )
+        })?;
+        let child = self.namespace(child_identity)?;
+        if !child.exports.contains(member) {
+            return Err(format!(
+                "qualified import `{}` has no exported member `{}`; add `@ export` in the imported file or use an exported member",
+                alias, member
+            ));
+        }
+        self.local_callable(child_identity, member, arity)?
+            .ok_or_else(|| {
+                format!(
+                    "qualified import `{}` exports `{}`, but not as a direct function or rule with arity {}; unsupported qualified calls fail closed in SMT verification",
+                    alias, member, arity
+                )
+            })
+    }
+}
+
+fn smt_unresolved_identity(
+    namespace: &str,
+    kind: SmtCallableKind,
+    name: &str,
+    arity: usize,
+) -> SmtCallableIdentity {
+    SmtCallableIdentity {
+        namespace: namespace.to_string(),
+        kind,
+        scope: None,
+        name: name.to_string(),
+        arity,
+    }
+}
+
+fn smt_qualified_scalar_type(ty: &Ty) -> bool {
+    matches!(
+        ty,
+        Ty::Name(name) if matches!(name.as_str(), "Int" | "Float" | "Bool" | "String")
+    ) || matches!(ty, Ty::Hole)
+}
+
+fn validate_smt_qualified_type(
+    ty: Option<&Ty>,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    let Some(ty) = ty else {
+        return Ok(());
+    };
+    if smt_qualified_scalar_type(ty) {
+        return Ok(());
+    }
+    Err(format!(
+        "qualified SMT namespace `{}` uses non-scalar type `{}`; nominal and structural qualified types are not yet supported and fail closed",
+        namespace_display_name, ty
+    ))
+}
+
+fn validate_smt_qualified_rule_head(
+    head: &Expr,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    let arguments = match &head.kind {
+        ExprKind::App(_, arguments) => arguments.as_slice(),
+        ExprKind::Var(_) => return Ok(()),
+        _ => {
+            return Err(format!(
+                "qualified SMT namespace `{}` has a computed rule head; unsupported qualified shapes fail closed",
+                namespace_display_name
+            ));
+        }
+    };
+    for argument in arguments {
+        let argument = if let Some((inner, type_name)) = typed_rule_head_argument(argument) {
+            if !matches!(type_name, "Int" | "Float" | "Bool" | "String") {
+                return Err(format!(
+                    "qualified SMT namespace `{}` uses non-scalar rule type `{}`; nominal qualified rule dispatch is not yet supported and fails closed",
+                    namespace_display_name, type_name
+                ));
+            }
+            inner
+        } else {
+            argument
+        };
+        match &argument.kind {
+            ExprKind::Var(name)
+                if name == "_" || !name.chars().next().is_some_and(char::is_uppercase) => {}
+            ExprKind::Lit(_) => {}
+            _ => {
+                return Err(format!(
+                    "qualified SMT namespace `{}` uses a nominal or computed rule-head pattern; unsupported qualified shapes fail closed",
+                    namespace_display_name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_smt_qualified_pattern(
+    pattern: &Pat,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    match pattern {
+        Pat::Wild | Pat::Var(_) | Pat::Lit(_) => Ok(()),
+        Pat::As(inner, _) => validate_smt_qualified_pattern(inner, namespace_display_name),
+        Pat::Con(..) | Pat::NamedCon(..) => Err(format!(
+            "qualified SMT namespace `{}` uses a nominal match pattern; nominal qualified types are not yet supported and fail closed",
+            namespace_display_name
+        )),
+    }
+}
+
+fn collect_smt_rule_head_bindings(expression: &Expr, bindings: &mut BTreeSet<String>) {
+    match &expression.kind {
+        ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") => {
+            if let Some(inner) = arguments.first() {
+                collect_smt_rule_head_bindings(inner, bindings);
+            }
+        }
+        ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) => {
+            if let Some(value) = arguments.get(1) {
+                collect_smt_rule_head_bindings(value, bindings);
+            }
+        }
+        ExprKind::Var(name)
+            if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+        {
+            bindings.insert(name.clone());
+        }
+        ExprKind::App(_, arguments) | ExprKind::Tuple(arguments) => {
+            for argument in arguments {
+                collect_smt_rule_head_bindings(argument, bindings);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rewrite_smt_rule_head(
+    head: &Expr,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Expr, String> {
+    let Some((name, arity)) = rule_head_name_arity_for_smt(head) else {
+        return Err("qualified SMT rule head has an unsupported computed shape".into());
+    };
+    let identity = symbols
+        .namespace(namespace)?
+        .rules
+        .get(&(name.clone(), arity))
+        .ok_or_else(|| {
+            format!(
+                "missing exact SMT rule identity for `{}` with arity {}",
+                name, arity
+            )
+        })?;
+    let renamed = identity.internal_source_name();
+    let kind = match &head.kind {
+        ExprKind::App(function, arguments) => ExprKind::App(
+            Box::new(Expr::new(ExprKind::Var(renamed), function.span)),
+            arguments.clone(),
+        ),
+        ExprKind::Var(_) => ExprKind::Var(renamed),
+        _ => unreachable!("rule_head_name_arity_for_smt accepted unsupported shape"),
+    };
+    Ok(Expr::new(kind, head.span))
+}
+
+fn rule_head_name_arity_for_smt(head: &Expr) -> Option<(String, usize)> {
+    match &head.kind {
+        ExprKind::App(function, arguments) => match &function.kind {
+            ExprKind::Var(name) => Some((name.clone(), arguments.len())),
+            _ => None,
+        },
+        ExprKind::Var(name) => Some((name.clone(), 0)),
+        _ => None,
+    }
+}
+
+fn rewrite_smt_expr_for_namespace(
+    expression: &Expr,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+    bound: &BTreeSet<String>,
+) -> Result<Expr, String> {
+    let span = expression.span;
+    let namespace_symbols = symbols.namespace(namespace)?;
+    let kind = match &expression.kind {
+        ExprKind::Var(name) => {
+            if bound.contains(name) {
+                ExprKind::Var(name.clone())
+            } else if let Some(identity) = namespace_symbols.bindings.get(name) {
+                ExprKind::Var(identity.internal_source_name())
+            } else if namespace != "root" && !namespace_symbols.constructors.contains(name) {
+                ExprKind::Var(
+                    smt_unresolved_identity(namespace, SmtCallableKind::UnresolvedValue, name, 0)
+                        .symbol(),
+                )
+            } else {
+                ExprKind::Var(name.clone())
+            }
+        }
+        ExprKind::Lit(literal) => ExprKind::Lit(literal.clone()),
+        ExprKind::App(function, arguments) => {
+            if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                let mut rewritten = arguments.clone();
+                if let Some(value) = rewritten.get_mut(1) {
+                    *value = rewrite_smt_expr_for_namespace(value, namespace, symbols, bound)?;
+                }
+                ExprKind::App(function.clone(), rewritten)
+            } else if let ExprKind::Field(receiver, member) = &function.kind {
+                if let ExprKind::Var(alias) = &receiver.kind {
+                    if !bound.contains(alias)
+                        && namespace_symbols.qualified_imports.contains_key(alias)
+                    {
+                        let identity = symbols.qualified_callable(
+                            namespace,
+                            alias,
+                            member,
+                            arguments.len(),
+                        )?;
+                        ExprKind::App(
+                            Box::new(Expr::new(
+                                ExprKind::Var(identity.internal_source_name()),
+                                function.span,
+                            )),
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    rewrite_smt_expr_for_namespace(
+                                        argument, namespace, symbols, bound,
+                                    )
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                    } else {
+                        ExprKind::App(
+                            Box::new(rewrite_smt_expr_for_namespace(
+                                function, namespace, symbols, bound,
+                            )?),
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    rewrite_smt_expr_for_namespace(
+                                        argument, namespace, symbols, bound,
+                                    )
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                    }
+                } else {
+                    ExprKind::App(
+                        Box::new(rewrite_smt_expr_for_namespace(
+                            function, namespace, symbols, bound,
+                        )?),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                }
+            } else if let ExprKind::Var(name) = &function.kind {
+                let rewritten_name = if bound.contains(name)
+                    || name == "not"
+                    || namespace_symbols.constructors.contains(name)
+                {
+                    name.clone()
+                } else if let Some(identity) =
+                    symbols.local_callable(namespace, name, arguments.len())?
+                {
+                    identity.internal_source_name()
+                } else if namespace == "root" {
+                    name.clone()
+                } else {
+                    smt_unresolved_identity(
+                        namespace,
+                        SmtCallableKind::UnresolvedFunction,
+                        name,
+                        arguments.len(),
+                    )
+                    .symbol()
+                };
+                ExprKind::App(
+                    Box::new(Expr::new(ExprKind::Var(rewritten_name), function.span)),
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            } else {
+                ExprKind::App(
+                    Box::new(rewrite_smt_expr_for_namespace(
+                        function, namespace, symbols, bound,
+                    )?),
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            }
+        }
+        ExprKind::Lambda(params, body) => {
+            let mut body_bound = bound.clone();
+            body_bound.extend(params.iter().map(|param| param.name.clone()));
+            ExprKind::Lambda(
+                params.clone(),
+                Box::new(rewrite_smt_expr_for_namespace(
+                    body,
+                    namespace,
+                    symbols,
+                    &body_bound,
+                )?),
+            )
+        }
+        ExprKind::BinOp(operator, left, right) => ExprKind::BinOp(
+            operator.clone(),
+            Box::new(rewrite_smt_expr_for_namespace(
+                left, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                right, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::UnOp(operator, inner) => ExprKind::UnOp(
+            operator.clone(),
+            Box::new(rewrite_smt_expr_for_namespace(
+                inner, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::If(condition, then_expression, else_expression) => ExprKind::If(
+            Box::new(rewrite_smt_expr_for_namespace(
+                condition, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                then_expression,
+                namespace,
+                symbols,
+                bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                else_expression,
+                namespace,
+                symbols,
+                bound,
+            )?),
+        ),
+        ExprKind::Match(scrutinee, arms) => {
+            let scrutinee = Box::new(rewrite_smt_expr_for_namespace(
+                scrutinee, namespace, symbols, bound,
+            )?);
+            let arms = arms
+                .iter()
+                .map(|arm| {
+                    if namespace != "root" {
+                        validate_smt_qualified_pattern(&arm.pat, &namespace_symbols.display_name)?;
+                    }
+                    let mut arm_bound = bound.clone();
+                    collect_smt_pattern_bindings(&arm.pat, &mut arm_bound);
+                    Ok(MatchArm {
+                        pat: arm.pat.clone(),
+                        guard: arm
+                            .guard
+                            .as_ref()
+                            .map(|guard| {
+                                rewrite_smt_expr_for_namespace(
+                                    guard, namespace, symbols, &arm_bound,
+                                )
+                            })
+                            .transpose()?,
+                        body: rewrite_smt_expr_for_namespace(
+                            &arm.body, namespace, symbols, &arm_bound,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            ExprKind::Match(scrutinee, arms)
+        }
+        ExprKind::Block(statements) => {
+            let mut block_bound = bound.clone();
+            let mut rewritten = Vec::with_capacity(statements.len());
+            for statement in statements {
+                match statement {
+                    Stmt::Bind(pattern, ty, value) => {
+                        let value = rewrite_smt_expr_for_namespace(
+                            value,
+                            namespace,
+                            symbols,
+                            &block_bound,
+                        )?;
+                        collect_smt_pattern_bindings(pattern, &mut block_bound);
+                        rewritten.push(Stmt::Bind(pattern.clone(), ty.clone(), value));
+                    }
+                    Stmt::Expr(inner) => rewritten.push(Stmt::Expr(
+                        rewrite_smt_expr_for_namespace(inner, namespace, symbols, &block_bound)?,
+                    )),
+                    other => rewritten.push(other.clone()),
+                }
+            }
+            ExprKind::Block(rewritten)
+        }
+        ExprKind::Field(receiver, member) => {
+            if let ExprKind::Var(alias) = &receiver.kind {
+                if !bound.contains(alias) && namespace_symbols.qualified_imports.contains_key(alias)
+                {
+                    return Err(format!(
+                        "qualified member `{}.{}` is not a direct function or rule call; unsupported qualified shapes fail closed in SMT verification",
+                        alias, member
+                    ));
+                }
+            }
+            ExprKind::Field(
+                Box::new(rewrite_smt_expr_for_namespace(
+                    receiver, namespace, symbols, bound,
+                )?),
+                member.clone(),
+            )
+        }
+        ExprKind::Index(collection, index) => ExprKind::Index(
+            Box::new(rewrite_smt_expr_for_namespace(
+                collection, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                index, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::List(items) => ExprKind::List(
+            items
+                .iter()
+                .map(|item| rewrite_smt_expr_for_namespace(item, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .iter()
+                .map(|item| rewrite_smt_expr_for_namespace(item, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Effect(name, arguments) => ExprKind::Effect(
+            name.clone(),
+            arguments
+                .iter()
+                .map(|argument| rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Handle {
+            effect,
+            handlers,
+            body,
+        } => ExprKind::Handle {
+            effect: effect.clone(),
+            handlers: handlers.clone(),
+            body: Box::new(rewrite_smt_expr_for_namespace(
+                body, namespace, symbols, bound,
+            )?),
+        },
+        ExprKind::Try(inner) => ExprKind::Try(Box::new(rewrite_smt_expr_for_namespace(
+            inner, namespace, symbols, bound,
+        )?)),
+        ExprKind::Conjunction(goals) => ExprKind::Conjunction(
+            goals
+                .iter()
+                .map(|goal| rewrite_smt_expr_for_namespace(goal, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Disjunction(goals) => ExprKind::Disjunction(
+            goals
+                .iter()
+                .map(|goal| rewrite_smt_expr_for_namespace(goal, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Pipe(left, right) => ExprKind::Pipe(
+            Box::new(rewrite_smt_expr_for_namespace(
+                left, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                right, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::Unit => ExprKind::Unit,
+    };
+    Ok(Expr::new(kind, span))
+}
+
+fn rewrite_smt_rule_for_namespace(
+    rule: &Rule,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Rule, String> {
+    let rewrite_parts = |head: &Expr,
+                         value: &Expr,
+                         condition: Option<&Expr>|
+     -> Result<(Expr, Expr, Option<Expr>), String> {
+        let renamed_head = rewrite_smt_rule_head(head, namespace, symbols)?;
+        let mut bound = BTreeSet::new();
+        if let ExprKind::App(_, arguments) = &head.kind {
+            for argument in arguments {
+                collect_smt_rule_head_bindings(argument, &mut bound);
+            }
+        }
+        let value = rewrite_smt_expr_for_namespace(value, namespace, symbols, &bound)?;
+        let condition = condition
+            .map(|condition| rewrite_smt_expr_for_namespace(condition, namespace, symbols, &bound))
+            .transpose()?;
+        Ok((renamed_head, value, condition))
+    };
+
+    match rule {
+        Rule::Clause { head, body } => {
+            let renamed_head = rewrite_smt_rule_head(head, namespace, symbols)?;
+            let mut bound = BTreeSet::new();
+            if let ExprKind::App(_, arguments) = &head.kind {
+                for argument in arguments {
+                    collect_smt_rule_head_bindings(argument, &mut bound);
+                }
+            }
+            Ok(Rule::Clause {
+                head: renamed_head,
+                body: body
+                    .as_ref()
+                    .map(|body| rewrite_smt_expr_for_namespace(body, namespace, symbols, &bound))
+                    .transpose()?,
+            })
+        }
+        Rule::Default {
+            head,
+            value,
+            condition,
+        } => {
+            let (head, value, condition) = rewrite_parts(head, value, condition.as_ref())?;
+            Ok(Rule::Default {
+                head,
+                value,
+                condition,
+            })
+        }
+        Rule::Exception {
+            label,
+            head,
+            value,
+            condition,
+        } => {
+            let (head, value, condition) = rewrite_parts(head, value, condition.as_ref())?;
+            Ok(Rule::Exception {
+                label: label.clone(),
+                head,
+                value,
+                condition,
+            })
+        }
+        Rule::ReactiveScope { .. } => Ok(rule.clone()),
+    }
+}
+
+fn rewrite_smt_statement_for_namespace(
+    statement: &Stmt,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Stmt, String> {
+    let empty = BTreeSet::new();
+    match statement {
+        Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            effects,
+            body,
+        }) => {
+            if namespace != "root" {
+                let display_name = &symbols.namespace(namespace)?.display_name;
+                for param in params {
+                    validate_smt_qualified_type(param.ty.as_ref(), display_name)?;
+                }
+                validate_smt_qualified_type(ret_ty.as_ref(), display_name)?;
+            }
+            let identity = symbols
+                .namespace(namespace)?
+                .functions
+                .get(&(name.clone(), params.len()))
+                .ok_or_else(|| format!("missing SMT function identity for `{}`", name))?;
+            let mut bound = BTreeSet::new();
+            bound.extend(params.iter().map(|param| param.name.clone()));
+            Ok(Stmt::Defn(Defn::Fn {
+                name: identity.internal_source_name(),
+                params: params.clone(),
+                ret_ty: ret_ty.clone(),
+                effects: effects.clone(),
+                body: rewrite_smt_expr_for_namespace(body, namespace, symbols, &bound)?,
+            }))
+        }
+        Stmt::Rule(rule) => {
+            if namespace != "root" {
+                let display_name = &symbols.namespace(namespace)?.display_name;
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => {
+                        return Err(format!(
+                            "qualified SMT namespace `{}` contains a reactive rule scope; only direct functions and rules are supported and other qualified shapes fail closed",
+                            display_name
+                        ));
+                    }
+                };
+                validate_smt_qualified_rule_head(head, display_name)?;
+            }
+            Ok(Stmt::Rule(rewrite_smt_rule_for_namespace(
+                rule, namespace, symbols,
+            )?))
+        }
+        Stmt::Bind(Pat::Var(name), ty, value) => {
+            if namespace != "root" {
+                validate_smt_qualified_type(
+                    ty.as_ref(),
+                    &symbols.namespace(namespace)?.display_name,
+                )?;
+            }
+            let rewritten_name = symbols
+                .namespace(namespace)?
+                .bindings
+                .get(name)
+                .map(SmtCallableIdentity::internal_source_name)
+                .unwrap_or_else(|| name.clone());
+            Ok(Stmt::Bind(
+                Pat::Var(rewritten_name),
+                ty.clone(),
+                rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+            ))
+        }
+        Stmt::Invariant {
+            name,
+            subject,
+            predicate,
+        } => Ok(Stmt::Invariant {
+            name: name.clone(),
+            subject: rewrite_smt_expr_for_namespace(subject, namespace, symbols, &empty)?,
+                predicate: rewrite_smt_expr_for_namespace(predicate, namespace, symbols, &empty)?,
+            }),
+        Stmt::TypeDecl(_) if namespace != "root" => Err(format!(
+            "qualified SMT namespace `{}` nominal metadata must remain isolated from root; direct scalar function and rule calls remain supported",
+            symbols.namespace(namespace)?.display_name
+        )),
+        Stmt::Defn(_) | Stmt::Bind(..) if namespace != "root" => Err(format!(
+            "qualified SMT namespace `{}` contains a declaration outside the direct scalar function/rule contract; unsupported qualified shapes fail closed",
+            symbols.namespace(namespace)?.display_name
+        )),
+        _ => Ok(statement.clone()),
+    }
+}
+
+fn lower_smt_namespaces(
+    program: &SmtResolvedProgram,
+    symbols: &SmtSymbolIndex,
+) -> Result<Vec<Stmt>, String> {
+    let mut ordered_namespaces = program
+        .namespaces
+        .keys()
+        .filter(|identity| *identity != &program.root_identity)
+        .cloned()
+        .collect::<Vec<_>>();
+    ordered_namespaces.sort();
+    ordered_namespaces.push(program.root_identity.clone());
+
     let mut output = Vec::new();
-    let mut visited = BTreeSet::new();
-    visited.insert(
-        std::fs::canonicalize(filename)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| filename.to_string()),
-    );
-    resolve_smt_plain_imports(statements, &source_dir, &mut visited, &mut output)?;
-    output.extend(
-        statements
-            .iter()
-            .filter(|statement| !matches!(statement, Stmt::Import(_)))
-            .cloned(),
-    );
+    for identity in ordered_namespaces {
+        let namespace = program
+            .namespaces
+            .get(&identity)
+            .ok_or_else(|| format!("missing resolved SMT namespace `{}`", identity))?;
+        for statement in &namespace.statements {
+            // Nominal declarations are metadata owned by the qualified module,
+            // not declarations in the importing root. Omit unused metadata;
+            // actual nominal use is rejected by the scalar-call guards above.
+            if identity != program.root_identity && matches!(statement, Stmt::TypeDecl(_)) {
+                continue;
+            }
+            output.push(rewrite_smt_statement_for_namespace(
+                statement, &identity, symbols,
+            )?);
+        }
+    }
     Ok(output)
 }
 
@@ -12977,23 +14086,13 @@ struct SmtLoweringEnv {
     rule_calls_as_symbols: bool,
 }
 
-fn smt_rule_function_name(key: &RuleDispatchKey) -> String {
-    let identity = format!(
-        "{}\0{}\0{}",
-        key.scope.as_deref().unwrap_or("global"),
-        key.name,
-        key.arity
-    );
-    let mut encoded = String::from("runa_rule_");
-    for byte in identity.as_bytes() {
-        use std::fmt::Write;
-        let _ = write!(encoded, "{:02x}", byte);
-    }
-    encoded
+fn smt_rule_function_name(identity: &SmtCallableIdentity) -> String {
+    identity.symbol()
 }
 
 struct SmtRuleLowerer<'program, 'registry> {
     registry: &'registry RuleDispatchRegistry<'program>,
+    rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
     constructors: BTreeMap<String, Vec<SmtConstructorSignature>>,
     fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
     function_returns: BTreeMap<String, String>,
@@ -13001,7 +14100,11 @@ struct SmtRuleLowerer<'program, 'registry> {
 }
 
 impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
-    fn new(statements: &[Stmt], registry: &'registry RuleDispatchRegistry<'program>) -> Self {
+    fn new(
+        statements: &[Stmt],
+        registry: &'registry RuleDispatchRegistry<'program>,
+        rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
+    ) -> Self {
         let mut constructors: BTreeMap<String, Vec<SmtConstructorSignature>> = BTreeMap::new();
         let mut fields_by_type = BTreeMap::new();
         let mut function_returns = BTreeMap::new();
@@ -13066,6 +14169,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
 
         let mut lowerer = Self {
             registry,
+            rule_identities,
             constructors,
             fields_by_type,
             function_returns,
@@ -13092,6 +14196,27 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         lowerer
     }
 
+    fn rule_identity(&self, key: &RuleDispatchKey) -> SmtCallableIdentity {
+        self.rule_identities
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| SmtCallableIdentity {
+                namespace: "root".to_string(),
+                kind: SmtCallableKind::Rule,
+                scope: key.scope.clone(),
+                name: key.name.clone(),
+                arity: key.arity,
+            })
+    }
+
+    fn rule_function_name(&self, key: &RuleDispatchKey) -> String {
+        smt_rule_function_name(&self.rule_identity(key))
+    }
+
+    fn rule_display_name(&self, key: &RuleDispatchKey) -> String {
+        self.rule_identity(key).name
+    }
+
     fn generated_rule_functions(
         &self,
     ) -> (
@@ -13102,14 +14227,15 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         let mut errors = BTreeMap::new();
 
         for group in self.registry.groups.values() {
-            let function_name = smt_rule_function_name(&group.key);
+            let function_name = self.rule_function_name(&group.key);
+            let display_name = self.rule_display_name(&group.key);
             let Some(return_type_name) = group.return_type.as_deref() else {
                 errors.insert(
                     function_name,
                     group.return_type_issue.clone().unwrap_or_else(|| {
                         format!(
                             "rule `{}` has no inferred return type for SMT",
-                            group.key.name
+                            display_name
                         )
                     }),
                 );
@@ -13122,7 +14248,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         function_name,
                         format!(
                             "rule `{}` return type `{}` cannot be represented for SMT: {}",
-                            group.key.name, return_type_name, error
+                            display_name, return_type_name, error
                         ),
                     );
                     continue;
@@ -13145,7 +14271,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 let Some(type_name) = parameter.ty.as_deref() else {
                     parameter_error = Some(format!(
                         "rule `{}` parameter {} has no inferred type for SMT",
-                        group.key.name,
+                        display_name,
                         index + 1
                     ));
                     break;
@@ -13155,7 +14281,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     Err(error) => {
                         parameter_error = Some(format!(
                             "rule `{}` parameter type `{}` cannot be represented for SMT: {}",
-                            group.key.name, type_name, error
+                            display_name, type_name, error
                         ));
                         break;
                     }
@@ -13163,7 +14289,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 if matches!(ty, Ty::Arrow(_, _)) {
                     parameter_error = Some(format!(
                         "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
-                        group.key.name
+                        display_name
                     ));
                     break;
                 }
@@ -13334,13 +14460,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             .ok_or_else(|| {
                 format!(
                     "rule `{}` cannot accept named arguments because one or more head parameters are patterns",
-                    group.key.name
+                    self.rule_display_name(&group.key)
                 )
             })?;
         reorder_named_args_by_names(&parameter_names, arguments).ok_or_else(|| {
             format!(
                 "named arguments for rule `{}` do not match its declaration parameters",
-                group.key.name
+                self.rule_display_name(&group.key)
             )
         })
     }
@@ -13361,9 +14487,9 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             }
             call_arguments.extend(arguments);
             return Ok(Expr::unspanned(ExprKind::App(
-                Box::new(Expr::unspanned(ExprKind::Var(smt_rule_function_name(
-                    &group.key,
-                )))),
+                Box::new(Expr::unspanned(ExprKind::Var(
+                    self.rule_function_name(&group.key),
+                ))),
                 call_arguments,
             )));
         }
@@ -13665,7 +14791,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         if expansion_stack.contains(&group.key) {
             return Err(format!(
                 "recursive rule dispatch for `{}` is not yet translatable to SMT",
-                group.key.name
+                self.rule_display_name(&group.key)
             ));
         }
         expansion_stack.push(group.key.clone());
@@ -13683,7 +14809,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     _ => {
                         return Err(format!(
                             "rule `{}` has a head shape that is not translatable to SMT",
-                            group.key.name
+                            self.rule_display_name(&group.key)
                         ));
                     }
                 };
@@ -13777,11 +14903,16 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 } else {
                     return Err(format!(
                         "partial rule dispatch for `{}` has no unconditional value for SMT",
-                        group.key.name
+                        self.rule_display_name(&group.key)
                     ));
                 });
             }
-            fallback.ok_or_else(|| format!("rule `{}` has no dispatch candidates", group.key.name))
+            fallback.ok_or_else(|| {
+                format!(
+                    "rule `{}` has no dispatch candidates",
+                    self.rule_display_name(&group.key)
+                )
+            })
         })();
 
         expansion_stack.pop();
@@ -14297,7 +15428,7 @@ fn smt_function_lowering_error_for_invariant(
 
     let function = called_errors.iter().next()?;
     let reason = function_errors.get(function)?;
-    if function.starts_with("runa_rule_") {
+    if function.starts_with("|runa_smt_v1_rule_") {
         Some(reason.clone())
     } else {
         Some(format!("function `{}` {}", function, reason))
@@ -17047,7 +18178,21 @@ fn verify_with_z3(source: &str, filename: &str) {
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
     // graph, so a local exception can override an imported base clause.
-    let all_stmts = match resolve_smt_program(&stmts, filename) {
+    let resolved_program = match resolve_smt_program(&stmts, filename) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("runa --verify: {}", error);
+            std::process::exit(1);
+        }
+    };
+    let symbol_index = match SmtSymbolIndex::from_program(&resolved_program) {
+        Ok(index) => index,
+        Err(error) => {
+            eprintln!("runa --verify: {}", error);
+            std::process::exit(1);
+        }
+    };
+    let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
         Ok(statements) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
@@ -17056,7 +18201,11 @@ fn verify_with_z3(source: &str, filename: &str) {
     };
     let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
     let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
-    let rule_lowerer = SmtRuleLowerer::new(&all_stmts, &rule_registry);
+    let rule_lowerer = SmtRuleLowerer::new(
+        &all_stmts,
+        &rule_registry,
+        symbol_index.rule_identities.clone(),
+    );
 
     // Collect ADTs, invariants, bindings, and function definitions
     let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
