@@ -22,10 +22,15 @@
 use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
+use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
 
 use super::relation::{AdmissionDecision, AdmissionId, QuestionId, RelationId, SelectionDecision};
+use super::relational_bounded_chunk_partition::{
+    RelationalCaseChunkId, RelationalCaseChunkPartitionArtifactId,
+    VerifiedRelationalCaseChunkPartition,
+};
 use super::relational_classification_capsule::{
     ClassificationBinaryOp, ClassificationCallableDefinition, ClassificationCallableId,
     ClassificationCapsuleId, ClassificationConstant, ClassificationInputSlot, ClassificationNodeId,
@@ -46,22 +51,107 @@ use super::relational_support_planner::{
     RelationalSupportPopulationRecipe,
 };
 use super::support_cell::{
-    AdmissionClassificationClaim, ExactCardinalityClaim, SelectionClassificationClaim,
+    AdmissionClassificationClaim, ExactCardinalityClaim, SelectionClassificationClaim, SupportCell,
     SupportCellClaim, SupportCellError, SupportCellId, SupportCellObligation,
-    SupportProofObligationId,
+    SupportMaterializerId, SupportProofObligationId,
 };
 use super::support_evidence::{SupportEvidenceRecord, SupportObligationRecord};
 use super::support_journal::SupportJournalEvent;
 use super::ExploreExactDomain;
-use crate::CheckedExploreQueryView;
+use crate::{CheckedExploreQueryView, OwnedCheckedExploreQuery};
 
-pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 3;
 
-const CERTIFICATE_ID_V2: &[u8] = b"futuruna.explore.relational-region.certificate.v2";
-const FORMULA_DIGEST_V2: &[u8] = b"futuruna.explore.relational-region.formula.v2";
-const PROOF_DIGEST_V2: &[u8] = b"futuruna.explore.relational-region.proof.v2";
+const CERTIFICATE_ID_V3: &[u8] = b"futuruna.explore.relational-region.certificate.v3";
+const FORMULA_DIGEST_V3: &[u8] = b"futuruna.explore.relational-region.formula.v3";
+const PROOF_DIGEST_V3: &[u8] = b"futuruna.explore.relational-region.proof.v3";
+const REPLAY_AUTHORITY_ID_V1: &[u8] = b"futuruna.explore.relational-region.replay-authority.v1";
+const STARTER_REGION_ID_V1: &[u8] = b"futuruna.explore.relational-region.correlated-starter.v1";
 const MAX_GRAPH_NORMALIZATION_STEPS: usize = 100_000;
 const MAX_GRAPH_NORMALIZATION_DEPTH: usize = 1_024;
+
+/// Only zero-selected conclusions may bypass concrete case evaluation in V1.
+/// `Rejected` is represented so admission normalization can be added without
+/// changing the journal event shape; the current scalar producer proves only
+/// `AdmittedNotSelected` and otherwise falls back.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum RelationalCertifiedRegionConclusion {
+    Rejected,
+    AdmittedNotSelected,
+}
+
+impl RelationalCertifiedRegionConclusion {
+    pub(crate) const fn canonical_tag(self) -> u8 {
+        match self {
+            Self::Rejected => 0x01,
+            Self::AdmittedNotSelected => 0x02,
+        }
+    }
+
+    pub(crate) const fn from_canonical_tag(tag: u8) -> Option<Self> {
+        match tag {
+            0x01 => Some(Self::Rejected),
+            0x02 => Some(Self::AdmittedNotSelected),
+            _ => None,
+        }
+    }
+
+    pub(crate) const fn admission(self) -> AdmissionDecision {
+        match self {
+            Self::Rejected => AdmissionDecision::Rejected,
+            Self::AdmittedNotSelected => AdmissionDecision::Admitted,
+        }
+    }
+
+    pub(crate) const fn selection(self) -> Option<SelectionDecision> {
+        match self {
+            Self::Rejected => None,
+            Self::AdmittedNotSelected => Some(SelectionDecision::NotSelected),
+        }
+    }
+}
+
+/// Exact structural subject of one region theorem. A canonical child is
+/// always named through the already accepted mapped-image partition; the
+/// proof cannot mint an independent cell or an extensional case root.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum RelationalRegionProofSubject {
+    Root,
+    CanonicalChunk {
+        partition_artifact_id: RelationalCaseChunkPartitionArtifactId,
+        chunk_id: RelationalCaseChunkId,
+        chunk_ordinal: u128,
+        chunk_cell_id: SupportCellId,
+        chunk_materializer_id: SupportMaterializerId,
+    },
+}
+
+impl RelationalRegionProofSubject {
+    pub(crate) const fn canonical_chunk_ordinal(self) -> Option<u128> {
+        match self {
+            Self::Root => None,
+            Self::CanonicalChunk { chunk_ordinal, .. } => Some(chunk_ordinal),
+        }
+    }
+}
+
+/// Identity of the correlated starter subpopulation certified by a region.
+///
+/// This is not a Cartesian box over starter fields. Its preimage is the exact
+/// finite source-assignment coordinate slice, and its image is the checked
+/// `Source = (Context, Before)` construction retained by the support plan.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct RelationalStarterRegionId([u8; 32]);
+
+impl RelationalStarterRegionId {
+    pub(super) const fn from_canonical_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
 
 /// The exact typed conclusion authorized by one proof-receipt binding.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -113,6 +203,7 @@ impl RelationalRegionEvidenceBinding {
 pub(crate) struct RelationalRegionProofArtifact {
     schema_version: u32,
     certificate_id: [u8; 32],
+    replay_authority_id: [u8; 32],
     classification_capsule_id: ClassificationCapsuleId,
     successor_root_id: ClassificationNodeId,
     find_root_id: ClassificationNodeId,
@@ -121,6 +212,12 @@ pub(crate) struct RelationalRegionProofArtifact {
     question_id: QuestionId,
     plan_root: RelationalSupportPlanRoot,
     root_cell_id: SupportCellId,
+    subject: RelationalRegionProofSubject,
+    conclusion: RelationalCertifiedRegionConclusion,
+    starter_region_id: RelationalStarterRegionId,
+    source_assignment_cell_id: SupportCellId,
+    source_row_cell_id: SupportCellId,
+    successor_coordinate_cell_id: SupportCellId,
     axis_stage_id: RelationalBindingStageId,
     axis_dimension_id: RelationalDimensionId,
     axis_cell_id: SupportCellId,
@@ -139,6 +236,10 @@ impl RelationalRegionProofArtifact {
 
     pub(crate) const fn certificate_id(&self) -> [u8; 32] {
         self.certificate_id
+    }
+
+    pub(crate) const fn replay_authority_id(&self) -> [u8; 32] {
+        self.replay_authority_id
     }
 
     pub(crate) const fn classification_capsule_id(&self) -> ClassificationCapsuleId {
@@ -171,6 +272,30 @@ impl RelationalRegionProofArtifact {
 
     pub(crate) const fn root_cell_id(&self) -> SupportCellId {
         self.root_cell_id
+    }
+
+    pub(crate) const fn subject(&self) -> RelationalRegionProofSubject {
+        self.subject
+    }
+
+    pub(crate) const fn conclusion(&self) -> RelationalCertifiedRegionConclusion {
+        self.conclusion
+    }
+
+    pub(crate) const fn starter_region_id(&self) -> RelationalStarterRegionId {
+        self.starter_region_id
+    }
+
+    pub(crate) const fn source_assignment_cell_id(&self) -> SupportCellId {
+        self.source_assignment_cell_id
+    }
+
+    pub(crate) const fn source_row_cell_id(&self) -> SupportCellId {
+        self.source_row_cell_id
+    }
+
+    pub(crate) const fn successor_coordinate_cell_id(&self) -> SupportCellId {
+        self.successor_coordinate_cell_id
     }
 
     pub(crate) const fn axis_stage_id(&self) -> RelationalBindingStageId {
@@ -215,6 +340,7 @@ impl RelationalRegionProofArtifact {
     pub(super) fn restore_from_canonical_parts(
         schema_version: u32,
         certificate_id: [u8; 32],
+        replay_authority_id: [u8; 32],
         classification_capsule_id: ClassificationCapsuleId,
         successor_root_id: ClassificationNodeId,
         find_root_id: ClassificationNodeId,
@@ -223,6 +349,12 @@ impl RelationalRegionProofArtifact {
         question_id: QuestionId,
         plan_root: RelationalSupportPlanRoot,
         root_cell_id: SupportCellId,
+        subject: RelationalRegionProofSubject,
+        conclusion: RelationalCertifiedRegionConclusion,
+        starter_region_id: RelationalStarterRegionId,
+        source_assignment_cell_id: SupportCellId,
+        source_row_cell_id: SupportCellId,
+        successor_coordinate_cell_id: SupportCellId,
         axis_stage_id: RelationalBindingStageId,
         axis_dimension_id: RelationalDimensionId,
         axis_cell_id: SupportCellId,
@@ -236,6 +368,7 @@ impl RelationalRegionProofArtifact {
         let artifact = Self {
             schema_version,
             certificate_id,
+            replay_authority_id,
             classification_capsule_id,
             successor_root_id,
             find_root_id,
@@ -244,6 +377,12 @@ impl RelationalRegionProofArtifact {
             question_id,
             plan_root,
             root_cell_id,
+            subject,
+            conclusion,
+            starter_region_id,
+            source_assignment_cell_id,
+            source_row_cell_id,
+            successor_coordinate_cell_id,
             axis_stage_id,
             axis_dimension_id,
             axis_cell_id,
@@ -272,6 +411,17 @@ impl RelationalRegionProofArtifact {
                 != Some(self.case_cardinality)
         {
             return Err(RelationalRegionProofError::InvalidArtifactShape);
+        }
+        match self.subject {
+            RelationalRegionProofSubject::Root => {
+                if self.conclusion != RelationalCertifiedRegionConclusion::AdmittedNotSelected {
+                    return Err(RelationalRegionProofError::InvalidArtifactShape);
+                }
+            }
+            RelationalRegionProofSubject::CanonicalChunk { .. } => {}
+        }
+        if derive_starter_region_id(self) != self.starter_region_id {
+            return Err(RelationalRegionProofError::StarterRegionIdentityMismatch);
         }
         let derived = derive_certificate_id(self);
         if derived != self.certificate_id {
@@ -459,6 +609,154 @@ fn fallback(residual: RelationalRegionProofResidual) -> RelationalRegionProofOut
     RelationalRegionProofOutcome::ConcreteFallback { residual }
 }
 
+#[derive(Clone, Debug)]
+pub(crate) struct RelationalRegionReplayAuthority {
+    id: [u8; 32],
+    checked: Arc<OwnedCheckedExploreQuery>,
+    support_plan: RelationalSupportPlan,
+    capsule: Arc<RelationalClassificationCapsule>,
+}
+
+impl RelationalRegionReplayAuthority {
+    pub(crate) fn new(
+        checked: Arc<OwnedCheckedExploreQuery>,
+        support_plan: RelationalSupportPlan,
+        capsule: Arc<RelationalClassificationCapsule>,
+    ) -> Result<Self, RelationalRegionProofError> {
+        let checked_view = checked.view();
+        validate_relational_region_scope(&checked_view, &support_plan, capsule.as_ref())?;
+        let mut hasher = CanonicalProofHasher::new(REPLAY_AUTHORITY_ID_V1);
+        hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
+        hasher.digest(capsule.id().bytes());
+        hasher.digest(support_plan.root().bytes());
+        hasher.digest(checked_view.relation_id().bytes());
+        hasher.digest(checked_view.admission_id().bytes());
+        hasher.digest(checked_view.question_id().bytes());
+        let id = hasher.finish();
+        Ok(Self {
+            id,
+            checked,
+            support_plan,
+            capsule,
+        })
+    }
+
+    pub(crate) const fn id(&self) -> [u8; 32] {
+        self.id
+    }
+
+    pub(crate) fn classification_capsule_id(&self) -> ClassificationCapsuleId {
+        self.capsule.id()
+    }
+
+    pub(crate) const fn support_plan_root(&self) -> RelationalSupportPlanRoot {
+        self.support_plan.root()
+    }
+
+    pub(crate) fn prove_canonical_child(
+        &self,
+        partition: &VerifiedRelationalCaseChunkPartition,
+        chunk_ordinal: usize,
+    ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+        let target = self.target(partition, chunk_ordinal)?;
+        prove_relational_region(
+            &self.checked.view(),
+            &self.support_plan,
+            self.capsule.as_ref(),
+            Some(&target),
+            self.id,
+        )
+    }
+
+    pub(crate) fn reverify_canonical_child(
+        &self,
+        artifact: &RelationalRegionProofArtifact,
+        partition: &VerifiedRelationalCaseChunkPartition,
+    ) -> Result<VerifiedRelationalRegionProof, RelationalRegionProofError> {
+        artifact.validate_identity()?;
+        if artifact.replay_authority_id() != self.id
+            || artifact.classification_capsule_id() != self.capsule.id()
+            || artifact.plan_root() != self.support_plan.root()
+        {
+            return Err(RelationalRegionProofError::ReplayAuthorityMismatch);
+        }
+        let RelationalRegionProofSubject::CanonicalChunk { chunk_ordinal, .. } = artifact.subject()
+        else {
+            return Err(RelationalRegionProofError::ArtifactSemanticMismatch);
+        };
+        let chunk_ordinal = usize::try_from(chunk_ordinal)
+            .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?;
+        match self.prove_canonical_child(partition, chunk_ordinal)? {
+            RelationalRegionProofOutcome::ExactEmpty(closure)
+                if closure.proof().artifact() == artifact =>
+            {
+                Ok(closure.proof().clone())
+            }
+            RelationalRegionProofOutcome::ExactEmpty(_) => {
+                Err(RelationalRegionProofError::ArtifactSemanticMismatch)
+            }
+            RelationalRegionProofOutcome::ConcreteFallback { residual } => Err(
+                RelationalRegionProofError::ArtifactNoLongerProvable(residual),
+            ),
+        }
+    }
+
+    fn target<'a>(
+        &self,
+        partition: &'a VerifiedRelationalCaseChunkPartition,
+        chunk_ordinal: usize,
+    ) -> Result<RelationalRegionProofTarget<'a>, RelationalRegionProofError> {
+        let artifact = partition.artifact();
+        if artifact.plan_root() != self.support_plan.root()
+            || artifact.relation_id() != self.support_plan.relation_id()
+            || artifact.admission_id() != self.support_plan.admission_id()
+            || artifact.question_id() != self.support_plan.question_id()
+            || artifact.root_cell_id()
+                != self
+                    .support_plan
+                    .root_cell_id()
+                    .ok_or(RelationalRegionProofError::ExpectedNonemptyRoot)?
+        {
+            return Err(RelationalRegionProofError::PartitionScopeMismatch);
+        }
+        let chunk = partition
+            .partition()
+            .chunks()
+            .get(chunk_ordinal)
+            .ok_or(RelationalRegionProofError::CanonicalChunkMissing)?;
+        if chunk.descriptor().ordinal()
+            != u128::try_from(chunk_ordinal)
+                .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?
+        {
+            return Err(RelationalRegionProofError::CanonicalChunkMismatch);
+        }
+        Ok(RelationalRegionProofTarget {
+            subject: RelationalRegionProofSubject::CanonicalChunk {
+                partition_artifact_id: artifact.id(),
+                chunk_id: chunk.descriptor().id(),
+                chunk_ordinal: chunk.descriptor().ordinal(),
+                chunk_cell_id: chunk.cell().id(),
+                chunk_materializer_id: chunk.cell().materializer_id(),
+            },
+            cell: chunk.cell(),
+            root_coordinate_start: artifact.interval_start(),
+            root_coordinate_end_exclusive: artifact.interval_end_exclusive(),
+            coordinate_start: chunk.descriptor().interval_start(),
+            coordinate_end_exclusive: chunk.descriptor().interval_end_exclusive(),
+        })
+    }
+}
+
+#[derive(Clone, Copy)]
+struct RelationalRegionProofTarget<'a> {
+    subject: RelationalRegionProofSubject,
+    cell: &'a SupportCell,
+    root_coordinate_start: u128,
+    root_coordinate_end_exclusive: u128,
+    coordinate_start: u128,
+    coordinate_end_exclusive: u128,
+}
+
 /// Attempt constant-size proof closure of one checked one-axis relation.
 ///
 /// Complexity is proportional to the expanded acyclic capsule expression
@@ -471,6 +769,14 @@ pub(crate) fn prove_relational_exact_empty_region(
     support_plan: &RelationalSupportPlan,
     capsule: &RelationalClassificationCapsule,
 ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+    prove_relational_region(checked, support_plan, capsule, None, [0; 32])
+}
+
+fn validate_relational_region_scope(
+    checked: &CheckedExploreQueryView<'_>,
+    support_plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
+) -> Result<(), RelationalRegionProofError> {
     checked
         .closed_query
         .validate()
@@ -503,20 +809,46 @@ pub(crate) fn prove_relational_exact_empty_region(
     {
         return Err(RelationalRegionProofError::ClassificationCapsuleScopeMismatch);
     }
+    Ok(())
+}
+
+fn prove_relational_region(
+    checked: &CheckedExploreQueryView<'_>,
+    support_plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
+    target: Option<&RelationalRegionProofTarget<'_>>,
+    replay_authority_id: [u8; 32],
+) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+    validate_relational_region_scope(checked, support_plan, capsule)?;
     let graph = capsule.graph();
 
     let inventory = RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
-    let [axis] = inventory.axes() else {
+    let [root_axis] = inventory.axes() else {
         return Ok(fallback(RelationalRegionProofResidual::IntegerAxisCount {
             found: inventory.axes().len(),
         }));
+    };
+    let axis = match target {
+        Some(target)
+            if target.root_coordinate_start == root_axis.coordinate_start()
+                && target.root_coordinate_end_exclusive == root_axis.coordinate_end_exclusive() =>
+        {
+            root_axis
+                .restrict_to_coordinates(target.coordinate_start, target.coordinate_end_exclusive)?
+        }
+        Some(_) => {
+            return Ok(fallback(
+                RelationalRegionProofResidual::CaseImageCardinalityLiftUnavailable,
+            ));
+        }
+        None => root_axis.clone(),
     };
     let axis_lane = ClassificationSemanticLane::SourceBinding(axis.binding_index());
     let axis_root_id = match required_lane_root(graph, axis_lane) {
         Ok(root) => root,
         Err(residual) => return Ok(fallback(residual)),
     };
-    if !axis_is_direct_before(checked, graph, axis_root_id, axis) {
+    if !axis_is_direct_before(checked, graph, axis_root_id, root_axis) {
         return Ok(fallback(
             RelationalRegionProofResidual::BeforeIsNotIndependentIntegerAxis,
         ));
@@ -529,7 +861,7 @@ pub(crate) fn prove_relational_exact_empty_region(
         Ok(root) => root,
         Err(residual) => return Ok(fallback(residual)),
     };
-    if !source_has_only_direct_before_and_unit_context(checked, graph, context_root_id, axis) {
+    if !source_has_only_direct_before_and_unit_context(checked, graph, context_root_id, root_axis) {
         return Ok(fallback(
             RelationalRegionProofResidual::SourceHasAuxiliaryOrNonUnitContext,
         ));
@@ -542,11 +874,11 @@ pub(crate) fn prove_relational_exact_empty_region(
             RelationalRegionProofResidual::FiniteSuccessorNeedsFiberProof,
         ));
     }
-    if !case_image_is_one_to_one_singleton(support_plan, axis) {
+    let Some(source_chain) = correlated_source_chain(support_plan, root_axis) else {
         return Ok(fallback(
             RelationalRegionProofResidual::CaseImageCardinalityLiftUnavailable,
         ));
-    }
+    };
 
     let admission_lane_count = graph
         .lane_manifest()
@@ -592,7 +924,7 @@ pub(crate) fn prove_relational_exact_empty_region(
     };
     let successor = match RelationalGraphNormalizer::new(
         graph,
-        axis,
+        &axis,
         scalar_types,
         RelationalRegionExpressionLayer::Successor,
         None,
@@ -608,7 +940,7 @@ pub(crate) fn prove_relational_exact_empty_region(
     };
     let selected_formula = match RelationalGraphNormalizer::new(
         graph,
-        axis,
+        &axis,
         scalar_types,
         RelationalRegionExpressionLayer::Selection,
         Some(successor.clone()),
@@ -623,7 +955,7 @@ pub(crate) fn prove_relational_exact_empty_region(
         }
     };
 
-    let selected_truth = match selected_formula.truth_domain(axis) {
+    let selected_truth = match selected_formula.truth_domain(&axis) {
         Ok(truth) => truth,
         Err(RelationalRegionProofError::ArithmeticOverflow(_)) => {
             return Ok(fallback(
@@ -654,14 +986,26 @@ pub(crate) fn prove_relational_exact_empty_region(
         }
     }
 
-    let (root_cell_id, cardinality_obligation, admission_obligation) =
+    let (root_cell_id, root_cardinality_obligation, root_admission_obligation) =
         root_obligations(support_plan)?;
     let root_cell = support_plan
         .cell_catalog()
         .get(root_cell_id)
         .ok_or(RelationalRegionProofError::RootCellMissing(root_cell_id))?;
+    let proof_cell = target.map_or(root_cell, |target| target.cell);
+    let cardinality_obligation = match target {
+        Some(_) => SupportCellObligation::new(proof_cell, ExactCardinalityClaim)?,
+        None => root_cardinality_obligation,
+    };
+    let admission_obligation = match target {
+        Some(_) => SupportCellObligation::new(
+            proof_cell,
+            AdmissionClassificationClaim::new(checked.admission_id()),
+        )?,
+        None => root_admission_obligation,
+    };
     let selection_obligation = SupportCellObligation::new(
-        root_cell,
+        proof_cell,
         SelectionClassificationClaim::new(checked.question_id()),
     )?;
     let case_cardinality = axis.cardinality();
@@ -670,6 +1014,7 @@ pub(crate) fn prove_relational_exact_empty_region(
     let mut artifact = RelationalRegionProofArtifact {
         schema_version: RELATIONAL_REGION_PROOF_VERSION,
         certificate_id: [0; 32],
+        replay_authority_id,
         classification_capsule_id: capsule.id(),
         successor_root_id,
         find_root_id,
@@ -678,6 +1023,12 @@ pub(crate) fn prove_relational_exact_empty_region(
         question_id: checked.question_id(),
         plan_root: support_plan.root(),
         root_cell_id,
+        subject: target.map_or(RelationalRegionProofSubject::Root, |target| target.subject),
+        conclusion: RelationalCertifiedRegionConclusion::AdmittedNotSelected,
+        starter_region_id: RelationalStarterRegionId([0; 32]),
+        source_assignment_cell_id: source_chain.assignment_cell.id(),
+        source_row_cell_id: source_chain.source_row_cell.id(),
+        successor_coordinate_cell_id: source_chain.successor_coordinate_cell.id(),
         axis_stage_id: axis.stage_id(),
         axis_dimension_id: axis.dimension_id(),
         axis_cell_id: axis.cell().id(),
@@ -688,6 +1039,7 @@ pub(crate) fn prove_relational_exact_empty_region(
         case_cardinality,
         selected_formula_digest,
     };
+    artifact.starter_region_id = derive_starter_region_id(&artifact);
     artifact.certificate_id = derive_certificate_id(&artifact);
     artifact.validate_identity()?;
     let certificate_id = artifact.certificate_id;
@@ -734,14 +1086,16 @@ pub(crate) fn prove_relational_exact_empty_region(
         selection_obligation,
         SelectionDecision::NotSelected,
     )?;
-    let events = vec![
+    let mut events = vec![
         SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Cardinality(cardinality)),
         SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Admission(admission)),
         SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Selection(selection)),
-        SupportJournalEvent::leaf_sealed(root_cell_id),
-        SupportJournalEvent::ObligationFrontierSealed,
-        SupportJournalEvent::CatalogSealed,
+        SupportJournalEvent::leaf_sealed(proof_cell.id()),
     ];
+    if target.is_none() {
+        events.push(SupportJournalEvent::ObligationFrontierSealed);
+        events.push(SupportJournalEvent::CatalogSealed);
+    }
     Ok(RelationalRegionProofOutcome::ExactEmpty(
         RelationalRegionSupportClosure {
             proof,
@@ -765,7 +1119,10 @@ pub(crate) fn reverify_relational_region_proof_artifact(
     capsule: &RelationalClassificationCapsule,
 ) -> Result<RelationalRegionSupportClosure, RelationalRegionProofError> {
     artifact.validate_identity()?;
-    if artifact.classification_capsule_id() != capsule.id() {
+    if artifact.classification_capsule_id() != capsule.id()
+        || artifact.subject() != RelationalRegionProofSubject::Root
+        || artifact.replay_authority_id() != [0; 32]
+    {
         return Err(RelationalRegionProofError::ArtifactSemanticMismatch);
     }
     match prove_relational_exact_empty_region(checked, support_plan, capsule)? {
@@ -919,33 +1276,40 @@ fn source_has_only_direct_before_and_unit_context(
         )
 }
 
-fn case_image_is_one_to_one_singleton(
-    plan: &RelationalSupportPlan,
+#[derive(Clone, Copy)]
+struct RelationalCorrelatedSourceChain<'a> {
+    assignment_cell: &'a SupportCell,
+    source_row_cell: &'a SupportCell,
+    successor_coordinate_cell: &'a SupportCell,
+}
+
+fn correlated_source_chain<'a>(
+    plan: &'a RelationalSupportPlan,
     axis: &RelationalIntegerAxis,
-) -> bool {
+) -> Option<RelationalCorrelatedSourceChain<'a>> {
     let Some(assignment_cell) = plan.source_assignments().cell() else {
-        return false;
+        return None;
     };
     let RelationalSupportPopulationRecipe::IndependentAssignmentProduct { factor_cells } =
         plan.source_assignments().recipe()
     else {
-        return false;
+        return None;
     };
     if factor_cells.len() != 1 || factor_cells[0] != axis.cell().id() {
-        return false;
+        return None;
     }
     let Some(source_cell) = plan.source_rows().cell() else {
-        return false;
+        return None;
     };
     if !matches!(
         plan.source_rows().recipe(),
         RelationalSupportPopulationRecipe::SourceRowImage { assignment_cell: id }
             if *id == assignment_cell.id()
     ) {
-        return false;
+        return None;
     }
     let Some(successor_cell) = plan.successor_coordinates().cell() else {
-        return false;
+        return None;
     };
     if !matches!(
         plan.successor_coordinates().recipe(),
@@ -954,17 +1318,25 @@ fn case_image_is_one_to_one_singleton(
             successor_kind: RelationalSuccessorRecipeKind::Singleton,
         } if *source_row_cell == source_cell.id()
     ) {
-        return false;
+        return None;
     }
     let Some(case_cell) = plan.cases().cell() else {
-        return false;
+        return None;
     };
-    matches!(
+    if !matches!(
         plan.cases().recipe(),
         RelationalSupportPopulationRecipe::CaseImage {
             successor_coordinate_cell,
         } if *successor_coordinate_cell == successor_cell.id()
-    ) && plan.root_cell_id() == Some(case_cell.id())
+    ) || plan.root_cell_id() != Some(case_cell.id())
+    {
+        return None;
+    }
+    Some(RelationalCorrelatedSourceChain {
+        assignment_cell,
+        source_row_cell: source_cell,
+        successor_coordinate_cell: successor_cell,
+    })
 }
 
 type CardinalityObligation = SupportCellObligation<ExactCardinalityClaim>;
@@ -1968,15 +2340,53 @@ fn boolean_equivalence(
 }
 
 fn formula_digest(formula: &RelationalBooleanFormula) -> [u8; 32] {
-    let mut hasher = CanonicalProofHasher::new(FORMULA_DIGEST_V2);
+    let mut hasher = CanonicalProofHasher::new(FORMULA_DIGEST_V3);
     hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
     hasher.formula(formula);
     hasher.finish()
 }
 
-fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
-    let mut hasher = CanonicalProofHasher::new(CERTIFICATE_ID_V2);
+fn derive_starter_region_id(artifact: &RelationalRegionProofArtifact) -> RelationalStarterRegionId {
+    let mut hasher = CanonicalProofHasher::new(STARTER_REGION_ID_V1);
     hasher.u32(artifact.schema_version);
+    hasher.digest(artifact.replay_authority_id);
+    hasher.digest(artifact.classification_capsule_id.bytes());
+    hasher.digest(artifact.plan_root.bytes());
+    hasher.digest(artifact.source_assignment_cell_id.bytes());
+    hasher.digest(artifact.source_row_cell_id.bytes());
+    hasher.digest(artifact.successor_coordinate_cell_id.bytes());
+    hasher.digest(artifact.root_cell_id.bytes());
+    match artifact.subject {
+        RelationalRegionProofSubject::Root => hasher.u8(0x01),
+        RelationalRegionProofSubject::CanonicalChunk {
+            partition_artifact_id,
+            chunk_id,
+            chunk_ordinal,
+            chunk_cell_id,
+            chunk_materializer_id,
+        } => {
+            hasher.u8(0x02);
+            hasher.digest(partition_artifact_id.bytes());
+            hasher.digest(chunk_id.bytes());
+            hasher.u128(chunk_ordinal);
+            hasher.digest(chunk_cell_id.bytes());
+            hasher.digest(chunk_materializer_id.bytes());
+        }
+    }
+    hasher.digest(artifact.axis_stage_id.bytes());
+    hasher.digest(artifact.axis_dimension_id.bytes());
+    hasher.digest(artifact.axis_cell_id.bytes());
+    hasher.i64(artifact.value_start);
+    hasher.i64(artifact.value_end_exclusive);
+    hasher.u128(artifact.coordinate_start);
+    hasher.u128(artifact.coordinate_end_exclusive);
+    RelationalStarterRegionId(hasher.finish())
+}
+
+fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
+    let mut hasher = CanonicalProofHasher::new(CERTIFICATE_ID_V3);
+    hasher.u32(artifact.schema_version);
+    hasher.digest(artifact.replay_authority_id);
     hasher.digest(artifact.classification_capsule_id.bytes());
     hasher.digest(artifact.successor_root_id.bytes());
     hasher.digest(artifact.find_root_id.bytes());
@@ -1985,6 +2395,28 @@ fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
     hasher.digest(artifact.question_id.bytes());
     hasher.digest(artifact.plan_root.bytes());
     hasher.digest(artifact.root_cell_id.bytes());
+    match artifact.subject {
+        RelationalRegionProofSubject::Root => hasher.u8(0x01),
+        RelationalRegionProofSubject::CanonicalChunk {
+            partition_artifact_id,
+            chunk_id,
+            chunk_ordinal,
+            chunk_cell_id,
+            chunk_materializer_id,
+        } => {
+            hasher.u8(0x02);
+            hasher.digest(partition_artifact_id.bytes());
+            hasher.digest(chunk_id.bytes());
+            hasher.u128(chunk_ordinal);
+            hasher.digest(chunk_cell_id.bytes());
+            hasher.digest(chunk_materializer_id.bytes());
+        }
+    }
+    hasher.u8(artifact.conclusion.canonical_tag());
+    hasher.digest(artifact.starter_region_id.bytes());
+    hasher.digest(artifact.source_assignment_cell_id.bytes());
+    hasher.digest(artifact.source_row_cell_id.bytes());
+    hasher.digest(artifact.successor_coordinate_cell_id.bytes());
     hasher.digest(artifact.axis_stage_id.bytes());
     hasher.digest(artifact.axis_dimension_id.bytes());
     hasher.digest(artifact.axis_cell_id.bytes());
@@ -2003,7 +2435,7 @@ fn evidence_binding(
     obligation_id: SupportProofObligationId,
     conclusion_digest: [u8; 32],
 ) -> RelationalRegionEvidenceBinding {
-    let mut hasher = CanonicalProofHasher::new(PROOF_DIGEST_V2);
+    let mut hasher = CanonicalProofHasher::new(PROOF_DIGEST_V3);
     hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
     hasher.digest(certificate_id);
     hasher.u8(role.tag());
@@ -2113,11 +2545,16 @@ pub(crate) enum RelationalRegionProofError {
     InvalidCheckedProgramDigest,
     InvalidCheckedProvenanceDigest,
     ClassificationCapsuleScopeMismatch,
+    ReplayAuthorityMismatch,
+    PartitionScopeMismatch,
+    CanonicalChunkMissing,
+    CanonicalChunkMismatch,
     ClassificationIndexOverflow(&'static str),
     ClassificationNodeMissing(ClassificationNodeId),
     ClassificationCallableMissing(ClassificationCallableId),
     UnsupportedArtifactVersion(u32),
     InvalidArtifactShape,
+    StarterRegionIdentityMismatch,
     ArtifactIdentityMismatch,
     ArtifactSemanticMismatch,
     ArtifactNoLongerProvable(RelationalRegionProofResidual),
@@ -2158,6 +2595,17 @@ impl fmt::Display for RelationalRegionProofError {
             Self::ClassificationCapsuleScopeMismatch => formatter.write_str(
                 "classification capsule does not match the checked query and support scope",
             ),
+            Self::ReplayAuthorityMismatch => formatter.write_str(
+                "relational region proof does not match the producer-owned replay authority",
+            ),
+            Self::PartitionScopeMismatch => formatter.write_str(
+                "relational region proof partition does not match its checked support scope",
+            ),
+            Self::CanonicalChunkMissing => formatter
+                .write_str("relational region proof names no canonical partition child"),
+            Self::CanonicalChunkMismatch => formatter.write_str(
+                "relational region proof canonical partition child has changed identity",
+            ),
             Self::ClassificationIndexOverflow(context) => {
                 write!(formatter, "classification index overflow for {context}")
             }
@@ -2172,6 +2620,9 @@ impl fmt::Display for RelationalRegionProofError {
             Self::InvalidArtifactShape => {
                 formatter.write_str("relational region proof artifact has an invalid shape")
             }
+            Self::StarterRegionIdentityMismatch => formatter.write_str(
+                "relational region proof does not preserve its correlated starter-region identity",
+            ),
             Self::ArtifactIdentityMismatch => formatter
                 .write_str("relational region proof artifact identity does not match its payload"),
             Self::ArtifactSemanticMismatch => formatter.write_str(
@@ -2220,7 +2671,28 @@ impl Error for RelationalRegionProofError {
 
 #[cfg(test)]
 mod tests {
-    use super::super::relational_support_planner::RelationalSupportPlanner;
+    use std::sync::Arc;
+
+    use super::super::relational_analysis_plan::RelationalAnalysisPlan;
+    use super::super::relational_bounded_chunk_partition::{
+        plan_relational_bounded_case_chunks, reverify_relational_case_chunk_partition_artifact,
+        RelationalCaseChunkPlanningOutcome,
+    };
+    use super::super::relational_case_support_projection::{
+        derive_relational_case_support_projection, RelationalCaseSupportCount,
+        RelationalCaseSupportProjectionRecord,
+    };
+    use super::super::relational_journal::{
+        RelationalClassifiedSupportFragment, RelationalJournal, RelationalJournalContract,
+        RelationalJournalError, RelationalJournalEvent,
+    };
+    use super::super::relational_journal_codec::{
+        decode_relational_journal_entry, encode_relational_journal_entry,
+        RelationalJournalCodecLimits,
+    };
+    use super::super::relational_support_planner::{
+        prove_relational_case_image_injectivity, RelationalBindingStage, RelationalSupportPlanner,
+    };
     use super::*;
     use crate::{Lexer, Parser, TypeChecker};
 
@@ -2249,6 +2721,20 @@ mod tests {
 
     to after = bump(before)
     find violations of after >= before
+}
+"#;
+
+    const CAPSULE_PARTITIONED_EMPTY_SOURCE: &str = r#"
+> bump(x: Int) -> Int { x + 1 }
+
+? explore capsule_partitioned_empty {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = bump(before)
+    find matches of after < before
 }
 "#;
 
@@ -2404,5 +2890,250 @@ mod tests {
             .expect("the already-negated violations lane is uniformly not selected");
         assert_eq!(closure.proof().case_cardinality(), 2);
         assert_eq!(closure.selected_cardinality(), 0);
+    }
+
+    #[test]
+    fn canonical_child_certificate_preserves_correlated_starter_chain() {
+        let mut lexer = Lexer::new(CAPSULE_PARTITIONED_EMPTY_SOURCE);
+        let statements = Parser::new(lexer.tokenize(), CAPSULE_PARTITIONED_EMPTY_SOURCE)
+            .parse_program()
+            .expect("parse partitioned exact-empty capsule fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            CAPSULE_PARTITIONED_EMPTY_SOURCE,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join the checked partitioned query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for the partitioned fixture");
+        let capsule = Arc::new(bind_fixture_capsule(
+            &checked,
+            &support_plan,
+            ClassificationSpecializationRoot::none(),
+        ));
+        let case_image = prove_relational_case_image_injectivity(&support_plan)
+            .expect("prove the fixture's singleton case-image chain");
+        let partition = match plan_relational_bounded_case_chunks(&support_plan, &case_image)
+            .expect("plan canonical case children")
+        {
+            RelationalCaseChunkPlanningOutcome::Partitioned(partition) => partition,
+            outcome => panic!("expected a bounded partition, found {outcome:?}"),
+        };
+        let verified_partition = reverify_relational_case_chunk_partition_artifact(
+            partition.artifact(),
+            &support_plan,
+            case_image.injectivity(),
+        )
+        .expect("reverify the canonical case partition");
+        let authority = Arc::new(
+            RelationalRegionReplayAuthority::new(
+                Arc::new(checked.to_owned_checked_query()),
+                support_plan.clone(),
+                Arc::clone(&capsule),
+            )
+            .expect("bind producer-owned regional replay authority"),
+        );
+
+        let outcome = authority
+            .prove_canonical_child(&verified_partition, 0)
+            .expect("prove the first canonical child");
+        let closure = outcome
+            .exact_empty()
+            .expect("the first child is uniformly not selected");
+        let proof = closure.proof();
+        let artifact = proof.artifact();
+        let child = &verified_partition.partition().chunks()[0];
+        let RelationalBindingStage::Finite(axis_stage) = &support_plan.stages()[0] else {
+            panic!("the first fixture binding must be its finite starter axis");
+        };
+
+        assert_eq!(artifact.case_cardinality(), 256);
+        assert_eq!(artifact.axis_cell_id(), axis_stage.cell().unwrap().id());
+        assert_ne!(artifact.axis_cell_id(), child.cell().id());
+        assert_eq!(
+            artifact.source_assignment_cell_id(),
+            support_plan.source_assignments().cell().unwrap().id()
+        );
+        assert_eq!(
+            artifact.source_row_cell_id(),
+            support_plan.source_rows().cell().unwrap().id()
+        );
+        assert_eq!(
+            artifact.successor_coordinate_cell_id(),
+            support_plan.successor_coordinates().cell().unwrap().id()
+        );
+        assert_ne!(artifact.starter_region_id().bytes(), [0; 32]);
+        assert_eq!(closure.events().len(), 4);
+        assert_eq!(
+            authority
+                .reverify_canonical_child(artifact, &verified_partition)
+                .expect("same authority reproduces the child theorem")
+                .artifact(),
+            artifact
+        );
+
+        let analysis_plan = RelationalAnalysisPlan::from_checked(&checked)
+            .expect("plan analysis for the regional journal fixture");
+        let contract = RelationalJournalContract::new(
+            checked.relation_id(),
+            checked.admission_id(),
+            checked.question_id(),
+            analysis_plan.producer_graph_digest().bytes(),
+        );
+        let make_ready_journal = |authority: Arc<RelationalRegionReplayAuthority>| {
+            let mut journal =
+                RelationalJournal::new_with_region_replay_authority(contract, authority);
+            journal
+                .append(RelationalJournalEvent::analysis_plan_registered(
+                    analysis_plan.clone(),
+                ))
+                .expect("register analysis plan");
+            journal
+                .append(RelationalJournalEvent::support_plan_registered(
+                    support_plan.clone(),
+                ))
+                .expect("register support plan");
+            journal
+                .append(
+                    RelationalJournalEvent::relational_case_image_injectivity_proof_accepted(
+                        case_image.proof().artifact().clone(),
+                    ),
+                )
+                .expect("accept root case-image proof");
+            journal
+                .append(
+                    RelationalJournalEvent::relational_case_chunk_partition_accepted(
+                        partition.artifact().clone(),
+                    ),
+                )
+                .expect("accept canonical child partition");
+            journal
+        };
+
+        let mut journal = make_ready_journal(Arc::clone(&authority));
+        journal
+            .append(RelationalJournalEvent::relational_region_proof_accepted(
+                artifact.clone(),
+            ))
+            .expect("atomically accept the regional child theorem");
+        let view = journal
+            .scheduler_view()
+            .expect("inspect accepted proof prefix");
+        assert_eq!(view.classified_support_fragments().len(), 1);
+        assert!(matches!(
+            &view.classified_support_fragments()[0],
+            RelationalClassifiedSupportFragment::CertifiedZeroSelected(retained)
+                if retained == artifact
+        ));
+        assert_eq!(
+            view.classified_sweep_progress()
+                .expect("partition owns classified progress")
+                .next_chunk_ordinal(),
+            1
+        );
+        let projection = derive_relational_case_support_projection(
+            &verified_partition,
+            view.classified_support_fragments(),
+            |_| None,
+            None,
+            None,
+        )
+        .expect("project the certified child without concrete cases");
+        assert_eq!(
+            projection.metadata().classified_case_count,
+            RelationalCaseSupportCount::LowerBound(256)
+        );
+        assert_eq!(
+            projection.metadata().selected_case_count,
+            RelationalCaseSupportCount::LowerBound(0)
+        );
+        assert_eq!(projection.available_source_record_count(), 3);
+        assert!(matches!(
+            projection
+                .record_at(2)
+                .expect("read the certified public region"),
+            Some(RelationalCaseSupportProjectionRecord::Region {
+                exact_case_count: 256,
+                correlated_starter_region_id: Some(starter_region_id),
+                ..
+            }) if starter_region_id == artifact.starter_region_id()
+        ));
+
+        let entries = journal.entries().to_vec();
+        assert!(matches!(
+            RelationalJournal::replay(contract, entries.clone()),
+            Err(RelationalJournalError::RegionProofReplayAuthorityMissing)
+        ));
+        let mut wrong_authority = (*authority).clone();
+        wrong_authority.id[0] ^= 0xff;
+        assert!(matches!(
+            RelationalJournal::replay_with_region_replay_authority(
+                contract,
+                entries.clone(),
+                Arc::new(wrong_authority),
+            ),
+            Err(RelationalJournalError::RegionProof(_))
+        ));
+
+        let limits = RelationalJournalCodecLimits::default();
+        let decoded = entries
+            .iter()
+            .map(|entry| {
+                let bytes = encode_relational_journal_entry(entry, limits)
+                    .expect("encode canonical journal entry");
+                decode_relational_journal_entry(
+                    contract,
+                    entry.sequence(),
+                    entry.previous(),
+                    &bytes,
+                    limits,
+                )
+                .expect("decode canonical journal entry")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(decoded, entries);
+        let replayed = RelationalJournal::replay_with_region_replay_authority(
+            contract,
+            decoded,
+            Arc::clone(&authority),
+        )
+        .expect("cold replay reproduces the certified prefix");
+        assert_eq!(replayed.head(), journal.head());
+        assert_eq!(
+            replayed.snapshot().expect("snapshot replay").support(),
+            journal.snapshot().expect("snapshot original").support()
+        );
+
+        let mut tampered = artifact.clone();
+        tampered.selected_formula_digest[0] ^= 0x80;
+        let mut tampered_journal = make_ready_journal(Arc::clone(&authority));
+        let head_before = tampered_journal.head();
+        assert!(matches!(
+            tampered_journal.append(RelationalJournalEvent::relational_region_proof_accepted(
+                tampered,
+            )),
+            Err(RelationalJournalError::RegionProof(
+                RelationalRegionProofError::ArtifactIdentityMismatch
+            ))
+        ));
+        assert_eq!(tampered_journal.head(), head_before);
+        let view = tampered_journal
+            .scheduler_view()
+            .expect("inspect failed append state");
+        assert!(view.classified_support_fragments().is_empty());
+        assert_eq!(
+            view.classified_sweep_progress()
+                .expect("partition progress remains installed")
+                .next_chunk_ordinal(),
+            0
+        );
     }
 }

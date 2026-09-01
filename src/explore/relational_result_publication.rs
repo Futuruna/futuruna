@@ -2136,9 +2136,9 @@ fn derive_case_support_for_publication<'journal>(
             |projection| projection.map(PublicationCaseSupportProjection::ClassificationSummary),
         );
     };
-    let classified_chunks = scheduler.classified_chunk_artifacts();
+    let classified_fragments = scheduler.classified_support_fragments();
     let closure_ready = scheduler.support_catalog_is_sealed()
-        && classified_chunks.len() == partition.artifact().chunks().len()
+        && classified_fragments.len() == partition.artifact().chunks().len()
         && scheduler.selected_run_materializations_cover_classified_prefix();
     let closure_authority = if closure_ready {
         match (
@@ -2173,7 +2173,7 @@ fn derive_case_support_for_publication<'journal>(
     };
     derive_relational_case_support_projection(
         partition,
-        classified_chunks,
+        classified_fragments,
         |cell_id| scheduler.selected_run_materialization(cell_id),
         authorization,
         closure_authority,
@@ -5393,7 +5393,7 @@ fn public_partitioned_case_support_record(
         }),
         RelationalCaseSupportProjectionRecord::Chunk {
             partition_artifact_id,
-            chunk_artifact_id,
+            classification_authority,
             chunk_ordinal,
             exact_case_count,
             rejected_case_count,
@@ -5403,7 +5403,8 @@ fn public_partitioned_case_support_record(
         } => json!({
             "kind": "chunk",
             "partition_artifact_id": hex(partition_artifact_id.bytes()),
-            "chunk_artifact_id": hex(chunk_artifact_id.bytes()),
+            "chunk_artifact_id": hex(classification_authority.id()),
+            "classification_authority": classification_authority.kind(),
             "chunk_ordinal": chunk_ordinal.to_string(),
             "exact_case_count": exact_case_count.to_string(),
             "rejected_case_count": rejected_case_count.to_string(),
@@ -5412,18 +5413,23 @@ fn public_partitioned_case_support_record(
             "region_count": region_count.to_string(),
         }),
         RelationalCaseSupportProjectionRecord::Region {
-            chunk_artifact_id,
-            run_id,
+            classification_authority,
+            region_authority,
             run_ordinal,
             exact_case_count,
             outcome,
+            correlated_starter_region_id,
         } => json!({
             "kind": "region",
-            "chunk_artifact_id": hex(chunk_artifact_id.bytes()),
-            "run_id": hex(run_id.bytes()),
+            "chunk_artifact_id": hex(classification_authority.id()),
+            "classification_authority": classification_authority.kind(),
+            "run_id": hex(region_authority.id()),
+            "region_authority": region_authority.kind(),
             "run_ordinal": run_ordinal,
             "exact_case_count": exact_case_count.to_string(),
             "outcome": public_case_support_outcome(outcome),
+            "correlated_starter_region_id": correlated_starter_region_id
+                .map(|id| hex(id.bytes())),
         }),
         RelationalCaseSupportProjectionRecord::SelectedMaterialization {
             run_id,

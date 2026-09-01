@@ -14,6 +14,7 @@ use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU64;
 use std::path::Path;
+use std::sync::Arc;
 
 use super::relational_journal::{
     RelationalJournal, RelationalJournalContract, RelationalJournalError, RelationalJournalEvent,
@@ -29,6 +30,7 @@ use super::relational_journal_store::{
     RelationalJournalSegmentStoreError, RelationalJournalStoreAnchor,
     RelationalJournalStoreFinalized,
 };
+use super::relational_region_proof::RelationalRegionReplayAuthority;
 use super::relational_result_publication::{
     RelationalPublicationAuthority, RelationalPublicationCheckpoint,
 };
@@ -265,7 +267,23 @@ impl RelationalDurableJournal {
             limits.segment(),
             anchor,
         )?;
-        Self::from_store(contract, limits.codec(), store)
+        Self::from_store(contract, limits.codec(), store, None)
+    }
+
+    pub(crate) fn open_or_create_with_region_replay_authority(
+        directory: impl AsRef<Path>,
+        contract: RelationalJournalContract,
+        limits: RelationalDurableJournalLimits,
+        authority: Arc<RelationalRegionReplayAuthority>,
+    ) -> Result<Self, RelationalDurableJournalError> {
+        let anchor = journal_store_anchor(contract);
+        let store = RelationalJournalSegmentStore::open_or_create(
+            directory,
+            limits.run_store(),
+            limits.segment(),
+            anchor,
+        )?;
+        Self::from_store(contract, limits.codec(), store, Some(authority))
     }
 
     pub(crate) fn open(
@@ -280,15 +298,21 @@ impl RelationalDurableJournal {
             limits.segment(),
             anchor,
         )?;
-        Self::from_store(contract, limits.codec(), store)
+        Self::from_store(contract, limits.codec(), store, None)
     }
 
     fn from_store(
         contract: RelationalJournalContract,
         codec_limits: RelationalJournalCodecLimits,
         store: RelationalJournalSegmentStore,
+        region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
     ) -> Result<Self, RelationalDurableJournalError> {
-        let mut journal = RelationalJournal::new_streaming(contract);
+        let mut journal = match region_replay_authority {
+            Some(authority) => {
+                RelationalJournal::new_streaming_with_region_replay_authority(contract, authority)
+            }
+            None => RelationalJournal::new_streaming(contract),
+        };
         {
             let segments = store.replay_segments()?;
             for segment in segments {

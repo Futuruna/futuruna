@@ -41,6 +41,7 @@ use super::relational_journal::{RelationalJournal, RelationalJournalContract};
 use super::relational_native_classifier::{
     RelationalNativeClassifierProtocolV2, RelationalNativeClassifierV2,
 };
+use super::relational_region_proof::RelationalRegionReplayAuthority;
 use super::relational_result_publication::{
     publish_relational_result_artifacts, RelationalPublicationLimits, RelationalPublicationPlan,
 };
@@ -128,8 +129,9 @@ pub struct ExploreStreamEpochOptions {
 /// authorized by the journal; serializing compiler heap layout is not part of
 /// this contract.
 pub struct PreparedRelationalExplore {
-    checked: Box<OwnedCheckedExploreQuery>,
+    checked: Arc<OwnedCheckedExploreQuery>,
     support_plan: RelationalSupportPlan,
+    region_replay_authority: Arc<RelationalRegionReplayAuthority>,
     contract: RelationalJournalContract,
     publication_plan: RelationalPublicationPlan,
     expression_runtime: RelationalInterpreterExpressionRuntime,
@@ -293,10 +295,11 @@ impl PreparedRelationalExplore {
                     reason.code()
                 ))
             })?;
-        let durable = RelationalDurableJournal::open_or_create(
+        let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
             &options.run_state,
             self.contract,
             RelationalDurableJournalLimits::default(),
+            Arc::clone(&self.region_replay_authority),
         )
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
         Ok(RelationalExploreEpoch {
@@ -1029,7 +1032,7 @@ pub fn prepare_checked_relational_stream(
     // Heap allocation makes every checked-query expression address stable for
     // the lifetime of the prepared epoch. The expression runtime uses those
     // addresses only as process-local lookup keys.
-    let owned_checked = Box::new(checked.to_owned_checked_query());
+    let owned_checked = Arc::new(checked.to_owned_checked_query());
     trace_preparation_phase(started, "owned selected query");
     let (catalog, definitions) = checked_expression_runtime_inputs(&artifacts)?;
     trace_preparation_phase(started, "rebuilt interpreter inputs");
@@ -1068,6 +1071,14 @@ pub fn prepare_checked_relational_stream(
             "classification call-cache capacity must be positive".into(),
         )
     })?;
+    let region_replay_authority = Arc::new(
+        RelationalRegionReplayAuthority::new(
+            Arc::clone(&owned_checked),
+            support_plan.clone(),
+            Arc::clone(&classification_capsule),
+        )
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
+    );
     let classification_evaluator = RefCell::new(RelationalClassificationEvaluatorBackend::new(
         classification_capsule,
         classification_call_cache_capacity,
@@ -1099,6 +1110,7 @@ pub fn prepare_checked_relational_stream(
     Ok(PreparedRelationalExplore {
         checked: owned_checked,
         support_plan,
+        region_replay_authority,
         contract,
         publication_plan,
         expression_runtime,
@@ -1133,6 +1145,7 @@ impl RelationalExploreEpoch {
         let PreparedRelationalExplore {
             checked,
             support_plan,
+            region_replay_authority: _,
             contract: _,
             publication_plan,
             expression_runtime,

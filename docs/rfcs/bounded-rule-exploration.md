@@ -1116,6 +1116,43 @@ architecture gains compression on structured rule graphs without claiming a
 sublinear solution for arbitrary finite predicates, and a proof backend can be
 added or replaced without changing RelationId or the authored question.
 
+The first streamed regional-certificate slice is deliberately narrower than
+that complete portfolio. Before concrete classification starts for the next
+canonical case-partition child, the scheduler may ask the producer-owned
+classification capsule to prove that the whole child is either rejected or
+admitted but not selected. A certificate is authority-bound to the immutable
+checked query and capsule, the support plan, the accepted partition and child,
+the exact coordinate interval, the normalized formula and its conclusion.
+Selected, mixed, unsupported, overflow-risk and partially checkpointed children
+remain on the concrete path.
+
+The certificate keeps starter and case coordinates distinct. Its subject is
+the existing mapped case child, while its preimage names the original finite
+source factor and the checked producer chain through source assignments, the
+correlated `(Context, Before)` row image, the successor fiber and the case
+image. The derived correlated-starter-region identity denotes that complete
+image restriction; it is not a Cartesian product of independently widened
+field bounds. The certificate need not materialize starter rows, but no public
+projection may relabel its scalar scheduling axis as starter support.
+
+One journal event re-verifies that certificate under the matching producer
+authority and atomically installs the child cardinality and classification
+evidence, leaf seal, materialization cursor and contiguous classified progress.
+Cold replay without that exact authority, or with a capsule, subject or proof
+mismatch, fails before semantic mutation. The public case/support projection is
+therefore a hybrid ordered prefix: concrete children retain their classified
+runs and sparse selected materializations, while a certified zero-selected
+child contributes one proof-backed uniform region and no invented `CaseId` or
+extensional content root.
+
+For a fixed canonical child size `K`, a one-axis relation of `N` cases needs at
+most `ceil(N/K)` formula proofs plus concrete work only for residual children.
+If capsule normalization costs `G` and concrete evaluation costs `E`, the first
+slice is `O(ceil(N/K) * G + R * E)` for `R` residual cases, with bounded proof
+state per child and `O(N/K)` retained progress. Later adaptive certified cells
+may reduce the proof count further without changing this certificate or
+journal contract.
+
 Time, CPU, memory and worker limits are invocation policies. Resource pressure
 MUST reduce dispatch or pause before host stability is endangered. The initial
 Personskat experiments use an 80-percent installed-CPU ceiling and the smaller

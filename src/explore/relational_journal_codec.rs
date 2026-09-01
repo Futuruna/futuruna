@@ -58,6 +58,7 @@ use super::relational_certified_source_summary::{
     RelationalCertifiedSourceSummaryError, RELATIONAL_CERTIFIED_SOURCE_SUMMARY_MAX_GROUPS,
     RELATIONAL_CERTIFIED_SOURCE_SUMMARY_VERSION, RELATIONAL_CERTIFIED_SOURCE_SUMMARY_VERSION_V1,
 };
+use super::relational_classification_capsule::{ClassificationCapsuleId, ClassificationNodeId};
 use super::relational_classified_sweep::{
     RelationalClassifiedCaseOutcome, RelationalClassifiedChunkArtifact,
     RelationalClassifiedChunkArtifactId, RelationalClassifiedChunkSliceArtifact,
@@ -85,6 +86,10 @@ use super::relational_mechanism_executor::{
     RelationalMechanismReplayObservationId, RelationalMechanismReplayReceiptId,
 };
 use super::relational_population::CertifiedSelectedPopulationRoot;
+use super::relational_region_proof::{
+    RelationalCertifiedRegionConclusion, RelationalRegionProofArtifact, RelationalRegionProofError,
+    RelationalRegionProofSubject, RelationalStarterRegionId,
+};
 use super::relational_selected_run_materialization::{
     RelationalSelectedCaseRecord, RelationalSelectedRunMaterializationArtifact,
     RelationalSelectedRunMaterializationArtifactId, RelationalSelectedRunMaterializationError,
@@ -158,7 +163,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 11;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 12;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -3126,6 +3131,122 @@ fn decode_classified_chunk_artifact(
         admitted_selected_count,
         runs.into_boxed_slice(),
         partition_id,
+    )
+    .map_err(RelationalJournalCodecError::from)
+}
+
+fn encode_region_proof_artifact(
+    encoder: &mut Encoder,
+    artifact: &RelationalRegionProofArtifact,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.u32(artifact.schema_version())?;
+    encoder.digest(artifact.certificate_id())?;
+    encoder.digest(artifact.replay_authority_id())?;
+    encoder.digest(artifact.classification_capsule_id().bytes())?;
+    encoder.digest(artifact.successor_root_id().bytes())?;
+    encoder.digest(artifact.find_root_id().bytes())?;
+    encoder.digest(artifact.relation_id().bytes())?;
+    encoder.digest(artifact.admission_id().bytes())?;
+    encoder.digest(artifact.question_id().bytes())?;
+    encoder.digest(artifact.plan_root().bytes())?;
+    encoder.digest(artifact.root_cell_id().bytes())?;
+    match artifact.subject() {
+        RelationalRegionProofSubject::Root => encoder.tag(0x01)?,
+        RelationalRegionProofSubject::CanonicalChunk {
+            partition_artifact_id,
+            chunk_id,
+            chunk_ordinal,
+            chunk_cell_id,
+            chunk_materializer_id,
+        } => {
+            encoder.tag(0x02)?;
+            encoder.digest(partition_artifact_id.bytes())?;
+            encoder.digest(chunk_id.bytes())?;
+            encoder.u128(chunk_ordinal)?;
+            encoder.digest(chunk_cell_id.bytes())?;
+            encoder.digest(chunk_materializer_id.bytes())?;
+        }
+    }
+    encoder.tag(artifact.conclusion().canonical_tag())?;
+    encoder.digest(artifact.starter_region_id().bytes())?;
+    encoder.digest(artifact.source_assignment_cell_id().bytes())?;
+    encoder.digest(artifact.source_row_cell_id().bytes())?;
+    encoder.digest(artifact.successor_coordinate_cell_id().bytes())?;
+    encoder.digest(artifact.axis_stage_id().bytes())?;
+    encoder.digest(artifact.axis_dimension_id().bytes())?;
+    encoder.digest(artifact.axis_cell_id().bytes())?;
+    encoder.i64(artifact.value_start())?;
+    encoder.i64(artifact.value_end_exclusive())?;
+    encoder.u128(artifact.coordinate_start())?;
+    encoder.u128(artifact.coordinate_end_exclusive())?;
+    encoder.u128(artifact.case_cardinality())?;
+    encoder.digest(artifact.selected_formula_digest())
+}
+
+fn decode_region_proof_artifact(
+    reader: &mut Reader<'_>,
+) -> Result<RelationalRegionProofArtifact, RelationalJournalCodecError> {
+    let schema_version = reader.u32()?;
+    let certificate_id = reader.digest()?;
+    let replay_authority_id = reader.digest()?;
+    let classification_capsule_id = ClassificationCapsuleId::from_bytes(reader.digest()?);
+    let successor_root_id = ClassificationNodeId::from_bytes(reader.digest()?);
+    let find_root_id = ClassificationNodeId::from_bytes(reader.digest()?);
+    let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
+    let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
+    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let plan_root = RelationalSupportPlanRoot::from_journal_codec_bytes(reader.digest()?);
+    let root_cell_id = SupportCellId::from_journal_codec_bytes(reader.digest()?);
+    let subject = match reader.tag()? {
+        0x01 => RelationalRegionProofSubject::Root,
+        0x02 => RelationalRegionProofSubject::CanonicalChunk {
+            partition_artifact_id: RelationalCaseChunkPartitionArtifactId::from_canonical_bytes(
+                reader.digest()?,
+            ),
+            chunk_id: RelationalCaseChunkId::from_canonical_bytes(reader.digest()?),
+            chunk_ordinal: reader.u128()?,
+            chunk_cell_id: SupportCellId::from_journal_codec_bytes(reader.digest()?),
+            chunk_materializer_id: SupportMaterializerId::from_journal_codec_bytes(
+                reader.digest()?,
+            ),
+        },
+        tag => {
+            return Err(RelationalJournalCodecError::UnknownTag {
+                component: "regional proof subject",
+                tag,
+            });
+        }
+    };
+    let conclusion = RelationalCertifiedRegionConclusion::from_canonical_tag(reader.tag()?).ok_or(
+        RelationalJournalCodecError::Malformed("unknown regional proof conclusion"),
+    )?;
+    RelationalRegionProofArtifact::restore_from_canonical_parts(
+        schema_version,
+        certificate_id,
+        replay_authority_id,
+        classification_capsule_id,
+        successor_root_id,
+        find_root_id,
+        relation_id,
+        admission_id,
+        question_id,
+        plan_root,
+        root_cell_id,
+        subject,
+        conclusion,
+        RelationalStarterRegionId::from_canonical_bytes(reader.digest()?),
+        SupportCellId::from_journal_codec_bytes(reader.digest()?),
+        SupportCellId::from_journal_codec_bytes(reader.digest()?),
+        SupportCellId::from_journal_codec_bytes(reader.digest()?),
+        RelationalBindingStageId::from_journal_codec_bytes(reader.digest()?),
+        RelationalDimensionId::from_journal_codec_bytes(reader.digest()?),
+        SupportCellId::from_journal_codec_bytes(reader.digest()?),
+        reader.i64()?,
+        reader.i64()?,
+        reader.u128()?,
+        reader.u128()?,
+        reader.u128()?,
+        reader.digest()?,
     )
     .map_err(RelationalJournalCodecError::from)
 }
@@ -6100,6 +6221,10 @@ fn encode_evidence_event(
             encoder.tag(0x0f)?;
             encode_classified_chunk_artifact(encoder, artifact)
         }
+        RelationalEvidenceEvent::RelationalRegionProofAccepted { artifact } => {
+            encoder.tag(0x12)?;
+            encode_region_proof_artifact(encoder, artifact)
+        }
         RelationalEvidenceEvent::RelationalSelectedRunMaterializationAccepted { artifact } => {
             encoder.tag(0x11)?;
             encode_selected_run_materialization_artifact(encoder, artifact)
@@ -6246,6 +6371,9 @@ fn decode_evidence_event(
         ),
         0x0f => Ok(RelationalEvidenceEvent::RelationalClassifiedChunkAccepted {
             artifact: Box::new(decode_classified_chunk_artifact(reader)?),
+        }),
+        0x12 => Ok(RelationalEvidenceEvent::RelationalRegionProofAccepted {
+            artifact: Box::new(decode_region_proof_artifact(reader)?),
         }),
         0x11 => Ok(
             RelationalEvidenceEvent::RelationalSelectedRunMaterializationAccepted {
@@ -6512,6 +6640,7 @@ pub(crate) enum RelationalJournalCodecError {
     CertifiedSourceSummary(RelationalCertifiedSourceSummaryError),
     CaseChunkPartition(RelationalCaseChunkPartitionError),
     ClassifiedSweep(RelationalClassifiedSweepError),
+    RegionProof(RelationalRegionProofError),
     SelectedRunMaterialization(RelationalSelectedRunMaterializationError),
     UniformAdmissionProof(RelationalUniformAdmissionProofError),
     SupportCell(SupportCellError),
@@ -6647,6 +6776,9 @@ impl fmt::Display for RelationalJournalCodecError {
             Self::ClassifiedSweep(error) => {
                 write!(formatter, "invalid classified-chunk artifact: {error}")
             }
+            Self::RegionProof(error) => {
+                write!(formatter, "invalid relational-region proof artifact: {error}")
+            }
             Self::SelectedRunMaterialization(error) => {
                 write!(
                     formatter,
@@ -6689,6 +6821,7 @@ impl Error for RelationalJournalCodecError {
             Self::CertifiedSourceSummary(error) => Some(error),
             Self::CaseChunkPartition(error) => Some(error),
             Self::ClassifiedSweep(error) => Some(error),
+            Self::RegionProof(error) => Some(error),
             Self::SelectedRunMaterialization(error) => Some(error),
             Self::UniformAdmissionProof(error) => Some(error),
             Self::SupportCell(error) => Some(error),
@@ -6753,6 +6886,7 @@ codec_error_from!(
 );
 codec_error_from!(RelationalCaseChunkPartitionError, CaseChunkPartition);
 codec_error_from!(RelationalClassifiedSweepError, ClassifiedSweep);
+codec_error_from!(RelationalRegionProofError, RegionProof);
 codec_error_from!(
     RelationalSelectedRunMaterializationError,
     SelectedRunMaterialization
@@ -6813,8 +6947,8 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 16,
-                expected: 17
+                actual: 17,
+                expected: 18
             }
         ));
     }

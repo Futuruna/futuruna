@@ -161,7 +161,7 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         let view = journal.scheduler_view()?;
         self.validate_scope(checked, view)?;
 
-        let retained = view.classified_chunk_artifacts();
+        let retained = view.classified_support_fragments();
         if retained.is_empty() {
             return Ok(RelationalSelectedRunStepOutcome::CaughtUp);
         }
@@ -214,7 +214,7 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         }
         let mut target = None;
         for chunk_index in cursor.0..retained.len() {
-            let artifact = &retained[chunk_index];
+            let fragment = &retained[chunk_index];
             let chunk = verified_partition
                 .partition()
                 .chunks()
@@ -222,11 +222,19 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
                 .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
             let canonical_chunk_ordinal = u128::try_from(chunk_index)
                 .map_err(|_| RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-            if artifact.chunk_ordinal() != canonical_chunk_ordinal
-                || artifact.chunk_id() != chunk.descriptor().id()
+            if fragment.chunk_ordinal() != canonical_chunk_ordinal
+                || fragment.chunk_id() != Some(chunk.descriptor().id())
+                || fragment.chunk_cell_id() != chunk.cell().id()
             {
                 return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
             }
+            let Some(artifact) = fragment.concrete() else {
+                if chunk_index == cursor.0 && cursor.1 != 0 {
+                    return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
+                }
+                cursor = (chunk_index + 1, 0);
+                continue;
+            };
             let first_run = if chunk_index == cursor.0 {
                 if cursor.1 > artifact.runs().len() {
                     return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
@@ -254,7 +262,9 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
             return Ok(RelationalSelectedRunStepOutcome::CaughtUp);
         };
 
-        let artifact = &retained[chunk_index];
+        let artifact = retained[chunk_index]
+            .concrete()
+            .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
         let chunk = &verified_partition.partition().chunks()[chunk_index];
         let expected_chunk_injectivity =
             relational_case_chunk_partition_gateway::injectivity(verified_partition, chunk_index)?;

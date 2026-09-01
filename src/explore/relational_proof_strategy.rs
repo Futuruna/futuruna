@@ -116,6 +116,69 @@ impl RelationalIntegerAxis {
         self.coordinate_end_exclusive - self.coordinate_start
     }
 
+    /// Restrict this exact one-dimensional source factor to a half-open slice
+    /// of its existing producer coordinates. The source-factor cell remains
+    /// unchanged: a downstream case-image child is not the same support object
+    /// as the starter axis, even when an injective singleton-successor chain
+    /// gives both populations the same coordinate interval.
+    pub(crate) fn restrict_to_coordinates(
+        &self,
+        coordinate_start: u128,
+        coordinate_end_exclusive: u128,
+    ) -> Result<Self, RelationalProofStrategyError> {
+        if coordinate_start < self.coordinate_start
+            || coordinate_end_exclusive > self.coordinate_end_exclusive
+            || coordinate_start >= coordinate_end_exclusive
+        {
+            return Err(RelationalProofStrategyError::AxisCoordinateMismatch {
+                dimension_id: self.dimension_id,
+            });
+        }
+        let start_offset = coordinate_start.checked_sub(self.coordinate_start).ok_or(
+            RelationalProofStrategyError::ArithmeticOverflow(
+                "restricting an integer axis coordinate",
+            ),
+        )?;
+        let end_offset = coordinate_end_exclusive
+            .checked_sub(self.coordinate_start)
+            .ok_or(RelationalProofStrategyError::ArithmeticOverflow(
+                "restricting an integer axis coordinate",
+            ))?;
+        let value_start = i128::from(self.value_start)
+            .checked_add(i128::try_from(start_offset).map_err(|_| {
+                RelationalProofStrategyError::ArithmeticOverflow(
+                    "translating a restricted integer-axis start",
+                )
+            })?)
+            .and_then(|value| i64::try_from(value).ok())
+            .ok_or(RelationalProofStrategyError::ArithmeticOverflow(
+                "translating a restricted integer-axis start",
+            ))?;
+        let value_end_exclusive = i128::from(self.value_start)
+            .checked_add(i128::try_from(end_offset).map_err(|_| {
+                RelationalProofStrategyError::ArithmeticOverflow(
+                    "translating a restricted integer-axis end",
+                )
+            })?)
+            .and_then(|value| i64::try_from(value).ok())
+            .ok_or(RelationalProofStrategyError::ArithmeticOverflow(
+                "translating a restricted integer-axis end",
+            ))?;
+        Ok(Self {
+            plan_root: self.plan_root,
+            relation_id: self.relation_id,
+            stage_id: self.stage_id,
+            dimension_id: self.dimension_id,
+            binding_index: self.binding_index,
+            cell: self.cell.clone(),
+            support_kind: self.support_kind,
+            value_start,
+            value_end_exclusive,
+            coordinate_start,
+            coordinate_end_exclusive,
+        })
+    }
+
     fn interior_coordinate_for_value_boundary(
         &self,
         value_boundary: i128,

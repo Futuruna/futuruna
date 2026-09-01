@@ -52,6 +52,26 @@ realization, proof-specialized source results and a query-bound compiled
 residual classifier; the coarse audit is the first Personskat target for that
 complete path.
 
+The current architecture also has its first proof-first stream seam. For each
+next canonical child, a producer-owned certificate may close a whole
+zero-selected region before the concrete classifier touches its members. The
+certificate is bound to the exact checked classification capsule and durable
+journal authority; unsupported, mixed or selected regions fall back to the
+existing concrete sweep. This is a general Explore optimization, not a
+Personskat-specific shortcut, and it does not by itself claim that the present
+Personskat capsule can normalize every tax expression.
+
+Most importantly, the proof subject is not “an income interval” standing in
+for a profile. The case child remains a mapped case population, while a
+separate correlated-starter-region identity binds the same exact coordinate
+slice through source assignments, the constructed `(Context, Before)` row,
+its singleton successor fiber and the final case image. It may avoid eagerly
+materializing those starter rows, but it never widens their fields into an
+independent box. This preserves the architecture needed for later mechanism
+support: starter conditions and conditional successor fibers remain distinct
+from raw case counts even when a scalar income axis makes their cardinalities
+equal in this narrow slice.
+
 The complementary all-admitted mechanism question is authored as
 [personskat-mechanism-landscape-200k.explore.runa](personskat-mechanism-landscape-200k.explore.runa).
 It imports the completed audit helpers without making the imported cliff query

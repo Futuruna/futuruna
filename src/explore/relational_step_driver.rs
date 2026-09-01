@@ -62,6 +62,7 @@ use super::relational_journal::{
 use super::relational_native_classifier::{
     RelationalNativeClassifierFallbackBackendV2, RelationalNativeClassifierV2,
 };
+use super::relational_region_proof::{RelationalRegionProofError, RelationalRegionProofOutcome};
 use super::relational_selected_run_step_driver::{
     RelationalSelectedRunStepDriver, RelationalSelectedRunStepDriverError,
     RelationalSelectedRunStepOutcome, RelationalSelectedRunStepQuantum,
@@ -90,6 +91,10 @@ pub(crate) enum RelationalStepQuantum {
     },
     Support(RelationalSupportStepQuantum),
     ClassifiedSweep(RelationalClassifiedSweepStepQuantum),
+    CertifiedRegion {
+        chunk_ordinal: u128,
+        certificate_id: [u8; 32],
+    },
     SelectedRunMaterialization(RelationalSelectedRunStepQuantum),
     SealClassifiedSupportObligationFrontier {
         chunk_count: usize,
@@ -540,6 +545,43 @@ impl<'query> RelationalStepDriver<'query> {
         // in caller-bounded slices; support advances only when those slices
         // deterministically close one canonical chunk transcript.
         if let Some(classified_sweep) = &self.classified_sweep {
+            // A concrete slice checkpoint owns its child until completion.
+            // Otherwise the producer-owned capsule prover gets exactly one
+            // chance to close the next whole canonical child before any case
+            // in that child is evaluated.
+            if view.classified_chunk_accumulator().is_none() {
+                if let (Some(authority), Some(partition), Some(progress)) = (
+                    journal.region_replay_authority(),
+                    view.verified_case_chunk_partition(),
+                    view.classified_sweep_progress(),
+                ) {
+                    let chunk_ordinal = usize::try_from(progress.next_chunk_ordinal())
+                        .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
+                    if chunk_ordinal < partition.partition().chunks().len() {
+                        match authority.prove_canonical_child(partition, chunk_ordinal)? {
+                            RelationalRegionProofOutcome::ExactEmpty(closure) => {
+                                let artifact = closure.proof().artifact().clone();
+                                return Ok(self.batch(
+                                    view,
+                                    RelationalStepQuantum::CertifiedRegion {
+                                        chunk_ordinal: artifact
+                                            .subject()
+                                            .canonical_chunk_ordinal()
+                                            .ok_or(
+                                                RelationalStepDriverError::RegionProofSubjectMismatch,
+                                            )?,
+                                        certificate_id: artifact.certificate_id(),
+                                    },
+                                    vec![RelationalJournalEvent::relational_region_proof_accepted(
+                                        artifact,
+                                    )],
+                                ));
+                            }
+                            RelationalRegionProofOutcome::ConcreteFallback { .. } => {}
+                        }
+                    }
+                }
+            }
             match classified_sweep.step(journal, max_members_per_quantum, runtime)? {
                 RelationalClassifiedSweepStepOutcome::Emitted(batch) => {
                     debug_assert_eq!(batch.expected_sequence(), view.sequence());
@@ -1665,6 +1707,9 @@ pub(crate) enum RelationalStepDriverError {
     FindClassificationMissing(RelationalCaseId),
     QuestionForRejectedCase(RelationalCaseId),
     InvalidOrderedClassification,
+    RegionProofChunkOrdinalOverflow,
+    RegionProofSubjectMismatch,
+    RegionProof(RelationalRegionProofError),
     Classification(RelationalClassifiedSweepError),
     Source(RelationalSourceExecutorError),
     Case(RelationalCaseExecutorError),
@@ -1746,6 +1791,11 @@ impl fmt::Display for RelationalStepDriverError {
             Self::InvalidOrderedClassification => {
                 formatter.write_str("ordered classifier did not produce one canonical case outcome")
             }
+            Self::RegionProofChunkOrdinalOverflow => formatter
+                .write_str("regional proof canonical chunk ordinal exceeds host capacity"),
+            Self::RegionProofSubjectMismatch => formatter
+                .write_str("regional proof did not return its requested canonical child"),
+            Self::RegionProof(error) => write!(formatter, "regional proof failed: {error}"),
             Self::Classification(error) => write!(formatter, "classification failed: {error}"),
             Self::Source(error) => write!(formatter, "source step failed: {error}"),
             Self::Case(error) => write!(formatter, "case step failed: {error}"),
@@ -1771,6 +1821,7 @@ impl Error for RelationalStepDriverError {
             Self::Support(error) => Some(error),
             Self::ClassifiedSweep(error) => Some(error),
             Self::SelectedRun(error) => Some(error),
+            Self::RegionProof(error) => Some(error),
             Self::Work(error) => Some(error),
             Self::Journal(error) => Some(error),
             Self::InvalidQuery(_)
@@ -1794,7 +1845,9 @@ impl Error for RelationalStepDriverError {
             | Self::FindWithoutDurableAdmission(_)
             | Self::FindClassificationMissing(_)
             | Self::QuestionForRejectedCase(_)
-            | Self::InvalidOrderedClassification => None,
+            | Self::InvalidOrderedClassification
+            | Self::RegionProofChunkOrdinalOverflow
+            | Self::RegionProofSubjectMismatch => None,
         }
     }
 }
@@ -1844,5 +1897,11 @@ impl From<RelationalClassifiedSweepStepDriverError> for RelationalStepDriverErro
 impl From<RelationalSelectedRunStepDriverError> for RelationalStepDriverError {
     fn from(error: RelationalSelectedRunStepDriverError) -> Self {
         Self::SelectedRun(error)
+    }
+}
+
+impl From<RelationalRegionProofError> for RelationalStepDriverError {
+    fn from(error: RelationalRegionProofError) -> Self {
+        Self::RegionProof(error)
     }
 }

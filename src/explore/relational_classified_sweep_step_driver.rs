@@ -388,15 +388,14 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             return Err(RelationalClassifiedSweepStepDriverError::CursorBoundsMismatch);
         }
         match (
-            progress.last_artifact_id(),
+            progress.last_artifact_digest(),
             view.support_latest_materialization_cursor(root_cell.id()),
         ) {
             (None, None) if next_coordinate_ordinal == 0 => {}
-            (Some(last_artifact_id), Some(cursor)) => {
+            (Some(last_artifact_digest), Some(cursor)) => {
                 cursor.validate_for(root_cell)?;
-                let expected_checkpoint = last_artifact_id.bytes();
                 if cursor.next_coordinate_ordinal() != next_coordinate_ordinal
-                    || cursor.checkpoint() != expected_checkpoint.as_slice()
+                    || cursor.checkpoint() != last_artifact_digest.as_slice()
                 {
                     return Err(
                         RelationalClassifiedSweepStepDriverError::ClassifiedCursorMirrorMismatch,
