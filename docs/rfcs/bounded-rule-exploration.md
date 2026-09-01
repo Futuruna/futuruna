@@ -1079,6 +1079,40 @@ incidence graph through authorized `CaseId`s and preserve the same exact case
 membership; neither may fabricate a partition, case identity or exact count
 merely to make the public graphs uniform.
 
+The case/support graph is not the semantic case graph. When a checked
+selected-input `each case` view directly exposes `case_id`, `context`,
+`before`, and `after`, publication MUST additionally expose the selected
+semantic transition relation as a bounded resumable edge list or an explicit
+typed capacity frontier. Every materialized edge record binds its `CaseId`,
+source and successor keys, role-neutral Before/After
+`StateId`s, directional `TransitionId`, checked schema identities, and the
+authorized typed Context/Before/After values. Endpoint StateIds are the graph
+nodes, and the existing within-relation CaseId-to-TransitionId injectivity
+still applies; this is not a Cartesian product with mechanism nodes. The same
+`CaseId` and `TransitionId` join this artifact to mechanism incidence, while
+`SourceKey` and `SuccessorKey` join it to conditioned starter fibers.
+
+Open rows follow the authenticated selected-discovery order because canonical
+CaseId order is not prefix-stable while FIND is still discovering members.
+The exact closure separately commits the canonical selected set, graph-content
+root, distinct state count, distinct transition count, and selected-question
+seal. Thus scheduling may change presentation order without changing graph
+identity. Adding this publication lane to an already completed Experimental
+stream MUST leave prior artifacts unchanged while appending its independent
+artifact and updating publication cursor/manifest state; it MUST NOT
+re-evaluate a case, replay a mechanism, or change the journal head. The typed
+graph is confidential output under the same explicit value authorization as
+its authorizing view.
+
+Projection V1 collision-checks and counts at most 65,536 selected edges in
+memory. If discovery proves at least 65,537, the file retains that stable
+65,536-edge prefix and appends `capacity_limited`; it MUST NOT claim an exact
+selected set, content root, state count or transition count. This terminal is
+an honest bounded result, not an empty graph or a completed exploration. A
+later disk-backed or incrementally authenticated projection version may raise
+or remove the operational cap without changing the semantic distinction above;
+the V1 bound itself is schema behavior and cannot change in place.
+
 ### Goals and non-goals
 
 The feature MUST:

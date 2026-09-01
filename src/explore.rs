@@ -224,6 +224,7 @@ pub(crate) use relational_native_classifier::{
     RelationalNativeClassifierV2,
 };
 mod relational_case_support_projection;
+mod relational_case_transition_projection;
 mod relational_selected_run_materialization;
 pub(crate) use relational_selected_run_materialization::{
     materialize_relational_selected_run, reverify_relational_selected_run_materialization_artifact,

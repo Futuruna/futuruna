@@ -2143,6 +2143,28 @@ excluded, admitted, matched and selected. It is not the semantic state graph
 fibers can share identifiers and typed case evidence, but neither should be
 misnamed as the other.
 
+Publication now gives that semantic graph its own bounded lane at
+`graphs/case-transitions.ndjson`. A checked lossless selected-case view is the
+value authority. Each selected row retains the actual Context, Before and
+After alongside CaseId, SourceKey, SuccessorKey, role-neutral endpoint
+StateIds, directional TransitionId and the checked schema identities. The
+closure counts cases, distinct state nodes and distinct transitions and binds
+the canonical selected-case set rather than treating journal discovery order
+as graph identity. Mechanism incidences join through CaseId/TransitionId;
+mechanism/node/edge starter fibers join through SourceKey/SuccessorKey. This is
+the concrete bridge between the case graph and mechanism DAG, without a
+`cases x mechanism subjects` expansion.
+
+The historical closed 10,500-case commuter journal would have been the natural
+first attachment audit, but it was minted under an earlier journal contract
+and the current reader correctly rejects its prior-head identity. There is
+therefore no authenticated publication-v9 case-transition artifact for those
+16 selected cases. The tiny relational oracle proves that a compatible closed
+stream can attach this lane with zero new semantic events or mechanism replay;
+the exact Personskat artifact facts belong below only after a new compatible
+bounded stream exists. The design does not manufacture a new 341xxx/342xxx
+input fixture to obtain them.
+
 The final source-result closure did not replay the 10,500 tax transitions. A
 checked ProductRank grouped-distinct theorem proved the lattice as three exact
 groups of 3,500 members and evaluated one representative per group only for

@@ -46,12 +46,21 @@ fn fixture() -> PathBuf {
 }
 
 fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> Output {
+    run_explore_query(
+        fixture,
+        "relational_stream_nonempty_smoke",
+        run_state,
+        output,
+    )
+}
+
+fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Path) -> Output {
     Command::new(runa())
         .args([
             "explore",
             fixture.to_str().expect("UTF-8 Explore fixture path"),
             "--query",
-            "relational_stream_nonempty_smoke",
+            query,
             "--run-state",
             run_state.to_str().expect("UTF-8 run-state path"),
             "--output",
@@ -165,6 +174,41 @@ fn snapshot_files(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
     let mut files = BTreeMap::new();
     visit(root, root, &mut files);
     files
+}
+
+#[test]
+fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
+    let fixture = fixture();
+    let temp = TestDirectory::new();
+    let run_state = temp.path().join("empty-state");
+    let output_directory = temp.path().join("empty-output");
+
+    let output = run_explore_query(
+        &fixture,
+        "relational_stream_empty_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&output);
+    let report = parse_stdout(&output);
+    assert_eq!(report["run"]["lifecycle"], "complete");
+    assert_exact_count(&report["counts"]["selected"], "0");
+    assert_eq!(report["publication"]["caught_up"], true);
+
+    let manifest = read_json(&output_directory.join("manifest.json"));
+    let records = read_ndjson(&artifact_path(
+        &manifest,
+        &output_directory,
+        "selected_case_transition_graph",
+    ));
+    assert_eq!(records.len(), 2);
+    assert_eq!(records[0]["record"]["kind"], "header");
+    let closure = &records[1]["record"];
+    assert_eq!(closure["kind"], "closure");
+    assert_eq!(closure["frontier"], "exact");
+    assert_exact_count(&closure["counts"]["selected_cases"], "0");
+    assert_exact_count(&closure["counts"]["state_nodes"], "0");
+    assert_exact_count(&closure["counts"]["semantic_transitions"], "0");
 }
 
 #[test]
@@ -286,7 +330,7 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         .copied()
         .collect::<Vec<_>>();
     selected_transitions.sort_unstable();
-    assert_eq!(selected_transitions, vec![(1, 2), (3, 4)]);
+    assert_eq!(selected_transitions, vec![(1, 2), (2, 3)]);
 
     let structural_incidence_artifact = manifest["artifacts"]
         .as_array()
@@ -311,6 +355,7 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     let mut raw_signatures = BTreeSet::new();
     let mut structural_mechanisms = BTreeSet::new();
     let mut execution_profiles = BTreeSet::new();
+    let mut mechanism_transition_by_case = BTreeMap::new();
     for row in incidence_rows {
         assert_eq!(row["record"]["row_id"]["kind"], "incidence");
         let values = &row["record"]["values"];
@@ -332,6 +377,21 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
             row["record"]["row_id"]["signature_id"],
             values["signature_id"]["value"]
         );
+        assert!(
+            mechanism_transition_by_case
+                .insert(
+                    row["record"]["row_id"]["case_id"]
+                        .as_str()
+                        .expect("incidence case ID")
+                        .to_owned(),
+                    row["record"]["row_id"]["transition_id"]
+                        .as_str()
+                        .expect("incidence transition ID")
+                        .to_owned(),
+                )
+                .is_none(),
+            "smoke query has one mechanism incidence per selected case"
+        );
         raw_signatures.insert(
             values["signature_id"]["value"]
                 .as_str()
@@ -352,6 +412,53 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_eq!(structural_mechanisms.len(), 1);
     assert_eq!(execution_profiles.len(), 1);
 
+    let case_transitions = read_ndjson(&artifact_path(
+        &manifest,
+        &output_directory,
+        "selected_case_transition_graph",
+    ));
+    assert_eq!(case_transitions.len(), 4);
+    assert_eq!(case_transitions[0]["record"]["kind"], "header");
+    assert_eq!(
+        case_transitions[0]["record"]["source_order"],
+        "journal_selected_discovery"
+    );
+    assert_eq!(
+        case_transitions[0]["record"]["value_authorization"]["authorizing_view_name"],
+        "selected_cases"
+    );
+    let transition_rows = case_transitions
+        .iter()
+        .filter(|record| record["record"]["kind"] == "case_transition")
+        .collect::<Vec<_>>();
+    assert_eq!(transition_rows.len(), 2);
+    for row in transition_rows {
+        let record = &row["record"];
+        let case_id = record["case_id"].as_str().expect("case-transition CaseId");
+        let &(before, after) = selected_values_by_case
+            .get(case_id)
+            .expect("case-transition row must name a selected case");
+        assert_eq!(record["context"], serde_json::json!({ "kind": "unit" }));
+        assert_eq!(record["before"], before);
+        assert_eq!(record["after"], after);
+        assert_ne!(record["before_state_id"], record["after_state_id"]);
+        let expected_transition_id = mechanism_transition_by_case
+            .get(case_id)
+            .expect("mechanism incidence must join through TransitionId");
+        assert_eq!(
+            record["transition_id"].as_str(),
+            Some(expected_transition_id.as_str())
+        );
+    }
+    let case_transition_closure = &case_transitions[3]["record"];
+    assert_eq!(case_transition_closure["kind"], "closure");
+    assert_eq!(case_transition_closure["frontier"], "exact");
+    assert_exact_count(&case_transition_closure["counts"]["selected_cases"], "2");
+    assert_exact_count(&case_transition_closure["counts"]["state_nodes"], "3");
+    assert_exact_count(
+        &case_transition_closure["counts"]["semantic_transitions"],
+        "2",
+    );
     let mechanism_summary_artifact = manifest["artifacts"]
         .as_array()
         .expect("manifest artifacts")
@@ -490,17 +597,46 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         "2"
     );
 
-    let published_before_attachment = snapshot_files(&output_directory);
     let first_next_sequence = first["run"]["checkpoint"]["next_sequence"].clone();
     let first_journal_head = first["run"]["checkpoint"]["journal_head"].clone();
     let first_artifact_count = first["publication"]["artifact_count"]
         .as_u64()
         .expect("first artifact count");
 
+    // Model a completed publication-v9 cursor created before the automatic
+    // case-transition consumer existed. The cursor remains authenticated by
+    // the unchanged journal and prior artifact prefixes; removing the derived
+    // graph entry/file and stale manifest exercises the additive-extension
+    // path without altering semantic evidence.
+    let cursor_path = output_directory.join(".publication-cursor-v9.json");
+    let mut legacy_cursor = read_json(&cursor_path);
+    assert!(legacy_cursor["artifacts"]
+        .as_object_mut()
+        .expect("publication cursor artifacts")
+        .remove("graph:case-transitions")
+        .is_some());
+    std::fs::write(
+        &cursor_path,
+        serde_json::to_vec_pretty(&legacy_cursor).expect("serialize legacy publication cursor"),
+    )
+    .expect("write legacy publication cursor");
+    std::fs::remove_file(artifact_path(
+        &manifest,
+        &output_directory,
+        "selected_case_transition_graph",
+    ))
+    .expect("remove derived graph for additive attachment simulation");
+    std::fs::remove_file(output_directory.join("manifest.json"))
+        .expect("remove stale manifest for additive attachment simulation");
+    let published_before_attachment = snapshot_files(&output_directory);
+
     let fixture_source = std::fs::read_to_string(&fixture).expect("read Explore fixture");
-    let closing_brace = fixture_source
+    let next_query = fixture_source
+        .find("\n? explore relational_stream_empty_smoke")
+        .expect("second Explore fixture query");
+    let closing_brace = fixture_source[..next_query]
         .rfind('}')
-        .expect("Explore fixture query closing brace");
+        .expect("first Explore fixture query closing brace");
     let projected_source = format!(
         "{}    starters selected_activation_node from mechanisms paths for node activation \"{}\" using values from selected_cases\n{}",
         &fixture_source[..closing_brace],
@@ -528,8 +664,8 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         first_journal_head
     );
     assert_eq!(attached["query"]["identity"], first["query"]["identity"]);
-    assert_eq!(attached["publication"]["lines_appended"], 3);
-    assert_eq!(attached["publication"]["source_ordinals_advanced"], 3);
+    assert_eq!(attached["publication"]["lines_appended"], 7);
+    assert_eq!(attached["publication"]["source_ordinals_advanced"], 7);
     assert_eq!(attached["publication"]["caught_up"], true);
     assert_eq!(
         attached["publication"]["artifact_count"],
@@ -555,6 +691,46 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         attached_manifest["identity"]["starter_consumer_set_id"],
         manifest["identity"]["starter_consumer_set_id"]
     );
+    let attached_case_transition_path = artifact_path(
+        &attached_manifest,
+        &output_directory,
+        "selected_case_transition_graph",
+    );
+    // Projection payload and order are stable. The envelope authorization is
+    // deliberately the checkpoint at which this additive publication occurs,
+    // so a completed attachment must name the final checkpoint on every line.
+    let attached_case_transitions = read_ndjson(&attached_case_transition_path);
+    assert_eq!(
+        attached_case_transitions.len(),
+        case_transitions.len(),
+        "additive attachment changed the case-transition record count"
+    );
+    for (record_index, (attached_record, original_record)) in attached_case_transitions
+        .iter()
+        .zip(&case_transitions)
+        .enumerate()
+    {
+        for stable_key in [
+            "artifact",
+            "name",
+            "record",
+            "schema_version",
+            "source_ordinal",
+        ] {
+            assert_eq!(
+                attached_record[stable_key], original_record[stable_key],
+                "case-transition graph record {record_index} changed stable field `{stable_key}` during additive attachment"
+            );
+        }
+        assert_eq!(
+            attached_record["authorized_at"]["next_sequence"],
+            first_next_sequence
+        );
+        assert_eq!(
+            attached_record["authorized_at"]["journal_head"],
+            first_journal_head
+        );
+    }
 
     let starter_artifact = attached_manifest["artifacts"]
         .as_array()
@@ -629,12 +805,14 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         .expect("starter page members");
     assert_eq!(starter_members.len(), 2);
     assert!(
-        starter_members[0]["source_key"]
-            .as_str()
-            .expect("first starter source key")
-            < starter_members[1]["source_key"]
+        starter_members.windows(2).all(|window| {
+            window[0]["source_key"]
                 .as_str()
-                .expect("second starter source key"),
+                .expect("prior starter source key")
+                < window[1]["source_key"]
+                    .as_str()
+                    .expect("next starter source key")
+        }),
         "starter members must use canonical SourceKey order"
     );
     for member in starter_members {
@@ -680,7 +858,11 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         .collect::<Vec<_>>();
     assert_eq!(
         added_paths,
-        vec![PathBuf::from("starters/selected_activation_node.ndjson")]
+        vec![
+            PathBuf::from("graphs/case-transitions.ndjson"),
+            PathBuf::from("manifest.json"),
+            PathBuf::from("starters/selected_activation_node.ndjson"),
+        ]
     );
 
     let resumed_output = run_explore(&projected_fixture, &run_state, &output_directory);

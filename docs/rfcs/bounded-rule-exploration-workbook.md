@@ -1175,6 +1175,7 @@ personskat-200k-result/
   mechanisms/cliff_paths.structural-definitions.ndjson
   starters/selected_cliff_node.ndjson
   graphs/case-support.ndjson
+  graphs/case-transitions.ndjson
 ```
 
 The `starters/` lane is explicit and single-subject. Publication v9 schedules
@@ -1183,8 +1184,23 @@ consumer whose `using values from VIEW` reference names a checked lossless
 selected-input `each case` view authorizing CaseId, Context, Before and After.
 Its absence is `not_materialized`, not an empty-support claim. Adding another
 consumer to a completed run is an additive publication operation: it leaves
-the existing journal and analysis roots untouched and may only add a new
-content-addressed cursor/artifact.
+the existing journal, analysis roots, and prior artifacts untouched while
+adding its content-addressed artifact and updating cursor/manifest state.
+
+`graphs/case-transitions.ndjson` is the corresponding case-side semantic
+artifact. It is automatically authorized only when one checked selected-input
+`each case` view directly exposes `case_id`, `context`, `before`, and `after`.
+Its append-only rows follow journal selected-discovery order and contain the
+CaseId, source/successor keys, canonical Before/After StateIds, directional
+TransitionId, checked schema IDs, and typed Context/Before/After values. Its
+exact closure commits the canonical selected-case set and graph-content root,
+so file order is not semantic identity. Because it is derived from retained
+journal cases, it can attach to a closed stream without endpoint evaluation or
+mechanism replay. It is `O(selected cases)`, never `O(cases * mechanism
+subjects)`, within V1's fixed 65,536-edge collision-checking capacity. Crossing
+that capacity produces a typed `capacity_limited` terminal after the stable
+retained prefix; it does not fabricate exact graph closure or allocate beyond
+the cap.
 
 `manifest.json` names the query and identity ladder, checked program, source
 coverage restrictions/gaps, journal head and sequence, lifecycle/pause reason,
@@ -1415,6 +1431,20 @@ a known commitment. A local output directory containing private queries must
 therefore remain confidential. Any future shared or cloud publisher needs an
 explicit release policy and, where non-disclosure is required, projection-local
 identifiers or hiding commitments rather than reusing private content roots.
+
+The separately resumed `graphs/case-transitions.ndjson` artifact closes the
+other half of the model. `case-support` is the search/classification DAG;
+`case-transitions` is the selected semantic edge list. Every edge carries one
+authorized CaseId support and the canonical
+`StateId(Before) -> TransitionId(Context) -> StateId(After)` identities plus
+typed values. Mechanism incidence already uses the same CaseId and
+TransitionId, while subject starter projections use the same SourceKey and
+SuccessorKey. The three projections therefore meet without duplicating a
+case-by-node table. Publication v9 treats this new lane as an additive
+artifact, preserving existing cursor/journal identity when it is attached to
+a completed run. Its V1 in-memory collision index has a hard 65,536-edge
+ceiling; a larger selected population closes the materialization attempt with
+an explicit capacity frontier, not with false exactness or unbounded RAM.
 
 Before appending a bounded mechanism batch, the publication cursor freezes the
 authorized event end and, if analysis has closed, the exact incidence root.

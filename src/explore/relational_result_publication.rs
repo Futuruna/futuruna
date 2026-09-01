@@ -80,6 +80,11 @@ use super::relational_case_support_projection::{
     RelationalCaseSupportProjectionRecord, RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA,
     RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
 };
+use super::relational_case_transition_projection::{
+    derive_relational_case_transition_projection, RelationalCaseTransitionProjection,
+    RelationalCaseTransitionProjectionRecord, RELATIONAL_CASE_TRANSITION_PROJECTION_SCHEMA,
+    RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION,
+};
 use super::relational_ir::{
     ExploreAnalysisNodeIr, ExploreMechanismTargetIr, ExploreResultGrainIr, ExploreResultInputIr,
     ExploreStarterProjectionFacetIr, ExploreStarterProjectionSubjectIr,
@@ -93,9 +98,10 @@ use super::relational_mechanism_executor::{
     RelationalRuleSelectionOutcome, RelationalShortCircuitOutcome,
 };
 use super::relational_mechanism_starter_authorization::{
+    find_relational_mechanism_starter_value_authorization,
     relational_mechanism_starter_value_authorization_for_view,
-    RelationalMechanismStarterValueAuthorization, RelationalMechanismStarterValueRole,
-    RELATIONAL_MECHANISM_STARTER_VALUE_AUTHORIZATION_VERSION,
+    RelationalMechanismStarterAuthorizationError, RelationalMechanismStarterValueAuthorization,
+    RelationalMechanismStarterValueRole, RELATIONAL_MECHANISM_STARTER_VALUE_AUTHORIZATION_VERSION,
 };
 use super::relational_mechanism_starter_projection::{
     RelationalMechanismStarterProjectionAccumulator, RelationalMechanismStarterProjectionClosure,
@@ -133,6 +139,9 @@ const RESULT_PREFIX_EXTEND_V9: &[u8] = b"futuruna.explore.publication-prefix-ext
 const CASE_SUPPORT_ARTIFACT_KEY: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH: &str = "graphs/case-support.ndjson";
+const CASE_TRANSITIONS_ARTIFACT_KEY: &str = "graph:case-transitions";
+const CASE_TRANSITIONS_ARTIFACT_NAME: &str = "case-transitions";
+const CASE_TRANSITIONS_ARTIFACT_PATH: &str = "graphs/case-transitions.ndjson";
 const MECHANISM_DEFINITION_ENCODING: &str = "futuruna.relational-mechanism-signature-definition";
 const MECHANISM_DEFINITION_ENCODING_VERSION: u32 = 1;
 // Hex doubles this payload in JSON. Keeping it well below the default 1 MiB
@@ -349,6 +358,10 @@ enum PublicationArtifactPlan {
     CaseSupport {
         authorization: Option<RelationalCaseIdPublicationAuthorization>,
     },
+    CaseTransitions {
+        authorization: RelationalMechanismStarterValueAuthorization,
+        transition_schemas: TransitionSchemaIdentities,
+    },
 }
 
 impl PublicationArtifactPlan {
@@ -361,6 +374,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructuralDefinitions { key, .. }
             | Self::SubjectStarters { key, .. } => key,
             Self::CaseSupport { .. } => CASE_SUPPORT_ARTIFACT_KEY,
+            Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_KEY,
         }
     }
 
@@ -373,6 +387,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructuralDefinitions { name, .. }
             | Self::SubjectStarters { name, .. } => name,
             Self::CaseSupport { .. } => CASE_SUPPORT_ARTIFACT_NAME,
+            Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_NAME,
         }
     }
 
@@ -385,6 +400,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructuralDefinitions { path, .. }
             | Self::SubjectStarters { path, .. } => path,
             Self::CaseSupport { .. } => Path::new(CASE_SUPPORT_ARTIFACT_PATH),
+            Self::CaseTransitions { .. } => Path::new(CASE_TRANSITIONS_ARTIFACT_PATH),
         }
     }
 
@@ -397,6 +413,7 @@ impl PublicationArtifactPlan {
             Self::MechanismStructuralDefinitions { .. } => "mechanism_structural_definitions",
             Self::SubjectStarters { .. } => "subject_starter_support",
             Self::CaseSupport { .. } => "case_support_graph",
+            Self::CaseTransitions { .. } => "selected_case_transition_graph",
         }
     }
 }
@@ -432,7 +449,7 @@ impl RelationalPublicationPlan {
                 .len()
                 .checked_mul(4)
                 .and_then(|count| count.checked_add(checked.starter_projection_consumers().len()))
-                .and_then(|count| count.checked_add(1))
+                .and_then(|count| count.checked_add(2))
                 .ok_or(RelationalPublicationError::ArithmeticOverflow)?,
         );
         let mut definition_artifacts = Vec::new();
@@ -664,6 +681,28 @@ impl RelationalPublicationPlan {
             ));
         }
         artifacts.push(case_support);
+        let case_transition_authorization =
+            match find_relational_mechanism_starter_value_authorization(*checked) {
+                Ok(authorization) => Some(authorization),
+                Err(RelationalMechanismStarterAuthorizationError::NoCompatibleSelectedCaseView) => {
+                    None
+                }
+                Err(error) => {
+                    return Err(RelationalPublicationError::Analysis(error.to_string()));
+                }
+            };
+        if let Some(authorization) = case_transition_authorization {
+            let case_transitions = PublicationArtifactPlan::CaseTransitions {
+                authorization,
+                transition_schemas: checked.transition_schemas().clone(),
+            };
+            if !paths.insert(case_transitions.path().to_path_buf()) {
+                return Err(RelationalPublicationError::ArtifactPathCollision(
+                    case_transitions.path().to_path_buf(),
+                ));
+            }
+            artifacts.push(case_transitions);
+        }
         // Normalized structural definitions become independently readable at
         // quotient closure. They remain behind compact answers in servicing
         // order and ahead of the much larger raw signature payload lane.
@@ -1266,7 +1305,8 @@ fn source_cursor_matches_artifact(
             ArtifactSourceCursor::Flat { .. },
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
-            | PublicationArtifactPlan::CaseSupport { .. },
+            | PublicationArtifactPlan::CaseSupport { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. },
         )
         | (
             ArtifactSourceCursor::MechanismDiscovery { .. },
@@ -1306,7 +1346,8 @@ fn pending_source_end_matches_artifact(
             PendingArtifactSourceEnd::Flat { .. },
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
-            | PublicationArtifactPlan::CaseSupport { .. },
+            | PublicationArtifactPlan::CaseSupport { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. },
         ) => true,
         (
             PendingArtifactSourceEnd::MechanismDiscovery { closure_root, .. },
@@ -1775,6 +1816,7 @@ impl RelationalClassificationSummaryProjection<'_> {
 
 struct PublicationOrdinalIndex<'journal> {
     case_support: Option<PublicationCaseSupportProjection<'journal>>,
+    case_transitions: Option<RelationalCaseTransitionProjection>,
     mechanisms: BTreeMap<MechanismRequestId, MechanismDefinitionOrdinalIndex>,
 }
 
@@ -1807,12 +1849,46 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             | PublicationArtifactPlan::MechanismDefinitions { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
-            | PublicationArtifactPlan::SubjectStarters { .. } => None,
+            | PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. } => None,
         }) else {
             return Err(RelationalPublicationError::PlanIdentityMismatch);
         };
+        let case_transitions = plan
+            .artifacts
+            .iter()
+            .find_map(|artifact| match artifact {
+                PublicationArtifactPlan::CaseTransitions {
+                    authorization,
+                    transition_schemas,
+                } => Some((authorization.clone(), transition_schemas.clone())),
+                PublicationArtifactPlan::Result { .. }
+                | PublicationArtifactPlan::Mechanism { .. }
+                | PublicationArtifactPlan::MechanismDefinitions { .. }
+                | PublicationArtifactPlan::MechanismStructural { .. }
+                | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
+                | PublicationArtifactPlan::SubjectStarters { .. }
+                | PublicationArtifactPlan::CaseSupport { .. } => None,
+            })
+            .map(|(authorization, transition_schemas)| {
+                let scheduler = journal
+                    .scheduler_view()
+                    .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+                let selected_question = journal
+                    .analysis_state()
+                    .and_then(|analysis| analysis.selected_question());
+                derive_relational_case_transition_projection(
+                    scheduler,
+                    transition_schemas,
+                    authorization,
+                    selected_question,
+                )
+                .map_err(|error| RelationalPublicationError::CaseTransitions(error.to_string()))
+            })
+            .transpose()?;
         Ok(Self {
             case_support: derive_case_support_for_publication(journal, authorization)?,
+            case_transitions,
             mechanisms: BTreeMap::new(),
         })
     }
@@ -2384,7 +2460,11 @@ fn load_or_create_cursor(
             plan.artifacts.iter().map(|artifact| {
                 (
                     artifact.key().to_string(),
-                    matches!(artifact, PublicationArtifactPlan::SubjectStarters { .. }),
+                    matches!(
+                        artifact,
+                        PublicationArtifactPlan::SubjectStarters { .. }
+                            | PublicationArtifactPlan::CaseTransitions { .. }
+                    ),
                 )
             }),
         )?;
@@ -2476,7 +2556,8 @@ fn initial_artifact_cursor(
         source: match artifact {
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
-            | PublicationArtifactPlan::CaseSupport { .. } => ArtifactSourceCursor::Flat {
+            | PublicationArtifactPlan::CaseSupport { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. } => ArtifactSourceCursor::Flat {
                 next_source_ordinal: 0,
             },
             PublicationArtifactPlan::Mechanism { .. } => ArtifactSourceCursor::MechanismDiscovery {
@@ -2644,7 +2725,8 @@ fn validate_source_cursors(
             (
                 PublicationArtifactPlan::Result { .. }
                 | PublicationArtifactPlan::MechanismStructural { .. }
-                | PublicationArtifactPlan::CaseSupport { .. },
+                | PublicationArtifactPlan::CaseSupport { .. }
+                | PublicationArtifactPlan::CaseTransitions { .. },
                 ArtifactSourceCursor::Flat {
                     next_source_ordinal,
                 },
@@ -3289,6 +3371,21 @@ fn record_at(
             case_support_record(
                 artifact,
                 ordinal_index.case_support.as_ref(),
+                next_source_ordinal,
+            )?,
+        ),
+        (
+            PublicationArtifactPlan::CaseTransitions { .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => address_flat_record(
+            artifact,
+            next_source_ordinal,
+            case_transition_record(
+                artifact,
+                journal,
+                ordinal_index.case_transitions.as_ref(),
                 next_source_ordinal,
             )?,
         ),
@@ -4596,6 +4693,170 @@ fn case_support_record(
     })
 }
 
+fn case_transition_record(
+    artifact: &PublicationArtifactPlan,
+    journal: &RelationalJournal,
+    projection: Option<&RelationalCaseTransitionProjection>,
+    source_ordinal: u128,
+) -> Result<PublicationRecord, RelationalPublicationError> {
+    let Some(projection) = projection else {
+        return if source_ordinal == 0 {
+            Ok(PublicationRecord::NotReady)
+        } else {
+            Err(RelationalPublicationError::PublicationSourceAhead {
+                artifact: artifact.key().into(),
+                next_source_ordinal: source_ordinal,
+                available: 0,
+            })
+        };
+    };
+    let available = projection.available_source_record_count();
+    if source_ordinal > available {
+        return Err(RelationalPublicationError::PublicationSourceAhead {
+            artifact: artifact.key().into(),
+            next_source_ordinal: source_ordinal,
+            available,
+        });
+    }
+    if let Some(record) = projection.record_at(source_ordinal) {
+        return Ok(PublicationRecord::Emit(public_case_transition_record(
+            artifact, journal, record,
+        )?));
+    }
+    if source_ordinal != available {
+        return Err(RelationalPublicationError::CaseTransitions(
+            "selected case-transition projection omitted an addressable source ordinal".into(),
+        ));
+    }
+    Ok(if projection.is_open() {
+        PublicationRecord::NotReady
+    } else {
+        PublicationRecord::Exhausted
+    })
+}
+
+fn public_case_transition_record(
+    artifact: &PublicationArtifactPlan,
+    journal: &RelationalJournal,
+    record: RelationalCaseTransitionProjectionRecord,
+) -> Result<JsonValue, RelationalPublicationError> {
+    let PublicationArtifactPlan::CaseTransitions {
+        authorization,
+        transition_schemas,
+    } = artifact
+    else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    match record {
+        RelationalCaseTransitionProjectionRecord::Header {
+            projection_id,
+            contract,
+            state_schema_id,
+            context_schema_id,
+            transition_type_id,
+            authorization_id,
+            authorizing_view_id,
+        } => {
+            if state_schema_id != transition_schemas.state_schema_id()
+                || context_schema_id != transition_schemas.context_schema_id()
+                || transition_type_id != transition_schemas.transition_type_id()
+                || authorization_id != authorization.authorization_id()
+                || authorizing_view_id != authorization.view_id()
+            {
+                return Err(RelationalPublicationError::CaseTransitions(
+                    "selected case-transition header disagrees with its checked publication plan"
+                        .into(),
+                ));
+            }
+            Ok(json!({
+                "kind": "header",
+                "projection_schema": RELATIONAL_CASE_TRANSITION_PROJECTION_SCHEMA,
+                "projection_version": RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION,
+                "projection_id": hex(projection_id.bytes()),
+                "relation_id": hex(contract.relation_id().bytes()),
+                "admission_id": hex(contract.admission_id().bytes()),
+                "question_id": hex(contract.question_id().bytes()),
+                "state_schema_id": hex(state_schema_id.bytes()),
+                "context_schema_id": hex(context_schema_id.bytes()),
+                "transition_type_id": hex(transition_type_id.bytes()),
+                "value_authorization": {
+                    "authorization_id": hex(authorization_id.bytes()),
+                    "authorizing_view_id": hex(authorizing_view_id.bytes()),
+                    "authorizing_view_name": authorization.authorizing_view_name(),
+                },
+                "source_order": "journal_selected_discovery",
+                "node_encoding": "endpoint_state_ids_on_case_supported_edges",
+            }))
+        }
+        RelationalCaseTransitionProjectionRecord::CaseTransition(member) => {
+            let scheduler = journal
+                .scheduler_view()
+                .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+            let case = scheduler.case(member.case_id()).ok_or_else(|| {
+                RelationalPublicationError::CaseTransitions(
+                    "selected case-transition member no longer resolves in the journal".into(),
+                )
+            })?;
+            if case.source_key() != member.source_key()
+                || case.successor_key() != member.successor_key()
+            {
+                return Err(RelationalPublicationError::CaseTransitions(
+                    "selected case-transition member disagrees with its journal coordinate".into(),
+                ));
+            }
+            Ok(json!({
+                "kind": "case_transition",
+                "case_id": hex(member.case_id().bytes()),
+                "source_key": hex(member.source_key().bytes()),
+                "successor_key": hex(member.successor_key().bytes()),
+                "transition_id": hex(member.transition_id().bytes()),
+                "before_state_id": hex(member.before_state_id().bytes()),
+                "after_state_id": hex(member.after_state_id().bytes()),
+                "state_schema_id": hex(transition_schemas.state_schema_id().bytes()),
+                "context_schema_id": hex(transition_schemas.context_schema_id().bytes()),
+                "transition_type_id": hex(transition_schemas.transition_type_id().bytes()),
+                "context": public_explore_value(case.context()),
+                "before": public_explore_value(case.before()),
+                "after": public_explore_value(case.after()),
+                "authorizing_view_id": hex(authorization.view_id().bytes()),
+            }))
+        }
+        RelationalCaseTransitionProjectionRecord::Closure(closure) => Ok(json!({
+            "kind": "closure",
+            "frontier": "exact",
+            "selected_question_seal_id": hex(closure.selected_question_seal_id().bytes()),
+            "selected_case_set_root": hex(closure.selected_case_set_root().bytes()),
+            "content_root": hex(closure.content_root().bytes()),
+            "data_record_count": closure.data_record_count().to_string(),
+            "counts": {
+                "selected_cases": {
+                    "status": "exact",
+                    "value": closure.exact_case_count().to_string(),
+                },
+                "state_nodes": {
+                    "status": "exact",
+                    "value": closure.exact_state_count().to_string(),
+                },
+                "semantic_transitions": {
+                    "status": "exact",
+                    "value": closure.exact_transition_count().to_string(),
+                },
+            },
+        })),
+        RelationalCaseTransitionProjectionRecord::CapacityLimited(capacity) => Ok(json!({
+            "kind": "capacity_limited",
+            "frontier": "capacity_limited",
+            "complete": false,
+            "reason": "v1_collision_checked_projection_member_limit",
+            "maximum_members": capacity.maximum_members().to_string(),
+            "required_at_least": capacity.required_at_least().to_string(),
+            "selected_question_seal_id": null,
+            "selected_case_set_root": null,
+            "content_root": null,
+        })),
+    }
+}
+
 fn public_case_support_record(record: PublicationCaseSupportRecord) -> JsonValue {
     match record {
         PublicationCaseSupportRecord::Partitioned(record) => {
@@ -4933,6 +5194,63 @@ fn public_case_support_projection_metadata(
             })
         }
     }
+}
+
+fn public_case_transition_projection_metadata(
+    projection: &RelationalCaseTransitionProjection,
+) -> JsonValue {
+    let metadata = projection.metadata();
+    let selected_case_lower_bound = metadata.capacity().map_or_else(
+        || metadata.selected_case_count(),
+        |capacity| capacity.required_at_least(),
+    );
+    json!({
+        "projection_id": hex(metadata.projection_id().bytes()),
+        "frontier": metadata.closure().map_or_else(|| {
+            metadata.capacity().map_or_else(|| json!({
+                "status": "open",
+                "reason": "awaiting_selected_question_seal",
+            }), |capacity| json!({
+                "status": "capacity_limited",
+                "reason": "v1_collision_checked_projection_member_limit",
+                "maximum_members": capacity.maximum_members().to_string(),
+                "required_at_least": capacity.required_at_least().to_string(),
+                "exact_closure_claimed": false,
+            }))
+        },
+            |closure| json!({
+                "status": "exact",
+                "selected_question_seal_id": hex(
+                    closure.selected_question_seal_id().bytes()
+                ),
+                "selected_case_set_root": hex(closure.selected_case_set_root().bytes()),
+                "content_root": hex(closure.content_root().bytes()),
+            }),
+        ),
+        "counts": {
+            "selected_cases": {
+                "status": if metadata.closure().is_some() { "exact" } else { "lower_bound" },
+                "value": selected_case_lower_bound.to_string(),
+                "scope": "global_selected_frontier",
+            },
+            "materialized_case_edges": {
+                "status": "exact",
+                "value": metadata.selected_case_count().to_string(),
+                "scope": "retained_graph_prefix",
+            },
+            "state_nodes": {
+                "status": if metadata.closure().is_some() { "exact" } else { "lower_bound" },
+                "value": metadata.distinct_state_count().to_string(),
+                "scope": if metadata.capacity().is_some() { "retained_prefix" } else { "observed_frontier" },
+            },
+            "semantic_transitions": {
+                "status": if metadata.closure().is_some() { "exact" } else { "lower_bound" },
+                "value": metadata.distinct_transition_count().to_string(),
+                "scope": if metadata.capacity().is_some() { "retained_prefix" } else { "observed_frontier" },
+            },
+            "available_source_records": metadata.available_source_record_count().to_string(),
+        },
+    })
 }
 
 fn public_case_support_count(count: RelationalCaseSupportCount) -> JsonValue {
@@ -5450,7 +5768,8 @@ fn pending_source_end(
         }
         PublicationArtifactPlan::Result { .. }
         | PublicationArtifactPlan::MechanismStructural { .. }
-        | PublicationArtifactPlan::CaseSupport { .. } => {
+        | PublicationArtifactPlan::CaseSupport { .. }
+        | PublicationArtifactPlan::CaseTransitions { .. } => {
             let source_end = available_source_record_count(artifact, journal, ordinal_index)?
                 .ok_or(RelationalPublicationError::PendingCursorMismatch)?;
             return Ok(PendingArtifactSourceEnd::Flat { source_end });
@@ -7471,6 +7790,56 @@ fn build_manifest(
                     ),
                 );
             }
+            if let PublicationArtifactPlan::CaseTransitions {
+                authorization,
+                transition_schemas,
+            } = artifact
+            {
+                object.insert(
+                    "record_schema".into(),
+                    JsonValue::String(RELATIONAL_CASE_TRANSITION_PROJECTION_SCHEMA.into()),
+                );
+                object.insert(
+                    "record_schema_version".into(),
+                    JsonValue::Number(RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION.into()),
+                );
+                object.insert(
+                    "value_authorization".into(),
+                    json!({
+                        "authorization_id": hex(authorization.authorization_id().bytes()),
+                        "authorizing_view_id": hex(authorization.view_id().bytes()),
+                        "authorizing_view_name": authorization.authorizing_view_name(),
+                    }),
+                );
+                object.insert(
+                    "transition_schemas".into(),
+                    json!({
+                        "state_schema_id": hex(transition_schemas.state_schema_id().bytes()),
+                        "context_schema_id": hex(transition_schemas.context_schema_id().bytes()),
+                        "transition_type_id": hex(transition_schemas.transition_type_id().bytes()),
+                    }),
+                );
+                object.insert(
+                    "graph_projection".into(),
+                    ordinal_index.case_transitions.as_ref().map_or_else(
+                        || {
+                            json!({
+                                "frontier": {
+                                    "status": "open",
+                                    "reason": "awaiting_selected_case_values",
+                                },
+                                "counts": null,
+                            })
+                        },
+                        public_case_transition_projection_metadata,
+                    ),
+                );
+                object.insert(
+                    "source_order".into(),
+                    JsonValue::String("journal_selected_discovery".into()),
+                );
+                object.insert("contains_typed_case_values".into(), JsonValue::Bool(true));
+            }
             Ok(descriptor)
         })
         .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
@@ -7528,6 +7897,7 @@ fn build_manifest(
             "Structural support publishes a hard-bounded signature-fiber summary for each request-target-conditioned mechanism or node/edge facet; capped scans widen bounds and never fall back to a full case/starter union.",
             "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet through its named checked value view.",
             "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
+            "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
             "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
             "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
         ],
@@ -7561,6 +7931,12 @@ fn available_source_record_count(
                 .as_ref()
                 .map_or(0, |projection| projection.available_source_record_count()),
         )),
+        PublicationArtifactPlan::CaseTransitions { .. } => {
+            Ok(Some(ordinal_index.case_transitions.as_ref().map_or(
+                0,
+                RelationalCaseTransitionProjection::available_source_record_count,
+            )))
+        }
         PublicationArtifactPlan::MechanismStructural { request_id, .. } => Ok(Some(
             structural_sidecar_authority(journal, *request_id)?.available_source_record_count()?,
         )),
@@ -7665,6 +8041,24 @@ fn artifact_is_caught_up(
                 .case_support
                 .as_ref()
                 .is_none_or(PublicationCaseSupportProjection::is_open);
+            if is_open {
+                return next_source_ordinal == available;
+            }
+        }
+        (
+            PublicationArtifactPlan::CaseTransitions { .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => {
+            let available = ordinal_index.case_transitions.as_ref().map_or(
+                0,
+                RelationalCaseTransitionProjection::available_source_record_count,
+            );
+            let is_open = ordinal_index
+                .case_transitions
+                .as_ref()
+                .is_none_or(RelationalCaseTransitionProjection::is_open);
             if is_open {
                 return next_source_ordinal == available;
             }
@@ -7826,6 +8220,24 @@ fn artifact_layer_roots(
                 ),
             })),
         };
+    }
+    if matches!(artifact, PublicationArtifactPlan::CaseTransitions { .. }) {
+        let Some(projection) = ordinal_index.case_transitions.as_ref() else {
+            return Ok(JsonValue::Null);
+        };
+        let metadata = projection.metadata();
+        return Ok(json!({
+            "projection_id": hex(metadata.projection_id().bytes()),
+            "selected_question_seal_id": metadata.closure().map(|closure| {
+                hex(closure.selected_question_seal_id().bytes())
+            }),
+            "selected_case_set_root": metadata.closure().map(|closure| {
+                hex(closure.selected_case_set_root().bytes())
+            }),
+            "case_transition_content_root": metadata.closure().map(|closure| {
+                hex(closure.content_root().bytes())
+            }),
+        }));
     }
     let Some(analysis) = journal.analysis_state() else {
         return Ok(JsonValue::Null);
@@ -7994,6 +8406,9 @@ fn artifact_layer_roots(
         }
         PublicationArtifactPlan::CaseSupport { .. } => {
             unreachable!("case-support roots return before consulting the analysis catalog")
+        }
+        PublicationArtifactPlan::CaseTransitions { .. } => {
+            unreachable!("case-transition roots return before consulting the analysis catalog")
         }
     }
 }
@@ -8667,6 +9082,7 @@ pub(crate) enum RelationalPublicationError {
     Journal(String),
     Analysis(String),
     CaseSupport(String),
+    CaseTransitions(String),
     Json(String),
     Io {
         path: PathBuf,
@@ -8907,6 +9323,7 @@ impl fmt::Display for RelationalPublicationError {
             | Self::Journal(message)
             | Self::Analysis(message)
             | Self::CaseSupport(message)
+            | Self::CaseTransitions(message)
             | Self::Json(message) => formatter.write_str(message),
             Self::Io { path, message } => {
                 write!(
@@ -8926,20 +9343,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn subject_starter_artifacts_are_the_only_additive_cursor_extension() {
+    fn explicit_consumers_and_case_transitions_are_additive_cursor_extensions() {
         let missing = additive_artifact_keys(
             ["view:core".to_string(), "subject-starters:old".to_string()],
             [
                 ("view:core".to_string(), false),
                 ("subject-starters:old".to_string(), true),
                 ("subject-starters:new".to_string(), true),
+                (CASE_TRANSITIONS_ARTIFACT_KEY.to_string(), true),
             ],
         )
-        .expect("one new explicit starter declaration is appendable");
+        .expect("new publication consumers are appendable");
 
         assert_eq!(
             missing,
-            BTreeSet::from(["subject-starters:new".to_string()])
+            BTreeSet::from([
+                "subject-starters:new".to_string(),
+                CASE_TRANSITIONS_ARTIFACT_KEY.to_string(),
+            ])
         );
         assert!(matches!(
             additive_artifact_keys(

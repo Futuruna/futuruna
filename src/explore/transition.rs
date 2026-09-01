@@ -335,7 +335,7 @@ impl StateId {
 pub(crate) struct TransitionId([u8; 32]);
 
 impl TransitionId {
-    fn derive(
+    pub(crate) fn derive(
         transition_type_id: TransitionTypeId,
         context: &ExploreValue,
         before: StateId,

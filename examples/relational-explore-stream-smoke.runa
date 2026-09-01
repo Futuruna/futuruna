@@ -31,7 +31,7 @@ journal restoration honest about transitive finite-dimension dependencies.
     to after = before + 1
 
     where transition after == before + 1
-    find matches of before == 1 || before == 3
+    find matches of before == 1 || before == 2
 
     results selected_cases from selected {
         each case
@@ -66,5 +66,22 @@ journal restoration honest about transitive finite-dimension dependencies.
             explained_cases = count_distinct(case_id)
         ]
         select [mechanisms, execution_profiles, raw_signatures, explained_cases]
+    }
+}
+
+? explore relational_stream_empty_smoke {
+    from {
+        before in range(0, 2)
+        context = ()
+    }
+
+    to after = before + 1
+
+    where transition after == before + 1
+    find matches of before < 0
+
+    results selected_cases_empty from selected {
+        each case
+        select [case_id, context, before, after]
     }
 }
