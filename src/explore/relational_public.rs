@@ -14,7 +14,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use crate::{
-    calculate, walk_ast_stmt, AstChild, CheckedExploreAnalysisIdentity,
+    calculate, walk_ast_stmt, AstChild, CheckedConstructorLayout, CheckedExploreAnalysisIdentity,
     CheckedExploreCoverageBindingRole, CheckedExploreCoverageClassification,
     CheckedExploreCoverageGapReason, CheckedExploreCoverageLiteralKind,
     CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryView,
@@ -621,6 +621,21 @@ pub enum ExploreStreamCoverageGapReason {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamCoverageFieldPathSegment {
+    pub owner_type_name: String,
+    pub variant_index: usize,
+    pub field_index: usize,
+    pub variant_name: String,
+    pub field_name: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageConstructorLayout {
+    Positional,
+    Named,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExploreStreamCoverageSubject {
     SourceBinding {
         binding_index: usize,
@@ -633,22 +648,22 @@ pub enum ExploreStreamCoverageSubject {
     },
     SchemaField {
         role: ExploreStreamCoverageRootRole,
-        variant_index: usize,
-        field_index: usize,
-        variant_name: String,
-        field_name: String,
+        path: Vec<ExploreStreamCoverageFieldPathSegment>,
     },
     Literal {
         kind: ExploreStreamCoverageLiteralKind,
         value: String,
     },
     TopLevelConstant {
+        dependency_digest: String,
         addresses: Vec<String>,
     },
     ConstructorChoice {
+        owner_digest: String,
         owner_name: String,
         variant_name: String,
         variant_index: usize,
+        layout: ExploreStreamCoverageConstructorLayout,
     },
 }
 
@@ -1686,41 +1701,54 @@ fn public_coverage_subject(
                 type_name: type_name.to_string(),
             }
         }
-        CheckedExploreCoverageSubject::SchemaField {
-            role,
-            variant_index,
-            field_index,
-            variant_name,
-            field_name,
-        } => ExploreStreamCoverageSubject::SchemaField {
-            role: public_coverage_root_role(*role),
-            variant_index: *variant_index,
-            field_index: *field_index,
-            variant_name: variant_name.to_string(),
-            field_name: field_name.to_string(),
-        },
+        CheckedExploreCoverageSubject::SchemaField { role, path } => {
+            ExploreStreamCoverageSubject::SchemaField {
+                role: public_coverage_root_role(*role),
+                path: path
+                    .iter()
+                    .map(|segment| ExploreStreamCoverageFieldPathSegment {
+                        owner_type_name: segment.owner_type_name.to_string(),
+                        variant_index: segment.variant_index,
+                        field_index: segment.field_index,
+                        variant_name: segment.variant_name.to_string(),
+                        field_name: segment.field_name.to_string(),
+                    })
+                    .collect(),
+            }
+        }
         CheckedExploreCoverageSubject::Literal { kind, value } => {
             ExploreStreamCoverageSubject::Literal {
                 kind: public_coverage_literal_kind(*kind),
                 value: value.to_string(),
             }
         }
-        CheckedExploreCoverageSubject::TopLevelConstant { addresses } => {
-            ExploreStreamCoverageSubject::TopLevelConstant {
-                addresses: addresses
-                    .iter()
-                    .map(|address| address.to_string())
-                    .collect(),
-            }
-        }
+        CheckedExploreCoverageSubject::TopLevelConstant {
+            dependency_digest,
+            addresses,
+        } => ExploreStreamCoverageSubject::TopLevelConstant {
+            dependency_digest: hex(*dependency_digest),
+            addresses: addresses
+                .iter()
+                .map(|address| address.to_string())
+                .collect(),
+        },
         CheckedExploreCoverageSubject::ConstructorChoice {
+            owner_digest,
             owner_name,
             variant_name,
             variant_index,
+            layout,
         } => ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_digest: hex(*owner_digest),
             owner_name: owner_name.to_string(),
             variant_name: variant_name.to_string(),
             variant_index: *variant_index,
+            layout: match layout {
+                CheckedConstructorLayout::Positional => {
+                    ExploreStreamCoverageConstructorLayout::Positional
+                }
+                CheckedConstructorLayout::Named => ExploreStreamCoverageConstructorLayout::Named,
+            },
         },
     }
 }

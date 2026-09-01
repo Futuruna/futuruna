@@ -187,8 +187,11 @@ For the broad Explore feature, every supported profile fact named by the
 question belongs in the finite source relation. Give it a finite domain, derive
 it from earlier bindings, or intentionally condition the source on a stated
 value. A fact may be omitted only after an exact irrelevance proof or as an
-explicitly reported model-coverage limit. Search cost alone is never a reason
-to turn a dimension into a hidden constant.
+explicitly reported model-coverage limit. The coverage schema does not itself
+mint that proof: until an exact irrelevance producer supplies a certificate,
+an already declared fact remains in support and an unmodeled or unproved path
+is an explicit gap. Search cost alone is never a reason to turn a dimension
+into a hidden constant.
 
 Use four distinct labels when describing a run:
 
@@ -849,15 +852,27 @@ variable must never change the explored world behind an unchanged identity.
 whose remaining facts Explore silently holds constant.
 
 Nor is the name `coherent_personskat_profiles_2026` itself proof that the query
-is broad. The checked exploration bundle needs a source-coverage manifest that
-audits the helper's reachable producer closure. For every Context and Before
-field and reachable immutable producer input it records one of: varied finite
-dimension, derived fact, explicit conditioning, exact irrelevance, or reported
-coverage gap. A Copenhagen constant buried in `personskat_state_2026` would
-therefore appear as conditioning even though it was not written beside the
-`from` clause. The manifest is generated from the ordinary checked program; it
-does not require authors to repeat the profile schema in a second Explore-only
-language.
+is broad. The checked exploration bundle needs a `RelationId`-scoped,
+FROM-only source-construction manifest that audits the helper's reachable
+producer closure. It recursively names canonical Context and Before field
+paths and every reachable immutable producer input as one of: varied finite
+dimension, derived fact, explicit conditioning, proof-backed exact
+irrelevance, or reported coverage gap. A Copenhagen literal or immutable
+top-level constant buried in `personskat_state_2026` therefore appears as
+conditioning even though it was not written beside the `from` clause. An
+unsupported nested path remains an explicit gap; the manifest never fills it
+by inventing a dimension. It is generated from the ordinary checked program
+and does not require authors to repeat the profile schema in a second
+Explore-only language.
+
+That manifest answers only how the source world was constructed. Coverage of
+facts consumed by Before/After admission, `find` and
+`personskat_..._vurder_100_kroner_trin` requires separate, not-yet-emitted
+siblings scoped by `AdmissionId`, `QuestionId` and `MechanismRequestId`.
+Editing one of those consumers must not rewrite the FROM-only source facts.
+Until an exact irrelevance producer exists for a path, this workbook makes no
+claim that the mere availability of an `exact irrelevance` category proves the
+path irrelevant.
 
 This also gives relevance optimization the right contract. If two church-tax
 statuses are proved to induce identical behavior for this question and
@@ -2510,9 +2525,12 @@ The architecture now has a strong center, but the following pieces must be made
 coherent before a nationwide through-1,500,000-DKK exploration is a sensible
 execution target:
 
-1. Finish the checked reachable dependency closure behind each layered identity
-   and derive the source-coverage manifest from that same closure; physically
-   unhook the v0 Cartesian/probe path.
+1. Keep source construction and downstream consumers on their own checked
+   identities. The source side is the `RelationId`-scoped, FROM-only recursive
+   Context/Before coverage manifest described above; admission, `find` and
+   observer inputs need their separate identity-scoped coverage siblings.
+   Physically unhook the v0 Cartesian/probe path without folding those layers
+   into one manifest.
 2. Make an exact `SupportCell`, rather than only one materialized `CaseId`, a
    first-class evidence unit. Cells carry canonical finite support, exact or
    open image cardinality, disjoint-union partition proof and a resumable

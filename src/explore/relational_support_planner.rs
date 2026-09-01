@@ -2709,6 +2709,9 @@ impl<'a> RelationalSupportPlanner<'a> {
             .closed_query
             .validate()
             .map_err(RelationalSupportPlannerError::InvalidQuery)?;
+        if !checked.source_coverage().validate_identity() {
+            return Err(RelationalSupportPlannerError::CoverageIdentityInvalid);
+        }
         if checked.source_coverage().relation_id != checked.relation_id() {
             return Err(RelationalSupportPlannerError::CoverageRelationMismatch);
         }
@@ -4041,6 +4044,7 @@ impl CanonicalPlannerHasher {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalSupportPlannerError {
     InvalidQuery(String),
+    CoverageIdentityInvalid,
     CoverageRelationMismatch,
     IndexExceedsU32(&'static str),
     NonCanonicalDependency {
@@ -4085,6 +4089,9 @@ impl fmt::Display for RelationalSupportPlannerError {
                     formatter,
                     "invalid checked relational support query: {message}"
                 )
+            }
+            Self::CoverageIdentityInvalid => {
+                formatter.write_str("checked source-coverage manifest identity is invalid")
             }
             Self::CoverageRelationMismatch => formatter
                 .write_str("checked source-coverage manifest belongs to a different relation"),

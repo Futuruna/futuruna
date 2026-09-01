@@ -115,10 +115,10 @@ use super::relational_mechanism_starter_projection::{
 };
 use super::relational_public::{
     ExploreStreamCount, ExploreStreamCoverageBindingRole, ExploreStreamCoverageClassification,
-    ExploreStreamCoverageGapReason, ExploreStreamCoverageLiteralKind,
-    ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject, ExploreStreamLayer,
-    ExploreStreamLayerStatus, ExploreStreamLifecycle, ExploreStreamMechanismTarget,
-    ExploreStreamPauseReason, ExploreStreamSliceReport,
+    ExploreStreamCoverageConstructorLayout, ExploreStreamCoverageGapReason,
+    ExploreStreamCoverageLiteralKind, ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject,
+    ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
+    ExploreStreamMechanismTarget, ExploreStreamPauseReason, ExploreStreamSliceReport,
 };
 use super::result_projection::{IndexedResultProjectionRecord, ResultProjectionRecord};
 use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewInputRowId};
@@ -8881,38 +8881,43 @@ fn public_coverage_subject_json(subject: &ExploreStreamCoverageSubject) -> JsonV
             "role": coverage_root_role_name(*role),
             "type_name": type_name,
         }),
-        ExploreStreamCoverageSubject::SchemaField {
-            role,
-            variant_index,
-            field_index,
-            variant_name,
-            field_name,
-        } => json!({
+        ExploreStreamCoverageSubject::SchemaField { role, path } => json!({
             "kind": "schema_field",
             "role": coverage_root_role_name(*role),
-            "variant_index": variant_index,
-            "field_index": field_index,
-            "variant_name": variant_name,
-            "field_name": field_name,
+            "path": path.iter().map(|segment| json!({
+                "owner_type_name": segment.owner_type_name.as_str(),
+                "variant_index": segment.variant_index,
+                "field_index": segment.field_index,
+                "variant_name": segment.variant_name.as_str(),
+                "field_name": segment.field_name.as_str(),
+            })).collect::<Vec<_>>(),
         }),
         ExploreStreamCoverageSubject::Literal { kind, value } => json!({
             "kind": "literal",
             "literal_kind": coverage_literal_kind_name(*kind),
             "value": value,
         }),
-        ExploreStreamCoverageSubject::TopLevelConstant { addresses } => json!({
+        ExploreStreamCoverageSubject::TopLevelConstant {
+            dependency_digest,
+            addresses,
+        } => json!({
             "kind": "top_level_constant",
+            "dependency_digest": dependency_digest,
             "addresses": addresses,
         }),
         ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_digest,
             owner_name,
             variant_name,
             variant_index,
+            layout,
         } => json!({
             "kind": "constructor_choice",
+            "owner_digest": owner_digest,
             "owner_name": owner_name,
             "variant_name": variant_name,
             "variant_index": variant_index,
+            "layout": coverage_constructor_layout_name(*layout),
         }),
     }
 }
@@ -8970,6 +8975,15 @@ const fn coverage_literal_kind_name(kind: ExploreStreamCoverageLiteralKind) -> &
         ExploreStreamCoverageLiteralKind::Character => "character",
         ExploreStreamCoverageLiteralKind::Boolean => "boolean",
         ExploreStreamCoverageLiteralKind::Unit => "unit",
+    }
+}
+
+const fn coverage_constructor_layout_name(
+    layout: ExploreStreamCoverageConstructorLayout,
+) -> &'static str {
+    match layout {
+        ExploreStreamCoverageConstructorLayout::Positional => "positional",
+        ExploreStreamCoverageConstructorLayout::Named => "named",
     }
 }
 
@@ -9635,6 +9649,70 @@ impl Error for RelationalPublicationError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_coverage_publication_json_preserves_v2_identity_preimages() {
+        let field = ExploreStreamCoverageSubject::SchemaField {
+            role: ExploreStreamCoverageRootRole::Before,
+            path: vec![
+                super::super::relational_public::ExploreStreamCoverageFieldPathSegment {
+                    owner_type_name: "CoverageState".into(),
+                    variant_index: 0,
+                    field_index: 0,
+                    variant_name: "CoverageState".into(),
+                    field_name: "profile".into(),
+                },
+                super::super::relational_public::ExploreStreamCoverageFieldPathSegment {
+                    owner_type_name: "CoverageProfile".into(),
+                    variant_index: 0,
+                    field_index: 0,
+                    variant_name: "CoverageProfile".into(),
+                    field_name: "commune".into(),
+                },
+            ],
+        };
+        assert_eq!(
+            public_coverage_subject_json(&field),
+            json!({
+                "kind": "schema_field",
+                "role": "before",
+                "path": [
+                    {
+                        "owner_type_name": "CoverageState",
+                        "variant_index": 0,
+                        "field_index": 0,
+                        "variant_name": "CoverageState",
+                        "field_name": "profile",
+                    },
+                    {
+                        "owner_type_name": "CoverageProfile",
+                        "variant_index": 0,
+                        "field_index": 0,
+                        "variant_name": "CoverageProfile",
+                        "field_name": "commune",
+                    },
+                ],
+            })
+        );
+
+        let constant = ExploreStreamCoverageSubject::TopLevelConstant {
+            dependency_digest: "11".repeat(32),
+            addresses: vec!["hidden_year".into()],
+        };
+        let constant_json = public_coverage_subject_json(&constant);
+        assert_eq!(constant_json["dependency_digest"], "11".repeat(32));
+
+        let constructor = ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_digest: "22".repeat(32),
+            owner_name: "CoverageProfile".into(),
+            variant_name: "CoverageProfile".into(),
+            variant_index: 0,
+            layout: ExploreStreamCoverageConstructorLayout::Named,
+        };
+        let constructor_json = public_coverage_subject_json(&constructor);
+        assert_eq!(constructor_json["owner_digest"], "22".repeat(32));
+        assert_eq!(constructor_json["layout"], "named");
+    }
 
     #[cfg(unix)]
     struct PermissionTestDirectory(PathBuf);

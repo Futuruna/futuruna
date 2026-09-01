@@ -178,15 +178,38 @@ product. Authors SHOULD instead construct coherent typed profiles when facts
 are correlated; structurally impossible profiles do not belong in the source
 relation merely to be filtered later.
 
-The checked query artifact MUST also expose a source-coverage manifest. For
-each Context and Before field, and each reachable immutable producer input, the
-manifest records whether it is a varied finite dimension, derived from declared
-dimensions, explicitly conditioned to a singleton or source restriction,
-covered by an exact irrelevance certificate, or an acknowledged model-coverage
-gap. A constant hidden inside an ordinary producer helper is still visible
-conditioning. The manifest is derived from the checked producer closure and
-does not add a second source DSL. A result may claim breadth only over the
-declared relation and this reported coverage.
+The checked query artifact MUST also expose a `RelationId`-scoped, **FROM-only**
+source-construction coverage manifest. Its dependency digest covers the checked
+`from` producer closure and the closed Context/Before schemas. It does not
+absorb `to`, admission, `find`, result-view or mechanism-observer dependencies.
+It recursively walks Context and Before field paths, including variant and
+nested-record segments, until it reaches closed leaves. An open, recursive or
+unsupported composition becomes an explicit gap at the affected path boundary;
+it is never silently omitted.
+
+For each Context and Before path, and each reachable immutable producer input,
+the manifest records whether it is a varied finite dimension, derived from
+declared dimensions, explicitly conditioned to a singleton or source
+restriction, covered by an exact irrelevance certificate, or an acknowledged
+model-coverage gap. Literals and referenced immutable top-level constants
+inside ordinary producer helpers remain visible conditioning. The manifest is
+derived from the checked producer closure and does not add a second source DSL
+or invent an undeclared dimension.
+
+The exact-irrelevance category is proof-gated. Its presence in the manifest
+algebra does not claim that an irrelevance producer exists for every query; in
+the absence of producer-issued exact evidence the compiler MUST NOT label a
+path irrelevant. Declared support remains intact, while an unmodeled or
+unproved path is a coverage gap. A gap forbids any broader population claim,
+although an exact result over the smaller declared relation remains exact over
+that relation.
+
+Admission, `find` and mechanism-observer input coverage MUST be separate sibling
+artifacts, scoped respectively by `AdmissionId`, `QuestionId` and
+`MechanismRequestId`. They are not yet emitted. When implemented, they may
+reuse the same coverage vocabulary, but they do not rewrite the FROM-only
+manifest or `RelationId`-scoped source facts when a predicate or observer
+changes.
 
 Source conditioning and admission are different. Restricting a producer in
 `from` declares a smaller world and changes `RelationId`. A scoped `where`
@@ -1212,9 +1235,13 @@ The replacement is accepted when:
 - old authored probes and old compact syntax fail with targeted diagnostics;
 - dependent source domains vary by earlier bindings and duplicate paths do not
   inflate CaseIds or counts;
-- source coverage reports every relevant field/input as varied, derived,
-  conditioned, exactly irrelevant or an explicit coverage gap, so a broad
-  profile claim cannot hide fixed helper facts;
+- `RelationId`-scoped FROM coverage recursively reports every Context/Before
+  field path and reachable immutable producer input as varied, derived,
+  conditioned, proof-backed exactly irrelevant or an explicit coverage gap,
+  so a broad profile claim cannot hide literals or top-level constants inside
+  helpers;
+- admission, `find` and observer input coverage remains separately bound to
+  its owning identity and cannot rename or broaden the source manifest;
 - exact behavior quotients preserve disjoint weighted profile/case support,
   while uncertified representatives never stand in for unvisited profiles;
 - explicit source conditioning changes RelationId while equivalent optimizer

@@ -6360,6 +6360,15 @@ fn relational_explore_coverage_literal_kind_name(
     }
 }
 
+fn relational_explore_coverage_constructor_layout_name(
+    layout: explore::ExploreStreamCoverageConstructorLayout,
+) -> &'static str {
+    match layout {
+        explore::ExploreStreamCoverageConstructorLayout::Positional => "positional",
+        explore::ExploreStreamCoverageConstructorLayout::Named => "named",
+    }
+}
+
 fn relational_explore_coverage_gap_reason_name(
     reason: explore::ExploreStreamCoverageGapReason,
 ) -> &'static str {
@@ -6399,28 +6408,47 @@ fn relational_explore_coverage_subject_text(
             "{} schema root `{type_name}`",
             relational_explore_coverage_root_role_name(*role)
         ),
-        explore::ExploreStreamCoverageSubject::SchemaField {
-            role,
-            variant_index,
-            field_index,
-            variant_name,
-            field_name,
-        } => format!(
-            "{} field `{variant_name}.{field_name}` (variant {variant_index}, field {field_index})",
-            relational_explore_coverage_root_role_name(*role)
-        ),
+        explore::ExploreStreamCoverageSubject::SchemaField { role, path } => {
+            let field_path = path
+                .iter()
+                .map(|segment| segment.field_name.as_str())
+                .collect::<Vec<_>>()
+                .join(".");
+            let structural_path = path
+                .iter()
+                .map(|segment| {
+                    format!(
+                        "{}[{}].{}[{}]",
+                        segment.owner_type_name,
+                        segment.variant_index,
+                        segment.field_name,
+                        segment.field_index
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            format!(
+                "{} field path `{field_path}` ({structural_path})",
+                relational_explore_coverage_root_role_name(*role)
+            )
+        }
         explore::ExploreStreamCoverageSubject::Literal { kind, value } => format!(
             "{} literal `{value}`",
             relational_explore_coverage_literal_kind_name(*kind)
         ),
-        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses } => {
+        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses, .. } => {
             format!("top-level constant `{}`", addresses.join("`, `"))
         }
         explore::ExploreStreamCoverageSubject::ConstructorChoice {
             owner_name,
             variant_name,
             variant_index,
-        } => format!("constructor `{owner_name}.{variant_name}` (variant {variant_index})"),
+            layout,
+            ..
+        } => format!(
+            "constructor `{owner_name}.{variant_name}` (variant {variant_index}, {})",
+            relational_explore_coverage_constructor_layout_name(*layout)
+        ),
     }
 }
 
@@ -6468,40 +6496,45 @@ fn relational_explore_coverage_subject_json(
                 "type_name": type_name,
             })
         }
-        explore::ExploreStreamCoverageSubject::SchemaField {
-            role,
-            variant_index,
-            field_index,
-            variant_name,
-            field_name,
-        } => serde_json::json!({
+        explore::ExploreStreamCoverageSubject::SchemaField { role, path } => serde_json::json!({
             "kind": "schema_field",
             "role": relational_explore_coverage_root_role_name(*role),
-            "variant_index": variant_index,
-            "field_index": field_index,
-            "variant_name": variant_name,
-            "field_name": field_name,
+            "path": path.iter().map(|segment| serde_json::json!({
+                "owner_type_name": segment.owner_type_name.as_str(),
+                "variant_index": segment.variant_index,
+                "field_index": segment.field_index,
+                "variant_name": segment.variant_name.as_str(),
+                "field_name": segment.field_name.as_str(),
+            })).collect::<Vec<_>>(),
         }),
         explore::ExploreStreamCoverageSubject::Literal { kind, value } => serde_json::json!({
             "kind": "literal",
             "literal_kind": relational_explore_coverage_literal_kind_name(*kind),
             "value": value,
         }),
-        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses } => {
+        explore::ExploreStreamCoverageSubject::TopLevelConstant {
+            dependency_digest,
+            addresses,
+        } => {
             serde_json::json!({
                 "kind": "top_level_constant",
+                "dependency_digest": dependency_digest,
                 "addresses": addresses,
             })
         }
         explore::ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_digest,
             owner_name,
             variant_name,
             variant_index,
+            layout,
         } => serde_json::json!({
             "kind": "constructor_choice",
+            "owner_digest": owner_digest,
             "owner_name": owner_name,
             "variant_name": variant_name,
             "variant_index": variant_index,
+            "layout": relational_explore_coverage_constructor_layout_name(*layout),
         }),
     }
 }
@@ -6546,9 +6579,7 @@ fn relational_explore_coverage_entry_json(
     serde_json::json!({
         "subject_id": entry.subject_id,
         "subject": relational_explore_coverage_subject_json(&entry.subject),
-        "subject_description": relational_explore_coverage_subject_text(&entry.subject),
         "classification": relational_explore_coverage_classification_json(&entry.classification),
-        "classification_description": relational_explore_coverage_classification_text(&entry.classification),
     })
 }
 

@@ -174,13 +174,27 @@ coordinate set. `profile_space` names finite catalogs and bounds for that
 producer; it is not a preselected person whose other facts Explore fixes.
 
 The checked artifact must make that breadth inspectable rather than trusting a
-promising helper name. Its source-coverage manifest classifies every Context and
-Before field, plus every reachable producer input, as a varied finite
+promising helper name. Its `RelationId`-scoped source-construction manifest is
+deliberately FROM-only: it follows the checked `from` producer closure and
+recursively classifies canonical Context and Before field paths, plus every
+reachable immutable producer input. Each path/input is a varied finite
 dimension, a value derived from earlier dimensions, an explicit singleton or
-source restriction, an exactly irrelevant input, or a reported model-coverage
-gap. A constant buried inside `state_for` is therefore visible conditioning,
-not an invisible default. This is derived evidence about the ordinary source
-program; it does not require another clause in the query language.
+source restriction, a proof-backed exactly irrelevant input, or a reported
+model-coverage gap. A literal or immutable top-level constant buried inside
+`state_for` is therefore visible conditioning, not an invisible default. An
+unsupported nested composition becomes a gap at the affected path; it never
+disappears and never causes Explore to invent a replacement dimension. This is
+derived evidence about the ordinary source program and does not require another
+clause in the query language.
+
+Exact irrelevance remains evidence-gated. The coverage algebra reserves that
+classification, but the source manifest does not manufacture an irrelevance
+certificate when no producer exists. A declared dimension retains its support;
+an unmodeled or unproved path is a gap. Coverage of inputs used by admission,
+`find` and mechanism observation requires separate, not-yet-emitted siblings
+under `AdmissionId`, `QuestionId` or `MechanismRequestId`. Those dependencies
+may eventually qualify claims about their own layer, but cannot mutate the
+FROM-only manifest or make a narrower source relation appear broad.
 
 Relevance is an execution optimization, not permission to erase population.
 If church status is proved irrelevant to the question and mechanism observer,
@@ -520,14 +534,16 @@ diagrams, SMT/CEGAR, monotone binary search and SIMD evaluation are therefore
 portfolio backends behind the same proof-obligation interface. Each is chosen
 only for the fragment it can certify; none changes the meaning of Explore.
 
-Coverage has two independent axes. Exact exhaustion or accepted proof closes
-the explicitly declared relation. The checked source-coverage manifest
-separately answers whether that relation spans every profile field and
-constructor choice relevant to a broader claim such as “all encoded persons.”
-A coverage gap or explicit singleton qualifies that breadth claim but does not
-turn an exact count over the smaller declared relation into a lower bound.
-Conversely, a broad manifest does not prove a mapped projection injective or a
-result cell uniform.
+Coverage has independent layers. Exact exhaustion or accepted proof closes the
+explicitly declared relation. The checked FROM-only source-construction
+manifest separately answers whether that relation spans every recursive
+Context/Before path and producer choice relevant to a broader claim such as
+“all encoded persons.” Admission, `find` and observer input manifests are
+identity-scoped siblings rather than extra source facts. A coverage gap or
+explicit singleton qualifies the applicable breadth claim but does not turn an
+exact count over the smaller declared relation into a lower bound. Conversely,
+a broad manifest does not prove a mapped projection injective or a result cell
+uniform.
 
 Closure is layered and cannot be inferred downstream:
 
@@ -1184,7 +1200,9 @@ rule-graph reasoning proves the skipped cell uniform.
 - Then run a small genuinely multidimensional coherent profile relation at the
   same income horizon. Publish its source-coverage manifest; reject an
   undocumented hidden constant as evidence for the broad question.
-- Confirm that irrelevant dimensions close as irrelevant.
+- Where an exact irrelevance producer exists, confirm that irrelevant
+  dimensions close with its certificate; otherwise keep them varied or report
+  the coverage gap rather than inferring irrelevance from equal samples.
 - Confirm that every compressed behavior cell preserves exact disjoint profile
   and case support.
 - For each audit, stream exact/open case and profile evidence and, where

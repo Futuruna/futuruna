@@ -515,6 +515,25 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
 
     let manifest = read_json(&output_directory.join("manifest.json"));
     assert_eq!(manifest["schema_version"], 9);
+    for key in [
+        "version",
+        "manifest_digest",
+        "semantic_dependency_digest",
+        "has_gaps",
+        "entries",
+    ] {
+        assert_eq!(
+            first["source_coverage"][key], manifest["source_coverage"][key],
+            "source-coverage `{key}` diverged between the CLI report and publication manifest"
+        );
+    }
+    assert_eq!(
+        first["source_coverage"]["entry_count"],
+        serde_json::json!(manifest["source_coverage"]["entries"]
+            .as_array()
+            .expect("published source-coverage entries")
+            .len())
+    );
     assert_eq!(
         manifest["publication_cursor"]["file"],
         ".publication-cursor-v9.json"

@@ -25074,7 +25074,7 @@ struct CheckedExploreIdentityLadder {
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
 }
 
-pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CheckedExploreCoverageRootRole {
@@ -25103,6 +25103,20 @@ pub(crate) enum CheckedExploreCoverageLiteralKind {
 /// retained only so human/JSON projections can explain the statement; the
 /// canonical `subject_id` and manifest digest never serialize them.
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedExploreCoverageFieldPathSegment {
+    /// Exact checked owner used while tracing constructor provenance. The
+    /// canonical path identity deliberately excludes it: `RelationId` seals
+    /// the owner graph, while the structural ordinals below address a field
+    /// inside that graph without depending on a name or source span.
+    pub(crate) owner: CheckedDataTypeId,
+    pub(crate) owner_type_name: Box<str>,
+    pub(crate) variant_index: usize,
+    pub(crate) field_index: usize,
+    pub(crate) variant_name: Box<str>,
+    pub(crate) field_name: Box<str>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CheckedExploreCoverageSubject {
     SourceBinding {
         binding_index: usize,
@@ -25115,22 +25129,24 @@ pub(crate) enum CheckedExploreCoverageSubject {
     },
     SchemaField {
         role: CheckedExploreCoverageRootRole,
-        variant_index: usize,
-        field_index: usize,
-        variant_name: Box<str>,
-        field_name: Box<str>,
+        /// Nonempty, root-relative path. Every segment is retained for public
+        /// explanation, but only its variant/field ordinals enter identity.
+        path: Box<[CheckedExploreCoverageFieldPathSegment]>,
     },
     Literal {
         kind: CheckedExploreCoverageLiteralKind,
         value: Box<str>,
     },
     TopLevelConstant {
+        dependency_digest: [u8; 32],
         addresses: Box<[Box<str>]>,
     },
     ConstructorChoice {
+        owner_digest: [u8; 32],
         owner_name: Box<str>,
         variant_name: Box<str>,
         variant_index: usize,
+        layout: CheckedConstructorLayout,
     },
 }
 
@@ -25184,6 +25200,78 @@ pub(crate) struct CheckedExploreSourceCoverageManifest {
 }
 
 impl CheckedExploreSourceCoverageManifest {
+    /// Revalidate the complete producer-owned wire identity. Presentation
+    /// names are never hash inputs, while every subject ID is recomputed from
+    /// its canonical structural preimage under this exact relation.
+    pub(crate) fn validate_identity(&self) -> bool {
+        if self.version != CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION
+            || self.entries.is_empty()
+            || self
+                .entries
+                .windows(2)
+                .any(|pair| pair[0].subject_id >= pair[1].subject_id)
+        {
+            return false;
+        }
+
+        let mut declared_dimensions = BTreeSet::new();
+        for entry in &self.entries {
+            let Some(expected_subject_id) =
+                checked_explore_coverage_subject_identity(self.relation_id, &entry.subject)
+            else {
+                return false;
+            };
+            if entry.subject_id != expected_subject_id {
+                return false;
+            }
+            if let CheckedExploreCoverageSubject::SourceBinding { .. } = &entry.subject {
+                if let CheckedExploreCoverageClassification::VariedFiniteDimension {
+                    dimension_id,
+                } = &entry.classification
+                {
+                    if *dimension_id != entry.subject_id {
+                        return false;
+                    }
+                    declared_dimensions.insert(*dimension_id);
+                }
+            }
+        }
+
+        for entry in &self.entries {
+            match &entry.classification {
+                CheckedExploreCoverageClassification::VariedFiniteDimension { dimension_id } => {
+                    if !declared_dimensions.contains(dimension_id) {
+                        return false;
+                    }
+                }
+                CheckedExploreCoverageClassification::DerivedFromDeclaredDimensions {
+                    dimension_ids,
+                } => {
+                    if dimension_ids.is_empty()
+                        || dimension_ids.windows(2).any(|pair| pair[0] >= pair[1])
+                        || dimension_ids
+                            .iter()
+                            .any(|dimension_id| !declared_dimensions.contains(dimension_id))
+                    {
+                        return false;
+                    }
+                }
+                CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction
+                | CheckedExploreCoverageClassification::ExactIrrelevanceCertificate { .. }
+                | CheckedExploreCoverageClassification::CoverageGap { .. } => {}
+            }
+        }
+
+        self.manifest_digest.as_ref()
+            == checked_explore_source_coverage_manifest_digest(
+                self.version,
+                self.relation_id,
+                self.semantic_dependency_digest,
+                &self.entries,
+            )
+            .as_ref()
+    }
+
     /// Coverage gaps are a fail-closed boundary for any claim that the source
     /// relation spans the complete profile space. Consumers may still report
     /// the explored relation and its explicit conditioning, but must not
@@ -26609,7 +26697,9 @@ impl TypeCheckArtifacts {
             semantic_index,
         )
         .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
-        if ladder.relation_id != artifact.relation_id
+        if !artifact.source_coverage.validate_identity()
+            || !ladder.source_coverage.validate_identity()
+            || ladder.relation_id != artifact.relation_id
             || ladder.admission_id != artifact.admission_id
             || ladder.question_id != artifact.question_id
             || ladder.classifier_reachable_declarations.as_ref()
@@ -32007,16 +32097,26 @@ fn checked_mechanism_rule_memo_plan_from_checked_with_index(
 
 #[derive(Debug, Clone)]
 struct CheckedExploreSchemaFieldDescriptor {
-    owner: CheckedDataTypeId,
-    variant_index: usize,
-    field_index: usize,
-    variant_name: Box<str>,
-    field_name: Box<str>,
+    path: Box<[CheckedExploreCoverageFieldPathSegment]>,
+    completeness_gap: Option<CheckedExploreCoverageGapReason>,
 }
 
 #[derive(Debug, Clone)]
 struct CheckedExploreSchemaDescriptor {
     fields: Vec<CheckedExploreSchemaFieldDescriptor>,
+    completeness_gap: Option<CheckedExploreCoverageGapReason>,
+}
+
+#[derive(Debug, Clone)]
+struct CheckedExploreDirectSchemaField {
+    segment: CheckedExploreCoverageFieldPathSegment,
+    field_ty: Option<Ty>,
+}
+
+#[derive(Debug, Clone)]
+struct CheckedExploreSchemaNode {
+    owner: CheckedDataTypeId,
+    fields: Vec<CheckedExploreDirectSchemaField>,
     completeness_gap: Option<CheckedExploreCoverageGapReason>,
 }
 
@@ -32084,7 +32184,7 @@ fn checked_explore_coverage_subject_id(
     components: impl IntoIterator<Item = Box<str>>,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v2\0");
     hasher.update(relation_id.bytes());
     checked_query_hash_component(&mut hasher, "subject-kind", kind);
     for component in components {
@@ -32097,17 +32197,29 @@ fn checked_explore_source_binding_subject_id(
     relation_id: explore::RelationId,
     binding: &explore::ExploreSourceBindingIr,
 ) -> [u8; 32] {
+    checked_explore_source_binding_subject_id_from_parts(
+        relation_id,
+        checked_explore_coverage_role(binding.role),
+        binding.binding_index,
+    )
+}
+
+fn checked_explore_source_binding_subject_id_from_parts(
+    relation_id: explore::RelationId,
+    role: CheckedExploreCoverageBindingRole,
+    binding_index: usize,
+) -> [u8; 32] {
     checked_explore_coverage_subject_id(
         relation_id,
         "source-binding",
         [
-            match binding.role {
-                explore::ExploreSourceBindingRoleIr::Auxiliary => "auxiliary",
-                explore::ExploreSourceBindingRoleIr::Context => "context",
-                explore::ExploreSourceBindingRoleIr::Before => "before",
+            match role {
+                CheckedExploreCoverageBindingRole::Auxiliary => "auxiliary",
+                CheckedExploreCoverageBindingRole::Context => "context",
+                CheckedExploreCoverageBindingRole::Before => "before",
             }
             .into(),
-            binding.binding_index.to_string().into_boxed_str(),
+            binding_index.to_string().into_boxed_str(),
         ],
     )
 }
@@ -32129,31 +32241,41 @@ fn checked_explore_schema_root_subject_id(
 fn checked_explore_schema_field_subject_id(
     relation_id: explore::RelationId,
     role: CheckedExploreCoverageRootRole,
-    field: &CheckedExploreSchemaFieldDescriptor,
+    path: &[CheckedExploreCoverageFieldPathSegment],
 ) -> [u8; 32] {
-    checked_explore_coverage_subject_id(
-        relation_id,
-        "schema-field",
-        [
-            match role {
-                CheckedExploreCoverageRootRole::Context => "context".into(),
-                CheckedExploreCoverageRootRole::Before => "before".into(),
-            },
-            field.variant_index.to_string().into_boxed_str(),
-            field.field_index.to_string().into_boxed_str(),
-        ],
-    )
+    let mut components = Vec::with_capacity(path.len().saturating_mul(2).saturating_add(2));
+    components.push(
+        match role {
+            CheckedExploreCoverageRootRole::Context => "context",
+            CheckedExploreCoverageRootRole::Before => "before",
+        }
+        .into(),
+    );
+    components.push(path.len().to_string().into_boxed_str());
+    for segment in path {
+        components.push(segment.variant_index.to_string().into_boxed_str());
+        components.push(segment.field_index.to_string().into_boxed_str());
+    }
+    checked_explore_coverage_subject_id(relation_id, "schema-field-path", components)
 }
 
 fn checked_explore_literal_subject_id(
     relation_id: explore::RelationId,
     literal: &CheckedExploreSemanticLiteral,
 ) -> [u8; 32] {
+    checked_explore_literal_subject_id_from_parts(relation_id, literal.kind, &literal.value)
+}
+
+fn checked_explore_literal_subject_id_from_parts(
+    relation_id: explore::RelationId,
+    kind: CheckedExploreCoverageLiteralKind,
+    value: &str,
+) -> [u8; 32] {
     checked_explore_coverage_subject_id(
         relation_id,
         "literal",
         [
-            match literal.kind {
+            match kind {
                 CheckedExploreCoverageLiteralKind::Integer => "integer".into(),
                 CheckedExploreCoverageLiteralKind::FloatBits => "float-bits".into(),
                 CheckedExploreCoverageLiteralKind::String => "string".into(),
@@ -32161,7 +32283,7 @@ fn checked_explore_literal_subject_id(
                 CheckedExploreCoverageLiteralKind::Boolean => "boolean".into(),
                 CheckedExploreCoverageLiteralKind::Unit => "unit".into(),
             },
-            literal.value.clone(),
+            value.to_string().into_boxed_str(),
         ],
     )
 }
@@ -32247,6 +32369,29 @@ fn checked_explore_classification_hash(
     }
 }
 
+fn checked_explore_source_coverage_manifest_digest(
+    version: u32,
+    relation_id: explore::RelationId,
+    semantic_dependency_digest: [u8; 32],
+    entries: &[CheckedExploreCoverageEntry],
+) -> Box<str> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v2\0");
+    checked_query_hash_component(&mut hasher, "coverage-version", &version.to_string());
+    hasher.update(relation_id.bytes());
+    hasher.update(semantic_dependency_digest);
+    checked_query_hash_component(
+        &mut hasher,
+        "coverage-entry-count",
+        &entries.len().to_string(),
+    );
+    for entry in entries {
+        hasher.update(entry.subject_id);
+        checked_explore_classification_hash(&mut hasher, &entry.classification);
+    }
+    format!("{:x}", hasher.finalize()).into_boxed_str()
+}
+
 fn checked_explore_type_owner_name(ty: &Ty) -> Option<&str> {
     match ty {
         Ty::Name(name) => Some(name),
@@ -32260,35 +32405,85 @@ fn checked_explore_type_owner_name(ty: &Ty) -> Option<&str> {
     }
 }
 
-fn checked_explore_schema_fields(
+fn checked_explore_intrinsic_schema_field_ty(
+    owner_name: &str,
+    ty: &Ty,
+    variant_index: usize,
+    field_index: usize,
+) -> Option<Ty> {
+    match (owner_name, ty, variant_index, field_index) {
+        ("Option", Ty::Optional(inner), 1, 0) => Some((**inner).clone()),
+        ("Option", Ty::App(_, arguments), 1, 0) => arguments.first().cloned(),
+        ("Result", Ty::App(_, arguments), 0, 0) => arguments.first().cloned(),
+        ("Result", Ty::App(_, arguments), 1, 0) => arguments.get(1).cloned(),
+        ("Pair", Ty::App(_, arguments), 0, field_index) => arguments.get(field_index).cloned(),
+        _ => None,
+    }
+}
+
+fn checked_explore_intrinsic_schema_is_closed_leaf(canonical_name: &str) -> bool {
+    matches!(
+        canonical_name,
+        "Int"
+            | "Nat"
+            | "Float"
+            | "String"
+            | "Char"
+            | "Unit"
+            | "CaseId"
+            | "TransitionId"
+            | "MechanismSignatureId"
+            | "StructuralMechanismId"
+            | "ExecutionProfileId"
+    )
+}
+
+fn checked_explore_schema_node(
     index: &CheckedExploreSemanticIndex<'_>,
     resolutions: &CheckedResolutionArtifacts,
     ty: &Ty,
-) -> Option<CheckedExploreSchemaDescriptor> {
+) -> Option<CheckedExploreSchemaNode> {
     let owner_name = checked_explore_type_owner_name(ty)?;
     let owner = resolutions.data_type_identities.get(owner_name).cloned()?;
-    if matches!(&owner, CheckedDataTypeId::Intrinsic { .. }) {
+    if let CheckedDataTypeId::Intrinsic { canonical_name } = &owner {
         let mut fields = BTreeMap::new();
+        let mut has_constructor = false;
         for constructor in resolutions.constructor_identities.values() {
             if &constructor.owner != &owner {
                 continue;
             }
+            has_constructor = true;
             for field in constructor.fields.iter() {
                 fields.insert(
                     (constructor.variant_index, field.field_index),
-                    CheckedExploreSchemaFieldDescriptor {
-                        owner: owner.clone(),
-                        variant_index: constructor.variant_index,
-                        field_index: field.field_index,
-                        variant_name: constructor.variant.clone(),
-                        field_name: field.name.clone(),
+                    CheckedExploreDirectSchemaField {
+                        segment: CheckedExploreCoverageFieldPathSegment {
+                            owner: owner.clone(),
+                            owner_type_name: owner_name.to_string().into_boxed_str(),
+                            variant_index: constructor.variant_index,
+                            field_index: field.field_index,
+                            variant_name: constructor.variant.clone(),
+                            field_name: field.name.clone(),
+                        },
+                        field_ty: checked_explore_intrinsic_schema_field_ty(
+                            owner_name,
+                            ty,
+                            constructor.variant_index,
+                            field.field_index,
+                        ),
                     },
                 );
             }
         }
-        return Some(CheckedExploreSchemaDescriptor {
-            fields: fields.into_values().collect(),
-            completeness_gap: None,
+        let fields = fields.into_values().collect::<Vec<_>>();
+        let composition_unavailable = fields.iter().any(|field| field.field_ty.is_none())
+            || (!has_constructor
+                && !checked_explore_intrinsic_schema_is_closed_leaf(canonical_name));
+        return Some(CheckedExploreSchemaNode {
+            owner,
+            completeness_gap: composition_unavailable
+                .then_some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable),
+            fields,
         });
     }
     let CheckedDataTypeId::Declared(model_owner) = &owner else {
@@ -32298,7 +32493,8 @@ fn checked_explore_schema_fields(
         .data_owner_to_analysis_occurrence
         .get(model_owner)?;
     let declaration = index.type_declarations.get(declaration_id).copied()?;
-    let mut fields = Vec::new();
+    let mut direct_fields = Vec::new();
+    let mut completeness_gap = None;
     match declaration {
         TypeDecl::ADT {
             variants,
@@ -32309,38 +32505,152 @@ fn checked_explore_schema_fields(
                 except_from.is_some() || variants.iter().any(|variant| variant.from_type.is_some());
             for (variant_index, variant) in variants.iter().enumerate() {
                 for (field_index, field) in variant.fields.iter().enumerate() {
-                    fields.push(CheckedExploreSchemaFieldDescriptor {
-                        owner: owner.clone(),
-                        variant_index,
-                        field_index,
-                        variant_name: variant.name.clone().into_boxed_str(),
-                        field_name: field.name.clone().into_boxed_str(),
+                    direct_fields.push(CheckedExploreDirectSchemaField {
+                        segment: CheckedExploreCoverageFieldPathSegment {
+                            owner: owner.clone(),
+                            owner_type_name: owner_name.to_string().into_boxed_str(),
+                            variant_index,
+                            field_index,
+                            variant_name: variant.name.clone().into_boxed_str(),
+                            field_name: field.name.clone().into_boxed_str(),
+                        },
+                        field_ty: Some(field.ty.clone()),
                     });
                 }
             }
-            return Some(CheckedExploreSchemaDescriptor {
-                fields,
-                completeness_gap: composed
-                    .then_some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable),
-            });
+            completeness_gap =
+                composed.then_some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable);
+        }
+        TypeDecl::WhenType { variants, .. } => {
+            for (variant_index, variant) in variants.iter().enumerate() {
+                for (field_index, field) in variant.fields.iter().enumerate() {
+                    direct_fields.push(CheckedExploreDirectSchemaField {
+                        segment: CheckedExploreCoverageFieldPathSegment {
+                            owner: owner.clone(),
+                            owner_type_name: owner_name.to_string().into_boxed_str(),
+                            variant_index,
+                            field_index,
+                            variant_name: variant.name.clone().into_boxed_str(),
+                            field_name: field.name.clone().into_boxed_str(),
+                        },
+                        field_ty: Some(field.ty.clone()),
+                    });
+                }
+            }
+            completeness_gap = Some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable);
         }
         TypeDecl::RuleScope { name, params, .. } => {
             for (field_index, field) in params.iter().enumerate() {
-                fields.push(CheckedExploreSchemaFieldDescriptor {
-                    owner: owner.clone(),
-                    variant_index: 0,
-                    field_index,
-                    variant_name: name.clone().into_boxed_str(),
-                    field_name: field.name.clone().into_boxed_str(),
+                direct_fields.push(CheckedExploreDirectSchemaField {
+                    segment: CheckedExploreCoverageFieldPathSegment {
+                        owner: owner.clone(),
+                        owner_type_name: owner_name.to_string().into_boxed_str(),
+                        variant_index: 0,
+                        field_index,
+                        variant_name: name.clone().into_boxed_str(),
+                        field_name: field.name.clone().into_boxed_str(),
+                    },
+                    field_ty: field.ty.clone(),
                 });
             }
-            return Some(CheckedExploreSchemaDescriptor {
-                fields,
-                completeness_gap: None,
-            });
+            if direct_fields.iter().any(|field| field.field_ty.is_none()) {
+                completeness_gap =
+                    Some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable);
+            }
         }
         _ => return None,
     }
+    Some(CheckedExploreSchemaNode {
+        owner,
+        fields: direct_fields,
+        completeness_gap,
+    })
+}
+
+fn checked_explore_merge_coverage_gap(
+    target: &mut Option<CheckedExploreCoverageGapReason>,
+    candidate: CheckedExploreCoverageGapReason,
+) {
+    match target {
+        Some(current) if *current <= candidate => {}
+        _ => *target = Some(candidate),
+    }
+}
+
+fn checked_explore_schema_type_may_hide_fields(ty: &Ty) -> bool {
+    !matches!(ty, Ty::Arrow(_, _) | Ty::Unit)
+}
+
+fn checked_explore_collect_schema_fields(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    node: CheckedExploreSchemaNode,
+    active_owners: &mut BTreeSet<CheckedDataTypeId>,
+    path: &mut Vec<CheckedExploreCoverageFieldPathSegment>,
+    fields: &mut Vec<CheckedExploreSchemaFieldDescriptor>,
+) -> Option<CheckedExploreCoverageGapReason> {
+    if !active_owners.insert(node.owner.clone()) {
+        return Some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable);
+    }
+
+    let mut completeness_gap = node.completeness_gap;
+    for direct_field in node.fields {
+        path.push(direct_field.segment);
+        let descriptor_index = fields.len();
+        fields.push(CheckedExploreSchemaFieldDescriptor {
+            path: path.clone().into_boxed_slice(),
+            completeness_gap: None,
+        });
+
+        let descendant_gap = match direct_field.field_ty {
+            Some(field_ty) => match checked_explore_schema_node(index, resolutions, &field_ty) {
+                Some(child) if child.fields.is_empty() && child.completeness_gap.is_none() => None,
+                Some(child) => checked_explore_collect_schema_fields(
+                    index,
+                    resolutions,
+                    child,
+                    active_owners,
+                    path,
+                    fields,
+                ),
+                None if checked_explore_schema_type_may_hide_fields(&field_ty) => {
+                    Some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable)
+                }
+                None => None,
+            },
+            None => Some(CheckedExploreCoverageGapReason::SchemaCompositionUnavailable),
+        };
+        if let Some(reason) = descendant_gap {
+            fields[descriptor_index].completeness_gap = Some(reason);
+            checked_explore_merge_coverage_gap(&mut completeness_gap, reason);
+        }
+        path.pop();
+    }
+    active_owners.remove(&node.owner);
+    completeness_gap
+}
+
+fn checked_explore_schema_fields(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    ty: &Ty,
+) -> Option<CheckedExploreSchemaDescriptor> {
+    let root = checked_explore_schema_node(index, resolutions, ty)?;
+    let mut fields = Vec::new();
+    let mut active_owners = BTreeSet::new();
+    let mut path = Vec::new();
+    let completeness_gap = checked_explore_collect_schema_fields(
+        index,
+        resolutions,
+        root,
+        &mut active_owners,
+        &mut path,
+        &mut fields,
+    );
+    Some(CheckedExploreSchemaDescriptor {
+        fields,
+        completeness_gap,
+    })
 }
 
 fn checked_explore_binding_coverages(
@@ -32382,34 +32692,6 @@ fn checked_explore_binding_coverages(
         coverages.push(coverage);
     }
     coverages
-}
-
-fn checked_explore_terminal_source_binding(query: &explore::ExploreQueryIr, start: usize) -> usize {
-    let mut current = start;
-    let mut seen = BTreeSet::new();
-    while seen.insert(current) {
-        let Some(binding) = query.source.bindings.get(current) else {
-            break;
-        };
-        let explore::ExploreSourceBindingKindIr::Singleton { value } = &binding.kind else {
-            break;
-        };
-        let ExprKind::Var(name) = &value.kind else {
-            break;
-        };
-        let Some(dependency) = binding
-            .dependencies
-            .iter()
-            .find(|dependency| dependency.binding_name.as_str() == name)
-        else {
-            break;
-        };
-        if dependency.binding_index >= current {
-            break;
-        }
-        current = dependency.binding_index;
-    }
-    current
 }
 
 fn checked_explore_expression_source_classification(
@@ -32479,51 +32761,113 @@ fn checked_explore_expression_source_classification(
     }
 }
 
-fn checked_explore_schema_field_classification(
+fn checked_explore_direct_source_binding_index(
+    site: &ExprSiteId,
+    resolutions: &CheckedResolutionArtifacts,
+    source_binder_indices: &BTreeMap<CheckedBinderSiteId, usize>,
+) -> Option<usize> {
+    resolutions
+        .expressions
+        .get(site)
+        .and_then(|resolution| resolution.value_binding.as_ref())
+        .and_then(|binding| match binding {
+            CheckedValueBinding::Binder { site, .. } => source_binder_indices.get(site).copied(),
+            _ => None,
+        })
+}
+
+fn checked_explore_source_binding_field_path_classification(
     query: &explore::ExploreQueryIr,
     sites: &CheckedExploreQuerySites,
     resolutions: &CheckedResolutionArtifacts,
     source_binder_indices: &BTreeMap<CheckedBinderSiteId, usize>,
     coverages: &[CheckedExploreBindingCoverage],
     source_binding_index: usize,
-    field: &CheckedExploreSchemaFieldDescriptor,
+    path: &[CheckedExploreCoverageFieldPathSegment],
+    active_bindings: &mut BTreeSet<usize>,
 ) -> CheckedExploreCoverageClassification {
-    let terminal = checked_explore_terminal_source_binding(query, source_binding_index);
-    let Some(binding) = query.source.bindings.get(terminal) else {
+    if !active_bindings.insert(source_binding_index) {
+        return CheckedExploreCoverageClassification::CoverageGap {
+            reason: CheckedExploreCoverageGapReason::UpstreamCoverageGap,
+        };
+    }
+    let Some(binding) = query.source.bindings.get(source_binding_index) else {
+        active_bindings.remove(&source_binding_index);
         return CheckedExploreCoverageClassification::CoverageGap {
             reason: CheckedExploreCoverageGapReason::UpstreamCoverageGap,
         };
     };
-    if matches!(
-        &binding.kind,
-        explore::ExploreSourceBindingKindIr::Finite { .. }
-    ) {
-        return coverages
-            .get(terminal)
+    let classification = match &binding.kind {
+        explore::ExploreSourceBindingKindIr::Finite { .. } => coverages
+            .get(source_binding_index)
             .map(CheckedExploreBindingCoverage::projected_classification)
             .unwrap_or(CheckedExploreCoverageClassification::CoverageGap {
                 reason: CheckedExploreCoverageGapReason::UpstreamCoverageGap,
-            });
+            }),
+        explore::ExploreSourceBindingKindIr::Singleton { value } => {
+            match sites.source_bindings.get(source_binding_index) {
+                Some(binding_sites) => checked_explore_expression_field_path_classification(
+                    query,
+                    sites,
+                    resolutions,
+                    source_binder_indices,
+                    coverages,
+                    value,
+                    &binding_sites.expression,
+                    path,
+                    active_bindings,
+                ),
+                None => CheckedExploreCoverageClassification::CoverageGap {
+                    reason: CheckedExploreCoverageGapReason::UpstreamCoverageGap,
+                },
+            }
+        }
+    };
+    active_bindings.remove(&source_binding_index);
+    classification
+}
+
+fn checked_explore_expression_field_path_classification(
+    query: &explore::ExploreQueryIr,
+    sites: &CheckedExploreQuerySites,
+    resolutions: &CheckedResolutionArtifacts,
+    source_binder_indices: &BTreeMap<CheckedBinderSiteId, usize>,
+    coverages: &[CheckedExploreBindingCoverage],
+    expression: &Expr,
+    site: &ExprSiteId,
+    path: &[CheckedExploreCoverageFieldPathSegment],
+    active_bindings: &mut BTreeSet<usize>,
+) -> CheckedExploreCoverageClassification {
+    if path.is_empty() {
+        return checked_explore_expression_source_classification(
+            site,
+            resolutions,
+            source_binder_indices,
+            coverages,
+        );
     }
-    let explore::ExploreSourceBindingKindIr::Singleton { value } = &binding.kind else {
-        unreachable!("finite binding returned above")
-    };
-    let Some(site) = sites
-        .source_bindings
-        .get(terminal)
-        .map(|binding| &binding.expression)
-    else {
-        return CheckedExploreCoverageClassification::CoverageGap {
-            reason: CheckedExploreCoverageGapReason::UpstreamCoverageGap,
-        };
-    };
+    if let Some(binding_index) =
+        checked_explore_direct_source_binding_index(site, resolutions, source_binder_indices)
+    {
+        return checked_explore_source_binding_field_path_classification(
+            query,
+            sites,
+            resolutions,
+            source_binder_indices,
+            coverages,
+            binding_index,
+            path,
+            active_bindings,
+        );
+    }
+
     let Some(resolution) = resolutions.expressions.get(site) else {
         return CheckedExploreCoverageClassification::CoverageGap {
             reason: CheckedExploreCoverageGapReason::ConstructorFieldMappingUnavailable,
         };
     };
-
-    match &value.kind {
+    let field = &path[0];
+    match &expression.kind {
         ExprKind::App(_, arguments) => {
             let Some(constructor) = &resolution.exact_constructor else {
                 return CheckedExploreCoverageClassification::CoverageGap {
@@ -32555,23 +32899,34 @@ fn checked_explore_schema_field_classification(
                     reason: CheckedExploreCoverageGapReason::ConstructorFieldMappingUnavailable,
                 };
             };
-            let argument_site = if resolution.named_arguments.is_some() {
-                let Some((_, _)) = named_arg_parts(argument) else {
+            let (argument, argument_site) = if resolution.named_arguments.is_some() {
+                let Some((_, argument)) = named_arg_parts(argument) else {
                     return CheckedExploreCoverageClassification::CoverageGap {
                         reason: CheckedExploreCoverageGapReason::ConstructorFieldMappingUnavailable,
                     };
                 };
                 let argument_site =
                     CheckedExploreSemanticClosure::child_site(site, source_index + 1);
-                CheckedExploreSemanticClosure::child_site(&argument_site, 2)
+                (
+                    argument,
+                    CheckedExploreSemanticClosure::child_site(&argument_site, 2),
+                )
             } else {
-                CheckedExploreSemanticClosure::child_site(site, source_index + 1)
+                (
+                    argument,
+                    CheckedExploreSemanticClosure::child_site(site, source_index + 1),
+                )
             };
-            checked_explore_expression_source_classification(
-                &argument_site,
+            checked_explore_expression_field_path_classification(
+                query,
+                sites,
                 resolutions,
                 source_binder_indices,
                 coverages,
+                argument,
+                &argument_site,
+                &path[1..],
+                active_bindings,
             )
         }
         ExprKind::Var(_) if resolution.exact_constructor.is_some() => {
@@ -32594,12 +32949,36 @@ fn checked_explore_schema_field_classification(
     }
 }
 
+fn checked_explore_schema_field_classification(
+    query: &explore::ExploreQueryIr,
+    sites: &CheckedExploreQuerySites,
+    resolutions: &CheckedResolutionArtifacts,
+    source_binder_indices: &BTreeMap<CheckedBinderSiteId, usize>,
+    coverages: &[CheckedExploreBindingCoverage],
+    source_binding_index: usize,
+    field: &CheckedExploreSchemaFieldDescriptor,
+) -> CheckedExploreCoverageClassification {
+    if let Some(reason) = field.completeness_gap {
+        return CheckedExploreCoverageClassification::CoverageGap { reason };
+    }
+    checked_explore_source_binding_field_path_classification(
+        query,
+        sites,
+        resolutions,
+        source_binder_indices,
+        coverages,
+        source_binding_index,
+        &field.path,
+        &mut BTreeSet::new(),
+    )
+}
+
 fn checked_explore_top_level_constant_subject_id(
     relation_id: explore::RelationId,
     dependency_digest: [u8; 32],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v2\0");
     hasher.update(relation_id.bytes());
     checked_query_hash_component(&mut hasher, "subject-kind", "top-level-constant");
     hasher.update(dependency_digest);
@@ -32609,27 +32988,95 @@ fn checked_explore_top_level_constant_subject_id(
 fn checked_explore_constructor_subject_id(
     relation_id: explore::RelationId,
     owner_digest: [u8; 32],
-    constructor: &CheckedConstructorIdentity,
+    variant_index: usize,
+    layout: CheckedConstructorLayout,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-coverage-subject.v2\0");
     hasher.update(relation_id.bytes());
     checked_query_hash_component(&mut hasher, "subject-kind", "constructor-choice");
     hasher.update(owner_digest);
     checked_query_hash_component(
         &mut hasher,
         "constructor-variant-index",
-        &constructor.variant_index.to_string(),
+        &variant_index.to_string(),
     );
     checked_query_hash_component(
         &mut hasher,
         "constructor-layout",
-        match constructor.layout {
+        match layout {
             CheckedConstructorLayout::Positional => "positional",
             CheckedConstructorLayout::Named => "named",
         },
     );
     hasher.finalize().into()
+}
+
+fn checked_explore_coverage_subject_identity(
+    relation_id: explore::RelationId,
+    subject: &CheckedExploreCoverageSubject,
+) -> Option<[u8; 32]> {
+    match subject {
+        CheckedExploreCoverageSubject::SourceBinding {
+            binding_index,
+            role,
+            ..
+        } => Some(checked_explore_source_binding_subject_id_from_parts(
+            relation_id,
+            *role,
+            *binding_index,
+        )),
+        CheckedExploreCoverageSubject::SchemaRoot { role, type_name } if !type_name.is_empty() => {
+            Some(checked_explore_schema_root_subject_id(relation_id, *role))
+        }
+        CheckedExploreCoverageSubject::SchemaRoot { .. } => None,
+        CheckedExploreCoverageSubject::SchemaField { role, path }
+            if !path.is_empty()
+                && path.iter().all(|segment| {
+                    !segment.owner_type_name.is_empty()
+                        && !segment.variant_name.is_empty()
+                        && !segment.field_name.is_empty()
+                }) =>
+        {
+            Some(checked_explore_schema_field_subject_id(
+                relation_id,
+                *role,
+                path,
+            ))
+        }
+        CheckedExploreCoverageSubject::SchemaField { .. } => None,
+        CheckedExploreCoverageSubject::Literal { kind, value } => Some(
+            checked_explore_literal_subject_id_from_parts(relation_id, *kind, value),
+        ),
+        CheckedExploreCoverageSubject::TopLevelConstant {
+            dependency_digest,
+            addresses,
+        } if !addresses.is_empty()
+            && !addresses.iter().any(|address| address.is_empty())
+            && !addresses.windows(2).any(|pair| pair[0] >= pair[1]) =>
+        {
+            Some(checked_explore_top_level_constant_subject_id(
+                relation_id,
+                *dependency_digest,
+            ))
+        }
+        CheckedExploreCoverageSubject::TopLevelConstant { .. } => None,
+        CheckedExploreCoverageSubject::ConstructorChoice {
+            owner_digest,
+            owner_name,
+            variant_name,
+            variant_index,
+            layout,
+        } if !owner_name.is_empty() && !variant_name.is_empty() => {
+            Some(checked_explore_constructor_subject_id(
+                relation_id,
+                *owner_digest,
+                *variant_index,
+                *layout,
+            ))
+        }
+        CheckedExploreCoverageSubject::ConstructorChoice { .. } => None,
+    }
 }
 
 fn checked_explore_insert_coverage_entry(
@@ -32746,7 +33193,8 @@ fn checked_explore_source_coverage_manifest(
             continue;
         };
         for field in schema.fields {
-            let subject_id = checked_explore_schema_field_subject_id(relation_id, role, &field);
+            let subject_id =
+                checked_explore_schema_field_subject_id(relation_id, role, &field.path);
             let classification = checked_explore_schema_field_classification(
                 query,
                 sites,
@@ -32762,10 +33210,7 @@ fn checked_explore_source_coverage_manifest(
                     subject_id,
                     subject: CheckedExploreCoverageSubject::SchemaField {
                         role,
-                        variant_index: field.variant_index,
-                        field_index: field.field_index,
-                        variant_name: field.variant_name,
-                        field_name: field.field_name,
+                        path: field.path,
                     },
                     classification,
                 },
@@ -32789,7 +33234,7 @@ fn checked_explore_source_coverage_manifest(
         );
     }
 
-    let mut top_level_inputs = BTreeMap::<[u8; 32], BTreeSet<Box<str>>>::new();
+    let mut top_level_inputs = BTreeMap::<[u8; 32], ([u8; 32], BTreeSet<Box<str>>)>::new();
     for binding in &source_seal.producer_inputs.top_level_constants {
         let dependency_digest = checked_explore_semantic_dependency_root_digest(
             index,
@@ -32804,17 +33249,23 @@ fn checked_explore_source_coverage_manifest(
             .get(binding)
             .cloned()
             .unwrap_or_else(|| "<resolved constant>".into());
-        top_level_inputs
+        let (canonical_dependency_digest, addresses) = top_level_inputs
             .entry(subject_id)
-            .or_default()
-            .insert(address);
+            .or_insert_with(|| (dependency_digest, BTreeSet::new()));
+        if *canonical_dependency_digest != dependency_digest {
+            return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+                "source coverage constant subject collision".into(),
+            ));
+        }
+        addresses.insert(address);
     }
-    for (subject_id, addresses) in top_level_inputs {
+    for (subject_id, (dependency_digest, addresses)) in top_level_inputs {
         checked_explore_insert_coverage_entry(
             &mut entries,
             CheckedExploreCoverageEntry {
                 subject_id,
                 subject: CheckedExploreCoverageSubject::TopLevelConstant {
+                    dependency_digest,
                     addresses: addresses.into_iter().collect::<Vec<_>>().into_boxed_slice(),
                 },
                 classification:
@@ -32840,16 +33291,22 @@ fn checked_explore_source_coverage_manifest(
                 )?
             }
         };
-        let subject_id =
-            checked_explore_constructor_subject_id(relation_id, owner_digest, constructor);
+        let subject_id = checked_explore_constructor_subject_id(
+            relation_id,
+            owner_digest,
+            constructor.variant_index,
+            constructor.layout,
+        );
         checked_explore_insert_coverage_entry(
             &mut entries,
             CheckedExploreCoverageEntry {
                 subject_id,
                 subject: CheckedExploreCoverageSubject::ConstructorChoice {
+                    owner_digest,
                     owner_name: constructor.owner_type.clone(),
                     variant_name: constructor.variant.clone(),
                     variant_index: constructor.variant_index,
+                    layout: constructor.layout,
                 },
                 classification: match provenance {
                     CheckedExploreConstructorChoiceProvenance::ConditionedFromSourceSingleton => {
@@ -32866,31 +33323,25 @@ fn checked_explore_source_coverage_manifest(
     }
 
     let entries = entries.into_values().collect::<Vec<_>>();
-    let mut manifest_hasher = Sha256::new();
-    manifest_hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v1\0");
-    checked_query_hash_component(
-        &mut manifest_hasher,
-        "coverage-version",
-        &CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION.to_string(),
+    let manifest_digest = checked_explore_source_coverage_manifest_digest(
+        CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION,
+        relation_id,
+        source_seal.digest,
+        &entries,
     );
-    manifest_hasher.update(relation_id.bytes());
-    manifest_hasher.update(source_seal.digest);
-    checked_query_hash_component(
-        &mut manifest_hasher,
-        "coverage-entry-count",
-        &entries.len().to_string(),
-    );
-    for entry in &entries {
-        manifest_hasher.update(entry.subject_id);
-        checked_explore_classification_hash(&mut manifest_hasher, &entry.classification);
-    }
-    Ok(CheckedExploreSourceCoverageManifest {
+    let manifest = CheckedExploreSourceCoverageManifest {
         version: CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION,
         relation_id,
         semantic_dependency_digest: source_seal.digest,
         entries: entries.into_boxed_slice(),
-        manifest_digest: format!("{:x}", manifest_hasher.finalize()).into_boxed_str(),
-    })
+        manifest_digest,
+    };
+    if !manifest.validate_identity() {
+        return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+            "source coverage manifest invariants are not canonical".into(),
+        ));
+    }
+    Ok(manifest)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49729,6 +50180,11 @@ impl TypeChecker {
         Self::trace_explore_check_phase(&check_started, "constructor prepass");
         tc.collect_declarations(stmts);
         Self::trace_explore_check_phase(&check_started, "declarations");
+        // Seed annotated and literal top-level values before validating
+        // Explore helper bodies so a hidden immutable producer input retains
+        // its declared type inside that helper. The later pass still refines
+        // bindings whose type depends on the established callable fixed point.
+        tc.infer_top_level_binding_types(stmts);
         tc.infer_rule_return_types(stmts);
         tc.infer_canonical_rule_dispatch_metadata(stmts);
         tc.establish_explore_function_return_types();
@@ -49983,6 +50439,347 @@ mod tests {
     fn explore_artifacts_for_source(source: &str) -> TypeCheckArtifacts {
         let statements = parse_test_program(source).expect("parse exploration fixture");
         TypeChecker::check_with_artifacts(&statements, None, source)
+    }
+
+    fn recursive_source_coverage_fixture() -> &'static str {
+        r#"
+# CoverageProfile(commune: Int, church: Int, year: Int)
+# CoverageState(profile: CoverageProfile, income: Int)
+# CoverageContext(step: Int)
+
+= hidden_year: Int = 2026
+
+> hidden_year_value() -> Int { hidden_year }
+
+? explore recursive_source_coverage {
+    from {
+        commune in [101, 147]
+        church in [0, 1]
+        income in range(0, 3)
+        profile = CoverageProfile(
+            commune = commune,
+            church = church,
+            year = hidden_year_value()
+        )
+        before = CoverageState(profile = profile, income = income)
+        context = CoverageContext(step = 1)
+    }
+    to after = CoverageState(
+        profile = before.profile,
+        income = before.income + context.step
+    )
+    find all
+}
+"#
+    }
+
+    fn source_coverage_snapshot(
+        source: &str,
+        query_name: &str,
+    ) -> (
+        explore::RelationId,
+        explore::QuestionId,
+        CheckedExploreSourceCoverageManifest,
+    ) {
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected source-coverage diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let query_index = artifacts
+            .exploration_universes
+            .iter()
+            .position(|query| query.name == query_name)
+            .expect("checked source-coverage query");
+        let checked = artifacts
+            .checked_exploration_query(query_index)
+            .expect("valid checked source-coverage artifact");
+        (
+            checked.relation_id(),
+            checked.question_id(),
+            checked.source_coverage().clone(),
+        )
+    }
+
+    fn source_coverage_field_path(entry: &CheckedExploreCoverageEntry) -> Option<String> {
+        let CheckedExploreCoverageSubject::SchemaField { role, path } = &entry.subject else {
+            return None;
+        };
+        let root = match role {
+            CheckedExploreCoverageRootRole::Context => "context",
+            CheckedExploreCoverageRootRole::Before => "before",
+        };
+        Some(format!(
+            "{root}.{}",
+            path.iter()
+                .map(|segment| segment.field_name.as_ref())
+                .collect::<Vec<_>>()
+                .join(".")
+        ))
+    }
+
+    fn source_coverage_field<'a>(
+        manifest: &'a CheckedExploreSourceCoverageManifest,
+        path: &str,
+    ) -> &'a CheckedExploreCoverageEntry {
+        manifest
+            .entries
+            .iter()
+            .find(|entry| source_coverage_field_path(entry).as_deref() == Some(path))
+            .unwrap_or_else(|| panic!("missing source-coverage field `{path}`"))
+    }
+
+    fn source_coverage_binding<'a>(
+        manifest: &'a CheckedExploreSourceCoverageManifest,
+        name: &str,
+    ) -> &'a CheckedExploreCoverageEntry {
+        manifest
+            .entries
+            .iter()
+            .find(|entry| {
+                matches!(
+                    &entry.subject,
+                    CheckedExploreCoverageSubject::SourceBinding { binding_name, .. }
+                        if binding_name.as_ref() == name
+                )
+            })
+            .unwrap_or_else(|| panic!("missing source-coverage binding `{name}`"))
+    }
+
+    fn source_coverage_varied_dimension(entry: &CheckedExploreCoverageEntry) -> [u8; 32] {
+        match &entry.classification {
+            CheckedExploreCoverageClassification::VariedFiniteDimension { dimension_id } => {
+                *dimension_id
+            }
+            other => panic!("expected varied finite dimension, found {other:?}"),
+        }
+    }
+
+    #[test]
+    fn explore_source_coverage_recurses_and_classifies_starter_paths() {
+        let (_, _, manifest) = source_coverage_snapshot(
+            recursive_source_coverage_fixture(),
+            "recursive_source_coverage",
+        );
+        assert_eq!(manifest.version, CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION);
+        assert!(manifest.validate_identity());
+        assert!(!manifest.has_coverage_gaps());
+
+        let actual_paths = manifest
+            .entries
+            .iter()
+            .filter_map(source_coverage_field_path)
+            .collect::<BTreeSet<_>>();
+        assert_eq!(
+            actual_paths,
+            BTreeSet::from([
+                "before.income".to_string(),
+                "before.profile".to_string(),
+                "before.profile.church".to_string(),
+                "before.profile.commune".to_string(),
+                "before.profile.year".to_string(),
+                "context.step".to_string(),
+            ])
+        );
+
+        let commune_dimension =
+            source_coverage_varied_dimension(source_coverage_binding(&manifest, "commune"));
+        let church_dimension =
+            source_coverage_varied_dimension(source_coverage_binding(&manifest, "church"));
+        let income_dimension =
+            source_coverage_varied_dimension(source_coverage_binding(&manifest, "income"));
+        assert!(matches!(
+            &source_coverage_field(&manifest, "before.profile").classification,
+            CheckedExploreCoverageClassification::DerivedFromDeclaredDimensions {
+                dimension_ids
+            } if dimension_ids.iter().copied().collect::<BTreeSet<_>>()
+                == BTreeSet::from([commune_dimension, church_dimension])
+        ));
+        for (path, expected_dimension) in [
+            ("before.profile.commune", commune_dimension),
+            ("before.profile.church", church_dimension),
+            ("before.income", income_dimension),
+        ] {
+            assert!(matches!(
+                &source_coverage_field(&manifest, path).classification,
+                CheckedExploreCoverageClassification::VariedFiniteDimension { dimension_id }
+                    if *dimension_id == expected_dimension
+            ));
+        }
+        for path in ["before.profile.year", "context.step"] {
+            assert!(matches!(
+                &source_coverage_field(&manifest, path).classification,
+                CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction
+            ));
+        }
+        let hidden_year_entry = manifest
+            .entries
+            .iter()
+            .find(|entry| {
+                matches!(
+                    &entry.subject,
+                    CheckedExploreCoverageSubject::TopLevelConstant { addresses, .. }
+                        if addresses.iter().any(|address| address.as_ref() == "hidden_year")
+                )
+            })
+            .expect("hidden-year coverage entry");
+        assert!(matches!(
+            &hidden_year_entry.classification,
+            CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction
+        ));
+        assert!(manifest.entries.iter().any(|entry| matches!(
+            (&entry.subject, &entry.classification),
+            (
+                CheckedExploreCoverageSubject::Literal { kind: CheckedExploreCoverageLiteralKind::Integer, value },
+                CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction,
+            ) if value.as_ref() == "2026"
+        )));
+    }
+
+    #[test]
+    fn explore_source_coverage_fails_closed_for_helper_built_records() {
+        let source = recursive_source_coverage_fixture()
+            .replace(
+                "? explore recursive_source_coverage {",
+                r#"> make_profile(commune: Int, church: Int) -> CoverageProfile {
+    CoverageProfile(
+        commune = commune,
+        church = church,
+        year = hidden_year_value()
+    )
+}
+
+? explore recursive_source_coverage {"#,
+            )
+            .replace(
+                r#"profile = CoverageProfile(
+            commune = commune,
+            church = church,
+            year = hidden_year_value()
+        )"#,
+                "profile = make_profile(commune, church)",
+            );
+        let (_, _, manifest) = source_coverage_snapshot(&source, "recursive_source_coverage");
+        assert!(manifest.validate_identity());
+        assert!(manifest.has_coverage_gaps());
+
+        for path in [
+            "before.profile.commune",
+            "before.profile.church",
+            "before.profile.year",
+        ] {
+            assert!(matches!(
+                &source_coverage_field(&manifest, path).classification,
+                CheckedExploreCoverageClassification::CoverageGap {
+                    reason: CheckedExploreCoverageGapReason::InterproceduralFieldProvenance
+                }
+            ));
+        }
+        assert!(matches!(
+            &source_coverage_field(&manifest, "before.income").classification,
+            CheckedExploreCoverageClassification::VariedFiniteDimension { .. }
+        ));
+        assert!(manifest.entries.iter().any(|entry| matches!(
+            (&entry.subject, &entry.classification),
+            (
+                CheckedExploreCoverageSubject::ConstructorChoice { owner_name, .. },
+                CheckedExploreCoverageClassification::CoverageGap {
+                    reason: CheckedExploreCoverageGapReason::ConstructorChoiceProvenanceUnavailable
+                },
+            ) if owner_name.as_ref() == "CoverageProfile"
+        )));
+        assert!(manifest.entries.iter().any(|entry| matches!(
+            &entry.subject,
+            CheckedExploreCoverageSubject::TopLevelConstant { addresses, .. }
+                if addresses.iter().any(|address| address.as_ref() == "hidden_year")
+        )));
+    }
+
+    #[test]
+    fn explore_source_coverage_fails_closed_for_unmodeled_intrinsic_composition() {
+        let source = r#"
+# CoverageChild(value: Int)
+# CoverageContainer(children: List(CoverageChild))
+
+? explore container_source_coverage {
+    from {
+        before = CoverageContainer(children = [CoverageChild(value = 1)])
+        context = ()
+    }
+    to after = before
+    find all
+}
+"#;
+        let (_, _, manifest) = source_coverage_snapshot(source, "container_source_coverage");
+        assert!(manifest.validate_identity());
+        assert!(manifest.has_coverage_gaps());
+        assert!(matches!(
+            &source_coverage_field(&manifest, "before.children").classification,
+            CheckedExploreCoverageClassification::CoverageGap {
+                reason: CheckedExploreCoverageGapReason::SchemaCompositionUnavailable
+            }
+        ));
+        assert!(!manifest.entries.iter().any(|entry| {
+            source_coverage_field_path(entry).as_deref() == Some("before.children.value")
+        }));
+    }
+
+    #[test]
+    fn explore_source_coverage_identity_is_from_visible_and_relation_scoped() {
+        let baseline_source = recursive_source_coverage_fixture();
+        let (baseline_relation, baseline_question, baseline_manifest) =
+            source_coverage_snapshot(baseline_source, "recursive_source_coverage");
+
+        let downstream_only = baseline_source
+            .replace("recursive_source_coverage", "renamed_source_coverage")
+            .replace(
+                "    find all",
+                r#"    find matches of before.income >= 0
+    results visible_cases {
+        each case
+        select [before]
+    }"#,
+            );
+        let (downstream_relation, downstream_question, downstream_manifest) =
+            source_coverage_snapshot(&downstream_only, "renamed_source_coverage");
+        assert_eq!(downstream_relation, baseline_relation);
+        assert_ne!(downstream_question, baseline_question);
+        assert_eq!(downstream_manifest, baseline_manifest);
+
+        let changed_source =
+            baseline_source.replace("hidden_year: Int = 2026", "hidden_year: Int = 2027");
+        let (changed_relation, _, changed_manifest) =
+            source_coverage_snapshot(&changed_source, "recursive_source_coverage");
+        assert_ne!(changed_relation, baseline_relation);
+        assert_ne!(
+            changed_manifest.semantic_dependency_digest,
+            baseline_manifest.semantic_dependency_digest
+        );
+        assert_ne!(
+            changed_manifest.manifest_digest,
+            baseline_manifest.manifest_digest
+        );
+
+        let changed_to = baseline_source.replace(
+            "income = before.income + context.step",
+            "income = before.income + context.step + 2",
+        );
+        let (changed_to_relation, _, changed_to_manifest) =
+            source_coverage_snapshot(&changed_to, "recursive_source_coverage");
+        assert_ne!(changed_to_relation, baseline_relation);
+        assert_eq!(
+            changed_to_manifest.semantic_dependency_digest,
+            baseline_manifest.semantic_dependency_digest
+        );
+        assert_ne!(
+            changed_to_manifest.manifest_digest,
+            baseline_manifest.manifest_digest
+        );
+
+        let mut corrupted = baseline_manifest.clone();
+        corrupted.entries[0].subject_id[0] ^= 1;
+        assert!(!corrupted.validate_identity());
     }
 
     fn stable_model_owner_identity_source() -> &'static str {
