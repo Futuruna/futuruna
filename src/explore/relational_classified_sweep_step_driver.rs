@@ -7,6 +7,7 @@
 //! traversal, or claims source-image/result closure. Those transitions require
 //! additional proof vocabulary and remain outside this layer.
 
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU16;
@@ -19,6 +20,10 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkPartitionError, RelationalCaseChunkPlanningOutcome,
     RelationalCaseChunkUnsupported,
 };
+use super::relational_classification_capsule::{
+    ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
+};
+use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_classified_sweep::{
     classify_relational_case_chunk_slice, classify_relational_case_chunk_slice_with_backend,
     finalize_relational_classified_case_chunk, RelationalClassifiedChunkArtifactId,
@@ -156,6 +161,10 @@ pub(crate) struct RelationalClassifiedSweepStepDriver<'query> {
     /// transcript and journal identity; the host falls back atomically to the
     /// checked interpreter whenever the sidecar is unavailable.
     native_classifier: Option<RelationalNativeClassifierV2>,
+    /// Producer-owned checked semantic graph. The shared backend retains only
+    /// bounded operational call-cache state across chunks and epoch slices;
+    /// the host still owns every case identity, transcript and proof event.
+    classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
 }
 
 impl<'query> RelationalClassifiedSweepStepDriver<'query> {
@@ -171,6 +180,20 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         support_plan: &'query RelationalSupportPlan,
         native_classifier: Option<RelationalNativeClassifierV2>,
     ) -> Result<Self, RelationalClassifiedSweepStepDriverError> {
+        Self::from_checked_with_classification_backends(
+            checked,
+            support_plan,
+            native_classifier,
+            None,
+        )
+    }
+
+    pub(crate) fn from_checked_with_classification_backends(
+        checked: &'query CheckedExploreQueryView<'_>,
+        support_plan: &'query RelationalSupportPlan,
+        native_classifier: Option<RelationalNativeClassifierV2>,
+        classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
+    ) -> Result<Self, RelationalClassifiedSweepStepDriverError> {
         checked
             .closed_query
             .validate()
@@ -181,6 +204,40 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             || support_plan.question_id() != checked.question_id()
         {
             return Err(RelationalClassifiedSweepStepDriverError::SupportPlanScopeMismatch);
+        }
+        if let Some(classification_evaluator) = classification_evaluator {
+            let checked_program = decode_canonical_sha256(checked.program_hash()).ok_or(
+                RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorScopeMismatch,
+            )?;
+            let provenance_digest =
+                decode_canonical_sha256(checked.source_coverage().manifest_digest.as_ref()).ok_or(
+                    RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorScopeMismatch,
+                )?;
+            let expected_capsule = RelationalClassificationCapsule::bind(
+                checked.classification_program(),
+                checked.classification_runtime_shapes(),
+                checked_program,
+                checked.relation_id(),
+                checked.admission_id(),
+                checked.question_id(),
+                support_plan.root(),
+                support_plan.root_cell_id(),
+                ClassificationSpecializationRoot::none(),
+                ClassificationProvenanceRoot::from_checked_source_coverage_digest(
+                    provenance_digest,
+                ),
+            )
+            .map_err(|_| {
+                RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorScopeMismatch
+            })?;
+            let evaluator = classification_evaluator.try_borrow().map_err(|_| {
+                RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorUnavailable
+            })?;
+            if evaluator.capsule().id() != expected_capsule.id() {
+                return Err(
+                    RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorScopeMismatch,
+                );
+            }
         }
 
         let case_image_proof = prove_relational_case_image_injectivity(support_plan)?;
@@ -229,6 +286,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             root_admission_obligation_id,
             root_admission_refinement,
             native_classifier,
+            classification_evaluator,
         })
     }
 
@@ -444,8 +502,15 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             ));
         }
 
-        let slice = match self.native_classifier.as_ref() {
-            Some(native_classifier) => {
+        let enabled_native_classifier = self
+            .native_classifier
+            .as_ref()
+            .filter(|native_classifier| native_classifier.is_enabled());
+        let slice = match (
+            enabled_native_classifier,
+            self.classification_evaluator.as_ref(),
+        ) {
+            (Some(native_classifier), _) => {
                 let mut backend =
                     RelationalNativeClassifierFallbackBackendV2::new(native_classifier.clone());
                 classify_relational_case_chunk_slice_with_backend(
@@ -460,7 +525,36 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                     &mut backend,
                 )?
             }
-            None => classify_relational_case_chunk_slice(
+            (None, Some(classification_evaluator)) => {
+                match classification_evaluator.try_borrow_mut() {
+                    Ok(mut backend) => classify_relational_case_chunk_slice_with_backend(
+                        &checked,
+                        self.support_plan,
+                        verified_partition,
+                        next_chunk_ordinal,
+                        durable_chunk_injectivity,
+                        prior,
+                        max_members,
+                        runtime,
+                        &mut *backend,
+                    )?,
+                    // The stream is one-worker, so a borrow conflict can only
+                    // be an operational integration fault. Ignore the
+                    // accelerator and replay the whole slice through checked
+                    // evaluation rather than minting partial evidence.
+                    Err(_) => classify_relational_case_chunk_slice(
+                        &checked,
+                        self.support_plan,
+                        verified_partition,
+                        next_chunk_ordinal,
+                        durable_chunk_injectivity,
+                        prior,
+                        max_members,
+                        runtime,
+                    )?,
+                }
+            }
+            (None, None) => classify_relational_case_chunk_slice(
                 &checked,
                 self.support_plan,
                 verified_partition,
@@ -581,10 +675,29 @@ fn root_admission_obligation(
     root_admission.ok_or(RelationalClassifiedSweepStepDriverError::RootAdmissionObligationMissing)
 }
 
+fn decode_canonical_sha256(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64
+        || value
+            .as_bytes()
+            .iter()
+            .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    let mut digest = [0u8; 32];
+    for (index, output) in digest.iter_mut().enumerate() {
+        let offset = index * 2;
+        *output = u8::from_str_radix(&value[offset..offset + 2], 16).ok()?;
+    }
+    Some(digest)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalClassifiedSweepStepDriverError {
     InvalidQuery(String),
     SupportPlanScopeMismatch,
+    ClassificationEvaluatorUnavailable,
+    ClassificationEvaluatorScopeMismatch,
     AlreadyBounded {
         root_cell_id: SupportCellId,
         cardinality: u128,
@@ -631,6 +744,12 @@ impl fmt::Display for RelationalClassifiedSweepStepDriverError {
             Self::InvalidQuery(message) => write!(formatter, "invalid checked query: {message}"),
             Self::SupportPlanScopeMismatch => formatter
                 .write_str("classified-sweep driver support plan does not match the checked query"),
+            Self::ClassificationEvaluatorUnavailable => formatter.write_str(
+                "classified-sweep classification evaluator is already mutably borrowed",
+            ),
+            Self::ClassificationEvaluatorScopeMismatch => formatter.write_str(
+                "classified-sweep classification evaluator does not match the checked query and support plan",
+            ),
             Self::AlreadyBounded {
                 root_cell_id,
                 cardinality,

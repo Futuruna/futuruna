@@ -131,6 +131,13 @@ pub(crate) struct RelationalCheckedClassificationContext<'executor, 'query, 'run
 }
 
 impl<R: RelationalExpressionRuntime> RelationalCheckedClassificationContext<'_, '_, '_, R> {
+    pub(crate) fn new<'executor, 'query, 'runtime>(
+        executor: &'executor RelationalCaseExecutor<'query>,
+        runtime: &'runtime mut R,
+    ) -> RelationalCheckedClassificationContext<'executor, 'query, 'runtime, R> {
+        RelationalCheckedClassificationContext { executor, runtime }
+    }
+
     pub(crate) fn classify(
         &mut self,
         subject: RelationalOrderedClassificationSubject<'_>,

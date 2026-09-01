@@ -977,18 +977,24 @@ representative CaseIds. These changes have passed static formatting and
 soundness review but await the single focused build and first
 resource-admitted Personskat slice.
 
-The scheduler wiring is not the hard part of that next proof. The conditioned
-Personskat WHERE and FIND expressions cross checked helper and rule calls. An
-`AdmissionId` or `QuestionId` commits their meaning, but a digest alone is not a
-replayable theorem. The symbolic fast path therefore needs a canonical checked
-classification-rule-graph capsule under the support plan: specialized fixed
-context, hash-consed reachable rules, and a paired Before/After delta DAG. A
-proof artifact must replay against that capsule before it can mint uniform or
-partitioned admission/FIND evidence. Literal predicates are a useful narrow
-producer recipe; they are not evidence for the Personskat calls. Until the
-capsule and its proof producer exist, the exact 200,000-candidate count may sit
-beside honest concrete lower bounds and the fused evaluator remains the
-canonical completion path.
+The conditioned Personskat WHERE and FIND expressions cross checked helper and
+rule calls. An `AdmissionId` or `QuestionId` commits their meaning, but a digest
+alone is not a replayable theorem. The checked query now retains the first
+canonical classification program for this purpose: a name-free, hash-consed
+semantic graph plus a separately authenticated runtime-shape adapter. One
+request capsule binds them to the checked program, relation/admission/question,
+support plan/root cell, specialization and provenance. Its bounded exact
+evaluator is threaded through concrete classified sweeps and falls back
+atomically whenever any lane residualizes.
+
+The remaining proof work is scheduler and replay authority plus wider checked
+rule semantics. The first capsule-bound one-axis proof producer can normalize
+exact scalar quasi-affine/Boolean graphs and acyclic calls, but it is not yet a
+durable journal event and richer Personskat rule-family behavior can remain
+residual. A proof artifact must replay against the exact capsule before it can
+mint uniform or partitioned admission/FIND evidence. Literal predicates remain
+useful scaffolding, never a substitute for the checked graph; until that replay
+path is scheduled, concrete evaluation remains the canonical completion path.
 
 Once positive selected fragments are certified, downstream adoption should be
 incremental. First expose exact logical admission/FIND totals, then support the
@@ -1001,46 +1007,54 @@ roots or mechanism-incidence roots.
 
 ### Checked classification capsule
 
-The minimal replayable proof program should have two identities. A
+The replayable classification program has two principal identities. A
 `ClassificationGraphRoot` commits the canonical typed semantics and permits
-process-local reuse. A `ClassificationCapsuleId` additionally commits the
-checked program, relation/admission/question IDs, support-plan/root-cell IDs,
+process-local reuse. A separate `RuntimeShapeRoot` commits the current checked
+constructor spelling/layout adapter without contaminating that name-free graph.
+A `ClassificationCapsuleId` additionally commits both roots, the checked
+program, relation/admission/question IDs, support-plan/root-cell IDs,
 fixed-value specialization and provenance. Proof artifacts bind the capsule,
 not a runtime function name, AST address, dispatch-key spelling or digest by
 itself.
 
-The V1 graph needs typed input/constant/constructor/projection nodes; ordered
-integer and Boolean operations; `if`/`match`; pure closed function calls; and
-the exact checked rule-family dispatch order and miss behavior. Local immutable
+The implemented V1 graph has typed input/constant/constructor/projection and
+variant-test nodes; ordered checked integer and Boolean operations;
+`if`/conservative lazy `match`; and acyclic pure direct calls. Local immutable
 bindings become DAG edges. Recursive SCCs, effects, open captures, dynamic or
-higher-order calls, unresolved members, arbitrary collection traversal and
-arithmetic whose overflow/rounding semantics are not proved remain explicit
-residuals. A residual means only concrete evaluation is required.
+higher-order calls, unresolved members, arbitrary collection traversal,
+unretained nested pattern-field types and arithmetic whose overflow/rounding
+semantics are not proved remain explicit residuals. Exact rule-family dispatch
+and additional collection/value operations widen this vocabulary later. A
+residual means only that the complete batch uses checked concrete evaluation.
 
-Fixed context may be specialized only from an exact singleton support witness.
-Before and After use the same parameterized observation DAG in two lanes:
-context-only nodes run once, equal branch predicates share an arm, and endpoint
-results may be cached by complete canonical dependency tuples. This is physical
-acceleration only; caches are bounded and absent from evidence roots, and fresh
-mechanism replay remains authoritative.
+Fixed context may be specialized only from an exact singleton support witness;
+the first public binding deliberately remains unspecialized. Before and After
+use the same parameterized observation DAG. Exact complete-call results are
+cached by callable identity and complete canonical argument tuples across
+adjacent endpoints and resumed slices. The FIFO cache is bounded by entry count,
+per-entry logical bytes and total logical bytes. This is physical acceleration
+only: caches are absent from evidence roots, and fresh mechanism replay remains
+authoritative.
 
 Proof replay deterministically rebuilds the capsule from the exact checked
 query, requires complete identity equality, abstractly evaluates the obligation
-cell, rechecks totality/overflow/dispatch/match conditions, and reproduces the
-typed conclusion before a private gateway can mint evidence. Start with exact
-constants, integer interval/congruence/quasi-affine values, Boolean truth sets
-and exact constructor tags. A varying truth set proposes certified cuts; it
-does not classify the parent. With graph size `G` and `P` retained proof
-fragments, the direct bound is `O(G * P + P log P)` time and `O(G + P)` memory;
-a successful global abstract proof is `O(G)`, while worst-case `P = Theta(N)`
-must fall back to concrete evaluation.
+cell, rechecks totality/overflow/call conditions, and reproduces the typed
+conclusion before a private gateway can mint evidence. The first proof slice
+accepts exact integer quasi-affine values and Boolean truth sets, including
+acyclic scalar calls, under a fixed normalization budget; unsupported or
+varying forms return concrete fallback. Constructor tags, certified cuts and
+wider rule dispatch remain subsequent proof slices. With graph size `G` and
+`P` retained proof fragments, the intended direct bound is
+`O(G * P + P log P)` time and `O(G + P)` memory; a successful global abstract
+proof is `O(G)`, while worst-case `P = Theta(N)` must fall back to concrete
+evaluation.
 
-Implementation order is: expose a producer-owned checked-query/semantic-seal
-seam; lower the acyclic canonical capsule; use its exact paired interpreter as
-optional concrete acceleration; add abstract scheduling cuts; then add replayed
-typed admission and staged FIND proofs, followed by certified partitions. This
-keeps the first optimization useful even when a full Personskat theorem remains
-out of reach.
+The producer-owned semantic seam, canonical capsule, runtime adapter and exact
+ordered concrete backend now form the first implementation slice. Next comes a
+durable capsule-bound proof-artifact event and scheduler invocation, followed by
+abstract cuts, replayed typed admission/staged FIND proofs and certified
+partitions. This keeps the concrete optimization useful even when a full
+Personskat theorem remains out of reach.
 
 ### Ordered exact fallback without population-sized state
 

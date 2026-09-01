@@ -6,8 +6,9 @@
 //! invocation appended. It deliberately does not clone the complete relation
 //! merely to print a checkpoint.
 
+use std::cell::RefCell;
 use std::collections::BTreeSet;
-use std::num::NonZeroU64;
+use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -28,6 +29,10 @@ use super::relational_analysis_catalog::{
     RelationalResultLayerSnapshotState, RelationalResultPublication,
 };
 use super::relational_analysis_plan::{RelationalAnalysisLayerId, RelationalAnalysisPlan};
+use super::relational_classification_capsule::{
+    ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
+};
+use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_durable_journal::{RelationalDurableJournal, RelationalDurableJournalLimits};
 use super::relational_interpreter_mechanism::{
     checked_ground_definitions, RelationalInterpreterMechanismReplayRuntime,
@@ -65,6 +70,10 @@ const RESULT_PREVIEW_RECORDS_PER_VIEW: u128 = 256;
 const RESULT_PREVIEW_RECORDS_PER_REPORT: u128 = 1_024;
 const RESULT_PREVIEW_VALUE_NODES_PER_REPORT: usize = 4_096;
 const RESULT_PREVIEW_VALUE_BYTES_PER_REPORT: usize = 256 * 1024;
+/// Operational only. V1 caches complete pure-call results and never admits a
+/// partial call, so this fixed cap bounds retained cross-chunk state without
+/// entering query, support, capsule, journal, or result identity.
+const CLASSIFICATION_CALL_CACHE_ENTRIES: usize = 16_384;
 
 /// Operational proof carried by a CLI slice that is already enclosed by the
 /// validated process-group supervisor.
@@ -125,6 +134,11 @@ pub struct PreparedRelationalExplore {
     publication_plan: RelationalPublicationPlan,
     expression_runtime: RelationalInterpreterExpressionRuntime,
     mechanism_runtime: RelationalInterpreterMechanismReplayRuntime,
+    /// Canonical checked classification graph and its bounded warm call cache.
+    /// The one-worker `RefCell` supplies interior mutability to the otherwise
+    /// immutable semantic driver and retains that cache across resumable epoch
+    /// slices.
+    classification_evaluator: RefCell<RelationalClassificationEvaluatorBackend>,
     native_classifier_plan: Option<ExploreNativeClassifierPlanV2>,
     native_classifier_shape_v2: bool,
     native_classifier: Option<RelationalNativeClassifierV2>,
@@ -465,6 +479,43 @@ fn decode_lowercase_sha256(value: &str) -> Option<[u8; 32]> {
         *output = u8::from_str_radix(&value[offset..offset + 2], 16).ok()?;
     }
     Some(digest)
+}
+
+fn bind_relational_classification_capsule(
+    checked: &CheckedExploreQueryView<'_>,
+    support_plan: &RelationalSupportPlan,
+) -> Result<Arc<RelationalClassificationCapsule>, ExploreStreamPreparationError> {
+    let checked_program = decode_lowercase_sha256(checked.program_hash()).ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(
+            "checked Explore program identity is not canonical lowercase SHA-256".into(),
+        )
+    })?;
+    let provenance_digest = decode_lowercase_sha256(
+        checked.source_coverage().manifest_digest.as_ref(),
+    )
+    .ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(
+            "checked Explore source-coverage identity is not canonical lowercase SHA-256".into(),
+        )
+    })?;
+    let capsule = RelationalClassificationCapsule::bind(
+        checked.classification_program(),
+        checked.classification_runtime_shapes(),
+        checked_program,
+        checked.relation_id(),
+        checked.admission_id(),
+        checked.question_id(),
+        support_plan.root(),
+        support_plan.root_cell_id(),
+        ClassificationSpecializationRoot::none(),
+        ClassificationProvenanceRoot::from_checked_source_coverage_digest(provenance_digest),
+    )
+    .map_err(|error| {
+        ExploreStreamPreparationError::Execution(format!(
+            "checked Explore classification capsule is incoherent: {error}"
+        ))
+    })?;
+    Ok(Arc::new(capsule))
 }
 
 /// One open, exclusively owned durable stream that can execute many slices.
@@ -995,6 +1046,18 @@ pub fn prepare_checked_relational_stream(
         .and_then(|planner| planner.plan())
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
     trace_preparation_phase(started, "planned support");
+    let classification_capsule = bind_relational_classification_capsule(&checked, &support_plan)?;
+    let classification_call_cache_capacity = NonZeroUsize::new(CLASSIFICATION_CALL_CACHE_ENTRIES)
+        .ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(
+            "classification call-cache capacity must be positive".into(),
+        )
+    })?;
+    let classification_evaluator = RefCell::new(RelationalClassificationEvaluatorBackend::new(
+        classification_capsule,
+        classification_call_cache_capacity,
+    ));
+    trace_preparation_phase(started, "bound classification capsule");
     let analysis_plan = RelationalAnalysisPlan::from_checked(&checked)
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
     trace_preparation_phase(started, "planned analysis");
@@ -1022,6 +1085,7 @@ pub fn prepare_checked_relational_stream(
         publication_plan,
         expression_runtime,
         mechanism_runtime,
+        classification_evaluator,
         native_classifier_plan,
         native_classifier_shape_v2,
         native_classifier: None,
@@ -1055,17 +1119,19 @@ impl RelationalExploreEpoch {
             publication_plan,
             expression_runtime,
             mechanism_runtime,
+            classification_evaluator,
             native_classifier_plan: _,
             native_classifier_shape_v2: _,
             native_classifier,
             preparation_wall_time: _,
         } = &mut self.prepared;
         let checked = checked.view();
-        let driver = RelationalStreamDriver::from_checked_with_limits_and_native_classifier(
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
             &checked,
             support_plan,
             RelationalStreamDriverLimits::default(),
             native_classifier.clone(),
+            Some(classification_evaluator),
         )
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
         let projection_starts = projection_lengths(

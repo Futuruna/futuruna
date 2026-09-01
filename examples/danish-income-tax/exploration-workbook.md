@@ -2516,16 +2516,22 @@ execution target:
    clean through the terminal result/mechanism ownership boundaries; the
    post-change focused build and live Personskat slice have not yet run.
 
-   The semantic blocker is now explicit. The audit's WHERE and FIND predicates
-   call through the checked Personskat rule graph; their IDs authenticate that
-   meaning but do not retain a replayable proof program. The symbolic optimizer
-   needs a canonical classification-rule-graph capsule committed by the support
-   plan, with the fixed profile specialized and shared Before/After work
-   hash-consed into a delta DAG. Uniform or split evidence may be minted only by
-   replaying a proof artifact against that capsule. A literal-only admission
-   recipe is valid scaffolding but cannot classify this audit. Until that proof
-   capsule lands, concrete evaluation is the exact fallback rather than an
-   algorithmic failure.
+   The first semantic blocker is now removed. The checked query owns a
+   canonical, name-free classification graph plus a separately authenticated
+   runtime-shape adapter; a request capsule binds both to the support plan,
+   provenance and exact relation/admission/question identities. Its bounded
+   exact evaluator is threaded through classified chunks and reuses complete
+   pure-call results across adjacent Before/After endpoints. Unsupported
+   checked sites or operations residualize the whole classification lane and
+   fall back atomically to the ordinary checked evaluator.
+
+   The remaining symbolic blocker is narrower. The capsule-bound one-axis
+   proof producer can replay exact scalar quasi-affine/Boolean graphs and
+   acyclic calls, but its proof artifact is not yet a durable scheduler/journal
+   event and richer Personskat rule-family behavior may still residualize.
+   Uniform or split evidence may be minted only after that exact capsule-bound
+   replay seam is installed; a semantic ID or literal-only recipe is never
+   substituted for the checked graph.
 
    Positive consumption also has a narrow first rung. Exact population totals
    can become public without inventing cases, but concrete result expressions
@@ -2556,9 +2562,10 @@ execution target:
 
    This is not permission to infer an interval from matching probes. Without a
    checked abstract proof, every coordinate in a compacted concrete interval
-   was evaluated. The future classification capsule can prove the same typed
-   chunk obligation and skip those evaluations without changing the journal,
-   support DAG or public counting rules.
+   was evaluated. The classification capsule now supplies the replayable typed
+   program for such a proof; scheduler/journal integration must still verify a
+   capsule-bound proof artifact before it may skip evaluations. That later
+   acceleration does not change the support DAG or public counting rules.
 
    The first exact implementation of that fallback now fixes one canonical
    partition of the conditioned `0..<2_000` mapped case image into eight

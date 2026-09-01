@@ -1,15 +1,17 @@
 //! Exact one-axis region proofs for the relational Explore IR.
 //!
 //! This is a proof producer, not a candidate generator.  It consumes the
-//! immutable [`CheckedExploreQueryView`], the support plan minted from that
-//! view, and the solver-neutral axis inventory.  The first accepted fragment
-//! is intentionally narrow:
+//! immutable [`CheckedExploreQueryView`], its request-bound classification
+//! capsule, the support plan minted from that view, and the solver-neutral
+//! axis inventory.  The first accepted fragment is intentionally narrow:
 //!
 //! - one independent finite `Int` binding is the semantic `Before` value;
 //! - `Context` is the singleton unit value and there are no auxiliary binds;
-//! - `to after = ...` is a total singleton quasi-affine expression of Before;
+//! - the capsule's `Successor` lane is a total singleton quasi-affine
+//!   expression of Before;
 //! - there are no admission predicates; and
-//! - FIND is a direct Boolean formula of exact one-axis quasi-affine atoms.
+//! - the capsule's already-normalized FIND lane is a Boolean formula of exact
+//!   one-axis quasi-affine atoms, possibly through acyclic pure calls.
 //!
 //! When those conditions hold, the producer proves the case-image cardinality,
 //! uniform admission, and uniform FIND classification together.  It emits
@@ -24,6 +26,13 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use super::relation::{AdmissionDecision, AdmissionId, QuestionId, RelationId, SelectionDecision};
+use super::relational_classification_capsule::{
+    ClassificationBinaryOp, ClassificationCallableDefinition, ClassificationCallableId,
+    ClassificationCapsuleId, ClassificationConstant, ClassificationInputSlot, ClassificationNodeId,
+    ClassificationNodeKey, ClassificationNodeKind, ClassificationProvenanceRoot,
+    ClassificationSemanticLane, ClassificationSpecializationRoot, ClassificationTypeId,
+    ClassificationUnaryOp, FrozenClassificationProgram, RelationalClassificationCapsule,
+};
 use super::relational_ir::{
     ExploreFindIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSuccessorKindIr,
 };
@@ -43,14 +52,16 @@ use super::support_cell::{
 };
 use super::support_evidence::{SupportEvidenceRecord, SupportObligationRecord};
 use super::support_journal::SupportJournalEvent;
-use super::{ExploreExactDomain, FindPolarity};
-use crate::{CheckedExploreQueryView, Expr, ExprKind, Literal};
+use super::ExploreExactDomain;
+use crate::CheckedExploreQueryView;
 
-pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 2;
 
-const CERTIFICATE_ID_V1: &[u8] = b"futuruna.explore.relational-region.certificate.v1";
-const FORMULA_DIGEST_V1: &[u8] = b"futuruna.explore.relational-region.formula.v1";
-const PROOF_DIGEST_V1: &[u8] = b"futuruna.explore.relational-region.proof.v1";
+const CERTIFICATE_ID_V2: &[u8] = b"futuruna.explore.relational-region.certificate.v2";
+const FORMULA_DIGEST_V2: &[u8] = b"futuruna.explore.relational-region.formula.v2";
+const PROOF_DIGEST_V2: &[u8] = b"futuruna.explore.relational-region.proof.v2";
+const MAX_GRAPH_NORMALIZATION_STEPS: usize = 100_000;
+const MAX_GRAPH_NORMALIZATION_DEPTH: usize = 1_024;
 
 /// The exact typed conclusion authorized by one proof-receipt binding.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -96,12 +107,15 @@ impl RelationalRegionEvidenceBinding {
 /// Canonical bounded proof artifact.  It is evidence to replay, not authority
 /// by itself: a decoder may restore these fields, but support receipts may be
 /// issued only after [`reverify_relational_region_proof_artifact`] reproduces
-/// the artifact from a producer-bound checked query and support plan.
+/// the artifact from a producer-bound checked query, support plan, and exact
+/// classification capsule.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalRegionProofArtifact {
     schema_version: u32,
     certificate_id: [u8; 32],
-    program_hash: Box<str>,
+    classification_capsule_id: ClassificationCapsuleId,
+    successor_root_id: ClassificationNodeId,
+    find_root_id: ClassificationNodeId,
     relation_id: RelationId,
     admission_id: AdmissionId,
     question_id: QuestionId,
@@ -127,8 +141,16 @@ impl RelationalRegionProofArtifact {
         self.certificate_id
     }
 
-    pub(crate) fn program_hash(&self) -> &str {
-        &self.program_hash
+    pub(crate) const fn classification_capsule_id(&self) -> ClassificationCapsuleId {
+        self.classification_capsule_id
+    }
+
+    pub(crate) const fn successor_root_id(&self) -> ClassificationNodeId {
+        self.successor_root_id
+    }
+
+    pub(crate) const fn find_root_id(&self) -> ClassificationNodeId {
+        self.find_root_id
     }
 
     pub(crate) const fn relation_id(&self) -> RelationId {
@@ -193,7 +215,9 @@ impl RelationalRegionProofArtifact {
     pub(super) fn restore_from_canonical_parts(
         schema_version: u32,
         certificate_id: [u8; 32],
-        program_hash: Box<str>,
+        classification_capsule_id: ClassificationCapsuleId,
+        successor_root_id: ClassificationNodeId,
+        find_root_id: ClassificationNodeId,
         relation_id: RelationId,
         admission_id: AdmissionId,
         question_id: QuestionId,
@@ -212,7 +236,9 @@ impl RelationalRegionProofArtifact {
         let artifact = Self {
             schema_version,
             certificate_id,
-            program_hash,
+            classification_capsule_id,
+            successor_root_id,
+            find_root_id,
             relation_id,
             admission_id,
             question_id,
@@ -238,12 +264,7 @@ impl RelationalRegionProofArtifact {
                 self.schema_version,
             ));
         }
-        if self.program_hash.len() != 64
-            || !self
-                .program_hash
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || matches!(byte, b'a'..=b'f'))
-            || self.value_start >= self.value_end_exclusive
+        if self.value_start >= self.value_end_exclusive
             || self.coordinate_start >= self.coordinate_end_exclusive
             || self.case_cardinality != self.coordinate_end_exclusive - self.coordinate_start
             || u128::try_from(i128::from(self.value_end_exclusive) - i128::from(self.value_start))
@@ -300,8 +321,16 @@ impl VerifiedRelationalRegionProof {
         self.artifact.case_cardinality
     }
 
-    pub(crate) fn program_hash(&self) -> &str {
-        &self.artifact.program_hash
+    pub(crate) const fn classification_capsule_id(&self) -> ClassificationCapsuleId {
+        self.artifact.classification_capsule_id
+    }
+
+    pub(crate) const fn successor_root_id(&self) -> ClassificationNodeId {
+        self.artifact.successor_root_id
+    }
+
+    pub(crate) const fn find_root_id(&self) -> ClassificationNodeId {
+        self.artifact.find_root_id
     }
 
     pub(crate) fn evidence_binding(
@@ -346,11 +375,16 @@ pub(crate) enum RelationalRegionExpressionLayer {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalRegionExpressionResidualReason {
-    CheckedRuleGraphNormalizationRequired,
     StructuredStateProjectionRequired,
     UnboundRelationalValue,
+    InvalidClassificationGraph,
+    InvalidCallableFrame,
+    RecursiveCallable,
+    UnsupportedScalarType,
     UnsupportedBooleanOperator,
     UnsupportedIntegerOperator,
+    ConditionalTruthVariesOverAxis,
+    NormalizationCapacityExceeded,
     NonlinearIntegerExpression,
     NestedQuantizedExpression,
     NonpositiveDivisor,
@@ -361,7 +395,7 @@ pub(crate) enum RelationalRegionExpressionResidualReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalRegionExpressionResidual {
     layer: RelationalRegionExpressionLayer,
-    ast_path: Box<[u32]>,
+    node_path: Box<[ClassificationNodeId]>,
     reason: RelationalRegionExpressionResidualReason,
 }
 
@@ -370,8 +404,8 @@ impl RelationalRegionExpressionResidual {
         self.layer
     }
 
-    pub(crate) fn ast_path(&self) -> &[u32] {
-        &self.ast_path
+    pub(crate) fn node_path(&self) -> &[ClassificationNodeId] {
+        &self.node_path
     }
 
     pub(crate) const fn reason(&self) -> RelationalRegionExpressionResidualReason {
@@ -384,6 +418,8 @@ impl RelationalRegionExpressionResidual {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalRegionProofResidual {
     IntegerAxisCount { found: usize },
+    ClassificationLaneMissing { lane: ClassificationSemanticLane },
+    ClassificationLaneResidual { lane: ClassificationSemanticLane },
     BeforeIsNotIndependentIntegerAxis,
     SourceHasAuxiliaryOrNonUnitContext,
     CaseImageCardinalityLiftUnavailable,
@@ -391,7 +427,6 @@ pub(crate) enum RelationalRegionProofResidual {
     AdmissionFormulaNormalizationRequired { predicates: usize },
     ProofArithmeticCapacityExceeded,
     Expression(RelationalRegionExpressionResidual),
-    FindAllSelectsNonemptySupport,
     SelectionUniformlySelected,
     SelectionTruthVariesOverAxis,
 }
@@ -426,14 +461,15 @@ fn fallback(residual: RelationalRegionProofResidual) -> RelationalRegionProofOut
 
 /// Attempt constant-size proof closure of one checked one-axis relation.
 ///
-/// Complexity is `O(E + T log T)` time and `O(E + T)` memory, where `E` is the
-/// directly retained successor/FIND AST size and `T` is the number of distinct
-/// constant-division terms.  The integer-domain cardinality is absent from the
-/// complexity: `0..<200_000` and `0..<3_000_000` cost the same when the formula
-/// closes as one uniform region.
+/// Complexity is proportional to the expanded acyclic capsule expression
+/// (with logarithmic node/callable lookup) and its distinct constant-division
+/// terms. The integer-domain cardinality is absent from the complexity:
+/// `0..<200_000` and `0..<3_000_000` cost the same when the formula closes as
+/// one uniform region.
 pub(crate) fn prove_relational_exact_empty_region(
     checked: &CheckedExploreQueryView<'_>,
     support_plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
 ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
     checked
         .closed_query
@@ -446,6 +482,28 @@ pub(crate) fn prove_relational_exact_empty_region(
     {
         return Err(RelationalRegionProofError::CheckedPlanScopeMismatch);
     }
+    let checked_program = decode_lowercase_sha256(checked.program_hash())
+        .ok_or(RelationalRegionProofError::InvalidCheckedProgramDigest)?;
+    let checked_provenance =
+        decode_lowercase_sha256(checked.source_coverage().manifest_digest.as_ref())
+            .ok_or(RelationalRegionProofError::InvalidCheckedProvenanceDigest)?;
+    if !capsule.validates_binding(
+        checked_program,
+        checked.relation_id(),
+        checked.admission_id(),
+        checked.question_id(),
+        support_plan.root(),
+        support_plan.root_cell_id(),
+    ) || capsule.graph_root() != checked.classification_program().graph_root()
+        || capsule.runtime_shape_root()
+            != checked.classification_runtime_shapes().runtime_shape_root()
+        || capsule.specialization_root() != ClassificationSpecializationRoot::none()
+        || capsule.provenance_root()
+            != ClassificationProvenanceRoot::from_checked_source_coverage_digest(checked_provenance)
+    {
+        return Err(RelationalRegionProofError::ClassificationCapsuleScopeMismatch);
+    }
+    let graph = capsule.graph();
 
     let inventory = RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
     let [axis] = inventory.axes() else {
@@ -453,14 +511,35 @@ pub(crate) fn prove_relational_exact_empty_region(
             found: inventory.axes().len(),
         }));
     };
-    if !axis_is_direct_before(checked, axis) {
+    let axis_lane = ClassificationSemanticLane::SourceBinding(axis.binding_index());
+    let axis_root_id = match required_lane_root(graph, axis_lane) {
+        Ok(root) => root,
+        Err(residual) => return Ok(fallback(residual)),
+    };
+    if !axis_is_direct_before(checked, graph, axis_root_id, axis) {
         return Ok(fallback(
             RelationalRegionProofResidual::BeforeIsNotIndependentIntegerAxis,
         ));
     }
-    if !source_has_only_direct_before_and_unit_context(checked, axis) {
+    let context_index = checked.closed_query.source.context_binding_index;
+    let context_ordinal = u32::try_from(context_index)
+        .map_err(|_| RelationalRegionProofError::ClassificationIndexOverflow("context binding"))?;
+    let context_lane = ClassificationSemanticLane::SourceBinding(context_ordinal);
+    let context_root_id = match required_lane_root(graph, context_lane) {
+        Ok(root) => root,
+        Err(residual) => return Ok(fallback(residual)),
+    };
+    if !source_has_only_direct_before_and_unit_context(checked, graph, context_root_id, axis) {
         return Ok(fallback(
             RelationalRegionProofResidual::SourceHasAuxiliaryOrNonUnitContext,
+        ));
+    }
+    if !matches!(
+        &checked.closed_query.successor.kind,
+        ExploreSuccessorKindIr::Singleton { .. }
+    ) {
+        return Ok(fallback(
+            RelationalRegionProofResidual::FiniteSuccessorNeedsFiberProof,
         ));
     }
     if !case_image_is_one_to_one_singleton(support_plan, axis) {
@@ -469,22 +548,57 @@ pub(crate) fn prove_relational_exact_empty_region(
         ));
     }
 
-    let ExploreSuccessorKindIr::Singleton { value: successor } =
-        &checked.closed_query.successor.kind
-    else {
+    let admission_lane_count = graph
+        .lane_manifest()
+        .iter()
+        .filter(|entry| matches!(entry.lane, ClassificationSemanticLane::Admission { .. }))
+        .count();
+    let checked_admission_count = checked.closed_query.admissions.len();
+    if checked_admission_count != 0 || admission_lane_count != 0 {
         return Ok(fallback(
-            RelationalRegionProofResidual::FiniteSuccessorNeedsFiberProof,
+            RelationalRegionProofResidual::AdmissionFormulaNormalizationRequired {
+                predicates: checked_admission_count.max(admission_lane_count),
+            },
         ));
+    }
+    if matches!(&checked.closed_query.find, ExploreFindIr::All { .. }) {
+        return Ok(fallback(
+            RelationalRegionProofResidual::SelectionUniformlySelected,
+        ));
+    }
+
+    let successor_root_id = match required_lane_root(graph, ClassificationSemanticLane::Successor) {
+        Ok(root) => root,
+        Err(residual) => return Ok(fallback(residual)),
     };
-    let before_name = &checked.closed_query.source.bindings[axis.binding_index() as usize].name;
-    let successor = match normalize_integer_expression(
-        successor,
-        RelationalRegionExpressionLayer::Successor,
-        before_name,
-        None,
+    let find_root_id = match required_lane_root(graph, ClassificationSemanticLane::Find) {
+        Ok(root) => root,
+        Err(residual) => return Ok(fallback(residual)),
+    };
+    let integer_type = classification_node(graph, axis_root_id)?.ty;
+    let boolean_type = classification_node(graph, find_root_id)?.ty;
+    if integer_type == boolean_type {
+        return Ok(fallback(RelationalRegionProofResidual::Expression(
+            RelationalRegionExpressionResidual {
+                layer: RelationalRegionExpressionLayer::Selection,
+                node_path: vec![find_root_id].into_boxed_slice(),
+                reason: RelationalRegionExpressionResidualReason::InvalidClassificationGraph,
+            },
+        )));
+    }
+    let scalar_types = RelationalGraphScalarTypes {
+        integer: integer_type,
+        boolean: boolean_type,
+    };
+    let successor = match RelationalGraphNormalizer::new(
+        graph,
         axis,
-        &mut Vec::new(),
-    ) {
+        scalar_types,
+        RelationalRegionExpressionLayer::Successor,
+        None,
+    )
+    .normalize_integer(successor_root_id)
+    {
         Ok(value) => value,
         Err(residual) => {
             return Ok(fallback(RelationalRegionProofResidual::Expression(
@@ -492,41 +606,20 @@ pub(crate) fn prove_relational_exact_empty_region(
             )));
         }
     };
-    if !checked.closed_query.admissions.is_empty() {
-        return Ok(fallback(
-            RelationalRegionProofResidual::AdmissionFormulaNormalizationRequired {
-                predicates: checked.closed_query.admissions.len(),
-            },
-        ));
-    }
-
-    let selected_formula = match &checked.closed_query.find {
-        ExploreFindIr::All { .. } => {
-            return Ok(fallback(
-                RelationalRegionProofResidual::FindAllSelectsNonemptySupport,
-            ));
-        }
-        ExploreFindIr::Matches { predicate, .. } | ExploreFindIr::Violations { predicate, .. } => {
-            let formula = match normalize_boolean_expression(
-                predicate,
-                RelationalRegionExpressionLayer::Selection,
-                before_name,
-                &successor,
-                axis,
-                &mut Vec::new(),
-            ) {
-                Ok(formula) => formula,
-                Err(residual) => {
-                    return Ok(fallback(RelationalRegionProofResidual::Expression(
-                        residual,
-                    )));
-                }
-            };
-            match checked.closed_query.find.polarity() {
-                FindPolarity::Matches => formula,
-                FindPolarity::Violations => RelationalBooleanFormula::Not(Box::new(formula)),
-                FindPolarity::All => unreachable!("predicate-bearing FIND cannot be all"),
-            }
+    let selected_formula = match RelationalGraphNormalizer::new(
+        graph,
+        axis,
+        scalar_types,
+        RelationalRegionExpressionLayer::Selection,
+        Some(successor.clone()),
+    )
+    .normalize_boolean(find_root_id)
+    {
+        Ok(value) => value,
+        Err(residual) => {
+            return Ok(fallback(RelationalRegionProofResidual::Expression(
+                residual,
+            )));
         }
     };
 
@@ -577,7 +670,9 @@ pub(crate) fn prove_relational_exact_empty_region(
     let mut artifact = RelationalRegionProofArtifact {
         schema_version: RELATIONAL_REGION_PROOF_VERSION,
         certificate_id: [0; 32],
-        program_hash: checked.program_hash().into(),
+        classification_capsule_id: capsule.id(),
+        successor_root_id,
+        find_root_id,
         relation_id: checked.relation_id(),
         admission_id: checked.admission_id(),
         question_id: checked.question_id(),
@@ -657,19 +752,23 @@ pub(crate) fn prove_relational_exact_empty_region(
 
 /// Replay verifier for a decoded proof artifact.
 ///
-/// The checked query view and support plan are required external inputs.  The
-/// verifier reruns normalization and interval closure from those producer-bound
-/// artifacts, then requires byte-for-byte semantic equality with the decoded
-/// artifact before returning receipt-bearing support events.  A journal codec
-/// must never skip this call or restore [`VerifiedRelationalRegionProof`]
-/// directly.
+/// The checked query view, support plan, and exact capsule are required external
+/// inputs. The verifier reruns graph normalization and interval closure from
+/// those producer-bound artifacts, then requires byte-for-byte semantic
+/// equality with the decoded artifact before returning receipt-bearing support
+/// events. A journal codec must never skip this call or restore
+/// [`VerifiedRelationalRegionProof`] directly.
 pub(crate) fn reverify_relational_region_proof_artifact(
     artifact: &RelationalRegionProofArtifact,
     checked: &CheckedExploreQueryView<'_>,
     support_plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
 ) -> Result<RelationalRegionSupportClosure, RelationalRegionProofError> {
     artifact.validate_identity()?;
-    match prove_relational_exact_empty_region(checked, support_plan)? {
+    if artifact.classification_capsule_id() != capsule.id() {
+        return Err(RelationalRegionProofError::ArtifactSemanticMismatch);
+    }
+    match prove_relational_exact_empty_region(checked, support_plan, capsule)? {
         RelationalRegionProofOutcome::ExactEmpty(closure)
             if closure.proof.artifact() == artifact =>
         {
@@ -684,8 +783,71 @@ pub(crate) fn reverify_relational_region_proof_artifact(
     }
 }
 
+fn required_lane_root(
+    graph: &FrozenClassificationProgram,
+    lane: ClassificationSemanticLane,
+) -> Result<ClassificationNodeId, RelationalRegionProofResidual> {
+    match graph.lane_is_complete(lane) {
+        Some(true) => graph
+            .roots()
+            .binary_search_by_key(&lane, |root| root.lane)
+            .ok()
+            .map(|index| graph.roots()[index].node)
+            .ok_or(RelationalRegionProofResidual::ClassificationLaneMissing { lane }),
+        Some(false) => Err(RelationalRegionProofResidual::ClassificationLaneResidual { lane }),
+        None => Err(RelationalRegionProofResidual::ClassificationLaneMissing { lane }),
+    }
+}
+
+fn classification_node(
+    graph: &FrozenClassificationProgram,
+    node_id: ClassificationNodeId,
+) -> Result<&ClassificationNodeKey, RelationalRegionProofError> {
+    graph
+        .nodes()
+        .binary_search_by_key(&node_id, |(candidate, _)| *candidate)
+        .ok()
+        .map(|index| &graph.nodes()[index].1)
+        .ok_or(RelationalRegionProofError::ClassificationNodeMissing(
+            node_id,
+        ))
+}
+
+fn classification_callable(
+    graph: &FrozenClassificationProgram,
+    callable_id: ClassificationCallableId,
+) -> Result<&ClassificationCallableDefinition, RelationalRegionProofError> {
+    graph
+        .callables()
+        .binary_search_by_key(&callable_id, |definition| definition.callable_id)
+        .ok()
+        .map(|index| &graph.callables()[index])
+        .ok_or(RelationalRegionProofError::ClassificationCallableMissing(
+            callable_id,
+        ))
+}
+
+fn decode_lowercase_sha256(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64
+        || value
+            .as_bytes()
+            .iter()
+            .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    let mut digest = [0u8; 32];
+    for (index, output) in digest.iter_mut().enumerate() {
+        let offset = index * 2;
+        *output = u8::from_str_radix(&value[offset..offset + 2], 16).ok()?;
+    }
+    Some(digest)
+}
+
 fn axis_is_direct_before(
     checked: &CheckedExploreQueryView<'_>,
+    graph: &FrozenClassificationProgram,
+    axis_root_id: ClassificationNodeId,
     axis: &RelationalIntegerAxis,
 ) -> bool {
     let Some(binding) = checked
@@ -697,6 +859,12 @@ fn axis_is_direct_before(
         return false;
     };
     if binding.role != ExploreSourceBindingRoleIr::Before || !binding.dependencies.is_empty() {
+        return false;
+    }
+    if !matches!(
+        classification_node(graph, axis_root_id).map(|node| &node.kind),
+        Ok(ClassificationNodeKind::SourceParameter(ordinal)) if *ordinal == axis.binding_index()
+    ) {
         return false;
     }
     let ExploreSourceBindingKindIr::Finite { domain } = &binding.kind else {
@@ -725,6 +893,8 @@ fn axis_is_direct_before(
 
 fn source_has_only_direct_before_and_unit_context(
     checked: &CheckedExploreQueryView<'_>,
+    graph: &FrozenClassificationProgram,
+    context_root_id: ClassificationNodeId,
     axis: &RelationalIntegerAxis,
 ) -> bool {
     if checked.closed_query.source.bindings.len() != 2 {
@@ -738,19 +908,15 @@ fn source_has_only_direct_before_and_unit_context(
         return false;
     }
     let context = &checked.closed_query.source.bindings[context_index];
-    matches!(
-        (&context.role, &context.dependencies[..], &context.kind),
-        (
-            ExploreSourceBindingRoleIr::Context,
-            [],
-            ExploreSourceBindingKindIr::Singleton {
-                value: Expr {
-                    kind: ExprKind::Unit,
-                    ..
-                }
-            }
+    context.role == ExploreSourceBindingRoleIr::Context
+        && context.dependencies.is_empty()
+        && matches!(&context.kind, ExploreSourceBindingKindIr::Singleton { .. })
+        && matches!(
+            classification_node(graph, context_root_id).map(|node| &node.kind),
+            Ok(ClassificationNodeKind::Constant(
+                ClassificationConstant::Unit
+            ))
         )
-    )
 }
 
 fn case_image_is_one_to_one_singleton(
@@ -858,18 +1024,6 @@ enum RelationalRelation {
 }
 
 impl RelationalRelation {
-    fn from_operator(operator: &str) -> Option<Self> {
-        match operator {
-            "<" => Some(Self::Less),
-            "<=" => Some(Self::LessOrEqual),
-            "==" => Some(Self::Equal),
-            "!=" => Some(Self::NotEqual),
-            ">=" => Some(Self::GreaterOrEqual),
-            ">" => Some(Self::Greater),
-            _ => None,
-        }
-    }
-
     const fn tag(self) -> u8 {
         match self {
             Self::Less => 0,
@@ -1214,299 +1368,618 @@ impl TruthDomain {
     }
 }
 
-fn expression_residual(
-    layer: RelationalRegionExpressionLayer,
-    ast_path: &[u32],
-    reason: RelationalRegionExpressionResidualReason,
-) -> RelationalRegionExpressionResidual {
-    RelationalRegionExpressionResidual {
-        layer,
-        ast_path: ast_path.to_vec().into_boxed_slice(),
-        reason,
-    }
+#[derive(Clone, Copy, Debug)]
+struct RelationalGraphScalarTypes {
+    integer: ClassificationTypeId,
+    boolean: ClassificationTypeId,
 }
 
-fn normalize_integer_expression(
-    expression: &Expr,
+#[derive(Clone, Debug)]
+enum RelationalNormalizedScalar {
+    Integer(RelationalQuasiAffine),
+    Boolean(RelationalBooleanFormula),
+}
+
+#[derive(Clone, Debug)]
+struct RelationalCallableFrame {
+    callable_id: ClassificationCallableId,
+    arguments: Box<[RelationalNormalizedScalar]>,
+}
+
+struct RelationalGraphNormalizer<'graph, 'axis> {
+    graph: &'graph FrozenClassificationProgram,
+    axis: &'axis RelationalIntegerAxis,
+    scalar_types: RelationalGraphScalarTypes,
     layer: RelationalRegionExpressionLayer,
-    before_name: &str,
-    after: Option<&RelationalQuasiAffine>,
-    axis: &RelationalIntegerAxis,
-    ast_path: &mut Vec<u32>,
-) -> Result<RelationalQuasiAffine, RelationalRegionExpressionResidual> {
-    let normalized = match &expression.kind {
-        ExprKind::Lit(Literal::Int(value)) => RelationalQuasiAffine::constant(i128::from(*value)),
-        ExprKind::Var(name) if name == before_name => {
-            RelationalQuasiAffine::axis(axis).map_err(|_| {
-                expression_residual(
-                    layer,
-                    ast_path,
-                    RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
-                )
-            })?
+    after: Option<RelationalQuasiAffine>,
+    frames: Vec<RelationalCallableFrame>,
+    active_calls: Vec<ClassificationCallableId>,
+    node_path: Vec<ClassificationNodeId>,
+    remaining_steps: usize,
+}
+
+impl<'graph, 'axis> RelationalGraphNormalizer<'graph, 'axis> {
+    fn new(
+        graph: &'graph FrozenClassificationProgram,
+        axis: &'axis RelationalIntegerAxis,
+        scalar_types: RelationalGraphScalarTypes,
+        layer: RelationalRegionExpressionLayer,
+        after: Option<RelationalQuasiAffine>,
+    ) -> Self {
+        Self {
+            graph,
+            axis,
+            scalar_types,
+            layer,
+            after,
+            frames: Vec::new(),
+            active_calls: Vec::new(),
+            node_path: Vec::new(),
+            remaining_steps: MAX_GRAPH_NORMALIZATION_STEPS,
         }
-        ExprKind::Var(name) if name == "after" => after.cloned().ok_or_else(|| {
-            expression_residual(
-                layer,
-                ast_path,
-                RelationalRegionExpressionResidualReason::UnboundRelationalValue,
-            )
-        })?,
-        ExprKind::Var(_) => {
-            return Err(expression_residual(
-                layer,
-                ast_path,
-                RelationalRegionExpressionResidualReason::UnboundRelationalValue,
-            ));
+    }
+
+    fn begin_node(
+        &mut self,
+        node_id: ClassificationNodeId,
+    ) -> Result<(), RelationalRegionExpressionResidual> {
+        if self.remaining_steps == 0 || self.node_path.len() >= MAX_GRAPH_NORMALIZATION_DEPTH {
+            self.node_path.push(node_id);
+            let residual = self
+                .residual(RelationalRegionExpressionResidualReason::NormalizationCapacityExceeded);
+            self.node_path.pop();
+            return Err(residual);
         }
-        ExprKind::Field(_, _) | ExprKind::Index(_, _) => {
-            return Err(expression_residual(
-                layer,
-                ast_path,
+        self.remaining_steps -= 1;
+        self.node_path.push(node_id);
+        Ok(())
+    }
+
+    fn residual(
+        &self,
+        reason: RelationalRegionExpressionResidualReason,
+    ) -> RelationalRegionExpressionResidual {
+        RelationalRegionExpressionResidual {
+            layer: self.layer,
+            node_path: self.node_path.clone().into_boxed_slice(),
+            reason,
+        }
+    }
+
+    fn node(
+        &self,
+        node_id: ClassificationNodeId,
+    ) -> Result<ClassificationNodeKey, RelationalRegionExpressionResidual> {
+        classification_node(self.graph, node_id)
+            .cloned()
+            .map_err(|_| {
+                self.residual(RelationalRegionExpressionResidualReason::InvalidClassificationGraph)
+            })
+    }
+
+    fn callable(
+        &self,
+        callable_id: ClassificationCallableId,
+    ) -> Result<ClassificationCallableDefinition, RelationalRegionExpressionResidual> {
+        classification_callable(self.graph, callable_id)
+            .cloned()
+            .map_err(|_| {
+                self.residual(RelationalRegionExpressionResidualReason::InvalidClassificationGraph)
+            })
+    }
+
+    fn normalize_integer(
+        &mut self,
+        node_id: ClassificationNodeId,
+    ) -> Result<RelationalQuasiAffine, RelationalRegionExpressionResidual> {
+        self.begin_node(node_id)?;
+        let result = self.normalize_integer_node(node_id).and_then(|value| {
+            value
+                .require_runtime_int(self.axis)
+                .map_err(|reason| self.residual(reason))?;
+            Ok(value)
+        });
+        self.node_path.pop();
+        result
+    }
+
+    fn normalize_integer_node(
+        &mut self,
+        node_id: ClassificationNodeId,
+    ) -> Result<RelationalQuasiAffine, RelationalRegionExpressionResidual> {
+        let node = self.node(node_id)?;
+        if node.ty != self.scalar_types.integer {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::UnsupportedScalarType)
+            );
+        }
+        match node.kind {
+            ClassificationNodeKind::Constant(ClassificationConstant::Integer(value)) => {
+                Ok(RelationalQuasiAffine::constant(i128::from(value)))
+            }
+            ClassificationNodeKind::Input(slot) if slot == ClassificationInputSlot::BEFORE => {
+                RelationalQuasiAffine::axis(self.axis).map_err(|_| {
+                    self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+                })
+            }
+            ClassificationNodeKind::Input(slot) if slot == ClassificationInputSlot::AFTER => {
+                self.after.clone().ok_or_else(|| {
+                    self.residual(RelationalRegionExpressionResidualReason::UnboundRelationalValue)
+                })
+            }
+            ClassificationNodeKind::SourceParameter(ordinal)
+                if ordinal == self.axis.binding_index() =>
+            {
+                RelationalQuasiAffine::axis(self.axis).map_err(|_| {
+                    self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+                })
+            }
+            ClassificationNodeKind::CallableParameter {
+                callable_id,
+                ordinal,
+            } => {
+                match self.callable_argument(callable_id, ordinal)? {
+                    RelationalNormalizedScalar::Integer(value) => Ok(value),
+                    RelationalNormalizedScalar::Boolean(_) => Err(self
+                        .residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)),
+                }
+            }
+            ClassificationNodeKind::Unary {
+                op: ClassificationUnaryOp::IntegerNegateChecked,
+                operand,
+            } => self.normalize_integer(operand)?.scale(-1).map_err(|_| {
+                self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+            }),
+            ClassificationNodeKind::Binary { op, left, right } => {
+                self.normalize_integer_binary(op, left, right)
+            }
+            ClassificationNodeKind::If {
+                condition,
+                then_node,
+                else_node,
+            } => match self
+                .normalize_boolean(condition)?
+                .truth_domain(self.axis)
+                .map_err(|_| {
+                    self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+                })? {
+                TruthDomain::TRUE => self.normalize_integer(then_node),
+                TruthDomain::FALSE => self.normalize_integer(else_node),
+                TruthDomain::BOTH => Err(self.residual(
+                    RelationalRegionExpressionResidualReason::ConditionalTruthVariesOverAxis,
+                )),
+                _ => Err(self.residual(
+                    RelationalRegionExpressionResidualReason::InvalidClassificationGraph,
+                )),
+            },
+            ClassificationNodeKind::Call {
+                callable_id,
+                arguments,
+            } => self.normalize_integer_call(callable_id, &arguments),
+            ClassificationNodeKind::Construct { .. }
+            | ClassificationNodeKind::Project { .. }
+            | ClassificationNodeKind::IsVariant { .. } => Err(self.residual(
                 RelationalRegionExpressionResidualReason::StructuredStateProjectionRequired,
-            ));
-        }
-        ExprKind::App(_, _) => {
-            return Err(expression_residual(
-                layer,
-                ast_path,
-                RelationalRegionExpressionResidualReason::CheckedRuleGraphNormalizationRequired,
-            ));
-        }
-        ExprKind::UnOp(operator, inner) if operator == "+" || operator == "-" => {
-            ast_path.push(0);
-            let inner =
-                normalize_integer_expression(inner, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            let inner = inner?;
-            if operator == "+" {
-                inner
-            } else {
-                inner.scale(-1).map_err(|_| {
-                    expression_residual(
-                        layer,
-                        ast_path,
-                        RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
-                    )
-                })?
+            )),
+            ClassificationNodeKind::Constant(_)
+            | ClassificationNodeKind::Input(_)
+            | ClassificationNodeKind::SourceParameter(_)
+            | ClassificationNodeKind::Unary { .. } => {
+                Err(self
+                    .residual(RelationalRegionExpressionResidualReason::UnsupportedIntegerOperator))
             }
         }
-        ExprKind::BinOp(operator, left, right)
-            if matches!(operator.as_str(), "+" | "-" | "*" | "/") =>
-        {
-            ast_path.push(0);
-            let left =
-                normalize_integer_expression(left, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            ast_path.push(1);
-            let right =
-                normalize_integer_expression(right, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            let (left, right) = (left?, right?);
-            match operator.as_str() {
-                "+" => left.add(&right),
-                "-" => left.subtract(&right),
-                "*" => match (left.is_constant(), right.is_constant()) {
+    }
+
+    fn normalize_integer_binary(
+        &mut self,
+        op: ClassificationBinaryOp,
+        left_id: ClassificationNodeId,
+        right_id: ClassificationNodeId,
+    ) -> Result<RelationalQuasiAffine, RelationalRegionExpressionResidual> {
+        if !matches!(
+            op,
+            ClassificationBinaryOp::IntegerAddChecked
+                | ClassificationBinaryOp::IntegerSubtractChecked
+                | ClassificationBinaryOp::IntegerMultiplyChecked
+                | ClassificationBinaryOp::IntegerDivideChecked
+                | ClassificationBinaryOp::IntegerRemainderChecked
+        ) {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::UnsupportedIntegerOperator)
+            );
+        }
+        let left = self.normalize_integer(left_id)?;
+        let right = self.normalize_integer(right_id)?;
+        match op {
+            ClassificationBinaryOp::IntegerAddChecked => left.add(&right),
+            ClassificationBinaryOp::IntegerSubtractChecked => left.subtract(&right),
+            ClassificationBinaryOp::IntegerMultiplyChecked => {
+                match (left.is_constant(), right.is_constant()) {
                     (Some(scalar), _) => right.scale(scalar),
                     (_, Some(scalar)) => left.scale(scalar),
                     _ => {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
+                        return Err(self.residual(
                             RelationalRegionExpressionResidualReason::NonlinearIntegerExpression,
-                        ))
-                    }
-                },
-                "/" => {
-                    let Some(divisor) = right.is_constant() else {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
-                            RelationalRegionExpressionResidualReason::NonpositiveDivisor,
-                        ));
-                    };
-                    let Ok(divisor) = i64::try_from(divisor) else {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
-                            RelationalRegionExpressionResidualReason::NonpositiveDivisor,
-                        ));
-                    };
-                    if divisor <= 0 {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
-                            RelationalRegionExpressionResidualReason::NonpositiveDivisor,
                         ));
                     }
-                    if !left.terms.is_empty() {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
-                            RelationalRegionExpressionResidualReason::NestedQuantizedExpression,
-                        ));
-                    }
-                    let (minimum, _) = left.affine.bounds(axis).map_err(|_| {
-                        expression_residual(
-                            layer,
-                            ast_path,
+                }
+            }
+            ClassificationBinaryOp::IntegerDivideChecked => {
+                if let (Some(dividend), Some(divisor)) = (left.is_constant(), right.is_constant()) {
+                    return dividend
+                        .checked_div(divisor)
+                        .map(RelationalQuasiAffine::constant)
+                        .ok_or_else(|| {
+                            self.residual(
+                                RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
+                            )
+                        });
+                }
+                let Some(divisor) = right
+                    .is_constant()
+                    .and_then(|value| i64::try_from(value).ok())
+                else {
+                    return Err(
+                        self.residual(RelationalRegionExpressionResidualReason::NonpositiveDivisor)
+                    );
+                };
+                if divisor <= 0 {
+                    return Err(
+                        self.residual(RelationalRegionExpressionResidualReason::NonpositiveDivisor)
+                    );
+                }
+                if !left.terms.is_empty() {
+                    return Err(self.residual(
+                        RelationalRegionExpressionResidualReason::NestedQuantizedExpression,
+                    ));
+                }
+                let (minimum, _) = left.affine.bounds(self.axis).map_err(|_| {
+                    self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+                })?;
+                if minimum < 0 {
+                    return Err(self.residual(
+                        RelationalRegionExpressionResidualReason::QuantizedNumeratorMayBeNegative,
+                    ));
+                }
+                RelationalQuasiAffine::canonical(
+                    RelationalAffine::constant(0),
+                    [RelationalQuantizedTerm {
+                        numerator: left.affine,
+                        positive_divisor: divisor,
+                        coefficient: 1,
+                    }],
+                )
+            }
+            ClassificationBinaryOp::IntegerRemainderChecked => {
+                let (Some(dividend), Some(divisor)) = (left.is_constant(), right.is_constant())
+                else {
+                    return Err(self.residual(
+                        RelationalRegionExpressionResidualReason::UnsupportedIntegerOperator,
+                    ));
+                };
+                return dividend
+                    .checked_rem(divisor)
+                    .map(RelationalQuasiAffine::constant)
+                    .ok_or_else(|| {
+                        self.residual(
                             RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
                         )
-                    })?;
-                    if minimum < 0 {
-                        return Err(expression_residual(
-                            layer,
-                            ast_path,
-                            RelationalRegionExpressionResidualReason::QuantizedNumeratorMayBeNegative,
-                        ));
-                    }
-                    RelationalQuasiAffine::canonical(
-                        RelationalAffine::constant(0),
-                        [RelationalQuantizedTerm {
-                            numerator: left.affine,
-                            positive_divisor: divisor,
-                            coefficient: 1,
-                        }],
-                    )
-                }
-                _ => unreachable!("guarded integer operator"),
+                    });
             }
-            .map_err(|_| {
-                expression_residual(
-                    layer,
-                    ast_path,
-                    RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
-                )
-            })?
+            _ => unreachable!("integer operation checked above"),
         }
-        ExprKind::BinOp(_, _, _)
-        | ExprKind::UnOp(_, _)
-        | ExprKind::Lit(_)
-        | ExprKind::Unit
-        | ExprKind::Lambda(_, _)
-        | ExprKind::If(_, _, _)
-        | ExprKind::Match(_, _)
-        | ExprKind::Block(_)
-        | ExprKind::List(_)
-        | ExprKind::Tuple(_)
-        | ExprKind::Effect(_, _)
-        | ExprKind::Handle { .. }
-        | ExprKind::Try(_)
-        | ExprKind::Conjunction(_)
-        | ExprKind::Disjunction(_)
-        | ExprKind::Pipe(_, _) => {
-            return Err(expression_residual(
-                layer,
-                ast_path,
-                RelationalRegionExpressionResidualReason::UnsupportedIntegerOperator,
-            ));
-        }
-    };
-    normalized
-        .require_runtime_int(axis)
-        .map_err(|reason| expression_residual(layer, ast_path, reason))?;
-    Ok(normalized)
-}
+        .map_err(|_| {
+            self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+        })
+    }
 
-fn normalize_boolean_expression(
-    expression: &Expr,
-    layer: RelationalRegionExpressionLayer,
-    before_name: &str,
-    after: &RelationalQuasiAffine,
-    axis: &RelationalIntegerAxis,
-    ast_path: &mut Vec<u32>,
-) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
-    match &expression.kind {
-        ExprKind::Lit(Literal::Bool(value)) => Ok(RelationalBooleanFormula::Constant(*value)),
-        ExprKind::UnOp(operator, inner) if operator == "!" => {
-            ast_path.push(0);
-            let inner =
-                normalize_boolean_expression(inner, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            Ok(RelationalBooleanFormula::Not(Box::new(inner?)))
+    fn normalize_boolean(
+        &mut self,
+        node_id: ClassificationNodeId,
+    ) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
+        self.begin_node(node_id)?;
+        let result = self.normalize_boolean_node(node_id);
+        self.node_path.pop();
+        result
+    }
+
+    fn normalize_boolean_node(
+        &mut self,
+        node_id: ClassificationNodeId,
+    ) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
+        let node = self.node(node_id)?;
+        if node.ty != self.scalar_types.boolean {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::UnsupportedScalarType)
+            );
         }
-        ExprKind::BinOp(operator, left, right) if operator == "&&" || operator == "||" => {
-            ast_path.push(0);
-            let left =
-                normalize_boolean_expression(left, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            ast_path.push(1);
-            let right =
-                normalize_boolean_expression(right, layer, before_name, after, axis, ast_path);
-            ast_path.pop();
-            let parts = vec![left?, right?].into_boxed_slice();
-            Ok(if operator == "&&" {
-                RelationalBooleanFormula::All(parts)
-            } else {
-                RelationalBooleanFormula::Any(parts)
-            })
+        match node.kind {
+            ClassificationNodeKind::Constant(ClassificationConstant::Boolean(value)) => {
+                Ok(RelationalBooleanFormula::Constant(value))
+            }
+            ClassificationNodeKind::CallableParameter {
+                callable_id,
+                ordinal,
+            } => {
+                match self.callable_argument(callable_id, ordinal)? {
+                    RelationalNormalizedScalar::Boolean(value) => Ok(value),
+                    RelationalNormalizedScalar::Integer(_) => Err(self
+                        .residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)),
+                }
+            }
+            ClassificationNodeKind::Unary {
+                op: ClassificationUnaryOp::BooleanNot,
+                operand,
+            } => Ok(RelationalBooleanFormula::Not(Box::new(
+                self.normalize_boolean(operand)?,
+            ))),
+            ClassificationNodeKind::Binary { op, left, right } => {
+                self.normalize_boolean_binary(op, left, right)
+            }
+            ClassificationNodeKind::If {
+                condition,
+                then_node,
+                else_node,
+            } => match self
+                .normalize_boolean(condition)?
+                .truth_domain(self.axis)
+                .map_err(|_| {
+                    self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
+                })? {
+                TruthDomain::TRUE => self.normalize_boolean(then_node),
+                TruthDomain::FALSE => self.normalize_boolean(else_node),
+                TruthDomain::BOTH => Err(self.residual(
+                    RelationalRegionExpressionResidualReason::ConditionalTruthVariesOverAxis,
+                )),
+                _ => Err(self.residual(
+                    RelationalRegionExpressionResidualReason::InvalidClassificationGraph,
+                )),
+            },
+            ClassificationNodeKind::Call {
+                callable_id,
+                arguments,
+            } => self.normalize_boolean_call(callable_id, &arguments),
+            ClassificationNodeKind::Construct { .. }
+            | ClassificationNodeKind::Project { .. }
+            | ClassificationNodeKind::IsVariant { .. } => Err(self.residual(
+                RelationalRegionExpressionResidualReason::StructuredStateProjectionRequired,
+            )),
+            ClassificationNodeKind::Constant(_)
+            | ClassificationNodeKind::Input(_)
+            | ClassificationNodeKind::SourceParameter(_)
+            | ClassificationNodeKind::Unary { .. } => {
+                Err(self
+                    .residual(RelationalRegionExpressionResidualReason::UnsupportedBooleanOperator))
+            }
         }
-        ExprKind::BinOp(operator, left, right) => {
-            let Some(relation) = RelationalRelation::from_operator(operator) else {
-                return Err(expression_residual(
-                    layer,
-                    ast_path,
+    }
+
+    fn normalize_boolean_binary(
+        &mut self,
+        op: ClassificationBinaryOp,
+        left_id: ClassificationNodeId,
+        right_id: ClassificationNodeId,
+    ) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
+        match op {
+            ClassificationBinaryOp::BooleanAndShortCircuit
+            | ClassificationBinaryOp::BooleanOrShortCircuit => {
+                let parts = vec![
+                    self.normalize_boolean(left_id)?,
+                    self.normalize_boolean(right_id)?,
+                ]
+                .into_boxed_slice();
+                Ok(if op == ClassificationBinaryOp::BooleanAndShortCircuit {
+                    RelationalBooleanFormula::All(parts)
+                } else {
+                    RelationalBooleanFormula::Any(parts)
+                })
+            }
+            ClassificationBinaryOp::Equal | ClassificationBinaryOp::NotEqual => {
+                let left_type = self.node(left_id)?.ty;
+                let right_type = self.node(right_id)?.ty;
+                if left_type != right_type {
+                    return Err(self.residual(
+                        RelationalRegionExpressionResidualReason::InvalidClassificationGraph,
+                    ));
+                }
+                if left_type == self.scalar_types.boolean {
+                    let left = self.normalize_boolean(left_id)?;
+                    let right = self.normalize_boolean(right_id)?;
+                    let equal = boolean_equivalence(left, right);
+                    return Ok(if op == ClassificationBinaryOp::Equal {
+                        equal
+                    } else {
+                        RelationalBooleanFormula::Not(Box::new(equal))
+                    });
+                }
+                self.normalize_integer_comparison(op, left_id, right_id)
+            }
+            ClassificationBinaryOp::LessThan
+            | ClassificationBinaryOp::LessThanOrEqual
+            | ClassificationBinaryOp::GreaterThan
+            | ClassificationBinaryOp::GreaterThanOrEqual => {
+                self.normalize_integer_comparison(op, left_id, right_id)
+            }
+            _ => {
+                Err(self
+                    .residual(RelationalRegionExpressionResidualReason::UnsupportedBooleanOperator))
+            }
+        }
+    }
+
+    fn normalize_integer_comparison(
+        &mut self,
+        op: ClassificationBinaryOp,
+        left_id: ClassificationNodeId,
+        right_id: ClassificationNodeId,
+    ) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
+        if self.node(left_id)?.ty != self.scalar_types.integer
+            || self.node(right_id)?.ty != self.scalar_types.integer
+        {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::UnsupportedBooleanOperator)
+            );
+        }
+        let relation = match op {
+            ClassificationBinaryOp::Equal => RelationalRelation::Equal,
+            ClassificationBinaryOp::NotEqual => RelationalRelation::NotEqual,
+            ClassificationBinaryOp::LessThan => RelationalRelation::Less,
+            ClassificationBinaryOp::LessThanOrEqual => RelationalRelation::LessOrEqual,
+            ClassificationBinaryOp::GreaterThan => RelationalRelation::Greater,
+            ClassificationBinaryOp::GreaterThanOrEqual => RelationalRelation::GreaterOrEqual,
+            _ => {
+                return Err(self.residual(
                     RelationalRegionExpressionResidualReason::UnsupportedBooleanOperator,
                 ));
-            };
-            ast_path.push(0);
-            let left =
-                normalize_integer_expression(left, layer, before_name, Some(after), axis, ast_path);
-            ast_path.pop();
-            ast_path.push(1);
-            let right = normalize_integer_expression(
-                right,
-                layer,
-                before_name,
-                Some(after),
-                axis,
-                ast_path,
-            );
-            ast_path.pop();
-            let difference = left?.subtract(&right?).map_err(|_| {
-                expression_residual(
-                    layer,
-                    ast_path,
-                    RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow,
-                )
+            }
+        };
+        let difference = self
+            .normalize_integer(left_id)?
+            .subtract(&self.normalize_integer(right_id)?)
+            .map_err(|_| {
+                self.residual(RelationalRegionExpressionResidualReason::RuntimeIntegerOverflow)
             })?;
-            // This difference is a mathematical comparison form.  Unlike an
-            // authored subtraction it need not fit i64; both operands were
-            // already proved safe above.
-            Ok(RelationalBooleanFormula::Comparison {
-                difference,
-                relation,
-            })
+        Ok(RelationalBooleanFormula::Comparison {
+            difference,
+            relation,
+        })
+    }
+
+    fn callable_argument(
+        &self,
+        callable_id: ClassificationCallableId,
+        ordinal: u32,
+    ) -> Result<RelationalNormalizedScalar, RelationalRegionExpressionResidual> {
+        let frame = self.frames.last().ok_or_else(|| {
+            self.residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)
+        })?;
+        if frame.callable_id != callable_id {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)
+            );
         }
-        ExprKind::App(_, _) => Err(expression_residual(
-            layer,
-            ast_path,
-            RelationalRegionExpressionResidualReason::CheckedRuleGraphNormalizationRequired,
-        )),
-        ExprKind::Field(_, _) | ExprKind::Index(_, _) => Err(expression_residual(
-            layer,
-            ast_path,
-            RelationalRegionExpressionResidualReason::StructuredStateProjectionRequired,
-        )),
-        _ => Err(expression_residual(
-            layer,
-            ast_path,
-            RelationalRegionExpressionResidualReason::UnsupportedBooleanOperator,
-        )),
+        frame
+            .arguments
+            .get(usize::try_from(ordinal).map_err(|_| {
+                self.residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)
+            })?)
+            .cloned()
+            .ok_or_else(|| {
+                self.residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)
+            })
+    }
+
+    fn normalize_arguments(
+        &mut self,
+        definition: &ClassificationCallableDefinition,
+        arguments: &[ClassificationNodeId],
+    ) -> Result<Box<[RelationalNormalizedScalar]>, RelationalRegionExpressionResidual> {
+        if definition.parameter_types.len() != arguments.len() {
+            return Err(
+                self.residual(RelationalRegionExpressionResidualReason::InvalidCallableFrame)
+            );
+        }
+        definition
+            .parameter_types
+            .iter()
+            .copied()
+            .zip(arguments.iter().copied())
+            .map(|(parameter_type, argument)| {
+                if parameter_type == self.scalar_types.integer {
+                    self.normalize_integer(argument)
+                        .map(RelationalNormalizedScalar::Integer)
+                } else if parameter_type == self.scalar_types.boolean {
+                    self.normalize_boolean(argument)
+                        .map(RelationalNormalizedScalar::Boolean)
+                } else {
+                    Err(self
+                        .residual(RelationalRegionExpressionResidualReason::UnsupportedScalarType))
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map(Vec::into_boxed_slice)
+    }
+
+    fn enter_call(
+        &mut self,
+        callable_id: ClassificationCallableId,
+        arguments: &[ClassificationNodeId],
+    ) -> Result<ClassificationNodeId, RelationalRegionExpressionResidual> {
+        if self.active_calls.contains(&callable_id) {
+            return Err(self.residual(RelationalRegionExpressionResidualReason::RecursiveCallable));
+        }
+        let definition = self.callable(callable_id)?;
+        let normalized = self.normalize_arguments(&definition, arguments)?;
+        let body = definition.body;
+        self.active_calls.push(callable_id);
+        self.frames.push(RelationalCallableFrame {
+            callable_id,
+            arguments: normalized,
+        });
+        Ok(body)
+    }
+
+    fn leave_call(&mut self) {
+        self.frames.pop();
+        self.active_calls.pop();
+    }
+
+    fn normalize_integer_call(
+        &mut self,
+        callable_id: ClassificationCallableId,
+        arguments: &[ClassificationNodeId],
+    ) -> Result<RelationalQuasiAffine, RelationalRegionExpressionResidual> {
+        let body = self.enter_call(callable_id, arguments)?;
+        let result = self.normalize_integer(body);
+        self.leave_call();
+        result
+    }
+
+    fn normalize_boolean_call(
+        &mut self,
+        callable_id: ClassificationCallableId,
+        arguments: &[ClassificationNodeId],
+    ) -> Result<RelationalBooleanFormula, RelationalRegionExpressionResidual> {
+        let body = self.enter_call(callable_id, arguments)?;
+        let result = self.normalize_boolean(body);
+        self.leave_call();
+        result
     }
 }
 
+fn boolean_equivalence(
+    left: RelationalBooleanFormula,
+    right: RelationalBooleanFormula,
+) -> RelationalBooleanFormula {
+    RelationalBooleanFormula::Any(
+        vec![
+            RelationalBooleanFormula::All(vec![left.clone(), right.clone()].into_boxed_slice()),
+            RelationalBooleanFormula::All(
+                vec![
+                    RelationalBooleanFormula::Not(Box::new(left)),
+                    RelationalBooleanFormula::Not(Box::new(right)),
+                ]
+                .into_boxed_slice(),
+            ),
+        ]
+        .into_boxed_slice(),
+    )
+}
+
 fn formula_digest(formula: &RelationalBooleanFormula) -> [u8; 32] {
-    let mut hasher = CanonicalProofHasher::new(FORMULA_DIGEST_V1);
+    let mut hasher = CanonicalProofHasher::new(FORMULA_DIGEST_V2);
     hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
     hasher.formula(formula);
     hasher.finish()
 }
 
 fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
-    let mut hasher = CanonicalProofHasher::new(CERTIFICATE_ID_V1);
+    let mut hasher = CanonicalProofHasher::new(CERTIFICATE_ID_V2);
     hasher.u32(artifact.schema_version);
-    hasher.bytes(artifact.program_hash.as_bytes());
+    hasher.digest(artifact.classification_capsule_id.bytes());
+    hasher.digest(artifact.successor_root_id.bytes());
+    hasher.digest(artifact.find_root_id.bytes());
     hasher.digest(artifact.relation_id.bytes());
     hasher.digest(artifact.admission_id.bytes());
     hasher.digest(artifact.question_id.bytes());
@@ -1530,7 +2003,7 @@ fn evidence_binding(
     obligation_id: SupportProofObligationId,
     conclusion_digest: [u8; 32],
 ) -> RelationalRegionEvidenceBinding {
-    let mut hasher = CanonicalProofHasher::new(PROOF_DIGEST_V1);
+    let mut hasher = CanonicalProofHasher::new(PROOF_DIGEST_V2);
     hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
     hasher.digest(certificate_id);
     hasher.u8(role.tag());
@@ -1637,6 +2110,12 @@ impl CanonicalProofHasher {
 pub(crate) enum RelationalRegionProofError {
     InvalidQuery(String),
     CheckedPlanScopeMismatch,
+    InvalidCheckedProgramDigest,
+    InvalidCheckedProvenanceDigest,
+    ClassificationCapsuleScopeMismatch,
+    ClassificationIndexOverflow(&'static str),
+    ClassificationNodeMissing(ClassificationNodeId),
+    ClassificationCallableMissing(ClassificationCallableId),
     UnsupportedArtifactVersion(u32),
     InvalidArtifactShape,
     ArtifactIdentityMismatch,
@@ -1671,6 +2150,21 @@ impl fmt::Display for RelationalRegionProofError {
             Self::CheckedPlanScopeMismatch => formatter.write_str(
                 "checked query and relational support plan have different semantic scope",
             ),
+            Self::InvalidCheckedProgramDigest => formatter
+                .write_str("checked query program identity is not a canonical SHA-256 digest"),
+            Self::InvalidCheckedProvenanceDigest => formatter.write_str(
+                "checked query source-coverage identity is not a canonical SHA-256 digest",
+            ),
+            Self::ClassificationCapsuleScopeMismatch => formatter.write_str(
+                "classification capsule does not match the checked query and support scope",
+            ),
+            Self::ClassificationIndexOverflow(context) => {
+                write!(formatter, "classification index overflow for {context}")
+            }
+            Self::ClassificationNodeMissing(_) => formatter
+                .write_str("classification capsule graph is missing a referenced node"),
+            Self::ClassificationCallableMissing(_) => formatter
+                .write_str("classification capsule graph is missing a referenced callable"),
             Self::UnsupportedArtifactVersion(version) => write!(
                 formatter,
                 "relational region proof artifact version {version} is unsupported"
@@ -1681,7 +2175,7 @@ impl fmt::Display for RelationalRegionProofError {
             Self::ArtifactIdentityMismatch => formatter
                 .write_str("relational region proof artifact identity does not match its payload"),
             Self::ArtifactSemanticMismatch => formatter.write_str(
-                "relational region proof artifact does not match the producer-bound checked query",
+                "relational region proof artifact does not match its checked query, support plan, and classification capsule",
             ),
             Self::ArtifactNoLongerProvable(residual) => write!(
                 formatter,
@@ -1721,5 +2215,194 @@ impl Error for RelationalRegionProofError {
             Self::SupportCell(error) => Some(error),
             _ => None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::relational_support_planner::RelationalSupportPlanner;
+    use super::*;
+    use crate::{Lexer, Parser, TypeChecker};
+
+    const CAPSULE_EXACT_EMPTY_SOURCE: &str = r#"
+> bump(x: Int) -> Int { x + 1 }
+
+? explore capsule_exact_empty {
+    from {
+        before in range(0, 2)
+        context = ()
+    }
+
+    to after = bump(before)
+    find matches of after < before
+}
+"#;
+
+    const CAPSULE_VIOLATIONS_EMPTY_SOURCE: &str = r#"
+> bump(x: Int) -> Int { x + 1 }
+
+? explore capsule_violations_empty {
+    from {
+        before in range(0, 2)
+        context = ()
+    }
+
+    to after = bump(before)
+    find violations of after >= before
+}
+"#;
+
+    fn bind_fixture_capsule(
+        checked: &CheckedExploreQueryView<'_>,
+        support_plan: &RelationalSupportPlan,
+        specialization: ClassificationSpecializationRoot,
+    ) -> RelationalClassificationCapsule {
+        let checked_program = decode_lowercase_sha256(checked.program_hash())
+            .expect("checked program identity is canonical lowercase SHA-256");
+        let provenance_digest =
+            decode_lowercase_sha256(checked.source_coverage().manifest_digest.as_ref())
+                .expect("checked source-coverage identity is canonical lowercase SHA-256");
+        RelationalClassificationCapsule::bind(
+            checked.classification_program(),
+            checked.classification_runtime_shapes(),
+            checked_program,
+            checked.relation_id(),
+            checked.admission_id(),
+            checked.question_id(),
+            support_plan.root(),
+            support_plan.root_cell_id(),
+            specialization,
+            ClassificationProvenanceRoot::from_checked_source_coverage_digest(provenance_digest),
+        )
+        .expect("bind the checked fixture classification capsule")
+    }
+
+    #[test]
+    fn checked_capsule_closes_exact_empty_region_and_reverify_rejects_scope_drift() {
+        let mut lexer = Lexer::new(CAPSULE_EXACT_EMPTY_SOURCE);
+        let statements = Parser::new(lexer.tokenize(), CAPSULE_EXACT_EMPTY_SOURCE)
+            .parse_program()
+            .expect("parse exact-empty capsule fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            CAPSULE_EXACT_EMPTY_SOURCE,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join the checked exact-empty query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for the two-case fixture");
+        let capsule = bind_fixture_capsule(
+            &checked,
+            &support_plan,
+            ClassificationSpecializationRoot::none(),
+        );
+
+        let outcome = prove_relational_exact_empty_region(&checked, &support_plan, &capsule)
+            .expect("prove the exact-empty region from the checked capsule");
+        let closure = outcome
+            .exact_empty()
+            .expect("the bump relation is uniformly not selected");
+        assert_eq!(closure.proof().case_cardinality(), 2);
+        assert_eq!(closure.selected_cardinality(), 0);
+
+        let events = closure.events();
+        assert_eq!(events.len(), 6);
+        assert!(matches!(
+            &events[0],
+            SupportJournalEvent::EvidenceAccepted {
+                evidence: SupportEvidenceRecord::Cardinality(evidence),
+                ..
+            } if *evidence.conclusion() == 2
+        ));
+        assert!(matches!(
+            &events[1],
+            SupportJournalEvent::EvidenceAccepted {
+                evidence: SupportEvidenceRecord::Admission(evidence),
+                ..
+            } if *evidence.conclusion() == AdmissionDecision::Admitted
+        ));
+        assert!(matches!(
+            &events[2],
+            SupportJournalEvent::EvidenceAccepted {
+                evidence: SupportEvidenceRecord::Selection(evidence),
+                ..
+            } if *evidence.conclusion() == SelectionDecision::NotSelected
+        ));
+        assert_eq!(
+            events[3],
+            SupportJournalEvent::leaf_sealed(closure.proof().root_cell_id())
+        );
+        assert_eq!(events[4], SupportJournalEvent::ObligationFrontierSealed);
+        assert_eq!(events[5], SupportJournalEvent::CatalogSealed);
+
+        let reverified = reverify_relational_region_proof_artifact(
+            closure.proof().artifact(),
+            &checked,
+            &support_plan,
+            &capsule,
+        )
+        .expect("the same checked capsule reproduces the proof closure");
+        assert_eq!(&reverified, closure);
+
+        let changed_specialization = bind_fixture_capsule(
+            &checked,
+            &support_plan,
+            ClassificationSpecializationRoot::from_exact_witness_digest([0x5a; 32]),
+        );
+        assert_ne!(changed_specialization.id(), capsule.id());
+        assert_eq!(
+            reverify_relational_region_proof_artifact(
+                closure.proof().artifact(),
+                &checked,
+                &support_plan,
+                &changed_specialization,
+            ),
+            Err(RelationalRegionProofError::ArtifactSemanticMismatch)
+        );
+    }
+
+    #[test]
+    fn checked_capsule_consumes_already_normalized_violations_polarity_once() {
+        let mut lexer = Lexer::new(CAPSULE_VIOLATIONS_EMPTY_SOURCE);
+        let statements = Parser::new(lexer.tokenize(), CAPSULE_VIOLATIONS_EMPTY_SOURCE)
+            .parse_program()
+            .expect("parse violations-polarity capsule fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            CAPSULE_VIOLATIONS_EMPTY_SOURCE,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join the checked violations query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for the violations fixture");
+        let capsule = bind_fixture_capsule(
+            &checked,
+            &support_plan,
+            ClassificationSpecializationRoot::none(),
+        );
+
+        let outcome = prove_relational_exact_empty_region(&checked, &support_plan, &capsule)
+            .expect("prove the normalized violations region");
+        let closure = outcome
+            .exact_empty()
+            .expect("the already-negated violations lane is uniformly not selected");
+        assert_eq!(closure.proof().case_cardinality(), 2);
+        assert_eq!(closure.selected_cardinality(), 0);
     }
 }

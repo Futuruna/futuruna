@@ -16,6 +16,7 @@
 //! the cursor is durable, every member consequence needed to continue past the
 //! bounded chunk is durable and resume can close the exhausted fiber directly.
 
+use std::cell::RefCell;
 use std::cmp::Ordering;
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -32,8 +33,13 @@ use super::relational_case_executor::{
     RelationalCaseExecutor, RelationalCaseExecutorError, RelationalSingletonTransition,
     RelationalSuccessorAdvance, SuccessorFiberExhaustionReceiptId,
 };
+use super::relational_classification_capsule::{
+    ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
+};
+use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_classified_sweep::{
-    RelationalClassifiedCaseOutcome, RelationalOrderedClassificationSubject,
+    RelationalCheckedClassificationContext, RelationalClassifiedSweepError,
+    RelationalOrderedClassificationBackend, RelationalOrderedClassificationSubject,
 };
 use super::relational_classified_sweep_step_driver::{
     RelationalClassifiedSweepStepDriver, RelationalClassifiedSweepStepDriverError,
@@ -53,7 +59,9 @@ use super::relational_journal::{
     RelationalJournal, RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
     RelationalSchedulerView,
 };
-use super::relational_native_classifier::RelationalNativeClassifierV2;
+use super::relational_native_classifier::{
+    RelationalNativeClassifierFallbackBackendV2, RelationalNativeClassifierV2,
+};
 use super::relational_selected_run_step_driver::{
     RelationalSelectedRunStepDriver, RelationalSelectedRunStepDriverError,
     RelationalSelectedRunStepOutcome, RelationalSelectedRunStepQuantum,
@@ -232,6 +240,10 @@ pub(crate) struct RelationalStepDriver<'query> {
     /// Query-bound operational accelerator for concrete singleton transitions
     /// that are not eligible for the support-cell classified sweep.
     native_classifier: Option<RelationalNativeClassifierV2>,
+    /// Exact request-bound checked capsule evaluator. This is retained even
+    /// without a classified chunk partition so the ordinary fused singleton
+    /// path can share its bounded call cache across stream slices.
+    classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
     /// Purely operational batch bound. It is absent from every event, work
     /// identity, evidence root, and journal contract.
     max_members_per_quantum: NonZeroU16,
@@ -266,13 +278,30 @@ impl<'query> RelationalStepDriver<'query> {
         max_members_per_quantum: NonZeroU16,
         native_classifier: Option<RelationalNativeClassifierV2>,
     ) -> Result<Self, RelationalStepDriverError> {
-        Self::from_checked_with_operational_limits(
+        Self::from_checked_with_max_members_per_quantum_and_classification_backends(
+            checked,
+            support_plan,
+            max_members_per_quantum,
+            native_classifier,
+            None,
+        )
+    }
+
+    pub(crate) fn from_checked_with_max_members_per_quantum_and_classification_backends(
+        checked: &'query CheckedExploreQueryView<'_>,
+        support_plan: &'query RelationalSupportPlan,
+        max_members_per_quantum: NonZeroU16,
+        native_classifier: Option<RelationalNativeClassifierV2>,
+        classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
+    ) -> Result<Self, RelationalStepDriverError> {
+        Self::from_checked_with_operational_limits_and_classification_backends(
             checked,
             support_plan,
             max_members_per_quantum,
             DEFAULT_COMPLETED_WORK_COMPACTION_TRIGGER,
             DEFAULT_MAX_COMPACTION_NODES,
             native_classifier,
+            classification_evaluator,
         )
     }
 
@@ -283,6 +312,26 @@ impl<'query> RelationalStepDriver<'query> {
         completed_work_compaction_trigger: NonZeroU32,
         max_compaction_nodes: NonZeroU32,
         native_classifier: Option<RelationalNativeClassifierV2>,
+    ) -> Result<Self, RelationalStepDriverError> {
+        Self::from_checked_with_operational_limits_and_classification_backends(
+            checked,
+            support_plan,
+            max_members_per_quantum,
+            completed_work_compaction_trigger,
+            max_compaction_nodes,
+            native_classifier,
+            None,
+        )
+    }
+
+    pub(crate) fn from_checked_with_operational_limits_and_classification_backends(
+        checked: &'query CheckedExploreQueryView<'_>,
+        support_plan: &'query RelationalSupportPlan,
+        max_members_per_quantum: NonZeroU16,
+        completed_work_compaction_trigger: NonZeroU32,
+        max_compaction_nodes: NonZeroU32,
+        native_classifier: Option<RelationalNativeClassifierV2>,
+        classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
     ) -> Result<Self, RelationalStepDriverError> {
         if max_compaction_nodes.get() > WORK_FRONTIER_MAX_COMPACTION_NODES {
             return Err(RelationalStepDriverError::InvalidCompactionLimit {
@@ -301,14 +350,22 @@ impl<'query> RelationalStepDriver<'query> {
         {
             return Err(RelationalStepDriverError::SupportPlanScopeMismatch);
         }
+        if let Some(classification_evaluator) = classification_evaluator {
+            validate_classification_evaluator_scope(
+                checked,
+                support_plan,
+                classification_evaluator,
+            )?;
+        }
 
         let support = RelationalSupportStepDriver::from_plan(support_plan)?;
         let classified_sweep = if support.has_case_chunk_partition() {
             Some(
-                RelationalClassifiedSweepStepDriver::from_checked_with_native_classifier(
+                RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
                     checked,
                     support_plan,
                     native_classifier.clone(),
+                    classification_evaluator,
                 )?,
             )
         } else {
@@ -340,6 +397,7 @@ impl<'query> RelationalStepDriver<'query> {
                 ExploreSuccessorKindIr::Singleton { .. }
             ),
             native_classifier,
+            classification_evaluator,
             max_members_per_quantum,
             completed_work_compaction_trigger,
             max_compaction_nodes,
@@ -918,36 +976,44 @@ impl<'query> RelationalStepDriver<'query> {
             None => events.push(case.discovered_event()),
         }
 
-        // Native V2 is used only for a completely unclassified concrete case.
-        // If a crash prefix already contains either decision, the ordinary
-        // checked leaf path below resumes it instead of risking a conflict
-        // between durable and accelerator-produced outcomes.
+        // Accelerators are used only for a completely unclassified concrete
+        // case. If a crash prefix already contains either decision, the
+        // ordinary checked leaf path below resumes it instead of risking a
+        // conflict between durable and accelerator-produced outcomes.
         if view.admission_decision(case.case_id()).is_none()
             && view.question_decision(case.case_id()).is_none()
         {
-            if let Some(native) = &self.native_classifier {
+            let native = self
+                .native_classifier
+                .as_ref()
+                .filter(|native| native.is_enabled());
+            if native.is_some() || self.classification_evaluator.is_some() {
                 let subject = RelationalOrderedClassificationSubject::new(source, &case);
                 let subjects = [subject];
-                let (outcomes, _) = native.classify_or_fallback(&subjects, || {
-                    let classification = self.cases.classify(source.row(), &case, runtime)?;
-                    let outcome = match (classification.admission(), classification.selection()) {
-                        (AdmissionDecision::Rejected, None) => {
-                            RelationalClassifiedCaseOutcome::Rejected
+                let mut checked = RelationalCheckedClassificationContext::new(&self.cases, runtime);
+                let outcomes = if let Some(native) = native {
+                    // Native owns the first-batch parity canary and falls the
+                    // whole case back to this checked context if it becomes
+                    // unavailable. Its sticky disable then lets later cases
+                    // proceed directly to the capsule below.
+                    let mut backend =
+                        RelationalNativeClassifierFallbackBackendV2::new(native.clone());
+                    backend.classify_ordered_batch(&subjects, &mut checked)?
+                } else if let Some(classification_evaluator) = self.classification_evaluator {
+                    match classification_evaluator.try_borrow_mut() {
+                        Ok(mut backend) => {
+                            backend.classify_ordered_batch(&subjects, &mut checked)?
                         }
-                        (AdmissionDecision::Admitted, Some(SelectionDecision::NotSelected)) => {
-                            RelationalClassifiedCaseOutcome::AdmittedNotSelected
-                        }
-                        (AdmissionDecision::Admitted, Some(SelectionDecision::Selected)) => {
-                            RelationalClassifiedCaseOutcome::AdmittedSelected
-                        }
-                        _ => {
-                            return Err(RelationalStepDriverError::InvalidNativeClassification);
-                        }
-                    };
-                    Ok(vec![outcome].into_boxed_slice())
-                })?;
+                        // A borrow conflict is operational only. Reclassify
+                        // the entire singleton through the checked host before
+                        // producing either decision event.
+                        Err(_) => vec![checked.classify(subject)?].into_boxed_slice(),
+                    }
+                } else {
+                    unreachable!("an enabled accelerator was required above")
+                };
                 let [outcome] = outcomes.as_ref() else {
-                    return Err(RelationalStepDriverError::InvalidNativeClassification);
+                    return Err(RelationalStepDriverError::InvalidOrderedClassification);
                 };
                 events.push(RelationalJournalEvent::admission_classified(
                     case.case_id(),
@@ -1480,10 +1546,61 @@ fn has_open_source_work(view: RelationalSchedulerView<'_>) -> bool {
         .any(|node| matches!(&node.spec, WorkNodeSpec::ExpandSourceBinding { .. }))
 }
 
+fn validate_classification_evaluator_scope(
+    checked: &CheckedExploreQueryView<'_>,
+    support_plan: &RelationalSupportPlan,
+    classification_evaluator: &RefCell<RelationalClassificationEvaluatorBackend>,
+) -> Result<(), RelationalStepDriverError> {
+    let checked_program = decode_canonical_sha256(checked.program_hash())
+        .ok_or(RelationalStepDriverError::ClassificationEvaluatorScopeMismatch)?;
+    let provenance_digest =
+        decode_canonical_sha256(checked.source_coverage().manifest_digest.as_ref())
+            .ok_or(RelationalStepDriverError::ClassificationEvaluatorScopeMismatch)?;
+    let expected_capsule = RelationalClassificationCapsule::bind(
+        checked.classification_program(),
+        checked.classification_runtime_shapes(),
+        checked_program,
+        checked.relation_id(),
+        checked.admission_id(),
+        checked.question_id(),
+        support_plan.root(),
+        support_plan.root_cell_id(),
+        ClassificationSpecializationRoot::none(),
+        ClassificationProvenanceRoot::from_checked_source_coverage_digest(provenance_digest),
+    )
+    .map_err(|_| RelationalStepDriverError::ClassificationEvaluatorScopeMismatch)?;
+    let evaluator = classification_evaluator
+        .try_borrow()
+        .map_err(|_| RelationalStepDriverError::ClassificationEvaluatorUnavailable)?;
+    if evaluator.capsule().id() != expected_capsule.id() {
+        return Err(RelationalStepDriverError::ClassificationEvaluatorScopeMismatch);
+    }
+    Ok(())
+}
+
+fn decode_canonical_sha256(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64
+        || value
+            .as_bytes()
+            .iter()
+            .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    let mut digest = [0u8; 32];
+    for (index, output) in digest.iter_mut().enumerate() {
+        let offset = index * 2;
+        *output = u8::from_str_radix(&value[offset..offset + 2], 16).ok()?;
+    }
+    Some(digest)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalStepDriverError {
     InvalidQuery(String),
     SupportPlanScopeMismatch,
+    ClassificationEvaluatorUnavailable,
+    ClassificationEvaluatorScopeMismatch,
     SupportPlanRootMismatch {
         expected: RelationalSupportPlanRoot,
         actual: RelationalSupportPlanRoot,
@@ -1510,7 +1627,8 @@ pub(crate) enum RelationalStepDriverError {
     FindWithoutDurableAdmission(RelationalCaseId),
     FindClassificationMissing(RelationalCaseId),
     QuestionForRejectedCase(RelationalCaseId),
-    InvalidNativeClassification,
+    InvalidOrderedClassification,
+    Classification(RelationalClassifiedSweepError),
     Source(RelationalSourceExecutorError),
     Case(RelationalCaseExecutorError),
     Support(RelationalSupportStepDriverError),
@@ -1527,6 +1645,12 @@ impl fmt::Display for RelationalStepDriverError {
             Self::SupportPlanScopeMismatch => {
                 formatter.write_str("support plan does not belong to the checked query")
             }
+            Self::ClassificationEvaluatorUnavailable => formatter.write_str(
+                "classification evaluator is already borrowed during driver construction",
+            ),
+            Self::ClassificationEvaluatorScopeMismatch => formatter.write_str(
+                "classification evaluator capsule does not match the exact checked request and support plan",
+            ),
             Self::SupportPlanRootMismatch { .. } => {
                 formatter.write_str("journal registered a different support plan root")
             }
@@ -1582,9 +1706,10 @@ impl fmt::Display for RelationalStepDriverError {
             Self::QuestionForRejectedCase(_) => {
                 formatter.write_str("rejected case already has durable FIND evidence")
             }
-            Self::InvalidNativeClassification => {
-                formatter.write_str("native classifier did not produce one canonical case outcome")
+            Self::InvalidOrderedClassification => {
+                formatter.write_str("ordered classifier did not produce one canonical case outcome")
             }
+            Self::Classification(error) => write!(formatter, "classification failed: {error}"),
             Self::Source(error) => write!(formatter, "source step failed: {error}"),
             Self::Case(error) => write!(formatter, "case step failed: {error}"),
             Self::Support(error) => write!(formatter, "support step failed: {error}"),
@@ -1605,6 +1730,7 @@ impl Error for RelationalStepDriverError {
         match self {
             Self::Source(error) => Some(error),
             Self::Case(error) => Some(error),
+            Self::Classification(error) => Some(error),
             Self::Support(error) => Some(error),
             Self::ClassifiedSweep(error) => Some(error),
             Self::SelectedRun(error) => Some(error),
@@ -1612,6 +1738,8 @@ impl Error for RelationalStepDriverError {
             Self::Journal(error) => Some(error),
             Self::InvalidQuery(_)
             | Self::SupportPlanScopeMismatch
+            | Self::ClassificationEvaluatorUnavailable
+            | Self::ClassificationEvaluatorScopeMismatch
             | Self::SupportPlanRootMismatch { .. }
             | Self::SupportPlanRegistrationMissing
             | Self::JournalScopeMismatch
@@ -1629,7 +1757,7 @@ impl Error for RelationalStepDriverError {
             | Self::FindWithoutDurableAdmission(_)
             | Self::FindClassificationMissing(_)
             | Self::QuestionForRejectedCase(_)
-            | Self::InvalidNativeClassification => None,
+            | Self::InvalidOrderedClassification => None,
         }
     }
 }
@@ -1643,6 +1771,12 @@ impl From<RelationalSourceExecutorError> for RelationalStepDriverError {
 impl From<RelationalCaseExecutorError> for RelationalStepDriverError {
     fn from(error: RelationalCaseExecutorError) -> Self {
         Self::Case(error)
+    }
+}
+
+impl From<RelationalClassifiedSweepError> for RelationalStepDriverError {
+    fn from(error: RelationalClassifiedSweepError) -> Self {
+        Self::Classification(error)
     }
 }
 

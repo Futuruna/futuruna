@@ -11,6 +11,7 @@
 //! the journal head from which it was planned; the durable owner installs the
 //! batch, and a resource governor admits at most one call at a work boundary.
 
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU16, NonZeroU32};
@@ -24,6 +25,7 @@ use super::relation::{MechanismRequestId, RelationalCaseId, ViewId};
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanError,
 };
+use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_incidence_result_step_driver::{
     RelationalIncidenceResultStepDriver, RelationalIncidenceResultStepDriverError,
@@ -235,14 +237,30 @@ impl<'query> RelationalStreamDriver<'query> {
         limits: RelationalStreamDriverLimits,
         native_classifier: Option<RelationalNativeClassifierV2>,
     ) -> Result<Self, RelationalStreamDriverError> {
+        Self::from_checked_with_limits_and_classification_backends(
+            checked,
+            support_plan,
+            limits,
+            native_classifier,
+            None,
+        )
+    }
+
+    pub(crate) fn from_checked_with_limits_and_classification_backends(
+        checked: &'query CheckedExploreQueryView<'_>,
+        support_plan: &'query RelationalSupportPlan,
+        limits: RelationalStreamDriverLimits,
+        native_classifier: Option<RelationalNativeClassifierV2>,
+        classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
+    ) -> Result<Self, RelationalStreamDriverError> {
         let analysis_plan = RelationalAnalysisPlan::from_checked(checked)?;
-        let base =
-            RelationalStepDriver::from_checked_with_max_members_per_quantum_and_native_classifier(
-                checked,
-                support_plan,
-                limits.base_members_per_quantum,
-                native_classifier,
-            )?;
+        let base = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
+            checked,
+            support_plan,
+            limits.base_members_per_quantum,
+            native_classifier,
+            classification_evaluator,
+        )?;
         let results = RelationalResultStepDriver::from_checked_with_max_rows_per_quantum(
             checked,
             limits.result_rows_per_quantum,

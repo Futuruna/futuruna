@@ -183,11 +183,21 @@ impl RelationalNativeClassifierV2 {
         &self.executable
     }
 
+    /// Whether this process-local accelerator may still be attempted.
+    ///
+    /// Unavailability is sticky across clones so callers can route later
+    /// batches to another exact backend without paying one checked native
+    /// fallback per batch. This flag is operational only and carries no
+    /// semantic or evidence authority.
+    pub(crate) fn is_enabled(&self) -> bool {
+        self.enabled.load(Ordering::Acquire)
+    }
+
     pub(crate) fn classify_ordered_batch(
         &self,
         subjects: &[RelationalOrderedClassificationSubject<'_>],
     ) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalNativeClassifierUnavailable> {
-        if !self.enabled.load(Ordering::Acquire) {
+        if !self.is_enabled() {
             return Err(RelationalNativeClassifierUnavailable::DisabledAfterUnavailable);
         }
         let request = encode_request(self.identity, &self.finite_input_binding_indices, subjects)?;

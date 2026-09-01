@@ -34,6 +34,7 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex, OnceLock};
 
 pub mod calculate;
+mod checked_explore_classification;
 pub mod explore;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
 /// Lives in its own file so it can be audited in isolation.
@@ -25446,6 +25447,15 @@ pub(crate) struct CheckedExploreQueryArtifact {
     pub(crate) admission_id: explore::AdmissionId,
     /// Producer-minted identity of FIND layered over the admitted relation.
     pub(crate) question_id: explore::QuestionId,
+    /// Closed executable/residual classification graph minted from this exact
+    /// checked query boundary. It is an overlay on the identity ladder: the
+    /// relation/admission/question IDs remain independently authoritative.
+    classification_program:
+        Arc<explore::relational_classification_capsule::FrozenClassificationProgram>,
+    /// Capsule-authenticated runtime spelling/layout adapter retained beside,
+    /// never inside, the reusable name-free classification program.
+    classification_runtime_shapes:
+        Arc<explore::relational_classification_capsule::FrozenClassificationRuntimeShapes>,
     /// Compiler-owned transitive declaration slice for an optional native
     /// classifier. Occurrence identity prevents an accelerator from silently
     /// selecting another same-spelled declaration from the flattened graph.
@@ -25496,6 +25506,7 @@ pub(crate) enum CheckedExploreQueryArtifactIssue {
         layer: Box<str>,
         site: Option<ExprSiteId>,
     },
+    ClassificationProgram(Box<str>),
     RelationalIr(String),
     AnalysisGraph(String),
 }
@@ -25507,6 +25518,8 @@ pub(crate) enum CheckedExploreQueryAccessError {
     AnalysisProgramIdentityMismatch,
     SourceSnapshotIncoherent,
     SourceDeclarationMissing(CheckedDeclarationOccurrenceId),
+    ClassificationProgramInvalid(Box<str>),
+    ClassificationProgramDiverged,
     ArtifactDiverged,
 }
 
@@ -25563,6 +25576,18 @@ impl CheckedExploreQueryView<'_> {
 
     pub(crate) const fn question_id(&self) -> explore::QuestionId {
         self.artifact.question_id
+    }
+
+    pub(crate) fn classification_program(
+        &self,
+    ) -> Arc<explore::relational_classification_capsule::FrozenClassificationProgram> {
+        Arc::clone(&self.artifact.classification_program)
+    }
+
+    pub(crate) fn classification_runtime_shapes(
+        &self,
+    ) -> Arc<explore::relational_classification_capsule::FrozenClassificationRuntimeShapes> {
+        Arc::clone(&self.artifact.classification_runtime_shapes)
     }
 
     /// Producer-bound schema identities for replaying this query's
@@ -26578,6 +26603,41 @@ impl TypeCheckArtifacts {
                 != artifact.product_rank_grouped_distinct.as_ref()
         {
             return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
+        let rebuilt_classification =
+            checked_explore_classification::checked_explore_classification_program(
+                &self.analysis_program,
+                &self.checked_resolutions,
+                closed_query,
+                &sites,
+                artifact.question_id,
+            )
+            .map_err(|error| {
+                CheckedExploreQueryAccessError::ClassificationProgramInvalid(
+                    error.to_string().into_boxed_str(),
+                )
+            })?;
+        if !artifact.classification_program.validate_identity()
+            || !artifact.classification_runtime_shapes.validate_identity()
+            || artifact
+                .classification_runtime_shapes
+                .validate_for_program(artifact.classification_program.as_ref())
+                .is_err()
+            || !rebuilt_classification.program.validate_identity()
+            || !rebuilt_classification.runtime_shapes.validate_identity()
+            || rebuilt_classification
+                .runtime_shapes
+                .validate_for_program(&rebuilt_classification.program)
+                .is_err()
+            || rebuilt_classification.program.graph_root()
+                != artifact.classification_program.graph_root()
+            || rebuilt_classification.runtime_shapes.runtime_shape_root()
+                != artifact.classification_runtime_shapes.runtime_shape_root()
+            || &rebuilt_classification.program != artifact.classification_program.as_ref()
+            || &rebuilt_classification.runtime_shapes
+                != artifact.classification_runtime_shapes.as_ref()
+        {
+            return Err(CheckedExploreQueryAccessError::ClassificationProgramDiverged);
         }
         Ok(CheckedExploreQueryView {
             artifact,
@@ -35376,6 +35436,19 @@ fn build_checked_explore_query_artifacts(
             ));
         }
         let ladder = checked_explore_identity_ladder(program, resolutions, closed_query, &sites)?;
+        let classification =
+            checked_explore_classification::checked_explore_classification_program(
+                program,
+                resolutions,
+                closed_query,
+                &sites,
+                ladder.question_id,
+            )
+            .map_err(|error| {
+                CheckedExploreQueryArtifactIssue::ClassificationProgram(
+                    error.to_string().into_boxed_str(),
+                )
+            })?;
         artifacts.push(CheckedExploreQueryArtifact {
             identity: CheckedExploreQueryId {
                 analysis_program: program.id.clone(),
@@ -35384,6 +35457,8 @@ fn build_checked_explore_query_artifacts(
             relation_id: ladder.relation_id,
             admission_id: ladder.admission_id,
             question_id: ladder.question_id,
+            classification_program: Arc::new(classification.program),
+            classification_runtime_shapes: Arc::new(classification.runtime_shapes),
             classifier_reachable_declarations: ladder.classifier_reachable_declarations,
             classifier_reachable_dependencies: ladder.classifier_reachable_dependencies,
             transition_schemas: ladder.transition_schemas,
@@ -37581,11 +37656,21 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     if let Some(identity) =
                         self.checked_constructor_identity(&owner_type, constructor)
                     {
-                        if identity.fields.len() == patterns.len() {
+                        // A fielded positional constructor with no children is
+                        // the checked tag-only refinement form. Whether the
+                        // enclosing match may use that form is enforced from
+                        // the scrutinee/whole-arm shape; retaining the exact
+                        // constructor identity here lets semantic consumers
+                        // normalize the accepted form without spelling lookup.
+                        if identity.fields.len() == patterns.len() || patterns.is_empty() {
                             self.artifacts.constructor_patterns.insert(
                                 self.pattern_site(declaration, ast_path, &pattern_path),
                                 CheckedConstructorPatternResolution {
-                                    source_fields: identity.fields.clone(),
+                                    source_fields: if patterns.is_empty() {
+                                        Box::new([])
+                                    } else {
+                                        identity.fields.clone()
+                                    },
                                     constructor: identity,
                                 },
                             );
