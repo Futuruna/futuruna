@@ -217,6 +217,7 @@ pub(crate) use relational_classified_sweep::{
     RelationalClassifiedSweepError, VerifiedRelationalClassifiedChunk,
     RELATIONAL_CLASSIFIED_CHUNK_SLICE_VERSION, RELATIONAL_CLASSIFIED_CHUNK_VERSION,
 };
+pub(crate) mod relational_classification_capsule;
 mod relational_native_classifier;
 pub use relational_native_classifier::RelationalNativeClassifierProtocolV2;
 pub(crate) use relational_native_classifier::{
