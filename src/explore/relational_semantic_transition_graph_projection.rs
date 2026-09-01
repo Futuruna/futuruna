@@ -13,7 +13,7 @@ use super::relational_journal::{RelationalJournalContract, RelationalSchedulerVi
 use super::relational_transition_support::{
     RelationalSemanticTransition, RelationalTransitionCaseSupport, RelationalTransitionLayer,
     RelationalTransitionSupportCounts, RelationalTransitionSupportError,
-    RelationalTransitionSupportRoot,
+    RelationalTransitionSupportIndex, RelationalTransitionSupportRoot,
 };
 use super::StateId;
 
@@ -65,6 +65,22 @@ pub(crate) struct RelationalSemanticTransitionGraphCapacity {
 }
 
 impl RelationalSemanticTransitionGraphCapacity {
+    pub(crate) fn from_retained_support(
+        maximum_data_records: u128,
+        support: &RelationalTransitionSupportIndex,
+    ) -> Result<Option<Self>, RelationalSemanticTransitionGraphProjectionError> {
+        let counts = support.counts();
+        let required_data_records = graph_data_record_count(counts)?;
+        Ok(
+            (required_data_records > maximum_data_records).then_some(Self {
+                maximum_data_records,
+                required_data_records,
+                root: support.root(),
+                counts,
+            }),
+        )
+    }
+
     pub(crate) const fn maximum_data_records(self) -> u128 {
         self.maximum_data_records
     }
@@ -87,9 +103,23 @@ pub(crate) struct RelationalSemanticTransitionGraphUnmaterialized {
     logical_universe_cases: u128,
     materialized_universe_cases: u128,
     materialized_root: RelationalTransitionSupportRoot,
+    counts: RelationalTransitionSupportCounts,
 }
 
 impl RelationalSemanticTransitionGraphUnmaterialized {
+    pub(crate) fn from_retained_support(
+        logical_universe_cases: u128,
+        support: &RelationalTransitionSupportIndex,
+    ) -> Self {
+        let counts = support.counts();
+        Self {
+            logical_universe_cases,
+            materialized_universe_cases: counts.cases(RelationalTransitionLayer::Universe),
+            materialized_root: support.root(),
+            counts,
+        }
+    }
+
     pub(crate) const fn logical_universe_cases(self) -> u128 {
         self.logical_universe_cases
     }
@@ -100,6 +130,10 @@ impl RelationalSemanticTransitionGraphUnmaterialized {
 
     pub(crate) const fn materialized_root(self) -> RelationalTransitionSupportRoot {
         self.materialized_root
+    }
+
+    pub(crate) const fn counts(self) -> RelationalTransitionSupportCounts {
+        self.counts
     }
 }
 
@@ -149,12 +183,13 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
         let data_record_count = graph_data_record_count(counts)?;
         let terminal = if scheduler.transition_support_is_extentionally_closed() {
             if data_record_count > RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1 {
-                ProjectionTerminal::Capacity(RelationalSemanticTransitionGraphCapacity {
-                    maximum_data_records: RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1,
-                    required_data_records: data_record_count,
-                    root: support.root(),
-                    counts,
-                })
+                ProjectionTerminal::Capacity(
+                    RelationalSemanticTransitionGraphCapacity::from_retained_support(
+                        RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1,
+                        support,
+                    )?
+                    .expect("the checked data-record count exceeds publication capacity"),
+                )
             } else {
                 ProjectionTerminal::Exact(RelationalSemanticTransitionGraphClosure {
                     root: support.root(),
@@ -176,12 +211,10 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
                     })
                 }
                 Some(logical_universe_cases) => ProjectionTerminal::Unmaterialized(
-                    RelationalSemanticTransitionGraphUnmaterialized {
+                    RelationalSemanticTransitionGraphUnmaterialized::from_retained_support(
                         logical_universe_cases,
-                        materialized_universe_cases: counts
-                            .cases(RelationalTransitionLayer::Universe),
-                        materialized_root: support.root(),
-                    },
+                        support,
+                    ),
                 ),
                 None => ProjectionTerminal::Open,
             }

@@ -74,6 +74,7 @@ use super::relational_support_step_driver::{
 };
 use super::support_evidence::SupportEvidenceRoot;
 use super::support_journal::SupportJournalEvent;
+use super::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 
 const DEFAULT_COMPLETED_WORK_COMPACTION_TRIGGER: NonZeroU32 =
     NonZeroU32::new(8_192).expect("the default work compaction trigger is nonzero");
@@ -227,6 +228,9 @@ pub(crate) struct RelationalStepDriver<'query> {
     relation_id: RelationId,
     admission_id: AdmissionId,
     question_id: QuestionId,
+    state_schema_id: StateSchemaId,
+    context_schema_id: ContextSchemaId,
+    transition_type_id: TransitionTypeId,
     support_plan: &'query RelationalSupportPlan,
     support: RelationalSupportStepDriver,
     classified_sweep: Option<RelationalClassifiedSweepStepDriver<'query>>,
@@ -399,6 +403,9 @@ impl<'query> RelationalStepDriver<'query> {
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
             question_id: checked.question_id(),
+            state_schema_id: checked.transition_schemas().state_schema_id(),
+            context_schema_id: checked.transition_schemas().context_schema_id(),
+            transition_type_id: checked.transition_schemas().transition_type_id(),
             support_plan,
             support,
             classified_sweep,
@@ -725,6 +732,9 @@ impl<'query> RelationalStepDriver<'query> {
         if contract.relation_id() != self.relation_id
             || contract.admission_id() != self.admission_id
             || contract.question_id() != self.question_id
+            || contract.state_schema_id() != self.state_schema_id
+            || contract.context_schema_id() != self.context_schema_id
+            || contract.transition_type_id() != self.transition_type_id
         {
             return Err(RelationalStepDriverError::JournalScopeMismatch);
         }
