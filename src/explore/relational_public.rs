@@ -2653,7 +2653,8 @@ mod regional_stream_acceptance_tests {
         RelationalDurableJournal, RelationalDurableJournalLimits,
     };
     use super::super::relational_journal::{
-        RelationalClassifiedSupportFragment, RelationalJournal, RelationalJournalEvent,
+        RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
+        RelationalJournal, RelationalJournalEvent,
     };
     use super::super::relational_step_driver::{
         RelationalStepDriver, RelationalStepOutcome, RelationalStepQuantum,
@@ -2661,6 +2662,9 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_stream_driver::{
         RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuantum,
         RelationalStreamStepOutcome,
+    };
+    use super::super::stream_resource::{
+        ExactStreamOneWorkerEnvelope, ExactStreamResourceAction, ExactStreamWorkSubject,
     };
     use super::*;
     use crate::{Lexer, Parser};
@@ -3214,7 +3218,7 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
-    fn checked_shared_namespace_query_resumes_before_successor_with_fresh_runtime() {
+    fn checked_shared_namespace_query_replays_crash_prefix_with_fresh_runtime() {
         let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/verify/qualified_namespace_parity.runa");
         let fixture_dir = fixture.parent().expect("fixture directory");
@@ -3231,12 +3235,28 @@ mod regional_stream_acceptance_tests {
         };
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
+        let epoch_options = || ExploreStreamEpochOptions {
+            run_state: run_state.clone(),
+            output_directory: None,
+            outer_containment: None,
+        };
 
-        // Stop at an explicit source-only quantum. Dropping this preparation
-        // guarantees that successor evaluation (including the transitive root
-        // call) happens only after the same checked source is prepared again.
+        // Evaluate the transitive target under the ordinary head-bound permit
+        // protocol, then simulate a crash after installing only the durable
+        // case consequence. Admission, FIND, and the source cursor remain
+        // absent, so a fresh runtime must replan and validate this exact case.
         {
-            let mut prepared = prepare_fixture();
+            let mut epoch = prepare_fixture()
+                .open_epoch(epoch_options())
+                .expect("open shared namespace epoch");
+            epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+                .expect("create deterministic shared namespace resource envelope");
+            let RelationalExploreEpoch {
+                prepared,
+                durable,
+                resources,
+                ..
+            } = &mut epoch;
             let checked = prepared.checked.view();
             let driver =
                 RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
@@ -3247,16 +3267,31 @@ mod regional_stream_acceptance_tests {
                     Some(&prepared.classification_evaluator),
                 )
                 .expect("build shared namespace stream scheduler");
-            let mut durable =
-                RelationalDurableJournal::open_or_create_with_region_replay_authority(
-                    &run_state,
-                    prepared.contract,
-                    RelationalDurableJournalLimits::default(),
-                    Arc::clone(&prepared.region_replay_authority),
-                )
-                .expect("open shared namespace durable journal");
-            let mut stopped_at_source_members = false;
+            let mut crash_case_id = None;
             for _ in 0..32 {
+                let (expected_sequence, expected_head) = {
+                    let journal = durable
+                        .journal()
+                        .expect("inspect shared namespace permit subject");
+                    (journal.next_sequence(), journal.head())
+                };
+                let subject = ExactStreamWorkSubject::RelationalJournalQuantum {
+                    expected_sequence,
+                    expected_head: expected_head.bytes(),
+                };
+                let owned = resources.conservative_in_process_owned_snapshot();
+                let permit = match resources.poll(owned, None, Some(subject)).action {
+                    ExactStreamResourceAction::Dispatch(permit) => permit,
+                    action => {
+                        panic!("unmetered shared namespace quantum was not dispatched: {action:?}")
+                    }
+                };
+                assert_eq!(permit.subject(), subject);
+                let in_flight = resources
+                    .begin_work(permit)
+                    .expect("begin shared namespace relational quantum");
+                assert_eq!(in_flight.subject(), subject);
+
                 let outcome = driver
                     .step_with_base_member_limit(
                         durable
@@ -3268,100 +3303,136 @@ mod regional_stream_acceptance_tests {
                     )
                     .expect("advance shared namespace source prefix");
                 let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
-                    panic!("shared namespace stream quiesced before binding its source");
+                    panic!("shared namespace stream quiesced before evaluating its successor");
                 };
+                assert_eq!(batch.expected_sequence(), expected_sequence);
+                assert_eq!(batch.expected_head(), expected_head);
                 let quantum = batch.quantum();
-                durable
-                    .append_events(
-                        batch.expected_sequence(),
-                        batch.expected_head(),
-                        batch.into_events(),
-                    )
-                    .expect("append shared namespace source prefix");
-                if matches!(
-                    quantum,
-                    RelationalStreamQuantum::Base(
-                        RelationalStepQuantum::SourceMembers { .. }
-                            | RelationalStepQuantum::SourceMembersAndBindingExhaustion { .. }
-                    )
-                ) {
-                    stopped_at_source_members = true;
+                let mut events = batch.into_events().into_vec();
+                let successor = events.iter().enumerate().find_map(|(index, event)| {
+                    let RelationalJournalEvent::Evidence(
+                        RelationalEvidenceEvent::SuccessorDiscovered { case_id, row, .. },
+                    ) = event
+                    else {
+                        return None;
+                    };
+                    Some((index, *case_id, row.after().clone()))
+                });
+                if let Some((successor_index, case_id, after)) = successor {
+                    assert!(matches!(
+                        quantum,
+                        RelationalStreamQuantum::Base(
+                            RelationalStepQuantum::SourceMembers { .. }
+                                | RelationalStepQuantum::SourceMembersAndBindingExhaustion { .. }
+                        )
+                    ));
+                    assert_eq!(after, super::super::ExploreValue::Int(36));
+                    let admission_index = events
+                        .iter()
+                        .position(|event| {
+                            matches!(
+                                event,
+                                RelationalJournalEvent::Evidence(
+                                    RelationalEvidenceEvent::AdmissionClassified { .. }
+                                )
+                            )
+                        })
+                        .expect("fused shared namespace admission event");
+                    let question_index = events
+                        .iter()
+                        .position(|event| {
+                            matches!(
+                                event,
+                                RelationalJournalEvent::Evidence(
+                                    RelationalEvidenceEvent::QuestionClassified { .. }
+                                )
+                            )
+                        })
+                        .expect("fused shared namespace FIND event");
+                    let cursor_index = events
+                        .iter()
+                        .position(|event| {
+                            matches!(
+                                event,
+                                RelationalJournalEvent::Checkpoint(
+                                    RelationalCheckpointEvent::WorkCursorAdvanced { .. }
+                                )
+                            )
+                        })
+                        .expect("shared namespace source cursor event");
+                    assert!(successor_index < admission_index);
+                    assert!(admission_index < question_index);
+                    assert!(question_index < cursor_index);
+
+                    let append = durable
+                        .append_events(
+                            expected_sequence,
+                            expected_head,
+                            events.drain(..=successor_index),
+                        )
+                        .expect("append crash prefix through shared namespace successor");
+                    assert_eq!(
+                        append.semantic_event_count().get(),
+                        u64::try_from(successor_index + 1).expect("small crash prefix")
+                    );
+                    resources
+                        .finish_or_abandon_work(in_flight)
+                        .expect("finish crash-prefix relational quantum");
+                    crash_case_id = Some(case_id);
                     break;
                 }
-            }
-            assert!(
-                stopped_at_source_members,
-                "shared namespace fixture did not reach its source-only boundary"
-            );
-            assert_eq!(
+
                 durable
-                    .journal()
-                    .expect("inspect source-only shared namespace prefix")
-                    .scheduler_view()
-                    .expect("inspect source-only shared namespace scheduler")
-                    .case_count(),
-                0,
-                "the pause boundary must precede successor evaluation"
+                    .append_events(expected_sequence, expected_head, events)
+                    .expect("append shared namespace setup quantum");
+                resources
+                    .finish_or_abandon_work(in_flight)
+                    .expect("finish shared namespace setup quantum");
+            }
+            let crash_case_id = crash_case_id
+                .expect("shared namespace fixture did not emit its singleton successor");
+            let journal = durable
+                .journal()
+                .expect("inspect durable shared namespace crash prefix");
+            let scheduler = journal
+                .scheduler_view()
+                .expect("inspect shared namespace crash-prefix scheduler");
+            assert_eq!(scheduler.source_count(), 1);
+            assert_eq!(scheduler.case_count(), 1);
+            assert_eq!(scheduler.admission_decision_count(), 0);
+            assert_eq!(scheduler.question_decision_count(), 0);
+            assert_eq!(
+                scheduler
+                    .case(crash_case_id)
+                    .expect("durable shared namespace crash-prefix case")
+                    .after(),
+                &super::super::ExploreValue::Int(36)
             );
             durable
                 .flush_for_pause()
-                .expect("flush source-only shared namespace prefix");
+                .expect("flush shared namespace successor crash prefix");
         }
 
-        // Rechecking the identical fixture constructs a fresh expression
-        // runtime and import closure, while reopening the journal replays the
-        // durable source prefix through the active relational architecture.
-        let mut prepared = prepare_fixture();
-        let checked = prepared.checked.view();
-        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
-            &checked,
-            &prepared.support_plan,
-            RelationalStreamDriverLimits::default(),
-            None,
-            Some(&prepared.classification_evaluator),
-        )
-        .expect("rebuild shared namespace stream scheduler");
-        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
-            &run_state,
-            prepared.contract,
-            RelationalDurableJournalLimits::default(),
-            Arc::clone(&prepared.region_replay_authority),
-        )
-        .expect("reopen shared namespace durable journal");
-        let mut completed = false;
-        for _ in 0..64 {
-            match driver
-                .step_with_base_member_limit(
-                    durable
-                        .journal_mut_for_event_planning()
-                        .expect("borrow reopened shared namespace planning journal"),
-                    &mut prepared.expression_runtime,
-                    &mut prepared.mechanism_runtime,
-                    NonZeroU16::new(1).unwrap(),
-                )
-                .expect("resume shared namespace stream")
-            {
-                RelationalStreamStepOutcome::Emitted(batch) => {
-                    durable
-                        .append_events(
-                            batch.expected_sequence(),
-                            batch.expected_head(),
-                            batch.into_events(),
-                        )
-                        .expect("append resumed shared namespace batch");
-                }
-                RelationalStreamStepOutcome::Complete => {
-                    completed = true;
-                    break;
-                }
-                RelationalStreamStepOutcome::Quiescent(quiescence) => {
-                    panic!("shared namespace stream quiesced before closure: {quiescence:?}");
-                }
-            }
-        }
-        assert!(completed, "shared namespace fixture did not close");
+        // Rechecking constructs a fresh interpreter/import closure. Because
+        // the source cursor was not installed, normal active execution must
+        // recompute TO and validate the candidate against durable after=36.
+        let mut epoch = prepare_fixture()
+            .open_epoch(epoch_options())
+            .expect("reopen shared namespace epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic resumed resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("resume shared namespace through the normal active slice");
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert_eq!(report.counts.sources, ExploreStreamCount::Exact(1));
+        assert_eq!(report.counts.cases, ExploreStreamCount::Exact(1));
+        assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(1));
+        assert_eq!(report.counts.selected, ExploreStreamCount::Exact(1));
 
-        let journal = durable
+        let checked = epoch.prepared.checked.view();
+        let journal = epoch
+            .durable
             .journal()
             .expect("inspect completed shared namespace journal");
         let scheduler = journal
