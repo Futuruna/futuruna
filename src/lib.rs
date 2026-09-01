@@ -58186,7 +58186,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
-    fn exact_exploration_initialization_ignores_qualified_only_rule_collisions() {
+    fn exact_exploration_initialization_keeps_transitive_root_callables_isolated() {
         let temp_name = format!(
             "futuruna_qualified_explore_namespace_{}_{}",
             std::process::id(),
@@ -58199,26 +58199,32 @@ starters first from mechanisms paths for node activation "{digest}" using values
         std::fs::create_dir_all(&temp_dir).expect("create Explore namespace fixture directory");
         std::fs::write(
             temp_dir.join("dependency.runa"),
-            "@ export\n| collision(value: Int) -> value + 100\n@ export\n| qualified_only(value: Int) -> value + 1000\n",
+            "@ export\n> qualified_transitive_helper(value: Int) -> Int { collide(value) + family(value) + family(value, 2) }\n@ export\n| qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)\n@ export\n> collide(value: Int) -> Int { value + 100 }\n| family(value: Int) -> value + 100\n| family(left: Int, right: Int) -> left + right + 200\n@ export family\n",
         )
         .expect("write Explore namespace fixture dependency");
         let source = r#"
 @ import Policy from ./dependency
-| collision(value: Int) -> value + 1
+> collide(value: Int) -> Int { value + 1 }
+> qualified_transitive_helper(value: Int) -> Int {
+    collide(value) + family(value) + family(value, 2)
+}
+| family(value: Int) -> value + 10
+| family(left: Int, right: Int) -> left + right + 20
+| qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)
 "#;
         let statements = parse_test_program(source).expect("parse Explore namespace fixture");
         let mut interpreter = Interpreter::new();
         interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
         let mut env = interpreter.default_env();
         let roots = BTreeSet::from([ExploreRuntimeRoot::Rule {
-            name: "collision".to_string(),
+            name: "qualified_transitive_target".to_string(),
             arity: 1,
         }]);
         interpreter
             .initialize_exploration_program(&roots, &statements, &mut env, 10_000, 1_000)
             .expect("initialize exact Explore namespace fixture");
         let expression = ExprKind::App(
-            Box::new(ExprKind::Var("collision".to_string()).into()),
+            Box::new(ExprKind::Var("qualified_transitive_target".to_string()).into()),
             vec![ExprKind::Lit(Literal::Int(1)).into()],
         )
         .into();
@@ -58226,15 +58232,50 @@ starters first from mechanisms paths for node activation "{digest}" using values
             .eval_exact_exploration(&expression, &env, 10_000, 1_000)
             .expect("evaluate isolated Explore root");
 
-        assert_eq!(value.to_string(), "2");
+        assert_eq!(value.to_string(), "36");
+        assert_eq!(
+            interpreter.calculation_runtime_symbols,
+            BTreeSet::from([
+                "collide".to_string(),
+                "family".to_string(),
+                "qualified_transitive_helper".to_string(),
+                "qualified_transitive_target".to_string(),
+            ]),
+            "Explore must retain the complete root callable closure by name"
+        );
         assert_eq!(
             interpreter
                 .registered_rules()
-                .iter()
-                .map(|(name, _)| name.as_str())
-                .collect::<Vec<_>>(),
-            ["collision"],
-            "Explore root identity must not consume qualified-only rules"
+                .into_iter()
+                .filter_map(|(_, rule)| rule.callable_name_arity())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([
+                ("family".to_string(), 1),
+                ("family".to_string(), 2),
+                ("qualified_transitive_target".to_string(), 1),
+            ]),
+            "Explore must retain each demanded root rule arity"
+        );
+        assert!(
+            interpreter
+                .exploration_runtime_demand
+                .plain_import_roots
+                .is_empty(),
+            "root callables must not become plain-import demand"
+        );
+        assert!(
+            interpreter
+                .exploration_runtime_demand
+                .qualified_import_roots
+                .is_empty(),
+            "root callables must not become qualified-import demand"
+        );
+        assert!(
+            interpreter
+                .exploration_runtime_demand
+                .local_module_roots
+                .is_empty(),
+            "root callables must not become local-module demand"
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);

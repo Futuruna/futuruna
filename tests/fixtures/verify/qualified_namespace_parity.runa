@@ -3,8 +3,14 @@
 
 > collide(value: Int) -> Int { value + 1 }
 
+> qualified_transitive_helper(value: Int) -> Int {
+    collide(value) + family(value) + family(value, 2)
+}
+
 | family(value: Int) -> value + 10
 | family(left: Int, right: Int) -> left + right + 20
+
+| qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)
 
 = root_function = collide(1)
 = policy_function = Policy.collide(1)
@@ -16,6 +22,7 @@
 = policy_different_arity = Policy.family(1, 2)
 = other_same_arity = Other.family(1)
 = other_different_arity = Other.family(1, 2)
+= qualified_transitive_result = qualified_transitive_target(1)
 
 | qualified_root_function_isolated: root_function -> root_function == 2
 | qualified_module_function_isolated: policy_function -> policy_function == 101
@@ -29,10 +36,25 @@
 | qualified_alias_rule_different_arity: other_different_arity -> other_different_arity == 203
 | qualified_root_module_families_are_distinct: root_same_arity -> root_same_arity == 11 && policy_same_arity == 101 && root_different_arity == 23 && policy_different_arity == 203
 | qualified_alias_families_have_distinct_symbols: policy_same_arity -> policy_same_arity == other_same_arity && policy_different_arity == other_different_arity
+| qualified_transitive_call_chain_isolated: qualified_transitive_result -> qualified_transitive_result == 36
+
+? explore qualified_namespace_transitive {
+    from {
+        before = 1
+        context = ()
+    }
+    to after = qualified_transitive_target(before)
+    find all
+    results qualified_namespace_transitive_cases from selected {
+        each case
+        measure [score = after]
+        select [before, score]
+    }
+}
 
 -- Shared backend contract, in declaration order:
--- interpreter/generated Rust stdout must be exactly these ten lines:
--- 2, 101, 101, 101, 11, 101, 23, 203, 101, 203.
+-- interpreter/generated Rust stdout must be exactly these eleven lines:
+-- 2, 101, 101, 101, 11, 101, 23, 203, 101, 203, 36.
 -- Each comma-separated value above is one output line below.
 @ print(show(root_function))
 @ print(show(policy_function))
@@ -44,3 +66,4 @@
 @ print(show(policy_different_arity))
 @ print(show(other_same_arity))
 @ print(show(other_different_arity))
+@ print(show(qualified_transitive_result))

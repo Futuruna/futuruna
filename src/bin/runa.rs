@@ -64417,7 +64417,7 @@ readings <- "score"
     fn interpreted_and_compiled_qualified_namespace_fixture_match() {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/verify/qualified_namespace_parity.runa");
-        let expected = "2\n101\n101\n101\n11\n101\n23\n203\n101\n203";
+        let expected = "2\n101\n101\n101\n11\n101\n23\n203\n101\n203\n36";
         let interpreted = interpret_test_file(&path);
         let compiled = compile_and_run_test_file(&path);
         assert_eq!(interpreted.trim(), expected);

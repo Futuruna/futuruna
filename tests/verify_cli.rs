@@ -97,21 +97,30 @@ fn finite_rule_dispatch_domain_matches_interpreter_generated_rust_and_smt() {
 }
 
 #[test]
-fn qualified_namespace_calls_match_interpreter_and_smt() {
+fn qualified_namespace_calls_match_interpreter_generated_rust_and_smt() {
     let fixture = qualified_namespace_fixture();
     let fixture = fixture.to_str().expect("UTF-8 fixture path");
     let interpreted = run_runa(&[fixture]);
+    let compiled = run_runa(&["run", fixture]);
     let verified = run_runa(&["verify", fixture]);
 
-    assert!(
-        interpreted.status.success(),
-        "interpreter stdout:\n{}\ninterpreter stderr:\n{}",
-        String::from_utf8_lossy(&interpreted.stdout),
-        String::from_utf8_lossy(&interpreted.stderr)
-    );
+    for (mode, output) in [("interpreter", &interpreted), ("compiled", &compiled)] {
+        assert!(
+            output.status.success(),
+            "{mode} stdout:\n{}\n{mode} stderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+    let expected = "2\n101\n101\n101\n11\n101\n23\n203\n101\n203\n36";
     assert_eq!(
         String::from_utf8_lossy(&interpreted.stdout).trim(),
-        "2\n101\n101\n101\n11\n101\n23\n203\n101\n203"
+        expected
+    );
+    assert_eq!(String::from_utf8_lossy(&compiled.stdout).trim(), expected);
+    assert_eq!(
+        String::from_utf8_lossy(&compiled.stdout).trim(),
+        String::from_utf8_lossy(&interpreted.stdout).trim()
     );
 
     assert!(
@@ -140,6 +149,7 @@ fn qualified_namespace_calls_match_interpreter_and_smt() {
             "qualified_alias_rule_different_arity",
             "qualified_root_module_families_are_distinct",
             "qualified_alias_families_have_distinct_symbols",
+            "qualified_transitive_call_chain_isolated",
         ] {
             assert!(
                 verified_stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
