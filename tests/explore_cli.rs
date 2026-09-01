@@ -45,6 +45,10 @@ fn fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/relational-explore-stream-smoke.runa")
 }
 
+fn dependent_fiber_fixture() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/relational-explore-dependent-fibers.runa")
+}
+
 fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> Output {
     run_explore_query(
         fixture,
@@ -146,6 +150,18 @@ fn artifact_path(manifest: &Value, output: &Path, kind: &str) -> PathBuf {
     output.join(relative)
 }
 
+fn named_artifact_path(manifest: &Value, output: &Path, kind: &str, name: &str) -> PathBuf {
+    let relative = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| artifact["kind"] == kind && artifact["name"] == name)
+        .unwrap_or_else(|| panic!("missing `{kind}` publication artifact `{name}`"))["path"]
+        .as_str()
+        .expect("artifact path");
+    output.join(relative)
+}
+
 fn snapshot_files(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
     fn visit(root: &Path, directory: &Path, files: &mut BTreeMap<PathBuf, Vec<u8>>) {
         let mut entries = std::fs::read_dir(directory)
@@ -209,6 +225,166 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
     assert_exact_count(&closure["counts"]["selected_cases"], "0");
     assert_exact_count(&closure["counts"]["state_nodes"], "0");
     assert_exact_count(&closure["counts"]["semantic_transitions"], "0");
+}
+
+#[test]
+fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly() {
+    let fixture = dependent_fiber_fixture();
+    let temp = TestDirectory::new();
+    let run_state = temp.path().join("dependent-fibers-state");
+    let output_directory = temp.path().join("dependent-fibers-output");
+
+    let output = run_explore_query(
+        &fixture,
+        "relational_stream_dependent_fibers_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&output);
+    let first = parse_stdout(&output);
+
+    assert_eq!(first["run"]["lifecycle"], "complete");
+    assert_eq!(first["coverage"]["relation_closed"], true);
+    assert_eq!(first["coverage"]["find_closed"], true);
+    assert_eq!(first["coverage"]["analysis_closed"], true);
+    assert_exact_count(&first["counts"]["sources"], "4");
+    assert_exact_count(&first["counts"]["cases"], "4");
+    assert_exact_count(&first["counts"]["admitted"], "4");
+    assert_exact_count(&first["counts"]["selected"], "4");
+    assert_exact_count(&first["counts"]["not_selected"], "0");
+
+    let mechanisms = analysis_layer(&first, "mechanisms", "dependent_paths");
+    assert_eq!(mechanisms["status"], "mechanism_closed");
+    assert_exact_count(&mechanisms["counts"]["target_cases"], "4");
+    assert_exact_count(&mechanisms["counts"]["incidence_cases"], "4");
+    assert_exact_count(&mechanisms["counts"]["raw_signatures"], "1");
+    assert_exact_count(&mechanisms["counts"]["structural_mechanisms"], "1");
+    assert_eq!(mechanisms["support_closure_totals"]["target_cases"], "4");
+    assert_eq!(mechanisms["support_closure_totals"]["target_starters"], "3");
+
+    let manifest = read_json(&output_directory.join("manifest.json"));
+    let case_rows = read_ndjson(&named_artifact_path(
+        &manifest,
+        &output_directory,
+        "result_view",
+        "dependent_cases",
+    ));
+    let mut cases_by_id = BTreeMap::new();
+    let mut extensional_cases = BTreeSet::new();
+    for row in case_rows {
+        assert_eq!(row["record"]["kind"], "selected_case");
+        let values = &row["record"]["values"];
+        let case_id = values["case_id"]["value"]
+            .as_str()
+            .expect("dependent-fiber CaseId")
+            .to_owned();
+        let action = values["context"]["fields"]["action"]
+            .as_i64()
+            .expect("dependent-fiber Context action");
+        let before = values["before"].as_i64().expect("dependent-fiber Before");
+        let after = values["after"].as_i64().expect("dependent-fiber After");
+        assert!(
+            cases_by_id
+                .insert(case_id, (action, before, after))
+                .is_none(),
+            "duplicate canonical CaseId"
+        );
+        extensional_cases.insert((action, before, after));
+    }
+    assert_eq!(
+        extensional_cases,
+        BTreeSet::from([(0, 1, 2), (0, 2, 3), (0, 2, 4), (1, 2, 3)])
+    );
+
+    let transition_records = read_ndjson(&artifact_path(
+        &manifest,
+        &output_directory,
+        "selected_case_transition_graph",
+    ));
+    let transition_rows = transition_records
+        .iter()
+        .filter(|row| row["record"]["kind"] == "case_transition")
+        .collect::<Vec<_>>();
+    assert_eq!(transition_rows.len(), 4);
+    let mut same_numeric_transition_ids = BTreeSet::new();
+    let mut same_numeric_actions = BTreeSet::new();
+    for row in transition_rows {
+        let record = &row["record"];
+        let case_id = record["case_id"].as_str().expect("transition CaseId");
+        let expected = cases_by_id
+            .get(case_id)
+            .expect("transition must retain exact case support");
+        let action = record["context"]["fields"]["action"]
+            .as_i64()
+            .expect("transition Context action");
+        let before = record["before"].as_i64().expect("transition Before");
+        let after = record["after"].as_i64().expect("transition After");
+        assert_eq!((action, before, after), *expected);
+        if before == 2 && after == 3 {
+            same_numeric_actions.insert(action);
+            same_numeric_transition_ids.insert(
+                record["transition_id"]
+                    .as_str()
+                    .expect("TransitionId")
+                    .to_owned(),
+            );
+        }
+    }
+    assert_eq!(same_numeric_actions, BTreeSet::from([0, 1]));
+    assert_eq!(same_numeric_transition_ids.len(), 2);
+    let transition_closure = transition_records
+        .iter()
+        .find(|row| row["record"]["kind"] == "closure")
+        .expect("dependent transition closure");
+    assert_exact_count(
+        &transition_closure["record"]["counts"]["selected_cases"],
+        "4",
+    );
+    assert_exact_count(&transition_closure["record"]["counts"]["state_nodes"], "4");
+    assert_exact_count(
+        &transition_closure["record"]["counts"]["semantic_transitions"],
+        "4",
+    );
+
+    let structural_support = read_ndjson(&artifact_path(
+        &manifest,
+        &output_directory,
+        "mechanism_structural_support",
+    ));
+    let mechanism_support = structural_support
+        .iter()
+        .find(|row| {
+            row["record"]["kind"] == "structural_subject_support"
+                && row["record"]["subject"]["kind"] == "mechanism"
+        })
+        .expect("dependent mechanism starter-support summary");
+    assert_exact_count(&mechanism_support["record"]["case_count"], "4");
+    assert_exact_count(
+        &mechanism_support["record"]["origin_preimage_support"]["distinct_starter_count"],
+        "3",
+    );
+
+    let checkpoint = first["run"]["checkpoint"].clone();
+    let identity = first["query"]["identity"].clone();
+    let closure_root = first["analysis"]["analysis_closure_set_root"].clone();
+    let resumed_output = run_explore_query(
+        &fixture,
+        "relational_stream_dependent_fibers_smoke",
+        &run_state,
+        &output_directory,
+    );
+    assert_success(&resumed_output);
+    let resumed = parse_stdout(&resumed_output);
+    assert_eq!(resumed["run"]["lifecycle"], "complete");
+    assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
+    assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
+    assert_eq!(resumed["publication"]["lines_appended"], 0);
+    assert_eq!(resumed["query"]["identity"], identity);
+    assert_eq!(resumed["run"]["checkpoint"], checkpoint);
+    assert_eq!(
+        resumed["analysis"]["analysis_closure_set_root"],
+        closure_root
+    );
 }
 
 #[test]

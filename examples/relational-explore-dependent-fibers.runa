@@ -1,0 +1,71 @@
+----
+Tiny oracle for dependent Explore source and successor fibers.
+
+The raw source producers contain duplicates. Set normalization leaves four
+canonical (Context, Before) starters. Their successor fibers have cardinality
+zero, one, two and one, respectively, after duplicate successors collapse.
+The result must therefore close with four sources, four cases, three distinct
+case-producing starters and one replay-derived mechanism.
+
+Two cases have the same numeric Before and After values but different actions
+in Context. They must retain distinct identities: the action is part of the
+starting world, not presentation metadata.
+----
+
+# RelationalFiberContext(action: Int)
+
+> relational_fiber_starters(action: Int) -> List(Int) {
+    if action == 0 { [2, 0, 1, 2] }
+    else { [2, 2] }
+}
+
+> relational_fiber_successors(
+    state: Int,
+    context: RelationalFiberContext
+) -> List(Int) {
+    if context.action == 0 {
+        if state == 0 { [] }
+        else if state == 1 { [2, 2] }
+        else { [4, 3, 4] }
+    } else {
+        [3, 3]
+    }
+}
+
+| relational_fiber_route(value: Int) -> True under value >= 0
+
+> relational_fiber_observe(
+    state: Int,
+    context: RelationalFiberContext
+) -> Bool {
+    relational_fiber_route(state)
+}
+
+? explore relational_stream_dependent_fibers_smoke {
+    from {
+        action in [1, 0, 1]
+        before in relational_fiber_starters(action)
+        context = RelationalFiberContext(action = action)
+    }
+
+    to after in relational_fiber_successors(before, context)
+
+    find all
+
+    results dependent_cases from selected {
+        each case
+        select [case_id, context, before, after]
+    }
+
+    mechanisms dependent_paths for selected from relational_fiber_observe
+
+    results dependent_mechanism_summary from mechanisms dependent_paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            raw_signatures = count_distinct(signature_id),
+            cases = count_distinct(case_id)
+        ]
+        select [mechanisms, raw_signatures, cases]
+    }
+}
