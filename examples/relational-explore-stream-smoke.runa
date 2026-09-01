@@ -1,0 +1,70 @@
+----
+Tiny nonempty oracle for the relational Explore stream.
+
+The declared relation has four transitions. Exactly two are selected, and
+both execute the same checked rule/branch path at Before and After. A correct
+run therefore closes with two concrete cases, one replay-derived mechanism,
+and one mechanism-incidence aggregate containing both cases.
+
+This fixture is intentionally small enough for pause/reopen checks. It is not
+a probe phase and it is not evidence about Personskat. Its source deliberately
+routes one finite coordinate through a derived singleton before constructing
+Before alongside an independent finite coordinate. That keeps support-plan
+journal restoration honest about transitive finite-dimension dependencies.
+----
+
+| relational_smoke_route(value: Int) -> True under value >= 0
+
+> relational_smoke_observe(state: Int, context: Unit) -> Bool {
+    relational_smoke_route(state)
+}
+
+? explore relational_stream_nonempty_smoke {
+    from {
+        axis in range(0, 2)
+        derived = axis * 2
+        offset in range(0, 2)
+        before = derived + offset
+        context = ()
+    }
+
+    to after = before + 1
+
+    where transition after == before + 1
+    find matches of before == 1 || before == 3
+
+    results selected_cases from selected {
+        each case
+        measure [increase = after - before]
+        select [case_id, context, before, after, increase]
+    }
+
+    results case_summary from selected {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+
+    mechanisms paths for selected from relational_smoke_observe
+
+    results structural_incidences from mechanisms paths {
+        each incidence
+        select [
+            case_id,
+            signature_id,
+            structural_mechanism_id,
+            execution_profile_id
+        ]
+    }
+
+    results mechanism_summary from mechanisms paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            execution_profiles = count_distinct(execution_profile_id),
+            raw_signatures = count_distinct(signature_id),
+            explained_cases = count_distinct(case_id)
+        ]
+        select [mechanisms, execution_profiles, raw_signatures, explained_cases]
+    }
+}

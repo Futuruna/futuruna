@@ -1,0 +1,236 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs - 200k.explore
+
+----
+First relational Personskat mechanism-landscape audit.
+
+Question:
+Across every admitted 100-DKK annual-salary grid transition whose starting
+salary is 0, 100, ..., 199,900 DKK and whose final edge ends at 200,000 DKK,
+for the explicitly conditioned 2026 profile inherited from the coarse cliff
+audit, which complete differential endpoint-trace signatures occur, which
+concrete edges support them, and how are they distributed over income and
+modeled net-change bins?
+
+This is deliberately a different question from the imported cliff query.
+`find all` makes this query's selected population exactly its admitted
+population, so mechanism replay covers harmless and harmful coarse edges alike.
+It does not relabel those edges as cliffs. Rejected edges remain explicit in
+the stream's admission accounting and are not replayed.
+
+Income histograms use half-open 1,000-DKK bins assigned by gross salary before
+the raise. Net-change histograms use mathematically floored half-open 50-DKK
+bins in øre, including negative changes. Every admitted 100-DKK edge and its
+configuration remains available in the raw case view. Every successfully
+replayed edge appears in the incidence views; replay-unavailable terminals are
+reported separately and prevent those views from masquerading as complete
+mechanism coverage.
+
+One signature may occur in several income or net-change bins, so per-bin
+distinct-mechanism counts are set counts and are not additive. They become
+exact for the complete admitted target only after the incidence views close
+without replay-unavailable edges. The raw case view intentionally does not
+recalculate modeled net change: the 50-DKK mechanism histogram performs that
+expensive projection once for the result that needs it.
+
+These are endpoint-trace signatures for the declared 100-DKK relation. Equal
+coarse endpoints cannot prove that a rule did not change and change back inside
+the interval. Coarse changes can nominate candidate neighborhoods for a
+separately declared finer relation; they are not coverage evidence for that
+relation without an explicit checked bridge. The imported audit's
+helper-conditioned birth date remains an explicit coverage limitation of this
+first fixed-profile system audit.
+----
+
+| personskat_200k_landscape_nettoændring_øre(
+    before: Heltal,
+    after: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> personskat_200k_audit_observation(
+    personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+    context
+).netto_øre - personskat_200k_audit_observation(
+    personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+    context
+).netto_øre
+
+| personskat_200k_landscape_bruttoløn_1000_kroner_bin_start(
+    before: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+    before,
+    context
+) / 1000 * 1000
+
+> personskat_200k_landscape_nettoændring_50_kroner_bin_start_øre(
+    before: Heltal,
+    after: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> Heltal {
+    = nettoændring_øre = personskat_200k_landscape_nettoændring_øre(
+        before,
+        after,
+        context
+    )
+    if nettoændring_øre >= 0 {
+        nettoændring_øre / 5000 * 5000
+    } else {
+        (nettoændring_øre - 4999) / 5000 * 5000
+    }
+}
+
+? explore personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026 {
+    from {
+        context = Personskat200kAuditConfiguration(
+            skatteår = 2026,
+            kommune = København,
+            betaler_kirkeskat = Falskt,
+            lønstigning_kroner = 100,
+            personfradrag_alder_status = Fyldt18EllerGift,
+            har_anden_personlig_indkomst = Falskt,
+            har_erhvervsbefordring = Falskt,
+            har_ligningsfradrag = Falskt,
+            har_pension = Falskt,
+            har_kapitalindkomst = Falskt,
+            har_aktieavance = Falskt,
+            har_udenlandske_sociale_bidrag = Falskt,
+            har_cfc_indkomst = Falskt,
+            skatteforhold = StandardSkatteforhold,
+            underskudsforhold = StandardUnderskudsforhold,
+            har_ægtefælle = Falskt,
+            har_ejendomsskatter = Falskt,
+            har_fremført_negativ_aktieskat = Falskt,
+            har_ligningslov33 = Falskt,
+            har_ligningslov33a = Falskt,
+            har_årsopgørelse = Falskt
+        )
+        before in range(0, 2000)
+    }
+
+    to after = before + 1
+
+    where before personskat_200k_audit_configuration_understøttet(context) &&
+    personskat_200k_audit_observation(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+        context
+    ).input_gyldigt
+    where after personskat_200k_audit_observation(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+        context
+    ).input_gyldigt
+
+    find all
+
+    results admitted_edges from selected {
+        each case
+        select [
+            case_id,
+            configuration = context,
+            tax_year = context.skatteår,
+            commune = context.kommune,
+            pays_church_tax = context.betaler_kirkeskat,
+            raise_kroner = context.lønstigning_kroner,
+            gross_salary_before_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                before,
+                context
+            ),
+            gross_salary_after_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                after,
+                context
+            )
+        ]
+    }
+
+    mechanisms landscape_paths for selected from personskat_200k_audit_vurder_100_kroner_trin
+
+    results differential_mechanism_incidences from mechanisms landscape_paths {
+        each incidence
+        select [
+            case_id,
+            transition_id,
+            signature_id,
+            structural_mechanism_id,
+            execution_profile_id,
+            gross_salary_before_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                before,
+                context
+            ),
+            gross_salary_after_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                after,
+                context
+            ),
+            income_bin_start_kroner = personskat_200k_landscape_bruttoløn_1000_kroner_bin_start(
+                before,
+                context
+            )
+        ]
+    }
+
+    results mechanism_summary from mechanisms landscape_paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            execution_profiles = count_distinct(execution_profile_id),
+            raw_signatures = count_distinct(signature_id),
+            explained_edges = count_distinct(case_id)
+        ]
+        select [mechanisms, execution_profiles, raw_signatures, explained_edges]
+    }
+
+    results mechanism_starter_support from mechanisms landscape_paths {
+        group by [structural_mechanism_id]
+        aggregate [
+            raw_signatures = count_distinct(signature_id),
+            starters = count_distinct((context, before)),
+            cases = count_distinct(case_id)
+        ]
+        select [structural_mechanism_id, raw_signatures, starters, cases]
+    }
+
+    results mechanism_count_by_income_bin_1000_dkk from mechanisms landscape_paths {
+        group by [
+            income_bin_start_kroner = personskat_200k_landscape_bruttoløn_1000_kroner_bin_start(
+                before,
+                context
+            )
+        ]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            raw_signatures = count_distinct(signature_id),
+            edges = count_distinct(case_id)
+        ]
+        select [income_bin_start_kroner, mechanisms, raw_signatures, edges]
+    }
+
+    results mechanism_support_by_income_bin_1000_dkk from mechanisms landscape_paths {
+        group by [
+            income_bin_start_kroner = personskat_200k_landscape_bruttoløn_1000_kroner_bin_start(
+                before,
+                context
+            ),
+            structural_mechanism_id
+        ]
+        aggregate [
+            raw_signatures = count_distinct(signature_id),
+            edges = count_distinct(case_id)
+        ]
+        select [income_bin_start_kroner, structural_mechanism_id, raw_signatures, edges]
+    }
+
+    results mechanism_count_by_net_change_bin_50_dkk from mechanisms landscape_paths {
+        group by [
+            net_change_bin_start_ore = personskat_200k_landscape_nettoændring_50_kroner_bin_start_øre(
+                before,
+                after,
+                context
+            )
+        ]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            raw_signatures = count_distinct(signature_id),
+            edges = count_distinct(case_id)
+        ]
+        select [net_change_bin_start_ore, mechanisms, raw_signatures, edges]
+    }
+}

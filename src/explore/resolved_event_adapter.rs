@@ -1272,7 +1272,9 @@ fn checked_reachable_closure(
                         &mut expanded_families,
                         &mut budget,
                     )?,
-                    CheckedCallTarget::Builtin { .. } | CheckedCallTarget::Constructor { .. } => {}
+                    CheckedCallTarget::Builtin { .. }
+                    | CheckedCallTarget::Constructor { .. }
+                    | CheckedCallTarget::BoundCallable { .. } => {}
                     CheckedCallTarget::ScopedMember {
                         rule_family: None, ..
                     } => {
@@ -3983,6 +3985,26 @@ impl AdapterContext<'_, '_> {
                     );
                 }
                 self.eval_function(&callable, values, site, expression)
+            }
+            CheckedCallTarget::BoundCallable { binder, arity, .. } => {
+                if arity != values.len() {
+                    for value in &values {
+                        self.mark_quantizers_uncertified(value);
+                    }
+                    return self.unsupported(
+                        Some((site, expression)),
+                        UnsupportedResidualKind::AdapterIncomplete,
+                        "checked bound-callable arity disagrees with canonical argument order",
+                    );
+                }
+                let callable = env.get(&binder).cloned().unwrap_or_else(|| {
+                    self.unsupported(
+                        Some((site, expression)),
+                        UnsupportedResidualKind::AdapterIncomplete,
+                        "checked bound-callable binder has no value in the specialized environment",
+                    )
+                });
+                self.apply_callable(callable, values, site, expression)
             }
             CheckedCallTarget::RuleFamily(family) => {
                 self.eval_rule_family(&family, values, &AbstractEnv::new(), site, expression)

@@ -97,19 +97,10 @@ fn main_inner() {
     let mut meta_json = false;
     let mut audit_json = false;
     let mut explore_json = false;
-    let mut explore_plan = false;
     let mut explore_query = None;
-    let mut explore_case_limit = explore::DEFAULT_EXPLORE_EXACT_CASE_LIMIT;
-    let mut explore_case_limit_explicit = false;
     let mut explore_run_state = None;
+    let mut explore_output_directory = None;
     let mut explore_max_runtime = None;
-    let mut explore_pause_after_probes = false;
-    let mut explore_finalize = false;
-    let mut explore_search_decision_dag = explore::ExploreStreamGraphRequest::Omit;
-    let mut explore_semantic_transition_graph = explore::ExploreStreamGraphRequest::Omit;
-    let mut explore_preview_json = false;
-    let mut explore_preview_query = None;
-    let mut explore_preview_limit = 10_000usize;
     let mut calculation_entry = None;
     let mut calculation_format = None;
     let mut calculation_input = None;
@@ -223,10 +214,6 @@ fn main_inner() {
                 explore_json = true;
                 i += 1;
             }
-            "--plan" if mode == "explore" => {
-                explore_plan = true;
-                i += 1;
-            }
             "--query" if mode == "explore" => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --query requires an exploration name");
@@ -242,21 +229,6 @@ fn main_inner() {
                     std::process::exit(1);
                 }
                 explore_query = Some(value.to_string());
-                i += 1;
-            }
-            "--case-limit" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --case-limit requires a positive integer");
-                    std::process::exit(1);
-                }
-                explore_case_limit = parse_positive_u128_option("--case-limit", &args[i + 1]);
-                explore_case_limit_explicit = true;
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--case-limit=") => {
-                explore_case_limit =
-                    parse_positive_u128_option("--case-limit", &arg["--case-limit=".len()..]);
-                explore_case_limit_explicit = true;
                 i += 1;
             }
             "--run-state" if mode == "explore" => {
@@ -276,6 +248,23 @@ fn main_inner() {
                 explore_run_state = Some(PathBuf::from(value));
                 i += 1;
             }
+            "--output" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].is_empty() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --output requires a result directory path");
+                    std::process::exit(1);
+                }
+                explore_output_directory = Some(PathBuf::from(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--output=") => {
+                let value = &arg["--output=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --output requires a result directory path");
+                    std::process::exit(1);
+                }
+                explore_output_directory = Some(PathBuf::from(value));
+                i += 1;
+            }
             "--time-limit" if mode == "explore" => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --time-limit requires a positive duration such as `20m`");
@@ -286,110 +275,6 @@ fn main_inner() {
             }
             arg if mode == "explore" && arg.starts_with("--time-limit=") => {
                 explore_max_runtime = Some(parse_explore_time_limit(&arg["--time-limit=".len()..]));
-                i += 1;
-            }
-            "--max-minutes" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --max-minutes requires a positive integer");
-                    std::process::exit(1);
-                }
-                explore_max_runtime = Some(parse_explore_max_minutes(&args[i + 1]));
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--max-minutes=") => {
-                explore_max_runtime =
-                    Some(parse_explore_max_minutes(&arg["--max-minutes=".len()..]));
-                i += 1;
-            }
-            "--pause-after" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --pause-after requires `probes`");
-                    std::process::exit(1);
-                }
-                explore_pause_after_probes = parse_explore_pause_after(&args[i + 1]);
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--pause-after=") => {
-                explore_pause_after_probes =
-                    parse_explore_pause_after(&arg["--pause-after=".len()..]);
-                i += 1;
-            }
-            "--finalize" if mode == "explore" => {
-                explore_finalize = true;
-                i += 1;
-            }
-            "--search-decision-dag" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --search-decision-dag requires `full`");
-                    std::process::exit(1);
-                }
-                explore_search_decision_dag =
-                    parse_explore_graph_request("--search-decision-dag", &args[i + 1]);
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--search-decision-dag=") => {
-                explore_search_decision_dag = parse_explore_graph_request(
-                    "--search-decision-dag",
-                    &arg["--search-decision-dag=".len()..],
-                );
-                i += 1;
-            }
-            "--semantic-transition-graph" if mode == "explore" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --semantic-transition-graph requires `full`");
-                    std::process::exit(1);
-                }
-                explore_semantic_transition_graph =
-                    parse_explore_graph_request("--semantic-transition-graph", &args[i + 1]);
-                i += 2;
-            }
-            arg if mode == "explore" && arg.starts_with("--semantic-transition-graph=") => {
-                explore_semantic_transition_graph = parse_explore_graph_request(
-                    "--semantic-transition-graph",
-                    &arg["--semantic-transition-graph=".len()..],
-                );
-                i += 1;
-            }
-            "--json" if mode == "__explore-preview" => {
-                explore_preview_json = true;
-                i += 1;
-            }
-            "--query" if mode == "__explore-preview" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --query requires an exploration name");
-                    std::process::exit(1);
-                }
-                explore_preview_query = Some(args[i + 1].clone());
-                i += 2;
-            }
-            arg if mode == "__explore-preview" && arg.starts_with("--query=") => {
-                let value = &arg["--query=".len()..];
-                if value.is_empty() {
-                    eprintln!("error: --query requires an exploration name");
-                    std::process::exit(1);
-                }
-                explore_preview_query = Some(value.to_string());
-                i += 1;
-            }
-            "--limit" if mode == "__explore-preview" => {
-                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    eprintln!("error: --limit requires a positive integer");
-                    std::process::exit(1);
-                }
-                explore_preview_limit = args[i + 1].parse::<usize>().unwrap_or_else(|_| {
-                    eprintln!("error: --limit requires a positive integer");
-                    std::process::exit(1);
-                });
-                i += 2;
-            }
-            arg if mode == "__explore-preview" && arg.starts_with("--limit=") => {
-                explore_preview_limit =
-                    arg["--limit=".len()..]
-                        .parse::<usize>()
-                        .unwrap_or_else(|_| {
-                            eprintln!("error: --limit requires a positive integer");
-                            std::process::exit(1);
-                        });
                 i += 1;
             }
             "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
@@ -573,7 +458,7 @@ fn main_inner() {
                 );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
-                eprintln!("  explore       Plan or execute one bounded exact-finite exploration");
+                eprintln!("  explore       Create or resume one durable relational exploration");
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
@@ -600,31 +485,15 @@ fn main_inner() {
                 eprintln!("  --entry NAME       Select an @ calculate entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  explore --query NAME  Select one named exploration");
-                eprintln!("  explore --plan        Show search cost without evaluating any case");
+                eprintln!("  explore --run-state PATH  Required durable journal directory");
                 eprintln!(
-                    "  explore --case-limit N  Cap work (execution: PARTIAL suffix; plan: cost estimate)"
+                    "  explore --output PATH  Materialize resumable manifest and NDJSON results"
                 );
                 eprintln!(
-                    "  explore --run-state PATH  Create or resume a durable observable exploration (macOS preview)"
+                    "  explore --time-limit DURATION  Cap one observable epoch after a positive s/m/h duration"
                 );
                 eprintln!(
-                    "  explore --time-limit DURATION  Pause one stream slice after a positive s/m/h duration"
-                );
-                eprintln!("  explore --pause-after probes  Pause at the durable probe milestone");
-                eprintln!(
-                    "  explore --search-decision-dag full  Request all-or-none search decision DAG publication"
-                );
-                eprintln!(
-                    "  explore --semantic-transition-graph full  Request all-or-none semantic transition graph publication"
-                );
-                eprintln!(
-                    "  explore --finalize    With --run-state and a time limit, opt in to bounded atomic-v1 terminal sealing"
-                );
-                eprintln!(
-                    "  explore --json        On durable --run-state runs, emit a typed receipt with the canonical artifact embedded losslessly"
-                );
-                eprintln!(
-                    "  explore --max-minutes N  Compatibility alias for a whole-minute time limit"
+                    "  explore --json        Emit the compact checkpoint, coverage, counts, and layer statuses"
                 );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
                 eprintln!("  --input PATH       Read calculation cases");
@@ -661,10 +530,18 @@ fn main_inner() {
                 );
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
-                eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
-                eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
-                eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call");
+                eprintln!(
+                    "  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust"
+                );
+                eprintln!(
+                    "  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,"
+                );
+                eprintln!(
+                    "    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
+                );
+                eprintln!(
+                    "  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call"
+                );
                 eprintln!("  Experimental: audit, explore");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
@@ -679,9 +556,15 @@ fn main_inner() {
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
                 eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
-                eprintln!("  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx");
-                eprintln!("  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx");
-                eprintln!("  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx");
+                eprintln!(
+                    "  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx"
+                );
+                eprintln!(
+                    "  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx"
+                );
+                eprintln!(
+                    "  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx"
+                );
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -699,22 +582,10 @@ fn main_inner() {
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
                 eprintln!("  runa audit model.calculate.runa --entry calculate_tax --json");
                 eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --case-limit 100000"
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --output /private/income-cliffs.result --time-limit 20m --json"
                 );
                 eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --plan --case-limit 100000"
-                );
-                eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --pause-after probes"
-                );
-                eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --json"
-                );
-                eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --semantic-transition-graph full --json"
-                );
-                eprintln!(
-                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --time-limit 20m --finalize --json"
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run"
                 );
                 std::process::exit(0);
             }
@@ -824,10 +695,6 @@ fn main_inner() {
             }
             "explore" => {
                 mode = "explore";
-                i += 1;
-            }
-            "__explore-preview" => {
-                mode = "__explore-preview";
                 i += 1;
             }
             "from-rust" => {
@@ -1040,66 +907,19 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] [--plan] [--case-limit N] [--run-state PATH] [--time-limit DURATION|--max-minutes N] [--pause-after probes] [--search-decision-dag full] [--semantic-transition-graph full] [--finalize] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--output PATH] [--time-limit DURATION] [--json]"
         );
         std::process::exit(1);
     }
 
-    if mode == "explore" {
-        let has_stream_control = explore_max_runtime.is_some() || explore_pause_after_probes;
-        if has_stream_control && explore_run_state.is_none() {
-            eprintln!(
-                "error: --time-limit/--max-minutes and --pause-after require a durable --run-state path"
-            );
-            std::process::exit(1);
-        }
-        if explore_finalize && explore_run_state.is_none() {
-            eprintln!("error: --finalize requires a durable --run-state path");
-            std::process::exit(1);
-        }
-        for (flag, request) in [
-            ("--search-decision-dag", explore_search_decision_dag),
-            (
-                "--semantic-transition-graph",
-                explore_semantic_transition_graph,
-            ),
-        ] {
-            if request == explore::ExploreStreamGraphRequest::Full && explore_run_state.is_none() {
-                eprintln!("error: {flag} full requires a durable --run-state path");
-                std::process::exit(1);
-            }
-        }
-        if explore_finalize && explore_pause_after_probes {
-            eprintln!("error: --finalize cannot be combined with --pause-after probes");
-            std::process::exit(1);
-        }
-        if explore_finalize && explore_max_runtime.is_none() {
-            eprintln!("error: --finalize requires --time-limit DURATION or --max-minutes N");
-            std::process::exit(1);
-        }
-        if explore_run_state.is_some() {
-            if explore_plan {
-                eprintln!("error: --run-state cannot be combined with --plan");
-                std::process::exit(1);
-            }
-            if explore_case_limit_explicit {
-                eprintln!(
-                    "error: --run-state cannot be combined with the one-shot --case-limit option"
-                );
-                std::process::exit(1);
-            }
-            if !has_stream_control {
-                eprintln!(
-                    "error: --run-state requires --time-limit DURATION or --pause-after probes"
-                );
-                std::process::exit(1);
-            }
-        }
+    if mode == "explore" && explore_run_state.is_none() {
+        eprintln!("error: relational exploration requires a durable --run-state path");
+        std::process::exit(1);
     }
 
     // Durable exploration is always re-executed in an isolated process group.
     // The child alone owns the run-state fence; the parent can therefore stop
-    // an unexpectedly large atomic probe/case unit without minting partial
+    // an unexpectedly large atomic semantic work unit without minting partial
     // evidence or corrupting the last committed cursor.
     if mode == "explore"
         && explore_run_state.is_some()
@@ -1110,7 +930,11 @@ fn main_inner() {
             &child_arguments,
             explore_max_runtime,
         ) {
-            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Exited(status)) => {
+            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Exited {
+                status,
+                operational,
+            }) => {
+                print_explore_supervisor_operational_report(operational);
                 if status.success() {
                     return;
                 }
@@ -1125,8 +949,9 @@ fn main_inner() {
                 }
             }
             Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Contained(report)) => {
+                print_explore_supervisor_operational_report(report.operational);
                 eprintln!(
-                    "error: durable Explore containment stopped the child at the {} guard; no uncommitted evidence was accepted",
+                    "error: durable Explore containment stopped the child because of {}; no uncommitted evidence was accepted",
                     report.reason
                 );
                 if let Some(observed) = report.observed_group_rss_bytes {
@@ -1196,7 +1021,7 @@ fn main_inner() {
                 }
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
-                "explore" if explore_run_state.is_some() => run_exact_explore_stream(
+                "explore" => run_relational_explore_stream(
                     &source,
                     path,
                     use_prelude,
@@ -1205,35 +1030,8 @@ fn main_inner() {
                     explore_run_state
                         .as_deref()
                         .expect("stream dispatch requires --run-state"),
+                    explore_output_directory.as_deref(),
                     explore_max_runtime,
-                    explore_pause_after_probes,
-                    explore_search_decision_dag,
-                    explore_semantic_transition_graph,
-                    explore_finalize,
-                ),
-                "explore" if explore_plan => run_explore_cost_plan(
-                    &source,
-                    path,
-                    use_prelude,
-                    explore_query.as_deref(),
-                    explore_json,
-                    explore_case_limit,
-                ),
-                "explore" => run_exact_explore(
-                    &source,
-                    path,
-                    use_prelude,
-                    explore_query.as_deref(),
-                    explore_json,
-                    explore_case_limit,
-                ),
-                "__explore-preview" => run_explore_preview(
-                    &source,
-                    path,
-                    use_prelude,
-                    explore_preview_query.as_deref(),
-                    explore_preview_json,
-                    explore_preview_limit,
                 ),
                 _ => run_source(&source, path, use_prelude),
             },
@@ -1246,6 +1044,23 @@ fn main_inner() {
         // REPL mode
         run_repl();
     }
+}
+
+fn print_explore_supervisor_operational_report(
+    report: runa_explore_supervisor::ExactStreamOperationalReport,
+) {
+    if report.host_cpu_pause_count == 0 {
+        return;
+    }
+    eprintln!(
+        "  host CPU pacing: {} pause(s), {:.3}s paused, peak {}.{:02}%, final debt {} and quantization credit {} tick-percent units",
+        report.host_cpu_pause_count,
+        report.host_cpu_paused_duration.as_secs_f64(),
+        report.maximum_observed_host_cpu_hundredths_percent / 100,
+        report.maximum_observed_host_cpu_hundredths_percent % 100,
+        report.final_host_cpu_debt_tick_percent,
+        report.final_host_cpu_quantization_credit_tick_percent,
+    );
 }
 
 const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
@@ -5410,7 +5225,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match rustc {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!("\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)");
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            );
                             eprintln!("  Source: {}", filename);
                             eprintln!("  Generated: {}", rs_path);
                             eprintln!();
@@ -5510,7 +5327,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match cargo {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!("\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)");
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            );
                             eprintln!("  Source: {}", filename);
                             eprintln!("  Generated: {}/src/main.rs", build_dir);
                             eprintln!();
@@ -6373,6 +6192,2010 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
         }
     }
 }
+
+fn relational_explore_count_json(count: explore::ExploreStreamCount) -> serde_json::Value {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => serde_json::json!({
+            "status": "unknown",
+            "confirmed_lower_bound": confirmed_lower_bound.to_string(),
+        }),
+        explore::ExploreStreamCount::LowerBound(value) => serde_json::json!({
+            "status": "lower_bound",
+            "value": value.to_string(),
+        }),
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => serde_json::json!({
+            "status": "interval",
+            "lower_bound": lower_bound.to_string(),
+            "upper_bound": upper_bound.to_string(),
+        }),
+        explore::ExploreStreamCount::Exact(value) => serde_json::json!({
+            "status": "exact",
+            "value": value.to_string(),
+        }),
+    }
+}
+
+fn relational_explore_count_text(count: explore::ExploreStreamCount) -> String {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        } => "unknown".to_string(),
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => format!("unknown (confirmed >= {confirmed_lower_bound})"),
+        explore::ExploreStreamCount::LowerBound(value) => format!(">= {value}"),
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => format!("[{lower_bound}, {upper_bound}]"),
+        explore::ExploreStreamCount::Exact(value) => value.to_string(),
+    }
+}
+
+fn relational_explore_lifecycle_name(lifecycle: explore::ExploreStreamLifecycle) -> &'static str {
+    match lifecycle {
+        explore::ExploreStreamLifecycle::Paused => "paused",
+        explore::ExploreStreamLifecycle::Complete => "complete",
+    }
+}
+
+fn relational_explore_layer_status_name(status: explore::ExploreStreamLayerStatus) -> &'static str {
+    match status {
+        explore::ExploreStreamLayerStatus::ResultUnregistered => "result_unregistered",
+        explore::ExploreStreamLayerStatus::ResultInputOpen => "result_input_open",
+        explore::ExploreStreamLayerStatus::ResultAwaitingPublication => {
+            "result_awaiting_publication"
+        }
+        explore::ExploreStreamLayerStatus::ResultPublished => "result_published",
+        explore::ExploreStreamLayerStatus::MechanismUnregistered => "mechanism_unregistered",
+        explore::ExploreStreamLayerStatus::MechanismTargetOpen => "mechanism_target_open",
+        explore::ExploreStreamLayerStatus::MechanismTerminalOpen => "mechanism_terminal_open",
+        explore::ExploreStreamLayerStatus::MechanismClosed => "mechanism_closed",
+    }
+}
+
+fn relational_explore_mechanism_target_json(
+    target: &explore::ExploreStreamMechanismTarget,
+) -> serde_json::Value {
+    match target {
+        explore::ExploreStreamMechanismTarget::Selected => serde_json::json!({
+            "kind": "selected",
+        }),
+        explore::ExploreStreamMechanismTarget::ChosenView { view_id } => serde_json::json!({
+            "kind": "chosen_view",
+            "view_id": view_id,
+        }),
+    }
+}
+
+fn relational_explore_mechanism_target_text(
+    target: &explore::ExploreStreamMechanismTarget,
+) -> String {
+    match target {
+        explore::ExploreStreamMechanismTarget::Selected => "selected cases".to_string(),
+        explore::ExploreStreamMechanismTarget::ChosenView { view_id } => {
+            format!("chosen view {view_id}")
+        }
+    }
+}
+
+fn relational_explore_coverage_root_role_name(
+    role: explore::ExploreStreamCoverageRootRole,
+) -> &'static str {
+    match role {
+        explore::ExploreStreamCoverageRootRole::Context => "context",
+        explore::ExploreStreamCoverageRootRole::Before => "before",
+    }
+}
+
+fn relational_explore_coverage_binding_role_name(
+    role: explore::ExploreStreamCoverageBindingRole,
+) -> &'static str {
+    match role {
+        explore::ExploreStreamCoverageBindingRole::Auxiliary => "auxiliary",
+        explore::ExploreStreamCoverageBindingRole::Context => "context",
+        explore::ExploreStreamCoverageBindingRole::Before => "before",
+    }
+}
+
+fn relational_explore_coverage_literal_kind_name(
+    kind: explore::ExploreStreamCoverageLiteralKind,
+) -> &'static str {
+    match kind {
+        explore::ExploreStreamCoverageLiteralKind::Integer => "integer",
+        explore::ExploreStreamCoverageLiteralKind::FloatBits => "float_bits",
+        explore::ExploreStreamCoverageLiteralKind::String => "string",
+        explore::ExploreStreamCoverageLiteralKind::Character => "character",
+        explore::ExploreStreamCoverageLiteralKind::Boolean => "boolean",
+        explore::ExploreStreamCoverageLiteralKind::Unit => "unit",
+    }
+}
+
+fn relational_explore_coverage_gap_reason_name(
+    reason: explore::ExploreStreamCoverageGapReason,
+) -> &'static str {
+    match reason {
+        explore::ExploreStreamCoverageGapReason::SchemaNotDeclaredRecord => {
+            "schema_not_declared_record"
+        }
+        explore::ExploreStreamCoverageGapReason::SchemaCompositionUnavailable => {
+            "schema_composition_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::InterproceduralFieldProvenance => {
+            "interprocedural_field_provenance"
+        }
+        explore::ExploreStreamCoverageGapReason::ConstructorFieldMappingUnavailable => {
+            "constructor_field_mapping_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::ConstructorChoiceProvenanceUnavailable => {
+            "constructor_choice_provenance_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::UpstreamCoverageGap => "upstream_coverage_gap",
+    }
+}
+
+fn relational_explore_coverage_subject_text(
+    subject: &explore::ExploreStreamCoverageSubject,
+) -> String {
+    match subject {
+        explore::ExploreStreamCoverageSubject::SourceBinding {
+            binding_index,
+            binding_name,
+            role,
+        } => format!(
+            "source binding `{binding_name}` (index {binding_index}, {})",
+            relational_explore_coverage_binding_role_name(*role)
+        ),
+        explore::ExploreStreamCoverageSubject::SchemaRoot { role, type_name } => format!(
+            "{} schema root `{type_name}`",
+            relational_explore_coverage_root_role_name(*role)
+        ),
+        explore::ExploreStreamCoverageSubject::SchemaField {
+            role,
+            variant_index,
+            field_index,
+            variant_name,
+            field_name,
+        } => format!(
+            "{} field `{variant_name}.{field_name}` (variant {variant_index}, field {field_index})",
+            relational_explore_coverage_root_role_name(*role)
+        ),
+        explore::ExploreStreamCoverageSubject::Literal { kind, value } => format!(
+            "{} literal `{value}`",
+            relational_explore_coverage_literal_kind_name(*kind)
+        ),
+        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses } => {
+            format!("top-level constant `{}`", addresses.join("`, `"))
+        }
+        explore::ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_name,
+            variant_name,
+            variant_index,
+        } => format!("constructor `{owner_name}.{variant_name}` (variant {variant_index})"),
+    }
+}
+
+fn relational_explore_coverage_classification_text(
+    classification: &explore::ExploreStreamCoverageClassification,
+) -> String {
+    match classification {
+        explore::ExploreStreamCoverageClassification::VariedFiniteDimension { dimension_id } => {
+            format!("varied finite dimension {dimension_id}")
+        }
+        explore::ExploreStreamCoverageClassification::DerivedFromDeclaredDimensions {
+            dimension_ids,
+        } => format!("derived from dimensions {}", dimension_ids.join(", ")),
+        explore::ExploreStreamCoverageClassification::ConditionedSingletonOrSourceRestriction => {
+            "conditioned singleton or source restriction".to_string()
+        }
+        explore::ExploreStreamCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest,
+        } => format!("proven irrelevant ({certificate_digest})"),
+        explore::ExploreStreamCoverageClassification::CoverageGap { reason } => format!(
+            "COVERAGE GAP ({})",
+            relational_explore_coverage_gap_reason_name(*reason)
+        ),
+    }
+}
+
+fn relational_explore_coverage_subject_json(
+    subject: &explore::ExploreStreamCoverageSubject,
+) -> serde_json::Value {
+    match subject {
+        explore::ExploreStreamCoverageSubject::SourceBinding {
+            binding_index,
+            binding_name,
+            role,
+        } => serde_json::json!({
+            "kind": "source_binding",
+            "binding_index": binding_index,
+            "binding_name": binding_name,
+            "role": relational_explore_coverage_binding_role_name(*role),
+        }),
+        explore::ExploreStreamCoverageSubject::SchemaRoot { role, type_name } => {
+            serde_json::json!({
+                "kind": "schema_root",
+                "role": relational_explore_coverage_root_role_name(*role),
+                "type_name": type_name,
+            })
+        }
+        explore::ExploreStreamCoverageSubject::SchemaField {
+            role,
+            variant_index,
+            field_index,
+            variant_name,
+            field_name,
+        } => serde_json::json!({
+            "kind": "schema_field",
+            "role": relational_explore_coverage_root_role_name(*role),
+            "variant_index": variant_index,
+            "field_index": field_index,
+            "variant_name": variant_name,
+            "field_name": field_name,
+        }),
+        explore::ExploreStreamCoverageSubject::Literal { kind, value } => serde_json::json!({
+            "kind": "literal",
+            "literal_kind": relational_explore_coverage_literal_kind_name(*kind),
+            "value": value,
+        }),
+        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses } => {
+            serde_json::json!({
+                "kind": "top_level_constant",
+                "addresses": addresses,
+            })
+        }
+        explore::ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_name,
+            variant_name,
+            variant_index,
+        } => serde_json::json!({
+            "kind": "constructor_choice",
+            "owner_name": owner_name,
+            "variant_name": variant_name,
+            "variant_index": variant_index,
+        }),
+    }
+}
+
+fn relational_explore_coverage_classification_json(
+    classification: &explore::ExploreStreamCoverageClassification,
+) -> serde_json::Value {
+    match classification {
+        explore::ExploreStreamCoverageClassification::VariedFiniteDimension { dimension_id } => {
+            serde_json::json!({
+                "kind": "varied_finite_dimension",
+                "dimension_id": dimension_id,
+            })
+        }
+        explore::ExploreStreamCoverageClassification::DerivedFromDeclaredDimensions {
+            dimension_ids,
+        } => serde_json::json!({
+            "kind": "derived_from_declared_dimensions",
+            "dimension_ids": dimension_ids,
+        }),
+        explore::ExploreStreamCoverageClassification::ConditionedSingletonOrSourceRestriction => {
+            serde_json::json!({ "kind": "conditioned_singleton_or_source_restriction" })
+        }
+        explore::ExploreStreamCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest,
+        } => serde_json::json!({
+            "kind": "exact_irrelevance_certificate",
+            "certificate_digest": certificate_digest,
+        }),
+        explore::ExploreStreamCoverageClassification::CoverageGap { reason } => {
+            serde_json::json!({
+                "kind": "coverage_gap",
+                "reason": relational_explore_coverage_gap_reason_name(*reason),
+            })
+        }
+    }
+}
+
+fn relational_explore_coverage_entry_json(
+    entry: &explore::ExploreStreamCoverageEntry,
+) -> serde_json::Value {
+    serde_json::json!({
+        "subject_id": entry.subject_id,
+        "subject": relational_explore_coverage_subject_json(&entry.subject),
+        "subject_description": relational_explore_coverage_subject_text(&entry.subject),
+        "classification": relational_explore_coverage_classification_json(&entry.classification),
+        "classification_description": relational_explore_coverage_classification_text(&entry.classification),
+    })
+}
+
+fn relational_explore_pause_text(reason: &explore::ExploreStreamPauseReason) -> String {
+    match reason {
+        explore::ExploreStreamPauseReason::RuntimeLimit => {
+            "invocation time limit reached".to_string()
+        }
+        explore::ExploreStreamPauseReason::ResourceAdmission { code } => {
+            format!("resource admission paused ({code})")
+        }
+        explore::ExploreStreamPauseReason::MechanismReplay {
+            request_id,
+            case_id,
+            endpoint,
+            reason,
+        } => format!(
+            "mechanism replay paused for request {request_id}, case {case_id}, {endpoint} ({reason})"
+        ),
+        explore::ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+            request_id,
+            view_id,
+        } => {
+            format!("mechanism request {request_id} is waiting for chosen rows from view {view_id}")
+        }
+        explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => {
+            format!("result view {view_id} is waiting for source materialization")
+        }
+        explore::ExploreStreamPauseReason::AwaitingMechanismIncidenceResult {
+            view_id,
+            request_id,
+        } => format!("result view {view_id} is waiting for mechanism request {request_id}"),
+    }
+}
+
+fn relational_explore_pause_json(reason: &explore::ExploreStreamPauseReason) -> serde_json::Value {
+    match reason {
+        explore::ExploreStreamPauseReason::RuntimeLimit => {
+            serde_json::json!({ "kind": "runtime_limit" })
+        }
+        explore::ExploreStreamPauseReason::ResourceAdmission { code } => serde_json::json!({
+            "kind": "resource_admission",
+            "code": code,
+        }),
+        explore::ExploreStreamPauseReason::MechanismReplay {
+            request_id,
+            case_id,
+            endpoint,
+            reason,
+        } => serde_json::json!({
+            "kind": "mechanism_replay",
+            "request_id": request_id,
+            "case_id": case_id,
+            "endpoint": endpoint,
+            "reason": reason,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+            request_id,
+            view_id,
+        } => serde_json::json!({
+            "kind": "awaiting_chosen_view_mechanisms",
+            "request_id": request_id,
+            "view_id": view_id,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => serde_json::json!({
+            "kind": "awaiting_source_result",
+            "view_id": view_id,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingMechanismIncidenceResult {
+            view_id,
+            request_id,
+        } => serde_json::json!({
+            "kind": "awaiting_mechanism_incidence_result",
+            "view_id": view_id,
+            "request_id": request_id,
+        }),
+    }
+}
+
+fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_json::Value {
+    match layer {
+        explore::ExploreStreamLayer::Result(result) => serde_json::json!({
+            "kind": "result",
+            "name": result.name,
+            "view_id": result.view_id,
+            "status": relational_explore_layer_status_name(result.status),
+            "counts": {
+                "input_rows": relational_explore_count_json(result.input_rows),
+                "projection_records": relational_explore_count_json(result.projection_records),
+                "projection_records_appended": result.projection_records_appended.to_string(),
+            },
+        }),
+        explore::ExploreStreamLayer::Mechanisms(mechanism) => serde_json::json!({
+            "kind": "mechanisms",
+            "name": mechanism.name,
+            "request_id": mechanism.request_id,
+            "target": relational_explore_mechanism_target_json(&mechanism.target),
+            "status": relational_explore_layer_status_name(mechanism.status),
+            "counts": {
+                "target_cases": relational_explore_count_json(mechanism.target_cases),
+                "terminal_cases": relational_explore_count_json(mechanism.terminal_cases),
+                "incidence_cases": relational_explore_count_json(mechanism.incidence_cases),
+                "unavailable_cases": relational_explore_count_json(mechanism.unavailable_cases),
+                "raw_signatures": relational_explore_count_json(mechanism.raw_signatures),
+                "structural_assignments": relational_explore_count_json(mechanism.structural_assignments),
+                "structural_mechanisms": relational_explore_count_json(mechanism.structural_mechanisms),
+                "execution_profiles": relational_explore_count_json(mechanism.execution_profiles),
+            },
+            "raw_closure_root": mechanism.raw_closure_root,
+            "structural_closure_root": mechanism.structural_closure_root,
+            "support_closure_root": mechanism.support_closure_root,
+            "support_closure_totals": mechanism.support_closure_totals.map(|totals| serde_json::json!({
+                "target_cases": totals.target_cases.to_string(),
+                "successful_cases": totals.successful_cases.to_string(),
+                "unavailable_cases": totals.unavailable_cases.to_string(),
+                "signature_fibers": totals.signature_fibers.to_string(),
+                "target_starters": totals.target_starters.to_string(),
+            })),
+        }),
+    }
+}
+
+fn relational_explore_report_json(
+    report: &explore::ExploreStreamSliceReport,
+    run_state: &Path,
+) -> serde_json::Value {
+    serde_json::json!({
+        "schema": "futuruna.explore.relational-stream.v3",
+        "schema_version": report.schema_version,
+        "query": {
+            "name": report.query_name,
+            "identity": {
+                "checked_program": report.identity.checked_program,
+                "relation_id": report.identity.relation_id,
+                "admission_id": report.identity.admission_id,
+                "question_id": report.identity.question_id,
+                "analysis_graph_digest": report.identity.analysis_graph_digest,
+                "journal_id": report.identity.journal_id,
+            },
+        },
+        "source_coverage": {
+            "version": report.source_coverage.version,
+            "manifest_digest": report.source_coverage.manifest_digest,
+            "semantic_dependency_digest": report.source_coverage.semantic_dependency_digest,
+            "has_gaps": report.source_coverage.has_gaps,
+            "entry_count": report.source_coverage.entries.len(),
+            "entries": report
+                .source_coverage
+                .entries
+                .iter()
+                .map(relational_explore_coverage_entry_json)
+                .collect::<Vec<_>>(),
+        },
+        "run": {
+            "state_directory": run_state.display().to_string(),
+            "lifecycle": relational_explore_lifecycle_name(report.lifecycle),
+            "pause_reason": report.pause_reason.as_ref().map(relational_explore_pause_json),
+            "checkpoint": {
+                "next_sequence": report.checkpoint.next_sequence,
+                "journal_head": report.checkpoint.journal_head,
+                "durable_segment_count": report.checkpoint.durable_segment_count,
+            },
+            "appended": {
+                "semantic_batches": report.semantic_batches_appended,
+                "semantic_events": report.semantic_events_appended,
+            },
+            "observer_memo": {
+                "enabled": report.observer_memo.enabled,
+                "hits": report.observer_memo.hits,
+                "misses": report.observer_memo.misses,
+                "inserts": report.observer_memo.inserts,
+                "evictions": report.observer_memo.evictions,
+                "entries": report.observer_memo.entries,
+                "retained_canonical_bytes": report.observer_memo.retained_canonical_bytes,
+            },
+        },
+        "coverage": {
+            "relation_closed": report.relation_closed,
+            "find_closed": report.find_closed,
+            "analysis_closed": report.analysis_closed,
+        },
+        "counts": {
+            "sources": relational_explore_count_json(report.counts.sources),
+            "cases": relational_explore_count_json(report.counts.cases),
+            "admission_classified": relational_explore_count_json(report.counts.admission_classified),
+            "admitted": relational_explore_count_json(report.counts.admitted),
+            "rejected": relational_explore_count_json(report.counts.rejected),
+            "find_classified": relational_explore_count_json(report.counts.find_classified),
+            "selected": relational_explore_count_json(report.counts.selected),
+            "not_selected": relational_explore_count_json(report.counts.not_selected),
+        },
+        "analysis": {
+            "scope_root": report.analysis_scope_root,
+            "terminal_root": report.analysis_terminal_root,
+            "analysis_closure_set_root": report.analysis_closure_set_root,
+            "layers": report.layers.iter().map(relational_explore_layer_json).collect::<Vec<_>>(),
+        },
+        "publication": report.publication.as_ref().map(|publication| serde_json::json!({
+            "output_directory": publication.output_directory.display().to_string(),
+            "manifest_path": publication.manifest_path.display().to_string(),
+            "lines_appended": publication.lines_appended,
+            "source_ordinals_advanced": publication.source_ordinals_advanced,
+            "artifacts_caught_up": publication.artifacts_caught_up,
+            "artifact_count": publication.artifact_count,
+            "caught_up": publication.is_caught_up(),
+        })),
+    })
+}
+
+fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, run_state: &Path) {
+    println!(
+        "Explore `{}`: {}",
+        report.query_name,
+        relational_explore_lifecycle_name(report.lifecycle).to_uppercase()
+    );
+    println!("  run state: {}", run_state.display());
+    if let Some(publication) = &report.publication {
+        println!(
+            "  results: {} ({} of {} artifacts caught up; +{} line{} this invocation)",
+            publication.manifest_path.display(),
+            publication.artifacts_caught_up,
+            publication.artifact_count,
+            publication.lines_appended,
+            if publication.lines_appended == 1 {
+                ""
+            } else {
+                "s"
+            },
+        );
+    }
+    if let Some(reason) = &report.pause_reason {
+        println!("  pause: {}", relational_explore_pause_text(reason));
+    }
+    println!(
+        "  checkpoint: sequence {}, head {}, {} durable segment{}",
+        report.checkpoint.next_sequence,
+        report.checkpoint.journal_head,
+        report.checkpoint.durable_segment_count,
+        if report.checkpoint.durable_segment_count == 1 {
+            ""
+        } else {
+            "s"
+        }
+    );
+    println!(
+        "  coverage: relation {}, find {}, analysis {}",
+        if report.relation_closed {
+            "closed"
+        } else {
+            "open"
+        },
+        if report.find_closed { "closed" } else { "open" },
+        if report.analysis_closed {
+            "closed"
+        } else {
+            "open"
+        },
+    );
+    println!(
+        "  appended this invocation: {} semantic batch{}, {} event{}",
+        report.semantic_batches_appended,
+        if report.semantic_batches_appended == 1 {
+            ""
+        } else {
+            "es"
+        },
+        report.semantic_events_appended,
+        if report.semantic_events_appended == 1 {
+            ""
+        } else {
+            "s"
+        },
+    );
+    println!(
+        "  observer memo: {} ({} hit{}, {} miss{}, {} entr{}, {} retained byte{})",
+        if report.observer_memo.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        },
+        report.observer_memo.hits,
+        if report.observer_memo.hits == 1 {
+            ""
+        } else {
+            "s"
+        },
+        report.observer_memo.misses,
+        if report.observer_memo.misses == 1 {
+            ""
+        } else {
+            "es"
+        },
+        report.observer_memo.entries,
+        if report.observer_memo.entries == 1 {
+            "y"
+        } else {
+            "ies"
+        },
+        report.observer_memo.retained_canonical_bytes,
+        if report.observer_memo.retained_canonical_bytes == 1 {
+            ""
+        } else {
+            "s"
+        },
+    );
+    println!(
+        "Source coverage: {} ({} entries, manifest {})",
+        if report.source_coverage.has_gaps {
+            "HAS GAPS"
+        } else {
+            "no gaps"
+        },
+        report.source_coverage.entries.len(),
+        report.source_coverage.manifest_digest,
+    );
+    for entry in &report.source_coverage.entries {
+        println!(
+            "  {}: {}",
+            relational_explore_coverage_subject_text(&entry.subject),
+            relational_explore_coverage_classification_text(&entry.classification),
+        );
+    }
+    println!("Counts:");
+    for (name, count) in [
+        ("sources", report.counts.sources),
+        ("cases", report.counts.cases),
+        ("admission classified", report.counts.admission_classified),
+        ("admitted", report.counts.admitted),
+        ("rejected", report.counts.rejected),
+        ("find classified", report.counts.find_classified),
+        ("selected", report.counts.selected),
+        ("not selected", report.counts.not_selected),
+    ] {
+        println!("  {name}: {}", relational_explore_count_text(count));
+    }
+    println!("Analysis layers:");
+    if report.layers.is_empty() {
+        println!("  (none)");
+    }
+    for layer in &report.layers {
+        match layer {
+            explore::ExploreStreamLayer::Result(result) => println!(
+                "  result `{}` [{}]: inputs {}, projection records {} (+{} this invocation)",
+                result.name,
+                relational_explore_layer_status_name(result.status),
+                relational_explore_count_text(result.input_rows),
+                relational_explore_count_text(result.projection_records),
+                result.projection_records_appended,
+            ),
+            explore::ExploreStreamLayer::Mechanisms(mechanism) => {
+                println!(
+                    "  mechanisms `{}` [{}], target {}:",
+                    mechanism.name,
+                    relational_explore_layer_status_name(mechanism.status),
+                    relational_explore_mechanism_target_text(&mechanism.target),
+                );
+                println!(
+                    "    raw: targets {}, terminals {}, incidence {}, unavailable {}, signatures {}",
+                    relational_explore_count_text(mechanism.target_cases),
+                    relational_explore_count_text(mechanism.terminal_cases),
+                    relational_explore_count_text(mechanism.incidence_cases),
+                    relational_explore_count_text(mechanism.unavailable_cases),
+                    relational_explore_count_text(mechanism.raw_signatures),
+                );
+                println!(
+                    "    structural: assignments {}, mechanisms {}, execution profiles {}",
+                    relational_explore_count_text(mechanism.structural_assignments),
+                    relational_explore_count_text(mechanism.structural_mechanisms),
+                    relational_explore_count_text(mechanism.execution_profiles),
+                );
+                if mechanism.raw_closure_root.is_some()
+                    || mechanism.structural_closure_root.is_some()
+                    || mechanism.support_closure_root.is_some()
+                {
+                    println!(
+                        "    closure roots: raw {}, structural {}, support {}",
+                        mechanism.raw_closure_root.as_deref().unwrap_or("open"),
+                        mechanism
+                            .structural_closure_root
+                            .as_deref()
+                            .unwrap_or("open"),
+                        mechanism.support_closure_root.as_deref().unwrap_or("open"),
+                    );
+                }
+                if let Some(totals) = mechanism.support_closure_totals {
+                    println!(
+                        "    support closure: {} targets = {} successful + {} unavailable; {} signature fibers; {} starters in the sealed target projection",
+                        totals.target_cases,
+                        totals.successful_cases,
+                        totals.unavailable_cases,
+                        totals.signature_fibers,
+                        totals.target_starters,
+                    );
+                }
+            }
+        }
+    }
+    if report.analysis_scope_root.is_some()
+        || report.analysis_terminal_root.is_some()
+        || report.analysis_closure_set_root.is_some()
+    {
+        println!("Analysis roots:");
+        println!(
+            "  scope: {}",
+            report.analysis_scope_root.as_deref().unwrap_or("open")
+        );
+        println!(
+            "  terminal: {}",
+            report.analysis_terminal_root.as_deref().unwrap_or("open")
+        );
+        println!(
+            "  closure set: {}",
+            report
+                .analysis_closure_set_root
+                .as_deref()
+                .unwrap_or("open")
+        );
+    }
+    println!("Identity:");
+    println!("  checked program: {}", report.identity.checked_program);
+    println!("  relation: {}", report.identity.relation_id);
+    println!("  admission: {}", report.identity.admission_id);
+    println!("  question: {}", report.identity.question_id);
+    println!(
+        "  analysis graph: {}",
+        report.identity.analysis_graph_digest
+    );
+    println!("  journal: {}", report.identity.journal_id);
+}
+
+fn run_relational_explore_stream(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    run_state: &Path,
+    output_directory: Option<&Path>,
+    max_runtime: Option<std::time::Duration>,
+) {
+    let preparation_started = std::time::Instant::now();
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let epoch_options = explore::ExploreStreamEpochOptions {
+        run_state: run_state.to_path_buf(),
+        output_directory: output_directory.map(Path::to_path_buf),
+        outer_containment: runa_explore_supervisor::validated_exact_stream_containment().map(
+            |receipt| explore::ExploreStreamOuterContainment {
+                rust_heap_limit_bytes: std::num::NonZeroU64::new(receipt.rust_heap_limit_bytes)
+                    .expect("validated Explore Rust-heap limit is positive"),
+                untracked_memory_reserve_bytes: std::num::NonZeroU64::new(
+                    receipt.untracked_memory_reserve_bytes,
+                )
+                .expect("validated Explore untracked-memory reserve is positive"),
+                group_rss_limit_bytes: std::num::NonZeroU64::new(receipt.group_rss_limit_bytes)
+                    .expect("validated Explore process-group RSS limit is positive"),
+                available_memory_floor_bytes: std::num::NonZeroU64::new(
+                    receipt.available_memory_floor_bytes,
+                )
+                .expect("validated Explore available-memory floor is positive"),
+            },
+        ),
+    };
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+        if let Some(containment) = epoch_options.outer_containment {
+            eprintln!(
+                "Explore containment: rust_heap_limit={}B; untracked_reserve={}B; group_rss_limit={}B; host_available_floor={}B",
+                containment.rust_heap_limit_bytes,
+                containment.untracked_memory_reserve_bytes,
+                containment.group_rss_limit_bytes,
+                containment.available_memory_floor_bytes,
+            );
+        }
+    }
+    let mut prepared = relational_explore_or_exit(
+        explore::prepare_checked_relational_stream(
+            &statements,
+            source_dir_for(filename),
+            source,
+            query_name,
+        ),
+        source,
+        filename,
+    );
+    if let Some(plan) = prepared.take_native_classifier_plan_v2() {
+        if plan.finite_coordinate_count
+            > explore::RelationalNativeClassifierProtocolV2::MAX_BATCH_SUBJECTS as u128
+        {
+            if let Some(executable) = build_explore_native_classifier_v2(plan) {
+                // SAFETY: the builder compiles only the producer-owned frozen
+                // checked plan, binds the exact query identity into the strict
+                // protocol main, and installs it through a content-addressed
+                // cache whose writer never replaces a completed artifact.
+                let installed =
+                    unsafe { prepared.install_native_classifier_executable_v2(executable) };
+                if let Err(error) = installed {
+                    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                        eprintln!(
+                            "Explore native classifier unavailable; using checked interpreter: {error}"
+                        );
+                    }
+                } else if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                    eprintln!("Explore native classifier: installed");
+                }
+            } else if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!("Explore native classifier unavailable; using checked interpreter");
+            }
+        }
+    }
+    let mut epoch =
+        relational_explore_or_exit(prepared.open_epoch(epoch_options), source, filename);
+    let preparation_wall_time = preparation_started.elapsed();
+    let execution_runtime_budget =
+        max_runtime.map(|limit| limit.saturating_sub(preparation_wall_time));
+
+    // Keep one prepared epoch warm while exposing a durable, published prefix
+    // about every fifteen seconds. The CLI limit covers parsing, checking,
+    // native setup, and cold journal replay above; a one-nanosecond first
+    // slice still produces an honest checkpoint if those phases used it all.
+    const OBSERVABLE_SLICE_RUNTIME: std::time::Duration = std::time::Duration::from_secs(15);
+    const OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF: std::time::Duration =
+        std::time::Duration::from_secs(5 * 60);
+    let mut final_report: Option<explore::ExploreStreamSliceReport> = None;
+    let mut last_checkpoint: Option<(u64, String)> = None;
+    let mut last_publication_frontier: Option<(usize, usize)> = None;
+    let mut next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+    let mut semantic_batches_appended = 0_u64;
+    let mut semantic_events_appended = 0_u64;
+    let mut projection_records_appended = BTreeMap::<String, u128>::new();
+    let mut publication_lines_appended = 0_u64;
+    let mut publication_ordinals_advanced = 0_u64;
+
+    loop {
+        let remaining_runtime =
+            max_runtime.map(|limit| limit.saturating_sub(preparation_started.elapsed()));
+        if final_report.is_some() && remaining_runtime.is_some_and(|remaining| remaining.is_zero())
+        {
+            break;
+        }
+        let slice_runtime = remaining_runtime
+            .map_or_else(
+                || next_slice_runtime.min(OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF),
+                |remaining| next_slice_runtime.min(remaining),
+            )
+            .max(std::time::Duration::from_nanos(1));
+        let next_report =
+            relational_explore_or_exit(epoch.run_slice(Some(slice_runtime)), source, filename);
+
+        let checkpoint = (
+            next_report.checkpoint.next_sequence,
+            next_report.checkpoint.journal_head.clone(),
+        );
+        let journal_progressed = next_report.semantic_events_appended > 0
+            || last_checkpoint
+                .as_ref()
+                .is_some_and(|previous| previous != &checkpoint);
+        let publication_frontier = next_report
+            .publication
+            .as_ref()
+            .map(|publication| (publication.artifacts_caught_up, publication.artifact_count));
+        let publication_progressed = next_report.publication.as_ref().is_some_and(|publication| {
+            publication.lines_appended > 0
+                || publication.source_ordinals_advanced > 0
+                || last_publication_frontier
+                    .is_some_and(|previous| Some(previous) != publication_frontier)
+        });
+
+        semantic_batches_appended =
+            semantic_batches_appended.saturating_add(next_report.semantic_batches_appended);
+        semantic_events_appended =
+            semantic_events_appended.saturating_add(next_report.semantic_events_appended);
+        for layer in &next_report.layers {
+            if let explore::ExploreStreamLayer::Result(result) = layer {
+                let appended = projection_records_appended
+                    .entry(result.view_id.clone())
+                    .or_default();
+                *appended = appended.saturating_add(result.projection_records_appended);
+            }
+        }
+        if let Some(publication) = &next_report.publication {
+            publication_lines_appended =
+                publication_lines_appended.saturating_add(publication.lines_appended);
+            publication_ordinals_advanced =
+                publication_ordinals_advanced.saturating_add(publication.source_ordinals_advanced);
+        }
+
+        let runtime_limited = matches!(
+            next_report.pause_reason.as_ref(),
+            Some(&explore::ExploreStreamPauseReason::RuntimeLimit)
+        );
+        let continue_semantics = runtime_limited;
+        let continue_publication = matches!(
+            next_report.lifecycle,
+            explore::ExploreStreamLifecycle::Complete
+        ) && next_report
+            .publication
+            .as_ref()
+            .is_some_and(|publication| !publication.is_caught_up());
+        let overall_time_remains =
+            max_runtime.is_none_or(|limit| preparation_started.elapsed() < limit);
+
+        last_checkpoint = Some(checkpoint);
+        last_publication_frontier = publication_frontier;
+        final_report = Some(next_report);
+        if !(continue_semantics || continue_publication) || !overall_time_remains {
+            break;
+        }
+        if journal_progressed || publication_progressed {
+            next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+            continue;
+        }
+        if !runtime_limited {
+            // A complete stream with publication work remaining made no
+            // publication progress, so another identical call would spin.
+            break;
+        }
+
+        // A slow indivisible quantum may legitimately need more than the
+        // ordinary observation cadence. Retry runtime-only stalls with a
+        // geometrically larger warm slice, but never exceed an explicit
+        // epoch deadline. An unlimited CLI epoch has a finite ceiling so an
+        // unadmittable quantum still returns an honest RuntimeLimit pause.
+        let backoff_ceiling = max_runtime
+            .map(|limit| limit.saturating_sub(preparation_started.elapsed()))
+            .unwrap_or(OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF);
+        let backed_off_runtime = next_slice_runtime.saturating_mul(2).min(backoff_ceiling);
+        if backed_off_runtime <= slice_runtime {
+            break;
+        }
+        next_slice_runtime = backed_off_runtime;
+    }
+
+    let mut report = final_report.expect("an observable epoch always emits one slice report");
+    report.semantic_batches_appended = semantic_batches_appended;
+    report.semantic_events_appended = semantic_events_appended;
+    for layer in &mut report.layers {
+        if let explore::ExploreStreamLayer::Result(result) = layer {
+            result.projection_records_appended = projection_records_appended
+                .get(&result.view_id)
+                .copied()
+                .unwrap_or(0);
+        }
+    }
+    if let Some(publication) = &mut report.publication {
+        publication.lines_appended = publication_lines_appended;
+        publication.source_ordinals_advanced = publication_ordinals_advanced;
+    }
+
+    if json {
+        let mut payload = relational_explore_report_json(&report, run_state);
+        if let Some(run) = payload
+            .get_mut("run")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            run.insert(
+                "preparation_wall_milliseconds".to_string(),
+                serde_json::json!(preparation_wall_time.as_millis()),
+            );
+            run.insert(
+                "slice_budget_milliseconds".to_string(),
+                execution_runtime_budget
+                    .map(|duration| serde_json::json!(duration.as_millis()))
+                    .unwrap_or(serde_json::Value::Null),
+            );
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("serialize compact relational Explore report")
+        );
+    } else {
+        println!(
+            "Prepared and opened in {:.3}s; remaining observable epoch budget: {}",
+            preparation_wall_time.as_secs_f64(),
+            execution_runtime_budget
+                .map(|duration| format!("{:.3}s", duration.as_secs_f64()))
+                .unwrap_or_else(|| "until completion or quiescence".to_string()),
+        );
+        render_relational_explore_human(&report, run_state);
+    }
+}
+
+const EXPLORE_NATIVE_CLASSIFIER_CACHE_VERSION_V2: u32 = 2;
+const EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2: i32 = 70;
+
+fn explore_native_classifier_collect_pattern_names_v2(pattern: &Pat, names: &mut BTreeSet<String>) {
+    match pattern {
+        Pat::Var(name) => {
+            names.insert(name.clone());
+        }
+        Pat::Con(name, children) => {
+            names.insert(name.clone());
+            for child in children {
+                explore_native_classifier_collect_pattern_names_v2(child, names);
+            }
+        }
+        Pat::NamedCon(name, fields) => {
+            names.insert(name.clone());
+            for (_, child) in fields {
+                explore_native_classifier_collect_pattern_names_v2(child, names);
+            }
+        }
+        Pat::As(inner, name) => {
+            names.insert(name.clone());
+            explore_native_classifier_collect_pattern_names_v2(inner, names);
+        }
+        Pat::Wild | Pat::Lit(_) => {}
+    }
+}
+
+fn explore_native_classifier_collect_expr_names_v2(
+    expression: &Expr,
+    names: &mut BTreeSet<String>,
+) {
+    walk_ast_expr(expression, &mut |child| match child {
+        AstChild::Expr(expression) => match &expression.kind {
+            ExprKind::Var(name) => {
+                names.insert(name.clone());
+            }
+            ExprKind::Lambda(parameters, _) => {
+                names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+            }
+            ExprKind::Match(_, arms) => {
+                for arm in arms {
+                    explore_native_classifier_collect_pattern_names_v2(&arm.pat, names);
+                }
+            }
+            ExprKind::Handle {
+                effect, handlers, ..
+            } => {
+                names.insert(effect.clone());
+                for handler in handlers {
+                    names.insert(handler.op_name.clone());
+                    names.extend(handler.params.iter().cloned());
+                }
+            }
+            _ => {}
+        },
+        AstChild::Stmt(statement) => {
+            explore_native_classifier_collect_direct_stmt_names_v2(statement, names);
+        }
+    });
+}
+
+fn explore_native_classifier_collect_direct_stmt_names_v2(
+    statement: &Stmt,
+    names: &mut BTreeSet<String>,
+) {
+    match statement {
+        Stmt::Defn(Defn::Fn { name, params, .. }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+        }
+        Stmt::Defn(Defn::Actor {
+            name,
+            state_param,
+            handlers,
+        }) => {
+            names.insert(name.clone());
+            names.insert(state_param.name.clone());
+            for handler in handlers {
+                explore_native_classifier_collect_pattern_names_v2(&handler.msg_pat, names);
+            }
+        }
+        Stmt::Defn(Defn::Module { name, .. }) => {
+            names.insert(name.clone());
+        }
+        Stmt::TypeDecl(TypeDecl::ADT {
+            name,
+            params,
+            variants,
+            methods,
+            ..
+        }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+            names.extend(variants.iter().map(|variant| variant.name.clone()));
+            for method in methods {
+                match method {
+                    Defn::Fn { name, params, .. } => {
+                        names.insert(name.clone());
+                        names.extend(params.iter().map(|parameter| parameter.name.clone()));
+                    }
+                    Defn::Actor {
+                        name, state_param, ..
+                    } => {
+                        names.insert(name.clone());
+                        names.insert(state_param.name.clone());
+                    }
+                    Defn::Module { name, .. } => {
+                        names.insert(name.clone());
+                    }
+                }
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
+            names.insert(name.clone());
+            names.extend(variants.iter().map(|variant| variant.name.clone()));
+        }
+        Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
+            names.insert(name.clone());
+            for (operation, parameters, _) in ops {
+                names.insert(operation.clone());
+                names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::TraitDecl {
+            name,
+            params,
+            methods,
+        }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+            for method in methods {
+                names.insert(method.name.clone());
+                names.extend(method.params.iter().map(|parameter| parameter.name.clone()));
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            methods,
+        }) => {
+            names.insert(trait_name.clone());
+            names.insert(for_type.clone());
+            for method in methods {
+                if let Defn::Fn { name, params, .. } = method {
+                    names.insert(name.clone());
+                    names.extend(params.iter().map(|parameter| parameter.name.clone()));
+                }
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+        }
+        Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+            names.insert(name.clone());
+        }
+        Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+            explore_native_classifier_collect_pattern_names_v2(pattern, names);
+        }
+        Stmt::For(name, _, _) | Stmt::StreamBind(name, _) => {
+            names.insert(name.clone());
+        }
+        Stmt::StreamSub(_, arms) => {
+            for arm in arms {
+                explore_native_classifier_collect_pattern_names_v2(&arm.pat, names);
+            }
+        }
+        Stmt::Invariant { name, .. } => {
+            names.insert(name.clone());
+        }
+        Stmt::Prove {
+            name,
+            proof_block,
+            capture,
+            ..
+        } => {
+            names.insert(name.clone());
+            names.extend(capture.iter().cloned());
+            if let Some(proof_block) = proof_block {
+                for arm in &proof_block.arms {
+                    names.extend(arm.binders.iter().cloned());
+                }
+            }
+        }
+        Stmt::Assert(name, _) | Stmt::Retract(name, _) => {
+            names.insert(name.clone());
+        }
+        Stmt::Rule(_)
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Annot(_, _)
+        | Stmt::While(_, _)
+        | Stmt::Send(_, _)
+        | Stmt::Explore(_)
+        | Stmt::Abort
+        | Stmt::Expr(_) => {}
+    }
+}
+
+fn explore_native_classifier_reachable_names_v2(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for statement in plan.checked_declarations.iter() {
+        walk_ast_stmt(statement, &mut |child| match child {
+            AstChild::Expr(expression) => match &expression.kind {
+                ExprKind::Var(name) => {
+                    names.insert(name.clone());
+                }
+                ExprKind::Lambda(parameters, _) => {
+                    names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+                }
+                ExprKind::Match(_, arms) => {
+                    for arm in arms {
+                        explore_native_classifier_collect_pattern_names_v2(&arm.pat, &mut names);
+                    }
+                }
+                ExprKind::Handle {
+                    effect, handlers, ..
+                } => {
+                    names.insert(effect.clone());
+                    for handler in handlers {
+                        names.insert(handler.op_name.clone());
+                        names.extend(handler.params.iter().cloned());
+                    }
+                }
+                _ => {}
+            },
+            AstChild::Stmt(statement) => {
+                explore_native_classifier_collect_direct_stmt_names_v2(statement, &mut names);
+            }
+        });
+    }
+    for binding in plan.source_bindings.iter() {
+        names.insert(binding.name.clone());
+        if let explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } =
+            &binding.kind
+        {
+            explore_native_classifier_collect_expr_names_v2(value, &mut names);
+        }
+    }
+    names.insert(plan.after_binding_name.clone());
+    explore_native_classifier_collect_expr_names_v2(&plan.successor_value, &mut names);
+    for admission in plan.admissions.iter() {
+        explore_native_classifier_collect_expr_names_v2(&admission.predicate, &mut names);
+    }
+    match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => {}
+        explore::ExploreNativeClassifierFindV2::Matches { predicate }
+        | explore::ExploreNativeClassifierFindV2::Violations { predicate } => {
+            explore_native_classifier_collect_expr_names_v2(predicate, &mut names);
+        }
+    }
+    names
+}
+
+struct ExploreNativeClassifierConstructorLayoutV2 {
+    positional: bool,
+    fields: Box<[String]>,
+    owner_recursive: bool,
+}
+
+fn explore_native_classifier_type_references_owner_v2(ty: &Ty, owner: &str) -> bool {
+    match ty {
+        Ty::Name(name) | Ty::Var(name) => name == owner,
+        Ty::App(constructor, arguments) => {
+            explore_native_classifier_type_references_owner_v2(constructor, owner)
+                || arguments.iter().any(|argument| {
+                    explore_native_classifier_type_references_owner_v2(argument, owner)
+                })
+        }
+        Ty::Arrow(input, output) => {
+            explore_native_classifier_type_references_owner_v2(input, owner)
+                || explore_native_classifier_type_references_owner_v2(output, owner)
+        }
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+            explore_native_classifier_type_references_owner_v2(inner, owner)
+        }
+        Ty::Unit | Ty::Hole => false,
+    }
+}
+
+fn explore_native_classifier_constructor_call_matches_v2(
+    layout: &ExploreNativeClassifierConstructorLayoutV2,
+    arguments: &[Expr],
+) -> bool {
+    if !has_named_args(arguments) {
+        return layout.fields.len() == arguments.len();
+    }
+    if layout.positional || !all_named_args(arguments) {
+        return false;
+    }
+    let supplied = arguments
+        .iter()
+        .filter_map(named_arg_parts)
+        .map(|(field, _)| field)
+        .collect::<BTreeSet<_>>();
+    supplied.len() == arguments.len()
+        && layout.fields.len() == arguments.len()
+        && layout
+            .fields
+            .iter()
+            .all(|field| supplied.contains(field.as_str()))
+}
+
+fn explore_native_classifier_constructor_pattern_is_resolved_v2(
+    pattern: &Pat,
+    multiply_owned_fielded: &BTreeMap<String, Vec<ExploreNativeClassifierConstructorLayoutV2>>,
+) -> bool {
+    let (name, arity, named_fields, children) = match pattern {
+        Pat::Con(name, children) => (
+            name,
+            children.len(),
+            None,
+            children.iter().collect::<Vec<_>>(),
+        ),
+        Pat::NamedCon(name, fields) => (
+            name,
+            fields.len(),
+            Some(
+                fields
+                    .iter()
+                    .map(|(field, _)| field.as_str())
+                    .collect::<BTreeSet<_>>(),
+            ),
+            fields.iter().map(|(_, child)| child).collect::<Vec<_>>(),
+        ),
+        Pat::As(inner, _) => {
+            return explore_native_classifier_constructor_pattern_is_resolved_v2(
+                inner,
+                multiply_owned_fielded,
+            );
+        }
+        Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return true,
+    };
+
+    if let Some(layouts) = multiply_owned_fielded.get(name) {
+        let matching = layouts
+            .iter()
+            .filter(|layout| {
+                if let Some(supplied) = &named_fields {
+                    !layout.positional
+                        && layout.fields.len() == arity
+                        && supplied.len() == arity
+                        && layout
+                            .fields
+                            .iter()
+                            .all(|field| supplied.contains(field.as_str()))
+                } else {
+                    layout.fields.len() == arity
+                }
+            })
+            .count();
+        if matching != 1 {
+            return false;
+        }
+    }
+
+    children.into_iter().all(|child| {
+        explore_native_classifier_constructor_pattern_is_resolved_v2(child, multiply_owned_fielded)
+    })
+}
+
+/// Audit the complete backend-only frozen program, including the synthesized
+/// query function. Multiply-owned fielded constructors are eligible only when
+/// operational call/pattern shape recovers exactly one nonrecursive owner.
+/// Same-arity, bare value, and otherwise unresolved occurrences decline the
+/// optional native installation; no semantic constructor spelling is changed.
+fn explore_native_classifier_validate_constructor_owners_v2(statements: &[Stmt]) -> Option<()> {
+    let mut layouts_by_name =
+        BTreeMap::<String, Vec<ExploreNativeClassifierConstructorLayoutV2>>::new();
+    for statement in statements {
+        let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = statement else {
+            continue;
+        };
+        let owner_recursive = variants.iter().any(|variant| {
+            variant
+                .fields
+                .iter()
+                .any(|field| explore_native_classifier_type_references_owner_v2(&field.ty, name))
+        });
+        for variant in variants {
+            layouts_by_name
+                .entry(variant.name.clone())
+                .or_default()
+                .push(ExploreNativeClassifierConstructorLayoutV2 {
+                    positional: variant.positional,
+                    fields: variant
+                        .fields
+                        .iter()
+                        .map(|field| field.name.clone())
+                        .collect::<Vec<_>>()
+                        .into_boxed_slice(),
+                    owner_recursive,
+                });
+        }
+    }
+    layouts_by_name.retain(|_, layouts| {
+        layouts.len() > 1 && layouts.iter().any(|layout| !layout.fields.is_empty())
+    });
+    for layouts in layouts_by_name.values() {
+        let mut recoverable_arities = BTreeSet::new();
+        for layout in layouts {
+            if (!layout.fields.is_empty() && layout.owner_recursive)
+                || !recoverable_arities.insert(layout.fields.len())
+            {
+                return None;
+            }
+        }
+    }
+
+    let mut value_uses = BTreeMap::<String, usize>::new();
+    let mut call_uses = BTreeMap::<String, usize>::new();
+    let mut unresolved = false;
+    for statement in statements {
+        walk_ast_stmt(statement, &mut |child| {
+            if unresolved {
+                return;
+            }
+            match child {
+                AstChild::Expr(expression) => match &expression.kind {
+                    ExprKind::Var(name) if layouts_by_name.contains_key(name) => {
+                        *value_uses.entry(name.clone()).or_default() += 1;
+                    }
+                    ExprKind::App(function, arguments) => {
+                        let ExprKind::Var(name) = &function.kind else {
+                            return;
+                        };
+                        let Some(layouts) = layouts_by_name.get(name) else {
+                            return;
+                        };
+                        *call_uses.entry(name.clone()).or_default() += 1;
+                        unresolved = layouts
+                            .iter()
+                            .filter(|layout| {
+                                explore_native_classifier_constructor_call_matches_v2(
+                                    layout, arguments,
+                                )
+                            })
+                            .count()
+                            != 1;
+                    }
+                    ExprKind::Match(_, arms) => {
+                        unresolved = arms.iter().any(|arm| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &arm.pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    _ => {}
+                },
+                AstChild::Stmt(statement) => match statement {
+                    Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+                        unresolved = !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                            pattern,
+                            &layouts_by_name,
+                        );
+                    }
+                    Stmt::StreamSub(_, arms) => {
+                        unresolved = arms.iter().any(|arm| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &arm.pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    Stmt::Defn(Defn::Actor { handlers, .. }) => {
+                        unresolved = handlers.iter().any(|handler| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &handler.msg_pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    _ => {}
+                },
+            }
+        });
+    }
+    if unresolved
+        || value_uses
+            .iter()
+            .any(|(name, uses)| call_uses.get(name).copied().unwrap_or(0) != *uses)
+    {
+        return None;
+    }
+    Some(())
+}
+
+/// Build the query-bound native classifier sidecar used by relational Explore
+/// V2. This is an optional optimization: every unsupported shape,
+/// code-generation failure, or compiler failure returns `None`, leaving the
+/// checked interpreter as the whole-batch fallback.
+///
+/// The plan owns the flattened, constructor-normalized declaration snapshot
+/// accepted by the same checked boundary that minted its identity. Library-
+/// mode code generation therefore performs no import resolution and emits no
+/// ordinary script entry point; the only process entry point is the strict
+/// protocol main appended below.
+fn build_explore_native_classifier_v2(
+    plan: explore::ExploreNativeClassifierPlanV2,
+) -> Option<PathBuf> {
+    let started = std::time::Instant::now();
+    trace_explore_native_classifier_build_v2("begin", started, None);
+    if plan.source_bindings.is_empty()
+        || plan.finite_input_binding_indices.is_empty()
+        || plan.finite_input_binding_indices.len()
+            > explore::RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
+        || plan.after_binding_name.is_empty()
+    {
+        trace_explore_native_classifier_build_v2("unsupported plan shape", started, None);
+        return None;
+    }
+
+    let mut reachable_names = explore_native_classifier_reachable_names_v2(&plan);
+    let function_name = fresh_generated_rust_name(
+        &explore_native_classifier_function_name_v2(&plan),
+        &mut reachable_names,
+    );
+    let classifier = synthesize_explore_native_classifier_function_v2(
+        &function_name,
+        &plan,
+        &mut reachable_names,
+    )?;
+    let protocol_main = render_explore_native_classifier_protocol_main_v2(&function_name, &plan);
+    let mut classifier_program = plan.checked_declarations.into_vec();
+    classifier_program.push(classifier);
+    if explore_native_classifier_validate_constructor_owners_v2(&classifier_program).is_none() {
+        trace_explore_native_classifier_build_v2(
+            "ambiguous constructor occurrence is not backend-qualifiable",
+            started,
+            None,
+        );
+        return None;
+    }
+
+    let mut codegen = RustCodegen::new();
+    codegen.lib_mode = true;
+    codegen.int_arithmetic_mode = RustCodegenIntArithmeticMode::ExploreClassifierExact;
+    codegen.types.exact_ambiguous_constructor_fallbacks = true;
+    codegen.compile_time_metadata_bindings = plan.compile_time_metadata_bindings;
+
+    let mut generated = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        codegen.emit_program(&classifier_program)
+    })) {
+        Ok(generated) => generated,
+        Err(_) => {
+            trace_explore_native_classifier_build_v2("code generation panicked", started, None);
+            return None;
+        }
+    };
+    trace_explore_native_classifier_build_v2("generated Rust", started, None);
+    // V2 intentionally has no Cargo-project side path. If the generated
+    // ordinary program needs external crates, decline the optimization.
+    if !codegen.cargo_deps.is_empty() {
+        trace_explore_native_classifier_build_v2(
+            "generated program requires Cargo dependencies",
+            started,
+            None,
+        );
+        return None;
+    }
+    generated.push_str(&protocol_main);
+
+    let rustc_identity = match rustc_fingerprint() {
+        Some(identity) => identity,
+        None => {
+            trace_explore_native_classifier_build_v2("rustc identity unavailable", started, None);
+            return None;
+        }
+    };
+    let mut cache_hasher = Sha256::new();
+    cache_hash_segment(
+        &mut cache_hasher,
+        &EXPLORE_NATIVE_CLASSIFIER_CACHE_VERSION_V2.to_le_bytes(),
+    );
+    cache_hash_segment(&mut cache_hasher, rustc_identity.as_bytes());
+    cache_hash_segment(&mut cache_hasher, generated.as_bytes());
+    let cache_key = format!("{:x}", cache_hasher.finalize());
+    let cache_root = compiler_artifact_cache_dir()
+        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
+    let artifact_dir = cache_root
+        .join("explore-native-classifier-v2")
+        .join(cache_key);
+    let executable_name = if std::env::consts::EXE_EXTENSION.is_empty() {
+        "classifier".to_string()
+    } else {
+        format!("classifier.{}", std::env::consts::EXE_EXTENSION)
+    };
+    let executable = artifact_dir.join(executable_name);
+    if executable
+        .metadata()
+        .is_ok_and(|metadata| metadata.is_file())
+    {
+        trace_explore_native_classifier_build_v2("reused cached executable", started, None);
+        return Some(executable);
+    }
+    if let Err(error) = std::fs::create_dir_all(&artifact_dir) {
+        trace_explore_native_classifier_build_v2(
+            "cannot create cache directory",
+            started,
+            Some(&error.to_string()),
+        );
+        return None;
+    }
+
+    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temporary_stem = format!("classifier-{}-{sequence}", std::process::id());
+    let temporary_source = artifact_dir.join(format!("{temporary_stem}.rs"));
+    let temporary_executable = artifact_dir.join(format!("{temporary_stem}.bin"));
+    if let Err(error) = std::fs::write(&temporary_source, generated.as_bytes()) {
+        trace_explore_native_classifier_build_v2(
+            "cannot write generated Rust",
+            started,
+            Some(&error.to_string()),
+        );
+        return None;
+    }
+    trace_explore_native_classifier_build_v2("invoking rustc", started, None);
+    let compile = std::process::Command::new(find_rust_tool("rustc"))
+        .arg(&temporary_source)
+        .arg("--crate-name")
+        .arg("futuruna_explore_native_classifier_v2")
+        .arg("--edition")
+        .arg("2021")
+        .arg("-C")
+        .arg("opt-level=3")
+        .arg("-C")
+        .arg("debuginfo=0")
+        .arg("-C")
+        .arg("panic=abort")
+        .arg("-o")
+        .arg(&temporary_executable)
+        .output();
+    let _ = std::fs::remove_file(&temporary_source);
+    let Ok(compile) = compile else {
+        let _ = std::fs::remove_file(&temporary_executable);
+        trace_explore_native_classifier_build_v2("cannot invoke rustc", started, None);
+        return None;
+    };
+    if !compile.status.success() {
+        let _ = std::fs::remove_file(&temporary_executable);
+        let retained = compile.stderr.len().min(16 * 1024);
+        let diagnostic = String::from_utf8_lossy(&compile.stderr[..retained]);
+        trace_explore_native_classifier_build_v2(
+            "rustc rejected generated classifier",
+            started,
+            Some(diagnostic.as_ref()),
+        );
+        return None;
+    }
+
+    if executable.exists() {
+        // A concurrent builder won the content-addressed cache race.
+        let _ = std::fs::remove_file(&temporary_executable);
+    } else if std::fs::rename(&temporary_executable, &executable).is_err() {
+        let _ = std::fs::remove_file(&temporary_executable);
+        if !executable.exists() {
+            return None;
+        }
+    }
+    executable
+        .metadata()
+        .ok()
+        .filter(|metadata| metadata.is_file())
+        .map(|_| {
+            trace_explore_native_classifier_build_v2("installed executable", started, None);
+            executable
+        })
+}
+
+fn trace_explore_native_classifier_build_v2(
+    phase: &str,
+    started: std::time::Instant,
+    detail: Option<&str>,
+) {
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_none() {
+        return;
+    }
+    eprintln!(
+        "Explore native classifier build: {phase}; elapsed={}ms{}",
+        started.elapsed().as_millis(),
+        detail
+            .map(|detail| format!("\n{detail}"))
+            .unwrap_or_default(),
+    );
+}
+
+fn explore_native_classifier_function_name_v2(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> String {
+    let digest = plan
+        .identity
+        .checked_program
+        .iter()
+        .chain(plan.identity.relation_id.iter())
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("__futuruna_explore_native_classifier_v2_{digest}")
+}
+
+fn synthesize_explore_native_classifier_function_v2(
+    function_name: &str,
+    plan: &explore::ExploreNativeClassifierPlanV2,
+    reachable_names: &mut BTreeSet<String>,
+) -> Option<Stmt> {
+    use explore::RelationalNativeClassifierProtocolV2 as Protocol;
+
+    // The checked Explore plan accepts the Danish surface spelling `Heltal`
+    // as the same semantic type as `Int`. Keep the synthesized compiler-only
+    // boundary canonical so Rust codegen always receives `i64` here.
+    let classifier_int_ty = Ty::Name("Int".to_string());
+    let outcome = match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => Expr::unspanned(ExprKind::Lit(
+            Literal::Int(Protocol::OUTCOME_ADMITTED_SELECTED.into()),
+        )),
+        explore::ExploreNativeClassifierFindV2::Matches { predicate } => {
+            Expr::unspanned(ExprKind::If(
+                Box::new(predicate.clone()),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_SELECTED.into(),
+                )))),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_NOT_SELECTED.into(),
+                )))),
+            ))
+        }
+        explore::ExploreNativeClassifierFindV2::Violations { predicate } => {
+            Expr::unspanned(ExprKind::If(
+                Box::new(predicate.clone()),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_NOT_SELECTED.into(),
+                )))),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_SELECTED.into(),
+                )))),
+            ))
+        }
+    };
+    let outcome = plan
+        .admissions
+        .iter()
+        .rev()
+        .fold(outcome, |admitted, admission| {
+            Expr::unspanned(ExprKind::If(
+                Box::new(admission.predicate.clone()),
+                Box::new(admitted),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_REJECTED.into(),
+                )))),
+            ))
+        });
+    let mut finite_ordinal = 0usize;
+    let mut params = Vec::with_capacity(plan.finite_input_binding_indices.len());
+    let mut body_statements = Vec::with_capacity(plan.source_bindings.len() + 2);
+    for (position, binding) in plan.source_bindings.iter().enumerate() {
+        if binding.binding_index != position || binding.name.is_empty() {
+            return None;
+        }
+        match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => {
+                if plan
+                    .finite_input_binding_indices
+                    .get(finite_ordinal)
+                    .copied()
+                    != Some(binding.binding_index)
+                    || !matches!(&binding.ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Heltal"))
+                {
+                    return None;
+                }
+                // Synthetic parameters keep every later finite binding out of
+                // scope until its authored source position is reconstructed.
+                let parameter_name = fresh_generated_rust_name(
+                    &format!("__futuruna_explore_native_v2_factor_{finite_ordinal}"),
+                    reachable_names,
+                );
+                params.push(Param {
+                    name: parameter_name.clone(),
+                    ty: Some(classifier_int_ty.clone()),
+                    inout: false,
+                });
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    Expr::unspanned(ExprKind::Var(parameter_name)),
+                ));
+                finite_ordinal += 1;
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } => {
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    value.clone(),
+                ));
+            }
+        }
+    }
+    if finite_ordinal != plan.finite_input_binding_indices.len() {
+        return None;
+    }
+    body_statements.push(Stmt::Bind(
+        Pat::Var(plan.after_binding_name.clone()),
+        Some(plan.after_ty.clone()),
+        plan.successor_value.clone(),
+    ));
+    body_statements.push(Stmt::Expr(outcome));
+    let body = Expr::unspanned(ExprKind::Block(body_statements));
+    Some(Stmt::Defn(Defn::Fn {
+        name: function_name.to_string(),
+        params,
+        ret_ty: Some(classifier_int_ty),
+        effects: Vec::new(),
+        body,
+    }))
+}
+
+fn render_explore_native_classifier_protocol_main_v2(
+    function_name: &str,
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> String {
+    use explore::RelationalNativeClassifierProtocolV2 as Protocol;
+
+    let factor_count = plan.finite_input_binding_indices.len();
+    let fixed_request_bytes = Protocol::REQUEST_MAGIC.len()
+        + Protocol::COUNT_BYTES
+        + Protocol::IDENTITY_DIGEST_COUNT * Protocol::IDENTITY_DIGEST_BYTES
+        + Protocol::FACTOR_COUNT_BYTES
+        + Protocol::COUNT_BYTES;
+    let max_request_bytes = fixed_request_bytes
+        + Protocol::MAX_BATCH_SUBJECTS * factor_count * Protocol::FACTOR_INT_BYTES;
+    let fixed_response_bytes = Protocol::RESPONSE_MAGIC.len()
+        + Protocol::COUNT_BYTES
+        + Protocol::IDENTITY_DIGEST_COUNT * Protocol::IDENTITY_DIGEST_BYTES
+        + Protocol::COUNT_BYTES;
+    let max_response_bytes =
+        fixed_response_bytes + Protocol::MAX_BATCH_SUBJECTS * Protocol::OUTCOME_BYTES;
+    let factor_reads = (0..factor_count)
+        .map(|factor| {
+            format!(
+                "        let factor_{factor} = i64::from_be_bytes(request[cursor..cursor + 8].try_into().unwrap());\n        cursor += 8;"
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let factor_arguments = (0..factor_count)
+        .map(|factor| format!("factor_{factor}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"
+
+fn main() {{
+    use std::io::{{Read as _, Write as _}};
+    const FAILURE: i32 = {failure};
+    const REQUEST_MAGIC: &[u8] = &{request_magic:?};
+    const RESPONSE_MAGIC: &[u8] = &{response_magic:?};
+    const VERSION: u32 = {version};
+    const PROGRAM: [u8; 32] = {program:?};
+    const RELATION: [u8; 32] = {relation:?};
+    const ADMISSION: [u8; 32] = {admission:?};
+    const QUESTION: [u8; 32] = {question:?};
+    const FACTOR_COUNT: usize = {factor_count};
+    const MAX_BATCH: usize = {max_batch};
+    const FIXED_REQUEST_BYTES: usize = {fixed_request_bytes};
+    const MAX_REQUEST_BYTES: usize = {max_request_bytes};
+    const MAX_RESPONSE_BYTES: usize = {max_response_bytes};
+
+    let mut request = Vec::with_capacity(MAX_REQUEST_BYTES.saturating_add(1));
+    if std::io::stdin()
+        .take((MAX_REQUEST_BYTES as u64).saturating_add(1))
+        .read_to_end(&mut request)
+        .is_err()
+        || request.len() > MAX_REQUEST_BYTES
+        || request.len() < FIXED_REQUEST_BYTES
+        || !request.starts_with(REQUEST_MAGIC)
+    {{
+        std::process::exit(FAILURE);
+    }}
+
+    let mut cursor = REQUEST_MAGIC.len();
+    let version = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap());
+    cursor += 4;
+    if version != VERSION || request[cursor..cursor + 32] != PROGRAM {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != RELATION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != ADMISSION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != QUESTION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    let factor_count = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap()) as usize;
+    cursor += 4;
+    if factor_count != FACTOR_COUNT {{
+        std::process::exit(FAILURE);
+    }}
+    let count = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap()) as usize;
+    cursor += 4;
+    let expected_request_bytes = cursor
+        .checked_add(
+            count
+                .checked_mul(FACTOR_COUNT)
+                .and_then(|values| values.checked_mul(8))
+                .unwrap_or(usize::MAX)
+        )
+        .unwrap_or(usize::MAX);
+    if count > MAX_BATCH || request.len() != expected_request_bytes {{
+        std::process::exit(FAILURE);
+    }}
+
+    let mut outcomes = Vec::with_capacity(count);
+    for _ in 0..count {{
+{factor_reads}
+        let outcome = {function_name}({factor_arguments});
+        let outcome = match outcome {{
+            {rejected} | {admitted_not_selected} | {admitted_selected} => outcome as u8,
+            _ => std::process::exit(FAILURE),
+        }};
+        outcomes.push(outcome);
+    }}
+
+    let mut response = Vec::with_capacity(MAX_RESPONSE_BYTES.min({fixed_response_bytes} + count));
+    response.extend_from_slice(RESPONSE_MAGIC);
+    response.extend_from_slice(&VERSION.to_be_bytes());
+    response.extend_from_slice(&PROGRAM);
+    response.extend_from_slice(&RELATION);
+    response.extend_from_slice(&ADMISSION);
+    response.extend_from_slice(&QUESTION);
+    response.extend_from_slice(&(count as u32).to_be_bytes());
+    response.extend_from_slice(&outcomes);
+    let mut stdout = std::io::stdout().lock();
+    if response.len() > MAX_RESPONSE_BYTES
+        || stdout.write_all(&response).is_err()
+        || stdout.flush().is_err()
+    {{
+        std::process::exit(FAILURE);
+    }}
+}}
+"#,
+        failure = EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+        request_magic = Protocol::REQUEST_MAGIC,
+        response_magic = Protocol::RESPONSE_MAGIC,
+        version = Protocol::VERSION,
+        program = plan.identity.checked_program,
+        relation = plan.identity.relation_id,
+        admission = plan.identity.admission_id,
+        question = plan.identity.question_id,
+        factor_count = factor_count,
+        max_batch = Protocol::MAX_BATCH_SUBJECTS,
+        factor_reads = factor_reads,
+        factor_arguments = factor_arguments,
+        rejected = Protocol::OUTCOME_REJECTED,
+        admitted_not_selected = Protocol::OUTCOME_ADMITTED_NOT_SELECTED,
+        admitted_selected = Protocol::OUTCOME_ADMITTED_SELECTED,
+    )
+}
+
+fn relational_explore_or_exit<T>(
+    result: Result<T, explore::ExploreStreamPreparationError>,
+    source: &str,
+    filename: &str,
+) -> T {
+    result.unwrap_or_else(|error| match error {
+        explore::ExploreStreamPreparationError::Diagnostics(diagnostics) => {
+            print_type_check_diagnostics(&diagnostics, source, filename);
+            std::process::exit(1);
+        }
+        explore::ExploreStreamPreparationError::Selection(message) => {
+            eprintln!("error: {message} in {filename}");
+            std::process::exit(1);
+        }
+        explore::ExploreStreamPreparationError::Execution(message) => {
+            eprintln!("error: relational exploration failed: {message}");
+            std::process::exit(1);
+        }
+    })
+}
+
+// Source-local migration history for the removed Cartesian one-shot, cost
+// plan, and hidden preview routes. It has no CLI or build reachability.
+#[rustfmt::skip]
+#[cfg(any())]
+mod retired_cartesian_explore_cli {
+use super::*;
 
 fn explore_preview_value_json(value: &explore::ExploreValue) -> serde_json::Value {
     match value {
@@ -7383,7 +9206,6 @@ fn run_exact_explore_stream(
     json: bool,
     run_state: &Path,
     max_runtime: Option<std::time::Duration>,
-    pause_after_probes: bool,
     search_decision_dag: explore::ExploreStreamGraphRequest,
     semantic_transition_graph: explore::ExploreStreamGraphRequest,
     finalize: bool,
@@ -7405,7 +9227,7 @@ fn run_exact_explore_stream(
     let options = explore::ExploreStreamSliceOptions {
         run_state: run_state.to_path_buf(),
         max_runtime,
-        pause_after: pause_after_probes.then_some(explore::ExploreStreamPauseAfter::Probes),
+        pause_after: None,
         search_decision_dag,
         semantic_transition_graph,
         finalize,
@@ -7637,6 +9459,8 @@ fn run_explore_preview(
             serde_json::to_string(row).expect("serialize exploration preview row")
         );
     }
+}
+
 }
 
 /// Run all .runa files in a directory, report pass/fail summary.
@@ -8127,6 +9951,7 @@ fn parse_test_job_count(raw: &str) -> Result<usize, String> {
     Ok(jobs)
 }
 
+#[cfg(any())]
 fn parse_positive_u128_option(option: &str, raw: &str) -> u128 {
     raw.parse::<u128>()
         .ok()
@@ -8167,6 +9992,7 @@ fn parse_explore_time_limit(raw: &str) -> std::time::Duration {
     std::time::Duration::from_secs(seconds)
 }
 
+#[cfg(any())]
 fn parse_explore_max_minutes(raw: &str) -> std::time::Duration {
     let minutes = raw
         .parse::<u64>()
@@ -8183,15 +10009,7 @@ fn parse_explore_max_minutes(raw: &str) -> std::time::Duration {
     std::time::Duration::from_secs(seconds)
 }
 
-fn parse_explore_pause_after(raw: &str) -> bool {
-    if raw == "probes" {
-        true
-    } else {
-        eprintln!("error: --pause-after requires `probes`, got '{raw}'");
-        std::process::exit(1);
-    }
-}
-
+#[cfg(any())]
 fn parse_explore_graph_request(flag: &str, raw: &str) -> explore::ExploreStreamGraphRequest {
     if raw == "full" {
         explore::ExploreStreamGraphRequest::Full
@@ -11300,10 +13118,10 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 ExprKind::Block(lowered)
             }
             ExprKind::Conjunction(goals) => {
-                return self.lower_logic_fold(goals, "&&", true, environment, expansion_stack)
+                return self.lower_logic_fold(goals, "&&", true, environment, expansion_stack);
             }
             ExprKind::Disjunction(goals) => {
-                return self.lower_logic_fold(goals, "||", false, environment, expansion_stack)
+                return self.lower_logic_fold(goals, "||", false, environment, expansion_stack);
             }
             ExprKind::Lambda(params, body) => ExprKind::Lambda(
                 params.clone(),
@@ -15537,8 +17355,15 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                             summary.clone(),
                         );
                     }
-                    eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
-                        filename, stmt_count, fn_count, type_count, summary.rust_line_count, start.elapsed().as_secs_f64());
+                    eprintln!(
+                        "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
+                        filename,
+                        stmt_count,
+                        fn_count,
+                        type_count,
+                        summary.rust_line_count,
+                        start.elapsed().as_secs_f64()
+                    );
                     return;
                 }
                 if cg.has_raw_rust_blocks {
@@ -15604,8 +17429,15 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, summary.rust_line_count, elapsed.as_secs_f64());
+                        eprintln!(
+                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
+                            filename,
+                            stmt_count,
+                            fn_count,
+                            type_count,
+                            summary.rust_line_count,
+                            elapsed.as_secs_f64()
+                        );
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -15681,8 +17513,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, cg.cargo_deps.len(), summary.rust_line_count, elapsed.as_secs_f64());
+                        eprintln!(
+                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
+                            filename,
+                            stmt_count,
+                            fn_count,
+                            type_count,
+                            cg.cargo_deps.len(),
+                            summary.rust_line_count,
+                            elapsed.as_secs_f64()
+                        );
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -19468,188 +21308,1532 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
         // ---- Math (not shadowable, pure) ----
-        ("exp",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).exp()" }),
-        ("ln",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).ln()" }),
-        ("sqrt",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).sqrt()" }),
-        ("pow",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).powf({1} as f64)" }),
-        ("abs",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}).abs()" }),
-        ("to_float", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64)" }),
-        ("round",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "(({0} as f64).round() as i64)" }),
-        ("floor",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "(({0} as f64).floor() as i64)" }),
-        ("max_f",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).max({1} as f64)" }),
-        ("min_f",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).min({1} as f64)" }),
-
+        (
+            "exp",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).exp()",
+            },
+        ),
+        (
+            "ln",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).ln()",
+            },
+        ),
+        (
+            "sqrt",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).sqrt()",
+            },
+        ),
+        (
+            "pow",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).powf({1} as f64)",
+            },
+        ),
+        (
+            "abs",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}).abs()",
+            },
+        ),
+        (
+            "to_float",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64)",
+            },
+        ),
+        (
+            "round",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "(({0} as f64).round() as i64)",
+            },
+        ),
+        (
+            "floor",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "(({0} as f64).floor() as i64)",
+            },
+        ),
+        (
+            "max_f",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).max({1} as f64)",
+            },
+        ),
+        (
+            "min_f",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).min({1} as f64)",
+            },
+        ),
         // ---- String (shadowable, pure) ----
-        ("split",        BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()" }),
-        ("join",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.join(&*{1})" }),
-        ("trim",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().to_string()" }),
-        ("contains",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_contains(&{0}, &{1})" }),
-        ("starts_with",  BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.starts_with(&*{1})" }),
-        ("ends_with",    BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.ends_with(&*{1})" }),
-        ("replace",      BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.replace(&*{1}, &*{2})" }),
-        ("to_upper",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_uppercase()" }),
-        ("to_lower",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_lowercase()" }),
-        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
-        ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
-        ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }" }),
-        ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
-        ("rust_debug",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:?}\", {0})" }),
-        ("parse_int",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)" }),
-        ("parse_float",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)" }),
-        ("string_chars", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()" }),
-        ("string_length",BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.chars().count() as i64)" }),
-        ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_len(&{0})" }),
-        ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }" }),
-        ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }" }),
-        ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }" }),
-
+        (
+            "split",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "join",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.join(&*{1})",
+            },
+        ),
+        (
+            "trim",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().to_string()",
+            },
+        ),
+        (
+            "contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_contains(&{0}, &{1})",
+            },
+        ),
+        (
+            "starts_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.starts_with(&*{1})",
+            },
+        ),
+        (
+            "ends_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.ends_with(&*{1})",
+            },
+        ),
+        (
+            "replace",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.replace(&*{1}, &*{2})",
+            },
+        ),
+        (
+            "to_upper",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.to_uppercase()",
+            },
+        ),
+        (
+            "to_lower",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.to_lowercase()",
+            },
+        ),
+        (
+            "substring",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }",
+            },
+        ),
+        (
+            "char_at",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }",
+            },
+        ),
+        (
+            "index_of",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }",
+            },
+        ),
+        (
+            "format_float",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)",
+            },
+        ),
+        (
+            "rust_debug",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "format!(\"{:?}\", {0})",
+            },
+        ),
+        (
+            "parse_int",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)",
+            },
+        ),
+        (
+            "parse_float",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)",
+            },
+        ),
+        (
+            "string_chars",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "string_length",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.chars().count() as i64)",
+            },
+        ),
+        (
+            "length",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_len(&{0})",
+            },
+        ),
+        (
+            "head",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }",
+            },
+        ),
+        (
+            "tail",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }",
+            },
+        ),
+        (
+            "nth",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }",
+            },
+        ),
         // ---- File I/O (not shadowable, impure) ----
-        ("read_file",    BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()" }),
-        ("write_file",   BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }" }),
-        ("append_file",  BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }" }),
-        ("file_exists",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::path::Path::new(&*{0}).exists()" }),
-        ("read_lines",   BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()" }),
-        ("env_var",      BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::env::var(&*{0}).unwrap_or_default()" }),
-        ("process_run",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }" }),
-
+        (
+            "read_file",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()",
+            },
+        ),
+        (
+            "write_file",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }",
+            },
+        ),
+        (
+            "append_file",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }",
+            },
+        ),
+        (
+            "file_exists",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::path::Path::new(&*{0}).exists()",
+            },
+        ),
+        (
+            "read_lines",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "env_var",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::env::var(&*{0}).unwrap_or_default()",
+            },
+        ),
+        (
+            "process_run",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }",
+            },
+        ),
         // ---- JSON (shadowable, pure, deps: serde_json) ----
-        ("json_parse",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }" }),
-        ("json_get",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }" }),
-        ("json_string",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }" }),
-        ("json_number",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }" }),
-        ("json_bool",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }" }),
-        ("json_array",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }" }),
-        ("json_emit",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{0}.clone()" }),
-        ("json_object",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }" }),
-
+        (
+            "json_parse",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }",
+            },
+        ),
+        (
+            "json_get",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }",
+            },
+        ),
+        (
+            "json_string",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }",
+            },
+        ),
+        (
+            "json_number",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }",
+            },
+        ),
+        (
+            "json_bool",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }",
+            },
+        ),
+        (
+            "json_array",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }",
+            },
+        ),
+        (
+            "json_emit",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "json_object",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }",
+            },
+        ),
         // ---- HTTP (shadowable, impure for I/O ones) ----
-        ("http_get",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: UREQ, rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()" }),
-        ("http_post",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: UREQ, rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()" }),
-        ("http_serve",   BuiltinDef { arity: 2, shadowable: true, impure: true, deps: AXUM, rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }" }),
-        ("http_respond", BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())" }),
-        ("http_request_path",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.0.clone()" }),
-        ("http_request_method", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.1.clone()" }),
-        ("http_request_body",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.2.clone()" }),
-
+        (
+            "http_get",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: UREQ,
+                rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+            },
+        ),
+        (
+            "http_post",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: UREQ,
+                rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+            },
+        ),
+        (
+            "http_serve",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: AXUM,
+                rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }",
+            },
+        ),
+        (
+            "http_respond",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())",
+            },
+        ),
+        (
+            "http_request_path",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.0.clone()",
+            },
+        ),
+        (
+            "http_request_method",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.1.clone()",
+            },
+        ),
+        (
+            "http_request_body",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.2.clone()",
+            },
+        ),
         // ---- Database (shadowable, impure, deps: rusqlite) ----
-        ("db_open",      BuiltinDef { arity: 1, shadowable: true, impure: true, deps: RSQL, rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))" }),
-        ("db_exec",      BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")" }),
-        ("db_query",     BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }" }),
-        ("db_query_row", BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }" }),
-        ("db_insert",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }" }),
-        ("db_close",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "drop({0})" }),
-
+        (
+            "db_open",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))",
+            },
+        ),
+        (
+            "db_exec",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")",
+            },
+        ),
+        (
+            "db_query",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }",
+            },
+        ),
+        (
+            "db_query_row",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }",
+            },
+        ),
+        (
+            "db_insert",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }",
+            },
+        ),
+        (
+            "db_close",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "drop({0})",
+            },
+        ),
         // ---- Misc ----
-        ("assert",       BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "assert!({0}, \"Assertion failed!\")" }),
-        ("shared",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "std::sync::Arc::new({0})" }),
-        ("range",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0}..{1}).collect::<Vec<i64>>()" }),
-
+        (
+            "assert",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "assert!({0}, \"Assertion failed!\")",
+            },
+        ),
+        (
+            "shared",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "std::sync::Arc::new({0})",
+            },
+        ),
+        (
+            "range",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}..{1}).collect::<Vec<i64>>()",
+            },
+        ),
         // ---- Functional / Collection (shadowable, pure) ----
         // Unified: list and stream ops share names. Templates use .clone() for pipe safety.
-        ("map",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()" }),
-        ("filter",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()" }),
-        ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
-        ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
-        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }" }),
-        ("list_min",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
-        ("list_max",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
-        ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
-        ("is_some",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_some()" }),
-        ("is_none",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_none()" }),
-        ("any",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))" }),
-        ("all",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))" }),
-        ("find",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()" }),
-        ("flat_map",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()" }),
-        ("zip",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()" }),
-        ("enumerate",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()" }),
-        ("take_while",   BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()" }),
-        ("drop_while",   BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()" }),
-        ("sum_list",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().map(|x| *x as i64).sum::<i64>()" }),
-        ("distinct",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __seen = std::collections::HashSet::new(); {0}.clone().into_iter().filter(|x| __seen.insert(format!(\"{}\", x))).collect::<Vec<_>>() }" }),
-        ("count_by",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64" }),
-        ("partition",    BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }" }),
-        ("chunked",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }" }),
-        ("subscribe",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: D, rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }" }),
-
+        (
+            "map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "filter",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "foldl",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
+            },
+        ),
+        (
+            "sort",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }",
+            },
+        ),
+        (
+            "sort_by",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }",
+            },
+        ),
+        (
+            "list_min",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+            },
+        ),
+        (
+            "list_max",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+            },
+        ),
+        (
+            "reverse",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }",
+            },
+        ),
+        (
+            "is_some",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.is_some()",
+            },
+        ),
+        (
+            "is_none",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.is_none()",
+            },
+        ),
+        (
+            "any",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))",
+            },
+        ),
+        (
+            "all",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))",
+            },
+        ),
+        (
+            "find",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()",
+            },
+        ),
+        (
+            "flat_map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "zip",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "enumerate",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "take_while",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "drop_while",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "sum_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().map(|x| *x as i64).sum::<i64>()",
+            },
+        ),
+        (
+            "distinct",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __seen = std::collections::HashSet::new(); {0}.clone().into_iter().filter(|x| __seen.insert(format!(\"{}\", x))).collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "count_by",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64",
+            },
+        ),
+        (
+            "partition",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }",
+            },
+        ),
+        (
+            "chunked",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
+            },
+        ),
+        (
+            "subscribe",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }",
+            },
+        ),
         // ---- Map builtins (M24) ----
-        ("map_new",      BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
-        ("map_insert",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }" }),
-        ("map_get",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned()" }),
-        ("map_get_or",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())" }),
-        ("map_contains", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key({1}.as_str())" }),
-        ("map_remove",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }" }),
-        ("map_keys",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()" }),
-        ("map_values",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),
-        ("map_entries",  BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()" }),
-        ("map_len",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("map_merge",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }" }),
-        ("map_from",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()" }),
-
+        (
+            "map_new",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "BTreeMap::new()",
+            },
+        ),
+        (
+            "map_insert",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }",
+            },
+        ),
+        (
+            "map_get",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.get({1}.as_str()).cloned()",
+            },
+        ),
+        (
+            "map_get_or",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())",
+            },
+        ),
+        (
+            "map_contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.contains_key({1}.as_str())",
+            },
+        ),
+        (
+            "map_remove",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }",
+            },
+        ),
+        (
+            "map_keys",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_values",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_entries",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_len",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "map_merge",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }",
+            },
+        ),
+        (
+            "map_from",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()",
+            },
+        ),
         // ---- Set builtins (M24) ----
-        ("set_new",       BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
-        ("set_insert",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }" }),
-        ("set_contains",  BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))" }),
-        ("set_remove",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }" }),
-        ("set_len",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("set_to_list",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),
-        ("set_union",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }" }),
-        ("set_intersect", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
-        ("set_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
-        ("set_from_list", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }" }),
-
+        (
+            "set_new",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "BTreeMap::new()",
+            },
+        ),
+        (
+            "set_insert",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }",
+            },
+        ),
+        (
+            "set_contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))",
+            },
+        ),
+        (
+            "set_remove",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }",
+            },
+        ),
+        (
+            "set_len",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "set_to_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "set_union",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }",
+            },
+        ),
+        (
+            "set_intersect",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+            },
+        ),
+        (
+            "set_diff",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+            },
+        ),
+        (
+            "set_from_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
+            },
+        ),
         // ---- Stream builtins (M12, sync Vec-based — clean names, no s_ prefix) ----
-        ("from_list",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("scan",         BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }" }),
-        ("merge",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }" }),
-        ("take",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()" }),
-        ("collect",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("count",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("skip",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()" }),
-        ("window",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }" }),
-        ("sum",          BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()" }),
-        ("last",         BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))" }),
-        ("combine_latest", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }" }),
-
+        (
+            "from_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "scan",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "merge",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }",
+            },
+        ),
+        (
+            "take",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "collect",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "count",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "skip",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "window",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }",
+            },
+        ),
+        (
+            "sum",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()",
+            },
+        ),
+        (
+            "last",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
+            },
+        ),
+        (
+            "combine_latest",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }",
+            },
+        ),
         // ---- Stream lifecycle (sync mode) ----
-        ("complete",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}" }),
-        ("error",        BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }" }),
-        ("take_until",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}" }),
-        ("poll",         BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "({0})()" }),
-
+        (
+            "complete",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}",
+            },
+        ),
+        (
+            "error",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }",
+            },
+        ),
+        (
+            "take_until",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}",
+            },
+        ),
+        (
+            "poll",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "({0})()",
+            },
+        ),
         // ---- New stream operators (M17b) ----
-        ("tap",          BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }" }),
-        ("catch",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("first",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))" }),
-        ("reduce",       BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }" }),
-        ("start_with",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }" }),
-        ("concat",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }" }),
-        ("pairwise",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()" }),
-        ("fst",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.0" }),
-        ("snd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.1" }),
-        ("trd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.2" }),
-
+        (
+            "tap",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }",
+            },
+        ),
+        (
+            "catch",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "first",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))",
+            },
+        ),
+        (
+            "reduce",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }",
+            },
+        ),
+        (
+            "start_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }",
+            },
+        ),
+        (
+            "concat",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }",
+            },
+        ),
+        (
+            "pairwise",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "fst",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.0",
+            },
+        ),
+        (
+            "snd",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.1",
+            },
+        ),
+        (
+            "trd",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.2",
+            },
+        ),
         // ---- Timing operators (M17, sync mode) ----
-        ("debounce",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }" }),
-        ("throttle",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }" }),
-        ("delay",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("buffer",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "vec![{0}.clone()]" }),
-        ("timeout",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("switch_map",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }" }),
-        ("sample",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }" }),
-
+        (
+            "debounce",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }",
+            },
+        ),
+        (
+            "throttle",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "delay",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "buffer",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "vec![{0}.clone()]",
+            },
+        ),
+        (
+            "timeout",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "switch_map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }",
+            },
+        ),
+        (
+            "sample",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }",
+            },
+        ),
         // ---- M35: Random, Time, Regex ----
-        ("random_float",   BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }" }),
-        ("random_choice",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }" }),
-        ("shuffle",        BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }" }),
-        ("sleep",          BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))" }),
-        ("now",            BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)" }),
-        ("time_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} - {1})" }),
-
+        (
+            "random_float",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }",
+            },
+        ),
+        (
+            "random_choice",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }",
+            },
+        ),
+        (
+            "shuffle",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }",
+            },
+        ),
+        (
+            "sleep",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))",
+            },
+        ),
+        (
+            "now",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)",
+            },
+        ),
+        (
+            "time_diff",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} - {1})",
+            },
+        ),
         // Regex (auto-adds regex dep)
-        ("regex_match",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)" }),
-        ("regex_find",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))" }),
-        ("regex_find_all",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()" }),
-        ("regex_replace",    BuiltinDef { arity: 3, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }" }),
+        (
+            "regex_match",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)",
+            },
+        ),
+        (
+            "regex_find",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))",
+            },
+        ),
+        (
+            "regex_find_all",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()",
+            },
+        ),
+        (
+            "regex_replace",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }",
+            },
+        ),
     ];
     entries
         .into_iter()
@@ -19680,6 +22864,11 @@ struct TypeRegistry {
     /// Maps variant name -> every parent ADT name that declares it. This keeps
     /// duplicate constructor names usable when an expression supplies type context.
     variant_parents: BTreeMap<String, BTreeSet<String>>,
+    /// Explore's checked native classifier must never use the legacy
+    /// declaration-order parent as a fallback for a multiply-owned
+    /// constructor. A deliberately invalid parent token then makes any
+    /// context-free backend reconstruction fail compilation atomically.
+    exact_ambiguous_constructor_fallbacks: bool,
     /// Maps original ADT name -> Rust-safe name (e.g. "Option" -> "FuturunaOption")
     type_rename: BTreeMap<String, String>,
     /// Maps variant name -> which argument indices need Box::new() wrapping (recursive fields)
@@ -19784,6 +22973,7 @@ impl TypeRegistry {
             type_decls: BTreeMap::new(),
             variant_parent: BTreeMap::new(),
             variant_parents: BTreeMap::new(),
+            exact_ambiguous_constructor_fallbacks: false,
             type_rename: BTreeMap::new(),
             variant_boxed_args: BTreeMap::new(),
             variant_boxed_args_by_parent: BTreeMap::new(),
@@ -19834,12 +23024,16 @@ impl TypeRegistry {
     }
 
     fn register_variant_parent(&mut self, variant: &str, parent: &str) {
+        const AMBIGUOUS_PARENT: &str = "<futuruna-explore-ambiguous-constructor-owner>";
+        let parents = self.variant_parents.entry(variant.to_string()).or_default();
+        parents.insert(parent.to_string());
+        let fallback = if self.exact_ambiguous_constructor_fallbacks && parents.len() > 1 {
+            AMBIGUOUS_PARENT
+        } else {
+            parent
+        };
         self.variant_parent
-            .insert(variant.to_string(), parent.to_string());
-        self.variant_parents
-            .entry(variant.to_string())
-            .or_default()
-            .insert(parent.to_string());
+            .insert(variant.to_string(), fallback.to_string());
     }
 
     fn register_variant_metadata(
@@ -19862,29 +23056,54 @@ impl TypeRegistry {
             .map(|field| (field.name.clone(), field.ty.clone()))
             .collect::<BTreeMap<_, _>>();
 
-        self.variant_positional
-            .insert(variant.name.clone(), variant.positional);
         self.variant_positional_by_parent
             .insert(key.clone(), variant.positional);
-        if variant.positional {
-            self.variant_fields.remove(variant.name.as_str());
-        } else {
-            self.variant_fields
-                .insert(variant.name.clone(), field_names.clone());
-        }
         self.variant_fields_by_parent
-            .insert(key.clone(), field_names);
-        self.variant_field_types
-            .insert(variant.name.clone(), field_types.clone());
+            .insert(key.clone(), field_names.clone());
         self.variant_field_types_by_parent
-            .insert(key.clone(), field_types);
-        if boxed_args.is_empty() {
+            .insert(key.clone(), field_types.clone());
+        self.variant_boxed_args_by_parent
+            .insert(key, boxed_args.clone());
+
+        let multiply_owned_exact = self.exact_ambiguous_constructor_fallbacks
+            && self
+                .variant_parents
+                .get(variant.name.as_str())
+                .is_some_and(|parents| parents.len() > 1);
+        if multiply_owned_exact {
+            // Exact classifier codegen must never inherit the last declaration
+            // through an owner-free layout table. Parent-qualified metadata
+            // above remains complete; every unqualified fallback is poisoned.
+            self.variant_positional.remove(variant.name.as_str());
+            self.variant_fields.remove(variant.name.as_str());
+            self.variant_field_types.remove(variant.name.as_str());
             self.variant_boxed_args.remove(variant.name.as_str());
         } else {
-            self.variant_boxed_args
-                .insert(variant.name.clone(), boxed_args.clone());
+            self.variant_positional
+                .insert(variant.name.clone(), variant.positional);
+            if variant.positional {
+                self.variant_fields.remove(variant.name.as_str());
+            } else {
+                self.variant_fields
+                    .insert(variant.name.clone(), field_names);
+            }
+            self.variant_field_types
+                .insert(variant.name.clone(), field_types);
+            if boxed_args.is_empty() {
+                self.variant_boxed_args.remove(variant.name.as_str());
+            } else {
+                self.variant_boxed_args
+                    .insert(variant.name.clone(), boxed_args);
+            }
         }
-        self.variant_boxed_args_by_parent.insert(key, boxed_args);
+    }
+
+    fn unqualified_variant_metadata_is_sound(&self, constructor: &str) -> bool {
+        !self.exact_ambiguous_constructor_fallbacks
+            || self
+                .variant_parents
+                .get(constructor)
+                .is_some_and(|parents| parents.len() == 1)
     }
 
     fn variant_key_for_expected(
@@ -19906,9 +23125,13 @@ impl TypeRegistry {
             .and_then(|key| self.variant_field_types_by_parent.get(&key))
             .and_then(|types| types.get(field))
             .or_else(|| {
-                self.variant_field_types
-                    .get(constructor)
-                    .and_then(|types| types.get(field))
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_field_types
+                        .get(constructor)
+                        .and_then(|types| types.get(field))
+                } else {
+                    None
+                }
             })
             .map(|ty| LoweringCtx::ty_to_fir_with_registry(ty, self))
             .unwrap_or(FirTy::Unknown)
@@ -19934,14 +23157,26 @@ impl TypeRegistry {
             .as_ref()
             .and_then(|key| self.variant_positional_by_parent.get(key))
             .copied()
-            .or_else(|| self.variant_positional.get(constructor).copied())
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_positional.get(constructor).copied()
+                } else {
+                    None
+                }
+            })
             .unwrap_or(false);
         let field = if positional {
             format!("_{}", index)
         } else {
             key.as_ref()
                 .and_then(|key| self.variant_fields_by_parent.get(key))
-                .or_else(|| self.variant_fields.get(constructor))
+                .or_else(|| {
+                    if self.unqualified_variant_metadata_is_sound(constructor) {
+                        self.variant_fields.get(constructor)
+                    } else {
+                        None
+                    }
+                })
                 .and_then(|fields| fields.get(index))
                 .cloned()
                 .unwrap_or_else(|| format!("_{}", index))
@@ -19952,7 +23187,13 @@ impl TypeRegistry {
     fn variant_fields_for_parent(&self, parent: &str, constructor: &str) -> Option<&Vec<String>> {
         self.variant_fields_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_fields.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_fields.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn variant_field_types_for_parent(
@@ -19962,14 +23203,26 @@ impl TypeRegistry {
     ) -> Option<&BTreeMap<String, Ty>> {
         self.variant_field_types_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_field_types.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_field_types.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn variant_positional_for_parent(&self, parent: &str, constructor: &str) -> bool {
         self.variant_positional_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
             .copied()
-            .or_else(|| self.variant_positional.get(constructor).copied())
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_positional.get(constructor).copied()
+                } else {
+                    None
+                }
+            })
             .unwrap_or(true)
     }
 
@@ -19980,7 +23233,13 @@ impl TypeRegistry {
     ) -> Option<&Vec<usize>> {
         self.variant_boxed_args_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_boxed_args.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_boxed_args.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn pair_uses_rust_tuple_representation(&self) -> bool {
@@ -20115,6 +23374,12 @@ struct RuleSignatureInferenceCacheEntry {
     result: RuleSignatureInference,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RustCodegenIntArithmeticMode {
+    LanguageDefault,
+    ExploreClassifierExact,
+}
+
 struct RustCodegen {
     indent: usize,
     /// Shared type metadata
@@ -20130,6 +23395,9 @@ struct RustCodegen {
     mutable_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
+    /// Native Explore classifiers must fail the entire batch on an Int
+    /// arithmetic error so the coordinator can fall back atomically.
+    int_arithmetic_mode: RustCodegenIntArithmeticMode,
     /// Top-level bindings that can be referenced through generated getter functions
     lib_static_names: BTreeSet<String>,
     /// Pure ground metadata bindings validated during calculation-contract extraction.
@@ -21531,12 +24799,10 @@ impl<'a> LoweringCtx<'a> {
         }
 
         for candidate in &candidate_types {
-            for (variant, parent) in &self.types.variant_parent {
+            for ((parent, _variant), fields) in &self.types.variant_field_types_by_parent {
                 if parent == candidate {
-                    if let Some(fields) = self.types.variant_field_types.get(variant.as_str()) {
-                        if let Some(ty) = fields.get(field) {
-                            return self.source_ty_to_fir(ty);
-                        }
+                    if let Some(ty) = fields.get(field) {
+                        return self.source_ty_to_fir(ty);
                     }
                 }
             }
@@ -22938,15 +26204,32 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
             let parent = types
                 .parent_for_variant_with_expected(name, expected_ty)
                 .or_else(|| types.variant_parent.get(name).cloned());
-            let arg_strs: Vec<String> = args.iter().map(format_pat).collect();
+            let arg_strs = args
+                .iter()
+                .enumerate()
+                .map(|(index, argument)| {
+                    let field_ty = parent
+                        .as_ref()
+                        .map(|parent| FirTy::Named(parent.clone()))
+                        .map(|constructor_ty| {
+                            types.positional_pattern_field_ty_with_expected(
+                                name,
+                                index,
+                                &constructor_ty,
+                            )
+                        })
+                        .unwrap_or(FirTy::Unknown);
+                    format_pat_with_expected_ty(argument, &field_ty, types)
+                })
+                .collect::<Vec<_>>();
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
                     if args.is_empty() {
                         name.clone()
-                    } else if types.variant_positional.get(name).copied().unwrap_or(true) {
+                    } else if types.variant_positional_for_parent(&parent, name) {
                         format!("{}({})", parent, arg_strs.join(", "))
                     } else {
-                        let fields = types.variant_fields.get(name);
+                        let fields = types.variant_fields_for_parent(&parent, name);
                         let named_args = arg_strs
                             .iter()
                             .enumerate()
@@ -22962,11 +26245,11 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     }
                 }
                 Some(parent) if args.is_empty() => format!("{}::{}", parent, name),
-                Some(parent) if types.variant_positional.get(name).copied().unwrap_or(true) => {
+                Some(parent) if types.variant_positional_for_parent(&parent, name) => {
                     format!("{}::{}({})", parent, name, arg_strs.join(", "))
                 }
                 Some(parent) => {
-                    let fields = types.variant_fields.get(name);
+                    let fields = types.variant_fields_for_parent(&parent, name);
                     let named_args = arg_strs
                         .iter()
                         .enumerate()
@@ -22990,7 +26273,20 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                 .or_else(|| types.variant_parent.get(name).cloned());
             let field_strs = fields
                 .iter()
-                .map(|(field, value)| format!("{}: {}", field, format_pat(value)))
+                .map(|(field, value)| {
+                    let field_ty = parent
+                        .as_ref()
+                        .map(|parent| FirTy::Named(parent.clone()))
+                        .map(|constructor_ty| {
+                            types.pattern_field_ty_with_expected(name, field, &constructor_ty)
+                        })
+                        .unwrap_or(FirTy::Unknown);
+                    format!(
+                        "{}: {}",
+                        field,
+                        format_pat_with_expected_ty(value, &field_ty, types)
+                    )
+                })
                 .collect::<Vec<_>>();
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
@@ -24933,9 +28229,10 @@ fn collect_rebound_in_expr(expr: &Expr, bound: &BTreeSet<String>, mutable: &mut 
     }
 }
 
-/// Check if a Futuruna type is Copy in Rust (primitive numeric/char types)
+/// Check if a Futuruna type is Copy in Rust (unit and primitive scalar types).
 fn is_copy_type(ty: &Ty) -> bool {
-    matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"))
+    matches!(ty, Ty::Unit)
+        || matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Unit" | "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
 
 /// M26b: Map a Futuruna type to a SQLite column type for `@ persist` typed-column lowering.
@@ -25124,6 +28421,7 @@ impl RustCodegen {
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
+            int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
             compile_time_metadata_bindings: BTreeSet::new(),
             allow_global_getter_refs: false,
@@ -25805,7 +29103,10 @@ impl RustCodegen {
                         } else if std::path::Path::new(&dep_file_src).exists() {
                             dep_file_src
                         } else {
-                            eprintln!("\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'", module, dep_name);
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
+                                module, dep_name
+                            );
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
                             return (Vec::new(), dir.to_string());
@@ -30375,7 +33676,9 @@ impl RustCodegen {
                     out.push_str(&format!(
                         "{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"
                     ));
-                    out.push_str(&format!("{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"));
+                    out.push_str(&format!(
+                        "{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"
+                    ));
                     out.push_str(&format!("{i}        rusqlite::params![\"{type_name}\"],\n"));
                     out.push_str(&format!("{i}        |row| row.get(0)\n"));
                     out.push_str(&format!("{i}    ).ok();\n"));
@@ -33817,6 +37120,7 @@ impl RustCodegen {
                 "Char" => "char".to_string(),
                 "Bool" => "bool".to_string(),
                 "Nat" => "u64".to_string(),
+                "Unit" => "()".to_string(),
                 _ => {
                     // Qualified paths (fmt::Display) pass through unchanged
                     if n.contains("::") {
@@ -39178,7 +42482,11 @@ impl RustCodegen {
             }
             Stmt::Abort => {
                 // For now, emit a comment. Transactional abort (break 'scope) comes in M26e.
-                format!("{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n", self.ind(), self.ind())
+                format!(
+                    "{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n",
+                    self.ind(),
+                    self.ind()
+                )
             }
             Stmt::Explore(_) => format!("{}// exploration declaration\n", self.ind()),
         }
@@ -42576,8 +45884,10 @@ impl RustCodegen {
                                     + " "
                             };
                             if name == "filter" {
-                                return format!("{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
-                                    coll, param, clone_prefix, param, param, body_code);
+                                return format!(
+                                    "{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, param, param, body_code
+                                );
                             } else if name == "partition" {
                                 return format!(
                                     "{{ let (__yes, __no): (Vec<_>, Vec<_>) = {}.clone().into_iter().partition(|{}| {{ {} let {} = {}.clone(); {} }}); (__yes, __no) }}",
@@ -42590,7 +45900,10 @@ impl RustCodegen {
                                         coll, param, body_code
                                     );
                                 } else {
-                                    return format!("{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()", coll, param, clone_prefix, body_code);
+                                    return format!(
+                                        "{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
+                                        coll, param, clone_prefix, body_code
+                                    );
                                 }
                             }
                         }
@@ -42610,9 +45923,15 @@ impl RustCodegen {
                                             flags.first().copied().unwrap_or(false)
                                         });
                                     if borrows {
-                                        return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
+                                        return format!(
+                                            "{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()",
+                                            coll, f
+                                        );
                                     } else {
-                                        return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
+                                        return format!(
+                                            "{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()",
+                                            coll, f
+                                        );
                                     }
                                 }
                             }
@@ -43255,22 +46574,43 @@ impl RustCodegen {
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
+                let exact_int_candidate = self.int_arithmetic_mode
+                    == RustCodegenIntArithmeticMode::ExploreClassifierExact
+                    && matches!(rust_op, "+" | "-" | "*" | "/" | "%");
+                let is_float_arithmetic = if exact_int_candidate || matches!(rust_op, "/" | "%") {
+                    match self.infer_expr_fir_ty(expr) {
+                        FirTy::Float => true,
+                        FirTy::Int => false,
+                        _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
+                    }
+                } else {
+                    false
+                };
+                if exact_int_candidate && !is_float_arithmetic {
+                    let checked_method = match rust_op {
+                        "+" => "checked_add",
+                        "-" => "checked_sub",
+                        "*" => "checked_mul",
+                        "/" => "checked_div",
+                        "%" => "checked_rem",
+                        _ => unreachable!("guarded exact Int operator"),
+                    };
+                    return format!(
+                        "{{ let __fut_l: i64 = {}; let __fut_r: i64 = {}; __fut_l.{}(__fut_r).unwrap_or_else(|| std::process::exit({})) }}",
+                        l, r, checked_method, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                    );
+                }
                 // Safe division/modulo: return 0 on division by zero (matches interpreter).
                 // Prefer the inferred type of the full expression so Int-valued helpers like
                 // round(...) % 64 do not get pulled onto the float path just because a child
                 // subtree mentions floats somewhere upstream.
                 if rust_op == "/" || rust_op == "%" {
-                    let is_float = match self.infer_expr_fir_ty(expr) {
-                        FirTy::Float => true,
-                        FirTy::Int => false,
-                        _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
-                    };
                     let l_for_op = if l.trim_start().starts_with('{') {
                         format!("({})", l)
                     } else {
                         l.clone()
                     };
-                    if is_float {
+                    if is_float_arithmetic {
                         return format!(
                             "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
                             r, l_for_op, rust_op
@@ -43285,7 +46625,19 @@ impl RustCodegen {
                 format!("({} {} {})", l, rust_op, r)
             }
             ExprKind::UnOp(op, operand) => {
-                format!("{}{}", op, self.emit_expr(operand))
+                let emitted_operand = self.emit_expr(operand);
+                if self.int_arithmetic_mode == RustCodegenIntArithmeticMode::ExploreClassifierExact
+                    && op == "-"
+                    && !matches!(self.infer_expr_fir_ty(expr), FirTy::Float)
+                    && !self.expr_is_float(operand)
+                {
+                    format!(
+                        "{{ let __fut_v: i64 = {}; __fut_v.checked_neg().unwrap_or_else(|| std::process::exit({})) }}",
+                        emitted_operand, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                    )
+                } else {
+                    format!("{}{}", op, emitted_operand)
+                }
             }
             ExprKind::If(cond, then_, else_) => {
                 let c = self.emit_expr(cond);
@@ -43667,9 +47019,12 @@ impl RustCodegen {
                         }
                         if !arms.is_empty() {
                             if arms.len() == 1 {
-                                return format!("{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
-                                    arms[0].split(" => ").next().unwrap(), obj_str,
-                                    arms[0].split(" => ").nth(1).unwrap());
+                                return format!(
+                                    "{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
+                                    arms[0].split(" => ").next().unwrap(),
+                                    obj_str,
+                                    arms[0].split(" => ").nth(1).unwrap()
+                                );
                             }
                             arms.push("_ => panic!(\"field access on wrong variant\")".to_string());
                             return format!("{{ match {} {{ {} }} }}", obj_str, arms.join(", "));
@@ -43709,7 +47064,10 @@ impl RustCodegen {
                 // Safe index: bounds-check instead of panic on negative/out-of-range
                 let arr_str = self.emit_expr(arr);
                 let idx_str = self.emit_expr(idx);
-                format!("{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}", arr_str, idx_str)
+                format!(
+                    "{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}",
+                    arr_str, idx_str
+                )
             }
             ExprKind::List(elems) => {
                 let items: Vec<String> =
@@ -46828,8 +50186,8 @@ mod tests {
 
     #[test]
     fn formatter_formats_bounded_exploration_idempotently() {
-        let source = "? explore income_cliffs {\nover condition(value)\nfind violations\nbounds {\nvalue in [1,2]\nwhere value>0\n}\nboundaries on value by 1\noutput {\nkey [value]\nshow [after=value+1]\nrepresentative minimize after\n}\n}\n";
-        let expected = "? explore income_cliffs {\n    over condition(value)\n    find violations\n    bounds {\n        value in [1,2]\n        where value > 0\n    }\n    boundaries on value by 1\n    output {\n        key [value]\n        show [after=value + 1]\n        representative minimize after\n    }\n}\n";
+        let source = "? explore income_cliffs {\nfrom {\nincome in range(0, 3)\nbefore = person(income)\ncontext = ()\n}\nto after = promote(before, context)\nwhere before before.income>=0\nfind violations of net(after, context)>=net(before, context)\nresults cliffs {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
+        let expected = "? explore income_cliffs {\n    from {\n        income in range(0, 3)\n        before = person(income)\n        context = ()\n    }\n    to after = promote(before, context)\n    where before before.income >= 0\n    find violations of net(after, context) >= net(before, context)\n    results cliffs {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -46843,9 +50201,9 @@ mod tests {
     }
 
     #[test]
-    fn formatter_preserves_query_owned_mechanism_observation_idempotently() {
-        let source = "? explore observed {\nover changed(before,after,context)\nfind matches\nbounds {\ncontext.step = 1\nbefore.income in range(0,3)\n}\ntransition as IncomeState context IncomeContext {\nafter.income = before.income + context.step\n}\nobserve mechanisms with observe_income\noutput {\nkey [income = before.income]\nrepresentative first\n}\n}\n";
-        let expected = "? explore observed {\n    over changed(before,after,context)\n    find matches\n    bounds {\n        context.step = 1\n        before.income in range(0,3)\n    }\n    transition as IncomeState context IncomeContext {\n        after.income = before.income + context.step\n    }\n    observe mechanisms with observe_income\n    output {\n        key [income = before.income]\n        representative first\n    }\n}\n";
+    fn formatter_preserves_named_mechanism_requests_idempotently() {
+        let source = "? explore observed {\nfrom {\nbefore in states()\ncontext = IncomeContext(step = 1)\n}\nto after in successors(before, context)\nwhere transition after.income>=before.income\nfind matches of changed(before, after, context)\nresults winners {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths for selected from observe_income\nmechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
+        let expected = "? explore observed {\n    from {\n        before in states()\n        context = IncomeContext(step = 1)\n    }\n    to after in successors(before, context)\n    where transition after.income >= before.income\n    find matches of changed(before, after, context)\n    results winners {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths for selected from observe_income\n    mechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -46858,13 +50216,10 @@ mod tests {
         let Some(Stmt::Explore(query)) = statements.first() else {
             panic!("expected Explore query");
         };
-        assert_eq!(
-            query
-                .mechanism_observation
-                .as_ref()
-                .map(|observation| observation.callable_name.as_str()),
-            Some("observe_income")
-        );
+        assert_eq!(query.mechanisms.len(), 2);
+        assert_eq!(query.mechanisms[0].name, "cliff_paths");
+        assert_eq!(query.mechanisms[1].name, "winner_paths");
+        assert_eq!(query.mechanisms[1].callable_name, "Tax::observe_income");
     }
 
     #[test]
@@ -49093,43 +52448,35 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "expression diagnostics visit all expression-bearing branches with pattern bindings in scope",
                     "imported module diagnostics use restored source_dir and qualified export metadata",
                 ],
-                traversal_expectation:
-                    "semantic traversal must remain exhaustive because it carries scopes and diagnostic context",
-                module_leak_guard:
-                    "qualified imports expose only exported names and imported source_dir state is restored",
+                traversal_expectation: "semantic traversal must remain exhaustive because it carries scopes and diagnostic context",
+                module_leak_guard: "qualified imports expose only exported names and imported source_dir state is restored",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "TypeChecker::check_stmt",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
                         evidence_marker: "    pub fn check_stmt(&mut self, stmt: &Stmt) {",
-                        reason:
-                            "stmt checking mutates scopes, declaration state, and diagnostic context while recursing",
+                        reason: "stmt checking mutates scopes, declaration state, and diagnostic context while recursing",
                     },
                     TraversalAudit {
                         path: "TypeChecker::check_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {",
-                        reason:
-                            "expr checking needs scope-sensitive arity, constructor, pattern, and module-export checks",
+                        evidence_marker: "    pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {",
+                        reason: "expr checking needs scope-sensitive arity, constructor, pattern, and module-export checks",
                     },
                     TraversalAudit {
                         path: "TypeChecker::collect_declarations",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
-                        reason:
-                            "declaration collection mutates symbol tables and import source_dir state",
+                        evidence_marker: "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason: "declaration collection mutates symbol tables and import source_dir state",
                     },
                 ],
                 coverage: vec![
                     PassCoverageExpectation::FixtureText {
                         path: "src/lib.rs",
-                        marker:
-                            "fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants()",
+                        marker: "fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants()",
                     },
                     PassCoverageExpectation::FixtureText {
                         path: "tests/expect/diagnostics/undefined_variable_in_function.runa",
@@ -49150,26 +52497,22 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "Invariant and Prove rows count later uses before clone/move decisions",
                     "non-Copy locals reused after branch returns are marked for clone or borrow",
                 ],
-                traversal_expectation:
-                    "use canonical AST child traversal or exhaustive expression-bearing matches",
-                module_leak_guard:
-                    "imported script flow must not become root runtime code during ownership scans",
+                traversal_expectation: "use canonical AST child traversal or exhaustive expression-bearing matches",
+                module_leak_guard: "imported script flow must not become root runtime code during ownership scans",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "count_var_uses/count_var_uses_stmt",
                         kind: TraversalAuditKind::CanonicalAstWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    walk_ast_expr(expr, &mut |child| {",
-                        reason:
-                            "generic variable reference counting has no scope side effects and should ride the AST walker",
+                        reason: "generic variable reference counting has no scope side effects and should ride the AST walker",
                     },
                     TraversalAudit {
                         path: "count_consuming_uses_borrow_aware_impl",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "fn count_consuming_uses_borrow_aware_impl(",
-                        reason:
-                            "consuming-use analysis needs branch max-counting and borrow-aware call semantics",
+                        reason: "consuming-use analysis needs branch max-counting and borrow-aware call semantics",
                     },
                 ],
                 coverage: vec![
@@ -49183,11 +52526,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     },
                     PassCoverageExpectation::AstOwnership {
                         row: "StreamSub",
-                        markers: &[
-                            "stream_sub_expr",
-                            "stream_sub_guard",
-                            "stream_sub_body",
-                        ],
+                        markers: &["stream_sub_expr", "stream_sub_guard", "stream_sub_body"],
                     },
                     PassCoverageExpectation::FixtureText {
                         path: "tests/expect/artifact/ownership_branch_string_contract.runa",
@@ -49230,36 +52569,29 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "qualified imports expose only exported module members",
                     "script-only statements remain ignored when expanding libraries",
                 ],
-                traversal_expectation:
-                    "classify every Stmt variant before retaining, ignoring, or recursively expanding",
-                module_leak_guard:
-                    "source_dir is restored after each import and private/script symbols do not leak",
+                traversal_expectation: "classify every Stmt variant before retaining, ignoring, or recursively expanding",
+                module_leak_guard: "source_dir is restored after each import and private/script symbols do not leak",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "RustCodegen::classify_imported_stmt_for_expansion",
                         kind: TraversalAuditKind::StatementClassifier,
                         source: ContractSourceFile::RunaRs,
-                        evidence_marker:
-                            "    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {",
-                        reason:
-                            "import normalization is a statement classifier, not a recursive expression walk",
+                        evidence_marker: "    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {",
+                        reason: "import normalization is a statement classifier, not a recursive expression walk",
                     },
                     TraversalAudit {
                         path: "RustCodegen::scan_declarations import expansion",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {",
-                        reason:
-                            "scan_declarations mutates import, export, dependency, and type-registry state in order",
+                        reason: "scan_declarations mutates import, export, dependency, and type-registry state in order",
                     },
                     TraversalAudit {
                         path: "TypeChecker::collect_declarations import expansion",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
-                        reason:
-                            "type-checker import declaration collection resolves files with scoped source_dir state",
+                        evidence_marker: "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason: "type-checker import declaration collection resolves files with scoped source_dir state",
                     },
                 ],
                 coverage: vec![
@@ -49319,26 +52651,22 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "Block, For, Invariant, Prove, and Disjunction children remain traversable",
                     "lowered variables keep their VarMode through substitution",
                 ],
-                traversal_expectation:
-                    "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
-                module_leak_guard:
-                    "module-qualified and imported symbols stay scoped through FIR snapshots",
+                traversal_expectation: "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
+                module_leak_guard: "module-qualified and imported symbols stay scoped through FIR snapshots",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "TypeInference::substitute_expr",
                         kind: TraversalAuditKind::CanonicalFirWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "        walk_fir_expr_mut(",
-                        reason:
-                            "FIR type substitution is a generic recursive metadata rewrite",
+                        reason: "FIR type substitution is a generic recursive metadata rewrite",
                     },
                     TraversalAudit {
                         path: "LoweringCtx::lower_stmt/lower_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn lower_stmt(&mut self, stmt: &Stmt) -> FirStmt {",
-                        reason:
-                            "lowering changes representation while threading type, ownership, and borrow metadata",
+                        reason: "lowering changes representation while threading type, ownership, and borrow metadata",
                     },
                 ],
                 coverage: vec![
@@ -49383,34 +52711,29 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "lowered Pair/map_entries values use stable Rust tuple contracts",
                     "generated Rust does not leak private imported symbols or script-only flow",
                 ],
-                traversal_expectation:
-                    "emit expression-bearing children through checked ownership/type metadata paths",
-                module_leak_guard:
-                    "library exports are public only when exported and helper script output is suppressed",
+                traversal_expectation: "emit expression-bearing children through checked ownership/type metadata paths",
+                module_leak_guard: "library exports are public only when exported and helper script output is suppressed",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "RustCodegen::collect_watch_type_names_from_stmt_list",
                         kind: TraversalAuditKind::CanonicalAstWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "            walk_ast_stmt(stmt, &mut |child| {",
-                        reason:
-                            "watch-type discovery is generic expression discovery over AST statements",
+                        reason: "watch-type discovery is generic expression discovery over AST statements",
                     },
                     TraversalAudit {
                         path: "RustCodegen::emit_stmt/emit_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn emit_stmt(&mut self, stmt: &Stmt) -> String {",
-                        reason:
-                            "Rust emission is metadata-sensitive lowering, not a pure structural walk",
+                        reason: "Rust emission is metadata-sensitive lowering, not a pure structural walk",
                     },
                     TraversalAudit {
                         path: "RustCodegen::scan_declarations export pre-scan",
                         kind: TraversalAuditKind::StatementClassifier,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "        // Pre-scan: collect @ export annotations (M3b)",
-                        reason:
-                            "export visibility depends on prefix annotation state and statement classification",
+                        reason: "export visibility depends on prefix annotation state and statement classification",
                     },
                 ],
                 coverage: vec![
@@ -49490,59 +52813,87 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
 
     fn coverage_explore_stmt() -> Stmt {
         Stmt::Explore(ExploreQuery {
-            name: Some("coverage_query".to_string()),
-            over: ExploreOver {
-                rule_name: "coverage_rule".to_string(),
-                inputs: vec![],
+            name: "coverage_query".to_string(),
+            source: ExploreSourceRelation {
+                bindings: vec![
+                    ExploreSourceBinding {
+                        name: "axis".to_string(),
+                        kind: ExploreSourceBindingKind::Finite {
+                            domain: coverage_expr("explore_domain"),
+                        },
+                        span: Span::dummy(),
+                    },
+                    ExploreSourceBinding {
+                        name: "before".to_string(),
+                        kind: ExploreSourceBindingKind::Singleton {
+                            value: coverage_expr("explore_before"),
+                        },
+                        span: Span::dummy(),
+                    },
+                    ExploreSourceBinding {
+                        name: "context".to_string(),
+                        kind: ExploreSourceBindingKind::Singleton {
+                            value: coverage_expr("explore_context"),
+                        },
+                        span: Span::dummy(),
+                    },
+                ],
                 span: Span::dummy(),
             },
-            polarity: ExplorePolarity::Matches,
-            bounds: vec![
-                ExploreBound::Domain {
-                    role: None,
-                    name: "axis".to_string(),
-                    domain: coverage_expr("explore_domain"),
-                    span: Span::dummy(),
+            successor: ExploreSuccessorRelation {
+                kind: ExploreSuccessorKind::Finite {
+                    domain: coverage_expr("explore_successor"),
                 },
-                ExploreBound::Value {
-                    role: None,
-                    name: "derived".to_string(),
-                    value: coverage_expr("explore_value"),
-                    span: Span::dummy(),
-                },
-                ExploreBound::Where {
-                    scope: None,
-                    predicate: coverage_expr("explore_where"),
-                    span: Span::dummy(),
-                },
-            ],
-            transition: None,
-            boundary: Some(ExploreBoundary {
-                axis_role: None,
-                axis: "axis".to_string(),
-                step: coverage_expr("explore_step"),
                 span: Span::dummy(),
-            }),
-            mechanism_observation: None,
-            output: ExploreOutput {
-                key: vec![ExploreOutputField {
-                    name: "key".to_string(),
-                    value: coverage_expr("explore_key"),
+            },
+            admissions: vec![ExploreAdmission {
+                scope: ExploreAdmissionScope::Transition,
+                predicate: coverage_expr("explore_where"),
+                span: Span::dummy(),
+            }],
+            selection: ExploreSelection::Matches {
+                predicate: coverage_expr("explore_find"),
+                span: Span::dummy(),
+            },
+            results: vec![ExploreResultView {
+                name: "coverage_view".to_string(),
+                grain: ExploreResultGrain::GroupBy {
+                    fields: vec![ExploreResultField {
+                        name: "key".to_string(),
+                        value: coverage_expr("explore_key"),
+                        span: Span::dummy(),
+                    }],
+                    span: Span::dummy(),
+                },
+                measures: vec![ExploreResultField {
+                    name: "measure".to_string(),
+                    value: coverage_expr("explore_measure"),
                     span: Span::dummy(),
                 }],
-                extrema: Vec::new(),
-                having: None,
-                show: vec![ExploreOutputField {
+                having: Some(ExploreResultHaving::Varies {
+                    measure_name: "measure".to_string(),
+                    span: Span::dummy(),
+                }),
+                select: vec![ExploreResultField {
                     name: "shown".to_string(),
-                    value: coverage_expr("explore_show"),
+                    value: coverage_expr("explore_select"),
                     span: Span::dummy(),
                 }],
-                representative: ExploreRepresentative::Maximize {
-                    objective: coverage_expr("explore_representative"),
+                choose: Some(ExploreResultChoice::Optimize {
+                    cardinality: ExploreChooseCardinality::All,
+                    direction: ExploreOptimizeDirection::Maximize,
+                    objective: coverage_expr("explore_choice"),
                     span: Span::dummy(),
-                },
+                }),
                 span: Span::dummy(),
-            },
+            }],
+            mechanisms: vec![ExploreMechanismRequest {
+                name: "coverage_mechanism".to_string(),
+                target: ExploreMechanismTarget::SelectedCases,
+                callable_name: "explore_mechanism".to_string(),
+                endpoint_template: coverage_expr("explore_mechanism"),
+                span: Span::dummy(),
+            }],
             span: Span::dummy(),
         })
     }
@@ -50745,8 +54096,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 file: "src/bin/runa.rs",
                 label: "RustCodegen::scan_declarations import resolution",
                 source: include_str!("runa.rs"),
-                start_marker:
-                    "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
+                start_marker: "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
                 end_marker: "        // Deduplicate type declarations from imports",
             },
             StmtWildcardGuardRegion {
@@ -53052,7 +56402,9 @@ for x in [1, 2] {
 
     #[test]
     fn fir_emit_match_expression() {
-        let code = fir_emit("# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"red\" | Green -> \"green\" | Blue -> \"blue\" } }");
+        let code = fir_emit(
+            "# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"red\" | Green -> \"green\" | Blue -> \"blue\" } }",
+        );
         assert!(code.contains("fn name("), "missing fn:\n{}", code);
         assert!(code.contains("match c"), "missing match:\n{}", code);
         assert!(code.contains("Red =>"), "missing arm:\n{}", code);
@@ -54254,11 +57606,8 @@ for x in [1, 2] {
             fields: vec![("x".to_string(), "Int".to_string())],
         };
         assert!(
-            RustCodegen::value_to_supported_auto_comptime_literal(
-                &unsupported,
-                &BTreeMap::new()
-            )
-            .is_none(),
+            RustCodegen::value_to_supported_auto_comptime_literal(&unsupported, &BTreeMap::new())
+                .is_none(),
             "unsupported comptime values should be skipped instead of producing todo-literal diagnostics"
         );
 
@@ -58009,8 +61358,7 @@ routes <- "b"
 
     #[test]
     fn legacy_emit_expr_keeps_owned_string_captures_for_returned_lambdas() {
-        let source =
-            "> make_frame(prefix: String, suffix: String) -> (String -> String) { |s| prefix + s + suffix }";
+        let source = "> make_frame(prefix: String, suffix: String) -> (String -> String) { |s| prefix + s + suffix }";
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(

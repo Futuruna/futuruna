@@ -424,7 +424,7 @@ fn collect_rule_callables(
             continue;
         }
         let return_ty = owner
-            .and_then(|owner| checker.scoped_member_return_type(owner, &name))
+            .and_then(|owner| checker.scoped_member_return_type(owner, &name, arity))
             .or_else(|| checker.rule_return_types.get(&name).cloned())
             .or_else(|| {
                 let head = rule_head(rule)?;

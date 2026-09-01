@@ -16,6 +16,7 @@ const MIB: u64 = 1024 * 1024;
 const GIB: u64 = 1024 * MIB;
 const MILLICORES_PER_CORE: u64 = 1_000;
 const MINIMUM_STABLE_WINDOW_MILLIS: u64 = 30_000;
+const OUTER_CONTAINED_MINIMUM_STABLE_WINDOW_MILLIS: u64 = 5_000;
 const MAX_RAMP_EVIDENCE_IDENTITIES: u16 = 64;
 // Cold evaluator and compiler sizing remain more conservative than the host
 // reserve: their unknown peak is charged at least one quarter of physical RAM.
@@ -115,6 +116,12 @@ pub(crate) struct ResourcePolicy {
     pub(crate) minimum_cold_calibration_memory_charge_bytes: u64,
     pub(crate) minimum_compile_memory_charge_bytes: u64,
     pub(crate) minimum_compile_cpu_charge_millicores: u32,
+    /// A validated outer supervisor's bounded per-worker admission charge.
+    /// Presence means evaluator admission may remain live at macOS Warning
+    /// pressure; the outer process-group boundary independently caps the
+    /// epoch, retains untracked memory, and stops pressure escalation. It never
+    /// relaxes compiler admission.
+    pub(crate) outer_contained_cold_worker_memory_charge_bytes: Option<u64>,
     pub(crate) stable_window_millis: u64,
     pub(crate) committed_shards_before_scale_up: u16,
 }
@@ -125,7 +132,9 @@ impl Default for ResourcePolicy {
             configured_worker_ceiling: None,
             requested_jobs_ceiling: None,
             // The operator-authorized automatic ceiling is 80% of installed
-            // capacity.  Whole-core rounding can reserve more CPU, never less.
+            // capacity. Preserve the fraction in millicores so a six-core host
+            // reserves exactly 1.2 cores rather than accidentally turning the
+            // authorized 80% ceiling into a 66% ceiling.
             cpu_reserve_divisor: 5,
             memory_reserve_divisor: 5,
             // Keep an absolute cushion on small hosts without silently turning
@@ -136,6 +145,7 @@ impl Default for ResourcePolicy {
             minimum_cold_calibration_memory_charge_bytes: 2 * GIB,
             minimum_compile_memory_charge_bytes: 2 * GIB,
             minimum_compile_cpu_charge_millicores: 1_000,
+            outer_contained_cold_worker_memory_charge_bytes: None,
             stable_window_millis: MINIMUM_STABLE_WINDOW_MILLIS,
             committed_shards_before_scale_up: 2,
         }
@@ -174,6 +184,11 @@ impl ResourcePolicy {
                 "resource charges and reserve floors must be positive",
             ));
         }
+        if self.outer_contained_cold_worker_memory_charge_bytes == Some(0) {
+            return Err(ResourceGovernorError::InvalidPolicy(
+                "outer-contained cold worker charge must be positive",
+            ));
+        }
         if self.minimum_memory_reserve_bytes < GIB
             || self.minimum_cold_calibration_memory_charge_bytes < 2 * GIB
             || self.minimum_compile_memory_charge_bytes < 2 * GIB
@@ -190,9 +205,17 @@ impl ResourcePolicy {
                 "worker and compile CPU charges cannot be below one core",
             ));
         }
-        if self.stable_window_millis < MINIMUM_STABLE_WINDOW_MILLIS {
+        let minimum_stable_window = if self
+            .outer_contained_cold_worker_memory_charge_bytes
+            .is_some()
+        {
+            OUTER_CONTAINED_MINIMUM_STABLE_WINDOW_MILLIS
+        } else {
+            MINIMUM_STABLE_WINDOW_MILLIS
+        };
+        if self.stable_window_millis < minimum_stable_window {
             return Err(ResourceGovernorError::InvalidPolicy(
-                "stable_window_millis cannot be shorter than 30 seconds",
+                "stable_window_millis is shorter than its containment mode permits",
             ));
         }
         if self.committed_shards_before_scale_up < 2
@@ -203,6 +226,16 @@ impl ResourcePolicy {
             ));
         }
         Ok(())
+    }
+
+    pub(crate) const fn evaluator_pressure_is_admissible(self, pressure: MemoryPressure) -> bool {
+        match pressure {
+            MemoryPressure::Normal => true,
+            MemoryPressure::Warning => self
+                .outer_contained_cold_worker_memory_charge_bytes
+                .is_some(),
+            MemoryPressure::Critical | MemoryPressure::Unknown => false,
+        }
     }
 }
 
@@ -1124,7 +1157,12 @@ impl ResourceGovernor {
 
     fn begin_scan(&mut self, sample: ResourceSample) -> Result<(), ResourceGovernorError> {
         self.require_phase(GovernorPhase::Idle, "idle")?;
-        if self.calibration.is_none() {
+        if self.calibration.is_none()
+            && self
+                .policy
+                .outer_contained_cold_worker_memory_charge_bytes
+                .is_none()
+        {
             return Err(ResourceGovernorError::InvalidCalibration(
                 "a measured evaluator calibration is required before scanning",
             ));
@@ -1470,11 +1508,11 @@ impl ResourceGovernor {
 
         match self.phase {
             GovernorPhase::Compiling { epoch } if sample.compile_epoch != Some(epoch) => {
-                return Err(ResourceGovernorError::StaleCompileEpoch)
+                return Err(ResourceGovernorError::StaleCompileEpoch);
             }
             GovernorPhase::Compiling { .. } => {}
             _ if sample.compile_epoch.is_some() => {
-                return Err(ResourceGovernorError::StaleCompileEpoch)
+                return Err(ResourceGovernorError::StaleCompileEpoch);
             }
             _ => {}
         }
@@ -1758,10 +1796,25 @@ impl ResourceGovernor {
             }
             _ => (0, None),
         };
-        let cpu_worker_ceiling = cpu_budget
-            .map(|value| saturating_u16(u64::from(value) / u64::from(worker_cpu_charge_millicores)))
-            .unwrap_or(0);
         let policy_worker_ceiling = self.policy_worker_ceiling();
+        let cpu_worker_ceiling = if self
+            .policy
+            .outer_contained_cold_worker_memory_charge_bytes
+            .is_some()
+        {
+            // The validated outer supervisor samples authoritative Mach host
+            // counters continuously and pauses the entire worker group to
+            // repay any 80%-budget debt. Do not pre-charge another whole core
+            // at this slower semantic boundary; retain complete CPU telemetry
+            // and the live/window reserve checks below.
+            policy_worker_ceiling
+        } else {
+            cpu_budget
+                .map(|value| {
+                    saturating_u16(u64::from(value) / u64::from(worker_cpu_charge_millicores))
+                })
+                .unwrap_or(0)
+        };
         let charged_worker_commitments = cmp::max(
             self.target_worker_leases,
             sample.evaluator.live_and_reserved_commitments()?,
@@ -1813,7 +1866,8 @@ impl ResourceGovernor {
         swap: SwapAssessment,
         stable_duration_millis: u64,
     ) -> bool {
-        sample.pressure == MemoryPressure::Normal
+        self.policy
+            .evaluator_pressure_is_admissible(sample.pressure)
             && !sample.oom_risk
             && capacity.telemetry_complete
             && self.current_and_window_reserve_intact(sample, capacity)
@@ -1955,7 +2009,12 @@ impl ResourceGovernor {
             )?;
             return Ok(true);
         }
-        if sample.pressure == MemoryPressure::Warning {
+        if sample.pressure == MemoryPressure::Warning
+            && self
+                .policy
+                .outer_contained_cold_worker_memory_charge_bytes
+                .is_none()
+        {
             self.block_stability_epoch(sample.stability.epoch);
             let one_lower = self.target_worker_leases.saturating_sub(1);
             let target = cmp::min(one_lower, ingested.capacity.safe_worker_ceiling);
@@ -2352,6 +2411,10 @@ impl ResourceGovernor {
     }
 
     fn conservative_cold_calibration_memory_charge(&self) -> Result<u64, ResourceGovernorError> {
+        if let Some(contained_charge) = self.policy.outer_contained_cold_worker_memory_charge_bytes
+        {
+            return Ok(contained_charge);
+        }
         let host_fraction = self
             .host
             .total_memory_bytes
@@ -2394,17 +2457,26 @@ impl ResourceGovernor {
         &self,
         live_capacity_millicores: u32,
     ) -> Result<u32, ResourceGovernorError> {
-        let live_cores = ceil_div_u64(u64::from(live_capacity_millicores), MILLICORES_PER_CORE)?;
-        let reserved_cores = ceil_div_u64(live_cores, u64::from(self.policy.cpu_reserve_divisor))?;
-        let installed_reserved_cores = self
+        let live_reserve = ceil_div_u64(
+            u64::from(live_capacity_millicores),
+            u64::from(self.policy.cpu_reserve_divisor),
+        )?;
+        let installed_reserve = self
             .host
             .logical_cpu_count
-            .map(|cores| ceil_div_u64(u64::from(cores), u64::from(self.policy.cpu_reserve_divisor)))
+            .map(|cores| {
+                u64::from(cores)
+                    .checked_mul(MILLICORES_PER_CORE)
+                    .ok_or(ResourceGovernorError::ArithmeticOverflow(
+                        "installed CPU capacity",
+                    ))
+                    .and_then(|capacity| {
+                        ceil_div_u64(capacity, u64::from(self.policy.cpu_reserve_divisor))
+                    })
+            })
             .transpose()?
             .unwrap_or(0);
-        let reserve = cmp::max(reserved_cores, installed_reserved_cores)
-            .checked_mul(MILLICORES_PER_CORE)
-            .ok_or(ResourceGovernorError::ArithmeticOverflow("CPU reserve"))?;
+        let reserve = cmp::max(live_reserve, installed_reserve);
         u32::try_from(reserve)
             .map_err(|_| ResourceGovernorError::ArithmeticOverflow("CPU reserve conversion"))
     }

@@ -21,9 +21,9 @@ use super::{
     run_stream::{ExactCaseSupport, ExploreCaseUniverse},
 };
 use crate::{
-    checked_ty_structurally_equal, AnalysisProgramId, CheckedCallTarget, CheckedCallableId,
-    CheckedExploreQueryView, CheckedExpressionType, CheckedResolutionArtifacts,
-    CheckedRuleCandidateResolution, ExprSiteId, RuleDispatchKey, RuleDispatchTier, Ty,
+    AnalysisProgramId, CheckedCallTarget, CheckedCallableId, CheckedExploreQueryView,
+    CheckedExpressionType, CheckedResolutionArtifacts, CheckedRuleCandidateResolution, ExprSiteId,
+    RuleDispatchKey, RuleDispatchTier, Ty,
 };
 
 const MECHANISM_REQUEST_HASH_V3: &[u8] = b"futuruna.explore.mechanism-request.v3";
@@ -33,7 +33,7 @@ const MECHANISM_SITE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-site.v2";
 const MECHANISM_OCCURRENCE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-occurrence.v2";
 const MECHANISM_SIGNATURE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-signature.v2";
 const CHECKED_MECHANISM_REQUEST_HASH_V1: &[u8] = b"futuruna.explore.checked-mechanism-request.v1";
-const MECHANISM_CHECKED_QUERY_HASH_V1: &[u8] = b"futuruna.explore.mechanism-checked-query.v1";
+const MECHANISM_CHECKED_QUERY_HASH_V2: &[u8] = b"futuruna.explore.mechanism-checked-query.v2";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismValidationError(String);
@@ -108,12 +108,12 @@ fn validate_analysis_program_id(
     Ok(())
 }
 
-/// Hash identity of the producer-minted checked query-and-domain contract.
+/// Hash identity of the producer-minted relational question and analysis DAG.
 ///
 /// Operational budgets and sampling order are deliberately absent. Production
 /// construction consumes only a [`CheckedExploreQueryView`], whose accessor
-/// has already revalidated both producer digests against the checked source
-/// declaration and closed finite universe.
+/// has already revalidated the layered relation/admission/question identities
+/// and analysis graph against the checked source declaration.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct MechanismQueryId(StableDigest);
 
@@ -123,14 +123,23 @@ impl MechanismQueryId {
     ) -> Result<Self, MechanismValidationError> {
         validate_analysis_program_id(&checked.artifact.identity.analysis_program)?;
         validate_lowercase_sha256(
-            checked.artifact.identity.digest.as_ref(),
-            "checked Explore query identity",
+            checked.analysis_graph_hash(),
+            "checked Explore analysis-graph identity",
         )?;
-        validate_lowercase_sha256(checked.domain_hash(), "checked Explore domain identity")?;
 
-        let mut hasher = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V1);
-        hasher.segment(checked.artifact.identity.digest.as_bytes());
-        hasher.segment(checked.domain_hash().as_bytes());
+        let mut hasher = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V2);
+        hasher.segment(
+            checked
+                .artifact
+                .identity
+                .analysis_program
+                .as_str()
+                .as_bytes(),
+        );
+        hasher.segment(&checked.relation_id().bytes());
+        hasher.segment(&checked.admission_id().bytes());
+        hasher.segment(&checked.question_id().bytes());
+        hasher.segment(checked.analysis_graph_hash().as_bytes());
         Ok(Self(hasher.digest()))
     }
 
@@ -446,11 +455,35 @@ impl PartialEq for MechanismObservationIr {
         self.endpoint_template == other.endpoint_template
             && self.template_site == other.template_site
             && self.template_root == other.template_root
-            && checked_ty_structurally_equal(&self.state_type, &other.state_type)
-            && checked_ty_structurally_equal(&self.context_type, &other.context_type)
-            && checked_ty_structurally_equal(&self.observation_type, &other.observation_type)
+            && mechanism_ty_structurally_equal(&self.state_type, &other.state_type)
+            && mechanism_ty_structurally_equal(&self.context_type, &other.context_type)
+            && mechanism_ty_structurally_equal(&self.observation_type, &other.observation_type)
             && self.dependency_roots == other.dependency_roots
             && self.normalization_version == other.normalization_version
+    }
+}
+
+fn mechanism_ty_structurally_equal(left: &Ty, right: &Ty) -> bool {
+    match (left, right) {
+        (Ty::Name(left), Ty::Name(right)) | (Ty::Var(left), Ty::Var(right)) => left == right,
+        (Ty::App(left_base, left_arguments), Ty::App(right_base, right_arguments)) => {
+            mechanism_ty_structurally_equal(left_base, right_base)
+                && left_arguments.len() == right_arguments.len()
+                && left_arguments
+                    .iter()
+                    .zip(right_arguments)
+                    .all(|(left, right)| mechanism_ty_structurally_equal(left, right))
+        }
+        (Ty::Arrow(left_input, left_output), Ty::Arrow(right_input, right_output)) => {
+            mechanism_ty_structurally_equal(left_input, right_input)
+                && mechanism_ty_structurally_equal(left_output, right_output)
+        }
+        (Ty::Ref(left), Ty::Ref(right))
+        | (Ty::MutRef(left), Ty::MutRef(right))
+        | (Ty::Shared(left), Ty::Shared(right))
+        | (Ty::Optional(left), Ty::Optional(right)) => mechanism_ty_structurally_equal(left, right),
+        (Ty::Unit, Ty::Unit) | (Ty::Hole, Ty::Hole) => true,
+        _ => false,
     }
 }
 
@@ -1171,6 +1204,7 @@ impl MechanismCallableSiteId {
             }
             CheckedCallTarget::Builtin { .. }
             | CheckedCallTarget::Constructor { .. }
+            | CheckedCallTarget::BoundCallable { .. }
             | CheckedCallTarget::ScopedMember { .. } => Err(invalid(
                 "mechanism endpoint call target is not traceable as a function or rule family",
             )),
@@ -3417,7 +3451,7 @@ mod tests {
     }
 
     #[test]
-    fn checked_query_identity_uses_revalidated_query_and_domain_digests() {
+    fn checked_query_identity_uses_revalidated_relational_identity_ladder() {
         let source = r#"
 # Profile = Worker | Student
 | eligible(profile: Profile, income: Int) -> income >= 0
@@ -3447,9 +3481,19 @@ mod tests {
 
         let identity = MechanismQueryId::from_checked_query(&checked)
             .expect("checked query and domain identities");
-        let mut expected = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V1);
-        expected.segment(checked.artifact.identity.digest.as_bytes());
-        expected.segment(checked.domain_hash().as_bytes());
+        let mut expected = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V2);
+        expected.segment(
+            checked
+                .artifact
+                .identity
+                .analysis_program
+                .as_str()
+                .as_bytes(),
+        );
+        expected.segment(&checked.relation_id().bytes());
+        expected.segment(&checked.admission_id().bytes());
+        expected.segment(&checked.question_id().bytes());
+        expected.segment(checked.analysis_graph_hash().as_bytes());
 
         assert_eq!(identity, MechanismQueryId(expected.digest()));
     }

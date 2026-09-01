@@ -8,8 +8,29 @@ use std::collections::BTreeSet;
 
 use super::{
     case_graph::{CaseDecisionDag, CaseTerminal, CheckedCardinality},
-    ExploreGeneratorAxisRole, ExplorePolarity, ExploreValue,
+    ExploreValue,
 };
+
+/// Axis role in the retired Cartesian report schema.
+///
+/// This stays private to the dormant report core instead of restoring the
+/// removed source-language `ExploreGeneratorAxisRole` surface.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum ExploreReportAxisRole {
+    Context,
+    Before,
+    AfterIndependent,
+}
+
+/// Selection polarity in the retired exact-report adapter.
+///
+/// Relational Explore records polarity in `FindPolarity`; this private type
+/// prevents the old AST polarity from leaking back into the live language.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ExploreReportPolarity {
+    Violations,
+    Matches,
+}
 
 /// Canonical identity of one declared configuration.
 ///
@@ -71,7 +92,7 @@ pub(crate) enum ExploreGroupFilter {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExploreReportDimension {
     pub(crate) bound_index: usize,
-    pub(crate) role: ExploreGeneratorAxisRole,
+    role: ExploreReportAxisRole,
     pub(crate) role_field_index: usize,
     pub(crate) label: String,
 }
@@ -79,18 +100,18 @@ pub(crate) struct ExploreReportDimension {
 impl ExploreReportDimension {
     pub(crate) fn qualified_label(&self) -> String {
         let role = match self.role {
-            ExploreGeneratorAxisRole::Context => "context",
-            ExploreGeneratorAxisRole::Before => "before",
-            ExploreGeneratorAxisRole::AfterIndependent => "after",
+            ExploreReportAxisRole::Context => "context",
+            ExploreReportAxisRole::Before => "before",
+            ExploreReportAxisRole::AfterIndependent => "after",
         };
         format!("{role}.{}", self.label)
     }
 
     fn canonical_order_key(&self) -> (u8, usize, usize) {
         let role = match self.role {
-            ExploreGeneratorAxisRole::Context => 0,
-            ExploreGeneratorAxisRole::Before => 1,
-            ExploreGeneratorAxisRole::AfterIndependent => 2,
+            ExploreReportAxisRole::Context => 0,
+            ExploreReportAxisRole::Before => 1,
+            ExploreReportAxisRole::AfterIndependent => 2,
         };
         (role, self.role_field_index, self.bound_index)
     }
@@ -108,7 +129,7 @@ pub(crate) struct ExploreReportSchema {
 }
 
 impl ExploreReportSchema {
-    pub(crate) fn new(
+    fn new(
         dimensions: impl Into<Box<[ExploreReportDimension]>>,
         axis_cardinalities: impl Into<Box<[u128]>>,
         key_names: impl Into<Box<[String]>>,
@@ -1435,10 +1456,10 @@ impl ExploreExactEvidence {
                 return Err(
                     "Explore report included a matching ledger that the request omitted"
                         .to_string(),
-                )
+                );
             }
             (ExploreLedgerRequest::MatchingConfigurations, ExploreLedgerEvidence::Omitted) => {
-                return Err("Explore report omitted its requested matching ledger".to_string())
+                return Err("Explore report omitted its requested matching ledger".to_string());
             }
         };
 
@@ -1566,7 +1587,7 @@ impl SearchDecisionDagMultiplicities {
                 CheckedCardinality::ExceedsU128 => {
                     return Err(format!(
                         "Explore search decision DAG terminal {terminal:?} multiplicity exceeds u128::MAX"
-                    ))
+                    ));
                 }
             };
             summary.declared = checked_graph_sum(summary.declared, count, "declared")?;
@@ -1786,15 +1807,15 @@ impl ExploreExactOutcome {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct ExploreExactReport {
     pub(crate) query_name: String,
-    pub(crate) polarity: ExplorePolarity,
+    polarity: ExploreReportPolarity,
     pub(crate) mechanism: ExploreMechanismEvidence,
     pub(crate) outcome: ExploreExactOutcome,
 }
 
 impl ExploreExactReport {
-    pub(crate) fn new(
+    fn new(
         query_name: String,
-        polarity: ExplorePolarity,
+        polarity: ExploreReportPolarity,
         mechanism: ExploreMechanismEvidence,
         outcome: ExploreExactOutcome,
     ) -> Result<Self, String> {
@@ -1808,9 +1829,9 @@ impl ExploreExactReport {
         Ok(report)
     }
 
-    pub(crate) fn with_deferred_mechanism(
+    fn with_deferred_mechanism(
         query_name: String,
-        polarity: ExplorePolarity,
+        polarity: ExploreReportPolarity,
         outcome: ExploreExactOutcome,
     ) -> Result<Self, String> {
         Self::new(
@@ -1845,7 +1866,7 @@ mod tests {
                 .enumerate()
                 .map(|(index, _)| ExploreReportDimension {
                     bound_index: index,
-                    role: ExploreGeneratorAxisRole::Before,
+                    role: ExploreReportAxisRole::Before,
                     role_field_index: index,
                     label: format!("axis_{index}"),
                 })
@@ -1860,7 +1881,7 @@ mod tests {
     fn report(outcome: ExploreExactOutcome) -> Result<ExploreExactReport, String> {
         ExploreExactReport::with_deferred_mechanism(
             "example".to_string(),
-            ExplorePolarity::Matches,
+            ExploreReportPolarity::Matches,
             outcome,
         )
     }
@@ -1870,13 +1891,13 @@ mod tests {
         let dimensions = vec![
             ExploreReportDimension {
                 bound_index: 0,
-                role: ExploreGeneratorAxisRole::Context,
+                role: ExploreReportAxisRole::Context,
                 role_field_index: 0,
                 label: "rate".to_string(),
             },
             ExploreReportDimension {
                 bound_index: 1,
-                role: ExploreGeneratorAxisRole::Before,
+                role: ExploreReportAxisRole::Before,
                 role_field_index: 0,
                 label: "rate".to_string(),
             },

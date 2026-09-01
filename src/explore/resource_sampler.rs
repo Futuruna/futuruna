@@ -50,6 +50,46 @@ pub(crate) enum SampleUnavailable {
     InvalidWatchdog,
 }
 
+impl SampleUnavailable {
+    /// Stable, non-sensitive category used when a fail-closed stream pause
+    /// needs to explain why the complete provider transaction was discarded.
+    pub(crate) fn diagnostic_code(self) -> &'static str {
+        match self {
+            Self::ProviderUnavailable => "telemetry_provider_unavailable",
+            Self::MissingHostFact(field) => match field {
+                "vm_stat_header" => "telemetry_missing_vm_stat_header",
+                "pages_active" => "telemetry_missing_pages_active",
+                "pages_free" => "telemetry_missing_pages_free",
+                "pages_inactive" => "telemetry_missing_pages_inactive",
+                "pages_speculative" => "telemetry_missing_pages_speculative",
+                "pages_throttled" => "telemetry_missing_pages_throttled",
+                "swapouts" => "telemetry_missing_swapouts",
+                "top_cpu" => "telemetry_missing_top_cpu",
+                _ => "telemetry_missing_host_fact",
+            },
+            Self::InvalidScalar(field) => match field {
+                "boot_time" | "boot_seconds" | "boot_microseconds" => "telemetry_invalid_boot_time",
+                "host_scalars" => "telemetry_invalid_host_scalars",
+                "live_scalars" => "telemetry_invalid_live_scalars",
+                "logical_cpu_count" => "telemetry_invalid_logical_cpu_count",
+                "active_cpu_count" => "telemetry_invalid_active_cpu_count",
+                "total_memory_bytes" => "telemetry_invalid_total_memory",
+                "memory_pressure" => "telemetry_invalid_memory_pressure",
+                "vm_stat" | "vm_stat_header" | "vm_stat_page_size" | "vm_stat_record" => {
+                    "telemetry_invalid_vm_stat"
+                }
+                "top" => "telemetry_invalid_top_report",
+                "top_cpu" => "telemetry_invalid_top_cpu_line",
+                "cpu_percentage" => "telemetry_invalid_top_cpu_percentage",
+                _ => "telemetry_invalid_scalar",
+            },
+            Self::IncoherentHostFacts => "telemetry_incoherent_host_facts",
+            Self::SnapshotRace => "telemetry_snapshot_race",
+            _ => "telemetry_incoherent_sample",
+        }
+    }
+}
+
 /// Complete host facts from one collection attempt. A provider must return an
 /// error instead of constructing this value when any field is unavailable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -60,6 +100,11 @@ pub(crate) struct RawHostFacts {
     pub(crate) idle_millicores: u32,
     /// Conservative reclaimable memory, never swap occupancy.
     pub(crate) available_memory_bytes: u64,
+    /// XNU non-compressed reclaimable memory used only when an independently
+    /// validated outer process-group supervisor owns the hard containment
+    /// boundary. This includes active pages in addition to the conservative
+    /// standalone queues above.
+    pub(crate) outer_contained_available_memory_bytes: u64,
     pub(crate) pressure: MemoryPressure,
     pub(crate) oom_risk: bool,
     /// Boot-bound cumulative swap-out bytes. A boot/reset must use a newer
@@ -115,6 +160,24 @@ pub(crate) struct ReducerEpochSeed {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum StabilityPressurePolicy {
+    NormalOnly,
+    NormalOrOuterContainedWarning,
+}
+
+impl StabilityPressurePolicy {
+    const fn admits(self, pressure: MemoryPressure) -> bool {
+        match pressure {
+            MemoryPressure::Normal => true,
+            MemoryPressure::Warning => {
+                matches!(self, Self::NormalOrOuterContainedWarning)
+            }
+            MemoryPressure::Critical | MemoryPressure::Unknown => false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ReducedResourceSample {
     pub(crate) capacity: HostCapacity,
     pub(crate) sample: ResourceSample,
@@ -134,6 +197,7 @@ struct StableWindow {
 
 #[derive(Debug, Clone)]
 pub(crate) struct StabilityWindowReducer {
+    pressure_policy: StabilityPressurePolicy,
     telemetry_epoch: TelemetryEpoch,
     stability_epoch: StabilityEpoch,
     sequence: u64,
@@ -146,8 +210,9 @@ pub(crate) struct StabilityWindowReducer {
 }
 
 impl StabilityWindowReducer {
-    pub(crate) fn new(seed: ReducerEpochSeed) -> Self {
+    pub(crate) fn new(seed: ReducerEpochSeed, pressure_policy: StabilityPressurePolicy) -> Self {
         Self {
+            pressure_policy,
             telemetry_epoch: TelemetryEpoch(seed.telemetry.get()),
             stability_epoch: StabilityEpoch(seed.stability.get()),
             sequence: 0,
@@ -187,7 +252,7 @@ impl StabilityWindowReducer {
         let source_reset = match self.last_source_generation {
             None => false,
             Some(previous) if raw.source_generation < previous => {
-                return Err(SampleUnavailable::NonMonotonicSourceGeneration)
+                return Err(SampleUnavailable::NonMonotonicSourceGeneration);
             }
             Some(previous) => raw.source_generation > previous,
         };
@@ -228,16 +293,25 @@ impl StabilityWindowReducer {
             Some((host, memory_before, cpu_before))
         });
         let stable_now = current_window.is_some_and(|(host, _, _)| {
-            host.pressure == MemoryPressure::Normal
+            self.pressure_policy.admits(host.pressure)
                 && !host.oom_risk
                 && !telemetry_reset
-                && !ownership_boundary
                 && matches!(swap_state, SwapState::Unchanged)
         });
 
         if stable_now {
             let (host, memory_before, cpu_before) =
                 current_window.ok_or(SampleUnavailable::SnapshotRace)?;
+            if ownership_boundary {
+                // A lease boundary invalidates the *duration* and minima of
+                // the preceding worker population, not the complete host facts
+                // observed at this boundary. Seed the new epoch at age zero so
+                // the governor can retain the new target while waiting for its
+                // fresh stability duration instead of confusing the boundary
+                // with missing telemetry and immediately revoking it.
+                self.advance_stability_epoch()?;
+                self.stable = None;
+            }
             match &mut self.stable {
                 Some(window) => {
                     window.minimum_available_memory_bytes = cmp::min(
@@ -410,6 +484,8 @@ impl StabilityWindowReducer {
             || host.live_capacity_millicores > installed_cpu
             || host.idle_millicores > host.live_capacity_millicores
             || host.available_memory_bytes > host.total_memory_bytes
+            || host.outer_contained_available_memory_bytes < host.available_memory_bytes
+            || host.outer_contained_available_memory_bytes > host.total_memory_bytes
             || host.pressure == MemoryPressure::Unknown
             || host.swap_out.generation.0 == 0
         {
@@ -455,13 +531,13 @@ impl StabilityWindowReducer {
         let state = match self.last_swap {
             None => SwapState::Baseline,
             Some(previous) if current.generation < previous.generation => {
-                return Err(SampleUnavailable::NonMonotonicSwapCounter)
+                return Err(SampleUnavailable::NonMonotonicSwapCounter);
             }
             Some(previous)
                 if current.generation == previous.generation
                     && current.cumulative_bytes < previous.cumulative_bytes =>
             {
-                return Err(SampleUnavailable::NonMonotonicSwapCounter)
+                return Err(SampleUnavailable::NonMonotonicSwapCounter);
             }
             Some(_) if source_reset => SwapState::Reset,
             Some(previous) if current.generation > previous.generation => SwapState::Reset,
@@ -604,9 +680,10 @@ impl MacOsCommandProvider {
 
         // `vm_stat` reports free pages with speculative pages removed. Add
         // those disjoint queues back together with inactive pages, but exclude
-        // active, purgeable, and compressor-backed pages. The exclusion is
-        // deliberate: those categories may be reclaimable to the kernel but
-        // are not optimistic headroom for a new Explore worker.
+        // active, purgeable, and compressor-backed pages from standalone
+        // admission. Active pages are exposed separately for a validated outer
+        // containment mode whose process-group, host-floor, and heap guards
+        // make XNU's broader non-compressed reclaimable measure safe to use.
         let available_pages = vm
             .free_pages
             .checked_add(vm.inactive_pages)
@@ -615,7 +692,16 @@ impl MacOsCommandProvider {
         let available_memory_bytes = available_pages
             .checked_mul(vm.page_size_bytes)
             .ok_or(SampleUnavailable::IncoherentHostFacts)?;
-        if before.total_memory_bytes == 0 || available_memory_bytes > before.total_memory_bytes {
+        let outer_contained_available_pages = available_pages
+            .checked_add(vm.active_pages)
+            .ok_or(SampleUnavailable::IncoherentHostFacts)?;
+        let outer_contained_available_memory_bytes = outer_contained_available_pages
+            .checked_mul(vm.page_size_bytes)
+            .ok_or(SampleUnavailable::IncoherentHostFacts)?;
+        if before.total_memory_bytes == 0
+            || available_memory_bytes > before.total_memory_bytes
+            || outer_contained_available_memory_bytes > before.total_memory_bytes
+        {
             return Err(SampleUnavailable::IncoherentHostFacts);
         }
 
@@ -631,6 +717,7 @@ impl MacOsCommandProvider {
             live_capacity_millicores,
             idle_millicores,
             available_memory_bytes,
+            outer_contained_available_memory_bytes,
             pressure,
             // macOS does not expose a stable scalar probability of an OOM
             // kill. Critical memorystatus pressure and any currently
@@ -647,12 +734,10 @@ impl MacOsCommandProvider {
 #[cfg(target_os = "macos")]
 impl HostFactProvider for MacOsCommandProvider {
     fn collect(&mut self, deadline: Instant) -> Result<RawHostFacts, SampleUnavailable> {
-        // The provider boundary intentionally erases detailed command and
-        // parser failures. Callers may consume one complete observation or an
-        // unavailable sample; they may never join the successful fragments of
-        // separate attempts.
+        // Preserve only the typed failure category for diagnostics. Callers
+        // still receive either one complete transaction or no host facts, and
+        // may never join successful fragments from separate attempts.
         self.collect_transaction(deadline)
-            .map_err(|_| SampleUnavailable::ProviderUnavailable)
     }
 }
 
@@ -880,6 +965,7 @@ fn parse_macos_boot_generation(bytes: &[u8]) -> Result<u64, SampleUnavailable> {
 #[derive(Debug, Clone, Copy)]
 struct MacOsVmStat {
     page_size_bytes: u64,
+    active_pages: u64,
     free_pages: u64,
     inactive_pages: u64,
     speculative_pages: u64,
@@ -902,6 +988,7 @@ fn parse_macos_vm_stat(bytes: &[u8]) -> Result<MacOsVmStat, SampleUnavailable> {
         return Err(SampleUnavailable::InvalidScalar("vm_stat_page_size"));
     }
 
+    let mut active_pages = None;
     let mut free_pages = None;
     let mut inactive_pages = None;
     let mut speculative_pages = None;
@@ -910,6 +997,7 @@ fn parse_macos_vm_stat(bytes: &[u8]) -> Result<MacOsVmStat, SampleUnavailable> {
     for line in records {
         let (label, value) = parse_macos_vm_stat_record(line)?;
         match label {
+            b"Pages active" => set_once(&mut active_pages, value, "pages_active")?,
             b"Pages free" => set_once(&mut free_pages, value, "pages_free")?,
             b"Pages inactive" => set_once(&mut inactive_pages, value, "pages_inactive")?,
             b"Pages speculative" => set_once(&mut speculative_pages, value, "pages_speculative")?,
@@ -921,6 +1009,7 @@ fn parse_macos_vm_stat(bytes: &[u8]) -> Result<MacOsVmStat, SampleUnavailable> {
 
     Ok(MacOsVmStat {
         page_size_bytes,
+        active_pages: active_pages.ok_or(SampleUnavailable::MissingHostFact("pages_active"))?,
         free_pages: free_pages.ok_or(SampleUnavailable::MissingHostFact("pages_free"))?,
         inactive_pages: inactive_pages
             .ok_or(SampleUnavailable::MissingHostFact("pages_inactive"))?,
@@ -1003,11 +1092,11 @@ impl MacOsTopCpu {
 
 #[cfg(target_os = "macos")]
 fn parse_macos_top_cpu(bytes: &[u8]) -> Result<MacOsTopCpu, SampleUnavailable> {
-    // `top -l 1 -n 0` terminates its report with one blank display line on
-    // current macOS releases. Remove only that command-specific extra LF;
-    // `parse_ascii_lines` still rejects an empty line anywhere in the body and
-    // accepts at most the ordinary final record terminator after this step.
-    let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+    // `top -l 1 -n 0` terminates its report with one or two blank display lines
+    // across supported macOS releases. Remove at most those two command-specific
+    // LFs; `parse_ascii_lines` still rejects an empty line anywhere in the body
+    // and consumes the ordinary final record terminator after this step.
+    let bytes = bytes.strip_suffix(b"\n\n").unwrap_or(bytes);
     let lines = parse_ascii_lines(bytes, "top")?;
     let mut parsed = None;
     for line in lines {
@@ -1023,8 +1112,10 @@ fn parse_macos_top_cpu(bytes: &[u8]) -> Result<MacOsTopCpu, SampleUnavailable> {
 
 #[cfg(target_os = "macos")]
 fn parse_macos_top_cpu_line(line: &[u8]) -> Result<MacOsTopCpu, SampleUnavailable> {
-    const ONE_HUNDRED_PERCENT: u64 = 100 * 1_000_000;
-
+    // macOS `top` emits one display-padding space after the final percentage
+    // on current releases. Accept exactly that presentation byte, while still
+    // rejecting arbitrary leading/trailing whitespace or malformed fields.
+    let line = line.strip_suffix(b" ").unwrap_or(line);
     let line = line
         .strip_prefix(b"CPU usage: ")
         .ok_or(SampleUnavailable::InvalidScalar("top_cpu"))?;
@@ -1035,23 +1126,14 @@ fn parse_macos_top_cpu_line(line: &[u8]) -> Result<MacOsTopCpu, SampleUnavailabl
     let idle = idle
         .strip_suffix(b"% idle")
         .ok_or(SampleUnavailable::InvalidScalar("top_cpu"))?;
-    let user = parse_scaled_percent(user)?;
-    let system = parse_scaled_percent(system)?;
+    let _user = parse_scaled_percent(user)?;
+    let _system = parse_scaled_percent(system)?;
     let idle = parse_scaled_percent(idle)?;
-
-    let total = user
-        .millionths
-        .checked_add(system.millionths)
-        .and_then(|value| value.checked_add(idle.millionths))
-        .ok_or(SampleUnavailable::InvalidScalar("top_cpu"))?;
-    let display_tolerance = user
-        .quantum_millionths
-        .checked_add(system.quantum_millionths)
-        .and_then(|value| value.checked_add(idle.quantum_millionths))
-        .ok_or(SampleUnavailable::InvalidScalar("top_cpu"))?;
-    if total.abs_diff(ONE_HUNDRED_PERCENT) > display_tolerance {
-        return Err(SampleUnavailable::InvalidScalar("top_cpu"));
-    }
+    // `top` occasionally publishes individually valid percentages from a
+    // boundary-straddling sample that do not sum to exactly 100%. Idle is the
+    // only value consumed here and is rounded down again in `idle_millicores`;
+    // rejecting the whole transaction on the cross-field sum would turn a
+    // conservative usable value into an availability failure.
     Ok(MacOsTopCpu { idle })
 }
 
@@ -1230,6 +1312,7 @@ mod source_canaries {
             live_capacity_millicores: 8_000,
             idle_millicores: 6_000,
             available_memory_bytes: 12 * 1024 * 1024 * 1024,
+            outer_contained_available_memory_bytes: 12 * 1024 * 1024 * 1024,
             pressure: MemoryPressure::Normal,
             oom_risk: false,
             swap_out: SwapOutCounter {
@@ -1240,10 +1323,13 @@ mod source_canaries {
     }
 
     fn reducer() -> StabilityWindowReducer {
-        StabilityWindowReducer::new(ReducerEpochSeed {
-            telemetry: NonZeroU64::new(1).unwrap(),
-            stability: NonZeroU64::new(1).unwrap(),
-        })
+        StabilityWindowReducer::new(
+            ReducerEpochSeed {
+                telemetry: NonZeroU64::new(1).unwrap(),
+                stability: NonZeroU64::new(1).unwrap(),
+            },
+            StabilityPressurePolicy::NormalOnly,
+        )
     }
 
     fn raw(at: u64, host: Option<RawHostFacts>) -> RawHostSample {
@@ -1303,12 +1389,20 @@ mod source_canaries {
     #[cfg(target_os = "macos")]
     #[test]
     fn macos_top_parser_accepts_the_command_trailing_display_line() {
-        let sample = b"Processes: 4 total\nCPU usage: 12.50% user, 7.50% sys, 80.00% idle\n\n";
+        let sample = b"Processes: 4 total \nCPU usage: 12.50% user, 7.50% sys, 80.00% idle \n\n\n";
 
         let parsed = parse_macos_top_cpu(sample).expect("parse current top report ending");
 
         assert_eq!(parsed.idle.millionths, 80_000_000);
         assert_eq!(parsed.idle.quantum_millionths, 10_000);
+        let boundary_sample = b"CPU usage: 13.7% user, 38.83% sys, 48.8% idle\n";
+        assert_eq!(
+            parse_macos_top_cpu(boundary_sample)
+                .expect("accept individually valid boundary-straddling percentages")
+                .idle
+                .millionths,
+            48_800_000
+        );
         assert!(parse_macos_top_cpu(
             b"Processes: 4 total\n\nCPU usage: 12.50% user, 7.50% sys, 80.00% idle\n\n"
         )

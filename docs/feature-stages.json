@@ -137,7 +137,7 @@
     {
       "id": "solver-backed-exploration",
       "kind": "verification",
-      "name": "Bounded ? explore declarations, typed query analysis, and exact-finite execution",
+      "name": "Relational bounded ? explore declarations and exact-finite streaming execution",
       "stage": "experimental",
       "commands": [
         "explore"

@@ -446,6 +446,76 @@ pub(crate) struct TypeCatalog {
 }
 
 impl TypeCatalog {
+    /// Rebuild the exact runtime type catalog from the immutable declaration
+    /// graph retained by type checking.
+    ///
+    /// Unlike [`Self::collect_checked`], this path performs no filesystem I/O:
+    /// flat/hash imports have already been resolved into `program`, while
+    /// qualified imports deliberately remain opaque. Equal declaration IDs
+    /// reached through repeated flat imports are consumed once, matching the
+    /// import-visited behavior of the source collector without trusting paths.
+    pub(crate) fn collect_checked_analysis_program(
+        program: &CheckedAnalysisProgram,
+    ) -> Result<Self, Vec<String>> {
+        let root_modules = program
+            .declarations
+            .iter()
+            .filter(|declaration| matches!(declaration.import_kind, SourcedImportKind::Root))
+            .map(|declaration| declaration.id.module.clone())
+            .collect::<BTreeSet<_>>();
+        if root_modules.len() != 1 {
+            return Err(vec![
+                "checked analysis does not identify exactly one root module for exact type replay"
+                    .to_string(),
+            ]);
+        }
+        let root_module = root_modules
+            .iter()
+            .next()
+            .expect("one checked analysis root module");
+
+        let mut catalog = Self::default();
+        catalog.exact_mode = true;
+        let mut consumed = BTreeSet::new();
+        let mut imported = BTreeSet::new();
+        let mut diagnostics = Vec::new();
+        for declaration in program.declarations.iter() {
+            if !matches!(declaration.statement.as_ref(), Stmt::TypeDecl(_))
+                || !consumed.insert(declaration.id.clone())
+            {
+                continue;
+            }
+            let origin = if &declaration.id.module == root_module {
+                "<root>".to_string()
+            } else {
+                let import_kind = match &declaration.import_kind {
+                    SourcedImportKind::Root => "root",
+                    SourcedImportKind::PlainImport => "plain",
+                    SourcedImportKind::HashImport { selected_hash } => selected_hash.as_ref(),
+                    SourcedImportKind::QualifiedImport { module_name } => module_name.as_ref(),
+                };
+                format!(
+                    "<checked:{import_kind}:{}:{}>",
+                    declaration.id.module.content_hash,
+                    declaration.id.module.internal_path.join("/")
+                )
+            };
+            catalog.collect_inner(
+                std::slice::from_ref(declaration.statement.as_ref()),
+                None,
+                &origin,
+                &mut imported,
+                &mut diagnostics,
+                true,
+            );
+        }
+        if diagnostics.is_empty() {
+            Ok(catalog)
+        } else {
+            Err(diagnostics)
+        }
+    }
+
     /// Collect the named types visible through this program's flat imports.
     ///
     /// Unlike the calculation contract collector's compatibility path, this

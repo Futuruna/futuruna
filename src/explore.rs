@@ -1,55 +1,464 @@
-//! Closed search-universe elaboration for bounded `? explore` declarations.
+//! Closed relational elaboration for bounded `? explore` declarations.
 //!
 //! The parser and type checker deliberately retain source expressions.  This
-//! pass is the trust boundary that proves every declared domain is finite,
-//! deterministic, and exact before a solver or exhaustive executor may see it.
+//! pass is the trust boundary that proves each dependent source and successor
+//! domain finite, deterministic, and exact before an executor may see it.
 
 use super::*;
-use std::num::{NonZeroU128, NonZeroU16, NonZeroU64};
 use std::path::PathBuf;
-use std::time::{Duration, Instant};
+use std::sync::Arc;
 
+mod authenticated_treap;
+#[cfg(any())]
 mod boundary_plan;
+#[cfg(any())]
 mod boundary_search;
 mod case_graph;
+#[cfg(any())]
 mod certified_region;
+#[cfg(any())]
 mod classification_regions;
+#[cfg(any())]
 mod exact;
+#[cfg(any())]
 mod exact_stream;
 mod mechanism;
 pub(crate) use mechanism::MechanismObservationIr;
+mod mechanism_incidence;
+pub(crate) use mechanism_incidence::{
+    ClosedMechanismIncidence, MechanismCaseTerminal, MechanismCaseTerminalRecord,
+    MechanismCountEvidence, MechanismIncidenceCatalogBuilder, MechanismIncidenceCounts,
+    MechanismIncidenceError, MechanismIncidenceInsert, MechanismIncidenceRoot,
+    MechanismIncidenceSnapshot, MechanismRequestScope, MechanismSignatureDefinition,
+    MechanismSignatureId, MechanismTargetCaseSetRoot, MechanismTargetDiscoveryRevision,
+    MechanismTargetSeal, MechanismTargetSealId, MechanismTargetSealUpstream,
+    MechanismTerminalDiscoveryRevision, MechanismUnavailableReasonId,
+    MECHANISM_TARGET_SEAL_VERSION,
+};
+mod mechanism_support;
+pub(crate) use mechanism_support::{
+    MechanismClosedStarterProjectionAuthority, MechanismClosedSubjectStarterProjectionAuthority,
+    MechanismStarterProjectionPlanId, MechanismStarterUpperProvenance,
+    MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportClosureRoot,
+    MechanismSupportCount, MechanismSupportError, MechanismSupportFacet,
+    MechanismSupportFiberExprRoot, MechanismSupportFrontierRoot, MechanismSupportKey,
+    MechanismSupportResidualRoot, MechanismSupportStarterCursor, MechanismSupportStarterMember,
+    MechanismSupportStarterPage, MechanismSupportSubject, MechanismSupportSubjectStarterPage,
+    MechanismSupportView, MechanismSupportViewRoot, MECHANISM_SUPPORT_VERSION,
+    MECHANISM_SUPPORT_VIEW_VERSION,
+};
+mod relational_mechanism_starter_authorization;
+pub(crate) use relational_mechanism_starter_authorization::{
+    find_relational_mechanism_starter_value_authorization,
+    relational_mechanism_starter_value_authorization_for_view,
+    RelationalMechanismStarterAuthorizationError, RelationalMechanismStarterAuthorizedProjection,
+    RelationalMechanismStarterValueAuthorization, RelationalMechanismStarterValueAuthorizationId,
+    RelationalMechanismStarterValueRole, RELATIONAL_MECHANISM_STARTER_VALUE_AUTHORIZATION_VERSION,
+};
+mod relational_mechanism_starter_projection;
+pub(crate) use relational_mechanism_starter_projection::{
+    RelationalMechanismStarterProjectionAccumulator, RelationalMechanismStarterProjectionClosure,
+    RelationalMechanismStarterProjectionClosureRoot,
+    RelationalMechanismStarterProjectionContentRoot, RelationalMechanismStarterProjectionError,
+    RelationalMechanismStarterProjectionJob, RelationalMechanismStarterProjectionJobId,
+    RelationalMechanismStarterProjectionMember, RelationalMechanismStarterProjectionMemberId,
+    RelationalMechanismStarterProjectionPage, RelationalMechanismStarterProjectionPageId,
+    RelationalMechanismStarterProjectionPageManifestRoot,
+    RelationalMechanismStarterProjectionPageRoot, RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION,
+};
+mod structural_mechanism;
+pub(crate) use structural_mechanism::{
+    ExecutionProfileId, StructuralActivationCallCount, StructuralActivationContextDefinition,
+    StructuralActivationContextId, StructuralCatalogMembershipRoot, StructuralCatalogRevision,
+    StructuralContextCount, StructuralDefinitionCatalogRoot, StructuralDefinitionKind,
+    StructuralDefinitionRef, StructuralEdgeCount, StructuralEdgeDefinition, StructuralEdgeId,
+    StructuralEndpointContext, StructuralEndpointExecutionTotals, StructuralExecutionProfile,
+    StructuralExpectedSignatureSetRoot, StructuralFrameCount, StructuralFrameDefinition,
+    StructuralFrameId, StructuralMechanismCatalogBuilder, StructuralMechanismDefinition,
+    StructuralMechanismError, StructuralMechanismId, StructuralMembershipRoot, StructuralNodeCount,
+    StructuralNodeDefinition, StructuralNodeId, StructuralNodeOwnership, StructuralOwnershipCount,
+    StructuralQuotientClosureReceipt, StructuralQuotientClosureRoot, StructuralQuotientCounts,
+    StructuralSignatureAssignment, StructuralSignatureQuotientArtifact,
+    StructuralSignatureToQuotientRoot, STRUCTURAL_DEFINITION_CATALOG_VERSION,
+    STRUCTURAL_MECHANISM_QUOTIENT_VERSION, STRUCTURAL_QUOTIENT_CLOSURE_VERSION,
+};
+mod relational_mechanism_executor;
+pub(crate) use relational_mechanism_executor::{
+    derive_relational_structural_mechanism_v1, replay_relational_mechanism_case,
+    RelationalIfDecisionOutcome, RelationalMechanismActivationStep, RelationalMechanismCalleeId,
+    RelationalMechanismEndpoint, RelationalMechanismEndpointReplayProgress,
+    RelationalMechanismEndpointReplayRequest, RelationalMechanismEndpointTraceEvidence,
+    RelationalMechanismEndpointTraceProposal, RelationalMechanismEndpointTraceRoot,
+    RelationalMechanismEventKind, RelationalMechanismEventOutcome,
+    RelationalMechanismOccurrenceProposal, RelationalMechanismOccurrenceSlot,
+    RelationalMechanismPermanentUnavailable, RelationalMechanismReplayError,
+    RelationalMechanismReplayEvidence, RelationalMechanismReplayObservationId,
+    RelationalMechanismReplayOutcome, RelationalMechanismReplayPause,
+    RelationalMechanismReplayReceipt, RelationalMechanismReplayReceiptId,
+    RelationalMechanismReplayRunError, RelationalMechanismReplayRuntime, RelationalMechanismSiteId,
+    RelationalMechanismSiteKind, RelationalMechanismUnavailableEvidence,
+    RelationalRuleAttemptOutcome, RelationalRuleSelectionOutcome, RelationalShortCircuitOutcome,
+    RelationalStructuralMechanismError, RELATIONAL_MECHANISM_REPLAY_ABI_VERSION,
+};
+mod relational_interpreter_mechanism;
+pub(crate) use relational_interpreter_mechanism::{
+    RelationalInterpreterMechanismReplayError, RelationalInterpreterMechanismReplayRuntime,
+};
+#[cfg(any())]
 mod mechanism_request;
+mod relational_mechanism_step_driver;
+#[cfg(any())]
 pub(crate) use mechanism_request::{
     build_checked_mechanism_request_v1, MechanismObservationSelectionV1,
 };
+#[cfg(any())]
 mod mechanism_snapshot;
+#[cfg(any())]
 mod mechanism_stream;
+#[cfg(any())]
 mod probe;
+#[cfg(any())]
 mod probe_codec;
+#[cfg(any())]
 mod probe_io;
+#[cfg(any())]
 mod probe_runner;
 mod relation;
 pub(crate) use relation::{
-    CatalogSource, CatalogSuccessor, RelationCatalog, RelationCatalogBuilder, RelationCatalogError,
+    AdmissionCatalog, AdmissionCatalogBuilder, AdmissionContentRoot, AdmissionCounts,
+    AdmissionDecision, AdmissionFrontierRoot, AdmissionId, CatalogSource, CatalogSuccessor,
+    FindPolarity, MechanismRequestId, MechanismTargetId, QuestionCatalog, QuestionCatalogBuilder,
+    QuestionContentRoot, QuestionFrontierRoot, QuestionId, RelationCatalog, RelationCatalogBuilder,
+    RelationCatalogError, RelationCatalogSnapshot, RelationClassificationError,
+    RelationContentRoot, RelationCountEvidence, RelationEnumerationCounts, RelationFrontierRoot,
     RelationId, RelationLineageId, RelationProvenance, RelationSupportId, RelationalCaseId,
-    RelationalCaseRef, SourceKey, SourceRow, SuccessorKey, SuccessorRow,
+    RelationalCaseRef, SelectionCounts, SelectionDecision, SourceKey, SourceRow, SuccessorKey,
+    SuccessorRow, ViewId, ViewInputId,
+};
+mod relational_ir;
+pub(crate) use relational_ir::relational_tys_equivalent;
+pub use relational_ir::{
+    ExploreAdmissionIr, ExploreAggregateFieldIr, ExploreAggregateReducerIr, ExploreAnalysisNodeIr,
+    ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismRequestIr, ExploreMechanismTargetIr,
+    ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr, ExploreResultFieldIr,
+    ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
+    ExploreSourceBindingIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr,
+    ExploreSourceDependencyIr, ExploreSourceRelationIr, ExploreSuccessorKindIr,
+    ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
+};
+mod relational_analysis_plan;
+pub(crate) use relational_analysis_plan::{
+    RelationalAnalysisDependencyId, RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration,
+    RelationalAnalysisPlan, RelationalAnalysisPlanError, RelationalAnalysisPlanRoot,
+    RelationalCheckedAnalysisGraphDigest, RelationalMechanismLayerRegistration,
+    RelationalMechanismObservationDigest, RelationalMechanismObservationId,
+    RelationalResolvedMechanismTarget, RelationalResolvedResultInput,
+    RelationalResultLayerRegistration, RelationalResultSpecDigest,
+    RELATIONAL_ANALYSIS_PLAN_VERSION,
+};
+mod relational_analysis_catalog;
+pub(crate) use relational_analysis_catalog::{
+    ClosedRelationalAnalysisCatalog, RelationalAnalysisCatalogBuilder,
+    RelationalAnalysisCatalogError, RelationalAnalysisCatalogRoot,
+    RelationalAnalysisCatalogSnapshot, RelationalAnalysisLayerSnapshot,
+    RelationalAnalysisLayerStatus, RelationalMechanismLayerSnapshot, RelationalResultLayerSnapshot,
+    RelationalResultLayerSnapshotState, RelationalResultPublication, RelationalResultPublicationId,
+    RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION, RELATIONAL_RESULT_PUBLICATION_VERSION,
+};
+mod relational_analysis_journal;
+pub(crate) use relational_analysis_journal::{
+    RelationalAnalysisEvidenceEvent, RelationalAnalysisEvidenceEventDigest,
+    RelationalAnalysisJournalApply, RelationalAnalysisJournalError,
+    RelationalAnalysisJournalScopeRoot, RelationalAnalysisJournalState,
+    RelationalSelectedPopulationAuthority, RelationalSelectedQuestionSeal,
+    RelationalSelectedQuestionSealId, RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION,
+    RELATIONAL_SELECTED_QUESTION_SEAL_VERSION,
+};
+mod relational_frontier;
+pub(crate) use relational_frontier::{
+    CanonicalSourcePrefix, MechanismEndpoint, RelationalWorkFrontier, WorkCompletionRef,
+    WorkCursor, WorkEvidenceId, WorkFrontierCompaction, WorkFrontierError, WorkFrontierRoot,
+    WorkFrontierSnapshot, WorkNodeId, WorkNodeProgress, WorkNodeSnapshot, WorkNodeSpec,
+    RELATIONAL_FRONTIER_SNAPSHOT_VERSION, WORK_FRONTIER_MAX_COMPACTION_NODES,
+};
+mod relational_case_executor;
+pub(crate) use relational_case_executor::{
+    RelationalCaseClassification, RelationalCaseExecutor, RelationalCaseExecutorError,
+    RelationalConcreteCase, RelationalSuccessorAdvance, RelationalSuccessorCursor,
+    RelationalSuccessorCursorSnapshot, RelationalSuccessorFiber, SuccessorFiberExhaustionReceipt,
+    SuccessorFiberExhaustionReceiptId, RELATIONAL_SUCCESSOR_CURSOR_VERSION,
+};
+mod relational_bounded_chunk_partition;
+pub(crate) use relational_bounded_chunk_partition::{
+    decode_relational_case_chunk_finite_ordinals, derive_relational_case_chunk_subinterval_cell,
+    plan_relational_bounded_case_chunks, reverify_relational_case_chunk_partition_artifact,
+    RelationalCaseChunk, RelationalCaseChunkDescriptor, RelationalCaseChunkId,
+    RelationalCaseChunkInjectivityBinding, RelationalCaseChunkPartition,
+    RelationalCaseChunkPartitionArtifact, RelationalCaseChunkPartitionArtifactId,
+    RelationalCaseChunkPartitionError, RelationalCaseChunkPlanningOutcome,
+    RelationalCaseChunkShape, RelationalCaseChunkUnsupported, VerifiedRelationalCaseChunkPartition,
+    RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1, RELATIONAL_CASE_CHUNK_PARTITION_VERSION,
+};
+mod relational_classified_sweep;
+pub(crate) use relational_classified_sweep::{
+    classify_relational_case_chunk, classify_relational_case_chunk_slice,
+    finalize_relational_classified_case_chunk, reverify_relational_classified_chunk_artifact,
+    reverify_relational_classified_chunk_slice_artifact, RelationalClassifiedCaseOutcome,
+    RelationalClassifiedChunk, RelationalClassifiedChunkAccumulator,
+    RelationalClassifiedChunkArtifact, RelationalClassifiedChunkArtifactId,
+    RelationalClassifiedChunkSlice, RelationalClassifiedChunkSliceArtifact,
+    RelationalClassifiedChunkSliceId, RelationalClassifiedChunkSliceRun,
+    RelationalClassifiedChunkTranscriptRoot, RelationalClassifiedEvidenceBinding,
+    RelationalClassifiedRun, RelationalClassifiedRunDescriptor,
+    RelationalClassifiedRunEvidenceBindings, RelationalClassifiedRunId,
+    RelationalClassifiedSweepError, VerifiedRelationalClassifiedChunk,
+    RELATIONAL_CLASSIFIED_CHUNK_SLICE_VERSION, RELATIONAL_CLASSIFIED_CHUNK_VERSION,
+};
+mod relational_native_classifier;
+pub use relational_native_classifier::RelationalNativeClassifierProtocolV2;
+pub(crate) use relational_native_classifier::{
+    RelationalNativeClassifierFallbackBackendV2, RelationalNativeClassifierUnavailable,
+    RelationalNativeClassifierV2,
+};
+mod relational_case_support_projection;
+mod relational_selected_run_materialization;
+pub(crate) use relational_selected_run_materialization::{
+    materialize_relational_selected_run, reverify_relational_selected_run_materialization_artifact,
+    RelationalSelectedCaseRecord, RelationalSelectedRunMaterialization,
+    RelationalSelectedRunMaterializationArtifact, RelationalSelectedRunMaterializationArtifactId,
+    RelationalSelectedRunMaterializationError, VerifiedRelationalSelectedRunMaterialization,
+    RELATIONAL_SELECTED_RUN_MATERIALIZATION_VERSION,
+};
+mod relational_selected_run_step_driver;
+pub(crate) use relational_selected_run_step_driver::{
+    RelationalSelectedRunStepBatch, RelationalSelectedRunStepDriver,
+    RelationalSelectedRunStepDriverError, RelationalSelectedRunStepOutcome,
+    RelationalSelectedRunStepQuantum,
+};
+mod relational_classified_sweep_step_driver;
+pub(crate) use relational_classified_sweep_step_driver::{
+    RelationalClassifiedSweepStepBatch, RelationalClassifiedSweepStepDriver,
+    RelationalClassifiedSweepStepDriverError, RelationalClassifiedSweepStepOutcome,
+    RelationalClassifiedSweepStepQuantum,
+};
+mod relational_executor;
+pub(crate) use relational_executor::{
+    RelationalBindingSelection, RelationalBoundValue, RelationalCompletedSource,
+    RelationalExpressionRuntime, RelationalFiberMember, RelationalFiniteFiber,
+    RelationalSourceAdvance, RelationalSourceContinuation, RelationalSourceCursor,
+    RelationalSourceCursorSnapshot, RelationalSourceEnumerator, RelationalSourceExecutorError,
+    RelationalSourcePrefixSnapshot, SourceBindingExhaustionReceipt,
+    SourceBindingExhaustionReceiptId, RELATIONAL_SOURCE_CURSOR_VERSION,
+};
+mod relational_source_closure;
+pub(crate) use relational_source_closure::{
+    PreparedSourceTraversalObservation, SourceRelationExhaustionReceipt,
+    SourceRelationExhaustionReceiptId, SourceTraversalAccumulator, SourceTraversalAdvanceId,
+    SourceTraversalClosureError, SourceTraversalEdgeId, SourceTraversalEdgeRoot,
+    SourceTraversalFrontierRoot, SourceTraversalObservation,
+    RELATIONAL_SOURCE_CLOSURE_PRODUCER_ABI_VERSION, RELATIONAL_SOURCE_CLOSURE_SCHEMA_VERSION,
+};
+mod relational_certified_source_summary;
+mod relational_source_image_exactness;
+mod relational_support_planner;
+mod relational_uniform_admission_proof;
+pub(crate) use relational_certified_source_summary::{
+    certify_relational_source_summary, RelationalCertifiedSourceSummaryArtifact,
+    RelationalCertifiedSourceSummaryArtifactId, RelationalCertifiedSourceSummaryCertification,
+    RelationalCertifiedSourceSummaryError, RelationalCertifiedSourceSummaryUnsupported,
+    VerifiedRelationalCertifiedSourceSummary, RELATIONAL_CERTIFIED_SOURCE_SUMMARY_VERSION,
+};
+pub(crate) use relational_source_image_exactness::{
+    prove_relational_source_image_exactness, reverify_relational_source_image_exactness_artifact,
+    CertifiedSourcePopulationBinding, CertifiedSourcePopulationRoot,
+    RelationalSourceImageCardinalityEvidenceBinding, RelationalSourceImageEvidenceBinding,
+    RelationalSourceImageExactnessProof, RelationalSourceImageExactnessProofArtifact,
+    RelationalSourceImageExactnessProofError, RelationalSourceImageInjectivityEvidenceBinding,
+    VerifiedRelationalSourceImageExactnessProof, RELATIONAL_SOURCE_IMAGE_EXACTNESS_PROOF_VERSION,
+};
+pub(crate) use relational_support_planner::{
+    RelationalBindingStage, RelationalBindingStageId, RelationalCaseImageInjectivityProofArtifact,
+    RelationalCaseImageInjectivityProofError, RelationalCoverageQualifier,
+    RelationalCoverageStatus, RelationalDependencyKeyRecipe, RelationalDimensionId,
+    RelationalExactEmptyReason, RelationalFiniteDomainRecipeKind, RelationalFiniteFactorRecipe,
+    RelationalFiniteFactorStage, RelationalObligationActivation, RelationalPlannedPopulation,
+    RelationalPlannedSupport, RelationalRootObligationPlan, RelationalSingletonMapStage,
+    RelationalStagedObligationDescriptor, RelationalSuccessorRecipeKind,
+    RelationalSupportCellCatalog, RelationalSupportExactness, RelationalSupportOpenReason,
+    RelationalSupportPlan, RelationalSupportPlanRoot, RelationalSupportPlanner,
+    RelationalSupportPlannerError, RelationalSupportPopulationKind,
+    RelationalSupportPopulationRecipe, RELATIONAL_SUPPORT_MATERIALIZER_ABI_VERSION,
+    RELATIONAL_SUPPORT_PLANNER_VERSION,
+};
+mod relational_proof_strategy;
+mod relational_support_step_driver;
+pub(crate) use relational_proof_strategy::{
+    assess_relational_selected_support, RelationalAxisProofPlan, RelationalCheckedGuardAtom,
+    RelationalChildObligationSet, RelationalExactSelectedSupport,
+    RelationalExactSelectedSupportBasis, RelationalIntegerAxis, RelationalIntegerAxisSupportKind,
+    RelationalIntervalCertificateKind, RelationalIntervalCertificateObligation,
+    RelationalMonotonicityDirection, RelationalOrdinalInterval, RelationalProofStrategyError,
+    RelationalProofStrategyInventory, RelationalSelectedLeafEvidence,
+    RelationalSelectedSupportAssessment, RelationalSelectedSupportResidual,
+    RelationalSplitCandidate, RelationalSplitOrigin, RelationalSplitPriority,
+    RelationalStrategyResidualReason, RelationalStructuralAxisRefinement,
+    RELATIONAL_PROOF_STRATEGY_VERSION,
+};
+pub(crate) use relational_support_step_driver::RelationalSupportStepQuantum;
+mod relational_classified_population;
+mod relational_population;
+pub(crate) use relational_classified_population::{
+    CertifiedRelationalClassificationCounts, CertifiedRelationalClassificationCountsError,
+};
+mod relational_region_proof;
+pub(crate) use relational_population::{
+    CertifiedSelectedFragment, CertifiedSelectedPopulationError, CertifiedSelectedPopulationRoot,
+    CertifiedSelectedPopulationSnapshot, ClosedCertifiedSelectedPopulation,
+    CERTIFIED_SELECTED_POPULATION_SNAPSHOT_VERSION,
+};
+mod relational_journal;
+pub(crate) use relational_journal::{
+    ClosedCertifiedRelationalCore, ClosedCertifiedRelationalEvidence,
+    ClosedExtensionalRelationalEvidence, RelationalCheckpointEvent, RelationalCheckpointRoot,
+    RelationalCoreEvidenceRoot, RelationalEvidenceEvent, RelationalExhaustionEvidenceRoot,
+    RelationalExplorationEvidenceRoot, RelationalExtensionalContentRoot, RelationalJournal,
+    RelationalJournalContract, RelationalJournalEntry, RelationalJournalError,
+    RelationalJournalEvent, RelationalJournalHead, RelationalJournalId, RelationalJournalSnapshot,
+    RelationalSchedulerView, RELATIONAL_JOURNAL_SCHEMA_VERSION,
+};
+mod relational_durable_journal;
+mod relational_journal_codec;
+mod relational_journal_store;
+pub(crate) use relational_journal_store::{
+    RawRelationalJournalFrame, RawRelationalJournalFrameIter, RawRelationalJournalSegment,
+    RawRelationalJournalSegmentReplay, RelationalJournalSegmentAppend,
+    RelationalJournalSegmentDigest, RelationalJournalSegmentLimits,
+    RelationalJournalSegmentReceipt, RelationalJournalSegmentStore,
+    RelationalJournalSegmentStoreError, RelationalJournalStoreAnchor,
+    RelationalJournalStoreFinalized, RELATIONAL_JOURNAL_FRAME_HARD_MAX_BYTES,
+    RELATIONAL_JOURNAL_SEGMENT_HARD_MAX_BYTES, RELATIONAL_JOURNAL_SEGMENT_HARD_MAX_FRAMES,
+    RELATIONAL_JOURNAL_SEGMENT_SCHEMA_VERSION, RELATIONAL_JOURNAL_STORE_HARD_MAX_SEGMENTS,
+};
+mod relational_step_driver;
+pub(crate) use relational_step_driver::{
+    RelationalConcreteQuiescence, RelationalStepBatch, RelationalStepDriver,
+    RelationalStepDriverError, RelationalStepOutcome, RelationalStepQuantum,
+};
+mod relational_incidence_result_step_driver;
+mod relational_public;
+mod relational_result_publication;
+mod relational_result_step_driver;
+mod relational_stream_driver;
+mod relational_stream_run_loop;
+pub(crate) use relational_incidence_result_step_driver::{
+    RelationalIncidenceResultStepBatch, RelationalIncidenceResultStepDriver,
+    RelationalIncidenceResultStepDriverError, RelationalIncidenceResultStepOutcome,
+    RelationalIncidenceResultStepQuantum, RelationalIncidenceResultStepQuiescence,
+};
+pub use relational_public::{
+    execute_checked_relational_stream_slice, prepare_checked_relational_stream,
+    ExploreNativeClassifierAdmissionV2, ExploreNativeClassifierFindV2,
+    ExploreNativeClassifierIdentityV2, ExploreNativeClassifierPlanV2,
+    ExploreNativeClassifierSourceBindingKindV2, ExploreNativeClassifierSourceBindingV2,
+    ExploreStreamCheckpoint, ExploreStreamCount, ExploreStreamCoverageBindingRole,
+    ExploreStreamCoverageClassification, ExploreStreamCoverageEntry,
+    ExploreStreamCoverageGapReason, ExploreStreamCoverageLiteralKind,
+    ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject, ExploreStreamEpochOptions,
+    ExploreStreamIdentity, ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
+    ExploreStreamMechanismLayer, ExploreStreamMechanismSupportTotals, ExploreStreamMechanismTarget,
+    ExploreStreamObserverMemoStats, ExploreStreamOuterContainment, ExploreStreamPauseReason,
+    ExploreStreamPopulationCounts, ExploreStreamPreparationError, ExploreStreamPublication,
+    ExploreStreamResultLayer, ExploreStreamSliceOptions, ExploreStreamSliceReport,
+    ExploreStreamSourceCoverage, PreparedRelationalExplore, RelationalExploreEpoch,
+    EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
+};
+pub(crate) use relational_result_step_driver::{
+    RelationalResultStepBatch, RelationalResultStepDriver, RelationalResultStepDriverError,
+    RelationalResultStepOutcome, RelationalResultStepQuantum, RelationalResultStepQuiescence,
+};
+mod result_projection;
+pub(crate) use result_projection::{
+    IndexedResultProjectionRecord, ResultProjectionCatalogBuilder, ResultProjectionClosure,
+    ResultProjectionError, ResultProjectionGroup, ResultProjectionRecord, ResultProjectionRecordId,
+    ResultProjectionRoot, ResultProjectionSnapshot, RESULT_PROJECTION_SNAPSHOT_VERSION,
+};
+mod result_view;
+pub(crate) use result_view::{
+    CertifiedResultInputRoot, ClosedResultView, EvaluatedResultContribution,
+    MechanismIncidenceRowId, ResultClosedGroupRef, ResultClosedRowRef, ResultCountDistinctSnapshot,
+    ResultGroupDisposition, ResultGroupKey, ResultGroupSnapshot, ResultOutputRow, ResultValue,
+    ResultViewBuilder, ResultViewChoice, ResultViewCount, ResultViewCounts, ResultViewError,
+    ResultViewFinishError, ResultViewGrain, ResultViewHaving, ResultViewInputKind,
+    ResultViewInputRowId, ResultViewOutput, ResultViewProjectionError, ResultViewProjector,
+    ResultViewRoot, ResultViewSnapshot, ResultViewSpec, ResultViewSpecRoot, ResultViewStatus,
+};
+mod result_evidence;
+pub(crate) use result_evidence::{
+    RelationalResultEvidenceCatalog, RelationalResultEvidenceCatalogBuilder,
+    RelationalResultEvidenceId, RelationalResultEvidenceRecord, RelationalResultEvidenceRoot,
+    RelationalResultEvidenceSnapshot, RelationalResultInputSeal, ResultEvidenceError,
+    ResultEvidenceUpstreamRoot, ResultInputCoverageCommitment, ResultInputCoverageRoot,
+    RELATIONAL_RESULT_EVIDENCE_SNAPSHOT_VERSION,
+};
+mod relational_result_executor;
+pub(crate) use relational_result_executor::{
+    RelationalResultBinding, RelationalResultEvidence, RelationalResultExecution,
+    RelationalResultExecutor, RelationalResultExecutorError, RelationalResultExpressionRuntime,
+};
+mod support_cell;
+pub(crate) use support_cell::{
+    AdmissionClassificationClaim, CertifiedInjective, ExactCardinalityClaim, InjectiveMappingClaim,
+    RetainedSupportExamples, SelectionClassificationClaim, SupportCardinality, SupportCell,
+    SupportCellClaim, SupportCellError, SupportCellEvidence, SupportCellEvidenceId, SupportCellId,
+    SupportCellObligation, SupportCellSpace, SupportExampleId, SupportExampleRetention,
+    SupportExpr, SupportExprId, SupportExprKind, SupportExtensionalTarget,
+    SupportMaterializationCursor, SupportMaterializationCursorId, SupportMaterializerId,
+    SupportObserverId, SupportPartitionCertificate, SupportPartitionId, SupportPartitionKind,
+    SupportPartitionObligation, SupportProducerId, SupportProofObligationId, SupportProofReceipt,
+    SupportProofReceiptId, SupportProofVerifierId, UniformMechanismClaim, UniformValueClaim,
+    SUPPORT_MATERIALIZATION_CURSOR_VERSION,
+};
+mod support_evidence;
+pub(crate) use support_evidence::{
+    SupportCursorInsert, SupportEvidenceCatalogBuilder, SupportEvidenceCount,
+    SupportEvidenceCounts, SupportEvidenceError, SupportEvidenceKind, SupportEvidenceRecord,
+    SupportEvidenceRoot, SupportEvidenceSnapshot, SupportLayerReference, SupportObligationRecord,
+    SupportObligationRefinement, SupportObligationRefinementId, SupportObserverLayerScope,
+    SupportPresentationCounts, SupportReferenceKind, SupportRetainedExampleInsert,
+    SupportRetainedExamplesSnapshot, SUPPORT_EVIDENCE_SNAPSHOT_VERSION,
+};
+mod support_journal;
+pub(crate) use support_journal::{
+    SupportJournalApply, SupportJournalError, SupportJournalEvent, SupportJournalEventDigest,
+    SUPPORT_JOURNAL_EVENT_SCHEMA_VERSION,
 };
 mod report;
 mod resource_governor;
 mod resource_sampler;
+#[cfg(any())]
 mod run_state;
 mod run_store;
 mod run_stream;
+#[cfg(any())]
 mod run_stream_codec;
+#[cfg(any())]
 mod run_stream_store;
+#[cfg(any())]
 mod source_events;
+#[cfg(any())]
 mod source_proof_plan;
+#[cfg(any())]
 mod stream_coordinator;
+#[cfg(any())]
 mod stream_identity;
+#[cfg(any())]
 mod stream_probe;
+#[cfg(any())]
 mod stream_proof;
+#[cfg(any())]
 mod stream_replay;
 mod stream_resource;
+#[cfg(any())]
 mod stream_snapshot;
 mod transition;
 
@@ -60,6 +469,8 @@ const EXPLORE_GROUND_WORK_LIMIT: u64 = 4_000_000;
 const EXPLORE_FINITE_PLAN_WORK_LIMIT: usize = 100_000;
 const EXPLORE_RECURSION_LIMIT: usize = 64;
 const EXPLORE_GROUND_RECURSION_LIMIT: usize = 16;
+const RELATIONAL_EXPRESSION_INITIAL_STEP_LIMIT: usize = 1_000_000;
+const RELATIONAL_EXPRESSION_HARD_STEP_LIMIT: usize = 4_000_000;
 
 /// Canonical first-order value used for domain identity, ordering, SMT
 /// constants, and replay.  Floats use their exact IEEE bits rather than the
@@ -79,7 +490,14 @@ pub enum ExploreValue {
         type_name: String,
         variant: String,
         positional: bool,
-        fields: Vec<(String, ExploreValue)>,
+        /// Immutable constructor payload shared by replay-folded evidence.
+        ///
+        /// `Arc` identity is purely operational: equality, ordering, hashing,
+        /// and journal encoding continue to inspect the complete field slice.
+        /// Large fixed Context values can therefore be cloned across relation,
+        /// traversal, and result layers without cloning every field string and
+        /// nested value.
+        fields: Arc<[(String, ExploreValue)]>,
     },
 }
 
@@ -437,7 +855,7 @@ impl ExploreFiniteTypePlan {
                             type_name: type_name.clone(),
                             variant: variant.name.clone(),
                             positional: variant.positional,
-                            fields,
+                            fields: fields.into(),
                         });
                     }
                 }
@@ -499,335 +917,209 @@ impl ExploreExactDomain {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct ExploreDimensionIr {
-    /// Source-independent link back to the normalized typed bound that owns
-    /// this generator axis. Product construction uses this identity rather
-    /// than presentation names, which may repeat across transition roles.
-    pub bound_index: usize,
-    pub name: String,
-    pub value_ty: Ty,
-    pub domain: ExploreExactDomain,
-    pub role: ExploreGeneratorAxisRole,
-    pub role_field_index: usize,
-    pub span: Span,
-}
+// Retained only as source-local migration history while the relational IR
+// replaces the Cartesian compiler contract. Keeping the dead definitions out
+// of name resolution is important: the relational language no longer owns the
+// old axis-role, endpoint-product, or sliced-input types.
+#[cfg(any())]
+mod retired_cartesian_ir {
+    use super::*;
 
-#[derive(Debug, Clone)]
-pub enum ExploreFactValue {
-    Fixed(ExploreValue),
-    Derived {
-        expression: Expr,
-        dependencies: BTreeSet<String>,
-    },
-}
-
-#[derive(Debug, Clone)]
-pub struct ExploreFactIr {
-    /// Normalized typed-bound identity used when materializing State/Context
-    /// products. It is not inferred from the fact's display name.
-    pub bound_index: usize,
-    pub role: ExploreGeneratorAxisRole,
-    pub role_field_index: usize,
-    pub name: String,
-    pub value_ty: Ty,
-    pub value: ExploreFactValue,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct ExploreConstraintIr {
-    pub predicate: Expr,
-    pub scope: ExploreConstraintScope,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub struct ExploreBoundaryIr {
-    pub axis: String,
-    pub axis_dimension_index: usize,
-    pub step: i64,
-    /// Both the before value and checked `before + step` value must be members
-    /// of the declared axis domain.
-    pub requires_both_endpoints_in_domain: bool,
-    /// Source-order derived facts whose transitive dependencies include the
-    /// axis.  They are recomputed after substituting the upper endpoint.
-    pub recomputed_fact_indices: Vec<usize>,
-    pub eligible_axis_pairs: ExploreCardinality,
-    pub eligible_unconstrained_pairs: ExploreCardinality,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone)]
-pub enum ExploreAfterFieldSourceIr {
-    FrameBefore {
-        before_field_index: usize,
-    },
-    Derived {
-        expression: Expr,
-        environment: TypedExploreDerivedEnvironment,
-        /// Canonical after-construction DAG predecessors. The evaluator exposes
-        /// only these already-constructed fields through the runtime-only
-        /// partial `after` product; the partial value never becomes a state.
-        after_dependencies: Vec<ExploreAfterDependencyIr>,
-    },
-    /// One canonical generator coordinate supplies this field. The domain is
-    /// owned by `ExploreUniverseIr::dimensions`; transition construction only
-    /// retains the closed coordinate index.
-    IndependentDomain {
-        dimension_index: usize,
-    },
-}
-
-/// One compiler-owned edge in the normalized after-construction DAG.
-/// `binding_name` is the checked State-field spelling used to validate the
-/// indexed edge and expose `after.FIELD`. Any compact bare alias is carried
-/// separately by `ExploreFlatAliasIr`; runtime construction never infers
-/// either relation from mutable environment contents or incidental field order.
-#[derive(Debug, Clone)]
-pub struct ExploreAfterDependencyIr {
-    pub field_index: usize,
-    pub binding_name: String,
-}
-
-#[derive(Debug, Clone)]
-pub struct ExploreAfterFieldIr {
-    pub field_index: usize,
-    pub name: String,
-    pub value_ty: Ty,
-    pub source: ExploreAfterFieldSourceIr,
-    pub span: Span,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreAfterMembershipPreconstructionIr {
-    /// The checked after construction is `before + step` for this Int field.
-    /// Membership can therefore close before any fallible derived evaluation.
-    RelativeIntStep { step: i64 },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ExploreAfterMembershipIr {
-    pub after_field_index: usize,
-    pub before_dimension_index: usize,
-    pub preconstruction: ExploreAfterMembershipPreconstructionIr,
-}
-
-#[derive(Debug, Clone)]
-pub enum ExploreProductFieldSourceIr {
-    Dimension { dimension_index: usize },
-    Fact { fact_index: usize },
-    TransitionExpression { expression: Expr },
-}
-
-#[derive(Debug, Clone)]
-pub struct ExploreProductFieldIr {
-    pub field_index: usize,
-    pub name: String,
-    pub value_ty: Ty,
-    pub source: ExploreProductFieldSourceIr,
-    pub span: Span,
-}
-
-/// A closed product schema: every field source already names a closed
-/// generator/fact slot or a checked transition expression. Exact execution
-/// never resolves product membership through source bounds or display names.
-#[derive(Debug, Clone)]
-pub struct ExploreProductSchemaIr {
-    pub identity: TypedExploreProductSchemaIdentity,
-    pub fields: Vec<ExploreProductFieldIr>,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreFlatAliasRole {
-    Context { field_index: usize },
-    State { field_index: usize },
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreFlatAliasSource {
-    Dimension { dimension_index: usize },
-    Fact { fact_index: usize },
-}
-
-/// Closed provenance for compact source aliases. This is an evaluation view
-/// over the canonical frame, never an alternative transition model.
-#[derive(Debug, Clone)]
-pub struct ExploreFlatAliasIr {
-    pub name: String,
-    pub role: ExploreFlatAliasRole,
-    pub source: ExploreFlatAliasSource,
-}
-
-/// Closed, non-optional before/context/after transition contract consumed by
-/// exact execution. Field sources, endpoint membership, and scoped validity
-/// define semantics; `boundary_hint` can only accelerate them.
-#[derive(Debug, Clone)]
-pub struct ExploreTransitionIr {
-    pub normalization_version: u32,
-    pub state_schema: ExploreProductSchemaIr,
-    pub context_schema: ExploreProductSchemaIr,
-    pub after_fields: Vec<ExploreAfterFieldIr>,
-    pub after_membership: Vec<ExploreAfterMembershipIr>,
-    pub flat_aliases: Vec<ExploreFlatAliasIr>,
-    /// Checked optimizer metadata. Semantic endpoint construction, membership,
-    /// and validity are represented elsewhere in this transition IR.
-    pub boundary_hint: Option<ExploreBoundaryIr>,
-}
-
-fn validate_after_construction_dag(fields: &[ExploreAfterFieldIr]) -> Result<(), String> {
-    for (expected_index, field) in fields.iter().enumerate() {
-        if field.field_index != expected_index {
-            return Err(format!(
-                "after field `{}` has canonical index {}, expected {}",
-                field.name, field.field_index, expected_index
-            ));
-        }
-        let ExploreAfterFieldSourceIr::Derived {
-            after_dependencies, ..
-        } = &field.source
-        else {
-            continue;
-        };
-        let mut bindings = BTreeSet::new();
-        for dependency in after_dependencies {
-            if dependency.field_index >= fields.len() {
-                return Err(format!(
-                    "derived after field `{}` references absent DAG node {}",
-                    field.name, dependency.field_index
-                ));
-            }
-            if dependency.binding_name.is_empty() {
-                return Err(format!(
-                    "derived after field `{}` has an empty DAG binding",
-                    field.name
-                ));
-            }
-            if fields[dependency.field_index].name != dependency.binding_name {
-                return Err(format!(
-                    "derived after field `{}` binds DAG input `{}` to field `{}`",
-                    field.name, dependency.binding_name, fields[dependency.field_index].name
-                ));
-            }
-            if !bindings.insert(dependency.binding_name.as_str()) {
-                return Err(format!(
-                    "derived after field `{}` binds DAG input `{}` more than once",
-                    field.name, dependency.binding_name
-                ));
-            }
-        }
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreDimensionIr {
+        /// Source-independent link back to the normalized typed bound that owns
+        /// this generator axis. Product construction uses this identity rather
+        /// than presentation names, which may repeat across transition roles.
+        pub bound_index: usize,
+        pub name: String,
+        pub value_ty: Ty,
+        pub domain: ExploreExactDomain,
+        pub role: ExploreGeneratorAxisRole,
+        pub role_field_index: usize,
+        pub span: Span,
     }
 
-    let mut closed = fields
-        .iter()
-        .filter(|field| !matches!(&field.source, ExploreAfterFieldSourceIr::Derived { .. }))
-        .map(|field| field.field_index)
-        .collect::<BTreeSet<_>>();
-    let mut open = fields
-        .iter()
-        .filter(|field| matches!(&field.source, ExploreAfterFieldSourceIr::Derived { .. }))
-        .map(|field| field.field_index)
-        .collect::<BTreeSet<_>>();
-    while !open.is_empty() {
-        let ready = open.iter().copied().find(|field_index| {
-            let ExploreAfterFieldSourceIr::Derived {
-                after_dependencies, ..
-            } = &fields[*field_index].source
-            else {
-                return false;
-            };
-            after_dependencies
-                .iter()
-                .all(|dependency| closed.contains(&dependency.field_index))
-        });
-        let Some(field_index) = ready else {
-            return Err(format!(
-                "after-construction DAG contains a cycle among nodes {:?}",
-                open
-            ));
-        };
-        open.remove(&field_index);
-        closed.insert(field_index);
+    #[derive(Debug, Clone)]
+    pub(crate) enum ExploreFactValue {
+        Fixed(ExploreValue),
+        Derived {
+            expression: Expr,
+            dependencies: BTreeSet<String>,
+        },
     }
-    Ok(())
-}
 
-fn close_product_schema(
-    schema: &TypedExploreProductSchema,
-    bound_dimensions: &BTreeMap<usize, usize>,
-    bound_facts: &BTreeMap<usize, usize>,
-) -> Result<ExploreProductSchemaIr, String> {
-    let mut fields = Vec::with_capacity(schema.fields.len());
-    for (field_index, field) in schema.fields.iter().enumerate() {
-        let source = match &field.binding {
-            TypedExploreProductFieldBinding::Bound { bound_index } => {
-                match (
-                    bound_dimensions.get(bound_index),
-                    bound_facts.get(bound_index),
-                ) {
-                    (Some(dimension_index), None) => ExploreProductFieldSourceIr::Dimension {
-                        dimension_index: *dimension_index,
-                    },
-                    (None, Some(fact_index)) => ExploreProductFieldSourceIr::Fact {
-                        fact_index: *fact_index,
-                    },
-                    (None, None) => {
-                        return Err(format!(
-                            "product field `{}` references unclosed bound {}",
-                            field.name, bound_index
-                        ))
-                    }
-                    (Some(_), Some(_)) => {
-                        return Err(format!(
-                            "product field `{}` bound {} is both a dimension and a fact",
-                            field.name, bound_index
-                        ))
-                    }
-                }
-            }
-            TypedExploreProductFieldBinding::TransitionExpression { expression } => {
-                ExploreProductFieldSourceIr::TransitionExpression {
-                    expression: expression.clone(),
-                }
-            }
-        };
-        fields.push(ExploreProductFieldIr {
-            field_index,
-            name: field.name.clone(),
-            value_ty: field.ty.clone(),
-            source,
-            span: field.span,
-        });
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreFactIr {
+        /// Normalized typed-bound identity used when materializing State/Context
+        /// products. It is not inferred from the fact's display name.
+        pub bound_index: usize,
+        pub role: ExploreGeneratorAxisRole,
+        pub role_field_index: usize,
+        pub name: String,
+        pub value_ty: Ty,
+        pub value: ExploreFactValue,
+        pub span: Span,
     }
-    Ok(ExploreProductSchemaIr {
-        identity: schema.identity.clone(),
-        fields,
-    })
-}
 
-#[derive(Debug, Clone)]
-pub struct ExploreUniverseIr {
-    pub dimensions: Vec<ExploreDimensionIr>,
-    pub facts: Vec<ExploreFactIr>,
-    pub constraints: Vec<ExploreConstraintIr>,
-    pub sliced_inputs: Vec<TypedExploreInput>,
-    /// Product before `where` and before the queried rule.  This is never
-    /// presented as the admissible/result count.
-    pub cartesian_count_before_constraints: ExploreCardinality,
-}
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreConstraintIr {
+        pub predicate: Expr,
+        pub scope: ExploreConstraintScope,
+        pub span: Span,
+    }
 
-#[derive(Debug, Clone)]
-pub struct ExploreQueryIr {
-    pub query: TypedExploreQuery,
-    pub transition: ExploreTransitionIr,
-    pub universe: ExploreUniverseIr,
-}
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreBoundaryIr {
+        pub axis: String,
+        pub axis_dimension_index: usize,
+        pub step: i64,
+        /// Both the before value and checked `before + step` value must be members
+        /// of the declared axis domain.
+        pub requires_both_endpoints_in_domain: bool,
+        /// Source-order derived facts whose transitive dependencies include the
+        /// axis.  They are recomputed after substituting the upper endpoint.
+        pub recomputed_fact_indices: Vec<usize>,
+        pub eligible_axis_pairs: ExploreCardinality,
+        pub eligible_unconstrained_pairs: ExploreCardinality,
+        pub span: Span,
+    }
 
-impl ExploreQueryIr {
-    pub fn boundary_hint(&self) -> Option<&ExploreBoundaryIr> {
-        self.transition.boundary_hint.as_ref()
+    #[derive(Debug, Clone)]
+    pub(crate) enum ExploreAfterFieldSourceIr {
+        FrameBefore {
+            before_field_index: usize,
+        },
+        Derived {
+            expression: Expr,
+            environment: TypedExploreDerivedEnvironment,
+            /// Canonical after-construction DAG predecessors. The evaluator exposes
+            /// only these already-constructed fields through the runtime-only
+            /// partial `after` product; the partial value never becomes a state.
+            after_dependencies: Vec<ExploreAfterDependencyIr>,
+        },
+        /// One canonical generator coordinate supplies this field. The domain is
+        /// owned by `ExploreUniverseIr::dimensions`; transition construction only
+        /// retains the closed coordinate index.
+        IndependentDomain {
+            dimension_index: usize,
+        },
+    }
+
+    /// One compiler-owned edge in the normalized after-construction DAG.
+    /// `binding_name` is the checked State-field spelling used to validate the
+    /// indexed edge and expose `after.FIELD`. Any compact bare alias is carried
+    /// separately by `ExploreFlatAliasIr`; runtime construction never infers
+    /// either relation from mutable environment contents or incidental field order.
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreAfterDependencyIr {
+        pub field_index: usize,
+        pub binding_name: String,
+    }
+
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreAfterFieldIr {
+        pub field_index: usize,
+        pub name: String,
+        pub value_ty: Ty,
+        pub source: ExploreAfterFieldSourceIr,
+        pub span: Span,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) enum ExploreAfterMembershipPreconstructionIr {
+        /// The checked after construction is `before + step` for this Int field.
+        /// Membership can therefore close before any fallible derived evaluation.
+        RelativeIntStep { step: i64 },
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) struct ExploreAfterMembershipIr {
+        pub after_field_index: usize,
+        pub before_dimension_index: usize,
+        pub preconstruction: ExploreAfterMembershipPreconstructionIr,
+    }
+
+    #[derive(Debug, Clone)]
+    pub(crate) enum ExploreProductFieldSourceIr {
+        Dimension { dimension_index: usize },
+        Fact { fact_index: usize },
+        TransitionExpression { expression: Expr },
+    }
+
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreProductFieldIr {
+        pub field_index: usize,
+        pub name: String,
+        pub value_ty: Ty,
+        pub source: ExploreProductFieldSourceIr,
+        pub span: Span,
+    }
+
+    /// A closed product schema: every field source already names a closed
+    /// generator/fact slot or a checked transition expression. Exact execution
+    /// never resolves product membership through source bounds or display names.
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreProductSchemaIr {
+        pub identity: TypedExploreProductSchemaIdentity,
+        pub fields: Vec<ExploreProductFieldIr>,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) enum ExploreFlatAliasRole {
+        Context { field_index: usize },
+        State { field_index: usize },
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    pub(crate) enum ExploreFlatAliasSource {
+        Dimension { dimension_index: usize },
+        Fact { fact_index: usize },
+    }
+
+    /// Closed provenance for compact source aliases. This is an evaluation view
+    /// over the canonical frame, never an alternative transition model.
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreFlatAliasIr {
+        pub name: String,
+        pub role: ExploreFlatAliasRole,
+        pub source: ExploreFlatAliasSource,
+    }
+
+    /// Closed, non-optional before/context/after transition contract consumed by
+    /// exact execution. Field sources, endpoint membership, and scoped validity
+    /// define semantics; `boundary_hint` can only accelerate them.
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreTransitionIr {
+        pub normalization_version: u32,
+        pub state_schema: ExploreProductSchemaIr,
+        pub context_schema: ExploreProductSchemaIr,
+        pub after_fields: Vec<ExploreAfterFieldIr>,
+        pub after_membership: Vec<ExploreAfterMembershipIr>,
+        pub flat_aliases: Vec<ExploreFlatAliasIr>,
+        /// Checked optimizer metadata. Semantic endpoint construction, membership,
+        /// and validity are represented elsewhere in this transition IR.
+        pub boundary_hint: Option<ExploreBoundaryIr>,
+    }
+
+    #[derive(Debug, Clone)]
+    pub(crate) struct ExploreUniverseIr {
+        pub dimensions: Vec<ExploreDimensionIr>,
+        pub facts: Vec<ExploreFactIr>,
+        pub constraints: Vec<ExploreConstraintIr>,
+        pub sliced_inputs: Vec<TypedExploreInput>,
+        /// Product before `where` and before the queried rule.  This is never
+        /// presented as the admissible/result count.
+        pub cartesian_count_before_constraints: ExploreCardinality,
     }
 }
+
+// Retained only as source-local migration history while the relational public
+// execution path replaces the Cartesian exact executor. This module has no
+// normal or test reachability and is not a compatibility surface.
+#[rustfmt::skip]
+#[cfg(any())]
+mod retired_cartesian_public_execution {
+use super::*;
 
 /// Default answer-search cap for the public exact-finite executor.
 ///
@@ -1649,6 +1941,11 @@ fn execute_exact(
     accepted_query_index: usize,
     options: ExploreExactOptions,
 ) -> Result<ExploreExecutionReport, String> {
+    // RELATIONAL-IR MIGRATION BREAKPOINT: source proof planning, exact case
+    // evaluation, classification regions, mechanism requests, cost planning,
+    // and stream replay still read `.universe/.transition/.query.output`.
+    // They must consume the relational enumeration frontier and the named
+    // classification/view DAG before this public execution path is restored.
     let budget = report::ExploreExecutionBudget::new(
         Some(options.case_limit.get()),
         report::DEFAULT_EXPLORE_STEP_LIMIT,
@@ -3107,8 +3404,11 @@ fn execute_checked_stream_slice_v1(
     }
 }
 
-/// One named, canonical value in the exhaustive developer-preview ledger.
+}
+
+/// One named, canonical value in the retired exhaustive developer-preview ledger.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[cfg(any())]
 pub struct ExplorePreviewField {
     pub name: String,
     pub value: ExploreValue,
@@ -3116,6 +3416,7 @@ pub struct ExplorePreviewField {
 
 /// One matching complete assignment evaluated by the ordinary interpreter.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(any())]
 pub struct ExplorePreviewRow {
     pub inputs: Vec<ExplorePreviewField>,
     pub key: Vec<ExplorePreviewField>,
@@ -3125,6 +3426,7 @@ pub struct ExplorePreviewRow {
 /// Exact-finite result used only by the hidden `__explore-preview` command.
 /// It is intentionally smaller than the accepted public Explore report RFC.
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg(any())]
 pub struct ExplorePreviewReport {
     pub query_name: String,
     pub polarity: ExplorePolarity,
@@ -3371,8 +3673,8 @@ impl<'a> ExploreGroundEvaluator<'a> {
                         fields,
                         ..
                     } => fields
-                        .into_iter()
-                        .find_map(|(name, value)| (name == *field).then_some(value)),
+                        .iter()
+                        .find_map(|(name, value)| (name == field).then(|| value.clone())),
                     _ => None,
                 };
                 value
@@ -3543,10 +3845,7 @@ impl<'a> ExploreGroundEvaluator<'a> {
                     if cardinality > EXPLORE_GROUND_COLLECTION_LIMIT {
                         return Err(format!(
                             "ground `range({}, {})` has {} members, exceeding materialization limit {}; use `range` directly as the exploration domain",
-                            start,
-                            end_exclusive,
-                            cardinality,
-                            EXPLORE_GROUND_COLLECTION_LIMIT
+                            start, end_exclusive, cardinality, EXPLORE_GROUND_COLLECTION_LIMIT
                         ));
                     }
                     self.charge_work(cardinality, "range materialization")?;
@@ -3880,7 +4179,7 @@ impl<'a> ExploreGroundEvaluator<'a> {
                     // Value::Constructor, even when an explicit `Foo()` call
                     // uses the declaration's named-constructor shape.
                     positional: true,
-                    fields: Vec::new(),
+                    fields: Arc::from([]),
                 }));
             }
         }
@@ -3976,22 +4275,60 @@ impl<'a> ExploreGroundEvaluator<'a> {
             // with different constructor layouts, but that layout detail
             // must not create two exploration-domain values.
             positional: variant.fields.is_empty() || variant.positional,
-            fields: values,
+            fields: values.into(),
         })
     }
 }
 
 struct ExploreRuntimeGroundEvaluator {
     interpreter: Interpreter,
+    observer_memo_enabled: bool,
+    expression_step_limit: usize,
     base_env: Env,
     bindings: BTreeMap<String, Vec<SourcedBinding>>,
     evaluated_bindings: BTreeSet<String>,
     locals: BTreeMap<String, Value>,
 }
 
+fn evaluate_relational_expression_with_bounded_retry<T>(
+    step_limit: &mut usize,
+    mut evaluate: impl FnMut(usize) -> Result<T, ExploreRuntimeFailure>,
+) -> Result<T, ExploreRuntimeFailure> {
+    // A relational expression is the smallest semantic retry unit. The
+    // interpreter resets its counter for every attempt, while the checked
+    // observer memo may retain exact values and their original step charges.
+    // Growing one invocation-local high-water mark therefore changes only
+    // scheduling cost: no partial result is accepted, and every expression
+    // remains bounded by the hard ceiling below.
+    loop {
+        let attempted_limit = *step_limit;
+        match evaluate(attempted_limit) {
+            Err(ExploreRuntimeFailure::OperationalLimit {
+                resource: ExploreRuntimeResource::ExpressionSteps,
+                limit,
+                ..
+            }) if limit == attempted_limit as u128
+                && attempted_limit < RELATIONAL_EXPRESSION_HARD_STEP_LIMIT =>
+            {
+                *step_limit = attempted_limit
+                    .saturating_mul(2)
+                    .min(RELATIONAL_EXPRESSION_HARD_STEP_LIMIT);
+            }
+            result => return result,
+        }
+    }
+}
+
 impl ExploreRuntimeGroundEvaluator {
     fn new(definitions: &GroundDefinitions) -> Self {
-        let declarations = prepend_prelude(parse_prelude(), &definitions.runtime_declarations);
+        Self::new_with_observer_memo(definitions, None)
+    }
+
+    fn new_with_observer_memo(
+        definitions: &GroundDefinitions,
+        observer_memo_plan: Option<CheckedExactObserverMemoPlan>,
+    ) -> Self {
+        let prelude = parse_prelude();
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.install_rule_dispatch_return_metadata(
@@ -4000,9 +4337,22 @@ impl ExploreRuntimeGroundEvaluator {
             &definitions.rule_dispatch_boolean_miss_safe_keys,
         );
         let mut base_env = interpreter.default_env();
-        interpreter.register_static_declarations(&declarations, &mut base_env);
+        // Register the same prelude-then-program order without first cloning
+        // every large imported declaration into a temporary concatenated AST.
+        interpreter.register_static_declarations(&prelude, &mut base_env);
+        interpreter.register_static_declarations(&definitions.runtime_declarations, &mut base_env);
+        interpreter.seal_exact_exploration_static_declarations();
+        let observer_memo_enabled = observer_memo_plan
+            .and_then(|plan| {
+                interpreter
+                    .install_checked_exact_observer_memo_plan(plan)
+                    .ok()
+            })
+            .is_some();
         Self {
             interpreter,
+            observer_memo_enabled,
+            expression_step_limit: RELATIONAL_EXPRESSION_INITIAL_STEP_LIMIT,
             base_env,
             bindings: definitions.bindings.clone(),
             evaluated_bindings: BTreeSet::new(),
@@ -4012,6 +4362,17 @@ impl ExploreRuntimeGroundEvaluator {
 
     fn set_local(&mut self, name: impl Into<String>, value: Value) {
         self.locals.insert(name.into(), value);
+    }
+
+    fn clear_locals(&mut self) {
+        self.locals.clear();
+    }
+
+    fn observer_memo_stats(&self) -> (bool, CheckedExactObserverMemoStats) {
+        (
+            self.observer_memo_enabled,
+            self.interpreter.checked_exact_observer_memo_stats(),
+        )
     }
 
     fn evaluate_required_bindings(&mut self, order: &[String]) -> Result<(), String> {
@@ -4032,12 +4393,18 @@ impl ExploreRuntimeGroundEvaluator {
                     definitions.len()
                 ));
             }
-            let value = self.interpreter.eval_ground(
-                &definitions[0].expression,
-                &self.base_env,
-                1_000_000,
-                EXPLORE_GROUND_COLLECTION_LIMIT as usize,
-            )?;
+            let value = evaluate_relational_expression_with_bounded_retry(
+                &mut self.expression_step_limit,
+                |step_limit| {
+                    self.interpreter.eval_exact_exploration(
+                        &definitions[0].expression,
+                        &self.base_env,
+                        step_limit,
+                        EXPLORE_GROUND_COLLECTION_LIMIT as usize,
+                    )
+                },
+            )
+            .map_err(|failure| failure.to_string())?;
             self.base_env.set(name.clone(), value);
             self.evaluated_bindings.insert(name.clone());
         }
@@ -4050,91 +4417,362 @@ impl ExploreRuntimeGroundEvaluator {
         for (name, value) in &self.locals {
             env.set(name.clone(), value.clone());
         }
-        self.interpreter.eval_ground(
-            expression,
-            &env,
-            1_000_000,
-            EXPLORE_GROUND_COLLECTION_LIMIT as usize,
+        evaluate_relational_expression_with_bounded_retry(
+            &mut self.expression_step_limit,
+            |step_limit| {
+                self.interpreter.eval_exact_exploration(
+                    expression,
+                    &env,
+                    step_limit,
+                    EXPLORE_GROUND_COLLECTION_LIMIT as usize,
+                )
+            },
         )
+        .map_err(|failure| failure.to_string())
     }
 }
 
-fn eval_ground_exact(
-    preflight: &mut ExploreGroundEvaluator<'_>,
-    runtime: &mut ExploreRuntimeGroundEvaluator,
+/// Production adapter from the checked interpreter to the relational
+/// executor's small expression boundary.
+///
+/// Immutable top-level bindings are evaluated once in a deterministic
+/// dependency order and retained in the interpreter environment. Source
+/// binders are replaced for every fiber/case evaluation, so pausing and
+/// resuming work cannot leak values from a previous prefix.
+struct RelationalExpressionBindingPlan {
+    /// Process-local address of one expression inside the heap-stable checked
+    /// query owned by a prepared Explore epoch. This is lookup state only: it
+    /// never enters query identity, the journal, or published evidence.
+    expression_address: usize,
+    binding_order: Box<[String]>,
+}
+
+struct RelationalInterpreterExpressionRuntime {
+    catalog: Arc<calculate::TypeCatalog>,
+    binding_plans: Box<[RelationalExpressionBindingPlan]>,
+    evaluator: ExploreRuntimeGroundEvaluator,
+}
+
+impl RelationalInterpreterExpressionRuntime {
+    fn new(
+        catalog: Arc<calculate::TypeCatalog>,
+        definitions: &GroundDefinitions,
+        query: &ExploreQueryIr,
+        observer_memo_plan: Option<CheckedExactObserverMemoPlan>,
+    ) -> Result<Self, String> {
+        let binding_plans = planned_relational_binding_orders(query, definitions)?;
+        let evaluator =
+            ExploreRuntimeGroundEvaluator::new_with_observer_memo(definitions, observer_memo_plan);
+        Ok(Self {
+            catalog,
+            binding_plans,
+            evaluator,
+        })
+    }
+
+    fn observer_memo_stats(&self) -> (bool, CheckedExactObserverMemoStats) {
+        self.evaluator.observer_memo_stats()
+    }
+}
+
+fn planned_relational_binding_order<'plan>(
+    plans: &'plan [RelationalExpressionBindingPlan],
     expression: &Expr,
-    expected: &Ty,
-    catalog: &calculate::TypeCatalog,
-) -> Result<(ExploreValue, Value), String> {
-    let checked_value = preflight.eval(expression, Some(expected))?;
-    let runtime_value = runtime.eval(expression, &preflight.memo_order)?;
-    let canonical_value = runtime_value_to_explore_value(&runtime_value, expected, catalog)?;
-    if checked_value != canonical_value {
-        return Err(
-            "ground expression has different checked and runtime values; expose a literal finite collection or simpler pure helper"
-                .to_string(),
-        );
-    }
-    Ok((canonical_value, runtime_value))
+) -> Result<&'plan [String], String> {
+    let expression_address = expression as *const Expr as usize;
+    plans
+        .iter()
+        .find(|plan| plan.expression_address == expression_address)
+        .map(|plan| plan.binding_order.as_ref())
+        .ok_or_else(|| {
+            "relational runtime received an expression outside its checked query plan".to_string()
+        })
 }
 
-/// Materialize the checked Context projection needed by boundary-step
-/// elaboration. Every referenced field must be coordinate-invariant; unrelated
-/// Context axes remain outside this private projection view.
-fn fixed_boundary_context(
-    query: &TypedExploreQuery,
-    facts: &[ExploreFactIr],
-    bound_fact_indices: &BTreeMap<usize, usize>,
-    required_fields: &BTreeSet<String>,
-) -> Result<Option<(ExploreValue, Value)>, String> {
-    let TypedExploreProductSchemaIdentity::Declared { ty } =
-        &query.transition.context_schema.identity
-    else {
-        return Ok(None);
-    };
-    let Ty::Name(type_name) = ty else {
+/// Precompute immutable-binding closure once for every expression root the
+/// relational executors can present. The address is only an invocation-local
+/// lookup into this borrowed, producer-owned closed query; it never enters a
+/// semantic identity, journal event, snapshot, or result root.
+fn planned_relational_binding_orders(
+    query: &ExploreQueryIr,
+    definitions: &GroundDefinitions,
+) -> Result<Box<[RelationalExpressionBindingPlan]>, String> {
+    let names = definitions
+        .bindings
+        .keys()
+        .cloned()
+        .collect::<BTreeSet<_>>();
+    let mut plans = Vec::<RelationalExpressionBindingPlan>::new();
+    for expression in relational_runtime_expression_roots(query) {
+        let expression_address = expression as *const Expr as usize;
+        if plans
+            .iter()
+            .any(|plan| plan.expression_address == expression_address)
+        {
+            continue;
+        }
+        let roots = expression_query_dependencies(expression, &names, definitions);
+        let mut visiting = BTreeSet::new();
+        let mut visited = BTreeSet::new();
+        let mut order = Vec::new();
+        for root in roots {
+            append_required_binding(
+                &root,
+                &names,
+                definitions,
+                &mut visiting,
+                &mut visited,
+                &mut order,
+            )?;
+        }
+        plans.push(RelationalExpressionBindingPlan {
+            expression_address,
+            binding_order: order.into_boxed_slice(),
+        });
+    }
+    Ok(plans.into_boxed_slice())
+}
+
+fn relational_runtime_expression_roots(query: &ExploreQueryIr) -> Vec<&Expr> {
+    let mut expressions = Vec::new();
+    for binding in query.source.bindings.iter() {
+        match &binding.kind {
+            ExploreSourceBindingKindIr::Singleton { value } => expressions.push(value),
+            ExploreSourceBindingKindIr::Finite { domain } => {
+                append_relational_finite_domain_expressions(domain, &mut expressions)
+            }
+        }
+    }
+    match &query.successor.kind {
+        ExploreSuccessorKindIr::Singleton { value } => expressions.push(value),
+        ExploreSuccessorKindIr::Finite { domain } => {
+            append_relational_finite_domain_expressions(domain, &mut expressions)
+        }
+    }
+    expressions.extend(
+        query
+            .admissions
+            .iter()
+            .map(|admission| &admission.predicate),
+    );
+    if let Some(predicate) = query.find.predicate() {
+        expressions.push(predicate);
+    }
+    for node in query.analysis.iter() {
+        match node {
+            ExploreAnalysisNodeIr::Result(view) => {
+                if let ExploreResultGrainIr::GroupBy { fields, .. } = &view.grain {
+                    expressions.extend(fields.iter().map(|field| &field.value));
+                }
+                expressions.extend(view.measures.iter().map(|field| &field.value));
+                for aggregate in view.aggregates.iter() {
+                    match &aggregate.reducer {
+                        ExploreAggregateReducerIr::CountDistinct { value, .. } => {
+                            expressions.push(value)
+                        }
+                    }
+                }
+                expressions.extend(view.select.iter().map(|field| &field.value));
+                match &view.choose {
+                    None => {}
+                    Some(ExploreResultChoiceIr::Optimize { objective, .. }) => {
+                        expressions.push(objective)
+                    }
+                    Some(ExploreResultChoiceIr::Pareto { objectives, .. }) => {
+                        expressions.extend(objectives.iter().map(|objective| &objective.value))
+                    }
+                }
+            }
+            // Mechanism replay has a separate checked, fresh-evaluator plan.
+            // If its endpoint ever leaks onto this route, lookup must fail.
+            ExploreAnalysisNodeIr::Mechanisms(_) => {}
+        }
+    }
+    expressions
+}
+
+fn append_relational_finite_domain_expressions<'a>(
+    domain: &'a ExploreFiniteDomainIr,
+    expressions: &mut Vec<&'a Expr>,
+) {
+    match domain {
+        ExploreFiniteDomainIr::Exact(_) => {}
+        ExploreFiniteDomainIr::Collection { expression, .. } => expressions.push(expression),
+        ExploreFiniteDomainIr::IntRange {
+            start,
+            end_exclusive,
+        } => {
+            expressions.push(start);
+            expressions.push(end_exclusive);
+        }
+    }
+}
+
+fn append_required_binding(
+    name: &str,
+    names: &BTreeSet<String>,
+    definitions: &GroundDefinitions,
+    visiting: &mut BTreeSet<String>,
+    visited: &mut BTreeSet<String>,
+    order: &mut Vec<String>,
+) -> Result<(), String> {
+    if visited.contains(name) {
+        return Ok(());
+    }
+    if !visiting.insert(name.to_string()) {
         return Err(format!(
-            "explicit exploration Context schema `{ty}` is not a nominal product"
+            "relational exploration immutable binding dependency cycle reaches `{name}`"
+        ));
+    }
+    let declarations = definitions.bindings.get(name).ok_or_else(|| {
+        format!("relational exploration binding `{name}` disappeared from the checked graph")
+    })?;
+    let [declaration] = declarations.as_slice() else {
+        return Err(format!(
+            "relational exploration binding `{name}` has {} definitions",
+            declarations.len()
         ));
     };
-
-    let mut fields = Vec::with_capacity(required_fields.len());
-    for field in query
-        .transition
-        .context_schema
-        .fields
-        .iter()
-        .filter(|field| required_fields.contains(&field.name))
-    {
-        let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding else {
-            return Ok(None);
-        };
-        let Some(fact_index) = bound_fact_indices.get(bound_index) else {
-            return Ok(None);
-        };
-        let fact = facts.get(*fact_index).ok_or_else(|| {
-            format!(
-                "fixed Context field `{}` references absent fact {}",
-                field.name, fact_index
-            )
-        })?;
-        let ExploreFactValue::Fixed(value) = &fact.value else {
-            return Ok(None);
-        };
-        fields.push((field.name.clone(), value.clone()));
+    for dependency in expression_query_dependencies(&declaration.expression, names, definitions) {
+        append_required_binding(&dependency, names, definitions, visiting, visited, order)?;
     }
-    if fields.len() != required_fields.len() {
-        return Err("boundary step references an absent Context field".to_string());
-    }
+    visiting.remove(name);
+    visited.insert(name.to_string());
+    order.push(name.to_string());
+    Ok(())
+}
 
-    let canonical = ExploreValue::Constructor {
-        type_name: type_name.clone(),
-        variant: type_name.clone(),
-        positional: false,
-        fields,
-    };
-    let runtime = runtime_value_from_explore_value(&canonical);
-    Ok(Some((canonical, runtime)))
+impl RelationalExpressionRuntime for RelationalInterpreterExpressionRuntime {
+    fn evaluate(
+        &mut self,
+        expression: &Expr,
+        expected_ty: &Ty,
+        earlier_bindings: &[RelationalBoundValue<'_>],
+    ) -> Result<ExploreValue, String> {
+        let binding_order = planned_relational_binding_order(&self.binding_plans, expression)?;
+        self.evaluator.clear_locals();
+        for binding in earlier_bindings {
+            self.evaluator.set_local(
+                binding.name,
+                runtime_value_from_explore_value(binding.value),
+            );
+        }
+        let value = self.evaluator.eval(expression, binding_order)?;
+        runtime_value_to_explore_value(&value, expected_ty, self.catalog.as_ref())
+    }
+}
+
+impl RelationalResultExpressionRuntime for RelationalInterpreterExpressionRuntime {
+    fn evaluate(
+        &mut self,
+        expression: &Expr,
+        expected_ty: &Ty,
+        bindings: &[RelationalResultBinding],
+    ) -> Result<ResultValue, String> {
+        // Semantic IDs intentionally have no interpreter `Value`
+        // representation. A bare variable can preserve that typed identity
+        // without stringifying it; every other expression goes through the
+        // checked interpreter below.
+        if let ExprKind::Var(name) = &expression.kind {
+            if let Some(binding) = bindings.iter().rev().find(|binding| binding.name() == name) {
+                return checked_direct_result_value(
+                    binding.value(),
+                    name,
+                    expected_ty,
+                    self.catalog.as_ref(),
+                );
+            }
+        }
+
+        // Resolve the sequential result environment before adapting it. This
+        // makes a later SELECT alias shadow an earlier group/aggregate binding
+        // with the same name, independent of map iteration order.
+        let mut effective_bindings = BTreeMap::<String, &ResultValue>::new();
+        for binding in bindings {
+            effective_bindings.insert(binding.name().to_string(), binding.value());
+        }
+
+        // Opaque IDs that are merely present in an incidence row do not block
+        // an unrelated expression. If the expression actually uses one in a
+        // computation, fail closed instead of silently exposing its digest as
+        // a Futuruna String.
+        let mut referenced_names = BTreeSet::new();
+        collect_true_free_vars(expression, &mut referenced_names, &BTreeSet::new());
+        for name in referenced_names {
+            let Some(value) = effective_bindings.get(&name) else {
+                continue;
+            };
+            if let Some(kind) = opaque_result_value_kind(value) {
+                return Err(format!(
+                    "result expression uses opaque {kind} binding `{name}` inside a computation; semantic identifiers may currently be consumed only as a bare bound variable"
+                ));
+            }
+        }
+
+        let binding_order = planned_relational_binding_order(&self.binding_plans, expression)?;
+        self.evaluator.clear_locals();
+        for (name, value) in effective_bindings {
+            if let ResultValue::Value(value) = value {
+                self.evaluator
+                    .set_local(name, runtime_value_from_explore_value(value));
+            }
+        }
+        let value = self.evaluator.eval(expression, binding_order)?;
+        runtime_value_to_explore_value(&value, expected_ty, self.catalog.as_ref())
+            .map(ResultValue::Value)
+    }
+}
+
+fn checked_direct_result_value(
+    value: &ResultValue,
+    binding_name: &str,
+    expected_ty: &Ty,
+    catalog: &calculate::TypeCatalog,
+) -> Result<ResultValue, String> {
+    match value {
+        ResultValue::Value(value) => runtime_value_to_explore_value(
+            &runtime_value_from_explore_value(value),
+            expected_ty,
+            catalog,
+        )
+        .map(ResultValue::Value),
+        ResultValue::CaseId(_) if matches!(expected_ty, Ty::Name(name) if name == "CaseId") => {
+            Ok(value.clone())
+        }
+        ResultValue::TransitionId(_) if matches!(expected_ty, Ty::Name(name) if name == "TransitionId") => {
+            Ok(value.clone())
+        }
+        ResultValue::SignatureId(_) if matches!(expected_ty, Ty::Name(name) if name == "MechanismSignatureId") => {
+            Ok(value.clone())
+        }
+        ResultValue::StructuralMechanismId(_) if matches!(expected_ty, Ty::Name(name) if name == "StructuralMechanismId") => {
+            Ok(value.clone())
+        }
+        ResultValue::ExecutionProfileId(_) if matches!(expected_ty, Ty::Name(name) if name == "ExecutionProfileId") => {
+            Ok(value.clone())
+        }
+        ResultValue::CaseId(_)
+        | ResultValue::TransitionId(_)
+        | ResultValue::SignatureId(_)
+        | ResultValue::StructuralMechanismId(_)
+        | ResultValue::ExecutionProfileId(_) => {
+            let kind = opaque_result_value_kind(value).expect("checked opaque result value");
+            Err(format!(
+                "opaque {kind} binding `{binding_name}` cannot satisfy expected type `{expected_ty}`"
+            ))
+        }
+    }
+}
+
+fn opaque_result_value_kind(value: &ResultValue) -> Option<&'static str> {
+    match value {
+        ResultValue::Value(_) => None,
+        ResultValue::CaseId(_) => Some("case ID"),
+        ResultValue::TransitionId(_) => Some("transition ID"),
+        ResultValue::SignatureId(_) => Some("mechanism signature ID"),
+        ResultValue::StructuralMechanismId(_) => Some("structural mechanism ID"),
+        ResultValue::ExecutionProfileId(_) => Some("execution profile ID"),
+    }
 }
 
 fn eval_ground_binary(
@@ -4234,7 +4872,7 @@ fn ground_runtime_equality(left: &ExploreValue, right: &ExploreValue) -> Option<
                 && left_fields.len() == right_fields.len()
                 && left_fields
                     .iter()
-                    .zip(right_fields)
+                    .zip(right_fields.iter())
                     .all(|((_, left), (_, right))| {
                         ground_runtime_equality(left, right).unwrap_or(false)
                     }),
@@ -4294,7 +4932,7 @@ fn ground_values_equal(left: &ExploreValue, right: &ExploreValue) -> bool {
             left_positional == right_positional
                 && left_variant == right_variant
                 && left_fields.len() == right_fields.len()
-                && left_fields.iter().zip(right_fields).all(
+                && left_fields.iter().zip(right_fields.iter()).all(
                     |((left_name, left), (right_name, right))| {
                         (*left_positional || left_name == right_name)
                             && ground_values_equal(left, right)
@@ -4343,135 +4981,6 @@ fn collection_kind(ty: &Ty) -> Option<&str> {
     }
 }
 
-fn explore_value_matches_ty(
-    value: &ExploreValue,
-    ty: &Ty,
-    catalog: &calculate::TypeCatalog,
-) -> Result<bool, String> {
-    match ty {
-        Ty::Unit => {
-            return Ok(matches!(value, ExploreValue::Unit));
-        }
-        Ty::Name(name) if name == "Unit" => return Ok(matches!(value, ExploreValue::Unit)),
-        Ty::Name(name) => {
-            let primitive = match name.as_str() {
-                "Int" => Some(matches!(value, ExploreValue::Int(_))),
-                "Nat" => Some(matches!(value, ExploreValue::Int(number) if *number >= 0)),
-                "Float" => Some(matches!(value, ExploreValue::FloatBits(_))),
-                "String" => Some(matches!(value, ExploreValue::String(_))),
-                "Bool" => Some(matches!(value, ExploreValue::Boolean(_))),
-                "Char" => Some(matches!(value, ExploreValue::Character(_))),
-                "Any" | "_" => Some(false),
-                _ => None,
-            };
-            if let Some(matches) = primitive {
-                return Ok(matches);
-            }
-        }
-        Ty::Optional(inner) => {
-            return explore_value_matches_ty(
-                value,
-                &Ty::App(
-                    Box::new(Ty::Name("Option".to_string())),
-                    vec![*inner.clone()],
-                ),
-                catalog,
-            );
-        }
-        Ty::App(base, arguments) => {
-            if matches!(base.as_ref(), Ty::Name(name) if name == "List") {
-                let ExploreValue::List(values) = value else {
-                    return Ok(false);
-                };
-                if arguments.len() != 1 {
-                    return Ok(false);
-                }
-                for value in values {
-                    if !explore_value_matches_ty(value, &arguments[0], catalog)? {
-                        return Ok(false);
-                    }
-                }
-                return Ok(true);
-            }
-            if matches!(base.as_ref(), Ty::Name(name) if name == "Set") {
-                let ExploreValue::Set(values) = value else {
-                    return Ok(false);
-                };
-                if arguments.len() != 1 {
-                    return Ok(false);
-                }
-                for value in values {
-                    if !explore_value_matches_ty(value, &arguments[0], catalog)? {
-                        return Ok(false);
-                    }
-                }
-                return Ok(true);
-            }
-            if matches!(base.as_ref(), Ty::Name(name) if name == "Tuple") {
-                let ExploreValue::Tuple(values) = value else {
-                    return Ok(false);
-                };
-                if values.len() != arguments.len() {
-                    return Ok(false);
-                }
-                for (value, ty) in values.iter().zip(arguments) {
-                    if !explore_value_matches_ty(value, ty, catalog)? {
-                        return Ok(false);
-                    }
-                }
-                return Ok(true);
-            }
-        }
-        Ty::Arrow(_, _) | Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Var(_) | Ty::Hole => {
-            return Ok(false)
-        }
-    }
-
-    let Some((expected_type, substitutions)) = instantiated_named_type(ty, catalog)? else {
-        return Ok(false);
-    };
-    if catalog.is_rule_scope(&expected_type) {
-        return Err(format!(
-            "rule scope `{}` is an open runtime scope and cannot be used in an exact exploration domain",
-            expected_type
-        ));
-    }
-    let ExploreValue::Constructor {
-        type_name,
-        variant,
-        positional,
-        fields,
-    } = value
-    else {
-        return Ok(false);
-    };
-    if type_name != &expected_type {
-        return Ok(false);
-    }
-    let Some(declaration) = catalog
-        .resolved_variants(&expected_type)?
-        .into_iter()
-        .find(|candidate| candidate.name == *variant)
-    else {
-        return Ok(false);
-    };
-    if declaration.fields.len() != fields.len()
-        || (!declaration.fields.is_empty() && declaration.positional != *positional)
-    {
-        return Ok(false);
-    }
-    for (field, (actual_name, actual_value)) in declaration.fields.iter().zip(fields) {
-        if field.name != *actual_name {
-            return Ok(false);
-        }
-        let field_ty = calculate::substitute_type(&field.ty, &substitutions);
-        if !explore_value_matches_ty(actual_value, &field_ty, catalog)? {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}
-
 fn strict_runtime_list_items(value: &Value) -> Result<Vec<&Value>, String> {
     if let Value::List(items) = value {
         return Ok(items.iter().collect());
@@ -4481,7 +4990,7 @@ fn strict_runtime_list_items(value: &Value) -> Result<Vec<&Value>, String> {
     loop {
         match current {
             Value::Constructor(name, fields) if name == "Nil" && fields.is_empty() => {
-                return Ok(items)
+                return Ok(items);
             }
             Value::Constructor(name, fields) if name == "Cons" && fields.len() == 2 => {
                 if items.len() >= EXPLORE_GROUND_COLLECTION_LIMIT as usize {
@@ -4497,7 +5006,7 @@ fn strict_runtime_list_items(value: &Value) -> Result<Vec<&Value>, String> {
                 return Err(
                     "ground List value is not a complete Cons/Nil chain or runtime List"
                         .to_string(),
-                )
+                );
             }
         }
     }
@@ -4512,7 +5021,7 @@ fn runtime_value_to_explore_value(
         Ty::Unit => {
             return matches!(value, Value::Unit)
                 .then_some(ExploreValue::Unit)
-                .ok_or_else(|| "runtime value does not have type Unit".to_string())
+                .ok_or_else(|| "runtime value does not have type Unit".to_string());
         }
         Ty::Name(name) => {
             let primitive = match (name.as_str(), value) {
@@ -4527,7 +5036,7 @@ fn runtime_value_to_explore_value(
                     return Err(format!(
                         "runtime ground value cannot use open exploration type `{}`",
                         name
-                    ))
+                    ));
                 }
                 _ => None,
             };
@@ -4549,7 +5058,7 @@ fn runtime_value_to_explore_value(
                     vec![*inner.clone()],
                 ),
                 catalog,
-            )
+            );
         }
         Ty::App(base, arguments) if matches!(base.as_ref(), Ty::Name(name) if name == "List") => {
             if arguments.len() != 1 {
@@ -4614,7 +5123,7 @@ fn runtime_value_to_explore_value(
             return Err(format!(
                 "runtime ground value cannot use unsupported exploration type `{}`",
                 ty
-            ))
+            ));
         }
         _ => {}
     }
@@ -4657,7 +5166,7 @@ fn runtime_value_to_explore_value(
             return Err(format!(
                 "runtime value does not have declared type `{}`",
                 ty
-            ))
+            ));
         }
     };
     let declaration = catalog
@@ -4706,7 +5215,7 @@ fn runtime_value_to_explore_value(
         // Normalize both runtime spellings of a nullary constructor to the
         // single declared inhabitant used by finite-type enumeration.
         positional: declaration.fields.is_empty() || positional,
-        fields,
+        fields: fields.into(),
     })
 }
 
@@ -4881,7 +5390,7 @@ fn finite_type_plan_with_budget(
                 active,
                 budget,
                 depth + 1,
-            )
+            );
         }
         Ty::Name(name)
             if matches!(
@@ -4901,19 +5410,20 @@ fn finite_type_plan_with_budget(
             return Err(format!(
                 "`values({})` is unbounded at `{}`; provide an explicit list or range",
                 ty, path
-            ))
+            ));
         }
-        Ty::App(base, _) if matches!(base.as_ref(), Ty::Name(name) if matches!(name.as_str(), "List" | "Set" | "Map" | "Stream")) => {
+        Ty::App(base, _) if matches!(base.as_ref(), Ty::Name(name) if matches!(name.as_str(), "List" | "Set" | "Map" | "Stream")) =>
+        {
             return Err(format!(
                 "`values({})` is unbounded at `{}`; provide an explicit finite collection",
                 ty, path
-            ))
+            ));
         }
         Ty::Arrow(_, _) | Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Var(_) | Ty::Hole => {
             return Err(format!(
                 "`values({})` cannot enumerate `{}` at `{}`",
                 ty, ty, path
-            ))
+            ));
         }
         _ => {}
     }
@@ -5005,8 +5515,9 @@ fn collect_ground_bindings(
     let mut definitions = GroundDefinitions::default();
     let mut visited = BTreeSet::new();
     let mut errors = Vec::new();
+    let statement_refs = statements.iter().collect::<Vec<_>>();
     collect_ground_bindings_inner(
-        statements,
+        &statement_refs,
         source_dir,
         "<root>",
         &mut visited,
@@ -5049,7 +5560,7 @@ fn ground_declaration_identity(statement: &Stmt) -> Option<(String, String, Stri
                         "impl".to_string(),
                         format!("{} for {}", trait_name, for_type),
                         content_hash_type(declaration),
-                    ))
+                    ));
                 }
                 TypeDecl::RuleScope { name, .. } => ("rule-scope", name),
             };
@@ -5070,14 +5581,14 @@ fn standard_prelude_declaration_identities() -> Vec<(String, String, String)> {
         .collect()
 }
 
-fn leading_injected_prelude_indices(statements: &[Stmt], origin: &str) -> BTreeSet<usize> {
+fn leading_injected_prelude_indices(statements: &[&Stmt], origin: &str) -> BTreeSet<usize> {
     if origin != "<root>" {
         return BTreeSet::new();
     }
     let prelude = standard_prelude_declaration_identities();
     let mut cursor = 0;
     let mut indices = BTreeSet::new();
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         let Some(identity) = ground_declaration_identity(statement) else {
             break;
         };
@@ -5094,7 +5605,7 @@ fn leading_injected_prelude_indices(statements: &[Stmt], origin: &str) -> BTreeS
 }
 
 fn collect_ground_bindings_inner(
-    statements: &[Stmt],
+    statements: &[&Stmt],
     source_dir: Option<&str>,
     origin: &str,
     visited: &mut BTreeSet<String>,
@@ -5109,7 +5620,7 @@ fn collect_ground_bindings_inner(
             .insert("<prelude>".to_string(), next);
     }
     let mut saw_local_program_statement = false;
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         if injected_prelude.contains(&index) {
             continue;
         }
@@ -5131,7 +5642,7 @@ fn collect_ground_bindings_inner(
         }
     }
 
-    for statement in statements {
+    for statement in statements.iter().copied() {
         match statement {
             Stmt::Import(path) => {
                 let Some(directory) = source_dir else {
@@ -5164,8 +5675,9 @@ fn collect_ground_bindings_inner(
                     .parent()
                     .map(|parent| parent.to_string_lossy().to_string())
                     .unwrap_or_else(|| ".".to_string());
+                let nested_statements = module.statements().iter().collect::<Vec<_>>();
                 collect_ground_bindings_inner(
-                    module.statements(),
+                    &nested_statements,
                     Some(&nested_dir),
                     &canonical,
                     visited,
@@ -5212,7 +5724,6 @@ fn collect_ground_bindings_inner(
                         Stmt::TypeDecl(declaration) => content_hash_type(declaration) == *hash,
                         _ => false,
                     })
-                    .cloned()
                     .collect::<Vec<_>>();
                 if matched.len() != 1 {
                     errors.push(format!(
@@ -5245,7 +5756,7 @@ fn collect_ground_bindings_inner(
         definitions.origin_order.insert(origin.to_string(), next);
     }
 
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         let statement_origin = if injected_prelude.contains(&index) {
             "<prelude>"
         } else {
@@ -5264,7 +5775,7 @@ fn collect_ground_bindings_inner(
                 origin: statement_origin.to_string(),
             });
     }
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         let statement_origin = if injected_prelude.contains(&index) {
             "<prelude>"
         } else {
@@ -5293,7 +5804,7 @@ fn collect_ground_bindings_inner(
                 .push(statement_origin.to_string());
         }
     }
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         let statement_origin = if injected_prelude.contains(&index) {
             "<prelude>"
         } else {
@@ -5321,7 +5832,7 @@ fn collect_ground_bindings_inner(
                 origin: statement_origin.to_string(),
             });
     }
-    for (index, statement) in statements.iter().enumerate() {
+    for (index, statement) in statements.iter().copied().enumerate() {
         let statement_origin = if injected_prelude.contains(&index) {
             "<prelude>"
         } else {
@@ -5419,6 +5930,7 @@ fn collect_ground_bindings_inner(
                 .iter()
                 .enumerate()
                 .filter_map(|(index, statement)| {
+                    let statement = *statement;
                     (!injected_prelude.contains(&index)
                         && matches!(statement, Stmt::Defn(_) | Stmt::TypeDecl(_) | Stmt::Rule(_)))
                     .then(|| statement.clone())
@@ -6014,50 +6526,18 @@ fn validate_query_replay_callable_identities(
     query: &TypedExploreQuery,
     definitions: &GroundDefinitions,
 ) -> Vec<Diagnostic> {
+    let semantic_case_names = BTreeSet::from([
+        "after".to_string(),
+        "before".to_string(),
+        "context".to_string(),
+    ]);
     let mut diagnostics = Vec::new();
     let mut validated = BTreeSet::new();
-    if matches!(query.rule_name.as_str(), "findall" | "search") && query.rule_arity == 2 {
-        diagnostics.push(Diagnostic::error_at(
-            query.span,
-            format!(
-                "exploration replay runtime special form `{}(2 arguments)` takes precedence over the target rule",
-                query.rule_name
-            ),
-        ));
-    } else if let Some(message) = explore_replay_callable_identity_issue(
-        &query.rule_name,
-        query.rule_arity,
-        definitions,
-        &mut BTreeSet::new(),
-        &mut validated,
-    ) {
-        diagnostics.push(Diagnostic::error_at(query.span, message));
-    }
-    let query_bound = query
-        .inputs
-        .iter()
-        .map(|input| input.name.clone())
-        .chain(query.bounds.iter().filter_map(|bound| match bound {
-            TypedExploreBound::Domain {
-                target: TypedExploreBoundTarget::CompactScalar,
-                name,
-                ..
-            }
-            | TypedExploreBound::Value {
-                target: TypedExploreBoundTarget::CompactScalar,
-                name,
-                ..
-            } => Some(name.clone()),
-            TypedExploreBound::Domain { .. } | TypedExploreBound::Value { .. } => None,
-            TypedExploreBound::Where { .. } => None,
-        }))
-        .chain(query.output.extrema.iter().map(|field| field.name.clone()))
-        .chain(query.output.show.iter().map(|field| field.name.clone()))
-        .collect::<BTreeSet<_>>();
-    let mut check_expression = |expression: &Expr| {
+
+    let mut check_expression = |expression: &Expr, bound: &BTreeSet<String>| {
         if let Some(message) = expression_replay_callable_identity_issue(
             expression,
-            &query_bound,
+            bound,
             definitions,
             &mut BTreeSet::new(),
             &mut validated,
@@ -6065,61 +6545,124 @@ fn validate_query_replay_callable_identities(
             diagnostics.push(Diagnostic::error_at(expression.span, message));
         }
     };
-    for bound in &query.bounds {
-        match bound {
-            TypedExploreBound::Domain { domain, .. } => match domain {
-                TypedExploreDomain::FiniteExpr { expression, .. } => check_expression(expression),
+
+    let mut available_source_names = BTreeSet::new();
+    for binding in &query.source.bindings {
+        match &binding.kind {
+            TypedExploreSourceBindingKind::Singleton { value } => {
+                check_expression(value, &available_source_names);
+            }
+            TypedExploreSourceBindingKind::Finite { domain } => match domain {
+                TypedExploreDomain::FiniteExpr { expression, .. } => {
+                    check_expression(expression, &available_source_names);
+                }
                 TypedExploreDomain::Range {
                     start,
                     end_exclusive,
                 } => {
-                    check_expression(start);
-                    check_expression(end_exclusive);
+                    check_expression(start, &available_source_names);
+                    check_expression(end_exclusive, &available_source_names);
                 }
                 TypedExploreDomain::Values { .. } => {}
             },
-            TypedExploreBound::Value { value, .. } => check_expression(value),
-            TypedExploreBound::Where { predicate, .. } => check_expression(predicate),
+        }
+        available_source_names.insert(binding.name.clone());
+    }
+
+    match &query.successor.kind {
+        TypedExploreSuccessorKind::Singleton { value } => {
+            check_expression(value, &semantic_case_names);
+        }
+        TypedExploreSuccessorKind::Finite { domain } => match domain {
+            TypedExploreDomain::FiniteExpr { expression, .. } => {
+                check_expression(expression, &semantic_case_names);
+            }
+            TypedExploreDomain::Range {
+                start,
+                end_exclusive,
+            } => {
+                check_expression(start, &semantic_case_names);
+                check_expression(end_exclusive, &semantic_case_names);
+            }
+            TypedExploreDomain::Values { .. } => {}
+        },
+    }
+
+    for admission in &query.admissions {
+        check_expression(&admission.predicate, &semantic_case_names);
+    }
+    match &query.selection {
+        TypedExploreSelection::All { .. } => {}
+        TypedExploreSelection::Matches { predicate, .. }
+        | TypedExploreSelection::Violations { predicate, .. } => {
+            check_expression(predicate, &semantic_case_names);
         }
     }
-    for membership in &query.transition.after_membership {
-        match &membership.preconstruction {
-            TypedExploreAfterMembershipPreconstruction::RelativeIntStep { step, .. } => {
-                check_expression(step);
+
+    let mechanism_names = BTreeSet::from(["context".to_string(), "state".to_string()]);
+    for node in &query.analysis {
+        match node {
+            TypedExploreAnalysisNode::Result(view) => {
+                let mut view_names = if matches!(&view.input, TypedExploreResultInput::Sources) {
+                    BTreeSet::from(["before".to_string(), "context".to_string()])
+                } else {
+                    semantic_case_names.clone()
+                };
+                if matches!(
+                    &view.input,
+                    TypedExploreResultInput::MechanismIncidence { .. }
+                ) {
+                    view_names.extend([
+                        "case_id".to_string(),
+                        "transition_id".to_string(),
+                        "signature_id".to_string(),
+                    ]);
+                }
+                match &view.grain {
+                    TypedExploreResultGrain::EachCase { .. }
+                    | TypedExploreResultGrain::EachIncidence { .. }
+                    | TypedExploreResultGrain::GroupAll { .. } => {}
+                    TypedExploreResultGrain::GroupBy { fields, .. } => {
+                        for field in fields {
+                            check_expression(&field.value, &view_names);
+                            view_names.insert(field.name.clone());
+                        }
+                    }
+                }
+                for field in &view.measures {
+                    check_expression(&field.value, &view_names);
+                    view_names.insert(field.name.clone());
+                }
+                for field in &view.aggregates {
+                    match &field.reducer {
+                        TypedExploreAggregateReducer::CountDistinct { value, .. } => {
+                            check_expression(value, &view_names);
+                        }
+                    }
+                    view_names.insert(field.name.clone());
+                }
+                for field in &view.select {
+                    check_expression(&field.value, &view_names);
+                    view_names.insert(field.name.clone());
+                }
+                match &view.choose {
+                    None => {}
+                    Some(TypedExploreResultChoice::Optimize { objective, .. }) => {
+                        check_expression(objective, &view_names);
+                    }
+                    Some(TypedExploreResultChoice::Pareto { objectives, .. }) => {
+                        for objective in objectives {
+                            check_expression(&objective.value, &view_names);
+                        }
+                    }
+                }
+            }
+            TypedExploreAnalysisNode::Mechanisms(request) => {
+                check_expression(&request.endpoint_template, &mechanism_names);
             }
         }
     }
-    for schema in [
-        &query.transition.state_schema,
-        &query.transition.context_schema,
-    ] {
-        for field in &schema.fields {
-            if let TypedExploreProductFieldBinding::TransitionExpression { expression } =
-                &field.binding
-            {
-                check_expression(expression);
-            }
-        }
-    }
-    for field in &query.transition.after_fields {
-        if let TypedExploreAfterFieldSource::Derived { expression, .. } = &field.source {
-            check_expression(expression);
-        }
-    }
-    for field in &query.output.key {
-        check_expression(&field.value);
-    }
-    for field in &query.output.extrema {
-        check_expression(&field.value);
-    }
-    for field in &query.output.show {
-        check_expression(&field.value);
-    }
-    match &query.output.representative {
-        ExploreRepresentative::First { .. } => {}
-        ExploreRepresentative::Maximize { objective, .. }
-        | ExploreRepresentative::Minimize { objective, .. } => check_expression(objective),
-    }
+
     diagnostics
 }
 
@@ -6274,14 +6817,6 @@ fn expression_dynamic_helper_dependencies(
     dependencies
 }
 
-fn deduplicate_list(values: Vec<ExploreValue>) -> Vec<ExploreValue> {
-    let mut seen = BTreeSet::new();
-    values
-        .into_iter()
-        .filter(|value| seen.insert(value.clone()))
-        .collect()
-}
-
 fn deduplicate_runtime_list(values: Vec<ExploreValue>) -> Vec<ExploreValue> {
     let mut seen = BTreeSet::new();
     values
@@ -6318,39 +6853,6 @@ fn exact_range_cardinality(start: i64, end_exclusive: i64) -> Result<u64, String
     })
 }
 
-fn axis_pair_count(domain: &ExploreExactDomain, step: i64) -> Result<ExploreCardinality, String> {
-    let step = u64::try_from(step)
-        .map_err(|_| "exploration boundary step must be positive".to_string())?;
-    match domain {
-        ExploreExactDomain::IntRange { cardinality, .. } => Ok(ExploreCardinality::Exact(
-            cardinality.saturating_sub(step) as u128,
-        )),
-        ExploreExactDomain::Enumerated { values, .. } => {
-            let ints = values
-                .iter()
-                .map(|value| {
-                    value.int().ok_or_else(|| {
-                        "exploration boundary axis contains a non-Int value".to_string()
-                    })
-                })
-                .collect::<Result<BTreeSet<_>, _>>()?;
-            let count = ints
-                .iter()
-                .filter(|value| {
-                    value
-                        .checked_add(step as i64)
-                        .is_some_and(|upper| ints.contains(&upper))
-                })
-                .count();
-            Ok(ExploreCardinality::Exact(count as u128))
-        }
-        ExploreExactDomain::FiniteType { .. } => Err(
-            "exploration boundary axis must use an explicit Int list or symbolic Int range"
-                .to_string(),
-        ),
-    }
-}
-
 pub(crate) fn elaborate_queries(
     statements: &[Stmt],
     source_dir: Option<&str>,
@@ -6384,1176 +6886,421 @@ pub(crate) fn elaborate_queries(
     definitions.rule_dispatch_boolean_miss_safe_keys = rule_dispatch_boolean_miss_safe_keys.clone();
     definitions.explore_rule_return_types_by_arity = explore_rule_return_types_by_arity.clone();
     definitions.explore_rule_return_issues = explore_rule_return_issues.clone();
-    let mut universes = Vec::with_capacity(queries.len());
+    let mut closed_queries = Vec::with_capacity(queries.len());
     let mut diagnostics = Vec::new();
 
     for query in queries {
-        match elaborate_query(
-            query,
-            &catalog,
-            definitions.clone(),
-            validate_replay_callables,
-        ) {
-            Ok((universe, transition)) => universes.push(ExploreQueryIr {
-                query: query.clone(),
-                transition,
-                universe,
-            }),
+        match elaborate_query(query, &catalog, &definitions, validate_replay_callables) {
+            Ok(closed_query) => closed_queries.push(closed_query),
             Err(mut query_diagnostics) => diagnostics.append(&mut query_diagnostics),
         }
     }
     if diagnostics.is_empty() {
-        Ok(universes)
+        Ok(closed_queries)
     } else {
         Err(diagnostics)
+    }
+}
+
+fn lower_explore_finite_domain(
+    domain: &TypedExploreDomain,
+    catalog: &calculate::TypeCatalog,
+    path: &str,
+) -> Result<ExploreFiniteDomainIr, String> {
+    match domain {
+        TypedExploreDomain::FiniteExpr {
+            expression,
+            collection_ty,
+            element_ty,
+        } => Ok(ExploreFiniteDomainIr::Collection {
+            expression: expression.clone(),
+            collection_ty: collection_ty.clone(),
+            element_ty: element_ty.clone(),
+        }),
+        TypedExploreDomain::Range {
+            start,
+            end_exclusive,
+        } => Ok(ExploreFiniteDomainIr::IntRange {
+            start: start.clone(),
+            end_exclusive: end_exclusive.clone(),
+        }),
+        TypedExploreDomain::Values { ty } => {
+            let plan = finite_type_plan(ty, catalog, path, &mut BTreeSet::new())?;
+            Ok(ExploreFiniteDomainIr::Exact(
+                ExploreExactDomain::FiniteType {
+                    ty: ty.clone(),
+                    plan,
+                },
+            ))
+        }
+    }
+}
+
+fn typed_explore_domain_dependencies(
+    domain: &TypedExploreDomain,
+    all_source_names: &BTreeSet<String>,
+    definitions: &GroundDefinitions,
+) -> BTreeSet<String> {
+    match domain {
+        TypedExploreDomain::FiniteExpr { expression, .. } => {
+            expression_query_dependencies(expression, all_source_names, definitions)
+        }
+        TypedExploreDomain::Range {
+            start,
+            end_exclusive,
+        } => {
+            let mut dependencies =
+                expression_query_dependencies(start, all_source_names, definitions);
+            dependencies.extend(expression_query_dependencies(
+                end_exclusive,
+                all_source_names,
+                definitions,
+            ));
+            dependencies
+        }
+        TypedExploreDomain::Values { .. } => BTreeSet::new(),
+    }
+}
+
+fn lower_source_binding_dependencies(
+    binding: &TypedExploreSourceBinding,
+    binding_index: usize,
+    all_source_names: &BTreeSet<String>,
+    source_indices: &BTreeMap<String, usize>,
+    definitions: &GroundDefinitions,
+) -> Result<Box<[ExploreSourceDependencyIr]>, String> {
+    let dependency_names = match &binding.kind {
+        TypedExploreSourceBindingKind::Singleton { value } => {
+            expression_query_dependencies(value, all_source_names, definitions)
+        }
+        TypedExploreSourceBindingKind::Finite { domain } => {
+            typed_explore_domain_dependencies(domain, all_source_names, definitions)
+        }
+    };
+    let mut dependencies = Vec::with_capacity(dependency_names.len());
+    for dependency_name in dependency_names {
+        let dependency_index = source_indices
+            .get(&dependency_name)
+            .copied()
+            .ok_or_else(|| {
+                format!(
+                    "source binding {} has unresolved dependency {}",
+                    binding.name, dependency_name
+                )
+            })?;
+        if dependency_index >= binding_index {
+            return Err(format!(
+                "source binding {} depends on non-earlier binding {}",
+                binding.name, dependency_name
+            ));
+        }
+        dependencies.push(ExploreSourceDependencyIr {
+            binding_index: dependency_index,
+            binding_name: dependency_name,
+        });
+    }
+    dependencies.sort_by_key(|dependency| dependency.binding_index);
+    Ok(dependencies.into_boxed_slice())
+}
+
+fn lower_result_field(field: &TypedExploreResultField) -> ExploreResultFieldIr {
+    ExploreResultFieldIr {
+        name: field.name.clone(),
+        value: field.value.clone(),
+        ty: field.ty.clone(),
+        span: field.span,
+    }
+}
+
+fn lower_aggregate_field(field: &TypedExploreAggregateField) -> ExploreAggregateFieldIr {
+    ExploreAggregateFieldIr {
+        name: field.name.clone(),
+        reducer: match &field.reducer {
+            TypedExploreAggregateReducer::CountDistinct { value, value_ty } => {
+                ExploreAggregateReducerIr::CountDistinct {
+                    value: value.clone(),
+                    value_ty: value_ty.clone(),
+                }
+            }
+        },
+        ty: field.ty.clone(),
+        span: field.span,
+    }
+}
+
+fn lower_result_grain(grain: &TypedExploreResultGrain) -> ExploreResultGrainIr {
+    match grain {
+        TypedExploreResultGrain::EachCase { span } => {
+            ExploreResultGrainIr::EachCase { span: *span }
+        }
+        TypedExploreResultGrain::EachIncidence { span } => {
+            ExploreResultGrainIr::EachIncidence { span: *span }
+        }
+        TypedExploreResultGrain::GroupAll { span } => {
+            ExploreResultGrainIr::GroupAll { span: *span }
+        }
+        TypedExploreResultGrain::GroupBy { fields, span } => ExploreResultGrainIr::GroupBy {
+            fields: fields
+                .iter()
+                .map(lower_result_field)
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            span: *span,
+        },
+    }
+}
+
+fn lower_result_choice(choice: &TypedExploreResultChoice) -> ExploreResultChoiceIr {
+    match choice {
+        TypedExploreResultChoice::Optimize {
+            cardinality,
+            direction,
+            objective,
+            objective_ty,
+            span,
+        } => ExploreResultChoiceIr::Optimize {
+            cardinality: *cardinality,
+            direction: *direction,
+            objective: objective.clone(),
+            objective_ty: objective_ty.clone(),
+            span: *span,
+        },
+        TypedExploreResultChoice::Pareto { objectives, span } => ExploreResultChoiceIr::Pareto {
+            objectives: objectives
+                .iter()
+                .map(|objective| ExploreParetoObjectiveIr {
+                    direction: objective.direction,
+                    value: objective.value.clone(),
+                    ty: objective.ty.clone(),
+                    span: objective.span,
+                })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+            span: *span,
+        },
+    }
+}
+
+fn lower_result_view(view: &TypedExploreResultView, node_index: usize) -> ExploreResultViewIr {
+    ExploreResultViewIr {
+        node_index,
+        name: view.name.clone(),
+        input: match &view.input {
+            TypedExploreResultInput::Sources => ExploreResultInputIr::Sources,
+            TypedExploreResultInput::Selected => ExploreResultInputIr::Selected,
+            TypedExploreResultInput::MechanismIncidence {
+                request_node_index, ..
+            } => ExploreResultInputIr::MechanismIncidence {
+                request_node_index: *request_node_index,
+            },
+        },
+        grain: lower_result_grain(&view.grain),
+        measures: view
+            .measures
+            .iter()
+            .map(lower_result_field)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        aggregates: view
+            .aggregates
+            .iter()
+            .map(lower_aggregate_field)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        having: view.having.as_ref().map(|having| match having {
+            TypedExploreResultHaving::Varies {
+                measure_name,
+                measure_index,
+                span,
+            } => ExploreResultHavingIr::Varies {
+                measure_name: measure_name.clone(),
+                measure_index: *measure_index,
+                span: *span,
+            },
+        }),
+        select: view
+            .select
+            .iter()
+            .map(lower_result_field)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        choose: view.choose.as_ref().map(lower_result_choice),
+        span: view.span,
     }
 }
 
 fn elaborate_query(
     query: &TypedExploreQuery,
     catalog: &calculate::TypeCatalog,
-    definitions: GroundDefinitions,
+    definitions: &GroundDefinitions,
     validate_replay_callables: bool,
-) -> Result<(ExploreUniverseIr, ExploreTransitionIr), Vec<Diagnostic>> {
+) -> Result<ExploreQueryIr, Vec<Diagnostic>> {
     if validate_replay_callables {
-        let replay_diagnostics = validate_query_replay_callable_identities(query, &definitions);
+        let replay_diagnostics = validate_query_replay_callable_identities(query, definitions);
         if !replay_diagnostics.is_empty() {
             return Err(replay_diagnostics);
         }
     }
-    let mut evaluator = ExploreGroundEvaluator::new(catalog, definitions.clone());
-    let mut runtime_evaluator = ExploreRuntimeGroundEvaluator::new(&definitions);
-    let all_local_names = query
-        .inputs
+
+    let all_source_names = query
+        .source
+        .bindings
         .iter()
-        .map(|input| input.name.clone())
-        .chain(query.bounds.iter().filter_map(|bound| match bound {
-            TypedExploreBound::Domain {
-                target: TypedExploreBoundTarget::CompactScalar,
-                name,
-                ..
-            }
-            | TypedExploreBound::Value {
-                target: TypedExploreBoundTarget::CompactScalar,
-                name,
-                ..
-            } => Some(name.clone()),
-            TypedExploreBound::Domain { .. } | TypedExploreBound::Value { .. } => None,
-            TypedExploreBound::Where { .. } => None,
-        }))
-        .chain(query.output.extrema.iter().map(|field| field.name.clone()))
-        .chain(query.output.show.iter().map(|field| field.name.clone()))
+        .map(|binding| binding.name.clone())
         .collect::<BTreeSet<_>>();
-    let mut dimensions = Vec::new();
-    let mut available_names = if query.source_syntax == ExploreTransitionSyntax::Explicit {
-        query
-            .inputs
-            .iter()
-            .map(|input| input.name.clone())
-            .collect()
-    } else {
-        BTreeSet::new()
-    };
-    let mut dimension_names = BTreeSet::new();
-    let mut derived_names = BTreeSet::new();
-    let mut facts = Vec::new();
-    let mut bound_fact_indices = BTreeMap::new();
-    let mut constraints = Vec::new();
-    let mut diagnostics = Vec::new();
-    let mut bound_roles = BTreeMap::new();
-    for (field_index, field) in query.transition.state_schema.fields.iter().enumerate() {
-        if let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding {
-            if bound_roles
-                .insert(
-                    *bound_index,
-                    (ExploreGeneratorAxisRole::Before, field_index),
-                )
-                .is_some()
-            {
-                diagnostics.push(Diagnostic::error_at(
-                    field.span,
-                    format!(
-                        "normalized bound {} is assigned to more than one transition field",
-                        bound_index
-                    ),
-                ));
-            }
-        }
-    }
-    for (field_index, field) in query.transition.context_schema.fields.iter().enumerate() {
-        if let TypedExploreProductFieldBinding::Bound { bound_index } = &field.binding {
-            if bound_roles
-                .insert(
-                    *bound_index,
-                    (ExploreGeneratorAxisRole::Context, field_index),
-                )
-                .is_some()
-            {
-                diagnostics.push(Diagnostic::error_at(
-                    field.span,
-                    format!(
-                        "normalized bound {} is assigned to more than one transition field",
-                        bound_index
-                    ),
-                ));
-            }
-        }
-    }
-    for field in &query.transition.after_fields {
-        if let TypedExploreAfterFieldSource::IndependentDomain { bound_index } = &field.source {
-            if bound_roles
-                .insert(
-                    *bound_index,
-                    (
-                        ExploreGeneratorAxisRole::AfterIndependent,
-                        field.field_index,
-                    ),
-                )
-                .is_some()
-            {
-                diagnostics.push(Diagnostic::error_at(
-                    field.span,
-                    format!(
-                        "normalized bound {} is assigned to more than one transition field",
-                        bound_index
-                    ),
-                ));
-            }
-        }
-    }
-    for (bound_index, bound) in query.bounds.iter().enumerate() {
-        let (target, span) = match bound {
-            TypedExploreBound::Domain { target, span, .. }
-            | TypedExploreBound::Value { target, span, .. } => (target, *span),
-            TypedExploreBound::Where { .. } => continue,
-        };
-        let Some((expected_role, expected_field_index)) = bound_roles.get(&bound_index).copied()
-        else {
-            diagnostics.push(Diagnostic::error_at(
-                span,
-                format!(
-                    "exploration bound {} is not owned by the normalized transition",
-                    bound_index
-                ),
-            ));
-            continue;
-        };
-        let target_matches = match target {
-            TypedExploreBoundTarget::CompactScalar => {
-                query.source_syntax == ExploreTransitionSyntax::FlatSugar
-            }
-            TypedExploreBoundTarget::BeforeField { field_index } => {
-                expected_role == ExploreGeneratorAxisRole::Before
-                    && *field_index == expected_field_index
-            }
-            TypedExploreBoundTarget::ContextField { field_index } => {
-                expected_role == ExploreGeneratorAxisRole::Context
-                    && *field_index == expected_field_index
-            }
-            TypedExploreBoundTarget::AfterIndependent { field_index } => {
-                expected_role == ExploreGeneratorAxisRole::AfterIndependent
-                    && *field_index == expected_field_index
-            }
-        };
-        if !target_matches {
-            diagnostics.push(Diagnostic::error_at(
-                span,
-                format!(
-                    "exploration bound {} target disagrees with its normalized {:?} field {} role",
-                    bound_index, expected_role, expected_field_index
-                ),
-            ));
-        }
-    }
-    for (bound_index, bound) in query.bounds.iter().enumerate() {
-        match bound {
-            TypedExploreBound::Domain {
-                name,
-                value_ty,
-                domain,
-                span,
-                ..
-            } => {
-                let exact = match domain {
-                    TypedExploreDomain::FiniteExpr {
-                        expression,
-                        element_ty,
-                        collection_ty,
-                    } => {
-                        let dependencies = expression_query_dependencies(
-                            expression,
-                            &all_local_names,
-                            &definitions,
-                        );
-                        let unavailable = dependencies
-                            .difference(&available_names)
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        if !unavailable.is_empty() {
-                            Err(format!(
-                                "exploration domain `{}` depends on input(s) that are not yet available: {}",
-                                name,
-                                unavailable.join(", ")
-                            ))
-                        } else if dependencies
-                            .iter()
-                            .any(|dependency| dimension_names.contains(dependency))
-                        {
-                            Err(format!(
-                                "exploration domain `{}` depends on varying input(s): {}",
-                                name,
-                                dependencies.into_iter().collect::<Vec<_>>().join(", ")
-                            ))
-                        } else if dependencies
-                            .iter()
-                            .any(|dependency| derived_names.contains(dependency))
-                        {
-                            Err(format!(
-                                "exploration domain `{}` depends on derived value(s): {}",
-                                name,
-                                dependencies.into_iter().collect::<Vec<_>>().join(", ")
-                            ))
-                        } else {
-                            eval_ground_exact(
-                                &mut evaluator,
-                                &mut runtime_evaluator,
-                                expression,
-                                collection_ty,
-                                catalog,
-                            )
-                                .map(|(value, _)| value)
-                                .and_then(|value| {
-                                    let kind = collection_kind(collection_ty).unwrap_or("List");
-                                    let values = match (kind, value) {
-                                        ("List", ExploreValue::List(values))
-                                        | ("Set", ExploreValue::Set(values)) => values,
-                                        ("List", _) => {
-                                            return Err(format!(
-                                                "exploration domain `{}` did not evaluate to a finite list",
-                                                name
-                                            ));
-                                        }
-                                        ("Set", _) => {
-                                            return Err(format!(
-                                                "exploration domain `{}` did not evaluate to a finite set",
-                                                name
-                                            ));
-                                        }
-                                        (_, _) => {
-                                            return Err(format!(
-                                                "exploration domain `{}` has unsupported collection type `{}`",
-                                                name, collection_ty
-                                            ));
-                                        }
-                                    };
-                                    for (index, value) in values.iter().enumerate() {
-                                        if !explore_value_matches_ty(value, element_ty, catalog)? {
-                                            return Err(format!(
-                                                "exploration domain `{}` member {} does not have declared type `{}`",
-                                                name,
-                                                index + 1,
-                                                element_ty
-                                            ));
-                                        }
-                                    }
-                                    let expression_name = match &expression.kind {
-                                        ExprKind::Var(name) => Some(name.clone()),
-                                        _ => None,
-                                    };
-                                    let (values, source) = if kind == "Set" {
-                                        let values = values
-                                            .into_iter()
-                                            .collect::<BTreeSet<_>>()
-                                            .into_iter()
-                                            .collect();
-                                        (
-                                            values,
-                                            ExploreEnumeratedSource::NamedSet {
-                                                name: expression_name.unwrap_or_else(|| {
-                                                    "<expression>".to_string()
-                                                }),
-                                            },
-                                        )
-                                    } else {
-                                        let source = expression_name
-                                            .map(|name| ExploreEnumeratedSource::NamedList { name })
-                                            .unwrap_or(ExploreEnumeratedSource::ExplicitList);
-                                        (deduplicate_list(values), source)
-                                    };
-                                    Ok(ExploreExactDomain::Enumerated { values, source })
-                                })
-                        }
-                    }
-                    TypedExploreDomain::Range {
-                        start,
-                        end_exclusive,
-                    } => {
-                        let dependencies =
-                            expression_query_dependencies(start, &all_local_names, &definitions)
-                                .into_iter()
-                                .chain(expression_query_dependencies(
-                                    end_exclusive,
-                                    &all_local_names,
-                                    &definitions,
-                                ))
-                                .collect::<BTreeSet<_>>();
-                        let unavailable = dependencies
-                            .difference(&available_names)
-                            .cloned()
-                            .collect::<Vec<_>>();
-                        if !unavailable.is_empty() {
-                            Err(format!(
-                                "exploration range `{}` depends on input(s) that are not yet available: {}",
-                                name,
-                                unavailable.join(", ")
-                            ))
-                        } else if dependencies.iter().any(|dependency| {
-                            dimension_names.contains(dependency)
-                                || derived_names.contains(dependency)
-                        }) {
-                            Err(format!(
-                                "exploration range `{}` depends on varying or derived input(s): {}",
-                                name,
-                                dependencies.into_iter().collect::<Vec<_>>().join(", ")
-                            ))
-                        } else {
-                            let int_ty = Ty::Name("Int".to_string());
-                            eval_ground_exact(
-                                &mut evaluator,
-                                &mut runtime_evaluator,
-                                start,
-                                &int_ty,
-                                catalog,
-                            )
-                            .map(|(value, _)| value)
-                            .and_then(|start| {
-                                eval_ground_exact(
-                                    &mut evaluator,
-                                    &mut runtime_evaluator,
-                                    end_exclusive,
-                                    &int_ty,
-                                    catalog,
-                                )
-                                .map(|(end, _)| (start, end))
-                            })
-                            .and_then(|(start, end)| {
-                                let start = start.int().ok_or_else(|| {
-                                    "exploration range start is not an Int".to_string()
-                                })?;
-                                let end_exclusive = end.int().ok_or_else(|| {
-                                    "exploration range end is not an Int".to_string()
-                                })?;
-                                let cardinality = exact_range_cardinality(start, end_exclusive)?;
-                                Ok(ExploreExactDomain::IntRange {
-                                    start,
-                                    end_exclusive,
-                                    cardinality,
-                                })
-                            })
-                        }
-                    }
-                    TypedExploreDomain::Values { ty } => {
-                        finite_type_plan(ty, catalog, &ty.to_string(), &mut BTreeSet::new())
-                            .and_then(|plan| {
-                                if matches!(plan.cardinality(), ExploreCardinality::ExceedsU128) {
-                                    return Err(format!(
-                                        "`values({})` has more than u128::MAX inhabitants",
-                                        ty
-                                    ));
-                                }
-                                Ok(ExploreExactDomain::FiniteType {
-                                    ty: ty.clone(),
-                                    plan,
-                                })
-                            })
-                    }
-                };
-                match exact {
-                    Ok(domain) => {
-                        let Some((role, role_field_index)) = bound_roles.get(&bound_index).copied()
-                        else {
-                            diagnostics.push(Diagnostic::error_at(
-                                *span,
-                                format!(
-                                    "exploration dimension `{name}` has no normalized transition role"
-                                ),
-                            ));
-                            available_names.insert(name.clone());
-                            continue;
-                        };
-                        dimension_names.insert(name.clone());
-                        dimensions.push(ExploreDimensionIr {
-                            bound_index,
-                            name: name.clone(),
-                            value_ty: value_ty.clone(),
-                            domain,
-                            role,
-                            role_field_index,
-                            span: *span,
-                        });
-                    }
-                    Err(message) => diagnostics.push(Diagnostic::error_at(*span, message)),
-                }
-                available_names.insert(name.clone());
-            }
-            TypedExploreBound::Value {
-                target,
-                name,
-                value_ty,
-                value,
-                span,
-                ..
-            } => {
-                let Some((role, role_field_index)) = bound_roles.get(&bound_index).copied() else {
-                    diagnostics.push(Diagnostic::error_at(
-                        *span,
-                        format!("exploration value `{name}` has no normalized transition role"),
-                    ));
-                    available_names.insert(name.clone());
-                    continue;
-                };
-                if role == ExploreGeneratorAxisRole::AfterIndependent {
-                    diagnostics.push(Diagnostic::error_at(
-                        *span,
-                        format!("independent after field `{name}` must use a finite domain"),
-                    ));
-                    available_names.insert(name.clone());
-                    continue;
-                }
-                let dependencies =
-                    expression_query_dependencies(value, &all_local_names, &definitions);
-                let unavailable = dependencies
-                    .difference(&available_names)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if !unavailable.is_empty() {
-                    diagnostics.push(Diagnostic::error_at(
-                        *span,
-                        format!(
-                            "exploration value `{}` depends on input(s) that are not yet available: {}",
-                            name,
-                            unavailable.join(", ")
-                        ),
-                    ));
-                    available_names.insert(name.clone());
-                    continue;
-                }
-                available_names.insert(name.clone());
-                let depends_on_transition_role = query.source_syntax
-                    == ExploreTransitionSyntax::Explicit
-                    && !matches!(target, TypedExploreBoundTarget::CompactScalar)
-                    && dependencies.iter().any(|dependency| {
-                        query.inputs.iter().any(|input| input.name == *dependency)
-                    });
-                let varies = depends_on_transition_role
-                    || dependencies.iter().any(|dependency| {
-                        dimension_names.contains(dependency) || derived_names.contains(dependency)
-                    });
-                let fact = if varies {
-                    derived_names.insert(name.clone());
-                    ExploreFactValue::Derived {
-                        expression: value.clone(),
-                        dependencies,
-                    }
-                } else {
-                    match eval_ground_exact(
-                        &mut evaluator,
-                        &mut runtime_evaluator,
-                        value,
-                        value_ty,
-                        catalog,
-                    ) {
-                        Ok((value, runtime_value)) => {
-                            match explore_value_matches_ty(&value, value_ty, catalog) {
-                                Ok(true) => {}
-                                Ok(false) => {
-                                    diagnostics.push(Diagnostic::error_at(
-                                        *span,
-                                        format!(
-                                            "fixed exploration value `{}` does not have declared type `{}`",
-                                            name, value_ty
-                                        ),
-                                    ));
-                                    continue;
-                                }
-                                Err(message) => {
-                                    diagnostics.push(Diagnostic::error_at(
-                                        *span,
-                                        format!(
-                                            "cannot validate fixed exploration value `{}`: {}",
-                                            name, message
-                                        ),
-                                    ));
-                                    continue;
-                                }
-                            }
-                            evaluator.set_local(name.clone(), value.clone());
-                            runtime_evaluator.set_local(name.clone(), runtime_value);
-                            ExploreFactValue::Fixed(value)
-                        }
-                        Err(message) => {
-                            diagnostics.push(Diagnostic::error_at(
-                                *span,
-                                format!(
-                                    "cannot evaluate fixed exploration value `{}`: {}",
-                                    name, message
-                                ),
-                            ));
-                            continue;
-                        }
-                    }
-                };
-                bound_fact_indices.insert(bound_index, facts.len());
-                facts.push(ExploreFactIr {
-                    bound_index,
-                    role,
-                    role_field_index,
-                    name: name.clone(),
-                    value_ty: value_ty.clone(),
-                    value: fact,
-                    span: *span,
-                });
-            }
-            TypedExploreBound::Where {
-                predicate,
-                scope,
-                span,
-            } => {
-                let dependencies =
-                    expression_query_dependencies(predicate, &all_local_names, &definitions);
-                let unavailable = dependencies
-                    .difference(&available_names)
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if !unavailable.is_empty() {
-                    diagnostics.push(Diagnostic::error_at(
-                        *span,
-                        format!(
-                            "exploration `where` depends on input(s) that are not yet available: {}",
-                            unavailable.join(", ")
-                        ),
-                    ));
-                    continue;
-                }
-                constraints.push(ExploreConstraintIr {
-                    predicate: predicate.clone(),
-                    scope: *scope,
-                    span: *span,
-                });
-            }
-        }
-    }
-
-    if !diagnostics.is_empty() {
-        return Err(diagnostics);
-    }
-
-    // CaseId coordinates are semantic generator coordinates, not parser
-    // order. Keep them stable across harmless source reordering by sorting
-    // each axis into the declared Context, Before, AfterIndependent product
-    // order before any cardinality or membership index is derived.
-    dimensions.sort_by_key(|dimension| {
-        let role_order = match dimension.role {
-            ExploreGeneratorAxisRole::Context => 0_u8,
-            ExploreGeneratorAxisRole::Before => 1,
-            ExploreGeneratorAxisRole::AfterIndependent => 2,
-        };
-        (
-            role_order,
-            dimension.role_field_index,
-            dimension.bound_index,
-        )
-    });
-    let bound_dimension_indices = dimensions
-        .iter()
-        .enumerate()
-        .map(|(dimension_index, dimension)| (dimension.bound_index, dimension_index))
-        .collect::<BTreeMap<_, _>>();
-
-    let mut cartesian_count_before_constraints = ExploreCardinality::one();
-    for dimension in &dimensions {
-        cartesian_count_before_constraints =
-            cartesian_count_before_constraints.multiply(dimension.domain.cardinality());
-    }
-
-    let mut transition_sensitive_names =
-        if query.source_syntax == ExploreTransitionSyntax::FlatSugar {
-            query
-                .transition
-                .after_fields
-                .iter()
-                .filter_map(|field| {
-                    matches!(&field.source, TypedExploreAfterFieldSource::Derived { .. })
-                        .then(|| field.name.clone())
-                })
-                .collect::<BTreeSet<_>>()
-        } else {
-            BTreeSet::new()
-        };
-    let mut transition_recomputed_fact_indices = Vec::new();
-    for (index, fact) in facts.iter().enumerate() {
-        let ExploreFactValue::Derived { dependencies, .. } = &fact.value else {
-            continue;
-        };
-        if dependencies
-            .iter()
-            .any(|dependency| transition_sensitive_names.contains(dependency))
+    let mut source_indices = BTreeMap::new();
+    for (binding_index, binding) in query.source.bindings.iter().enumerate() {
+        if source_indices
+            .insert(binding.name.clone(), binding_index)
+            .is_some()
         {
-            transition_recomputed_fact_indices.push(index);
-            transition_sensitive_names.insert(fact.name.clone());
-        }
-    }
-
-    let mut after_membership = Vec::with_capacity(query.transition.after_membership.len());
-    for membership in &query.transition.after_membership {
-        let Some(before_dimension_index) = bound_dimension_indices
-            .get(&membership.before_bound_index)
-            .copied()
-        else {
-            diagnostics.push(Diagnostic::error_at(
-                query.span,
-                format!(
-                    "transition membership for after field {} does not name a finite before dimension",
-                    membership.after_field_index
-                ),
-            ));
-            continue;
-        };
-        let Some(dimension) = dimensions.get(before_dimension_index) else {
-            diagnostics.push(Diagnostic::error_at(
-                query.span,
-                format!(
-                    "transition membership for after field {} references absent before dimension {}",
-                    membership.after_field_index, before_dimension_index
-                ),
-            ));
-            continue;
-        };
-        if dimension.role != ExploreGeneratorAxisRole::Before
-            || dimension.role_field_index != membership.after_field_index
-        {
-            diagnostics.push(Diagnostic::error_at(
-                query.span,
-                format!(
-                    "transition membership for after field {} does not target its canonical before dimension",
-                    membership.after_field_index
-                ),
-            ));
-            continue;
-        }
-
-        let preconstruction = match &membership.preconstruction {
-            TypedExploreAfterMembershipPreconstruction::RelativeIntStep {
-                step,
-                step_ty,
-                span,
-            } => {
-                let mut step_symbol_uses = FreeSymbolUses::default();
-                collect_true_free_symbol_uses(
-                    step,
-                    &mut step_symbol_uses,
-                    &BTreeSet::new(),
-                    &BTreeMap::new(),
-                );
-                if step_symbol_uses.values.contains("context")
-                    || step_symbol_uses.calls.contains("context")
-                {
-                    let required_context_fields = step_symbol_uses
-                        .member_values
-                        .iter()
-                        .filter_map(|(receiver, field)| {
-                            (receiver == "context").then_some(field.clone())
-                        })
-                        .collect::<BTreeSet<_>>();
-                    let context_value_uses = step_symbol_uses
-                        .value_occurrences
-                        .get("context")
-                        .copied()
-                        .unwrap_or_default();
-                    let context_projection_uses = step_symbol_uses
-                        .member_value_occurrences
-                        .iter()
-                        .filter_map(|((receiver, _), count)| {
-                            (receiver == "context").then_some(*count)
-                        })
-                        .sum::<usize>();
-                    if context_value_uses != context_projection_uses {
-                        diagnostics.push(Diagnostic::error_at(
-                            *span,
-                            "exploration boundary step may reference Context only through fixed `context.FIELD` projections",
-                        ));
-                        continue;
-                    }
-                    match fixed_boundary_context(
-                        query,
-                        &facts,
-                        &bound_fact_indices,
-                        &required_context_fields,
-                    ) {
-                        Ok(Some((canonical, runtime))) => {
-                            evaluator.set_local("context", canonical);
-                            runtime_evaluator.set_local("context", runtime);
-                        }
-                        Ok(None) => {
-                            diagnostics.push(Diagnostic::error_at(
-                                *span,
-                                "exploration boundary step references a Context field that is not coordinate-invariant",
-                            ));
-                            continue;
-                        }
-                        Err(message) => {
-                            diagnostics.push(Diagnostic::error_at(*span, message));
-                            continue;
-                        }
-                    }
-                }
-                let step_dependencies =
-                    expression_query_dependencies(step, &all_local_names, &definitions);
-                let varying_step_dependencies = step_dependencies
-                    .iter()
-                    .filter(|dependency| {
-                        dimension_names.contains(*dependency) || derived_names.contains(*dependency)
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
-                if !varying_step_dependencies.is_empty() {
-                    diagnostics.push(Diagnostic::error_at(
-                        *span,
-                        format!(
-                            "exploration boundary step depends on varying or derived input(s): {}",
-                            varying_step_dependencies.join(", ")
-                        ),
-                    ));
-                    continue;
-                }
-                let step = match eval_ground_exact(
-                    &mut evaluator,
-                    &mut runtime_evaluator,
-                    step,
-                    step_ty,
-                    catalog,
-                ) {
-                    Ok((ExploreValue::Int(step), _)) if step > 0 => step,
-                    Ok(_) => {
-                        diagnostics.push(Diagnostic::error_at(
-                            *span,
-                            "exploration boundary step must be a positive fixed Int",
-                        ));
-                        continue;
-                    }
-                    Err(message) => {
-                        diagnostics.push(Diagnostic::error_at(
-                            *span,
-                            format!("cannot evaluate exploration boundary step: {message}"),
-                        ));
-                        continue;
-                    }
-                };
-                ExploreAfterMembershipPreconstructionIr::RelativeIntStep { step }
-            }
-        };
-        after_membership.push(ExploreAfterMembershipIr {
-            after_field_index: membership.after_field_index,
-            before_dimension_index,
-            preconstruction,
-        });
-    }
-
-    let boundary_hint = query.boundary_hint().and_then(|boundary| {
-        let axis_bound_index = boundary.axis_bound_index;
-        let state_field_index = query
-            .transition
-            .state_schema
-            .fields
-            .iter()
-            .position(|field| {
-                matches!(
-                    &field.binding,
-                    TypedExploreProductFieldBinding::Bound { bound_index }
-                        if *bound_index == axis_bound_index
-                )
-            });
-        let Some(state_field_index) = state_field_index else {
-            diagnostics.push(Diagnostic::error_at(
-                boundary.span,
-                "exploration boundary does not target a canonical Before field",
-            ));
-            return None;
-        };
-        let Some(axis_dimension_index) = bound_dimension_indices.get(&axis_bound_index).copied()
-        else {
-            diagnostics.push(Diagnostic::error_at(
-                boundary.span,
-                "exploration boundary does not target a finite generator dimension",
-            ));
-            return None;
-        };
-        let Some(dimension) = dimensions.get(axis_dimension_index) else {
-            diagnostics.push(Diagnostic::error_at(
-                boundary.span,
-                "exploration boundary generator dimension is absent",
-            ));
-            return None;
-        };
-        if dimension.role != ExploreGeneratorAxisRole::Before
-            || dimension.role_field_index != state_field_index
-        {
-            diagnostics.push(Diagnostic::error_at(
-                boundary.span,
-                "exploration boundary target is not the resolved Before generator axis",
-            ));
-            return None;
-        }
-        let step = after_membership
-            .iter()
-            .find_map(|membership| {
-                (membership.after_field_index == state_field_index
-                    && membership.before_dimension_index == axis_dimension_index)
-                    .then_some(match membership.preconstruction {
-                        ExploreAfterMembershipPreconstructionIr::RelativeIntStep { step } => step,
-                    })
-            });
-        let Some(step) = step else {
-            let typed_membership_exists = query.transition.after_membership.iter().any(
-                |membership| {
-                    membership.after_field_index == state_field_index
-                        && membership.before_bound_index == axis_bound_index
-                },
-            );
-            if !typed_membership_exists {
-                diagnostics.push(Diagnostic::error_at(
-                    boundary.span,
-                    "exploration boundary optimizer hint has no canonical endpoint-membership obligation",
-                ));
-            }
-            return None;
-        };
-        let eligible_axis_pairs = match axis_pair_count(&dimension.domain, step) {
-            Ok(count) => count,
-            Err(message) => {
-                diagnostics.push(Diagnostic::error_at(boundary.span, message));
-                return None;
-            }
-        };
-        let mut eligible_unconstrained_pairs = eligible_axis_pairs.clone();
-        for (dimension_index, other) in dimensions.iter().enumerate() {
-            if dimension_index == axis_dimension_index {
-                continue;
-            }
-            eligible_unconstrained_pairs =
-                eligible_unconstrained_pairs.multiply(other.domain.cardinality());
-        }
-        Some(ExploreBoundaryIr {
-            axis: dimension.name.clone(),
-            axis_dimension_index,
-            step,
-            requires_both_endpoints_in_domain: true,
-            recomputed_fact_indices: transition_recomputed_fact_indices.clone(),
-            eligible_axis_pairs,
-            eligible_unconstrained_pairs,
-            span: boundary.span,
-        })
-    });
-
-    let mut output_available_names = available_names.clone();
-    for field in &query.output.key {
-        let dependencies =
-            expression_query_dependencies(&field.value, &all_local_names, &definitions);
-        let unavailable = dependencies
-            .difference(&output_available_names)
-            .cloned()
-            .collect::<Vec<_>>();
-        if !unavailable.is_empty() {
-            diagnostics.push(Diagnostic::error_at(
-                field.span,
-                format!(
-                    "exploration output key `{}` depends on value(s) that are not yet available: {}",
-                    field.name,
-                    unavailable.join(", ")
-                ),
-            ));
-        }
-    }
-    for field in &query.output.extrema {
-        let dependencies =
-            expression_query_dependencies(&field.value, &all_local_names, &definitions);
-        let unavailable = dependencies
-            .difference(&output_available_names)
-            .cloned()
-            .collect::<Vec<_>>();
-        if !unavailable.is_empty() {
-            diagnostics.push(Diagnostic::error_at(
-                field.span,
-                format!(
-                    "exploration extrema `{}` depends on value(s) that are not yet available: {}",
-                    field.name,
-                    unavailable.join(", ")
-                ),
-            ));
-        }
-    }
-    output_available_names.extend(query.output.extrema.iter().map(|field| field.name.clone()));
-    for field in &query.output.show {
-        let dependencies =
-            expression_query_dependencies(&field.value, &all_local_names, &definitions);
-        let unavailable = dependencies
-            .difference(&output_available_names)
-            .cloned()
-            .collect::<Vec<_>>();
-        if !unavailable.is_empty() {
-            diagnostics.push(Diagnostic::error_at(
-                field.span,
-                format!(
-                    "exploration output field `{}` depends on value(s) that are not yet available: {}",
-                    field.name,
-                    unavailable.join(", ")
-                ),
-            ));
-        }
-        output_available_names.insert(field.name.clone());
-    }
-    if let ExploreRepresentative::Maximize { objective, span }
-    | ExploreRepresentative::Minimize { objective, span } = &query.output.representative
-    {
-        let dependencies = expression_query_dependencies(objective, &all_local_names, &definitions);
-        let unavailable = dependencies
-            .difference(&output_available_names)
-            .cloned()
-            .collect::<Vec<_>>();
-        if !unavailable.is_empty() {
-            diagnostics.push(Diagnostic::error_at(
-                *span,
-                format!(
-                    "exploration representative depends on value(s) that are not yet available: {}",
-                    unavailable.join(", ")
-                ),
-            ));
-        }
-    }
-
-    if !diagnostics.is_empty() {
-        return Err(diagnostics);
-    }
-
-    let recomputed_fact_names = transition_recomputed_fact_indices
-        .iter()
-        .filter_map(|fact_index| facts.get(*fact_index))
-        .map(|fact| fact.name.as_str())
-        .collect::<BTreeSet<_>>();
-    let state_field_indices = query
-        .transition
-        .state_schema
-        .fields
-        .iter()
-        .enumerate()
-        .map(|(field_index, field)| (field.name.as_str(), field_index))
-        .collect::<BTreeMap<_, _>>();
-    let mut after_fields = Vec::with_capacity(query.transition.after_fields.len());
-    for field in &query.transition.after_fields {
-        let source = match &field.source {
-            TypedExploreAfterFieldSource::FrameBefore { .. }
-                if recomputed_fact_names.contains(field.name.as_str()) =>
-            {
-                let Some(ExploreFactValue::Derived {
-                    expression,
-                    dependencies,
-                }) = facts
-                    .iter()
-                    .find(|fact| fact.name == field.name)
-                    .map(|fact| &fact.value)
-                else {
-                    diagnostics.push(Diagnostic::error_at(
-                        field.span,
-                        format!(
-                            "transition field `{}` is marked for recomputation without a derived fact",
-                            field.name
-                        ),
-                    ));
-                    continue;
-                };
-                ExploreAfterFieldSourceIr::Derived {
-                    expression: expression.clone(),
-                    environment: TypedExploreDerivedEnvironment::TransitionFrameV1,
-                    after_dependencies: dependencies
-                        .iter()
-                        .filter(|dependency| {
-                            recomputed_fact_names.contains(dependency.as_str())
-                                || query.transition.after_fields.iter().any(|candidate| {
-                                    candidate.name == dependency.as_str()
-                                        && matches!(
-                                            &candidate.source,
-                                            TypedExploreAfterFieldSource::Derived { .. }
-                                        )
-                                })
-                        })
-                        .filter_map(|dependency| {
-                            state_field_indices
-                                .get(dependency.as_str())
-                                .map(|field_index| ExploreAfterDependencyIr {
-                                    field_index: *field_index,
-                                    binding_name: dependency.clone(),
-                                })
-                        })
-                        .collect(),
-                }
-            }
-            TypedExploreAfterFieldSource::FrameBefore { before_field_index } => {
-                ExploreAfterFieldSourceIr::FrameBefore {
-                    before_field_index: *before_field_index,
-                }
-            }
-            TypedExploreAfterFieldSource::Derived {
-                expression,
-                environment,
-                after_dependencies,
-                ..
-            } => ExploreAfterFieldSourceIr::Derived {
-                expression: expression.clone(),
-                environment: *environment,
-                after_dependencies: after_dependencies
-                    .iter()
-                    .map(|dependency| ExploreAfterDependencyIr {
-                        field_index: dependency.field_index,
-                        binding_name: dependency.binding_name.clone(),
-                    })
-                    .collect(),
-            },
-            TypedExploreAfterFieldSource::IndependentDomain { bound_index } => {
-                let Some(dimension_index) = bound_dimension_indices.get(bound_index).copied()
-                else {
-                    diagnostics.push(Diagnostic::error_at(
-                        field.span,
-                        format!(
-                            "independent after field `{}` does not name a finite generator dimension",
-                            field.name
-                        ),
-                    ));
-                    continue;
-                };
-                let Some(dimension) = dimensions.get(dimension_index) else {
-                    diagnostics.push(Diagnostic::error_at(
-                        field.span,
-                        format!(
-                            "independent after field `{}` references absent generator dimension {}",
-                            field.name, dimension_index
-                        ),
-                    ));
-                    continue;
-                };
-                if dimension.role != ExploreGeneratorAxisRole::AfterIndependent
-                    || dimension.role_field_index != field.field_index
-                {
-                    diagnostics.push(Diagnostic::error_at(
-                        field.span,
-                        format!(
-                            "independent after field `{}` does not own its normalized generator axis",
-                            field.name
-                        ),
-                    ));
-                    continue;
-                }
-                ExploreAfterFieldSourceIr::IndependentDomain { dimension_index }
-            }
-        };
-        after_fields.push(ExploreAfterFieldIr {
-            field_index: field.field_index,
-            name: field.name.clone(),
-            value_ty: field.value_ty.clone(),
-            source,
-            span: field.span,
-        });
-    }
-    if !diagnostics.is_empty() {
-        return Err(diagnostics);
-    }
-    if let Err(message) = validate_after_construction_dag(&after_fields) {
-        return Err(vec![Diagnostic::error_at(query.span, message)]);
-    }
-
-    let state_schema = close_product_schema(
-        &query.transition.state_schema,
-        &bound_dimension_indices,
-        &bound_fact_indices,
-    )
-    .map_err(|message| vec![Diagnostic::error_at(query.span, message)])?;
-    let context_schema = close_product_schema(
-        &query.transition.context_schema,
-        &bound_dimension_indices,
-        &bound_fact_indices,
-    )
-    .map_err(|message| vec![Diagnostic::error_at(query.span, message)])?;
-    let mut flat_aliases = Vec::new();
-    for (bound_index, bound) in query.bounds.iter().enumerate() {
-        let (target, name) = match bound {
-            TypedExploreBound::Domain { target, name, .. }
-            | TypedExploreBound::Value { target, name, .. } => (target, name),
-            TypedExploreBound::Where { .. } => continue,
-        };
-        if !matches!(target, TypedExploreBoundTarget::CompactScalar) {
-            continue;
-        }
-        let Some((generator_role, field_index)) = bound_roles.get(&bound_index).copied() else {
             return Err(vec![Diagnostic::error_at(
-                query.span,
-                format!("compact alias `{name}` has no normalized transition role"),
+                binding.span,
+                format!("duplicate exploration source binding {}", binding.name),
             )]);
-        };
-        let role = match generator_role {
-            ExploreGeneratorAxisRole::Context => ExploreFlatAliasRole::Context { field_index },
-            ExploreGeneratorAxisRole::Before => ExploreFlatAliasRole::State { field_index },
-            ExploreGeneratorAxisRole::AfterIndependent => {
-                return Err(vec![Diagnostic::error_at(
-                    query.span,
-                    format!("compact alias `{name}` cannot own an independent after axis"),
-                )])
+        }
+    }
+
+    let mut source_bindings = Vec::with_capacity(query.source.bindings.len());
+    for (binding_index, binding) in query.source.bindings.iter().enumerate() {
+        let dependencies = lower_source_binding_dependencies(
+            binding,
+            binding_index,
+            &all_source_names,
+            &source_indices,
+            definitions,
+        )
+        .map_err(|message| vec![Diagnostic::error_at(binding.span, message)])?;
+        let kind = match &binding.kind {
+            TypedExploreSourceBindingKind::Singleton { value } => {
+                ExploreSourceBindingKindIr::Singleton {
+                    value: value.clone(),
+                }
+            }
+            TypedExploreSourceBindingKind::Finite { domain } => {
+                ExploreSourceBindingKindIr::Finite {
+                    domain: lower_explore_finite_domain(
+                        domain,
+                        catalog,
+                        &format!("source.{}", binding.name),
+                    )
+                    .map_err(|message| vec![Diagnostic::error_at(binding.span, message)])?,
+                }
             }
         };
-        let source = match (
-            bound_dimension_indices.get(&bound_index),
-            bound_fact_indices.get(&bound_index),
-        ) {
-            (Some(dimension_index), None) => ExploreFlatAliasSource::Dimension {
-                dimension_index: *dimension_index,
-            },
-            (None, Some(fact_index)) => ExploreFlatAliasSource::Fact {
-                fact_index: *fact_index,
-            },
-            _ => {
-                return Err(vec![Diagnostic::error_at(
-                    query.span,
-                    format!("compact alias `{name}` has no unique closed value slot"),
-                )])
-            }
+        let role = if binding_index == query.source.context_binding_index {
+            ExploreSourceBindingRoleIr::Context
+        } else if binding_index == query.source.before_binding_index {
+            ExploreSourceBindingRoleIr::Before
+        } else {
+            ExploreSourceBindingRoleIr::Auxiliary
         };
-        flat_aliases.push(ExploreFlatAliasIr {
-            name: name.clone(),
+        source_bindings.push(ExploreSourceBindingIr {
+            binding_index,
+            name: binding.name.clone(),
+            value_ty: binding.value_ty.clone(),
             role,
-            source,
+            dependencies,
+            kind,
+            span: binding.span,
         });
     }
 
-    let transition = ExploreTransitionIr {
-        normalization_version: query.transition.normalization_version,
-        state_schema,
-        context_schema,
-        after_fields,
-        after_membership,
-        flat_aliases,
-        boundary_hint,
+    let successor_kind = match &query.successor.kind {
+        TypedExploreSuccessorKind::Singleton { value } => ExploreSuccessorKindIr::Singleton {
+            value: value.clone(),
+        },
+        TypedExploreSuccessorKind::Finite { domain } => ExploreSuccessorKindIr::Finite {
+            domain: lower_explore_finite_domain(domain, catalog, "successor")
+                .map_err(|message| vec![Diagnostic::error_at(query.successor.span, message)])?,
+        },
     };
-    let universe = ExploreUniverseIr {
-        dimensions,
-        facts,
-        constraints,
-        sliced_inputs: query.sliced_inputs.clone(),
-        cartesian_count_before_constraints,
+
+    let find = match &query.selection {
+        TypedExploreSelection::All { span } => ExploreFindIr::All { span: *span },
+        TypedExploreSelection::Matches { predicate, span } => ExploreFindIr::Matches {
+            predicate: predicate.clone(),
+            span: *span,
+        },
+        TypedExploreSelection::Violations { predicate, span } => ExploreFindIr::Violations {
+            predicate: predicate.clone(),
+            span: *span,
+        },
     };
-    Ok((universe, transition))
+
+    let mut analysis = Vec::with_capacity(query.analysis.len());
+    for (node_index, node) in query.analysis.iter().enumerate() {
+        analysis.push(match node {
+            TypedExploreAnalysisNode::Result(view) => {
+                ExploreAnalysisNodeIr::Result(lower_result_view(view, node_index))
+            }
+            TypedExploreAnalysisNode::Mechanisms(request) => {
+                let target = match &request.target {
+                    TypedExploreMechanismTarget::SelectedCases => {
+                        ExploreMechanismTargetIr::SelectedCases
+                    }
+                    TypedExploreMechanismTarget::ViewChosen {
+                        view_node_index, ..
+                    } => ExploreMechanismTargetIr::ViewChosen {
+                        view_node_index: *view_node_index,
+                    },
+                };
+                ExploreAnalysisNodeIr::Mechanisms(ExploreMechanismRequestIr {
+                    node_index,
+                    name: request.name.clone(),
+                    target,
+                    callable_name: request.callable_name.clone(),
+                    endpoint_template: request.endpoint_template.clone(),
+                    observation_ty: request.observation_ty.clone(),
+                    span: request.span,
+                })
+            }
+        });
+    }
+
+    let closed = ExploreQueryIr {
+        name: query.name.clone(),
+        source: ExploreSourceRelationIr {
+            normalization_version: query.source.normalization_version,
+            multiplicity: query.source.multiplicity,
+            bindings: source_bindings.into_boxed_slice(),
+            context_binding_index: query.source.context_binding_index,
+            before_binding_index: query.source.before_binding_index,
+            context_ty: query.source.context_ty.clone(),
+            before_ty: query.source.before_ty.clone(),
+        },
+        successor: ExploreSuccessorRelationIr {
+            multiplicity: query.successor.multiplicity,
+            after_ty: query.successor.after_ty.clone(),
+            kind: successor_kind,
+            span: query.successor.span,
+        },
+        admissions: query
+            .admissions
+            .iter()
+            .enumerate()
+            .map(|(admission_index, admission)| ExploreAdmissionIr {
+                admission_index,
+                scope: admission.scope,
+                predicate: admission.predicate.clone(),
+                span: admission.span,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        find,
+        analysis: analysis.into_boxed_slice(),
+        span: query.span,
+    };
+    closed
+        .validate()
+        .map_err(|message| vec![Diagnostic::error_at(query.span, message)])?;
+    Ok(closed)
 }
 
 /// Render a small result through the one canonical exact evaluator. This
 /// hidden command is a presentation adapter only: it owns no transition,
 /// eligibility, question, or output semantics.
+#[cfg(any())]
 pub fn execute_exhaustive_preview(
     statements: &[Stmt],
     source_dir: Option<&str>,
@@ -7592,12 +7339,12 @@ pub fn execute_exhaustive_preview(
         report::ExploreExactOutcome::Partial { stop, .. } => {
             return Err(format!(
                 "exploration did not complete within preview limit {case_limit}: {stop:?}"
-            ))
+            ));
         }
         report::ExploreExactOutcome::Unknown { reason, .. } => return Err(reason),
         report::ExploreExactOutcome::Unsupported { diagnostic } => return Err(diagnostic),
         report::ExploreExactOutcome::Error { diagnostics } => {
-            return Err(diagnostics.into_vec().join("; "))
+            return Err(diagnostics.into_vec().join("; "));
         }
     };
     let exact_u64 = |name: &str, count: report::ExploreCount| {
@@ -7656,7 +7403,7 @@ pub fn execute_exhaustive_preview(
             })
             .collect::<Vec<_>>(),
         report::ExploreLedgerEvidence::Omitted => {
-            return Err("canonical preview execution omitted its requested matching ledger".into())
+            return Err("canonical preview execution omitted its requested matching ledger".into());
         }
     };
     let mut rows = rows;
@@ -7702,6 +7449,72 @@ mod tests {
             source,
         )
     }
+
+    #[test]
+    fn relational_expression_step_retry_is_adaptive_and_hard_bounded() {
+        let mut step_limit = RELATIONAL_EXPRESSION_INITIAL_STEP_LIMIT;
+        let mut attempts = Vec::new();
+        let value =
+            evaluate_relational_expression_with_bounded_retry(&mut step_limit, |attempted_limit| {
+                attempts.push(attempted_limit);
+                if attempted_limit < RELATIONAL_EXPRESSION_HARD_STEP_LIMIT {
+                    Err(ExploreRuntimeFailure::OperationalLimit {
+                        resource: ExploreRuntimeResource::ExpressionSteps,
+                        limit: attempted_limit as u128,
+                        observed: attempted_limit as u128 + 1,
+                    })
+                } else {
+                    Ok(17)
+                }
+            })
+            .expect("the expression fits the hard relational step bound");
+        assert_eq!(value, 17);
+        assert_eq!(
+            attempts,
+            [
+                RELATIONAL_EXPRESSION_INITIAL_STEP_LIMIT,
+                RELATIONAL_EXPRESSION_INITIAL_STEP_LIMIT * 2,
+                RELATIONAL_EXPRESSION_HARD_STEP_LIMIT,
+            ]
+        );
+        assert_eq!(step_limit, RELATIONAL_EXPRESSION_HARD_STEP_LIMIT);
+
+        let mut warm_attempts = Vec::new();
+        let value =
+            evaluate_relational_expression_with_bounded_retry(&mut step_limit, |attempted_limit| {
+                warm_attempts.push(attempted_limit);
+                Ok::<_, ExploreRuntimeFailure>(23)
+            })
+            .expect("the learned bound is reused by later expressions");
+        assert_eq!(value, 23);
+        assert_eq!(warm_attempts, [RELATIONAL_EXPRESSION_HARD_STEP_LIMIT]);
+
+        let error =
+            evaluate_relational_expression_with_bounded_retry(&mut step_limit, |attempted_limit| {
+                Err::<(), _>(ExploreRuntimeFailure::OperationalLimit {
+                    resource: ExploreRuntimeResource::ExpressionSteps,
+                    limit: attempted_limit as u128,
+                    observed: attempted_limit as u128 + 1,
+                })
+            })
+            .expect_err("the hard relational step bound remains terminal");
+        assert_eq!(
+            error,
+            ExploreRuntimeFailure::OperationalLimit {
+                resource: ExploreRuntimeResource::ExpressionSteps,
+                limit: RELATIONAL_EXPRESSION_HARD_STEP_LIMIT as u128,
+                observed: RELATIONAL_EXPRESSION_HARD_STEP_LIMIT as u128 + 1,
+            }
+        );
+    }
+
+    // Cartesian executor regression history. The relational executor owns the
+    // active behavior suite; these tests leave the build graph with the route
+    // they exercised.
+    #[rustfmt::skip]
+    #[cfg(any())]
+    mod retired_cartesian_execution_tests {
+    use super::*;
 
     #[test]
     fn exact_evaluator_constructs_explicit_after_fields_in_dag_order() {
@@ -8468,6 +8281,8 @@ mod tests {
         std::fs::remove_dir_all(&directory).expect("remove one-case durable-stream fixture");
     }
 
+    }
+
     #[test]
     fn exact_range_cardinality_handles_full_i64_width() {
         assert_eq!(exact_range_cardinality(7, 7), Ok(0));
@@ -8476,18 +8291,19 @@ mod tests {
     }
 
     #[test]
-    fn finite_plan_enumerates_payloads_in_declaration_order() {
+    fn canonical_finite_type_source_enumerates_payloads_in_declaration_order() {
         let source = r#"
 # Bit = High | Low
 # Flag = On | Off
 # Payload = Empty | Full(bit: Bit, flag: Flag)
-| condition(value: Payload) -> True
 
 ? explore payloads {
-    over condition(value)
-    find matches
-    bounds { value in values(Payload) }
-    output { key [value] representative first }
+    from {
+        before in values(Payload)
+        context = ()
+    }
+    to after = before
+    find all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8496,14 +8312,17 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let ExploreExactDomain::FiniteType { plan, .. } =
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain
+        let query = &artifacts.exploration_universes[0];
+        assert_eq!(query.source.before_binding_index, 0);
+        assert_eq!(query.source.context_binding_index, 1);
+        let ExploreSourceBindingKindIr::Finite {
+            domain: ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { plan, .. }),
+        } = &query.source.bindings[0].kind
         else {
-            panic!("expected finite type plan")
+            panic!("before must retain the exact finite-type plan")
         };
         assert_eq!(plan.cardinality(), ExploreCardinality::Exact(5));
-        let values = plan.enumerate(10).expect("materialize Payload");
-        assert_eq!(values.len(), 5);
+        let values = plan.enumerate(5).expect("materialize Payload");
         assert!(matches!(
             &values[0],
             ExploreValue::Constructor { variant, fields, .. }
@@ -8513,8 +8332,10 @@ mod tests {
             &values[1],
             ExploreValue::Constructor { variant, fields, .. }
                 if variant == "Full"
-                    && matches!(fields[0].1, ExploreValue::Constructor { ref variant, .. } if variant == "High")
-                    && matches!(fields[1].1, ExploreValue::Constructor { ref variant, .. } if variant == "On")
+                    && matches!(&fields[0].1, ExploreValue::Constructor { variant, .. }
+                        if variant == "High")
+                    && matches!(&fields[1].1, ExploreValue::Constructor { variant, .. }
+                        if variant == "On")
         ));
     }
 
@@ -8568,23 +8389,20 @@ mod tests {
     }
 
     #[test]
-    fn domain_lists_deduplicate_and_ranges_stay_symbolic() {
+    fn canonical_source_ir_retains_ordered_dependent_collection_and_range_fibers() {
         let source = r#"
-| condition(choice: Int, income: Int, step: Int) -> income >= choice
+= choices: List(Int) = [2, 1, 2]
+> around(seed: Int) -> List(Int) { [seed, seed + 1] }
 
-? explore exact_domains {
-    over condition(choice, income, step)
-    find matches
-    bounds {
-        choice in [2, 1, 2]
-        income in range(-2, 3)
-        step = 1
-        doubled = income * 2
-        quadrupled = doubled * 2
-        where quadrupled >= -8
+? explore dependent_domains {
+    from {
+        seed in choices
+        candidate in around(seed)
+        before in range(candidate, candidate + 2)
+        context = ()
     }
-    boundaries on income by step
-    output { key [choice, income] representative first }
+    to after = before + 1
+    find all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8593,171 +8411,84 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let closed_query = &artifacts.exploration_universes[0];
-        let universe = &closed_query.universe;
+        let query = &artifacts.exploration_universes[0];
+        assert_eq!(
+            query
+                .source
+                .bindings
+                .iter()
+                .map(|binding| binding.name.as_str())
+                .collect::<Vec<_>>(),
+            ["seed", "candidate", "before", "context"]
+        );
         assert!(matches!(
-            &universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![ExploreValue::Int(2), ExploreValue::Int(1)]
+            &query.source.bindings[0].kind,
+            ExploreSourceBindingKindIr::Finite {
+                domain: ExploreFiniteDomainIr::Collection { .. }
+            }
         ));
         assert!(matches!(
-            &universe.dimensions[1].domain,
-            ExploreExactDomain::IntRange {
-                start: -2,
-                end_exclusive: 3,
-                cardinality: 5
+            &query.source.bindings[1].kind,
+            ExploreSourceBindingKindIr::Finite {
+                domain: ExploreFiniteDomainIr::Collection { .. }
+            }
+        ));
+        assert!(matches!(
+            &query.source.bindings[2].kind,
+            ExploreSourceBindingKindIr::Finite {
+                domain: ExploreFiniteDomainIr::IntRange { .. }
             }
         ));
         assert_eq!(
-            universe.cartesian_count_before_constraints,
-            ExploreCardinality::Exact(10)
+            query.source.bindings[1]
+                .dependencies
+                .iter()
+                .map(|dependency| dependency.binding_name.as_str())
+                .collect::<Vec<_>>(),
+            ["seed"]
         );
-        let boundary = closed_query.boundary_hint().expect("boundary");
-        assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(4));
         assert_eq!(
-            boundary.eligible_unconstrained_pairs,
-            ExploreCardinality::Exact(8)
+            query.source.bindings[2]
+                .dependencies
+                .iter()
+                .map(|dependency| dependency.binding_name.as_str())
+                .collect::<Vec<_>>(),
+            ["candidate"]
         );
-        assert_eq!(boundary.axis_dimension_index, 1);
-        assert!(boundary.requires_both_endpoints_in_domain);
-        assert_eq!(boundary.recomputed_fact_indices, vec![1, 2]);
-        assert!(universe
-            .dimensions
-            .iter()
-            .all(|dimension| dimension.role == ExploreGeneratorAxisRole::Before));
-        assert!(universe
-            .constraints
-            .iter()
-            .all(|constraint| { constraint.scope == ExploreConstraintScope::BothEndpoints }));
+        assert!(matches!(
+            &query.successor.kind,
+            ExploreSuccessorKindIr::Singleton { .. }
+        ));
     }
 
     #[test]
-    fn empty_list_and_range_domains_form_a_complete_empty_universe() {
-        let source = r#"
-| condition(left: Int, right: Int) -> True
-? explore empty {
-    over condition(left, right)
-    find matches
-    bounds { left in []; right in range(7, 7) }
-    output { key [left, right] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let closed_query = &artifacts.exploration_universes[0];
-        let universe = &closed_query.universe;
-        assert_eq!(
-            universe.cartesian_count_before_constraints,
-            ExploreCardinality::Exact(0)
-        );
-        assert!(universe
-            .dimensions
-            .iter()
-            .all(|dimension| dimension.domain.cardinality() == ExploreCardinality::Exact(0)));
-        assert!(closed_query.transition.context_schema.fields.is_empty());
-        assert!(closed_query
-            .transition
-            .after_fields
-            .iter()
-            .all(|field| matches!(&field.source, ExploreAfterFieldSourceIr::FrameBefore { .. })));
-    }
-
-    #[test]
-    fn values_rejects_first_unbounded_payload_path() {
-        let source = r#"
-# FilingStatus = Online | Paper(copies: Int)
-| condition(status: FilingStatus) -> True
-? explore invalid {
-    over condition(status)
-    find matches
-    bounds { status in values(FilingStatus) }
-    output { key [status] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic.message.contains("FilingStatus.Paper.copies")
-                    && diagnostic.message.contains("unbounded")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn explicit_domains_reject_rule_scope_instances() {
-        let source = r#"
-# Profile(x: Int) {
-    | amount() -> x
-}
-= profiles: List(Profile) = [Profile(1)]
-| condition(profile: Profile) -> True
-? explore invalid_scope {
-    over condition(profile)
-    find matches
-    bounds { profile in profiles }
-    output { key [group = 1] show [profile] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic.message.contains("rule scope `Profile`")
-                    && diagnostic.message.contains("cannot be used")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn values_rejects_ambiguous_duplicate_type_declarations() {
-        let source = r#"
-# Status = Alpha
-# Status = Beta
-| condition(status: Status) -> True
-? explore invalid {
-    over condition(status)
-    find matches
-    bounds { status in values(Status) }
-    output { key [status] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic.message.contains("multiple declarations")
-                    && diagnostic.message.contains("Status")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn values_supports_generic_finite_type_applications() {
+    fn canonical_source_supports_generic_finite_types_and_typed_composites() {
         let source = r#"
 # Bit = High | Low
 # Flag = On | Off
-| condition(option: Option(Bit), result: Result(Bit, Flag), pair: Pair(Bit, Flag), boolean: Bool) -> True
+# Profile(
+    option: Option(Bit),
+    result: Result(Bit, Flag),
+    pair: Pair(Bit, Flag),
+    boolean: Bool
+)
+
 ? explore generic_values {
-    over condition(option, result, pair, boolean)
-    find matches
-    bounds {
+    from {
         option in values(Option(Bit))
         result in values(Result(Bit, Flag))
         pair in values(Pair(Bit, Flag))
         boolean in values(Bool)
+        before = Profile(
+            option = option,
+            result = result,
+            pair = pair,
+            boolean = boolean
+        )
+        context = ()
     }
-    output { key [option, result, pair, boolean] representative first }
+    to after = before
+    find all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8766,15 +8497,23 @@ mod tests {
             "{:?}",
             artifacts.diagnostics
         );
-        let cardinalities = artifacts.exploration_universes[0]
-            .universe
-            .dimensions
+        let query = &artifacts.exploration_universes[0];
+        let cardinalities = query.source.bindings[..4]
             .iter()
-            .map(|dimension| dimension.domain.cardinality())
+            .map(|binding| {
+                let ExploreSourceBindingKindIr::Finite {
+                    domain:
+                        ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { plan, .. }),
+                } = &binding.kind
+                else {
+                    panic!("values(T) must lower to an exact finite-type plan")
+                };
+                plan.cardinality()
+            })
             .collect::<Vec<_>>();
         assert_eq!(
             cardinalities,
-            vec![
+            [
                 ExploreCardinality::Exact(3),
                 ExploreCardinality::Exact(4),
                 ExploreCardinality::Exact(4),
@@ -8782,398 +8521,132 @@ mod tests {
             ]
         );
         assert_eq!(
-            artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(96)
+            query.source.bindings[4]
+                .dependencies
+                .iter()
+                .map(|dependency| dependency.binding_name.as_str())
+                .collect::<Vec<_>>(),
+            ["option", "result", "pair", "boolean"]
+        );
+        assert_eq!(
+            query.source.bindings[4].role,
+            ExploreSourceBindingRoleIr::Before
         );
     }
 
     #[test]
-    fn optional_sugar_and_option_domains_share_one_semantic_type() {
-        let source = r#"
-# Status = Active | Inactive
-| condition(explicit: Option(Status), optional: Status?) -> True
-? explore optional_values {
-    over condition(explicit, optional)
-    find matches
-    bounds {
-        explicit in values(Option(Status))
-        optional in values(Option(Status))
+    fn canonical_values_domains_fail_closed_for_unbounded_ambiguous_and_open_types() {
+        let fixtures = [
+            (
+                r#"
+# FilingStatus = Online | Paper(copies: Int)
+? explore invalid {
+    from {
+        before in values(FilingStatus)
+        context = ()
     }
-    output { key [explicit, optional] representative first }
+    to after = before
+    find all
 }
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        for dimension in &artifacts.exploration_universes[0].universe.dimensions {
-            let ExploreExactDomain::FiniteType { plan, .. } = &dimension.domain else {
-                panic!("expected canonical Option finite-type plan")
-            };
-            assert_eq!(plan.cardinality(), ExploreCardinality::Exact(3));
-            let values = plan.enumerate(3).expect("enumerate canonical Option");
-            assert!(
-                matches!(&values[0], ExploreValue::Constructor { variant, fields, .. }
-                    if variant == "None" && fields.is_empty())
-            );
-            assert!(
-                matches!(&values[1], ExploreValue::Constructor { variant, fields, .. }
-                    if variant == "Some"
-                        && matches!(&fields[0].1, ExploreValue::Constructor { variant, .. }
-                            if variant == "Active"))
-            );
-            assert!(
-                matches!(&values[2], ExploreValue::Constructor { variant, fields, .. }
-                    if variant == "Some"
-                        && matches!(&fields[0].1, ExploreValue::Constructor { variant, .. }
-                            if variant == "Inactive"))
-            );
-        }
+"#,
+                "FilingStatus.Paper.copies",
+            ),
+            (
+                r#"
+# Status = Alpha
+# Status = Beta
+? explore invalid {
+    from {
+        before in values(Status)
+        context = ()
     }
-
-    #[test]
-    fn values_rejects_a_user_option_that_disagrees_with_runtime_semantics() {
-        let explicit = r#"
+    to after = before
+    find all
+}
+"#,
+                "multiple declarations",
+            ),
+            (
+                r#"
+# Profile(x: Int) {
+    | amount() -> x
+}
+= profiles: List(Profile) = [Profile(1)]
+? explore invalid {
+    from {
+        before in profiles
+        context = ()
+    }
+    to after = before
+    find all
+}
+"#,
+                "rule scope",
+            ),
+            (
+                r#"
 # Option(a) = Absent | Present(a)
 # Status = Active | Inactive
-| condition(value: Option(Status)) -> True
-? explore shadowed_option {
-    over condition(value)
-    find matches
-    bounds { value in values(Option(Status)) }
-    output { key [group = 1] show [value] representative first }
+? explore invalid {
+    from {
+        before in values(Option(Status))
+        context = ()
+    }
+    to after = before
+    find all
 }
-"#;
-        let optional_sugar = r#"
-# Option(a) = Absent | Present(a)
-# Status = Active | Inactive
-| condition(value: Status?) -> True
-? explore shadowed_option_sugar {
-    over condition(value)
-    find matches
-    bounds { value in values(Option(Status)) }
-    output { key [group = 1] show [value] representative first }
+"#,
+                "declared type",
+            ),
+            (
+                r#"
+# Combined = Base | Third
+# Base = First | Second
+? explore invalid {
+    from {
+        before in values(Combined)
+        context = ()
+    }
+    to after = before
+    find all
 }
-"#;
+"#,
+                "already initialized declaration prefix",
+            ),
+        ];
 
-        for source in [explicit, optional_sugar] {
+        for (source, expected) in fixtures {
             let artifacts = artifacts(source);
             assert!(artifacts.exploration_universes.is_empty());
             assert!(
-                artifacts.diagnostics.iter().any(|diagnostic| {
-                    diagnostic
-                        .message
-                        .contains("declared type `Option` shadows")
-                        && diagnostic
-                            .message
-                            .contains("cannot define an exact exploration universe")
-                }),
-                "{:?}",
+                artifacts
+                    .diagnostics
+                    .iter()
+                    .any(|diagnostic| diagnostic.message.contains(expected)),
+                "missing {expected:?}: {:?}",
                 artifacts.diagnostics
             );
         }
     }
 
     #[test]
-    fn unit_has_one_finite_inhabitant_and_nat_remains_unbounded() {
-        let unit_source = r#"
-| condition(value: ()) -> True
-? explore unit_value {
-    over condition(value)
-    find matches
-    bounds { value in values(()) }
-    output { key [value] representative first }
-}
-"#;
-        let unit_artifacts = artifacts(unit_source);
-        assert!(
-            unit_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            unit_artifacts.diagnostics
-        );
-        assert_eq!(
-            unit_artifacts.exploration_universes[0].universe.dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(1)
-        );
-
-        let nat_source = r#"
-# Nat = Zero | One
-| condition(value: Nat) -> True
-? explore invalid_nat {
-    over condition(value)
-    find matches
-    bounds { value in values(Nat) }
-    output { key [value] representative first }
-}
-"#;
-        let nat_artifacts = artifacts(nat_source);
-        assert!(nat_artifacts.exploration_universes.is_empty());
-        assert!(nat_artifacts.diagnostics.iter().any(|diagnostic| {
-            diagnostic
-                .message
-                .contains("shadows a built-in primitive or structural type")
-        }));
-    }
-
-    #[test]
-    fn finite_type_recursion_is_nominal_while_nested_type_arguments_remain_finite() {
-        let finite = r#"
-# Bit = High | Low
-| condition(value: Option(Option(Bit))) -> True
-? explore nested {
-    over condition(value)
-    find matches
-    bounds { value in values(Option(Option(Bit))) }
-    output { key [value] representative first }
-}
-"#;
-        let finite_artifacts = artifacts(finite);
-        assert!(
-            finite_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            finite_artifacts.diagnostics
-        );
-        assert_eq!(
-            finite_artifacts.exploration_universes[0]
-                .universe
-                .dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(4)
-        );
-
-        let recursive = r#"
-# Nest(a) = Done | More(next: Nest(Option(a)))
-| condition(value: Nest(Bool)) -> True
-? explore recursive {
-    over condition(value)
-    find matches
-    bounds { value in values(Nest(Bool)) }
-    output { key [group = 1] show [value] representative first }
-}
-"#;
-        let recursive_artifacts = artifacts(recursive);
-        assert!(recursive_artifacts.exploration_universes.is_empty());
-        assert!(
-            recursive_artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("recursive declared type `Nest`")
-            }),
-            "{:?}",
-            recursive_artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn named_lists_fixed_ranges_and_all_rule_inputs_are_exact() {
-        let source = r#"
-= choices: List(Int) = [10, 2, 10]
-| condition(choice: Int, income: Int, step: Int, note: String) -> income >= choice
-? explore named_domain {
-    over condition(choice, income, step, note)
-    find matches
-    bounds {
-        choice in choices
-        start = 7
-        income in range(start, start + 3)
-        step = 1
-        note = "declared"
-    }
-    boundaries on income by step
-    output { key [choice, income] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let result = &artifacts.exploration_universes[0];
-        assert!(result.query.sliced_inputs.is_empty());
-        assert!(matches!(
-            &result.universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, source: ExploreEnumeratedSource::NamedList { name } }
-                if name == "choices"
-                    && values == &vec![ExploreValue::Int(10), ExploreValue::Int(2)]
-        ));
-        assert!(matches!(
-            &result.universe.dimensions[1].domain,
-            ExploreExactDomain::IntRange {
-                start: 7,
-                end_exclusive: 10,
-                cardinality: 3
-            }
-        ));
-        assert!(matches!(
-            &result.universe.facts[0].value,
-            ExploreFactValue::Fixed(ExploreValue::Int(7))
-        ));
-    }
-
-    #[test]
-    fn boundary_membership_uses_declared_values_not_numeric_envelope() {
-        let source = r#"
-| condition(axis: Int, step: Int) -> axis >= 0
-? explore gaps {
-    over condition(axis, step)
-    find matches
-    bounds { axis in [0, 2, 3]; step = 1 }
-    boundaries on axis by step
-    output { key [axis] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let boundary = artifacts.exploration_universes[0]
-            .boundary_hint()
-            .expect("boundary");
-        assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(1));
-    }
-
-    #[test]
-    fn named_set_domains_use_canonical_typed_order() {
-        let source = r#"
-= choices: Set(Int) = set_from_list([10, 2, 10])
-| condition(choice: Int) -> choice > 0
-? explore canonical_set {
-    over condition(choice)
-    find matches
-    bounds { choice in choices }
-    output { key [choice] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated {
-                values,
-                source: ExploreEnumeratedSource::NamedSet { name }
-            } if name == "choices"
-                && values == &vec![ExploreValue::Int(2), ExploreValue::Int(10)]
-        ));
-    }
-
-    #[test]
-    fn named_list_domains_can_use_closed_pure_helpers() {
-        let source = r#"
-> choices() -> List(Int) { concat([1, 2], [2, 3]) }
-= declared_choices: List(Int) = choices()
-| condition(choice: Int) -> choice > 0
-? explore helper_domain {
-    over condition(choice)
-    find matches
-    bounds { choice in declared_choices }
-    output { key [choice] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![
-                    ExploreValue::Int(1),
-                    ExploreValue::Int(2),
-                    ExploreValue::Int(3),
-                ]
-        ));
-    }
-
-    #[test]
-    fn unbound_inputs_are_rejected_until_a_canonical_slice_proves_irrelevance() {
-        let source = r#"
-= x: Int = 0
-> hidden() -> Bool { x > 0 }
-| condition(x: Int, value: Int) -> hidden()
-? explore hidden_relevance {
-    over condition(x, value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_queries.is_empty());
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("exploration input `x` is unbound")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn call_site_helpers_make_facts_depend_on_available_dimensions() {
-        let source = r#"
-= axis: Int = 0
-> hidden() -> Bool { axis > 0 }
-| condition(axis: Int, flag: Bool) -> flag
-? explore hidden_derived {
-    over condition(axis, flag)
-    find matches
-    bounds {
-        axis in [-1, 1]
-        flag = hidden()
-    }
-    output { key [axis] show [flag] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.facts[0].value,
-            ExploreFactValue::Derived { dependencies, .. }
-                if dependencies == &BTreeSet::from(["axis".to_string()])
-        ));
-    }
-
-    #[test]
-    fn dynamic_replay_requires_one_runtime_identity_per_reachable_helper() {
+    fn canonical_replay_identity_is_checked_across_source_successor_and_find() {
         let ambiguous = r#"
-> helper(axis: Int) -> Int { axis + 1 }
+> helper(value: Int) -> Int { value + 1 }
 > helper() -> Int { 99 }
-| condition(axis: Int, derived: Int) -> derived > axis
-? explore overloaded_derived {
-    over condition(axis, derived)
-    find matches
-    bounds {
-        axis in [1, 2]
-        derived = helper(axis)
+| eligible(value: Int) -> True under value > 0
+
+? explore ambiguous_helper {
+    from {
+        seed in [1, 2]
+        before = helper(seed)
+        context = ()
     }
-    output { key [axis] show [derived] representative first }
+    to after = helper(before)
+    find matches of eligible(after)
 }
 "#;
         let ambiguous_artifacts = artifacts(ambiguous);
-        assert!(ambiguous_artifacts.exploration_queries.is_empty());
         assert!(ambiguous_artifacts.exploration_universes.is_empty());
         assert!(
             ambiguous_artifacts
@@ -9181,2238 +8654,198 @@ mod tests {
                 .iter()
                 .any(|diagnostic| diagnostic
                     .message
-                    .contains("`helper` has declarations across arities (0, 1), but ordinary runtime functions resolve by bare name")),
+                    .contains("ordinary runtime functions resolve by bare name")),
             "{:?}",
             ambiguous_artifacts.diagnostics
         );
 
-        let unique = r#"
-> helper(axis: Int) -> Int { axis + 1 }
-| condition(axis: Int, derived: Int) -> derived > axis
-? explore unique_derived {
-    over condition(axis, derived)
-    find matches
-    bounds {
-        axis in [1, 2]
-        derived = helper(axis)
-    }
-    output { key [axis] show [derived] representative first }
-}
-"#;
-        let unique_artifacts = artifacts(unique);
-        assert!(
-            unique_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            unique_artifacts.diagnostics
-        );
-        assert!(matches!(
-            &unique_artifacts.exploration_universes[0].universe.facts[0].value,
-            ExploreFactValue::Derived { dependencies, .. }
-                if dependencies == &BTreeSet::from(["axis".to_string()])
-        ));
-    }
-
-    #[test]
-    fn replay_identity_gate_covers_where_without_a_derived_helper_call() {
-        let source = r#"
-> eligible(axis: Int) -> Bool { axis > 0 }
-> eligible() -> Bool { False }
-| condition(axis: Int) -> True
-? explore overloaded_where {
-    over condition(axis)
-    find matches
-    bounds {
-        axis in [1, 2]
-        where eligible(axis)
-    }
-    output { key [axis] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_queries.is_empty());
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("`eligible` has declarations across arities (0, 1), but ordinary runtime functions resolve by bare name")),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_runtime_declarations_that_preempt_rules() {
-        let fixtures = [
-            (
-                r#"
-# Flag = On | Off | choose(value: Int)
-| choose(value: Int) -> On
-| condition(value: Int) -> choose(value) == On
-? explore rule_constructor_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "constructor `choose(1 argument)` takes precedence over the rule",
-            ),
-            (
-                r#"
-# Flag = On | Off
-= choose = |flag: Flag| flag == Off
-| choose(flag: Flag) -> flag == On
-| condition(flag: Flag) -> choose(flag)
-? explore rule_closure_binding_collision {
-    over condition(flag)
-    find matches
-    bounds { flag in values(Flag) }
-    output { key [flag] representative first }
-}
-"#,
-                "rule call `choose` is shadowed by a top-level binding",
-            ),
-            (
-                r#"
-# Flag = On | Off
-# trait Choice {
-    > choose(self) -> Bool
-}
-# impl Choice for Flag {
-    > choose(self) -> Bool { False }
-}
-| choose(flag: Flag) -> flag == On
-| condition(flag: Flag) -> choose(flag)
-? explore rule_impl_method_collision {
-    over condition(flag)
-    find matches
-    bounds { flag in values(Flag) }
-    output { key [flag] representative first }
-}
-"#,
-                "rule call `choose` collides with an unsupported callable",
-            ),
-        ];
-
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn replay_identity_gate_allows_rule_clauses_and_arities_without_sibling_collisions() {
-        let source = r#"
-# Flag = On | Off
-| choose(flag: Flag) -> True under flag == On
-| choose(flag: Flag) -> False
-| choose() -> True
-| condition(flag: Flag) -> choose(flag)
-? explore unique_rule_family {
-    over condition(flag)
-    find matches
-    bounds { flag in values(Flag) }
-    output { key [flag] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
+        let unique = ambiguous.replace("> helper() -> Int { 99 }\n", "");
+        let artifacts = artifacts(&unique);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
             artifacts.diagnostics
         );
+        let query = &artifacts.exploration_universes[0];
         assert_eq!(
-            artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(2)
+            query.source.bindings[1]
+                .dependencies
+                .iter()
+                .map(|dependency| dependency.binding_name.as_str())
+                .collect::<Vec<_>>(),
+            ["seed"]
         );
+        assert!(matches!(&query.find, ExploreFindIr::Matches { .. }));
     }
 
-    #[test]
-    fn replay_identity_gate_rejects_special_dispatch_and_builtin_value_shadowing() {
-        let fixtures = [
-            (
-                r#"
-| findall(template: Int, goal: Int) -> [template]
-| condition(template: Int, goal: Int) -> length(findall(template, goal)) > 0
-? explore findall_rule_collision {
-    over condition(template, goal)
-    find matches
-    bounds { template in [1]; goal in [1] }
-    output { key [template, goal] representative first }
-}
-"#,
-                "runtime special form `findall(2 arguments)`",
-            ),
-            (
-                r#"
-| search(template: Int, goal: Int) -> Some(template)
-| condition(template: Int, goal: Int) -> search(template, goal) == Some(template)
-? explore search_rule_collision {
-    over condition(template, goal)
-    find matches
-    bounds { template in [1]; goal in [1] }
-    output { key [template, goal] representative first }
-}
-"#,
-                "runtime special form `search(2 arguments)`",
-            ),
-            (
-                r#"
-= abs: Int = 0
-| condition(value: Int) -> abs(value) == value
-? explore builtin_value_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "call `abs` is shadowed by a top-level binding",
-            ),
-            (
-                r#"
-# Weird = abs(left: Int, right: Int)
-| condition(value: Int) -> show(abs(value)) == show(value)
-? explore direct_builtin_constructor_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "direct built-in call `abs(1 argument)` is shadowed at runtime by a different-arity constructor",
-            ),
-            (
-                r#"
-| condition(template: Int, goal: Int) -> length(template |> findall(goal)) > 0
-? explore pipe_findall_special {
-    over condition(template, goal)
-    find matches
-    bounds { template in [1]; goal in [1] }
-    output { key [template, goal] representative first }
-}
-"#,
-                "runtime special form `findall(2 arguments)`",
-            ),
-            (
-                r#"
-| condition(template: Int, goal: Int) -> (template |> search(goal)) == Some(template)
-? explore pipe_search_special {
-    over condition(template, goal)
-    find matches
-    bounds { template in [1]; goal in [1] }
-    output { key [template, goal] representative first }
-}
-"#,
-                "runtime special form `search(2 arguments)`",
-            ),
-        ];
-
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-
-        for special in ["findall", "search"] {
-            let source = format!(
-                r#"
-| {special}(template: Int, goal: Int) -> True
-? explore direct_special_target {{
-    over {special}(template, goal)
-    find matches
-    bounds {{ template in [1]; goal in [1] }}
-    output {{ key [template, goal] representative first }}
-}}
-"#
-            );
-            let artifacts = artifacts(&source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains("runtime special form")),
-                "missing direct special-form target diagnostic: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn replay_identity_gate_allows_exact_arity_rule_fallbacks_and_builtin_fallthrough() {
-        let source = r#"
-| mixed(1)
-| mixed(1, 1) -> 1
-| mixed_condition(value: Int) -> mixed(value)
-
-| not(left: Bool, right: Bool) -> left && right
-| builtin_condition(value: Bool) -> not(value)
-
-? explore mixed_rule_arities {
-    over mixed_condition(value)
-    find matches
-    bounds { value in [0] }
-    output { key [value] representative first }
-}
-
-? explore direct_builtin_fallthrough {
-    over builtin_condition(value)
-    find matches
-    bounds { value in values(Bool) }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert_eq!(artifacts.exploration_queries.len(), 2);
-        assert_eq!(artifacts.exploration_universes.len(), 2);
-        assert_eq!(
-            artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(1)
-        );
-        assert_eq!(
-            artifacts.exploration_universes[1]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(2)
-        );
-    }
-
-    #[test]
-    fn explore_replay_runtime_uses_canonical_boolean_rule_misses() {
-        let source = r#"
-| conditional(value: Int) -> True under value > 0
-| exception positive exception_only(value: Int) -> True under value > 0
-| combined(value: Int) -> conditional(value) || exception_only(value)
-
-? explore boolean_misses {
-    over combined(value)
-    find matches
-    bounds { value in [0, 1] }
-    output { key [value] representative first }
-}
-"#;
+    fn ground_binding_value(source: &str, binding: &str) -> Result<ExploreValue, String> {
         let mut lexer = Lexer::new(source);
         let tokens = lexer.tokenize();
         let statements = Parser::new(tokens, source)
             .parse_program()
-            .expect("parse Boolean replay fixture");
-        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "unexpected diagnostics: {:?}",
-            artifacts.diagnostics
-        );
-        assert_eq!(
-            artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(2)
-        );
-
-        let mut definitions =
-            collect_ground_bindings(&statements, None).expect("ground declarations");
-        definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
-        definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
-        definitions.rule_dispatch_boolean_miss_safe_keys =
-            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
-        let mut runtime = ExploreRuntimeGroundEvaluator::new(&definitions);
-        for name in ["conditional_miss", "exception_miss"] {
-            let rule = if name == "conditional_miss" {
-                "conditional"
-            } else {
-                "exception_only"
-            };
-            let expression: Expr = ExprKind::App(
-                Box::new(ExprKind::Var(rule.to_string()).into()),
-                vec![ExprKind::Lit(Literal::Int(0)).into()],
-            )
-            .into();
-            match runtime.eval(&expression, &[]) {
-                Ok(Value::Bool(false)) => {}
-                other => panic!("{name} must be the canonical replay false value: {other:?}"),
-            }
-        }
+            .expect("parse ground-value fixture");
+        let catalog = calculate::TypeCatalog::collect_checked(&statements, None)
+            .expect("collect ground-value fixture types");
+        let definitions =
+            collect_ground_bindings(&statements, None).expect("collect ground-value declarations");
+        ExploreGroundEvaluator::new(&catalog, definitions).eval_binding(binding, None)
     }
 
     #[test]
-    fn explore_replay_fails_closed_for_missing_or_conflicting_rule_classification() {
-        let source = r#"
-| conditional(value: Int) -> True under value > 0
-| condition(value: Int) -> conditional(value)
-
-? explore classification_gate {
-    over condition(value)
-    find matches
-    bounds { value in [0, 1] }
-    output { key [value] representative first }
-}
-"#;
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let statements = Parser::new(tokens, source)
-            .parse_program()
-            .expect("parse replay classification fixture");
-        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "unexpected diagnostics: {:?}",
-            artifacts.diagnostics
-        );
-        let query = &artifacts.exploration_queries[0];
-        let target_key = ("condition".to_string(), 1);
-        let helper_key = ("conditional".to_string(), 1);
-
-        let mut missing = collect_ground_bindings(&statements, None).expect("ground declarations");
-        missing
-            .explore_rule_return_types_by_arity
-            .insert(target_key.clone(), Ty::Name("Bool".to_string()));
-        missing
-            .explore_rule_return_types_by_arity
-            .insert(helper_key.clone(), Ty::Name("Bool".to_string()));
-        missing
-            .explore_rule_return_types_by_arity
-            .remove(&helper_key);
-        let diagnostics = validate_query_replay_callable_identities(query, &missing);
-        assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("cannot classify the exact return type of reachable rule `conditional(1 argument)`")),
-            "missing classification must fail closed: {diagnostics:?}"
-        );
-
-        let mut conflicting =
-            collect_ground_bindings(&statements, None).expect("ground declarations");
-        conflicting
-            .explore_rule_return_types_by_arity
-            .insert(target_key, Ty::Name("Bool".to_string()));
-        conflicting
-            .explore_rule_return_types_by_arity
-            .insert(helper_key.clone(), Ty::Name("Bool".to_string()));
-        conflicting
-            .explore_rule_return_issues
-            .insert(helper_key, "synthetic conflicting return types".to_string());
-        let diagnostics = validate_query_replay_callable_identities(query, &conflicting);
-        assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("synthetic conflicting return types")),
-            "conflicting classification must fail closed: {diagnostics:?}"
-        );
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_pipe_source_runtime_identity_drift() {
-        let fixtures = [
-            (
-                r#"
-| concat(items: List(Int)) -> items
-| condition(value: Int) -> length([value] |> concat([1])) > 0
-? explore pipe_rule_builtin_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "pipe call `concat` resolves its source form at 1 argument but executes at 2 arguments",
-            ),
-            (
-                r#"
-# Built = Build(value: Int)
-| condition(value: Int) -> (value |> Build(1)) == Build(value)
-? explore pipe_constructor_arity_drift {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "must resolve through pure exploration-supported operations",
-            ),
-            (
-                r#"
-| choose(value: Int) -> value > 0
-| choose(left: Int, right: Int) -> left < right
-| condition(value: Int) -> value |> choose(2)
-? explore pipe_rule_overload_drift {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "pipe call `choose` resolves its source form at 1 argument but executes at 2 arguments",
-            ),
-        ];
-
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-
-        let unique_effective_rule = r#"
-| choose(left: Int, right: Int) -> left < right
-| condition(value: Int) -> value |> choose(2)
-? explore unique_pipe_rule {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let unique_artifacts = artifacts(unique_effective_rule);
-        assert!(
-            unique_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            unique_artifacts.diagnostics
-        );
-        assert_eq!(
-            unique_artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(1)
-        );
-
-        let unique_function_over_builtin = r#"
-> abs(value: Int) -> Int { value + 1 }
-| condition(value: Int) -> (value |> abs) == value + 1
-? explore pipe_function_over_builtin {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let function_artifacts = artifacts(unique_function_over_builtin);
-        assert!(
-            function_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            function_artifacts.diagnostics
-        );
-        assert_eq!(
-            function_artifacts.exploration_universes[0]
-                .universe
-                .cartesian_count_before_constraints,
-            ExploreCardinality::Exact(1)
-        );
-
-        let non_ground_builtin_collision = r#"
-| abs(value: Int) -> value > 0
-| condition(value: Int) -> (value |> abs) == value
-? explore pipe_rule_default_builtin_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let builtin_collision_artifacts = artifacts(non_ground_builtin_collision);
-        assert!(builtin_collision_artifacts.exploration_queries.is_empty());
-        assert!(builtin_collision_artifacts.exploration_universes.is_empty());
-        assert!(
-            builtin_collision_artifacts
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic
-                    .message
-                    .contains("executes the built-in intrinsic instead of the exact rule")),
-            "missing pipe rule/default-builtin collision: {:?}",
-            builtin_collision_artifacts.diagnostics
-        );
-
-        let builtin_arity_drift = r#"
-| abs(left: Int, right: Int) -> left > right
-| condition(value: Int) -> (value |> abs(1)) == True
-? explore pipe_builtin_arity_drift {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let builtin_drift_artifacts = artifacts(builtin_arity_drift);
-        assert!(builtin_drift_artifacts.exploration_queries.is_empty());
-        assert!(builtin_drift_artifacts.exploration_universes.is_empty());
-        assert!(
-            builtin_drift_artifacts
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.message.contains(
-                    "pipe built-in `abs` is declared for 1 argument but receives 2 arguments"
-                )),
-            "missing pipe builtin arity drift: {:?}",
-            builtin_drift_artifacts.diagnostics
-        );
-
-        let interpreter_builtin_collision = r#"
-| format_f(value: Int, decimals: Int) -> True
-| condition(value: Int) -> (value |> format_f(2)) == True
-? explore pipe_interpreter_builtin_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(interpreter_builtin_collision);
-        assert!(artifacts.exploration_queries.is_empty());
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("executes the built-in intrinsic instead of the exact rule")),
-            "missing interpreter-only builtin collision: {:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_computed_pipe_transforms() {
-        let source = r#"
-| condition(value: Int) -> value |> (|item: Int| item > 0)
-? explore computed_pipe_transform {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_queries.is_empty());
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("pure exploration-supported operations")),
-            "missing computed-pipe rejection: {:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_nested_static_declarations() {
-        let fixtures = [
+    fn ground_set_and_distinct_keep_stable_runtime_display_identity() {
+        let set = ground_binding_value(
             r#"
-| condition(value: Int) -> {
-    > abs(item: Int) -> Int { item + 1 }
-    abs(value) == value + 1
-}
-? explore nested_function_shadow {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-            r#"
-| condition(value: Int) -> {
-    # Weird = abs(left: Int, right: Int)
-    show(abs(value)) == show(value)
-}
-? explore nested_constructor_shadow {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-        ];
-
-        for source in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                    .message
-                    .contains("must resolve through pure exploration-supported operations")),
-                "missing nested static-declaration rejection: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_named_argument_pipe_transforms() {
-        let source = r#"
-> choose(left: Int, right: Int) -> Bool { left < right }
-| condition(value: Int) -> value |> choose(right = 2)
-? explore named_argument_pipe_transform {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_queries.is_empty());
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic.message.contains("named argument")
-                    || diagnostic.message.contains(NAMED_ARG_MARKER)
-            }),
-            "missing named-argument pipe rejection: {:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn replay_identity_gate_rejects_calls_through_lexical_values() {
-        let fixtures = [
-            (
-                r#"
-> helper(value: Int) -> Int { value + 1 }
-> apply(helper: Int -> Int, value: Int) -> Int { helper(value) }
-| condition(value: Int) -> apply(|item: Int| item, value) == value
-? explore parameter_callable_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "call `helper` resolves through a lexical value",
-            ),
-            (
-                r#"
-> helper(value: Int) -> Int { value + 1 }
-| condition(value: Int) -> {
-    = helper = 0
-    helper(value) == value
-}
-? explore block_callable_collision {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output { key [value] representative first }
-}
-"#,
-                "call `helper` resolves through a lexical value",
-            ),
-            (
-                r#"
-> helper(value: Int) -> Bool { value > 0 }
-| condition(value: Int, helper: Int) -> True
-? explore query_callable_collision {
-    over condition(value, helper)
-    find matches
-    bounds {
-        value in [1]
-        helper = 0
-        where helper(value)
-    }
-    output { key [value] show [helper] representative first }
-}
-"#,
-                "call `helper` resolves through a lexical value",
-            ),
-        ];
-
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts.diagnostics.iter().any(|diagnostic| {
-                    diagnostic.message.contains(expected)
-                        || diagnostic
-                            .message
-                            .contains("must resolve through pure exploration-supported operations")
-                        || diagnostic
-                            .message
-                            .contains("exploration expressions must use only pure")
-                }),
-                "missing lexical-callee rejection for {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn helper_captures_cannot_bypass_bound_source_order() {
-        let fixtures = [
-            r#"
-= later: Int = 99
-> hidden() -> Bool { later > 0 }
-| condition(flag: Bool, later: Int) -> flag
-? explore future_fact {
-    over condition(flag, later)
-    find matches
-    bounds { flag = hidden(); later in [-1, 1] }
-    output { key [later] show [flag] representative first }
-}
-"#,
-            r#"
-= later: Int = 99
-> hidden() -> Bool { later > 0 }
-| condition(later: Int) -> True
-? explore future_where {
-    over condition(later)
-    find matches
-    bounds { where hidden(); later in [-1, 1] }
-    output { key [later] representative first }
-}
-"#,
-            r#"
-= later: Int = 3
-> choices() -> List(Int) { range(0, later) }
-| condition(choice: Int, later: Int) -> True
-? explore future_domain {
-    over condition(choice, later)
-    find matches
-    bounds { choice in choices(); later in [-1, 1] }
-    output { key [choice, later] representative first }
-}
-"#,
-            r#"
-= later: Int = 99
-| hidden() -> later > 0
-| condition(flag: Bool, later: Int) -> flag
-? explore future_rule_fact {
-    over condition(flag, later)
-    find matches
-    bounds { flag = hidden(); later in [-1, 1] }
-    output { key [later] show [flag] representative first }
-}
-"#,
-            r#"
-= later: Int = 99
-| hidden() -> later > 0
-| condition(later: Int) -> True
-? explore future_rule_where {
-    over condition(later)
-    find matches
-    bounds { where hidden(); later in [-1, 1] }
-    output { key [later] representative first }
-}
-"#,
-            r#"
-= later: Int = 99
-> hidden(value: Int) -> Bool { value > 0 }
-> hidden() -> Bool { later > 0 }
-| condition(later: Int) -> True
-? explore future_overloaded_helper_where {
-    over condition(later)
-    find matches
-    bounds { where hidden(); later in [-1, 1] }
-    output { key [later] representative first }
-}
-"#,
-        ];
-        for source in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
-            let expected = if source.contains("future_overloaded_helper_where") {
-                "ordinary runtime functions resolve by bare name"
-            } else {
-                "not yet available: later"
-            };
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "{:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn rule_captures_cannot_bypass_output_source_order() {
-        let source = r#"
-= later_show: Int = 7
-| hidden() -> later_show > 0
-| condition(value: Int) -> True
-? explore future_output {
-    over condition(value)
-    find matches
-    bounds { value in [1] }
-    output {
-        key [value]
-        show [early = hidden(), later_show = value]
-        representative first
-    }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("output field `early` depends on value(s) that are not yet available: later_show")),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn evaluated_domain_members_must_match_their_declared_type() {
-        let source = r#"
-> choices() -> List(Int) { [True] }
-= declared_choices: List(Int) = choices()
-| condition(choice: Int) -> True
-? explore invalid_members {
-    over condition(choice)
-    find matches
-    bounds { choice in declared_choices }
-    output { key [choice] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("member 1 does not have declared type `Int`")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn ground_helpers_use_runtime_equality_inside_finite_collection_code() {
-        let source = r#"
-> choices() -> List(Int) {
-    if [0.0] == [0.0000000000000001] { [1] } else { [2] }
-}
-= declared_choices: List(Int) = choices()
-| condition(choice: Int) -> True
-? explore runtime_equality {
-    over condition(choice)
-    find matches
-    bounds { choice in declared_choices }
-    output { key [choice] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![ExploreValue::Int(2)]
-        ));
-    }
-
-    #[test]
-    fn ground_equality_rejects_deep_runtime_lists_before_stack_recursion() {
-        let source = r#"
-> choices() -> List(Int) {
-    if range(0, 1024) == range(0, 1024) { [1] } else { [2] }
-}
-= declared_choices: List(Int) = choices()
-| condition(choice: Int) -> True
-? explore bounded_equality {
-    over condition(choice)
-    find matches
-    bounds { choice in declared_choices }
-    output { key [choice] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("ground equality exceeds the safe structural limit")),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn ground_set_and_distinct_calls_use_runtime_display_identity() {
-        let set_source = r#"
 = pairs: Set(Tuple(String, String)) = set_from_list([
     ("a, b", "c"),
     ("a", "b, c")
 ])
-| condition(pair: Tuple(String, String)) -> True
-? explore display_collision {
-    over condition(pair)
-    find matches
-    bounds { pair in pairs }
-    output { key [pair] representative first }
-}
-"#;
-        let set_artifacts = artifacts(set_source);
-        assert!(
-            set_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            set_artifacts.diagnostics
-        );
-        assert_eq!(
-            set_artifacts.exploration_universes[0].universe.dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(1)
-        );
+"#,
+            "pairs",
+        )
+        .expect("evaluate runtime Set identity");
+        assert!(matches!(set, ExploreValue::Set(values) if values.len() == 1));
 
-        let distinct_source = r#"
+        let distinct = ground_binding_value(
+            r#"
 = pairs: List(Tuple(String, String)) = distinct([
     ("a, b", "c"),
     ("a", "b, c")
 ])
-| condition(pair: Tuple(String, String)) -> True
-? explore display_collision {
-    over condition(pair)
-    find matches
-    bounds { pair in pairs }
-    output { key [pair] representative first }
-}
-"#;
-        let distinct_artifacts = artifacts(distinct_source);
-        assert!(
-            distinct_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            distinct_artifacts.diagnostics
-        );
-        assert_eq!(
-            distinct_artifacts.exploration_universes[0]
-                .universe
-                .dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(1)
-        );
-    }
-
-    #[test]
-    fn positional_cons_variants_use_the_runtime_set_identity() {
-        let source = r#"
-# Weird = Cons(Bool, Bool)
-= weirds: Set(Weird) = set_from_list([
-    Cons(false, false),
-    Cons(false, true)
-])
-| condition(value: Weird) -> True
-? explore weird_cons {
-    over condition(value)
-    find matches
-    bounds { value in weirds }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert_eq!(
-            artifacts.exploration_universes[0].universe.dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(1)
-        );
-    }
-
-    #[test]
-    fn nullary_constructor_spellings_share_one_domain_identity() {
-        let source = r#"
-# Status = Alpha | Beta
-| condition(value: Status) -> True
-? explore explicit_nullary {
-    over condition(value)
-    find matches
-    bounds { value in [Alpha, Alpha()] }
-    output { key [value] representative first }
-}
-? explore all_nullary {
-    over condition(value)
-    find matches
-    bounds { value in values(Status) }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let ExploreExactDomain::Enumerated { values, .. } =
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain
-        else {
-            panic!("expected explicit finite domain")
-        };
-        assert_eq!(values.len(), 1);
-        let ExploreExactDomain::FiniteType { plan, .. } =
-            &artifacts.exploration_universes[1].universe.dimensions[0].domain
-        else {
-            panic!("expected declared finite type")
-        };
-        let inhabitants = plan.enumerate(2).expect("enumerate Status");
-        assert_eq!(inhabitants.len(), 2);
-        assert_eq!(values[0], inhabitants[0]);
-
-        let runtime_source = r#"
-# Status = Alpha | Beta
-= same_nullary_value = Alpha == Alpha()
-"#;
-        let mut lexer = Lexer::new(runtime_source);
-        let tokens = lexer.tokenize();
-        let statements = Parser::new(tokens, runtime_source)
-            .parse_program()
-            .expect("parse nullary runtime fixture");
-        let mut interpreter = Interpreter::new();
-        let mut environment = interpreter.default_env();
-        interpreter.run_program(&statements, &mut environment);
-        assert!(matches!(
-            environment.get("same_nullary_value"),
-            Some(Value::Bool(true))
-        ));
-    }
-
-    #[test]
-    fn ground_collection_intrinsics_preserve_list_and_set_kinds() {
-        let fixtures = [
-            (
-                r#"
-= base: Set(Int) = set_from_list([1, 2])
-= choices: Set(Int) = concat(base, base)
-| condition(value: Int) -> True
-? explore invalid_concat {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
 "#,
-                "`concat` left argument is not a finite list",
-            ),
-            (
-                r#"
-= choices: List(Int) = set_from_list([1, 2])
-| condition(value: Int) -> True
-? explore invalid_set {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "`set_from_list` ground result must have type `Set(T)`",
-            ),
-        ];
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
+            "pairs",
+        )
+        .expect("evaluate runtime distinct identity");
+        assert!(matches!(distinct, ExploreValue::List(values) if values.len() == 1));
     }
 
     #[test]
-    fn named_ground_ranges_materialize_with_a_checked_limit() {
-        let source = r#"
-= choices: List(Int) = range(0, 3)
-| condition(choice: Int) -> True
-? explore named_range {
-    over condition(choice)
-    find matches
-    bounds { choice in choices }
-    output { key [choice] representative first }
-}
-"#;
-        let range_artifacts = artifacts(source);
-        assert!(
-            range_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            range_artifacts.diagnostics
-        );
-        assert!(matches!(
-            &range_artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![
-                    ExploreValue::Int(0),
-                    ExploreValue::Int(1),
-                    ExploreValue::Int(2),
-                ]
-        ));
-
-        let too_large = r#"
-= choices: List(Int) = range(0, 1000001)
-| condition(choice: Int) -> True
-? explore named_range {
-    over condition(choice)
-    find matches
-    bounds { choice in choices }
-    output { key [choice] representative first }
-}
-"#;
-        let oversized_artifacts = artifacts(too_large);
-        assert!(oversized_artifacts.exploration_universes.is_empty());
-        assert!(oversized_artifacts.diagnostics.iter().any(|diagnostic| {
-            diagnostic
-                .message
-                .contains("exceeding materialization limit 1000000")
-        }));
-    }
-
-    #[test]
-    fn nested_ground_helpers_inherit_the_runtime_call_site_scope() {
-        let source = r#"
-= x: Int = 42
-> inner() -> List(Int) { [x] }
-> outer(x: Int) -> List(Int) { inner() }
-= choices: List(Int) = outer(7)
-| condition(value: Int) -> True
-? explore call_site_scope {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![ExploreValue::Int(7)]
-        ));
-    }
-
-    #[test]
-    fn callable_collisions_fail_closed_before_ground_elaboration() {
-        let fixtures = [
-            (
-                r#"
-| set_from_list(items: List(Int)) -> [42]
-| condition(value: Int) -> True
-? explore shadowed_builtin {
-    over condition(value)
-    find matches
-    bounds { value in set_from_list([1, 2]) }
-    output { key [value] representative first }
-}
-"#,
-                "resolves to a rule",
-            ),
-            (
-                r#"
-> choose(x: Int) -> List(Int) { [1] }
-> choose(x: Int, y: Int) -> List(Int) { [2] }
-= choices: List(Int) = choose(0)
-| condition(value: Int) -> True
-? explore overloaded {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "declarations across arities",
-            ),
-            (
-                r#"
-> Make(x: Int) -> List(Int) { [1] }
-# T = Make(value: Int)
-= choices: List(Int) = Make(0)
-| condition(value: Int) -> True
-? explore constructor_collision {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "ambiguous between a function and constructor",
-            ),
-            (
-                r#"
-# Choice = Foo | Bar
-> Foo() -> Int { 1 }
-= choices: List(Choice) = [Foo]
-| condition(value: Choice) -> True
-? explore bare_constructor_collision {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "ambiguous between a bare value/constructor and a callable declaration",
-            ),
-            (
-                r#"
-# Choice = Foo | Bar
-> module Foo { = value = 1 }
-= choices: List(Choice) = [Foo]
-| condition(value: Choice) -> True
-? explore bare_module_collision {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by a runtime value",
-            ),
-            (
-                r#"
-> range(start: Int) -> List(Int) { [42] }
-= choices: List(Int) = range(0, 3)
-| condition(value: Int) -> True
-? explore wrong_arity_shadow {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "`range` expects 1 argument but got 2",
-            ),
-            (
-                r#"
-> make() -> List(Int) {
-    = concat = 1
-    concat([1], [2])
-}
-= choices: List(Int) = make()
-| condition(value: Int) -> True
-? explore local_shadow {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by a local value",
-            ),
-            (
-                r#"
-> choices() -> List(Int) { [1] }
-# Box = Box(value: Int) {
-    > choices() -> List(Int) { [2] }
-}
-= declared_choices: List(Int) = choices()
-| condition(value: Int) -> True
-? explore method_shadow {
-    over condition(value)
-    find matches
-    bounds { value in declared_choices }
-    output { key [value] representative first }
-}
-"#,
-                "resolves to an unsupported callable",
-            ),
-            (
-                r#"
-# Span = range(Int, Int)
-| condition(value: Int) -> True
-? explore constructor_range {
-    over condition(value)
-    find matches
-    bounds { value in range(0, 3) }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by an available query value or program declaration",
-            ),
-            (
-                r#"
-| condition(range: Int, value: Int) -> True
-? explore local_range {
-    over condition(range, value)
-    find matches
-    bounds { range = 99; value in range(0, 3) }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by an available query value or program declaration",
-            ),
-            (
-                r#"
-> actor range(state: Int) { | Ping -> state }
-| condition(value: Int) -> True
-? explore actor_range {
-    over condition(value)
-    find matches
-    bounds { value in range(0, 3) }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by an available query value or program declaration",
-            ),
-            (
-                r#"
-> module range { = value = 1 }
-| condition(value: Int) -> True
-? explore module_range {
-    over condition(value)
-    find matches
-    bounds { value in range(0, 3) }
-    output { key [value] representative first }
-}
-"#,
-                "shadowed by an available query value or program declaration",
-            ),
-        ];
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn explicit_negative_float_members_preserve_exact_bits() {
-        let source = r#"
-| condition(value: Float) -> True
-? explore explicit_floats {
-    over condition(value)
-    find matches
-    bounds { value in [-0.1, 0.1] }
-    output { key [group = 1] show [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![
-                    ExploreValue::FloatBits((-0.1_f64).to_bits()),
-                    ExploreValue::FloatBits(0.1_f64.to_bits()),
-                ]
-        ));
-    }
-
-    #[test]
-    fn reversed_and_overflowing_ranges_fail_closed() {
-        for (range, expected) in [
-            ("range(8, 7)", "greater than end"),
-            (
-                "range(9223372036854775807, 9223372036854775807 + 1)",
-                "addition overflow",
-            ),
-        ] {
-            let source = format!(
-                r#"
-| condition(value: Int) -> True
-? explore invalid {{
-    over condition(value)
-    find matches
-    bounds {{ value in {range} }}
-    output {{ key [value] representative first }}
-}}
-"#
-            );
-            let artifacts = artifacts(&source);
-            assert!(artifacts.exploration_queries.is_empty());
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn named_ground_boundary_steps_are_evaluated_once() {
-        let source = r#"
-= global_step: Int = 1
-| condition(axis: Int) -> axis >= 0
-? explore named_step {
-    over condition(axis)
-    find matches
-    bounds { axis in range(0, 3) }
-    boundaries on axis by global_step
-    output { key [axis] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let boundary = artifacts.exploration_universes[0]
-            .boundary_hint()
-            .expect("boundary");
-        assert_eq!(boundary.step, 1);
-        assert_eq!(boundary.eligible_axis_pairs, ExploreCardinality::Exact(2));
-    }
-
-    #[test]
-    fn primitive_shadowing_fails_closed_and_explicit_float_values_are_exact() {
-        let primitive_shadow = r#"
-# Bool = Yes | No
-| condition(value: Bool) -> True
-? explore shadowed {
-    over condition(value)
-    find matches
-    bounds { value in values(Bool) }
-    output { key [value] representative first }
-}
-"#;
-        let shadow_artifacts = artifacts(primitive_shadow);
-        assert!(shadow_artifacts.exploration_universes.is_empty());
-        assert!(
-            shadow_artifacts
-                .diagnostics
-                .iter()
-                .any(|diagnostic| { diagnostic.message.contains("shadows a built-in primitive") }),
-            "{:?}",
-            shadow_artifacts.diagnostics
-        );
-
-        let evolved_primitive = r#"
-# Bool WHEN True -> Maybe
-| condition(value: Bool) -> True
-? explore evolved_builtin {
-    over condition(value)
-    find matches
-    bounds { value in values(Bool) }
-    output { key [value] representative first }
-}
-"#;
-        let evolved_artifacts = artifacts(evolved_primitive);
-        assert!(evolved_artifacts.exploration_universes.is_empty());
-        assert!(
-            evolved_artifacts
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.message.contains(
-                    "conditional type evolution for `Bool` changes a built-in primitive"
-                )),
-            "{:?}",
-            evolved_artifacts.diagnostics
-        );
-
-        let tuple_shadow = r#"
-# Bit = High | Low
-# Tuple(a, b) = Only
-| condition(value: Tuple(Bit, Bool)) -> True
-? explore shadowed_tuple {
-    over condition(value)
-    find matches
-    bounds { value in values(Tuple(Bit, Bool)) }
-    output { key [value] representative first }
-}
-"#;
-        let tuple_artifacts = artifacts(tuple_shadow);
-        assert!(tuple_artifacts.exploration_universes.is_empty());
-        assert!(
-            tuple_artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("shadows a built-in primitive or structural type")
-            }),
-            "{:?}",
-            tuple_artifacts.diagnostics
-        );
-
-        let composite_float = r#"
-# Wrapped(amount: Float)
-| condition(value: Wrapped) -> True
-? explore floating {
-    over condition(value)
-    find matches
-    bounds { value in [Wrapped(amount = 0.1)] }
-    output { key [group = 1] show [value] representative first }
-}
-"#;
-        let float_artifacts = artifacts(composite_float);
-        assert!(
-            float_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            float_artifacts.diagnostics
-        );
-        assert!(matches!(
-            &float_artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if matches!(
-                    values.as_slice(),
-                    [ExploreValue::Constructor { fields, .. }]
-                        if matches!(fields.as_slice(), [(name, ExploreValue::FloatBits(bits))]
-                            if name == "amount" && *bits == 0.1_f64.to_bits())
-                )
-        ));
-    }
-
-    #[test]
-    fn tuple_values_and_explicit_tuple_members_preserve_element_types() {
-        let finite = r#"
-# Status = Alpha | Beta
-| condition(value: Tuple(Status, Bool)) -> True
-? explore tuples {
-    over condition(value)
-    find matches
-    bounds { value in values(Tuple(Status, Bool)) }
-    output { key [value] representative first }
-}
-"#;
-        let finite_artifacts = artifacts(finite);
-        assert!(
-            finite_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            finite_artifacts.diagnostics
-        );
-        let domain = &finite_artifacts.exploration_universes[0]
-            .universe
-            .dimensions[0]
-            .domain;
-        assert_eq!(domain.cardinality(), ExploreCardinality::Exact(4));
-
-        let explicit = r#"
-# Status = Alpha | Beta
-| condition(value: Tuple(Status, Bool)) -> True
-? explore tuples {
-    over condition(value)
-    find matches
-    bounds { value in [(Alpha, True), (Beta, False)] }
-    output { key [value] representative first }
-}
-"#;
-        let explicit_artifacts = artifacts(explicit);
-        assert!(
-            explicit_artifacts.diagnostics.is_empty(),
-            "{:?}",
-            explicit_artifacts.diagnostics
-        );
-        assert!(matches!(
-            &explicit_artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. } if values.len() == 2
-        ));
-
-        let runtime = r#"
-# Status = Alpha | Beta
-| condition(value: Tuple(Status, Bool)) -> True
-= tuple_matches = condition((Alpha, True))
-"#;
-        let mut lexer = Lexer::new(runtime);
-        let tokens = lexer.tokenize();
-        let statements = Parser::new(tokens, runtime)
-            .parse_program()
-            .expect("parse tuple runtime fixture");
-        let mut interpreter = Interpreter::new();
-        let mut environment = interpreter.default_env();
-        interpreter.run_program(&statements, &mut environment);
-        assert!(matches!(
-            environment.get("tuple_matches"),
-            Some(Value::Bool(true))
-        ));
-    }
-
-    #[test]
-    fn global_ground_bindings_do_not_capture_helper_parameters() {
-        let source = r#"
-= seed: Int = 10
-= values_from_global: List(Int) = [seed]
-> choose(seed: Int) -> List(Int) { values_from_global }
-= choices: List(Int) = choose(1)
-| condition(value: Int) -> True
-? explore lexical_scope {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert!(matches!(
-            &artifacts.exploration_universes[0].universe.dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![ExploreValue::Int(10)]
-        ));
-    }
-
-    #[test]
-    fn ground_helper_calls_fail_closed_when_a_binding_shadows_the_callable() {
-        let source = r#"
-> one() -> List(Int) { [1] }
-> two() -> List(Int) { [2] }
-> make() -> List(Int) { one() }
-= make = two
-= choices: List(Int) = make()
-| condition(value: Int) -> True
-? explore shadowed_callable {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("ground exploration call `make` is shadowed by a top-level binding")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn contextual_range_fails_closed_when_a_program_function_shadows_it() {
-        let source = r#"
-> range(start: Int, end: Int) -> List(Int) { [42] }
-| condition(value: Int) -> True
-? explore shadowed_range {
-    over condition(value)
-    find matches
-    bounds { value in range(0, 3) }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts(source);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| {
-                diagnostic
-                    .message
-                    .contains("exploration `range(start, end)` is shadowed")
-            }),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
-
-    #[test]
-    fn overflowing_integer_literal_is_never_coerced_to_zero() {
-        let source = "= impossible = 9223372036854775808\n";
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let error = Parser::new(tokens, source)
-            .parse_program()
-            .expect_err("overflowing Int must fail parsing");
-        assert!(error.contains("outside Futuruna Int range"), "{error}");
-
-        let minimum = "= minimum = -9223372036854775808\n";
-        let mut lexer = Lexer::new(minimum);
-        let tokens = lexer.tokenize();
-        let statements = Parser::new(tokens, minimum)
-            .parse_program()
-            .expect("i64::MIN is a valid Futuruna Int");
-        assert!(matches!(
-            &statements[0],
-            Stmt::Bind(_, _, Expr { kind: ExprKind::Lit(Literal::Int(value)), .. })
-                if *value == i64::MIN
-        ));
-    }
-
-    #[test]
-    fn varying_ranges_and_boundary_steps_cannot_capture_same_named_globals() {
-        let fixtures = [
-            (
-                r#"
-= start: Int = 1
-| condition(start: Int, value: Int) -> True
-? explore dependent_range {
-    over condition(start, value)
-    find matches
-    bounds { start in [0, 1]; value in range(start, 3) }
-    output { key [start, value] representative first }
-}
-"#,
-                "exploration range `value` depends on varying or derived input(s): start",
-            ),
-            (
-                r#"
-= axis: Int = 1
-| condition(axis: Int) -> True
-? explore varying_step {
-    over condition(axis)
-    find matches
-    bounds { axis in range(0, 3) }
-    boundaries on axis by axis
-    output { key [axis] representative first }
-}
-"#,
-                "exploration boundary step depends on varying or derived input(s): axis",
-            ),
-        ];
-        for (source, expected) in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts
-                    .diagnostics
-                    .iter()
-                    .any(|diagnostic| diagnostic.message.contains(expected)),
-                "missing {expected:?}: {:?}",
-                artifacts.diagnostics
-            );
-        }
-    }
-
-    #[test]
-    fn flat_imported_finite_type_and_named_list_elaborate_exactly() {
+    fn canonical_imports_keep_finite_types_collections_and_prefix_scope() {
         let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_exact_domain_{}_{}",
+            "futuruna_relational_explore_import_{}_{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .expect("clock")
                 .as_nanos()
         ));
-        std::fs::create_dir_all(&directory).expect("create exact-domain import directory");
+        std::fs::create_dir_all(&directory).expect("create Explore import directory");
         std::fs::write(
             directory.join("domain.runa"),
             r#"
-# Municipality = Beta | Alpha
-= municipalities: List(Municipality) = [Beta, Alpha, Beta]
-= unrelated_values: List(Int) = [99]
+# ImportedStatus = Beta | Alpha
+# ImportedProfile(status: ImportedStatus, score: Int)
+= imported_statuses: List(ImportedStatus) = [Beta, Alpha]
+> imported_scores() -> List(Int) { [1, 2, 2] }
 "#,
         )
-        .expect("write exact-domain import");
+        .expect("write Explore import fixture");
+
         let source = r#"
 @ import ./domain
-| condition(municipality: Municipality, declared: Municipality) -> True
 ? explore imported {
-    over condition(municipality, declared)
-    find matches
-    bounds {
-        municipality in municipalities
-        declared in values(Municipality)
+    from {
+        status in values(ImportedStatus)
+        declared_status in imported_statuses
+        score in imported_scores()
+        before = ImportedProfile(status = status, score = score)
+        context = ()
     }
-    output { key [municipality, declared] representative first }
+    to after = before
+    find all
 }
 "#;
         let artifacts = artifacts_with_dir(source, &directory);
-        std::fs::remove_dir_all(&directory).ok();
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
             artifacts.diagnostics
         );
-        let dimensions = &artifacts.exploration_universes[0].universe.dimensions;
-        assert!(matches!(
-            &dimensions[0].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values.len() == 2
-                    && matches!(&values[0], ExploreValue::Constructor { variant, .. } if variant == "Beta")
-                    && matches!(&values[1], ExploreValue::Constructor { variant, .. } if variant == "Alpha")
-        ));
-        let ExploreExactDomain::FiniteType { plan, .. } = &dimensions[1].domain else {
-            panic!("expected imported finite type")
+        let query = &artifacts.exploration_universes[0];
+        let ExploreSourceBindingKindIr::Finite {
+            domain: ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { plan, .. }),
+        } = &query.source.bindings[0].kind
+        else {
+            panic!("imported values(T) must retain an exact finite-type plan")
         };
         assert_eq!(plan.cardinality(), ExploreCardinality::Exact(2));
-        let values = plan.enumerate(2).expect("enumerate imported type");
-        assert!(
-            matches!(&values[0], ExploreValue::Constructor { variant, .. } if variant == "Beta")
-        );
-        assert!(
-            matches!(&values[1], ExploreValue::Constructor { variant, .. } if variant == "Alpha")
-        );
-    }
-
-    #[test]
-    fn injected_prelude_keeps_a_user_prefix_import_explorable() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_prelude_import_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
+        assert!(matches!(
+            &query.source.bindings[1].kind,
+            ExploreSourceBindingKindIr::Finite {
+                domain: ExploreFiniteDomainIr::Collection { .. }
+            }
         ));
-        std::fs::create_dir_all(&directory).expect("create prelude-import directory");
-        std::fs::write(
-            directory.join("domain.runa"),
-            "# Flag = On | Off\n= flags: List(Flag) = [On, Off]\n= optional_values: List(Option(Int)) = [Some(1), None]\n= scores: List(Int) = [max_int(1, 2)]\n",
-        )
-        .expect("write prelude-import fixture");
-        let source = r#"
-@ import ./domain
-| condition(flag: Flag, optional: Option(Int), score: Int) -> True
-? explore imported_with_prelude {
-    over condition(flag, optional, score)
-    find matches
-    bounds { flag in flags; optional in optional_values; score in scores }
-    output { key [flag, score] show [optional] representative first }
-}
-"#;
-        let mut lexer = Lexer::new(source);
-        let tokens = lexer.tokenize();
-        let user_statements = Parser::new(tokens, source)
-            .parse_program()
-            .expect("parse prelude-import fixture");
-        let statements = prepend_prelude(parse_prelude(), &user_statements);
-        let ground_definitions =
-            collect_ground_bindings(&statements, Some(directory.to_string_lossy().as_ref()))
-                .expect("collect prelude/import declaration order");
-        let runtime_declarations =
-            prepend_prelude(parse_prelude(), &ground_definitions.runtime_declarations);
-        let declaration_names = runtime_declarations
-            .iter()
-            .filter_map(|statement| match statement {
-                Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => Some(name.as_str()),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        let option_index = declaration_names
-            .iter()
-            .position(|name| *name == "Option")
-            .expect("runtime declarations include the prepended Option type");
-        let flag_index = declaration_names
-            .iter()
-            .position(|name| *name == "Flag")
-            .expect("runtime declarations include the imported Flag type");
-        assert!(option_index < flag_index, "{declaration_names:?}");
-        let artifacts = TypeChecker::check_with_artifacts(
-            &statements,
-            Some(directory.to_string_lossy().to_string()),
-            source,
-        );
-        std::fs::remove_dir_all(&directory).ok();
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        assert_eq!(
-            artifacts.exploration_universes[0].universe.dimensions[0]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(2)
-        );
-        assert_eq!(
-            artifacts.exploration_universes[0].universe.dimensions[1]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(2)
-        );
-        assert_eq!(
-            artifacts.exploration_universes[0].universe.dimensions[2]
-                .domain
-                .cardinality(),
-            ExploreCardinality::Exact(1)
-        );
-    }
-
-    #[test]
-    fn imported_ground_bindings_reject_later_intrinsic_shadowing() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_import_shadow_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
+        assert!(matches!(
+            &query.source.bindings[2].kind,
+            ExploreSourceBindingKindIr::Finite {
+                domain: ExploreFiniteDomainIr::Collection { .. }
+            }
         ));
-        std::fs::create_dir_all(&directory).expect("create import-shadow directory");
-        std::fs::write(
-            directory.join("domain.runa"),
-            "= choices: List(Int) = range(0, 3)\n",
-        )
-        .expect("write import-shadow fixture");
-        let source = r#"
-@ import ./domain
-> range(start: Int, end: Int) -> List(Int) { [99] }
-| condition(value: Int) -> True
-? explore import_shadow {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
-}
-"#;
-        let artifacts = artifacts_with_dir(source, &directory);
-        std::fs::remove_dir_all(&directory).ok();
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("intrinsic `range` is shadowed by a program function")),
-            "{:?}",
-            artifacts.diagnostics
-        );
-    }
 
-    #[test]
-    fn imported_ground_bindings_cannot_capture_later_root_values() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_import_capture_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&directory).expect("create import-capture directory");
         std::fs::write(
-            directory.join("domain.runa"),
-            "= choices: List(Int) = root_values\n",
+            directory.join("capturing.runa"),
+            "= captured: List(Int) = root_values\n",
         )
-        .expect("write import-capture fixture");
-        let source = r#"
-@ import ./domain
+        .expect("write prefix-capture fixture");
+        let capture = r#"
+@ import ./capturing
 = root_values: List(Int) = [1, 2]
-| condition(value: Int) -> True
-? explore import_capture {
-    over condition(value)
-    find matches
-    bounds { value in choices }
-    output { key [value] representative first }
+? explore invalid_capture {
+    from {
+        before in captured
+        context = ()
+    }
+    to after = before
+    find all
 }
 "#;
-        let artifacts = artifacts_with_dir(source, &directory);
+        let artifacts = artifacts_with_dir(capture, &directory);
         std::fs::remove_dir_all(&directory).ok();
         assert!(artifacts.exploration_universes.is_empty());
         assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("depends on later declaration `root_values`")),
+            artifacts
+                .diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.message.contains("depends on later declaration")),
             "{:?}",
             artifacts.diagnostics
         );
     }
 
     #[test]
-    fn hash_imported_finite_types_and_helpers_elaborate_exactly() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_hash_domain_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&directory).expect("create hash-domain import directory");
-        let imported = r#"
-# Flag = On | Off
-> choices() -> List(Int) { [1, 2, 2] }
+    fn canonical_collection_domains_preserve_checked_range_and_member_failures() {
+        let invalid_members = r#"
+> choices() -> List(Int) { [True] }
+= declared_choices: List(Int) = choices()
+? explore invalid_members {
+    from {
+        before in declared_choices
+        context = ()
+    }
+    to after = before
+    find all
+}
 "#;
-        std::fs::write(directory.join("domain.runa"), imported).expect("write hash-domain import");
-        let mut lexer = Lexer::new(imported);
-        let tokens = lexer.tokenize();
-        let imported_statements = Parser::new(tokens, imported)
-            .parse_program()
-            .expect("parse hash-domain definitions");
-        let type_hash = imported_statements
-            .iter()
-            .find_map(|statement| match statement {
-                Stmt::TypeDecl(declaration) => Some(content_hash_type(declaration)),
-                _ => None,
-            })
-            .expect("type hash");
-        let function_hash = imported_statements
-            .iter()
-            .find_map(|statement| match statement {
-                Stmt::Defn(definition) => Some(content_hash_defn(definition)),
-                _ => None,
-            })
-            .expect("function hash");
-        let source = format!(
-            r#"
-@ import #{type_hash} from ./domain
-@ import #{function_hash} from ./domain
-| condition(flag: Flag, choice: Int) -> True
-? explore hash_domain {{
-    over condition(flag, choice)
-    find matches
-    bounds {{ flag in values(Flag); choice in choices() }}
-    output {{ key [flag, choice] representative first }}
-}}
-"#
-        );
-        let artifacts = artifacts_with_dir(&source, &directory);
-        std::fs::remove_dir_all(&directory).ok();
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "{:?}",
-            artifacts.diagnostics
-        );
-        let universe = &artifacts.exploration_universes[0].universe;
-        assert_eq!(
-            universe.dimensions[0].domain.cardinality(),
-            ExploreCardinality::Exact(2)
-        );
-        assert!(matches!(
-            &universe.dimensions[1].domain,
-            ExploreExactDomain::Enumerated { values, .. }
-                if values == &vec![ExploreValue::Int(1), ExploreValue::Int(2)]
-        ));
-    }
-
-    #[test]
-    fn ambiguous_content_hash_imports_fail_closed() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_hash_ambiguity_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&directory).expect("create hash-ambiguity directory");
-        let imported = "> first() -> List(Int) { [1] }\n> second() -> List(Int) { [1] }\n";
-        std::fs::write(directory.join("domain.runa"), imported)
-            .expect("write hash-ambiguity fixture");
-        let statements = {
-            let mut lexer = Lexer::new(imported);
-            let tokens = lexer.tokenize();
-            Parser::new(tokens, imported)
-                .parse_program()
-                .expect("parse hash-ambiguity fixture")
-        };
-        let hashes = statements
-            .iter()
-            .filter_map(|statement| match statement {
-                Stmt::Defn(definition) => Some(content_hash_defn(definition)),
-                _ => None,
-            })
-            .collect::<Vec<_>>();
-        assert_eq!(hashes.len(), 2);
-        assert_eq!(hashes[0], hashes[1]);
-        let source = format!(
-            r#"
-@ import #{} from ./domain
-| condition(value: Int) -> True
-? explore ambiguous_hash {{
-    over condition(value)
-    find matches
-    bounds {{ value in [1] }}
-    output {{ key [value] representative first }}
-}}
-"#,
-            hashes[0]
-        );
-        let artifacts = artifacts_with_dir(&source, &directory);
-        std::fs::remove_dir_all(&directory).ok();
+        let artifacts = artifacts(invalid_members);
         assert!(artifacts.exploration_universes.is_empty());
         assert!(
             artifacts.diagnostics.iter().any(|diagnostic| diagnostic
                 .message
-                .contains("expected exactly one matching definition, found 2")),
+                .contains("member 1 does not have declared type")),
             "{:?}",
             artifacts.diagnostics
         );
-    }
 
-    #[test]
-    fn manifest_hash_import_uses_the_same_runtime_path_resolver() {
-        let directory = std::env::temp_dir().join(format!(
-            "futuruna_explore_manifest_hash_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        ));
-        let dependency = directory.join("vendor").join("rules");
-        std::fs::create_dir_all(&dependency).expect("create manifest dependency");
-        std::fs::write(
-            directory.join("runa.toml"),
-            "[package]\nname = \"root\"\n\n[dependencies]\ntaxlib = { path = \"./vendor/rules\" }\n",
-        )
-        .expect("write manifest");
-        let imported = "> imported_value() -> Int { 7 }\n";
-        std::fs::write(dependency.join("domain.runa"), imported)
-            .expect("write manifest dependency module");
-        let imported_statements = {
-            let mut lexer = Lexer::new(imported);
-            let tokens = lexer.tokenize();
-            Parser::new(tokens, imported)
-                .parse_program()
-                .expect("parse manifest dependency")
-        };
-        let hash = imported_statements
-            .iter()
-            .find_map(|statement| match statement {
-                Stmt::Defn(definition) => Some(content_hash_defn(definition)),
-                _ => None,
-            })
-            .expect("dependency function hash");
-        let source = format!(
-            "@ import #{} from taxlib/domain\n= imported_result = imported_value()\n",
-            hash
+        let reversed = ground_binding_value("= choices: List(Int) = range(3, 1)\n", "choices")
+            .expect_err("reversed range must fail closed");
+        assert!(reversed.contains("greater than end"), "{reversed}");
+
+        let oversized =
+            ground_binding_value("= choices: List(Int) = range(0, 1000001)\n", "choices")
+                .expect_err("oversized named range must fail closed");
+        assert!(
+            oversized.contains("exceeding materialization limit 1000000"),
+            "{oversized}"
         );
-        let mut lexer = Lexer::new(&source);
-        let tokens = lexer.tokenize();
-        let statements = Parser::new(tokens, &source)
-            .parse_program()
-            .expect("parse manifest hash-import program");
-        let mut interpreter = Interpreter::new();
-        interpreter.source_dir = Some(directory.to_string_lossy().to_string());
-        let mut environment = interpreter.default_env();
-        interpreter.run_program(&statements, &mut environment);
-        std::fs::remove_dir_all(&directory).ok();
-        assert!(matches!(
-            environment.get("imported_result"),
-            Some(Value::Int(7))
-        ));
     }
 
     #[test]
@@ -11522,47 +8955,5 @@ mod tests {
             &definitions,
         );
         assert_eq!(dependencies, BTreeSet::from(["later".to_string()]));
-    }
-
-    #[test]
-    fn values_rejects_forward_type_composition_and_indirect_rule_scopes() {
-        let fixtures = [
-            r#"
-# Combined = Base | Third
-# Base = First | Second
-| condition(value: Combined) -> True
-? explore forward_include {
-    over condition(value)
-    find matches
-    bounds { value in values(Combined) }
-    output { key [value] representative first }
-}
-"#,
-            r#"
-# Scope(flag: Bool) { | current() -> flag }
-# Combined = Scope | Closed
-| condition(value: Combined) -> True
-? explore nested_scope {
-    over condition(value)
-    find matches
-    bounds { value in values(Combined) }
-    output { key [value] representative first }
-}
-"#,
-        ];
-        for source in fixtures {
-            let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
-            assert!(
-                artifacts.diagnostics.iter().any(|diagnostic| {
-                    diagnostic
-                        .message
-                        .contains("already initialized declaration prefix")
-                        || diagnostic.message.contains("includes open rule scope")
-                }),
-                "{:?}",
-                artifacts.diagnostics
-            );
-        }
     }
 }

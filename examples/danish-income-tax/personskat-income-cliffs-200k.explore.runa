@@ -1,0 +1,405 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+First relational Personskat exploration audit.
+
+Question:
+For the explicitly conditioned 2026 profile below, which 100-DKK annual-salary
+grid transitions from 0 through 199,900 DKK leave modeled after-tax resources
+lower after a 100-DKK raise?
+
+Declared relation and coverage:
+- the exploration coordinate is every integer in 0..<2,000, where one unit is
+exactly 100 DKK of lower gross annual salary;
+- the successor is exactly one coordinate later, so the concrete transitions
+are 0 -> 100, 100 -> 200, ..., 199,900 -> 200,000 DKK;
+- municipality is Copenhagen;
+- church tax is not paid;
+- the person is an adult, single wage earner under standard tax and deficit
+treatment;
+- there is no commuting deduction, other employee deduction, capital income,
+share income, pension contribution, property tax, foreign social
+contribution, spouse transfer, carried tax position, or special tax regime.
+
+Every fixed profile choice below is a field of the FROM configuration except
+one known provenance debt: personskat_ingen_pension() fixes the birth date to
+1990-01-01. This audit therefore states that helper-conditioned fact explicitly
+as a coverage limitation; the next profile relation must promote it to a source
+field. This is an exact audit only of the declared conditioned coarse relation.
+It is not evidence for all communes, all encoded person profiles, or every
+1-DKK salary transition.
+
+The query screens 100-DKK endpoint cliffs cheaply while exercising the same
+FROM/TO/FIND, result, mechanism, durable pause and exact-closure path that later
+adaptive refinement and multidimensional audits will use. Its mechanism request
+targets selected cliff edges only. A nonselected edge is not replayed and may
+still contain a narrower mechanism boundary or 1-DKK cliff hidden by endpoint
+cancellation.
+
+Both endpoint calculations must pass the model's validity and reconciliation
+checks before the transition is admitted. Rejected transitions remain visible
+in the stream's admission accounting; they cannot silently become cliff cases.
+
+An exact empty selected population together with zero rejected transitions
+means exactly that no transition on this 100-DKK grid is harmful. If any
+transition is rejected, the no-cliff claim covers only the admitted relation
+and the exclusions remain explicit output. It does not prove the absence of a
+narrower cliff inside one of those intervals. A merely paused or
+hint-exhausted frontier is not a result: the coarse relation becomes exact only
+through proof-backed support closure or complete concrete
+relation/admission/FIND closure.
+
+A replay-derived mechanism signature is likewise exact for its 100-DKK
+Before/After endpoints. It may combine several rule changes within that
+interval; a later finer child relation can separate those changes.
+
+When cliffs exist, the audit publishes their exact concrete cases, the number
+of distinct successfully replayed mechanisms, and distinct mechanism/case
+incidence per 50-DKK loss bin. Replay-unavailable cases remain separately
+counted by the stream; a mechanism-derived view is not presented as complete
+while such terminals remain unresolved or unavailable. One mechanism may
+occur in several bins, so bin mechanism counts are not invented by dividing a
+retained case count and need not sum to the global mechanism count.
+----
+
+# Personskat200kAuditConfiguration(
+    skatteår: Heltal,
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    lønstigning_kroner: Heltal,
+    personfradrag_alder_status: PersonfradragAlderStatus,
+    har_anden_personlig_indkomst: Boolsk,
+    har_erhvervsbefordring: Boolsk,
+    har_ligningsfradrag: Boolsk,
+    har_pension: Boolsk,
+    har_kapitalindkomst: Boolsk,
+    har_aktieavance: Boolsk,
+    har_udenlandske_sociale_bidrag: Boolsk,
+    har_cfc_indkomst: Boolsk,
+    skatteforhold: PersonskatSkatteforholdInput,
+    underskudsforhold: PersonskatUnderskudsforholdInput,
+    har_ægtefælle: Boolsk,
+    har_ejendomsskatter: Boolsk,
+    har_fremført_negativ_aktieskat: Boolsk,
+    har_ligningslov33: Boolsk,
+    har_ligningslov33a: Boolsk,
+    har_årsopgørelse: Boolsk
+)
+
+# Personskat200kAuditObservation(
+    netto_øre: Heltal,
+    input_gyldigt: Boolsk
+)
+
+| personskat_200k_audit_configuration_understøttet(
+    context: Personskat200kAuditConfiguration
+) -> context.har_anden_personlig_indkomst == Falskt &&
+    context.lønstigning_kroner == 100 &&
+    context.har_erhvervsbefordring == Falskt &&
+    context.har_ligningsfradrag == Falskt &&
+    context.har_pension == Falskt &&
+    context.har_kapitalindkomst == Falskt &&
+    context.har_aktieavance == Falskt &&
+    context.har_udenlandske_sociale_bidrag == Falskt &&
+    context.har_cfc_indkomst == Falskt &&
+    context.har_ægtefælle == Falskt &&
+    context.har_ejendomsskatter == Falskt &&
+    context.har_fremført_negativ_aktieskat == Falskt &&
+    context.har_ligningslov33 == Falskt &&
+    context.har_ligningslov33a == Falskt &&
+    context.har_årsopgørelse == Falskt
+
+| personskat_200k_audit_lønmodtager(
+    context: Personskat200kAuditConfiguration,
+    bruttoløn_kroner: Heltal
+) -> PersonskatLønmodtagerInput(
+    skatteår = context.skatteår,
+    kommune = context.kommune,
+    bruttoløn_kroner = bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_ingen_pension(),
+    personfradrag_alder_status = context.personfradrag_alder_status,
+    betaler_kirkeskat = context.betaler_kirkeskat
+)
+
+| personskat_200k_audit_input(
+    context: Personskat200kAuditConfiguration,
+    bruttoløn_kroner: Heltal
+) -> PersonskatInput(
+    lønmodtager = personskat_200k_audit_lønmodtager(context, bruttoløn_kroner),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = context.skatteforhold,
+    underskudsforhold = context.underskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+> personskat_200k_audit_vurder(
+    bruttoløn_kroner: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> PersonskatBeregningResultat {
+    beregn_personskat(personskat_200k_audit_input(context, bruttoløn_kroner))
+}
+
+| personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+    bruttoløn_100_kroner_trin: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> bruttoløn_100_kroner_trin * context.lønstigning_kroner
+
+> personskat_200k_audit_vurder_100_kroner_trin(
+    bruttoløn_100_kroner_trin: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> PersonskatBeregningResultat {
+    personskat_200k_audit_vurder(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+            bruttoløn_100_kroner_trin,
+            context
+        ),
+        context
+    )
+}
+
+| personskat_200k_audit_udenlandske_sociale_bidrag_gyldige(
+    resultat: PersonskatUdenlandskeSocialeBidragResultat
+) -> match resultat {
+    | IngenUdenlandskeSocialeBidragEfterLigningslov8M -> Sandt
+    | BeregnetUdenlandskSocialbidragsfradrag(_, _, _, _, _, _) -> Sandt
+    | UgyldigtUdenlandskSocialbidragsgrundlag(_, _, _) -> Falskt
+}
+
+| personskat_200k_audit_kursgevinst_par32_gyldig(
+    resultat: PersonskatKursgevinstPar32ParResultat
+) -> match resultat {
+    | IntetPar32Kontraktforløb -> Sandt
+    | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt
+}
+
+| personskat_200k_audit_pension_gyldig(
+    resultat: PersonskatPensionsResultat
+) -> resultat.pensionsalder_resultat.input_gyldigt &&
+    resultat.pbl18_årsresultat.input_gyldigt &&
+    resultat.ambl_par2_stk1_nr5_resultat.input_gyldigt &&
+    resultat.udbetalingsresultat.aktuelle_input_gyldige &&
+    resultat.udbetalingsresultat.foregående_input_gyldige
+
+| personskat_200k_audit_resultatgrundlag_gyldigt(
+    resultat: PersonskatBeregningResultat
+) -> resultat.personlig_indkomst.alle_input_gyldige &&
+    resultat.erhvervsbefordring.alle_input_gyldige &&
+    resultat.ligningsfradrag.alle_input_gyldige &&
+    resultat.selvstændig_arbejdsmarkedsbidrag.input_gyldigt &&
+    resultat.kapitalindkomst.alle_input_gyldige &&
+    resultat.aktieavance.alle_input_gyldige &&
+    resultat.cfc.alle_input_gyldige &&
+    personskat_200k_audit_pension_gyldig(resultat.pension) &&
+    personskat_200k_audit_udenlandske_sociale_bidrag_gyldige(
+        resultat.udenlandske_sociale_bidrag
+    ) &&
+    personskat_200k_audit_kursgevinst_par32_gyldig(
+        resultat.kursgevinst_par32
+    ) &&
+    resultat.kildeskat25a.alle_input_gyldige &&
+    resultat.underskudsår.alle_åbningsgrundlag_gyldige &&
+    resultat.personskattelov13a.alle_kildegrundlag_gyldige &&
+    resultat.personskattelov13a.stk2_nedsættelser_stabile &&
+    resultat.aktieindkomst_parår.input_gyldigt &&
+    resultat.negativ_aktieindkomstskat.input_gyldigt &&
+    resultat.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige &&
+    resultat.ejendomsskatter.alle_input_gyldige &&
+    resultat.ejendomsskatter.regelgrundlag_understøttet &&
+    resultat.ligningslov33.input_gyldigt &&
+    resultat.ligningslov33a.input_gyldigt &&
+    resultat.kildeskat_par8a_kredit_input_gyldigt &&
+    resultat.kildeskat_ambl_par6_kredit_input_gyldigt &&
+    resultat.kildeskat_al40c_acontoskat_input_gyldigt &&
+    resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige
+
+| personskat_200k_audit_resultat_afstemt(
+    resultat: PersonskatBeregningResultat
+) -> resultat.sømandsbeskatning.input_gyldigt &&
+    resultat.sømandsbeskatning_eksakt.input_gyldigt &&
+    resultat.eksakt_ordinær_skat_efter_dis_øre ==
+    resultat.sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre &&
+    resultat.sømandsbeskatning_eksakt.indkomstskat_før_dis_lempelse_øre ==
+    resultat.hovedskat_eksakt.samlet_indkomstskat_øre &&
+    resultat.sømandsbeskatning_eksakt.arbejdsmarkedsbidrag_øre ==
+    resultat.hovedskat_eksakt.arbejdsmarkedsbidrag_øre
+
+| personskat_200k_audit_resultat_gyldigt(
+    resultat: PersonskatBeregningResultat
+) -> personskat_200k_audit_resultatgrundlag_gyldigt(resultat) &&
+    personskat_200k_audit_resultat_afstemt(resultat)
+
+| personskat_200k_audit_observation(
+    bruttoløn_kroner: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> {
+    = resultat = personskat_200k_audit_vurder(bruttoløn_kroner, context)
+    Personskat200kAuditObservation(
+        netto_øre = bruttoløn_kroner * 100 - resultat.slutskat_øre,
+        input_gyldigt = personskat_200k_audit_resultat_gyldigt(resultat)
+    )
+}
+
+| personskat_200k_audit_ressourcer_falder_ikke(
+    before: Heltal,
+    after: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> personskat_200k_audit_observation(after, context).netto_øre >=
+    personskat_200k_audit_observation(before, context).netto_øre
+
+| personskat_200k_audit_tab_øre(
+    before: Heltal,
+    after: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> personskat_200k_audit_observation(before, context).netto_øre -
+    personskat_200k_audit_observation(after, context).netto_øre
+
+| personskat_200k_audit_tab_50_kroner_bin_start_øre(
+    before: Heltal,
+    after: Heltal,
+    context: Personskat200kAuditConfiguration
+) -> personskat_200k_audit_tab_øre(before, after, context) / 5000 * 5000
+
+? explore personskat_income_cliffs_conditioned_100_dkk_grid_200k_2026 {
+    from {
+        context = Personskat200kAuditConfiguration(
+            skatteår = 2026,
+            kommune = København,
+            betaler_kirkeskat = Falskt,
+            lønstigning_kroner = 100,
+            personfradrag_alder_status = Fyldt18EllerGift,
+            har_anden_personlig_indkomst = Falskt,
+            har_erhvervsbefordring = Falskt,
+            har_ligningsfradrag = Falskt,
+            har_pension = Falskt,
+            har_kapitalindkomst = Falskt,
+            har_aktieavance = Falskt,
+            har_udenlandske_sociale_bidrag = Falskt,
+            har_cfc_indkomst = Falskt,
+            skatteforhold = StandardSkatteforhold,
+            underskudsforhold = StandardUnderskudsforhold,
+            har_ægtefælle = Falskt,
+            har_ejendomsskatter = Falskt,
+            har_fremført_negativ_aktieskat = Falskt,
+            har_ligningslov33 = Falskt,
+            har_ligningslov33a = Falskt,
+            har_årsopgørelse = Falskt
+        )
+        before in range(0, 2000)
+    }
+
+    to after = before + 1
+
+    where before personskat_200k_audit_configuration_understøttet(context) &&
+    personskat_200k_audit_observation(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+        context
+    ).input_gyldigt
+    where after personskat_200k_audit_observation(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+        context
+    ).input_gyldigt
+
+    find violations of personskat_200k_audit_ressourcer_falder_ikke(
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+        personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+        context
+    )
+
+    results cliffs from selected {
+        each case
+        measure [
+            loss_ore = personskat_200k_audit_tab_øre(
+                personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+                personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+                context
+            )
+        ]
+        select [
+            case_id,
+            configuration = context,
+            tax_year = context.skatteår,
+            commune = context.kommune,
+            pays_church_tax = context.betaler_kirkeskat,
+            raise_kroner = context.lønstigning_kroner,
+            gross_salary_before_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                before,
+                context
+            ),
+            gross_salary_after_kroner = personskat_200k_audit_løntrin_til_bruttoløn_kroner(
+                after,
+                context
+            ),
+            loss_ore
+        ]
+    }
+
+    results case_summary from selected {
+        group all
+        aggregate [
+            cases = count_distinct(case_id)
+        ]
+        select [cases]
+    }
+
+    results conditioned_profile_summary from sources {
+        group by [
+            configuration = context,
+            tax_year = context.skatteår,
+            commune = context.kommune,
+            pays_church_tax = context.betaler_kirkeskat,
+            raise_kroner = context.lønstigning_kroner
+        ]
+        aggregate [
+            income_coordinates = count_distinct(before)
+        ]
+        select [
+            configuration,
+            tax_year,
+            commune,
+            pays_church_tax,
+            raise_kroner,
+            income_coordinates
+        ]
+    }
+
+    mechanisms cliff_paths for selected from personskat_200k_audit_vurder_100_kroner_trin
+
+    results mechanism_summary from mechanisms cliff_paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            execution_profiles = count_distinct(execution_profile_id),
+            raw_signatures = count_distinct(signature_id),
+            explained_cases = count_distinct(case_id)
+        ]
+        select [mechanisms, execution_profiles, raw_signatures, explained_cases]
+    }
+
+    results loss_bins_50_dkk from mechanisms cliff_paths {
+        group by [
+            bin_start_ore = personskat_200k_audit_tab_50_kroner_bin_start_øre(
+                personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
+                personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
+                context
+            )
+        ]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            raw_signatures = count_distinct(signature_id),
+            cases = count_distinct(case_id)
+        ]
+        select [bin_start_ore, mechanisms, raw_signatures, cases]
+    }
+}

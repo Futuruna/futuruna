@@ -1,0 +1,2141 @@
+//! Public invocation/report boundary for the resumable relational Explore engine.
+//!
+//! The durable journal is the source of truth.  This adapter checks and binds
+//! one query, advances its semantic stream under the resource envelope, and
+//! projects only compact counters, including how many result records this
+//! invocation appended. It deliberately does not clone the complete relation
+//! merely to print a checkpoint.
+
+use std::collections::BTreeSet;
+use std::num::NonZeroU64;
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+
+use crate::{
+    calculate, walk_ast_stmt, AstChild, CheckedExploreAnalysisIdentity,
+    CheckedExploreCoverageBindingRole, CheckedExploreCoverageClassification,
+    CheckedExploreCoverageGapReason, CheckedExploreCoverageLiteralKind,
+    CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryView,
+    CheckedExploreSourceCoverageManifest, Diagnostic, ExploreAdmissionScope, Expr,
+    OwnedCheckedExploreQuery, Stmt, Ty, TypeCheckArtifacts, TypeChecker,
+};
+
+use super::mechanism_incidence::MechanismCountEvidence;
+use super::relation::AdmissionDecision;
+use super::relational_analysis_catalog::{
+    RelationalAnalysisLayerSnapshot, RelationalAnalysisLayerStatus,
+    RelationalResultLayerSnapshotState,
+};
+use super::relational_analysis_plan::{RelationalAnalysisLayerId, RelationalAnalysisPlan};
+use super::relational_durable_journal::{RelationalDurableJournal, RelationalDurableJournalLimits};
+use super::relational_interpreter_mechanism::{
+    checked_ground_definitions, RelationalInterpreterMechanismReplayRuntime,
+};
+use super::relational_journal::{RelationalJournal, RelationalJournalContract};
+use super::relational_native_classifier::{
+    RelationalNativeClassifierProtocolV2, RelationalNativeClassifierV2,
+};
+use super::relational_result_publication::{
+    publish_relational_result_artifacts, RelationalPublicationLimits, RelationalPublicationPlan,
+};
+use super::relational_stream_driver::{
+    RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuiescence,
+};
+use super::relational_stream_run_loop::{
+    run_relational_stream_slice_with_resources, ExactStreamOuterContainmentReceipt,
+    RelationalBaseQuantumController, RelationalStreamSliceBudget, RelationalStreamSliceOutcome,
+    RelationalStreamSlicePauseReason,
+};
+use super::relational_support_planner::statically_evaluate_checked_int_range;
+use super::stream_resource::ExactStreamOneWorkerEnvelope;
+use super::{
+    ExploreAnalysisNodeIr, ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismTargetIr,
+    ExploreSourceBindingKindIr, ExploreSuccessorKindIr, RelationalInterpreterExpressionRuntime,
+    RelationalSupportPlan, RelationalSupportPlanner,
+};
+
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 3;
+
+/// Operational proof carried by a CLI slice that is already enclosed by the
+/// validated process-group supervisor.
+///
+/// These limits do not change query identity or durable semantics. They let
+/// the inner one-worker governor charge a bounded stream quantum while the
+/// outer layer independently enforces the epoch-wide Rust-heap ceiling and
+/// retains room for stacks, FFI/mappings, host memory and process-group
+/// containment. Supplying
+/// this value without actually installing and monitoring the described
+/// envelope violates the execution contract; ordinary library callers should
+/// leave `outer_containment` as `None`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExploreStreamOuterContainment {
+    pub rust_heap_limit_bytes: NonZeroU64,
+    pub untracked_memory_reserve_bytes: NonZeroU64,
+    pub group_rss_limit_bytes: NonZeroU64,
+    pub available_memory_floor_bytes: NonZeroU64,
+}
+
+/// Operational controls for one append-only Explore invocation.
+///
+/// Neither field participates in semantic identity.  A later invocation may
+/// resume the same run directory with a different time budget.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamSliceOptions {
+    pub run_state: PathBuf,
+    /// Optional crash-resumable public materialization. This must be a
+    /// separate directory from the authoritative run-state tree.
+    pub output_directory: Option<PathBuf>,
+    pub max_runtime: Option<Duration>,
+    /// Fresh operational authority for this process invocation only. It is
+    /// reacquired on every resume and is never written to the semantic journal.
+    pub outer_containment: Option<ExploreStreamOuterContainment>,
+}
+
+/// Paths and process-local authority retained by one warm Explore epoch.
+///
+/// An epoch owns the durable writer fence until it is dropped. Logical slice
+/// budgets remain per-call so a prepared worker can pause and continue without
+/// repeating checking or replay-catalog construction.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamEpochOptions {
+    pub run_state: PathBuf,
+    pub output_directory: Option<PathBuf>,
+    pub outer_containment: Option<ExploreStreamOuterContainment>,
+}
+
+/// Immutable checked preparation plus process-local evaluator caches.
+///
+/// This is intentionally an in-memory artifact. Durable resumption is still
+/// authorized by the journal; serializing compiler heap layout is not part of
+/// this contract.
+pub struct PreparedRelationalExplore {
+    checked: Box<OwnedCheckedExploreQuery>,
+    support_plan: RelationalSupportPlan,
+    contract: RelationalJournalContract,
+    publication_plan: RelationalPublicationPlan,
+    expression_runtime: RelationalInterpreterExpressionRuntime,
+    mechanism_runtime: RelationalInterpreterMechanismReplayRuntime,
+    native_classifier_plan: Option<ExploreNativeClassifierPlanV2>,
+    native_classifier_shape_v2: bool,
+    native_classifier: Option<RelationalNativeClassifierV2>,
+    preparation_wall_time: Duration,
+}
+
+/// Producer-bound semantic identity embedded in a native classifier.
+///
+/// A classifier may return only ordered outcome tags for this exact identity;
+/// the relational coordinator remains the sole producer of source/case IDs,
+/// transcripts, evidence, and journal events.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExploreNativeClassifierIdentityV2 {
+    pub checked_program: [u8; 32],
+    pub relation_id: [u8; 32],
+    pub admission_id: [u8; 32],
+    pub question_id: [u8; 32],
+}
+
+/// One normalized scoped-WHERE predicate in authored/canonical order.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct ExploreNativeClassifierAdmissionV2 {
+    pub scope: ExploreAdmissionScope,
+    pub predicate: Expr,
+}
+
+/// The normalized FIND operation supported by native classifier V2.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub enum ExploreNativeClassifierFindV2 {
+    All,
+    Matches { predicate: Expr },
+    Violations { predicate: Expr },
+}
+
+/// One checked source binding reconstructed by native classifier V2.
+///
+/// Independent finite integer ranges become function inputs. Singleton
+/// bindings retain their checked expression and are replayed in authored
+/// source order, so derived records such as a profile and composite `Before`
+/// state retain exactly the checked relation semantics.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct ExploreNativeClassifierSourceBindingV2 {
+    pub binding_index: usize,
+    pub name: String,
+    pub ty: Ty,
+    pub kind: ExploreNativeClassifierSourceBindingKindV2,
+}
+
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub enum ExploreNativeClassifierSourceBindingKindV2 {
+    FiniteIntInput,
+    Singleton { value: Expr },
+}
+
+/// Classification-only compiler input for native classifier V2.
+///
+/// V2 accepts one or more independent, statically bounded `Int` ranges mixed
+/// with ordered singleton/derived source bindings, followed by a singleton
+/// successor, scoped admissions, and All/Matches/Violations FIND. Finite
+/// values are operational accelerator inputs only: they never become CaseIds,
+/// source identities, transcript coordinates, or journal evidence.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct ExploreNativeClassifierPlanV2 {
+    pub identity: ExploreNativeClassifierIdentityV2,
+    pub source_bindings: Box<[ExploreNativeClassifierSourceBindingV2]>,
+    pub finite_input_binding_indices: Box<[usize]>,
+    pub finite_coordinate_count: u128,
+    pub after_binding_name: String,
+    pub after_ty: Ty,
+    pub successor_value: Expr,
+    pub admissions: Box<[ExploreNativeClassifierAdmissionV2]>,
+    pub find: ExploreNativeClassifierFindV2,
+    /// Frozen constructor-normalized declarations accepted by the same
+    /// checked-program boundary that minted `identity`. The sidecar compiler
+    /// must consume this snapshot and must not resolve authored imports again.
+    pub checked_declarations: Box<[Stmt]>,
+    pub compile_time_metadata_bindings: BTreeSet<String>,
+}
+
+impl PreparedRelationalExplore {
+    pub const fn preparation_wall_time(&self) -> Duration {
+        self.preparation_wall_time
+    }
+
+    /// Return query-bound native-classifier input only when the checked,
+    /// normalized relation has the exact V2 shape.
+    ///
+    /// `None` disables the optimization. Exact stream execution remains
+    /// available through the checked interpreter and must never approximate an
+    /// unsupported query into this plan.
+    #[doc(hidden)]
+    pub fn take_native_classifier_plan_v2(&mut self) -> Option<ExploreNativeClassifierPlanV2> {
+        self.native_classifier_plan.take()
+    }
+
+    /// Install a query-bound operational classifier for subsequent epoch
+    /// slices.
+    ///
+    /// The executable receives no direct evidence-writing authority. Protocol
+    /// validation and the interpreter canary are fail-closed checks for
+    /// accidental incompatibility; they do not authenticate the executable or
+    /// prove that its classifications implement the checked query.
+    ///
+    /// # Safety
+    ///
+    /// `executable` must be a trusted artifact compiled from the frozen
+    /// [`ExploreNativeClassifierPlanV2`] produced by this prepared query. For
+    /// every accepted V2 request it must return exactly the ordered admission
+    /// and FIND outcomes of Futuruna's checked evaluator for the identity in
+    /// that plan. The caller must also ensure that the path continues to name
+    /// those exact executable bytes for the lifetime of every epoch opened
+    /// from this preparation; it must not be replaced or have a symlink
+    /// retargeted after installation. The process executes with the caller's
+    /// operating-system privileges.
+    ///
+    /// Violating this contract can mint false exact exploration evidence. The
+    /// echoed identity and first-batch parity canary are not substitutes for
+    /// this trust requirement.
+    #[doc(hidden)]
+    pub unsafe fn install_native_classifier_executable_v2(
+        &mut self,
+        executable: PathBuf,
+    ) -> Result<(), ExploreStreamPreparationError> {
+        if !self.native_classifier_shape_v2 {
+            return Err(ExploreStreamPreparationError::Execution(
+                "selected exploration does not have the native classifier V2 shape".into(),
+            ));
+        }
+        let native =
+            RelationalNativeClassifierV2::for_checked_query(executable, &self.checked.view())
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        self.native_classifier = Some(native);
+        Ok(())
+    }
+
+    pub fn open_epoch(
+        self,
+        options: ExploreStreamEpochOptions,
+    ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
+        validate_epoch_options(&options)?;
+        let outer_containment = exact_stream_outer_containment(options.outer_containment)?;
+        let resources = ExactStreamOneWorkerEnvelope::new_with_outer_containment(outer_containment)
+            .map_err(|reason| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "cannot initialize Explore resource envelope: {}",
+                    reason.code()
+                ))
+            })?;
+        let durable = RelationalDurableJournal::open_or_create(
+            &options.run_state,
+            self.contract,
+            RelationalDurableJournalLimits::default(),
+        )
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        Ok(RelationalExploreEpoch {
+            prepared: self,
+            durable,
+            options,
+            base_quantum_controller: RelationalBaseQuantumController::default(),
+            resources,
+        })
+    }
+}
+
+fn native_classifier_plan_v2_from_checked(
+    checked: &CheckedExploreQueryView<'_>,
+    checked_declarations: Box<[Stmt]>,
+    compile_time_metadata_bindings: BTreeSet<String>,
+) -> Option<ExploreNativeClassifierPlanV2> {
+    let query = checked.closed_query;
+    query.validate().ok()?;
+    if query.source.bindings.is_empty() {
+        return None;
+    }
+
+    let mut source_bindings = Vec::with_capacity(query.source.bindings.len());
+    let mut finite_input_binding_indices = Vec::new();
+    let mut finite_coordinate_count = 1u128;
+    for (position, binding) in query.source.bindings.iter().enumerate() {
+        if binding.binding_index != position || binding.name.is_empty() {
+            return None;
+        }
+        let kind = match &binding.kind {
+            ExploreSourceBindingKindIr::Finite { domain } => {
+                if !binding.dependencies.is_empty()
+                    || !native_classifier_int_ty(&binding.value_ty)
+                    || !matches!(domain, ExploreFiniteDomainIr::IntRange { .. })
+                {
+                    return None;
+                }
+                let cardinality = statically_evaluate_checked_int_range(domain)
+                    .ok()
+                    .flatten()?
+                    .cardinality();
+                if cardinality == 0 {
+                    return None;
+                }
+                finite_coordinate_count = finite_coordinate_count.checked_mul(cardinality)?;
+                finite_input_binding_indices.push(binding.binding_index);
+                ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput
+            }
+            ExploreSourceBindingKindIr::Singleton { value } => {
+                ExploreNativeClassifierSourceBindingKindV2::Singleton {
+                    value: value.clone(),
+                }
+            }
+        };
+        source_bindings.push(ExploreNativeClassifierSourceBindingV2 {
+            binding_index: binding.binding_index,
+            name: binding.name.clone(),
+            ty: binding.value_ty.clone(),
+            kind,
+        });
+    }
+    if finite_input_binding_indices.is_empty()
+        || finite_input_binding_indices.len()
+            > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
+    {
+        return None;
+    }
+    let ExploreSuccessorKindIr::Singleton {
+        value: successor_value,
+    } = &query.successor.kind
+    else {
+        return None;
+    };
+
+    let find = match &query.find {
+        ExploreFindIr::All { .. } => ExploreNativeClassifierFindV2::All,
+        ExploreFindIr::Matches { predicate, .. } => ExploreNativeClassifierFindV2::Matches {
+            predicate: predicate.clone(),
+        },
+        ExploreFindIr::Violations { predicate, .. } => ExploreNativeClassifierFindV2::Violations {
+            predicate: predicate.clone(),
+        },
+    };
+    let checked_program = decode_lowercase_sha256(checked.program_hash())?;
+
+    Some(ExploreNativeClassifierPlanV2 {
+        identity: ExploreNativeClassifierIdentityV2 {
+            checked_program,
+            relation_id: checked.relation_id().bytes(),
+            admission_id: checked.admission_id().bytes(),
+            question_id: checked.question_id().bytes(),
+        },
+        source_bindings: source_bindings.into_boxed_slice(),
+        finite_input_binding_indices: finite_input_binding_indices.into_boxed_slice(),
+        finite_coordinate_count,
+        after_binding_name: "after".to_string(),
+        after_ty: query.successor.after_ty.clone(),
+        successor_value: successor_value.clone(),
+        admissions: query
+            .admissions
+            .iter()
+            .map(|admission| ExploreNativeClassifierAdmissionV2 {
+                scope: admission.scope,
+                predicate: admission.predicate.clone(),
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
+        find,
+        checked_declarations,
+        compile_time_metadata_bindings,
+    })
+}
+
+/// Clone only the compiler-proven declaration occurrences reachable from this
+/// query's FROM/TO, WHERE, and FIND layers. Imports have already been
+/// normalized into canonical checked-program order. Any import left inside a
+/// retained nested declaration would make codegen capable of rereading the
+/// filesystem, so V2 declines that optimization. Raw Rust and external
+/// dependencies are also outside this exact classifier boundary.
+fn native_classifier_checked_declarations(
+    artifacts: &TypeCheckArtifacts,
+    checked: &CheckedExploreQueryView<'_>,
+) -> Option<Box<[Stmt]>> {
+    let declarations = match artifacts.checked_explore_classifier_declarations_v1(checked) {
+        Ok(declarations) => declarations,
+        Err(error) => {
+            if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!("Explore native classifier declaration slice unavailable: {error}");
+            }
+            return None;
+        }
+    };
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+        eprintln!(
+            "Explore native classifier declaration slice: {} statements",
+            declarations.len()
+        );
+    }
+    for statement in declarations.iter() {
+        let mut unsupported = false;
+        walk_ast_stmt(statement, &mut |child| {
+            let AstChild::Stmt(statement) = child else {
+                return;
+            };
+            if matches!(
+                statement,
+                Stmt::Import(_)
+                    | Stmt::QualifiedImport(_, _)
+                    | Stmt::HashImport(_, _)
+                    | Stmt::Depend(_, _)
+                    | Stmt::RustBlock(_)
+            ) {
+                unsupported = true;
+            }
+        });
+        if unsupported {
+            return None;
+        }
+    }
+    Some(declarations)
+}
+
+fn native_classifier_int_ty(ty: &Ty) -> bool {
+    matches!(ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Heltal"))
+}
+
+fn decode_lowercase_sha256(value: &str) -> Option<[u8; 32]> {
+    if value.len() != 64
+        || value
+            .as_bytes()
+            .iter()
+            .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+    {
+        return None;
+    }
+    let mut digest = [0u8; 32];
+    for (index, output) in digest.iter_mut().enumerate() {
+        let offset = index * 2;
+        *output = u8::from_str_radix(&value[offset..offset + 2], 16).ok()?;
+    }
+    Some(digest)
+}
+
+/// One open, exclusively owned durable stream that can execute many slices.
+pub struct RelationalExploreEpoch {
+    prepared: PreparedRelationalExplore,
+    durable: RelationalDurableJournal,
+    options: ExploreStreamEpochOptions,
+    base_quantum_controller: RelationalBaseQuantumController,
+    /// One operational governor for the whole warm process epoch. Recreating
+    /// it at each observable slice would discard the checked stable window and
+    /// repeatedly spend semantic time re-establishing the same host facts.
+    resources: ExactStreamOneWorkerEnvelope,
+}
+
+/// A cardinality at the current durable frontier.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCount {
+    Unknown {
+        confirmed_lower_bound: u128,
+    },
+    LowerBound(u128),
+    Interval {
+        lower_bound: u128,
+        upper_bound: u128,
+    },
+    Exact(u128),
+}
+
+impl ExploreStreamCount {
+    pub const fn current(self) -> u128 {
+        match self {
+            Self::Unknown {
+                confirmed_lower_bound,
+            } => confirmed_lower_bound,
+            Self::LowerBound(value) | Self::Exact(value) => value,
+            Self::Interval { lower_bound, .. } => lower_bound,
+        }
+    }
+
+    pub const fn is_exact(self) -> bool {
+        matches!(self, Self::Exact(_))
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamMechanismTarget {
+    Selected,
+    ChosenView { view_id: String },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExploreStreamMechanismSupportTotals {
+    pub target_cases: u128,
+    pub successful_cases: u128,
+    pub unavailable_cases: u128,
+    pub signature_fibers: u128,
+    /// Exact size of the sealed target's starter projection. This is only a
+    /// conservative upper bound for any individual structural subject.
+    pub target_starters: u128,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamIdentity {
+    pub checked_program: String,
+    pub relation_id: String,
+    pub admission_id: String,
+    pub question_id: String,
+    pub analysis_graph_digest: String,
+    pub journal_id: String,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageRootRole {
+    Context,
+    Before,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageBindingRole {
+    Auxiliary,
+    Context,
+    Before,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageLiteralKind {
+    Integer,
+    FloatBits,
+    String,
+    Character,
+    Boolean,
+    Unit,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageGapReason {
+    SchemaNotDeclaredRecord,
+    SchemaCompositionUnavailable,
+    InterproceduralFieldProvenance,
+    ConstructorFieldMappingUnavailable,
+    ConstructorChoiceProvenanceUnavailable,
+    UpstreamCoverageGap,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageSubject {
+    SourceBinding {
+        binding_index: usize,
+        binding_name: String,
+        role: ExploreStreamCoverageBindingRole,
+    },
+    SchemaRoot {
+        role: ExploreStreamCoverageRootRole,
+        type_name: String,
+    },
+    SchemaField {
+        role: ExploreStreamCoverageRootRole,
+        variant_index: usize,
+        field_index: usize,
+        variant_name: String,
+        field_name: String,
+    },
+    Literal {
+        kind: ExploreStreamCoverageLiteralKind,
+        value: String,
+    },
+    TopLevelConstant {
+        addresses: Vec<String>,
+    },
+    ConstructorChoice {
+        owner_name: String,
+        variant_name: String,
+        variant_index: usize,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamCoverageClassification {
+    VariedFiniteDimension {
+        dimension_id: String,
+    },
+    DerivedFromDeclaredDimensions {
+        dimension_ids: Vec<String>,
+    },
+    ConditionedSingletonOrSourceRestriction,
+    ExactIrrelevanceCertificate {
+        certificate_digest: String,
+    },
+    CoverageGap {
+        reason: ExploreStreamCoverageGapReason,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamCoverageEntry {
+    pub subject_id: String,
+    pub subject: ExploreStreamCoverageSubject,
+    pub classification: ExploreStreamCoverageClassification,
+}
+
+/// Producer-owned account of which source/profile dimensions this query
+/// varies, conditions, derives, proves irrelevant, or cannot yet cover.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamSourceCoverage {
+    pub version: u32,
+    pub manifest_digest: String,
+    pub semantic_dependency_digest: String,
+    pub has_gaps: bool,
+    pub entries: Vec<ExploreStreamCoverageEntry>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamLifecycle {
+    Paused,
+    Complete,
+}
+
+/// Honest reason why a resumable invocation returned before semantic closure.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamPauseReason {
+    RuntimeLimit,
+    ResourceAdmission {
+        code: String,
+    },
+    MechanismReplay {
+        request_id: String,
+        case_id: String,
+        endpoint: String,
+        reason: String,
+    },
+    AwaitingChosenViewMechanisms {
+        request_id: String,
+        view_id: String,
+    },
+    AwaitingSourceResult {
+        view_id: String,
+    },
+    AwaitingMechanismIncidenceResult {
+        view_id: String,
+        request_id: String,
+    },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamCheckpoint {
+    pub next_sequence: u64,
+    /// Append-only commitment to the complete durable evidence prefix.
+    pub journal_head: String,
+    pub durable_segment_count: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamPopulationCounts {
+    pub sources: ExploreStreamCount,
+    pub cases: ExploreStreamCount,
+    pub admission_classified: ExploreStreamCount,
+    pub admitted: ExploreStreamCount,
+    pub rejected: ExploreStreamCount,
+    pub find_classified: ExploreStreamCount,
+    pub selected: ExploreStreamCount,
+    pub not_selected: ExploreStreamCount,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamLayerStatus {
+    ResultUnregistered,
+    ResultInputOpen,
+    ResultAwaitingPublication,
+    ResultPublished,
+    MechanismUnregistered,
+    MechanismTargetOpen,
+    MechanismTerminalOpen,
+    MechanismClosed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamResultLayer {
+    pub name: String,
+    pub view_id: String,
+    pub status: ExploreStreamLayerStatus,
+    pub input_rows: ExploreStreamCount,
+    pub projection_records: ExploreStreamCount,
+    /// Number of bounded records appended during this invocation. Their
+    /// values remain in the journal-owned projection and can be copied to
+    /// NDJSON by a separate cursor without materializing one report array.
+    pub projection_records_appended: u128,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamMechanismLayer {
+    pub name: String,
+    pub request_id: String,
+    pub target: ExploreStreamMechanismTarget,
+    pub status: ExploreStreamLayerStatus,
+    pub target_cases: ExploreStreamCount,
+    pub terminal_cases: ExploreStreamCount,
+    pub incidence_cases: ExploreStreamCount,
+    pub unavailable_cases: ExploreStreamCount,
+    pub raw_signatures: ExploreStreamCount,
+    pub structural_assignments: ExploreStreamCount,
+    pub structural_mechanisms: ExploreStreamCount,
+    pub execution_profiles: ExploreStreamCount,
+    pub raw_closure_root: Option<String>,
+    pub structural_closure_root: Option<String>,
+    pub support_closure_root: Option<String>,
+    pub support_closure_totals: Option<ExploreStreamMechanismSupportTotals>,
+}
+
+/// Bounded materialization progress for the optional public result directory.
+///
+/// Semantic completion and publication catch-up are deliberately separate:
+/// the journal may already be exact while a large NDJSON view is still being
+/// copied in resumable batches.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamPublication {
+    pub output_directory: PathBuf,
+    pub manifest_path: PathBuf,
+    pub lines_appended: u64,
+    pub source_ordinals_advanced: u64,
+    pub artifacts_caught_up: usize,
+    pub artifact_count: usize,
+}
+
+impl ExploreStreamPublication {
+    pub const fn is_caught_up(&self) -> bool {
+        self.artifacts_caught_up == self.artifact_count
+    }
+}
+
+/// Invocation-local acceleration telemetry. The observer memo is never part
+/// of the semantic journal, checkpoint, or result identity; these counters
+/// only make it possible to verify that a large exact run is avoiding
+/// redundant adjacent endpoint evaluation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExploreStreamObserverMemoStats {
+    pub enabled: bool,
+    pub hits: u64,
+    pub misses: u64,
+    pub inserts: u64,
+    pub evictions: u64,
+    pub entries: usize,
+    pub retained_canonical_bytes: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamLayer {
+    Result(ExploreStreamResultLayer),
+    Mechanisms(ExploreStreamMechanismLayer),
+}
+
+/// Compact observation of one durable Explore prefix.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamSliceReport {
+    pub schema_version: u32,
+    pub query_name: String,
+    pub identity: ExploreStreamIdentity,
+    pub source_coverage: ExploreStreamSourceCoverage,
+    pub lifecycle: ExploreStreamLifecycle,
+    pub pause_reason: Option<ExploreStreamPauseReason>,
+    pub checkpoint: ExploreStreamCheckpoint,
+    pub semantic_batches_appended: u64,
+    pub semantic_events_appended: u64,
+    pub observer_memo: ExploreStreamObserverMemoStats,
+    pub relation_closed: bool,
+    pub find_closed: bool,
+    pub analysis_closed: bool,
+    pub counts: ExploreStreamPopulationCounts,
+    pub analysis_scope_root: Option<String>,
+    pub analysis_terminal_root: Option<String>,
+    pub analysis_closure_set_root: Option<String>,
+    pub layers: Vec<ExploreStreamLayer>,
+    pub publication: Option<ExploreStreamPublication>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ExploreStreamPreparationError {
+    Diagnostics(Vec<Diagnostic>),
+    Selection(String),
+    Execution(String),
+}
+
+impl std::fmt::Display for ExploreStreamPreparationError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Diagnostics(diagnostics) => write!(
+                formatter,
+                "exploration has {} type-check diagnostic{}",
+                diagnostics.len(),
+                if diagnostics.len() == 1 { "" } else { "s" }
+            ),
+            Self::Selection(message) | Self::Execution(message) => formatter.write_str(message),
+        }
+    }
+}
+
+impl std::error::Error for ExploreStreamPreparationError {}
+
+/// Compatibility wrapper for one cold preparation and one durable slice.
+pub fn execute_checked_relational_stream_slice(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+    options: ExploreStreamSliceOptions,
+) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
+    let ExploreStreamSliceOptions {
+        run_state,
+        output_directory,
+        max_runtime,
+        outer_containment,
+    } = options;
+    let epoch_options = ExploreStreamEpochOptions {
+        run_state,
+        output_directory,
+        outer_containment,
+    };
+    validate_epoch_options(&epoch_options)?;
+    let prepared = prepare_checked_relational_stream(statements, source_dir, source, query_name)?;
+    let mut epoch = prepared.open_epoch(epoch_options)?;
+    epoch.run_slice(max_runtime)
+}
+
+/// Check and lower one selected query into a reusable in-memory worker epoch.
+pub fn prepare_checked_relational_stream(
+    statements: &[Stmt],
+    source_dir: Option<String>,
+    source: &str,
+    query_name: Option<&str>,
+) -> Result<PreparedRelationalExplore, ExploreStreamPreparationError> {
+    let started = Instant::now();
+    trace_preparation_phase(started, "begin");
+    let artifacts =
+        TypeChecker::check_with_explore_artifacts(statements, source_dir.clone(), source);
+    trace_preparation_phase(started, "checked program");
+    if !artifacts.diagnostics.is_empty() {
+        return Err(ExploreStreamPreparationError::Diagnostics(
+            artifacts.diagnostics,
+        ));
+    }
+    artifacts
+        .validate_checked_runtime_entry_v1(statements, source_dir.as_deref())
+        .map_err(ExploreStreamPreparationError::Execution)?;
+    trace_preparation_phase(started, "validated runtime snapshot");
+
+    let selected = select_checked_relational_query_index(&artifacts, query_name)?;
+    let (checked, observer_memo_plan, mechanism_memo_plan) = artifacts
+        .checked_exploration_query_with_memo_plans(selected)
+        .map_err(|error| {
+            ExploreStreamPreparationError::Execution(format!(
+                "checked exploration boundary is unavailable: {error:?}"
+            ))
+        })?;
+    trace_preparation_phase(started, "validated query and memo plan");
+    // Heap allocation makes every checked-query expression address stable for
+    // the lifetime of the prepared epoch. The expression runtime uses those
+    // addresses only as process-local lookup keys.
+    let owned_checked = Box::new(checked.to_owned_checked_query());
+    trace_preparation_phase(started, "owned selected query");
+    let (catalog, definitions) = checked_expression_runtime_inputs(&artifacts)?;
+    trace_preparation_phase(started, "rebuilt interpreter inputs");
+    let catalog = Arc::new(catalog);
+    let definitions = Arc::new(definitions);
+    let mechanism_runtime = RelationalInterpreterMechanismReplayRuntime::from_checked_definitions(
+        &artifacts,
+        &checked,
+        Arc::clone(&definitions),
+        mechanism_memo_plan,
+    )
+    .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    trace_preparation_phase(started, "built request mechanism catalog");
+    let native_classifier_plan = native_classifier_checked_declarations(&artifacts, &checked)
+        .and_then(|checked_declarations| {
+            native_classifier_plan_v2_from_checked(
+                &checked,
+                checked_declarations,
+                artifacts.compile_time_metadata_bindings.clone(),
+            )
+        });
+    let native_classifier_shape_v2 = native_classifier_plan.is_some();
+    trace_preparation_phase(started, "froze native classifier input");
+    drop(artifacts);
+    trace_preparation_phase(started, "released checking artifacts");
+
+    let checked = owned_checked.view();
+    let support_plan = RelationalSupportPlanner::from_checked(&checked)
+        .and_then(|planner| planner.plan())
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    trace_preparation_phase(started, "planned support");
+    let analysis_plan = RelationalAnalysisPlan::from_checked(&checked)
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    trace_preparation_phase(started, "planned analysis");
+    let expression_runtime = RelationalInterpreterExpressionRuntime::new(
+        Arc::clone(&catalog),
+        definitions.as_ref(),
+        checked.closed_query,
+        observer_memo_plan,
+    )
+    .map_err(ExploreStreamPreparationError::Execution)?;
+    trace_preparation_phase(started, "built warm expression runtime");
+    let contract = RelationalJournalContract::new(
+        checked.relation_id(),
+        checked.admission_id(),
+        checked.question_id(),
+        analysis_plan.producer_graph_digest().bytes(),
+    );
+    let publication_plan = RelationalPublicationPlan::from_checked(&checked, contract)
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    trace_preparation_phase(started, "prepared publication");
+    Ok(PreparedRelationalExplore {
+        checked: owned_checked,
+        support_plan,
+        contract,
+        publication_plan,
+        expression_runtime,
+        mechanism_runtime,
+        native_classifier_plan,
+        native_classifier_shape_v2,
+        native_classifier: None,
+        preparation_wall_time: started.elapsed(),
+    })
+}
+
+fn trace_preparation_phase(started: Instant, phase: &str) {
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+        eprintln!(
+            "Explore preparation: {phase}; elapsed={}ms",
+            started.elapsed().as_millis()
+        );
+    }
+}
+
+impl RelationalExploreEpoch {
+    /// Advance one logical slice while retaining preparation, evaluator memo,
+    /// mechanism caches, and the durable writer fence for the next call.
+    pub fn run_slice(
+        &mut self,
+        max_runtime: Option<Duration>,
+    ) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
+        let budget = RelationalStreamSliceBudget::new(max_runtime)
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+
+        let PreparedRelationalExplore {
+            checked,
+            support_plan,
+            contract: _,
+            publication_plan,
+            expression_runtime,
+            mechanism_runtime,
+            native_classifier_plan: _,
+            native_classifier_shape_v2: _,
+            native_classifier,
+            preparation_wall_time: _,
+        } = &mut self.prepared;
+        let checked = checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_native_classifier(
+            &checked,
+            support_plan,
+            RelationalStreamDriverLimits::default(),
+            native_classifier.clone(),
+        )
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        let projection_starts = projection_lengths(
+            self.durable
+                .journal()
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
+            &checked,
+        )?;
+        let outcome = run_relational_stream_slice_with_resources(
+            &mut self.durable,
+            &driver,
+            expression_runtime,
+            mechanism_runtime,
+            &mut self.resources,
+            &mut self.base_quantum_controller,
+            budget,
+        )
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+
+        let (observer_memo_enabled, observer_memo_stats) = expression_runtime.observer_memo_stats();
+        let mut report = build_report(
+            &self.durable,
+            &checked,
+            projection_starts,
+            &outcome,
+            ExploreStreamObserverMemoStats {
+                enabled: observer_memo_enabled,
+                hits: observer_memo_stats.hits,
+                misses: observer_memo_stats.misses,
+                inserts: observer_memo_stats.inserts,
+                evictions: observer_memo_stats.evictions,
+                entries: observer_memo_stats.entries,
+                retained_canonical_bytes: observer_memo_stats.retained_canonical_bytes,
+            },
+        )?;
+        if let Some(output_directory) = self.options.output_directory.as_ref() {
+            let publication = publish_relational_result_artifacts(
+                output_directory,
+                &self.durable,
+                publication_plan,
+                &report,
+                RelationalPublicationLimits::default(),
+            )
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            report.publication = Some(ExploreStreamPublication {
+                output_directory: output_directory.clone(),
+                manifest_path: publication.manifest_path().to_path_buf(),
+                lines_appended: publication.lines_appended(),
+                source_ordinals_advanced: publication.source_ordinals_advanced(),
+                artifacts_caught_up: publication.artifacts_caught_up(),
+                artifact_count: publication.artifact_count(),
+            });
+        }
+        Ok(report)
+    }
+}
+
+fn exact_stream_outer_containment(
+    receipt: Option<ExploreStreamOuterContainment>,
+) -> Result<Option<ExactStreamOuterContainmentReceipt>, ExploreStreamPreparationError> {
+    receipt
+        .map(|receipt| {
+            ExactStreamOuterContainmentReceipt::new(
+                receipt.rust_heap_limit_bytes.get(),
+                receipt.untracked_memory_reserve_bytes.get(),
+                receipt.group_rss_limit_bytes.get(),
+                receipt.available_memory_floor_bytes.get(),
+            )
+        })
+        .transpose()
+        .map_err(|reason| {
+            ExploreStreamPreparationError::Execution(format!(
+                "invalid outer resource-containment receipt: {}",
+                reason.code()
+            ))
+        })
+}
+
+fn validate_epoch_options(
+    options: &ExploreStreamEpochOptions,
+) -> Result<(), ExploreStreamPreparationError> {
+    if options.run_state.as_os_str().is_empty() {
+        return Err(ExploreStreamPreparationError::Execution(
+            "relational Explore run_state path must not be empty".into(),
+        ));
+    }
+    if let Some(output_directory) = options.output_directory.as_deref() {
+        validate_separate_output_directory(&options.run_state, output_directory)?;
+    }
+    Ok(())
+}
+
+fn validate_separate_output_directory(
+    run_state: &std::path::Path,
+    output_directory: &std::path::Path,
+) -> Result<(), ExploreStreamPreparationError> {
+    if output_directory.as_os_str().is_empty() {
+        return Err(ExploreStreamPreparationError::Execution(
+            "relational Explore output path must not be empty".into(),
+        ));
+    }
+    let run_state = resolved_effective_path(run_state)?;
+    let output_directory = resolved_effective_path(output_directory)?;
+    if run_state == output_directory
+        || run_state.starts_with(&output_directory)
+        || output_directory.starts_with(&run_state)
+    {
+        return Err(ExploreStreamPreparationError::Execution(
+            "relational Explore --output and --run-state must be separate directory trees".into(),
+        ));
+    }
+    Ok(())
+}
+
+/// Resolve every existing ancestor (including symlinks) and then reattach the
+/// not-yet-created suffix. This catches an output path routed back into the
+/// run-state tree through `/tmp`-style or user-created aliases without
+/// requiring either final directory to exist yet.
+fn resolved_effective_path(
+    path: &std::path::Path,
+) -> Result<PathBuf, ExploreStreamPreparationError> {
+    let normalized = normalized_absolute_path(path)?;
+    let mut ancestor = normalized.clone();
+    let mut suffix = Vec::new();
+    loop {
+        match std::fs::canonicalize(&ancestor) {
+            Ok(mut resolved) => {
+                for component in suffix.iter().rev() {
+                    resolved.push(component);
+                }
+                return normalized_absolute_path(&resolved);
+            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                let component = ancestor.file_name().ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(format!(
+                        "cannot resolve relational Explore path `{}`",
+                        normalized.display()
+                    ))
+                })?;
+                suffix.push(component.to_os_string());
+                if !ancestor.pop() {
+                    return Err(ExploreStreamPreparationError::Execution(format!(
+                        "cannot resolve relational Explore path `{}`",
+                        normalized.display()
+                    )));
+                }
+            }
+            Err(error) => {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "cannot resolve relational Explore path `{}`: {error}",
+                    normalized.display()
+                )));
+            }
+        }
+    }
+}
+
+fn normalized_absolute_path(
+    path: &std::path::Path,
+) -> Result<PathBuf, ExploreStreamPreparationError> {
+    use std::path::Component;
+
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?
+            .join(path)
+    };
+    let mut normalized = PathBuf::new();
+    for component in absolute.components() {
+        match component {
+            Component::Prefix(prefix) => normalized.push(prefix.as_os_str()),
+            Component::RootDir => normalized.push(component.as_os_str()),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !normalized.pop() {
+                    return Err(ExploreStreamPreparationError::Execution(
+                        "relational Explore path escapes its filesystem root".into(),
+                    ));
+                }
+            }
+            Component::Normal(component) => normalized.push(component),
+        }
+    }
+    Ok(normalized)
+}
+
+fn select_checked_relational_query_index(
+    artifacts: &TypeCheckArtifacts,
+    query_name: Option<&str>,
+) -> Result<usize, ExploreStreamPreparationError> {
+    if let Some(query_name) = query_name {
+        return artifacts
+            .exploration_universes
+            .iter()
+            .position(|candidate| candidate.name == query_name)
+            .ok_or_else(|| {
+                ExploreStreamPreparationError::Selection(format!(
+                    "exploration `{query_name}` was not found"
+                ))
+            });
+    }
+    match artifacts.exploration_universes.as_slice() {
+        [_] => Ok(0),
+        [] => Err(ExploreStreamPreparationError::Selection(
+            "the program contains no selectable exploration".into(),
+        )),
+        queries => Err(ExploreStreamPreparationError::Selection(format!(
+            "the program contains multiple explorations; select one with --query ({})",
+            queries
+                .iter()
+                .map(|query| query.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ")
+        ))),
+    }
+}
+
+fn checked_expression_runtime_inputs(
+    artifacts: &TypeCheckArtifacts,
+) -> Result<(calculate::TypeCatalog, super::GroundDefinitions), ExploreStreamPreparationError> {
+    artifacts
+        .checked_runtime_root_program_v1()
+        .map_err(ExploreStreamPreparationError::Execution)?;
+    let catalog =
+        calculate::TypeCatalog::collect_checked_analysis_program(&artifacts.analysis_program)
+            .map_err(|errors| ExploreStreamPreparationError::Execution(errors.join("; ")))?;
+    let mut definitions = checked_ground_definitions(&artifacts.analysis_program)
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
+    definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+    definitions.rule_dispatch_boolean_miss_safe_keys =
+        artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+    Ok((catalog, definitions))
+}
+
+fn projection_lengths(
+    journal: &RelationalJournal,
+    checked: &CheckedExploreQueryView<'_>,
+) -> Result<Vec<usize>, ExploreStreamPreparationError> {
+    let analysis = journal.analysis_state();
+    checked
+        .analysis_nodes()
+        .map(|(_, identity)| match identity {
+            CheckedExploreAnalysisIdentity::View { view_id } => match analysis {
+                None => Ok(0),
+                Some(state) => match (state.open_catalog(), state.closed_catalog()) {
+                    (Some(open), None) => open
+                        .result_projection(*view_id)
+                        .map(|projection| projection.len())
+                        .or_else(|error| {
+                            match open.layer_status(RelationalAnalysisLayerId::Result(*view_id)) {
+                                Some(RelationalAnalysisLayerStatus::ResultUnregistered) => Ok(0),
+                                _ => Err(error),
+                            }
+                        })
+                        .map_err(|error| {
+                            ExploreStreamPreparationError::Execution(error.to_string())
+                        }),
+                    (None, Some(closed)) => closed
+                        .snapshot()
+                        .layer(RelationalAnalysisLayerId::Result(*view_id))
+                        .and_then(|layer| match layer {
+                            RelationalAnalysisLayerSnapshot::Result(result) => result
+                                .state()
+                                .projection()
+                                .map(|projection| projection.records().len()),
+                            RelationalAnalysisLayerSnapshot::Mechanisms(_) => None,
+                        })
+                        .ok_or_else(|| {
+                            ExploreStreamPreparationError::Execution(
+                                "closed analysis omitted a declared result layer".into(),
+                            )
+                        }),
+                    _ => Err(ExploreStreamPreparationError::Execution(
+                        "analysis state does not own exactly one catalog".into(),
+                    )),
+                },
+            },
+            CheckedExploreAnalysisIdentity::Mechanisms { .. } => Ok(0),
+        })
+        .collect()
+}
+
+fn build_report(
+    durable: &RelationalDurableJournal,
+    checked: &CheckedExploreQueryView<'_>,
+    projection_starts: Vec<usize>,
+    outcome: &RelationalStreamSliceOutcome,
+    observer_memo: ExploreStreamObserverMemoStats,
+) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
+    let journal = durable
+        .journal()
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    let scheduler = journal
+        .scheduler_view()
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    let progress = outcome.progress();
+    let checkpoint = progress.checkpoint();
+    let head = hex(checkpoint.head().bytes());
+    let relation_enumeration_closed = scheduler.relation_enumeration_is_complete();
+    let case_count = scheduler.case_count() as u128;
+    let certified_case_cardinality = scheduler.certified_root_case_cardinality();
+    let cases = match certified_case_cardinality {
+        Some(certified) if case_count > certified => {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "observed case count {case_count} exceeds certified root cardinality {certified}"
+            )));
+        }
+        Some(certified) if relation_enumeration_closed && case_count != certified => {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "closed relation case count {case_count} does not match certified root cardinality {certified}"
+            )));
+        }
+        Some(certified) => ExploreStreamCount::Exact(certified),
+        None => relation_count(case_count, relation_enumeration_closed),
+    };
+    let classification_progress = scheduler
+        .classification_progress_counts()
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    if let (Some(certified), Some(classified)) =
+        (certified_case_cardinality, classification_progress)
+    {
+        if classified.candidates() != certified {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "classified case candidate count {} does not match certified root cardinality {certified}",
+                classified.candidates()
+            )));
+        }
+    }
+    let admission_classified = scheduler.admission_decision_count() as u128;
+    let admitted = scheduler.admitted_count() as u128;
+    let rejected = admission_classified.checked_sub(admitted).ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(
+            "admitted case count exceeds the classified admission population".into(),
+        )
+    })?;
+    let certified_admission_counts = match (
+        certified_case_cardinality,
+        scheduler.certified_root_admission_decision(),
+    ) {
+        (Some(total), Some(AdmissionDecision::Admitted)) => {
+            if admission_classified > total || rejected != 0 {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "concrete admission decisions contradict the certified uniformly admitted root"
+                        .into(),
+                ));
+            }
+            Some((total, total, 0))
+        }
+        (Some(total), Some(AdmissionDecision::Rejected)) => {
+            if admission_classified > total || admitted != 0 {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "concrete admission decisions contradict the certified uniformly rejected root"
+                        .into(),
+                ));
+            }
+            Some((total, 0, total))
+        }
+        _ => None,
+    };
+    let admission_closed_extensional =
+        relation_enumeration_closed && admission_classified == case_count;
+    let find_classified = scheduler.question_decision_count() as u128;
+    let selected_observed = scheduler.selected_count() as u128;
+    let not_selected_observed =
+        find_classified
+            .checked_sub(selected_observed)
+            .ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(
+                    "selected case count exceeds the classified FIND population".into(),
+                )
+            })?;
+    let find_closed_extensional = admission_closed_extensional && find_classified == admitted;
+    let selected_seal = journal
+        .analysis_state()
+        .and_then(|analysis| analysis.selected_question());
+    let certified_selected_count = selected_seal.map(|seal| seal.mechanism_target().count());
+    let support_complete = classification_progress.is_some_and(|counts| counts.is_complete());
+    let relation_closed = relation_enumeration_closed || support_complete;
+    let find_closed = selected_seal.is_some() || find_closed_extensional || support_complete;
+    let sources_observed = scheduler.source_count() as u128;
+    let source_enumeration_closed = scheduler.source_enumeration_is_closed();
+    let certified_source_cardinality = scheduler
+        .certified_source_population()
+        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?
+        .map(|binding| binding.exact_cardinality());
+    let sources = merge_population_count(
+        "source candidates",
+        None,
+        sources_observed,
+        source_enumeration_closed,
+        certified_source_cardinality,
+    )?;
+
+    let admission_classified_count = merge_population_count(
+        "admission-classified cases",
+        classification_progress.map(|counts| (counts.classified(), counts.is_complete())),
+        admission_classified,
+        admission_closed_extensional,
+        certified_admission_counts.map(|(classified, _, _)| classified),
+    )?;
+    let admitted_count = merge_population_count(
+        "admitted cases",
+        classification_progress.map(|counts| (counts.admitted(), counts.is_complete())),
+        admitted,
+        admission_closed_extensional,
+        certified_admission_counts.map(|(_, admitted, _)| admitted),
+    )?;
+    let rejected_count = merge_population_count(
+        "rejected cases",
+        classification_progress.map(|counts| (counts.rejected(), counts.is_complete())),
+        rejected,
+        admission_closed_extensional,
+        certified_admission_counts.map(|(_, _, rejected)| rejected),
+    )?;
+    let find_classified_count = merge_population_count(
+        "FIND-classified cases",
+        classification_progress.map(|counts| (counts.admitted(), counts.is_complete())),
+        find_classified,
+        find_closed_extensional,
+        None,
+    )?;
+    let selected_count = merge_population_count(
+        "selected cases",
+        classification_progress.map(|counts| (counts.admitted_selected(), counts.is_complete())),
+        selected_observed,
+        find_closed_extensional,
+        certified_selected_count,
+    )?;
+    let not_selected_count = merge_population_count(
+        "not-selected cases",
+        classification_progress
+            .map(|counts| (counts.admitted_not_selected(), counts.is_complete())),
+        not_selected_observed,
+        find_closed_extensional,
+        None,
+    )?;
+
+    let analysis_scope_root = scheduler
+        .analysis_scope_root()
+        .map(|root| hex(root.bytes()));
+    let analysis_terminal_root = journal
+        .analysis_state()
+        .and_then(|analysis| analysis.closed_catalog())
+        .map(|catalog| hex(catalog.root().bytes()));
+    let analysis_closure_set_root = scheduler
+        .analysis_closure_set_root()
+        .map(|root| hex(root.bytes()));
+    let layers = analysis_layers(journal, checked, &projection_starts)?;
+    let pause_reason = outcome.pause_reason().map(public_pause_reason);
+    let lifecycle = if matches!(outcome, RelationalStreamSliceOutcome::Complete { .. }) {
+        ExploreStreamLifecycle::Complete
+    } else {
+        ExploreStreamLifecycle::Paused
+    };
+    Ok(ExploreStreamSliceReport {
+        schema_version: EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
+        query_name: checked.closed_query.name.clone(),
+        identity: ExploreStreamIdentity {
+            checked_program: checked.program_hash().to_string(),
+            relation_id: hex(checked.relation_id().bytes()),
+            admission_id: hex(checked.admission_id().bytes()),
+            question_id: hex(checked.question_id().bytes()),
+            analysis_graph_digest: checked.analysis_graph_hash().to_string(),
+            journal_id: hex(journal.contract().id().bytes()),
+        },
+        source_coverage: public_source_coverage(checked.source_coverage()),
+        lifecycle,
+        pause_reason,
+        checkpoint: ExploreStreamCheckpoint {
+            next_sequence: checkpoint.next_sequence(),
+            journal_head: head,
+            durable_segment_count: checkpoint.durable_segment_count(),
+        },
+        semantic_batches_appended: progress.semantic_batches_appended(),
+        semantic_events_appended: progress.semantic_events_appended(),
+        observer_memo,
+        relation_closed,
+        find_closed,
+        analysis_closed: scheduler.analysis_is_closed(),
+        counts: ExploreStreamPopulationCounts {
+            sources,
+            cases,
+            admission_classified: admission_classified_count,
+            admitted: admitted_count,
+            rejected: rejected_count,
+            find_classified: find_classified_count,
+            selected: selected_count,
+            not_selected: not_selected_count,
+        },
+        analysis_scope_root,
+        analysis_terminal_root,
+        analysis_closure_set_root,
+        layers,
+        publication: None,
+    })
+}
+
+fn public_source_coverage(
+    manifest: &CheckedExploreSourceCoverageManifest,
+) -> ExploreStreamSourceCoverage {
+    ExploreStreamSourceCoverage {
+        version: manifest.version,
+        manifest_digest: manifest.manifest_digest.to_string(),
+        semantic_dependency_digest: hex(manifest.semantic_dependency_digest),
+        has_gaps: manifest.has_coverage_gaps(),
+        entries: manifest
+            .entries
+            .iter()
+            .map(|entry| ExploreStreamCoverageEntry {
+                subject_id: hex(entry.subject_id),
+                subject: public_coverage_subject(&entry.subject),
+                classification: public_coverage_classification(&entry.classification),
+            })
+            .collect(),
+    }
+}
+
+fn public_coverage_subject(
+    subject: &CheckedExploreCoverageSubject,
+) -> ExploreStreamCoverageSubject {
+    match subject {
+        CheckedExploreCoverageSubject::SourceBinding {
+            binding_index,
+            binding_name,
+            role,
+        } => ExploreStreamCoverageSubject::SourceBinding {
+            binding_index: *binding_index,
+            binding_name: binding_name.to_string(),
+            role: public_coverage_binding_role(*role),
+        },
+        CheckedExploreCoverageSubject::SchemaRoot { role, type_name } => {
+            ExploreStreamCoverageSubject::SchemaRoot {
+                role: public_coverage_root_role(*role),
+                type_name: type_name.to_string(),
+            }
+        }
+        CheckedExploreCoverageSubject::SchemaField {
+            role,
+            variant_index,
+            field_index,
+            variant_name,
+            field_name,
+        } => ExploreStreamCoverageSubject::SchemaField {
+            role: public_coverage_root_role(*role),
+            variant_index: *variant_index,
+            field_index: *field_index,
+            variant_name: variant_name.to_string(),
+            field_name: field_name.to_string(),
+        },
+        CheckedExploreCoverageSubject::Literal { kind, value } => {
+            ExploreStreamCoverageSubject::Literal {
+                kind: public_coverage_literal_kind(*kind),
+                value: value.to_string(),
+            }
+        }
+        CheckedExploreCoverageSubject::TopLevelConstant { addresses } => {
+            ExploreStreamCoverageSubject::TopLevelConstant {
+                addresses: addresses
+                    .iter()
+                    .map(|address| address.to_string())
+                    .collect(),
+            }
+        }
+        CheckedExploreCoverageSubject::ConstructorChoice {
+            owner_name,
+            variant_name,
+            variant_index,
+        } => ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_name: owner_name.to_string(),
+            variant_name: variant_name.to_string(),
+            variant_index: *variant_index,
+        },
+    }
+}
+
+fn public_coverage_classification(
+    classification: &CheckedExploreCoverageClassification,
+) -> ExploreStreamCoverageClassification {
+    match classification {
+        CheckedExploreCoverageClassification::VariedFiniteDimension { dimension_id } => {
+            ExploreStreamCoverageClassification::VariedFiniteDimension {
+                dimension_id: hex(*dimension_id),
+            }
+        }
+        CheckedExploreCoverageClassification::DerivedFromDeclaredDimensions { dimension_ids } => {
+            ExploreStreamCoverageClassification::DerivedFromDeclaredDimensions {
+                dimension_ids: dimension_ids.iter().map(|id| hex(*id)).collect(),
+            }
+        }
+        CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction => {
+            ExploreStreamCoverageClassification::ConditionedSingletonOrSourceRestriction
+        }
+        CheckedExploreCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest,
+        } => ExploreStreamCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest: hex(*certificate_digest),
+        },
+        CheckedExploreCoverageClassification::CoverageGap { reason } => {
+            ExploreStreamCoverageClassification::CoverageGap {
+                reason: public_coverage_gap_reason(*reason),
+            }
+        }
+    }
+}
+
+const fn public_coverage_root_role(
+    role: CheckedExploreCoverageRootRole,
+) -> ExploreStreamCoverageRootRole {
+    match role {
+        CheckedExploreCoverageRootRole::Context => ExploreStreamCoverageRootRole::Context,
+        CheckedExploreCoverageRootRole::Before => ExploreStreamCoverageRootRole::Before,
+    }
+}
+
+const fn public_coverage_binding_role(
+    role: CheckedExploreCoverageBindingRole,
+) -> ExploreStreamCoverageBindingRole {
+    match role {
+        CheckedExploreCoverageBindingRole::Auxiliary => ExploreStreamCoverageBindingRole::Auxiliary,
+        CheckedExploreCoverageBindingRole::Context => ExploreStreamCoverageBindingRole::Context,
+        CheckedExploreCoverageBindingRole::Before => ExploreStreamCoverageBindingRole::Before,
+    }
+}
+
+const fn public_coverage_literal_kind(
+    kind: CheckedExploreCoverageLiteralKind,
+) -> ExploreStreamCoverageLiteralKind {
+    match kind {
+        CheckedExploreCoverageLiteralKind::Integer => ExploreStreamCoverageLiteralKind::Integer,
+        CheckedExploreCoverageLiteralKind::FloatBits => ExploreStreamCoverageLiteralKind::FloatBits,
+        CheckedExploreCoverageLiteralKind::String => ExploreStreamCoverageLiteralKind::String,
+        CheckedExploreCoverageLiteralKind::Character => ExploreStreamCoverageLiteralKind::Character,
+        CheckedExploreCoverageLiteralKind::Boolean => ExploreStreamCoverageLiteralKind::Boolean,
+        CheckedExploreCoverageLiteralKind::Unit => ExploreStreamCoverageLiteralKind::Unit,
+    }
+}
+
+const fn public_coverage_gap_reason(
+    reason: CheckedExploreCoverageGapReason,
+) -> ExploreStreamCoverageGapReason {
+    match reason {
+        CheckedExploreCoverageGapReason::SchemaNotDeclaredRecord => {
+            ExploreStreamCoverageGapReason::SchemaNotDeclaredRecord
+        }
+        CheckedExploreCoverageGapReason::SchemaCompositionUnavailable => {
+            ExploreStreamCoverageGapReason::SchemaCompositionUnavailable
+        }
+        CheckedExploreCoverageGapReason::InterproceduralFieldProvenance => {
+            ExploreStreamCoverageGapReason::InterproceduralFieldProvenance
+        }
+        CheckedExploreCoverageGapReason::ConstructorFieldMappingUnavailable => {
+            ExploreStreamCoverageGapReason::ConstructorFieldMappingUnavailable
+        }
+        CheckedExploreCoverageGapReason::ConstructorChoiceProvenanceUnavailable => {
+            ExploreStreamCoverageGapReason::ConstructorChoiceProvenanceUnavailable
+        }
+        CheckedExploreCoverageGapReason::UpstreamCoverageGap => {
+            ExploreStreamCoverageGapReason::UpstreamCoverageGap
+        }
+    }
+}
+
+fn analysis_layers(
+    journal: &RelationalJournal,
+    checked: &CheckedExploreQueryView<'_>,
+    projection_starts: &[usize],
+) -> Result<Vec<ExploreStreamLayer>, ExploreStreamPreparationError> {
+    let analysis = journal.analysis_state();
+    checked
+        .analysis_nodes()
+        .enumerate()
+        .map(|(index, (node, identity))| {
+            let name = node.name().to_string();
+            match (node, identity) {
+                (
+                    ExploreAnalysisNodeIr::Result(_),
+                    CheckedExploreAnalysisIdentity::View { view_id },
+                ) => result_layer(
+                    analysis,
+                    name,
+                    *view_id,
+                    projection_starts.get(index).copied().unwrap_or(0),
+                )
+                .map(ExploreStreamLayer::Result),
+                (
+                    ExploreAnalysisNodeIr::Mechanisms(request),
+                    CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
+                ) => mechanism_layer(
+                    analysis,
+                    name,
+                    *request_id,
+                    public_mechanism_target(checked, &request.target)?,
+                )
+                .map(ExploreStreamLayer::Mechanisms),
+                _ => Err(ExploreStreamPreparationError::Execution(format!(
+                    "checked analysis identity kind diverged at node {index}"
+                ))),
+            }
+        })
+        .collect()
+}
+
+fn public_mechanism_target(
+    checked: &CheckedExploreQueryView<'_>,
+    target: &ExploreMechanismTargetIr,
+) -> Result<ExploreStreamMechanismTarget, ExploreStreamPreparationError> {
+    match target {
+        ExploreMechanismTargetIr::SelectedCases => Ok(ExploreStreamMechanismTarget::Selected),
+        ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
+            let (_, identity) =
+                checked
+                    .analysis_nodes()
+                    .nth(*view_node_index)
+                    .ok_or_else(|| {
+                        ExploreStreamPreparationError::Execution(format!(
+                            "mechanism target names missing analysis node {view_node_index}"
+                        ))
+                    })?;
+            let CheckedExploreAnalysisIdentity::View { view_id } = identity else {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target analysis node {view_node_index} is not a result view"
+                )));
+            };
+            Ok(ExploreStreamMechanismTarget::ChosenView {
+                view_id: hex(view_id.bytes()),
+            })
+        }
+    }
+}
+
+fn result_layer(
+    analysis: Option<&super::RelationalAnalysisJournalState>,
+    name: String,
+    view_id: super::ViewId,
+    start: usize,
+) -> Result<ExploreStreamResultLayer, ExploreStreamPreparationError> {
+    let absent = || ExploreStreamResultLayer {
+        name: name.clone(),
+        view_id: hex(view_id.bytes()),
+        status: ExploreStreamLayerStatus::ResultUnregistered,
+        input_rows: ExploreStreamCount::LowerBound(0),
+        projection_records: ExploreStreamCount::LowerBound(0),
+        projection_records_appended: 0,
+    };
+    let Some(analysis) = analysis else {
+        return Ok(absent());
+    };
+    match (analysis.open_catalog(), analysis.closed_catalog()) {
+        (Some(open), None) => {
+            let status = open
+                .layer_status(RelationalAnalysisLayerId::Result(view_id))
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(
+                        "analysis omitted a declared result layer".into(),
+                    )
+                })?;
+            if status == RelationalAnalysisLayerStatus::ResultUnregistered {
+                return Ok(absent());
+            }
+            let evidence = open
+                .result_evidence(view_id)
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let projection = open
+                .result_projection(view_id)
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            Ok(ExploreStreamResultLayer {
+                name,
+                view_id: hex(view_id.bytes()),
+                status: layer_status(status),
+                input_rows: relation_count(evidence.logical_len(), evidence.input_is_sealed()),
+                projection_records: relation_count(
+                    projection.len() as u128,
+                    status == RelationalAnalysisLayerStatus::ResultPublished,
+                ),
+                projection_records_appended: projection_suffix_len(projection.len(), start)?,
+            })
+        }
+        (None, Some(closed)) => {
+            let layer = closed
+                .snapshot()
+                .layer(RelationalAnalysisLayerId::Result(view_id))
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(
+                        "closed analysis omitted a declared result layer".into(),
+                    )
+                })?;
+            let RelationalAnalysisLayerSnapshot::Result(result) = layer else {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "closed analysis result identity names a mechanism layer".into(),
+                ));
+            };
+            let RelationalResultLayerSnapshotState::Registered {
+                spec: _,
+                evidence,
+                projection,
+                publication,
+                ..
+            } = result.state()
+            else {
+                return Ok(absent());
+            };
+            Ok(ExploreStreamResultLayer {
+                name,
+                view_id: hex(view_id.bytes()),
+                status: layer_status(result.status()),
+                input_rows: relation_count(evidence.logical_len(), evidence.input_is_sealed()),
+                projection_records: relation_count(
+                    projection.records().len() as u128,
+                    publication.is_some(),
+                ),
+                projection_records_appended: projection_suffix_len(
+                    projection.records().len(),
+                    start,
+                )?,
+            })
+        }
+        _ => Err(ExploreStreamPreparationError::Execution(
+            "analysis state does not own exactly one catalog".into(),
+        )),
+    }
+}
+
+fn mechanism_layer(
+    analysis: Option<&super::RelationalAnalysisJournalState>,
+    name: String,
+    request_id: super::MechanismRequestId,
+    target: ExploreStreamMechanismTarget,
+) -> Result<ExploreStreamMechanismLayer, ExploreStreamPreparationError> {
+    let absent = || ExploreStreamMechanismLayer {
+        name: name.clone(),
+        request_id: hex(request_id.bytes()),
+        target: target.clone(),
+        status: ExploreStreamLayerStatus::MechanismUnregistered,
+        target_cases: ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        },
+        terminal_cases: ExploreStreamCount::LowerBound(0),
+        incidence_cases: ExploreStreamCount::LowerBound(0),
+        unavailable_cases: ExploreStreamCount::LowerBound(0),
+        raw_signatures: ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        },
+        structural_assignments: ExploreStreamCount::LowerBound(0),
+        structural_mechanisms: ExploreStreamCount::LowerBound(0),
+        execution_profiles: ExploreStreamCount::LowerBound(0),
+        raw_closure_root: None,
+        structural_closure_root: None,
+        support_closure_root: None,
+        support_closure_totals: None,
+    };
+    let Some(analysis) = analysis else {
+        return Ok(absent());
+    };
+    let (status, counts, known_raw_signatures) =
+        match (analysis.open_catalog(), analysis.closed_catalog()) {
+            (Some(open), None) => {
+                let status = open
+                    .layer_status(RelationalAnalysisLayerId::Mechanisms(request_id))
+                    .ok_or_else(|| {
+                        ExploreStreamPreparationError::Execution(
+                            "analysis omitted a declared mechanism layer".into(),
+                        )
+                    })?;
+                let incidence = open
+                    .mechanism_incidence(request_id)
+                    .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+                (
+                    status,
+                    incidence.counts(),
+                    incidence.signature_definition_count() as u128,
+                )
+            }
+            (None, Some(closed)) => {
+                let layer = closed
+                    .snapshot()
+                    .layer(RelationalAnalysisLayerId::Mechanisms(request_id))
+                    .ok_or_else(|| {
+                        ExploreStreamPreparationError::Execution(
+                            "closed analysis omitted a declared mechanism layer".into(),
+                        )
+                    })?;
+                let RelationalAnalysisLayerSnapshot::Mechanisms(mechanism) = layer else {
+                    return Err(ExploreStreamPreparationError::Execution(
+                        "closed mechanism identity names a result layer".into(),
+                    ));
+                };
+                (
+                    mechanism.status(),
+                    mechanism.incidence().counts(),
+                    mechanism.incidence().signature_definitions().len() as u128,
+                )
+            }
+            _ => {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "analysis state does not own exactly one catalog".into(),
+                ));
+            }
+        };
+
+    let raw_closure = analysis.mechanism_closure(request_id);
+    let structural_catalog = analysis.structural_mechanism_catalog(request_id);
+    let structural_closure = analysis.structural_quotient_closure(request_id);
+    let support_closure = analysis.mechanism_support_closure(request_id);
+    let (known_assignments, known_structural_mechanisms, known_execution_profiles) =
+        match structural_closure {
+            Some(closure) => {
+                let counts = closure.counts();
+                (
+                    counts.assignments(),
+                    counts.mechanisms(),
+                    counts.execution_profiles(),
+                )
+            }
+            None => structural_catalog.map_or((0, 0, 0), |catalog| {
+                (
+                    catalog.assignment_count() as u128,
+                    catalog.structural_mechanism_count() as u128,
+                    catalog.execution_profile_count() as u128,
+                )
+            }),
+        };
+    let raw_unavailable = counts.unavailable_cases();
+    Ok(ExploreStreamMechanismLayer {
+        name,
+        request_id: hex(request_id.bytes()),
+        target,
+        status: layer_status(status),
+        target_cases: mechanism_count(counts.target_cases()),
+        terminal_cases: mechanism_count(counts.terminal_cases()),
+        incidence_cases: mechanism_count(counts.incidence_cases()),
+        unavailable_cases: mechanism_count(counts.unavailable_cases()),
+        raw_signatures: raw_signature_count(known_raw_signatures, status, raw_unavailable),
+        structural_assignments: structural_count(
+            known_assignments,
+            structural_closure.is_some(),
+            raw_unavailable,
+        ),
+        structural_mechanisms: structural_count(
+            known_structural_mechanisms,
+            structural_closure.is_some(),
+            raw_unavailable,
+        ),
+        execution_profiles: structural_count(
+            known_execution_profiles,
+            structural_closure.is_some(),
+            raw_unavailable,
+        ),
+        raw_closure_root: raw_closure.map(|closure| hex(closure.incidence_root().bytes())),
+        structural_closure_root: structural_closure.map(|closure| hex(closure.root().bytes())),
+        support_closure_root: support_closure.map(|closure| hex(closure.root().bytes())),
+        support_closure_totals: support_closure.map(|closure| {
+            ExploreStreamMechanismSupportTotals {
+                target_cases: closure.target_case_count(),
+                successful_cases: closure.successful_case_count(),
+                unavailable_cases: closure.unavailable_case_count(),
+                signature_fibers: closure.signature_fiber_count(),
+                target_starters: closure.target_starter_count(),
+            }
+        }),
+    })
+}
+
+fn projection_suffix_len(
+    current: usize,
+    invocation_start: usize,
+) -> Result<u128, ExploreStreamPreparationError> {
+    let appended = current.checked_sub(invocation_start).ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(
+            "durable result projection moved behind its invocation cursor".into(),
+        )
+    })?;
+    Ok(appended as u128)
+}
+
+fn public_pause_reason(reason: RelationalStreamSlicePauseReason) -> ExploreStreamPauseReason {
+    match reason {
+        RelationalStreamSlicePauseReason::RuntimeLimit => ExploreStreamPauseReason::RuntimeLimit,
+        RelationalStreamSlicePauseReason::ResourceAdmission { code } => {
+            ExploreStreamPauseReason::ResourceAdmission { code: code.into() }
+        }
+        RelationalStreamSlicePauseReason::Semantic(reason) => match reason {
+            RelationalStreamQuiescence::MechanismReplayPaused {
+                request_id,
+                case_id,
+                endpoint,
+                reason,
+            } => ExploreStreamPauseReason::MechanismReplay {
+                request_id: hex(request_id.bytes()),
+                case_id: hex(case_id.bytes()),
+                endpoint: format!("{endpoint:?}"),
+                reason: format!("{reason:?}"),
+            },
+            RelationalStreamQuiescence::AwaitingChosenViewMechanisms {
+                request_id,
+                view_id,
+            } => ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+                request_id: hex(request_id.bytes()),
+                view_id: hex(view_id.bytes()),
+            },
+            RelationalStreamQuiescence::AwaitingSourceResult { view_id } => {
+                ExploreStreamPauseReason::AwaitingSourceResult {
+                    view_id: hex(view_id.bytes()),
+                }
+            }
+            RelationalStreamQuiescence::AwaitingMechanismIncidenceResult {
+                view_id,
+                request_id,
+            } => ExploreStreamPauseReason::AwaitingMechanismIncidenceResult {
+                view_id: hex(view_id.bytes()),
+                request_id: hex(request_id.bytes()),
+            },
+        },
+    }
+}
+
+const fn layer_status(status: RelationalAnalysisLayerStatus) -> ExploreStreamLayerStatus {
+    match status {
+        RelationalAnalysisLayerStatus::ResultUnregistered => {
+            ExploreStreamLayerStatus::ResultUnregistered
+        }
+        RelationalAnalysisLayerStatus::ResultInputOpen => ExploreStreamLayerStatus::ResultInputOpen,
+        RelationalAnalysisLayerStatus::ResultAwaitingPublication => {
+            ExploreStreamLayerStatus::ResultAwaitingPublication
+        }
+        RelationalAnalysisLayerStatus::ResultPublished => ExploreStreamLayerStatus::ResultPublished,
+        RelationalAnalysisLayerStatus::MechanismTargetOpen => {
+            ExploreStreamLayerStatus::MechanismTargetOpen
+        }
+        RelationalAnalysisLayerStatus::MechanismTerminalOpen => {
+            ExploreStreamLayerStatus::MechanismTerminalOpen
+        }
+        RelationalAnalysisLayerStatus::MechanismClosed => ExploreStreamLayerStatus::MechanismClosed,
+    }
+}
+
+const fn relation_count(value: u128, exact: bool) -> ExploreStreamCount {
+    if exact {
+        ExploreStreamCount::Exact(value)
+    } else {
+        ExploreStreamCount::LowerBound(value)
+    }
+}
+
+/// Merge independent counts over the same logical population without adding
+/// overlapping observations. Sealed support and concrete catalogs each supply
+/// a lower bound until one path proves completeness; an independent exact
+/// certificate, when present, is the final authority. Every stronger claim is
+/// cross-checked against the weaker observations before it is reported.
+fn merge_population_count(
+    label: &str,
+    support: Option<(u128, bool)>,
+    extensional: u128,
+    extensional_complete: bool,
+    certified_exact: Option<u128>,
+) -> Result<ExploreStreamCount, ExploreStreamPreparationError> {
+    let support_lower_bound = support.map_or(0, |(value, _)| value);
+    let confirmed_lower_bound = support_lower_bound.max(extensional);
+
+    if let Some(exact) = certified_exact {
+        let support_exact_conflict =
+            support.is_some_and(|(value, complete)| complete && value != exact);
+        if confirmed_lower_bound > exact
+            || support_exact_conflict
+            || (extensional_complete && extensional != exact)
+        {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "{label} observations conflict with certified exact count {exact}"
+            )));
+        }
+        return Ok(ExploreStreamCount::Exact(exact));
+    }
+
+    if let Some((support_exact, true)) = support {
+        if extensional > support_exact || (extensional_complete && extensional != support_exact) {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "extensional {label} count {extensional} conflicts with exact classified-support count {support_exact}"
+            )));
+        }
+        return Ok(ExploreStreamCount::Exact(support_exact));
+    }
+
+    if extensional_complete {
+        if support_lower_bound > extensional {
+            return Err(ExploreStreamPreparationError::Execution(format!(
+                "classified-support {label} lower bound {support_lower_bound} exceeds exact extensional count {extensional}"
+            )));
+        }
+        return Ok(ExploreStreamCount::Exact(extensional));
+    }
+
+    Ok(ExploreStreamCount::LowerBound(confirmed_lower_bound))
+}
+
+const fn mechanism_count(count: MechanismCountEvidence) -> ExploreStreamCount {
+    match count {
+        MechanismCountEvidence::Unknown {
+            confirmed_lower_bound,
+        } => ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        },
+        MechanismCountEvidence::LowerBound(value) => ExploreStreamCount::LowerBound(value),
+        MechanismCountEvidence::Exact(value) => ExploreStreamCount::Exact(value),
+    }
+}
+
+const fn raw_signature_count(
+    known: u128,
+    status: RelationalAnalysisLayerStatus,
+    unavailable: MechanismCountEvidence,
+) -> ExploreStreamCount {
+    if !matches!(status, RelationalAnalysisLayerStatus::MechanismClosed) {
+        return if known == 0 {
+            ExploreStreamCount::Unknown {
+                confirmed_lower_bound: 0,
+            }
+        } else {
+            ExploreStreamCount::LowerBound(known)
+        };
+    }
+    closed_count_with_unavailable_residual(known, unavailable)
+}
+
+const fn structural_count(
+    known: u128,
+    structural_closed: bool,
+    raw_unavailable: MechanismCountEvidence,
+) -> ExploreStreamCount {
+    if !structural_closed {
+        return ExploreStreamCount::LowerBound(known);
+    }
+    closed_count_with_unavailable_residual(known, raw_unavailable)
+}
+
+const fn closed_count_with_unavailable_residual(
+    known: u128,
+    unavailable: MechanismCountEvidence,
+) -> ExploreStreamCount {
+    match unavailable {
+        MechanismCountEvidence::Exact(0) => ExploreStreamCount::Exact(known),
+        MechanismCountEvidence::Exact(unavailable) => match known.checked_add(unavailable) {
+            Some(upper_bound) => ExploreStreamCount::Interval {
+                lower_bound: known,
+                upper_bound,
+            },
+            None => ExploreStreamCount::LowerBound(known),
+        },
+        MechanismCountEvidence::Unknown { .. } | MechanismCountEvidence::LowerBound(_) => {
+            ExploreStreamCount::LowerBound(known)
+        }
+    }
+}
+
+fn hex(bytes: [u8; 32]) -> String {
+    const DIGITS: &[u8; 16] = b"0123456789abcdef";
+    let mut encoded = String::with_capacity(64);
+    for byte in bytes {
+        encoded.push(DIGITS[(byte >> 4) as usize] as char);
+        encoded.push(DIGITS[(byte & 0x0f) as usize] as char);
+    }
+    encoded
+}
