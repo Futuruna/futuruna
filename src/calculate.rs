@@ -2973,8 +2973,9 @@ fn decode_value(
                 .ok_or_else(|| value_error(path, "expected an object"))?;
             let mut values = BTreeMap::new();
             for (name, value) in object {
-                values.insert(
-                    name.clone(),
+                runtime_map_insert_value(
+                    &mut values,
+                    Value::Str(name.clone()),
                     decode_value(
                         value,
                         &item,
@@ -2999,11 +3000,11 @@ fn decode_value(
                     substitutions,
                     &format!("{}[{}]", path, index),
                 )?;
-                let key = decoded.to_string();
-                if values.insert(key.clone(), decoded).is_some() {
+                let rendered = decoded.to_string();
+                if !runtime_set_insert_value(&mut values, decoded) {
                     return Err(value_error(
                         format!("{}[{}]", path, index),
-                        format!("duplicate set value `{}`", key),
+                        format!("duplicate set value `{}`", rendered),
                     ));
                 }
             }
@@ -3288,17 +3289,26 @@ fn encode_value(
                 return Err(runtime_type_error(path, "Map", value));
             };
             let mut object = JsonMap::new();
-            for (name, value) in values {
-                object.insert(
-                    name.clone(),
-                    encode_value(
-                        value,
-                        &item,
-                        contract,
-                        substitutions,
-                        &field_path(path, name),
-                    )?,
-                );
+            for (stored_key, stored_value) in values {
+                let Some((name, value)) = runtime_map_string_entry(stored_key, stored_value) else {
+                    return Err(value_error(
+                        path,
+                        "Map(String, T) contains a non-String key",
+                    ));
+                };
+                let encoded = encode_value(
+                    value,
+                    &item,
+                    contract,
+                    substitutions,
+                    &field_path(path, name),
+                )?;
+                if object.insert(name.to_string(), encoded).is_some() {
+                    return Err(value_error(
+                        field_path(path, name),
+                        format!("duplicate map key `{}`", name),
+                    ));
+                }
             }
             Ok(JsonValue::Object(object))
         }
@@ -4608,5 +4618,150 @@ mod calculation_execution_tests {
             output.results[0].result,
             serde_json::json!({"conditional": false, "exception_only": false})
         );
+    }
+
+    #[test]
+    fn calculation_collections_round_trip_through_structural_runtime_keys() {
+        let source = r#"
+# CollectionInput(values: Map(String, Int), tags: Set(String))
+
+@ calculate("Collection calculation")
+| calculate_collections(input: CollectionInput) -> CollectionInput(
+    values = input.values,
+    tags = input.tags
+)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse collection calculation");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("extract collection calculation")
+            .pop()
+            .expect("collection calculation contract");
+        let input = serde_json::json!({
+            "values": {"alpha": 1, "beta": 2},
+            "tags": ["first", "second"]
+        });
+        let decoded = contract.decode_input(&input).expect("decode collections");
+        let Value::NamedConstructor(_, fields) = &decoded else {
+            panic!("expected decoded collection record");
+        };
+        let values = fields
+            .iter()
+            .find(|(name, _)| name == "values")
+            .map(|(_, value)| value.clone())
+            .expect("decoded map");
+        let tags = fields
+            .iter()
+            .find(|(name, _)| name == "tags")
+            .map(|(_, value)| value.clone())
+            .expect("decoded set");
+
+        let mut interpreter = Interpreter::new();
+        let env = interpreter.default_env();
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_get_or",
+                vec![values.clone(), Value::Str("alpha".into()), Value::Int(-1)],
+                &env,
+            ),
+            Value::Int(1)
+        ));
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_contains",
+                vec![values.clone(), Value::Str("beta".into())],
+                &env,
+            ),
+            Value::Bool(true)
+        ));
+        let replaced = interpreter.eval_builtin(
+            "map_insert",
+            vec![values.clone(), Value::Str("alpha".into()), Value::Int(9)],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin("map_len", vec![replaced.clone()], &env),
+            Value::Int(2)
+        ));
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_get_or",
+                vec![replaced.clone(), Value::Str("alpha".into()), Value::Int(-1)],
+                &env,
+            ),
+            Value::Int(9)
+        ));
+        let removed = interpreter.eval_builtin(
+            "map_remove",
+            vec![replaced, Value::Str("beta".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_contains",
+                vec![removed, Value::Str("beta".into())],
+                &env,
+            ),
+            Value::Bool(false)
+        ));
+
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "set_contains",
+                vec![tags.clone(), Value::Str("first".into())],
+                &env,
+            ),
+            Value::Bool(true)
+        ));
+        let duplicate = interpreter.eval_builtin(
+            "set_insert",
+            vec![tags.clone(), Value::Str("first".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin("set_len", vec![duplicate.clone()], &env),
+            Value::Int(2)
+        ));
+        let removed = interpreter.eval_builtin(
+            "set_remove",
+            vec![duplicate, Value::Str("second".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "set_contains",
+                vec![removed, Value::Str("second".into())],
+                &env,
+            ),
+            Value::Bool(false)
+        ));
+
+        let encoded = contract
+            .encode_output(&decoded)
+            .expect("encode collections");
+        assert_eq!(encoded["values"], input["values"]);
+        let mut encoded_tags = encoded["tags"]
+            .as_array()
+            .expect("encoded set array")
+            .iter()
+            .map(|value| value.as_str().expect("encoded String set").to_string())
+            .collect::<Vec<_>>();
+        encoded_tags.sort();
+        assert_eq!(encoded_tags, ["first", "second"]);
+        let encoded_json = serde_json::to_string(&encoded).expect("serialize encoded collections");
+        assert!(!encoded_json.contains(RUNTIME_COLLECTION_KEY_PREFIX));
+        assert!(!encoded_json.contains(RUNTIME_MAP_ENTRY_MARKER));
+
+        let duplicate_error = contract
+            .decode_input(&serde_json::json!({
+                "values": {},
+                "tags": ["first", "first"]
+            }))
+            .expect_err("duplicate Set members must be rejected");
+        assert!(duplicate_error.to_string().contains("duplicate set value"));
     }
 }

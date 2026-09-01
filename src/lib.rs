@@ -13325,18 +13325,41 @@ fn checked_exact_observer_memo_encode_value(value: &Value, output: &mut Vec<u8>)
         Value::Map(entries) => {
             checked_exact_observer_memo_push_bytes(output, &[10])?;
             checked_exact_observer_memo_push_len(output, entries.len())?;
-            for (key, value) in entries {
-                checked_exact_observer_memo_push_str(output, key)?;
-                checked_exact_observer_memo_encode_value(value, output)?;
+            let mut encoded_entries = Vec::with_capacity(entries.len());
+            for (stored_key, stored_value) in entries {
+                let mut encoded = Vec::new();
+                if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                    checked_exact_observer_memo_encode_value(key, &mut encoded)?;
+                    checked_exact_observer_memo_encode_value(value, &mut encoded)?;
+                } else {
+                    checked_exact_observer_memo_encode_value(
+                        &Value::Str(stored_key.clone()),
+                        &mut encoded,
+                    )?;
+                    checked_exact_observer_memo_encode_value(stored_value, &mut encoded)?;
+                }
+                encoded_entries.push(encoded);
+            }
+            encoded_entries.sort();
+            for encoded in encoded_entries {
+                checked_exact_observer_memo_push_len(output, encoded.len())?;
+                checked_exact_observer_memo_push_bytes(output, &encoded)?;
             }
             Some(())
         }
         Value::Set(entries) => {
             checked_exact_observer_memo_push_bytes(output, &[11])?;
             checked_exact_observer_memo_push_len(output, entries.len())?;
-            for (key, value) in entries {
-                checked_exact_observer_memo_push_str(output, key)?;
-                checked_exact_observer_memo_encode_value(value, output)?;
+            let mut encoded_values = Vec::with_capacity(entries.len());
+            for value in entries.values() {
+                let mut encoded = Vec::new();
+                checked_exact_observer_memo_encode_value(value, &mut encoded)?;
+                encoded_values.push(encoded);
+            }
+            encoded_values.sort();
+            for encoded in encoded_values {
+                checked_exact_observer_memo_push_len(output, encoded.len())?;
+                checked_exact_observer_memo_push_bytes(output, &encoded)?;
             }
             Some(())
         }
@@ -13363,155 +13386,622 @@ fn checked_exact_observer_memo_encode_arguments(arguments: &[Value]) -> Option<B
     Some(output.into_boxed_slice())
 }
 
-fn runtime_value_semantic_key(value: &Value) -> String {
-    let mut encoded = Vec::new();
-    if checked_exact_observer_memo_encode_value(value, &mut encoded).is_some() {
-        let mut key = String::with_capacity(encoded.len().saturating_mul(2).saturating_add(1));
-        key.push('v');
-        for byte in encoded {
-            use std::fmt::Write as _;
-            let _ = write!(key, "{byte:02x}");
-        }
-        key
-    } else {
-        match value {
-            Value::Builtin(name) => format!("builtin:{}:{name}", name.len()),
-            Value::NamespacedBuiltin {
-                namespace, name, ..
-            } => format!(
-                "namespaced-builtin:{}:{}:{}:{name}",
-                namespace.semantic_identity().len(),
-                namespace.semantic_identity(),
-                name.len(),
-            ),
-            Value::Scope {
-                namespace, name, ..
-            } => format!(
-                "scope:{}:{}:{}:{name}",
-                namespace.semantic_identity().len(),
-                namespace.semantic_identity(),
-                name.len(),
-            ),
-            Value::RuleScopeInstance { name, bindings } => {
-                runtime_rule_scope_semantic_key("root", name, bindings)
-            }
-            Value::NamespacedRuleScopeInstance {
-                namespace,
-                name,
-                bindings,
-                ..
-            } => runtime_rule_scope_semantic_key(namespace.semantic_identity(), name, bindings),
-            Value::Stream(values) => runtime_sequence_semantic_key("stream", values),
-            Value::Subject(values) => runtime_sequence_semantic_key("subject", values),
-            Value::Closure {
-                name,
-                params,
-                body,
-                env,
-            } => {
-                let namespace = env
-                    .runtime_namespace
-                    .as_ref()
-                    .map(RuntimeNamespace::semantic_identity)
-                    .unwrap_or("legacy");
-                format!(
-                    "closure:{}:{}:{:?}:{:?}:{body:?}",
-                    namespace.len(),
-                    namespace,
-                    name,
-                    params
-                )
-            }
-            Value::Actor {
-                actor_name,
-                state,
-                env,
-                ..
-            } => {
-                let namespace = env
-                    .runtime_namespace
-                    .as_ref()
-                    .map(RuntimeNamespace::semantic_identity)
-                    .unwrap_or("legacy");
-                format!(
-                    "actor:{}:{}:{}:{}:{}",
-                    namespace.len(),
-                    namespace,
-                    actor_name.len(),
-                    actor_name,
-                    runtime_value_semantic_key(state)
-                )
-            }
-            Value::TypeDef { kind, fields } => format!("typedef:{kind:?}:{fields:?}"),
-            _ => unreachable!("memo encoding covers all remaining runtime value kinds"),
-        }
+const RUNTIME_COLLECTION_KEY_PREFIX: &str = "__futuruna_value_digest_v2__";
+const RUNTIME_MAP_ENTRY_MARKER: &str = "__futuruna_map_entry_v2__";
+
+fn runtime_hash_len(hasher: &mut Sha256, len: usize) {
+    hasher.update(u64::try_from(len).unwrap_or(u64::MAX).to_le_bytes());
+}
+
+fn runtime_hash_str(hasher: &mut Sha256, value: &str) {
+    runtime_hash_len(hasher, value.len());
+    hasher.update(value.as_bytes());
+}
+
+fn runtime_accumulate_unordered_digest(sum: &mut [u8; 32], xor: &mut [u8; 32], digest: &[u8; 32]) {
+    let mut carry = 0_u16;
+    for index in 0..digest.len() {
+        xor[index] ^= digest[index];
+        let total = u16::from(sum[index]) + u16::from(digest[index]) + carry;
+        sum[index] = total as u8;
+        carry = total >> 8;
     }
 }
 
-fn runtime_sequence_semantic_key(kind: &str, values: &[Value]) -> String {
-    let mut key = format!("{kind}:{}:", values.len());
+fn runtime_finish_unordered_digest(hasher: &mut Sha256, sum: [u8; 32], xor: [u8; 32]) {
+    hasher.update(sum);
+    hasher.update(xor);
+}
+
+fn runtime_hash_sequence(hasher: &mut Sha256, tag: u8, values: &[Value]) {
+    hasher.update([tag]);
+    runtime_hash_len(hasher, values.len());
     for value in values {
-        let member = runtime_value_semantic_key(value);
+        runtime_hash_value(hasher, value);
+    }
+}
+
+fn runtime_hash_bindings(hasher: &mut Sha256, bindings: &HashMap<String, Value>) {
+    runtime_hash_len(hasher, bindings.len());
+    let mut sum = [0_u8; 32];
+    let mut xor = [0_u8; 32];
+    for (name, value) in bindings {
+        let mut binding_hasher = Sha256::new();
+        binding_hasher.update(b"futuruna.runtime-binding.v2");
+        runtime_hash_str(&mut binding_hasher, name);
+        runtime_hash_value(&mut binding_hasher, value);
+        let digest: [u8; 32] = binding_hasher.finalize().into();
+        runtime_accumulate_unordered_digest(&mut sum, &mut xor, &digest);
+    }
+    runtime_finish_unordered_digest(hasher, sum, xor);
+}
+
+fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
+    match value {
+        Value::Int(value) => {
+            hasher.update([0]);
+            hasher.update(value.to_le_bytes());
+        }
+        Value::Float(value) => {
+            hasher.update([1]);
+            // Futuruna's current runtime Float equality is epsilon based and
+            // therefore cannot be partitioned into exact hash buckets. Keep
+            // every Float in one bucket and let the retained witness decide.
+            let _ = value;
+        }
+        Value::Str(value) => {
+            hasher.update([2]);
+            runtime_hash_str(hasher, value);
+        }
+        Value::Char(value) => {
+            hasher.update([3]);
+            hasher.update((*value as u32).to_le_bytes());
+        }
+        Value::Bool(value) => hasher.update([4, u8::from(*value)]),
+        Value::Unit => hasher.update([5]),
+        Value::List(values) => runtime_hash_sequence(hasher, 6, values),
+        Value::Tuple(values) => runtime_hash_sequence(hasher, 7, values),
+        Value::Constructor(name, values) => {
+            hasher.update([8]);
+            runtime_hash_str(hasher, name);
+            runtime_hash_len(hasher, values.len());
+            for value in values.iter() {
+                runtime_hash_value(hasher, value);
+            }
+        }
+        Value::NamedConstructor(name, fields) => {
+            hasher.update([9]);
+            runtime_hash_str(hasher, name);
+            runtime_hash_len(hasher, fields.len());
+            for (field, value) in fields.iter() {
+                runtime_hash_str(hasher, field);
+                runtime_hash_value(hasher, value);
+            }
+        }
+        Value::Map(entries) => {
+            hasher.update([10]);
+            runtime_hash_len(hasher, entries.len());
+            let mut sum = [0_u8; 32];
+            let mut xor = [0_u8; 32];
+            for (stored_key, stored_value) in entries {
+                let mut entry_hasher = Sha256::new();
+                entry_hasher.update(b"futuruna.runtime-map-entry.v2");
+                if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                    runtime_hash_value(&mut entry_hasher, key);
+                    runtime_hash_value(&mut entry_hasher, value);
+                } else {
+                    runtime_hash_value(&mut entry_hasher, &Value::Str(stored_key.clone()));
+                    runtime_hash_value(&mut entry_hasher, stored_value);
+                }
+                let digest: [u8; 32] = entry_hasher.finalize().into();
+                runtime_accumulate_unordered_digest(&mut sum, &mut xor, &digest);
+            }
+            runtime_finish_unordered_digest(hasher, sum, xor);
+        }
+        Value::Set(entries) => {
+            hasher.update([11]);
+            runtime_hash_len(hasher, entries.len());
+            let mut sum = [0_u8; 32];
+            let mut xor = [0_u8; 32];
+            for value in entries.values() {
+                let digest = runtime_value_structural_digest(value);
+                runtime_accumulate_unordered_digest(&mut sum, &mut xor, &digest);
+            }
+            runtime_finish_unordered_digest(hasher, sum, xor);
+        }
+        Value::NamespacedConstructor {
+            namespace,
+            name,
+            arguments,
+            ..
+        } => {
+            hasher.update([12]);
+            runtime_hash_str(hasher, namespace.semantic_identity());
+            runtime_hash_str(hasher, name);
+            runtime_hash_len(hasher, arguments.len());
+            for value in arguments.iter() {
+                runtime_hash_value(hasher, value);
+            }
+        }
+        Value::NamespacedNamedConstructor {
+            namespace,
+            name,
+            fields,
+            ..
+        } => {
+            hasher.update([13]);
+            runtime_hash_str(hasher, namespace.semantic_identity());
+            runtime_hash_str(hasher, name);
+            runtime_hash_len(hasher, fields.len());
+            for (field, value) in fields.iter() {
+                runtime_hash_str(hasher, field);
+                runtime_hash_value(hasher, value);
+            }
+        }
+        Value::Builtin(name) => {
+            hasher.update([14]);
+            runtime_hash_str(hasher, name);
+        }
+        Value::NamespacedBuiltin {
+            namespace, name, ..
+        } => {
+            hasher.update([15]);
+            runtime_hash_str(hasher, namespace.semantic_identity());
+            runtime_hash_str(hasher, name);
+        }
+        Value::Closure {
+            name,
+            params,
+            body,
+            env,
+        } => {
+            hasher.update([16]);
+            runtime_hash_str(
+                hasher,
+                env.runtime_namespace
+                    .as_ref()
+                    .map(RuntimeNamespace::semantic_identity)
+                    .unwrap_or("legacy"),
+            );
+            runtime_hash_str(hasher, name.as_deref().unwrap_or(""));
+            runtime_hash_len(hasher, params.len());
+            for parameter in params {
+                runtime_hash_str(hasher, parameter);
+            }
+            runtime_hash_str(hasher, &format!("{body:?}"));
+        }
+        Value::Actor {
+            actor_name,
+            state,
+            state_param,
+            env,
+            ..
+        } => {
+            hasher.update([17]);
+            runtime_hash_str(
+                hasher,
+                env.runtime_namespace
+                    .as_ref()
+                    .map(RuntimeNamespace::semantic_identity)
+                    .unwrap_or("legacy"),
+            );
+            runtime_hash_str(hasher, actor_name);
+            runtime_hash_str(hasher, state_param);
+            runtime_hash_value(hasher, state);
+        }
+        Value::Stream(values) => runtime_hash_sequence(hasher, 18, values),
+        Value::Subject(values) => runtime_hash_sequence(hasher, 19, values),
+        Value::Scope {
+            namespace, name, ..
+        } => {
+            hasher.update([20]);
+            runtime_hash_str(hasher, namespace.semantic_identity());
+            runtime_hash_str(hasher, name);
+        }
+        Value::RuleScopeInstance { name, bindings } => {
+            hasher.update([21]);
+            runtime_hash_str(hasher, "root");
+            runtime_hash_str(hasher, name);
+            runtime_hash_bindings(hasher, bindings);
+        }
+        Value::NamespacedRuleScopeInstance {
+            namespace,
+            name,
+            bindings,
+            ..
+        } => {
+            hasher.update([22]);
+            runtime_hash_str(hasher, namespace.semantic_identity());
+            runtime_hash_str(hasher, name);
+            runtime_hash_bindings(hasher, bindings);
+        }
+        Value::TypeDef { kind, fields } => {
+            hasher.update([23]);
+            runtime_hash_str(hasher, kind);
+            runtime_hash_len(hasher, fields.len());
+            for (name, ty) in fields {
+                runtime_hash_str(hasher, name);
+                runtime_hash_str(hasher, ty);
+            }
+        }
+    }
+}
+
+fn runtime_value_structural_digest(value: &Value) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.runtime-collection-value.v2");
+    runtime_hash_value(&mut hasher, value);
+    hasher.finalize().into()
+}
+
+pub(crate) fn runtime_value_semantic_key(value: &Value) -> String {
+    let digest = runtime_value_structural_digest(value);
+    let mut key = String::with_capacity(65);
+    key.push('v');
+    for byte in digest {
         use std::fmt::Write as _;
-        let _ = write!(key, "{}:{}", member.len(), member);
+        let _ = write!(key, "{byte:02x}");
     }
     key
 }
 
-fn runtime_rule_scope_semantic_key(
-    owner: &str,
-    name: &str,
-    bindings: &HashMap<String, Value>,
-) -> String {
-    let mut ordered = bindings.iter().collect::<Vec<_>>();
-    ordered.sort_by(|(left, _), (right, _)| left.cmp(right));
-    let mut key = format!(
-        "rulescope:{}:{}:{}:{}:{}:",
-        owner.len(),
-        owner,
-        name.len(),
-        name,
-        ordered.len()
-    );
-    for (binding, value) in ordered {
-        let value = runtime_value_semantic_key(value);
-        use std::fmt::Write as _;
-        let _ = write!(
-            key,
-            "{}:{}{}:{}",
-            binding.len(),
-            binding,
-            value.len(),
-            value
-        );
+fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    match (left, right) {
+        (Value::Int(left), Value::Int(right)) => left == right,
+        (Value::Float(left), Value::Float(right)) => (left - right).abs() < f64::EPSILON,
+        (Value::Str(left), Value::Str(right)) => left == right,
+        (Value::Char(left), Value::Char(right)) => left == right,
+        (Value::Bool(left), Value::Bool(right)) => left == right,
+        (Value::Unit, Value::Unit) => true,
+        (Value::List(left), Value::List(right))
+        | (Value::Tuple(left), Value::Tuple(right))
+        | (Value::Stream(left), Value::Stream(right))
+        | (Value::Subject(left), Value::Subject(right)) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right)
+                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
+        }
+        (Value::Constructor(left_name, left), Value::Constructor(right_name, right)) => {
+            left_name == right_name
+                && left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
+        }
+        (Value::NamedConstructor(left_name, left), Value::NamedConstructor(right_name, right)) => {
+            left_name == right_name
+                && left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|((left_name, left), (right_name, right))| {
+                        left_name == right_name && runtime_values_semantically_equal(left, right)
+                    })
+        }
+        (
+            Value::NamespacedConstructor {
+                namespace: left_namespace,
+                name: left_name,
+                arguments: left,
+                ..
+            },
+            Value::NamespacedConstructor {
+                namespace: right_namespace,
+                name: right_name,
+                arguments: right,
+                ..
+            },
+        ) => {
+            left_namespace.same_instance(right_namespace)
+                && left_name == right_name
+                && left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
+        }
+        (
+            Value::NamespacedNamedConstructor {
+                namespace: left_namespace,
+                name: left_name,
+                fields: left,
+                ..
+            },
+            Value::NamespacedNamedConstructor {
+                namespace: right_namespace,
+                name: right_name,
+                fields: right,
+                ..
+            },
+        ) => {
+            left_namespace.same_instance(right_namespace)
+                && left_name == right_name
+                && left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|((left_name, left), (right_name, right))| {
+                        left_name == right_name && runtime_values_semantically_equal(left, right)
+                    })
+        }
+        (Value::Map(left), Value::Map(right)) => {
+            left.len() == right.len()
+                && left.iter().all(|(stored_key, stored_value)| {
+                    if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                        runtime_map_get_value(right, key)
+                            .is_some_and(|right| runtime_values_semantically_equal(value, right))
+                    } else {
+                        runtime_map_get_value(right, &Value::Str(stored_key.clone())).is_some_and(
+                            |right| runtime_values_semantically_equal(stored_value, right),
+                        )
+                    }
+                })
+        }
+        (Value::Set(left), Value::Set(right)) => {
+            left.len() == right.len()
+                && left
+                    .values()
+                    .all(|value| runtime_set_find_storage_key(right, value).is_some())
+        }
+        (Value::Builtin(left), Value::Builtin(right)) => left == right,
+        (
+            Value::NamespacedBuiltin {
+                namespace: left_namespace,
+                name: left,
+                ..
+            },
+            Value::NamespacedBuiltin {
+                namespace: right_namespace,
+                name: right,
+                ..
+            },
+        ) => left_namespace.same_instance(right_namespace) && left == right,
+        (
+            Value::Scope {
+                namespace: left_namespace,
+                name: left,
+                ..
+            },
+            Value::Scope {
+                namespace: right_namespace,
+                name: right,
+                ..
+            },
+        ) => left_namespace.same_instance(right_namespace) && left == right,
+        (
+            Value::RuleScopeInstance {
+                name: left_name,
+                bindings: left,
+            },
+            Value::RuleScopeInstance {
+                name: right_name,
+                bindings: right,
+            },
+        ) => {
+            left_name == right_name
+                && left.len() == right.len()
+                && left.iter().all(|(name, left)| {
+                    right
+                        .get(name)
+                        .is_some_and(|right| runtime_values_semantically_equal(left, right))
+                })
+        }
+        (
+            Value::NamespacedRuleScopeInstance {
+                namespace: left_namespace,
+                name: left_name,
+                bindings: left,
+                ..
+            },
+            Value::NamespacedRuleScopeInstance {
+                namespace: right_namespace,
+                name: right_name,
+                bindings: right,
+                ..
+            },
+        ) => {
+            left_namespace.same_instance(right_namespace)
+                && left_name == right_name
+                && left.len() == right.len()
+                && left.iter().all(|(name, left)| {
+                    right
+                        .get(name)
+                        .is_some_and(|right| runtime_values_semantically_equal(left, right))
+                })
+        }
+        (
+            Value::TypeDef {
+                kind: left_kind,
+                fields: left_fields,
+            },
+            Value::TypeDef {
+                kind: right_kind,
+                fields: right_fields,
+            },
+        ) => left_kind == right_kind && left_fields == right_fields,
+        _ => false,
     }
-    key
 }
 
-const RUNTIME_COLLECTION_KEY_PREFIX: &str = "__futuruna_value_key_v1__";
-
-fn runtime_collection_key(value: &Value) -> String {
-    let display = value.to_string();
+fn runtime_collection_bucket_prefix(value: &Value) -> String {
     format!(
-        "{}{}:{}{}",
+        "{}{}:",
         RUNTIME_COLLECTION_KEY_PREFIX,
-        display.len(),
-        display,
         runtime_value_semantic_key(value)
     )
 }
 
-fn runtime_collection_key_display(key: &str) -> &str {
-    let Some(encoded) = key.strip_prefix(RUNTIME_COLLECTION_KEY_PREFIX) else {
-        return key;
+fn runtime_collection_new_storage_key(entries: &BTreeMap<String, Value>, value: &Value) -> String {
+    let prefix = runtime_collection_bucket_prefix(value);
+    for ordinal in 0..=entries.len() {
+        let key = format!("{prefix}{ordinal:016x}");
+        if !entries.contains_key(&key) {
+            return key;
+        }
+    }
+    unreachable!("entries + 1 candidate collision slots always contain a free key")
+}
+
+fn runtime_map_entry(key: Value, value: Value) -> Value {
+    Value::Tuple(vec![
+        Value::Str(RUNTIME_MAP_ENTRY_MARKER.to_string()),
+        key,
+        value,
+    ])
+}
+
+fn runtime_map_entry_parts<'a>(
+    stored_key: &str,
+    stored_value: &'a Value,
+) -> Option<(&'a Value, &'a Value)> {
+    if !stored_key.starts_with(RUNTIME_COLLECTION_KEY_PREFIX) {
+        return None;
+    }
+    let Value::Tuple(parts) = stored_value else {
+        return None;
     };
-    let Some((length, body)) = encoded.split_once(':') else {
-        return key;
-    };
-    let Some(length) = length.parse::<usize>().ok() else {
-        return key;
-    };
-    body.get(..length).unwrap_or(key)
+    match parts.as_slice() {
+        [Value::Str(marker), key, value] if marker == RUNTIME_MAP_ENTRY_MARKER => {
+            Some((key, value))
+        }
+        _ => None,
+    }
+}
+
+fn runtime_map_find_storage_key<'a>(
+    entries: &'a BTreeMap<String, Value>,
+    key: &Value,
+) -> Option<&'a str> {
+    let prefix = runtime_collection_bucket_prefix(key);
+    let bucket_match = entries
+        .range(prefix.clone()..)
+        .take_while(|(stored_key, _)| stored_key.starts_with(&prefix))
+        .find_map(|(stored_key, stored_value)| {
+            runtime_map_entry_parts(stored_key, stored_value)
+                .filter(|(candidate, _)| runtime_values_semantically_equal(candidate, key))
+                .map(|_| stored_key.as_str())
+        });
+    bucket_match.or_else(|| {
+        let Value::Str(candidate) = key else {
+            return None;
+        };
+        entries
+            .get_key_value(candidate)
+            .and_then(|(stored_key, stored_value)| {
+                runtime_map_entry_parts(stored_key, stored_value)
+                    .is_none()
+                    .then_some(stored_key.as_str())
+            })
+    })
+}
+
+pub(crate) fn runtime_map_insert_value(
+    entries: &mut BTreeMap<String, Value>,
+    key: Value,
+    value: Value,
+) -> bool {
+    let mut inserted = true;
+    while let Some(existing) = runtime_map_find_storage_key(entries, &key).map(str::to_string) {
+        inserted = false;
+        entries.remove(&existing);
+    }
+    let storage_key = runtime_collection_new_storage_key(entries, &key);
+    entries.insert(storage_key, runtime_map_entry(key, value));
+    inserted
+}
+
+fn runtime_map_get_value<'a>(
+    entries: &'a BTreeMap<String, Value>,
+    key: &Value,
+) -> Option<&'a Value> {
+    let stored_key = runtime_map_find_storage_key(entries, key)?;
+    let stored_value = entries.get(stored_key)?;
+    runtime_map_entry_parts(stored_key, stored_value)
+        .map(|(_, value)| value)
+        .or(Some(stored_value))
+}
+
+fn runtime_map_remove_value(entries: &mut BTreeMap<String, Value>, key: &Value) -> Option<Value> {
+    let mut removed = None;
+    while let Some(stored_key) = runtime_map_find_storage_key(entries, key).map(str::to_string) {
+        let Some(stored_value) = entries.remove(&stored_key) else {
+            continue;
+        };
+        if removed.is_none() {
+            if let Value::Tuple(mut parts) = stored_value {
+                if stored_key.starts_with(RUNTIME_COLLECTION_KEY_PREFIX)
+                    && matches!(parts.first(), Some(Value::Str(marker)) if marker == RUNTIME_MAP_ENTRY_MARKER)
+                    && parts.len() == 3
+                {
+                    removed = Some(parts.remove(2));
+                } else {
+                    removed = Some(Value::Tuple(parts));
+                }
+            } else {
+                removed = Some(stored_value);
+            }
+        }
+    }
+    removed
+}
+
+pub(crate) fn runtime_map_string_entry<'a>(
+    stored_key: &'a str,
+    stored_value: &'a Value,
+) -> Option<(&'a str, &'a Value)> {
+    if let Some((Value::Str(key), value)) = runtime_map_entry_parts(stored_key, stored_value) {
+        Some((key, value))
+    } else if runtime_map_entry_parts(stored_key, stored_value).is_none() {
+        Some((stored_key, stored_value))
+    } else {
+        None
+    }
+}
+
+fn runtime_set_find_storage_key<'a>(
+    entries: &'a BTreeMap<String, Value>,
+    value: &Value,
+) -> Option<&'a str> {
+    let prefix = runtime_collection_bucket_prefix(value);
+    entries
+        .range(prefix.clone()..)
+        .take_while(|(stored_key, _)| stored_key.starts_with(&prefix))
+        .find_map(|(stored_key, candidate)| {
+            runtime_values_semantically_equal(candidate, value).then_some(stored_key.as_str())
+        })
+        .or_else(|| {
+            entries.iter().find_map(|(stored_key, candidate)| {
+                runtime_values_semantically_equal(candidate, value).then_some(stored_key.as_str())
+            })
+        })
+}
+
+pub(crate) fn runtime_set_insert_value(
+    entries: &mut BTreeMap<String, Value>,
+    value: Value,
+) -> bool {
+    let mut inserted = true;
+    while let Some(existing) = runtime_set_find_storage_key(entries, &value).map(str::to_string) {
+        inserted = false;
+        entries.remove(&existing);
+    }
+    let key = runtime_collection_new_storage_key(entries, &value);
+    entries.insert(key, value);
+    inserted
+}
+
+fn runtime_set_remove_value(entries: &mut BTreeMap<String, Value>, value: &Value) -> Option<Value> {
+    let mut removed = None;
+    while let Some(key) = runtime_set_find_storage_key(entries, value).map(str::to_string) {
+        let candidate = entries.remove(&key);
+        if removed.is_none() {
+            removed = candidate;
+        }
+    }
+    removed
 }
 
 fn checked_exact_observer_memo_value_size(value: &Value) -> Option<usize> {
@@ -13650,11 +14140,15 @@ impl fmt::Display for Value {
             }
             Value::Map(entries) => {
                 write!(f, "{{")?;
-                for (i, (k, v)) in entries.iter().enumerate() {
+                for (i, (stored_key, stored_value)) in entries.iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}: {}", runtime_collection_key_display(k), v)?;
+                    if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                        write!(f, "{}: {}", key, value)?;
+                    } else {
+                        write!(f, "{}: {}", stored_key, stored_value)?;
+                    }
                 }
                 write!(f, "}}")
             }
@@ -20722,24 +21216,33 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => {
                         // Stream: remove consecutive duplicates (Rx distinctUntilChanged)
                         let mut result = Vec::new();
-                        let mut prev: Option<String> = None;
                         for item in v {
-                            let repr = runtime_value_semantic_key(item);
-                            if prev.as_ref() != Some(&repr) {
+                            if result.last().is_none_or(|previous| {
+                                !runtime_values_semantically_equal(previous, item)
+                            }) {
                                 result.push(item.clone());
-                                prev = Some(repr);
                             }
                         }
                         Value::Stream(result)
                     }
                     other => {
-                        // List: global unique (HashSet)
+                        // List: global unique with digest buckets and exact witnesses.
                         let items = list_to_vec(other);
-                        let mut seen = std::collections::HashSet::new();
-                        let unique: Vec<Value> = items
-                            .into_iter()
-                            .filter(|v| seen.insert(runtime_value_semantic_key(v)))
-                            .collect();
+                        let mut buckets: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+                        let mut unique = Vec::new();
+                        for value in items {
+                            let digest = runtime_value_semantic_key(&value);
+                            let duplicate = buckets.get(&digest).is_some_and(|indexes| {
+                                indexes.iter().any(|index| {
+                                    runtime_values_semantically_equal(&unique[*index], &value)
+                                })
+                            });
+                            if !duplicate {
+                                let index = unique.len();
+                                unique.push(value);
+                                buckets.entry(digest).or_default().push(index);
+                            }
+                        }
                         Value::List(unique)
                     }
                 }
@@ -20820,8 +21323,8 @@ impl Interpreter {
             "map_new" => Value::Map(BTreeMap::new()),
             "map_insert" => match (args.get(0), args.get(1), args.get(2)) {
                 (Some(Value::Map(entries)), Some(key), Some(val)) => {
-                    let key = runtime_collection_key(key);
-                    let additional = if entries.contains_key(&key) { 0 } else { 1 };
+                    let additional =
+                        usize::from(runtime_map_find_storage_key(entries, key).is_none());
                     if self
                         .ground_collection_growth_allowed(entries.len(), additional, "map_insert")
                         .is_none()
@@ -20829,7 +21332,7 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut new_map = entries.clone();
-                    new_map.insert(key, val.clone());
+                    runtime_map_insert_value(&mut new_map, key.clone(), val.clone());
                     Value::Map(new_map)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
@@ -20858,8 +21361,7 @@ impl Interpreter {
             },
             "map_get" => match (args.get(0), args.get(1)) {
                 (Some(Value::Map(entries)), Some(key)) => {
-                    let key_str = runtime_collection_key(key);
-                    match entries.get(&key_str) {
+                    match runtime_map_get_value(entries, key) {
                         Some(v) => Value::Constructor("Some".into(), vec![v.clone()].into()),
                         None => Value::Constructor("None".into(), vec![].into()),
                     }
@@ -20868,9 +21370,7 @@ impl Interpreter {
             },
             "map_get_or" => match (args.get(0), args.get(1), args.get(2)) {
                 (Some(Value::Map(entries)), Some(key), Some(default)) => {
-                    let key_str = runtime_collection_key(key);
-                    entries
-                        .get(&key_str)
+                    runtime_map_get_value(entries, key)
                         .cloned()
                         .unwrap_or_else(|| default.clone())
                 }
@@ -20878,7 +21378,7 @@ impl Interpreter {
             },
             "map_contains" => match (args.get(0), args.get(1)) {
                 (Some(Value::Map(entries)), Some(key)) => {
-                    Value::Bool(entries.contains_key(&runtime_collection_key(key)))
+                    Value::Bool(runtime_map_find_storage_key(entries, key).is_some())
                 }
                 _ => Value::Bool(false),
             },
@@ -20888,7 +21388,7 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     let mut new_map = entries.clone();
-                    new_map.remove(&runtime_collection_key(key));
+                    runtime_map_remove_value(&mut new_map, key);
                     Value::Map(new_map)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Map(BTreeMap::new())),
@@ -20900,8 +21400,12 @@ impl Interpreter {
                     }
                     Value::List(
                         entries
-                            .keys()
-                            .map(|key| Value::Str(runtime_collection_key_display(key).to_string()))
+                            .iter()
+                            .map(|(stored_key, stored_value)| {
+                                runtime_map_entry_parts(stored_key, stored_value)
+                                    .map(|(key, _)| key.clone())
+                                    .unwrap_or_else(|| Value::Str(stored_key.clone()))
+                            })
                             .collect(),
                     )
                 }
@@ -20912,7 +21416,16 @@ impl Interpreter {
                     if !self.ground_collection_allowed(entries.len(), "map_values") {
                         return Value::Unit;
                     }
-                    Value::List(entries.values().cloned().collect())
+                    Value::List(
+                        entries
+                            .iter()
+                            .map(|(stored_key, stored_value)| {
+                                runtime_map_entry_parts(stored_key, stored_value)
+                                    .map(|(_, value)| value.clone())
+                                    .unwrap_or_else(|| stored_value.clone())
+                            })
+                            .collect(),
+                    )
                 }
                 _ => Value::List(vec![]),
             },
@@ -20924,11 +21437,17 @@ impl Interpreter {
                     Value::List(
                         entries
                             .iter()
-                            .map(|(key, value)| {
-                                Value::Tuple(vec![
-                                    Value::Str(runtime_collection_key_display(key).to_string()),
-                                    value.clone(),
-                                ])
+                            .map(|(stored_key, stored_value)| {
+                                if let Some((key, value)) =
+                                    runtime_map_entry_parts(stored_key, stored_value)
+                                {
+                                    Value::Tuple(vec![key.clone(), value.clone()])
+                                } else {
+                                    Value::Tuple(vec![
+                                        Value::Str(stored_key.clone()),
+                                        stored_value.clone(),
+                                    ])
+                                }
                             })
                             .collect(),
                     )
@@ -20946,8 +21465,16 @@ impl Interpreter {
                             return Value::Unit;
                         }
                         let mut size = base.len();
-                        for key in other.keys() {
-                            if !base.contains_key(key) {
+                        for (stored_key, stored_value) in other {
+                            let missing = if let Some((key, _)) =
+                                runtime_map_entry_parts(stored_key, stored_value)
+                            {
+                                runtime_map_find_storage_key(base, key).is_none()
+                            } else {
+                                runtime_map_find_storage_key(base, &Value::Str(stored_key.clone()))
+                                    .is_none()
+                            };
+                            if missing {
                                 let Some(next_size) =
                                     self.ground_collection_growth_allowed(size, 1, "map_merge")
                                 else {
@@ -20958,8 +21485,18 @@ impl Interpreter {
                         }
                     }
                     let mut merged = base.clone();
-                    for (k, v) in other {
-                        merged.insert(k.clone(), v.clone());
+                    for (stored_key, stored_value) in other {
+                        if let Some((key, value)) =
+                            runtime_map_entry_parts(stored_key, stored_value)
+                        {
+                            runtime_map_insert_value(&mut merged, key.clone(), value.clone());
+                        } else {
+                            runtime_map_insert_value(
+                                &mut merged,
+                                Value::Str(stored_key.clone()),
+                                stored_value.clone(),
+                            );
+                        }
                     }
                     Value::Map(merged)
                 }
@@ -20975,7 +21512,11 @@ impl Interpreter {
                     for v in items {
                         if let Value::Tuple(ref pair) = v {
                             if pair.len() >= 2 {
-                                map.insert(runtime_collection_key(&pair[0]), pair[1].clone());
+                                runtime_map_insert_value(
+                                    &mut map,
+                                    pair[0].clone(),
+                                    pair[1].clone(),
+                                );
                             }
                         }
                     }
@@ -20990,8 +21531,7 @@ impl Interpreter {
                     if !self.ground_collection_allowed(items.len(), "set_insert") {
                         return Value::Unit;
                     }
-                    let key = runtime_value_semantic_key(val);
-                    if items.contains_key(&key) {
+                    if runtime_set_find_storage_key(items, val).is_some() {
                         Value::Set(items.clone())
                     } else {
                         let Some(size) = items.len().checked_add(1) else {
@@ -21002,7 +21542,7 @@ impl Interpreter {
                             return Value::Unit;
                         }
                         let mut new_items = items.clone();
-                        new_items.insert(key, val.clone());
+                        runtime_set_insert_value(&mut new_items, val.clone());
                         Value::Set(new_items)
                     }
                 }
@@ -21010,8 +21550,7 @@ impl Interpreter {
             },
             "set_contains" => match (args.get(0), args.get(1)) {
                 (Some(Value::Set(items)), Some(val)) => {
-                    let key = runtime_value_semantic_key(val);
-                    Value::Bool(items.contains_key(&key))
+                    Value::Bool(runtime_set_find_storage_key(items, val).is_some())
                 }
                 _ => Value::Bool(false),
             },
@@ -21020,9 +21559,8 @@ impl Interpreter {
                     if !self.ground_collection_allowed(items.len(), "set_remove") {
                         return Value::Unit;
                     }
-                    let key = runtime_value_semantic_key(val);
                     let mut new_items = items.clone();
-                    new_items.remove(&key);
+                    runtime_set_remove_value(&mut new_items, val);
                     Value::Set(new_items)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
@@ -21047,8 +21585,8 @@ impl Interpreter {
                             return Value::Unit;
                         }
                         let mut size = a.len();
-                        for key in b.keys() {
-                            if !a.contains_key(key) {
+                        for value in b.values() {
+                            if runtime_set_find_storage_key(a, value).is_none() {
                                 let Some(next_size) =
                                     self.ground_collection_growth_allowed(size, 1, "set_union")
                                 else {
@@ -21059,8 +21597,8 @@ impl Interpreter {
                         }
                     }
                     let mut result = a.clone();
-                    for (k, v) in b {
-                        result.entry(k.clone()).or_insert_with(|| v.clone());
+                    for value in b.values() {
+                        runtime_set_insert_value(&mut result, value.clone());
                     }
                     Value::Set(result)
                 }
@@ -21071,11 +21609,12 @@ impl Interpreter {
                     if !self.ground_collection_allowed(a.len(), "set_intersect") {
                         return Value::Unit;
                     }
-                    let result: BTreeMap<String, Value> = a
-                        .iter()
-                        .filter(|(k, _)| b.contains_key(k.as_str()))
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
+                    let mut result = BTreeMap::new();
+                    for value in a.values() {
+                        if runtime_set_find_storage_key(b, value).is_some() {
+                            runtime_set_insert_value(&mut result, value.clone());
+                        }
+                    }
                     Value::Set(result)
                 }
                 _ => Value::Set(BTreeMap::new()),
@@ -21085,11 +21624,12 @@ impl Interpreter {
                     if !self.ground_collection_allowed(a.len(), "set_diff") {
                         return Value::Unit;
                     }
-                    let result: BTreeMap<String, Value> = a
-                        .iter()
-                        .filter(|(k, _)| !b.contains_key(k.as_str()))
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
+                    let mut result = BTreeMap::new();
+                    for value in a.values() {
+                        if runtime_set_find_storage_key(b, value).is_none() {
+                            runtime_set_insert_value(&mut result, value.clone());
+                        }
+                    }
                     Value::Set(result)
                 }
                 _ => args.first().cloned().unwrap_or(Value::Set(BTreeMap::new())),
@@ -21102,8 +21642,7 @@ impl Interpreter {
                     let items = list_to_vec(list);
                     let mut result: BTreeMap<String, Value> = BTreeMap::new();
                     for v in items {
-                        let key = runtime_value_semantic_key(&v);
-                        result.entry(key).or_insert(v);
+                        runtime_set_insert_value(&mut result, v);
                     }
                     Value::Set(result)
                 }
@@ -24208,8 +24747,11 @@ impl Interpreter {
                         }
                     }
                     ("Map", [_key_ty, value_ty], Value::Map(entries)) => {
-                        entries.values().all(|item| {
-                            self.value_matches_ty_in_namespace(item, value_ty, expected_namespace)
+                        entries.iter().all(|(stored_key, stored_value)| {
+                            let value = runtime_map_entry_parts(stored_key, stored_value)
+                                .map(|(_, value)| value)
+                                .unwrap_or(stored_value);
+                            self.value_matches_ty_in_namespace(value, value_ty, expected_namespace)
                         })
                     }
                     ("Set", [item_ty], Value::Set(items)) => items.values().all(|item| {
@@ -25332,7 +25874,21 @@ fn ground_equality_value_within_limit(value: &Value, limit: usize) -> bool {
             Value::NamespacedNamedConstructor { fields, .. } => {
                 stack.extend(fields.iter().map(|(_, value)| value));
             }
-            Value::Map(values) | Value::Set(values) => stack.extend(values.values()),
+            Value::Map(values) => {
+                for (stored_key, stored_value) in values {
+                    if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                        stack.push(key);
+                        stack.push(value);
+                    } else {
+                        if remaining == 0 {
+                            return false;
+                        }
+                        remaining -= 1;
+                        stack.push(stored_value);
+                    }
+                }
+            }
+            Value::Set(values) => stack.extend(values.values()),
             _ => {}
         }
     }
@@ -25430,12 +25986,12 @@ fn rust_debug_value(value: &Value) -> String {
         Value::Map(entries) => {
             let parts: Vec<String> = entries
                 .iter()
-                .map(|(key, value)| {
-                    format!(
-                        "{:?}: {}",
-                        runtime_collection_key_display(key),
-                        rust_debug_value(value)
-                    )
+                .map(|(stored_key, stored_value)| {
+                    if let Some((key, value)) = runtime_map_entry_parts(stored_key, stored_value) {
+                        format!("{}: {}", rust_debug_value(key), rust_debug_value(value))
+                    } else {
+                        format!("{:?}: {}", stored_key, rust_debug_value(stored_value))
+                    }
                 })
                 .collect();
             format!("{{{}}}", parts.join(", "))
@@ -57119,6 +57675,56 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn structural_collection_keys_are_total_beyond_the_observer_memo_cap() {
+        let value = Value::Str("x".repeat(CHECKED_EXACT_OBSERVER_MEMO_SINGLE_VALUE_BYTE_LIMIT + 1));
+        assert!(
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&value)).is_none(),
+            "the observer memo must retain its deliberate single-value cap"
+        );
+
+        let semantic_key = runtime_value_semantic_key(&value);
+        assert_eq!(semantic_key.len(), 65);
+        let mut set = BTreeMap::new();
+        assert!(runtime_set_insert_value(&mut set, value));
+        assert_eq!(set.len(), 1);
+        assert!(set.keys().all(|storage_key| {
+            storage_key.starts_with(RUNTIME_COLLECTION_KEY_PREFIX)
+                && storage_key.len() <= RUNTIME_COLLECTION_KEY_PREFIX.len() + 65 + 1 + 16
+        }));
+    }
+
+    #[test]
+    fn collection_memo_identity_ignores_internal_storage_keys() {
+        let raw_map = Value::Map(BTreeMap::from([("alpha".to_string(), Value::Int(1))]));
+        let mut normalized_map = BTreeMap::new();
+        runtime_map_insert_value(
+            &mut normalized_map,
+            Value::Str("alpha".into()),
+            Value::Int(1),
+        );
+        let normalized_map = Value::Map(normalized_map);
+        assert_eq!(
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_map)),
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&normalized_map))
+        );
+        assert!(!normalized_map
+            .to_string()
+            .contains(RUNTIME_COLLECTION_KEY_PREFIX));
+
+        let raw_set = Value::Set(BTreeMap::from([(
+            "display-derived".to_string(),
+            Value::Str("member".into()),
+        )]));
+        let mut normalized_set = BTreeMap::new();
+        runtime_set_insert_value(&mut normalized_set, Value::Str("member".into()));
+        let normalized_set = Value::Set(normalized_set);
+        assert_eq!(
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&raw_set)),
+            checked_exact_observer_memo_encode_arguments(std::slice::from_ref(&normalized_set))
+        );
     }
 
     #[test]

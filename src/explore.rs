@@ -529,15 +529,13 @@ fn runtime_value_from_explore_value(value: &ExploreValue) -> Value {
                 )
             },
         ),
-        ExploreValue::Set(values) => Value::Set(
-            values
-                .iter()
-                .map(|value| {
-                    let runtime = runtime_value_from_explore_value(value);
-                    (runtime_value_semantic_key(&runtime), runtime)
-                })
-                .collect(),
-        ),
+        ExploreValue::Set(values) => {
+            let mut entries = BTreeMap::new();
+            for value in values {
+                runtime_set_insert_value(&mut entries, runtime_value_from_explore_value(value));
+            }
+            Value::Set(entries)
+        }
         ExploreValue::Tuple(values) => Value::Tuple(
             values
                 .iter()
