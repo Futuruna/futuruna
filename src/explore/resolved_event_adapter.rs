@@ -4078,19 +4078,29 @@ impl AdapterContext<'_, '_> {
             self.mark_quantizers_uncertified(&receiver);
             return None;
         };
-        let owner = self
+        let analysis_owner = self
             .artifacts
             .checked_resolutions
             .rule_families
             .get(family)
             .and_then(|resolution| resolution.candidates.first())
             .map(|candidate| candidate.declaration.clone());
-        let Some(owner) = owner else {
+        let Some(analysis_owner) = analysis_owner else {
+            self.mark_quantizers_uncertified(&AbstractValue::Constructor(receiver));
+            return None;
+        };
+        let model_owner = self
+            .artifacts
+            .checked_resolutions
+            .analysis_occurrence_to_data_owner
+            .get(&analysis_owner)
+            .cloned();
+        let Some(model_owner) = model_owner else {
             self.mark_quantizers_uncertified(&AbstractValue::Constructor(receiver));
             return None;
         };
         let exact_owner = receiver.identity.as_ref().map(|identity| &identity.owner);
-        if exact_owner != Some(&CheckedDataTypeId::Declared(owner.clone())) {
+        if exact_owner != Some(&CheckedDataTypeId::Declared(model_owner)) {
             self.mark_quantizers_uncertified(&AbstractValue::Constructor(receiver.clone()));
             self.residual(
                 Some(source_site(app_site, expression)),
@@ -4099,12 +4109,18 @@ impl AdapterContext<'_, '_> {
             );
             return None;
         }
-        let parameter_count = self.index.declarations.get(&owner).and_then(|declaration| {
-            let Stmt::TypeDecl(TypeDecl::RuleScope { params, .. }) = &*declaration.statement else {
-                return None;
-            };
-            Some(params.len())
-        });
+        let parameter_count =
+            self.index
+                .declarations
+                .get(&analysis_owner)
+                .and_then(|declaration| {
+                    let Stmt::TypeDecl(TypeDecl::RuleScope { params, .. }) =
+                        &*declaration.statement
+                    else {
+                        return None;
+                    };
+                    Some(params.len())
+                });
         let Some(parameter_count) = parameter_count else {
             self.mark_quantizers_uncertified(&AbstractValue::Constructor(receiver));
             return None;

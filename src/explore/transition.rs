@@ -16,10 +16,10 @@ use crate::CheckedDataTypeId;
 
 use super::{ExploreValue, Ty};
 
-const RELATIONAL_SCHEMA_ENCODING_V1: &[u8] = b"futuruna.explore.relational-transition-schema.v1";
-const TRANSITION_TYPE_ENCODING_V1: &[u8] = b"futuruna.explore.transition-type-id.v1";
-const STATE_ID_HASH_V1: &[u8] = b"futuruna.explore.state-id.v1";
-const TRANSITION_ID_HASH_V1: &[u8] = b"futuruna.explore.transition-id.v1";
+const RELATIONAL_SCHEMA_ENCODING_V2: &[u8] = b"futuruna.explore.relational-transition-schema.v2";
+const TRANSITION_TYPE_ENCODING_V2: &[u8] = b"futuruna.explore.transition-type-id.v2";
+const STATE_ID_HASH_V2: &[u8] = b"futuruna.explore.state-id.v2";
+const TRANSITION_ID_HASH_V2: &[u8] = b"futuruna.explore.transition-id.v2";
 const EXPLORE_VALUE_ID_HASH_V1: &[u8] = b"futuruna.explore.value-id.v1";
 
 const STATE_SCHEMA_ROLE: u8 = 0x01;
@@ -114,7 +114,7 @@ impl TransitionSchemaIdentities {
         let state_schema_id = StateSchemaId::derive(&state_schema_preimage);
         let context_schema_id = ContextSchemaId::derive(&context_schema_preimage);
 
-        let mut encoder = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V1);
+        let mut encoder = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V2);
         encoder.bytes(context_schema_id.as_ref());
         encoder.bytes(state_schema_id.as_ref());
         let transition_type_preimage = encoder.finish();
@@ -313,7 +313,7 @@ pub(crate) struct StateId([u8; 32]);
 
 impl StateId {
     pub(crate) fn derive(state_schema_id: StateSchemaId, value: &ExploreValue) -> Self {
-        let mut hasher = CanonicalHasher::new(STATE_ID_HASH_V1);
+        let mut hasher = CanonicalHasher::new(STATE_ID_HASH_V2);
         hasher.tag(STATE_SCHEMA_ROLE);
         hasher.bytes(state_schema_id.as_ref());
         hasher.tag(STATE_VALUE_ROLE);
@@ -341,7 +341,7 @@ impl TransitionId {
         before: StateId,
         after: StateId,
     ) -> Self {
-        let mut hasher = CanonicalHasher::new(TRANSITION_ID_HASH_V1);
+        let mut hasher = CanonicalHasher::new(TRANSITION_ID_HASH_V2);
         hasher.tag(TRANSITION_SCHEMA_ROLE);
         hasher.bytes(transition_type_id.as_ref());
         hasher.tag(TRANSITION_CONTEXT_ROLE);
@@ -629,7 +629,7 @@ impl TransitionInstance {
             return Err(TransitionIdentityError::ContextSchemaIdMismatch);
         }
 
-        let mut expected_transition_type = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V1);
+        let mut expected_transition_type = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V2);
         expected_transition_type.bytes(context_schema_id.as_ref());
         expected_transition_type.bytes(state_schema_id.as_ref());
         if expected_transition_type.finish().as_ref() != transition_type_preimage.as_ref() {
@@ -1358,7 +1358,7 @@ fn encode_relational_schema(
             "relational Explore {role} schema contains an unresolved checked type"
         ));
     }
-    let mut encoder = CanonicalEncoder::new(RELATIONAL_SCHEMA_ENCODING_V1);
+    let mut encoder = CanonicalEncoder::new(RELATIONAL_SCHEMA_ENCODING_V2);
     encoder.tag(role_tag);
     encode_ty(&mut encoder, ty, resolved_type_owners)
         .map_err(|message| format!("relational Explore {role} schema identity: {message}"))?;
@@ -1384,15 +1384,9 @@ fn relational_schema_ty_is_closed(ty: &Ty) -> bool {
 
 fn encode_checked_data_type_id(encoder: &mut CanonicalEncoder, owner: &CheckedDataTypeId) {
     match owner {
-        CheckedDataTypeId::Declared(occurrence) => {
+        CheckedDataTypeId::Declared(owner) => {
             encoder.tag(DECLARED_OWNER_OCCURRENCE);
-            // DeclarationId identifies the declaration inside its source
-            // module and qualified semantic namespace. The equal-declaration
-            // occurrence rank preserves genuinely repeated retained owners,
-            // while the checked program's global position remains only an
-            // address for diagnostics/resolution.
-            encoder.bytes(occurrence.declaration.semantic_key().as_bytes());
-            encoder.count(occurrence.declaration_occurrence_ordinal);
+            encoder.bytes(owner.semantic_key().as_bytes());
         }
         CheckedDataTypeId::Intrinsic { canonical_name } => {
             encoder.tag(DECLARED_OWNER_INTRINSIC);
@@ -1787,7 +1781,7 @@ mod tests {
         )
         .unwrap();
 
-        let mut expected = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V1);
+        let mut expected = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V2);
         expected.bytes(schemas.context_schema_id().as_ref());
         expected.bytes(schemas.state_schema_id().as_ref());
         let expected = expected.finish();
@@ -1797,7 +1791,7 @@ mod tests {
             TransitionTypeId::derive(&expected)
         );
 
-        let mut reversed = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V1);
+        let mut reversed = CanonicalEncoder::new(TRANSITION_TYPE_ENCODING_V2);
         reversed.bytes(schemas.state_schema_id().as_ref());
         reversed.bytes(schemas.context_schema_id().as_ref());
         assert_ne!(
@@ -1973,10 +1967,10 @@ mod tests {
     }
 
     #[test]
-    fn declared_owner_identity_ignores_global_retained_occurrence_position() {
-        let declaration = crate::DeclarationId {
-            module: crate::ModuleId {
-                content_hash: "stable-module".into(),
+    fn declared_owner_identity_is_occurrence_sensitive_without_global_position() {
+        let declaration = crate::ModelDeclarationId {
+            module: crate::ModelModuleId {
+                interface_hash: "stable-interface".into(),
                 internal_path: Box::default(),
             },
             kind: crate::DeclarationKind::Adt,
@@ -1985,30 +1979,21 @@ mod tests {
             arity: None,
             ordinal: 3,
         };
-        let owner_at_first_position =
-            CheckedDataTypeId::Declared(crate::CheckedDeclarationOccurrenceId {
-                declaration: declaration.clone(),
-                declaration_occurrence_ordinal: 2,
-                normalized_ordinal: 4,
-            });
-        let owner_after_unrelated_insert =
-            CheckedDataTypeId::Declared(crate::CheckedDeclarationOccurrenceId {
-                declaration: declaration.clone(),
-                declaration_occurrence_ordinal: 2,
-                normalized_ordinal: 9,
-            });
+        let owner = CheckedDataTypeId::Declared(crate::CheckedModelOwnerKey {
+            declaration: declaration.clone(),
+            declaration_occurrence_ordinal: 2,
+        });
         let mut first = CanonicalEncoder::new(b"owner-test.v1");
-        encode_checked_data_type_id(&mut first, &owner_at_first_position);
+        encode_checked_data_type_id(&mut first, &owner);
         let mut second = CanonicalEncoder::new(b"owner-test.v1");
-        encode_checked_data_type_id(&mut second, &owner_after_unrelated_insert);
+        encode_checked_data_type_id(&mut second, &owner);
 
         let first = first.finish();
         assert_eq!(first, second.finish());
 
-        let repeated_owner = CheckedDataTypeId::Declared(crate::CheckedDeclarationOccurrenceId {
+        let repeated_owner = CheckedDataTypeId::Declared(crate::CheckedModelOwnerKey {
             declaration,
             declaration_occurrence_ordinal: 3,
-            normalized_ordinal: 10,
         });
         let mut repeated = CanonicalEncoder::new(b"owner-test.v1");
         encode_checked_data_type_id(&mut repeated, &repeated_owner);

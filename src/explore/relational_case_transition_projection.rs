@@ -30,18 +30,18 @@ use super::transition::{
 };
 use super::{ExploreValue, SourceKey, SuccessorKey};
 
-pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION: u32 = 2;
 pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_SCHEMA: &str =
-    "futuruna.relational-selected-case-transitions.v1";
-/// V1 keeps collision checking and exact distinct-node closure in memory.
+    "futuruna.relational-selected-case-transitions.v2";
+/// V2 keeps collision checking and exact distinct-node closure in memory.
 /// Bound that auxiliary index independently of the much larger durable
 /// relation so publishing an authorized graph cannot exhaust the worker.
 /// Changing this bound requires a projection schema/version migration.
-pub(crate) const RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1: usize = 65_536;
+pub(crate) const RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2: usize = 65_536;
 
-const PROJECTION_ID_HASH_V1: &[u8] =
-    b"futuruna.explore.relational-case-transition-projection-id.v1";
-const CONTENT_ROOT_HASH_V1: &[u8] = b"futuruna.explore.relational-case-transition-content-root.v1";
+const PROJECTION_ID_HASH_V2: &[u8] =
+    b"futuruna.explore.relational-case-transition-projection-id.v2";
+const CONTENT_ROOT_HASH_V2: &[u8] = b"futuruna.explore.relational-case-transition-content-root.v2";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalCaseTransitionProjectionId([u8; 32]);
@@ -311,7 +311,7 @@ pub(crate) fn derive_relational_case_transition_projection(
     let selected_discovery = scheduler.selected_discovery_suffix(0);
     let retained_member_count = selected_discovery
         .len()
-        .min(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1);
+        .min(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2);
     let capacity = projection_capacity(selected_discovery.len());
     let mut members = Vec::new();
     members
@@ -480,7 +480,7 @@ fn derive_projection_id(
     authorization: &RelationalMechanismStarterValueAuthorization,
 ) -> RelationalCaseTransitionProjectionId {
     let mut hasher = Sha256::new();
-    hasher.update(PROJECTION_ID_HASH_V1);
+    hasher.update(PROJECTION_ID_HASH_V2);
     hasher.update(RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION.to_be_bytes());
     hasher.update(contract.relation_id().bytes());
     hasher.update(contract.admission_id().bytes());
@@ -499,7 +499,7 @@ fn derive_content_root(
     members: impl ExactSizeIterator<Item = RelationalCaseTransitionMember>,
 ) -> RelationalCaseTransitionContentRoot {
     let mut hasher = Sha256::new();
-    hasher.update(CONTENT_ROOT_HASH_V1);
+    hasher.update(CONTENT_ROOT_HASH_V2);
     hasher.update(projection_id.bytes());
     hasher.update(seal_id.bytes());
     hasher.update(selected_case_set_root.bytes());
@@ -597,10 +597,10 @@ impl fmt::Display for RelationalCaseTransitionProjectionError {
 impl Error for RelationalCaseTransitionProjectionError {}
 
 fn projection_capacity(selected_count: usize) -> Option<RelationalCaseTransitionCapacity> {
-    (selected_count > RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1).then_some(
+    (selected_count > RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2).then_some(
         RelationalCaseTransitionCapacity {
-            maximum_members: RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1 as u128,
-            required_at_least: (RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1 as u128) + 1,
+            maximum_members: RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2 as u128,
+            required_at_least: (RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2 as u128) + 1,
         },
     )
 }
@@ -610,20 +610,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn v1_capacity_frontier_begins_only_after_the_exact_member_limit() {
+    fn v2_capacity_frontier_begins_only_after_the_exact_member_limit() {
         assert_eq!(
-            projection_capacity(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1),
+            projection_capacity(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2),
             None
         );
-        let capacity = projection_capacity(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1 + 1)
+        let capacity = projection_capacity(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2 + 1)
             .expect("one member beyond the cap has an honest capacity frontier");
         assert_eq!(
             capacity.maximum_members(),
-            RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1 as u128
+            RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2 as u128
         );
         assert_eq!(
             capacity.required_at_least(),
-            RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V1 as u128 + 1
+            RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2 as u128 + 1
         );
     }
 }

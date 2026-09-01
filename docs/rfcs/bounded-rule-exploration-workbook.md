@@ -290,6 +290,14 @@ Names are source addresses. Resolved semantic IDs, not spellings, form
 dependencies. Renaming a query/view/request and updating references must not
 rename its semantic layer.
 
+The checker consequently keeps two coordinates. Query-inclusive analysis IDs
+address declarations and expression sites in the exact checked source. A
+separate occurrence-sensitive model-owner key seals only the recursively
+resolved nominal type/schema interface. Explore declarations, rule and method
+bodies, observer logic and execution policy cannot rename that owner: reachable
+transition logic enters `RelationId`, observer logic enters
+`MechanismRequestId`, and scheduling remains operational state.
+
 `RelationFrontierRoot` is distinct from `RelationId`: it commits discovered
 rows, provenance and the exact open/sealed producer frontier without claiming
 completion. When every source and successor frontier seals,
@@ -1109,6 +1117,12 @@ rule-graph reasoning proves the skipped cell uniform.
   rule targets must consume their producer-owned callback frame, while inline
   lambdas must match the checked source body.
 - Intern complete differential signatures and exact incidence.
+- Derive structural mechanism/node/edge starter subbounds as request-, target-
+  and facet-keyed correlated origin-support overlays
+  `SourceKey<(Context, Before)> -> Set<SuccessorKey<After>>`, never as fields of
+  structural identity. Track confirmed inner support, a concrete outer envelope
+  or opaque target obligation, and keep case-count, distinct-starter and
+  conditional-successor closure independently typed.
 - Add post-mechanism views such as distinct signatures per 50-DKK loss bin.
 - Keep optimum proofs and mechanism explanations separate.
 

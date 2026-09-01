@@ -23912,6 +23912,90 @@ impl DeclarationId {
     }
 }
 
+/// Path-independent namespace for nominal model/type owners.
+///
+/// Unlike [`ModuleId`], this hashes only the recursively resolved type/schema
+/// interface. Ordinary functions, rule bodies, mechanism observers and every
+/// Explore declaration are excluded: those computations belong to their
+/// reachable semantic layer and must not rename otherwise unchanged typed
+/// state nodes.
+#[derive(Debug, Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ModelModuleId {
+    pub(crate) interface_hash: Box<str>,
+    pub(crate) internal_path: Box<[String]>,
+}
+
+impl ModelModuleId {
+    fn top_level(interface_hash: String) -> Self {
+        Self {
+            interface_hash: interface_hash.into_boxed_str(),
+            internal_path: Box::default(),
+        }
+    }
+
+    fn within_namespace(&self, name: &str) -> Self {
+        let mut internal_path = self.internal_path.to_vec();
+        internal_path.push(name.to_string());
+        Self {
+            interface_hash: self.interface_hash.clone(),
+            internal_path: internal_path.into_boxed_slice(),
+        }
+    }
+}
+
+/// Stable declaration identity inside the model/type-owner namespace.
+///
+/// `ordinal` counts only nominal namespace declarations. In particular, an
+/// Explore declaration or executable helper inserted before a type cannot
+/// perturb it.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct ModelDeclarationId {
+    pub(crate) module: ModelModuleId,
+    pub(crate) kind: DeclarationKind,
+    pub(crate) owner: Option<Box<str>>,
+    pub(crate) name: Box<str>,
+    pub(crate) arity: Option<usize>,
+    pub(crate) ordinal: usize,
+}
+
+impl ModelDeclarationId {
+    fn semantic_key(&self) -> String {
+        format!(
+            "interface={}:{};kind={};owner={};name={};arity={};ordinal={}",
+            self.module.interface_hash,
+            self.module.internal_path.join("/"),
+            self.kind.token(),
+            self.owner.as_deref().unwrap_or(""),
+            self.name,
+            self.arity
+                .map(|arity| arity.to_string())
+                .unwrap_or_else(|| "-".to_string()),
+            self.ordinal,
+        )
+    }
+}
+
+/// One retained occurrence of a nominal model/type declaration.
+///
+/// The whole-program normalized ordinal is deliberately absent. Equal,
+/// path-independent owner declarations share a declaration ID; retained
+/// duplicate import occurrences receive distinct ranks.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) struct CheckedModelOwnerKey {
+    pub(crate) declaration: ModelDeclarationId,
+    pub(crate) declaration_occurrence_ordinal: usize,
+}
+
+impl CheckedModelOwnerKey {
+    pub(crate) fn semantic_key(&self) -> String {
+        format!(
+            "{};occurrence={}",
+            self.declaration.semantic_key(),
+            self.declaration_occurrence_ordinal
+        )
+    }
+}
+
 /// Stable semantic expression location. Structural child indices are recorded
 /// by the next resolution phase; source offsets are intentionally absent.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -23944,6 +24028,10 @@ pub(crate) struct SourcedStmt {
     /// Stable rank among retained declarations with this exact DeclarationId.
     /// Unlike `normalized_ordinal`, unrelated declarations cannot renumber it.
     pub(crate) declaration_occurrence_ordinal: usize,
+    /// Stable nominal owner/namespace occurrence when this declaration owns a
+    /// type or qualified namespace. Executable and Explore declarations have
+    /// no model-owner coordinate.
+    pub(crate) model_owner: Option<CheckedModelOwnerKey>,
     pub(crate) normalized_ordinal: usize,
     pub(crate) import_kind: SourcedImportKind,
     pub(crate) statement: Arc<Stmt>,
@@ -23952,6 +24040,8 @@ pub(crate) struct SourcedStmt {
     /// Its declarations are intentionally absent from `declarations`; the
     /// alias declaration itself supplies the distinct parent-instance ID.
     pub(crate) qualified_target_module: Option<ModuleId>,
+    /// Query-free type/schema-interface closure of an opaque qualified target.
+    pub(crate) qualified_target_model_module: Option<ModelModuleId>,
     pub(crate) qualified_target_source_path: Option<Arc<PathBuf>>,
     pub(crate) source_span: Option<Span>,
 }
@@ -23974,6 +24064,18 @@ impl SourcedStmt {
             self.declaration_occurrence_ordinal
         ));
         Some(target.within_inline_module(&format!("qualified:{}:{}", module_name, parent_hash)))
+    }
+
+    /// Stable parent-instance namespace for future qualified type owners.
+    /// Query-shell edits in either the parent or target cannot perturb it.
+    pub(crate) fn qualified_model_instance_module_id(&self) -> Option<ModelModuleId> {
+        let SourcedImportKind::QualifiedImport { module_name } = &self.import_kind else {
+            return None;
+        };
+        let parent = self.model_owner.as_ref()?;
+        let target = self.qualified_target_model_module.as_ref()?;
+        let parent_hash = parsed_source_content_hash(&parent.semantic_key());
+        Some(target.within_namespace(&format!("qualified:{}:{}", module_name, parent_hash)))
     }
 }
 
@@ -24094,7 +24196,7 @@ pub(crate) struct CheckedTopLevelBindingId {
 /// types use a closed canonical identity rather than a fabricated declaration.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) enum CheckedDataTypeId {
-    Declared(CheckedDeclarationOccurrenceId),
+    Declared(CheckedModelOwnerKey),
     Intrinsic { canonical_name: Box<str> },
 }
 
@@ -24548,6 +24650,14 @@ pub(crate) struct CheckedResolutionArtifacts {
     /// ground facts and never need to repeat this lookup.
     constructor_identities: BTreeMap<(Box<str>, Box<str>), Arc<CheckedConstructorIdentity>>,
     data_type_identities: BTreeMap<Box<str>, CheckedDataTypeId>,
+    /// Address bridges for stable checked data owners (currently ADTs and the
+    /// active RuleScope). Semantic consumers use the model owner; syntax lookup
+    /// and classifier slicing recover the exact query-inclusive checked
+    /// declaration occurrence through this map.
+    data_owner_to_analysis_occurrence:
+        BTreeMap<CheckedModelOwnerKey, CheckedDeclarationOccurrenceId>,
+    analysis_occurrence_to_data_owner:
+        BTreeMap<CheckedDeclarationOccurrenceId, CheckedModelOwnerKey>,
     pub(crate) rule_families: BTreeMap<RuleDispatchKey, CheckedRuleFamilyResolution>,
     /// Exact families whose checked runtime miss is the semantic Boolean
     /// fallback rather than the ordinary partial-rule miss value.
@@ -24589,9 +24699,12 @@ struct PrepassAnalysisDeclaration {
     statement: Stmt,
     module: ModuleId,
     declaration_ordinal: usize,
+    model_module: Option<ModelModuleId>,
+    model_declaration_ordinal: Option<usize>,
     import_kind: SourcedImportKind,
     canonical_source_path: Option<Arc<PathBuf>>,
     qualified_target_module: Option<ModuleId>,
+    qualified_target_model_module: Option<ModelModuleId>,
     qualified_target_source_path: Option<Arc<PathBuf>>,
     participates_in_constructor_normalization: bool,
 }
@@ -24620,6 +24733,12 @@ struct AnalysisDependencyEdge {
 #[derive(Debug, Clone)]
 struct AnalysisDependencyModule {
     local: ModuleId,
+    edges: Box<[AnalysisDependencyEdge]>,
+}
+
+#[derive(Debug, Clone)]
+struct ModelInterfaceDependencyModule {
+    local: ModelModuleId,
     edges: Box<[AnalysisDependencyEdge]>,
 }
 
@@ -25059,7 +25178,7 @@ impl CheckedExploreSourceCoverageManifest {
 /// certificate.  This is intentionally independent of the journal and
 /// support-plan versions: an unsupported checked expression simply produces
 /// no certificate and leaves the mapped source image open.
-pub(crate) const CHECKED_EXPLORE_SOURCE_IMAGE_PROJECTION_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_SOURCE_IMAGE_PROJECTION_VERSION: u32 = 2;
 
 /// Semantic endpoint retained by one normalized source row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -26160,8 +26279,16 @@ impl TypeCheckArtifacts {
                     }
                 }
                 CheckedExploreSemanticDependency::DeclaredType(CheckedDataTypeId::Declared(
-                    declaration,
+                    owner,
                 )) => {
+                    let declaration = self
+                        .checked_resolutions
+                        .data_owner_to_analysis_occurrence
+                        .get(owner)
+                        .ok_or_else(|| {
+                            "checked classifier model owner has no analysis occurrence bridge"
+                                .to_string()
+                        })?;
                     support
                         .entry(declaration.clone())
                         .or_default()
@@ -30958,9 +31085,19 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
         hasher: &mut Sha256,
         owner: &CheckedDataTypeId,
     ) -> Result<(), CheckedExploreQueryArtifactIssue> {
-        let CheckedDataTypeId::Declared(declaration_id) = owner else {
+        let CheckedDataTypeId::Declared(model_owner) = owner else {
             return self.unsealed(None);
         };
+        let declaration_id = self
+            .resolutions
+            .data_owner_to_analysis_occurrence
+            .get(model_owner)
+            .ok_or_else(
+                || CheckedExploreQueryArtifactIssue::SemanticDependencyClosureUnsealed {
+                    layer: self.layer.to_string().into_boxed_str(),
+                    site: None,
+                },
+            )?;
         let declaration = self
             .index
             .type_declarations
@@ -30973,6 +31110,7 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 },
             )?;
         checked_query_hash_component(hasher, "dependency-kind", "declared-type");
+        checked_query_hash_component(hasher, "model-owner", &model_owner.semantic_key());
         let mut type_variables = BTreeMap::new();
         match declaration {
             TypeDecl::ADT {
@@ -31031,9 +31169,14 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                                 .get(variant.name.as_str())
                                 .is_some_and(|owner| match owner {
                                     CheckedDataTypeId::Intrinsic { .. } => true,
-                                    CheckedDataTypeId::Declared(owner) => {
-                                        owner.normalized_ordinal < declaration_id.normalized_ordinal
-                                    }
+                                    CheckedDataTypeId::Declared(owner) => self
+                                        .resolutions
+                                        .data_owner_to_analysis_occurrence
+                                        .get(owner)
+                                        .is_some_and(|occurrence| {
+                                            occurrence.normalized_ordinal
+                                                < declaration_id.normalized_ordinal
+                                        }),
                                 });
                             if includes_existing_type {
                                 checked_query_hash_component(
@@ -31152,7 +31295,17 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                 }
                 CheckedExploreSemanticDependency::DeclaredType(owner) => {
                     self.hash_declared_type_dependency(&mut hasher, owner)?;
-                    if let CheckedDataTypeId::Declared(declaration) = owner {
+                    if let CheckedDataTypeId::Declared(model_owner) = owner {
+                        let declaration = self
+                            .resolutions
+                            .data_owner_to_analysis_occurrence
+                            .get(model_owner)
+                            .ok_or_else(|| {
+                                CheckedExploreQueryArtifactIssue::SemanticDependencyClosureUnsealed {
+                                    layer: self.layer.to_string().into_boxed_str(),
+                                    site: None,
+                                }
+                            })?;
                         reachable_declarations.insert(declaration.clone());
                     }
                 }
@@ -31318,11 +31471,17 @@ fn checked_exact_observer_type_is_first_order(
                     canonical_name.as_ref(),
                     "Stream" | "Subject" | "Db" | "TypeDef" | "ProgramReference" | "RuleScope"
                 ),
-                owner @ CheckedDataTypeId::Declared(declaration) => {
+                owner @ CheckedDataTypeId::Declared(model_owner) => {
                     if !visiting.insert(owner.clone()) {
                         return true;
                     }
-                    let first_order = match index.type_declarations.get(declaration).copied() {
+                    let declaration = resolutions
+                        .data_owner_to_analysis_occurrence
+                        .get(model_owner);
+                    let first_order = match declaration
+                        .and_then(|declaration| index.type_declarations.get(declaration))
+                        .copied()
+                    {
                         Some(TypeDecl::ADT { variants, .. }) => variants.iter().all(|variant| {
                             variant.fields.iter().all(|field| {
                                 checked_exact_observer_type_is_first_order(
@@ -32048,9 +32207,12 @@ fn checked_explore_schema_fields(
             completeness_gap: None,
         });
     }
-    let CheckedDataTypeId::Declared(declaration_id) = &owner else {
+    let CheckedDataTypeId::Declared(model_owner) = &owner else {
         unreachable!("intrinsic type owner returned above")
     };
+    let declaration_id = resolutions
+        .data_owner_to_analysis_occurrence
+        .get(model_owner)?;
     let declaration = index.type_declarations.get(declaration_id).copied()?;
     let mut fields = Vec::new();
     match declaration {
@@ -32693,8 +32855,8 @@ fn checked_explore_source_image_projection_analysis(
             "source projection binding/site count mismatch".into(),
         ));
     }
-    // Preserve the established direct-endpoint proof path and all of its v1
-    // identities. This certificate is needed only when a varying Auxiliary
+    // Preserve the established direct-endpoint proof path. This certificate
+    // is needed only when a varying Auxiliary
     // coordinate would otherwise be erased by SourceRow construction.
     if !query.source.bindings.iter().any(|binding| {
         binding.role == explore::ExploreSourceBindingRoleIr::Auxiliary
@@ -33671,29 +33833,15 @@ fn checked_explore_projection_field(
 
 fn checked_explore_projection_owner_digest(owner: &CheckedDataTypeId) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-projection-owner.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-projection-owner.v2\0");
     match owner {
         CheckedDataTypeId::Intrinsic { canonical_name } => {
             checked_query_hash_component(&mut hasher, "owner-kind", "intrinsic");
             checked_query_hash_component(&mut hasher, "canonical-name", canonical_name);
         }
-        CheckedDataTypeId::Declared(occurrence) => {
+        CheckedDataTypeId::Declared(owner) => {
             checked_query_hash_component(&mut hasher, "owner-kind", "declared");
-            checked_query_hash_component(
-                &mut hasher,
-                "declaration",
-                &occurrence.declaration.semantic_key(),
-            );
-            checked_query_hash_component(
-                &mut hasher,
-                "occurrence-ordinal",
-                &occurrence.declaration_occurrence_ordinal.to_string(),
-            );
-            checked_query_hash_component(
-                &mut hasher,
-                "normalized-ordinal",
-                &occurrence.normalized_ordinal.to_string(),
-            );
+            checked_query_hash_component(&mut hasher, "model-owner", &owner.semantic_key());
         }
     }
     hasher.finalize().into()
@@ -33971,7 +34119,7 @@ fn checked_explore_projection_certificate_id(
     witnesses: &[CheckedExploreSourceProjectionWitness],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-image-projection-certificate.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-image-projection-certificate.v2\0");
     checked_query_hash_component(&mut hasher, "certificate-version", &version.to_string());
     hasher.update(relation_id.bytes());
     hasher.update(semantic_dependency_digest);
@@ -34037,8 +34185,9 @@ fn hash_checked_explore_type_owner(
         }
     })?;
     match owner {
-        CheckedDataTypeId::Declared(_) => {
-            checked_query_hash_component(hasher, "type-owner-kind", "declared-schema");
+        CheckedDataTypeId::Declared(owner) => {
+            checked_query_hash_component(hasher, "type-owner-kind", "declared");
+            checked_query_hash_component(hasher, "type-owner", &owner.semantic_key());
         }
         CheckedDataTypeId::Intrinsic { canonical_name } => {
             checked_query_hash_component(hasher, "type-owner-kind", "intrinsic");
@@ -35000,7 +35149,7 @@ fn checked_explore_relation_id(
     semantic_closure_digest: [u8; 32],
 ) -> Result<explore::RelationId, CheckedExploreQueryArtifactIssue> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-relation.v4\0");
+    hasher.update(b"futuruna.checked-explore-relation.v5\0");
     hash_checked_explore_relation_ir(&mut hasher, resolutions, query, semantic_closure_digest)?;
     Ok(explore::RelationId::from_canonical_semantic_digest(
         hasher.finalize().into(),
@@ -35027,9 +35176,9 @@ fn checked_explore_identity_ladder_with_index(
     query
         .validate()
         .map_err(CheckedExploreQueryArtifactIssue::RelationalIr)?;
-    if index.program.id != program.id {
+    if index.program.id != program.id || resolutions.analysis_program != program.id {
         return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
-            "semantic index belongs to a different checked program".into(),
+            "semantic index or resolution artifacts belong to a different checked program".into(),
         ));
     }
     let semantic_binders = checked_explore_semantic_binders(query, sites)?;
@@ -35295,8 +35444,8 @@ struct CheckedResolutionRecorder<'a> {
     rule_families_by_scope_and_name: BTreeMap<(Option<String>, String), Vec<RuleDispatchKey>>,
     constructors: BTreeMap<(String, String), Vec<IndexedConstructor>>,
     data_fields: BTreeMap<(String, String), Vec<CheckedVariantField>>,
-    data_owner_declarations: BTreeMap<String, BTreeSet<CheckedDeclarationOccurrenceId>>,
-    active_rule_scope_owners: BTreeMap<String, CheckedDeclarationOccurrenceId>,
+    data_owner_declarations: BTreeMap<String, BTreeSet<CheckedModelOwnerKey>>,
+    active_rule_scope_owners: BTreeMap<String, CheckedModelOwnerKey>,
     qualified_aliases: BTreeMap<String, CheckedDeclarationOccurrenceId>,
     pending_rules: BTreeMap<RuleDispatchKey, Vec<PendingCheckedRule<'a>>>,
     duplicate_rule_scope_owners: BTreeSet<String>,
@@ -35326,7 +35475,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
         let mut rule_scope_owner_counts = BTreeMap::<String, usize>::new();
         for declaration in program.declarations.iter() {
             if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = &*declaration.statement {
-                active_rule_scope_owners.insert(name.clone(), Self::occurrence(declaration));
+                active_rule_scope_owners.insert(name.clone(), Self::model_owner(declaration));
                 *rule_scope_owner_counts.entry(name.clone()).or_default() += 1;
             }
         }
@@ -35376,6 +35525,40 @@ impl<'a> CheckedResolutionRecorder<'a> {
 
     fn occurrence(declaration: &SourcedStmt) -> CheckedDeclarationOccurrenceId {
         CheckedDeclarationOccurrenceId::from_sourced(declaration)
+    }
+
+    fn model_owner(declaration: &SourcedStmt) -> CheckedModelOwnerKey {
+        declaration
+            .model_owner
+            .clone()
+            .expect("nominal type/namespace declaration has a model owner")
+    }
+
+    fn bridge_data_owner(
+        &mut self,
+        owner: &CheckedModelOwnerKey,
+        occurrence: &CheckedDeclarationOccurrenceId,
+    ) {
+        if let Some(previous) = self
+            .artifacts
+            .data_owner_to_analysis_occurrence
+            .insert(owner.clone(), occurrence.clone())
+        {
+            assert_eq!(
+                &previous, occurrence,
+                "one stable data owner cannot bridge to conflicting analysis occurrences"
+            );
+        }
+        if let Some(previous) = self
+            .artifacts
+            .analysis_occurrence_to_data_owner
+            .insert(occurrence.clone(), owner.clone())
+        {
+            assert_eq!(
+                &previous, owner,
+                "one analysis occurrence cannot bridge to conflicting stable data owners"
+            );
+        }
     }
 
     fn expression_site(&self, declaration: &SourcedStmt, path: &[u32]) -> ExprSiteId {
@@ -35612,11 +35795,13 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     methods,
                     ..
                 }) => {
-                    let owner = CheckedDataTypeId::Declared(occurrence.clone());
+                    let model_owner = Self::model_owner(declaration);
+                    self.bridge_data_owner(&model_owner, &occurrence);
+                    let owner = CheckedDataTypeId::Declared(model_owner.clone());
                     self.data_owner_declarations
                         .entry(name.clone())
                         .or_default()
-                        .insert(occurrence.clone());
+                        .insert(model_owner);
                     self.artifacts
                         .data_type_identities
                         .insert(name.clone().into_boxed_str(), owner.clone());
@@ -35716,14 +35901,16 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 Stmt::TypeDecl(TypeDecl::RuleScope {
                     name, params, body, ..
                 }) => {
-                    if self.active_rule_scope_owners.get(name) != Some(&occurrence) {
+                    let model_owner = Self::model_owner(declaration);
+                    if self.active_rule_scope_owners.get(name) != Some(&model_owner) {
                         continue;
                     }
+                    self.bridge_data_owner(&model_owner, &occurrence);
                     self.data_owner_declarations
                         .entry(name.clone())
                         .or_default()
-                        .insert(occurrence.clone());
-                    let owner = CheckedDataTypeId::Declared(occurrence.clone());
+                        .insert(model_owner.clone());
+                    let owner = CheckedDataTypeId::Declared(model_owner);
                     self.artifacts
                         .data_type_identities
                         .insert(name.clone().into_boxed_str(), owner.clone());
@@ -36787,7 +36974,11 @@ impl<'a> CheckedResolutionRecorder<'a> {
             {
                 Ok((
                     match &constructor.identity.owner {
-                        CheckedDataTypeId::Declared(declaration) => Some(declaration.clone()),
+                        CheckedDataTypeId::Declared(owner) => self
+                            .artifacts
+                            .data_owner_to_analysis_occurrence
+                            .get(owner)
+                            .cloned(),
                         CheckedDataTypeId::Intrinsic { .. } => None,
                     },
                     Some(constructor.identity.variant_index),
@@ -37613,7 +37804,7 @@ impl<'a> CheckedResolutionRecorder<'a> {
             return;
         }
         if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = &*declaration.statement {
-            if self.active_rule_scope_owners.get(name) != Some(&Self::occurrence(declaration)) {
+            if self.active_rule_scope_owners.get(name) != Some(&Self::model_owner(declaration)) {
                 return;
             }
         }
@@ -40368,6 +40559,269 @@ impl TypeChecker {
         canonical
     }
 
+    /// Declaration categories which establish a nominal type/namespace owner.
+    /// Their ordinal is intentionally independent of executable declarations
+    /// and every Explore occurrence.
+    fn model_namespace_declaration_signature(
+        statement: &Stmt,
+    ) -> Option<(DeclarationKind, Option<String>, String, Option<usize>)> {
+        let signature = Self::analysis_declaration_signature(statement)?;
+        matches!(
+            signature.0,
+            DeclarationKind::Adt
+                | DeclarationKind::Effect
+                | DeclarationKind::Trait
+                | DeclarationKind::WhenType
+                | DeclarationKind::RuleScope
+                | DeclarationKind::InlineModule
+                | DeclarationKind::QualifiedModule
+        )
+        .then_some(signature)
+    }
+
+    /// Canonical type/schema-interface shell. Bodies which represent
+    /// computation rather than nominal layout are excluded deliberately.
+    fn canonical_model_interface_statement(statement: &Stmt) -> Option<String> {
+        match statement {
+            Stmt::Import(_) => Some("plain-import".to_string()),
+            Stmt::HashImport(hash, _) => Some(format!("hash-import:{hash}")),
+            Stmt::QualifiedImport(name, _) => Some(format!("qualified-import:{name}:opaque")),
+            Stmt::Defn(Defn::Module { name, body }) => {
+                let children = body
+                    .iter()
+                    .filter_map(Self::canonical_model_interface_statement)
+                    .collect::<Vec<_>>();
+                Some(format!("inline-module:{name}:{children:?}"))
+            }
+            Stmt::TypeDecl(TypeDecl::ADT {
+                name,
+                params,
+                variants,
+                except_from,
+                ..
+            }) => Some(format!(
+                "adt:{name};params={params:?};variants={variants:?};except={except_from:?}"
+            )),
+            Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                Some(format!("rule-scope:{name};params={params:?}"))
+            }
+            Stmt::TypeDecl(TypeDecl::WhenType {
+                name,
+                condition,
+                variants,
+                except_from,
+            }) => Some(format!(
+                "when-type:{name};condition={:?};variants={variants:?};except={except_from:?}",
+                strip_spans_expr(condition)
+            )),
+            Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
+                Some(format!("effect:{name};ops={ops:?}"))
+            }
+            Stmt::TypeDecl(TypeDecl::TraitDecl {
+                name,
+                params,
+                methods,
+            }) => {
+                let methods = methods
+                    .iter()
+                    .map(|method| {
+                        (
+                            method.name.as_str(),
+                            method.params.as_slice(),
+                            method.ret_ty.as_ref(),
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                Some(format!(
+                    "trait:{name};params={params:?};methods={methods:?}"
+                ))
+            }
+            Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
+            | Stmt::Defn(Defn::Fn { .. } | Defn::Actor { .. })
+            | Stmt::Rule(_)
+            | Stmt::Bind(_, _, _)
+            | Stmt::MonadicBind(_, _, _)
+            | Stmt::StreamBind(_, _)
+            | Stmt::Invariant { .. }
+            | Stmt::Explore(_)
+            | Stmt::Use(_)
+            | Stmt::Depend(_, _)
+            | Stmt::RustBlock(_)
+            | Stmt::Annot(_, _)
+            | Stmt::For(_, _, _)
+            | Stmt::While(_, _)
+            | Stmt::Send(_, _)
+            | Stmt::StreamSub(_, _)
+            | Stmt::Prove { .. }
+            | Stmt::Assert(_, _)
+            | Stmt::Retract(_, _)
+            | Stmt::Abort
+            | Stmt::Expr(_) => None,
+        }
+    }
+
+    fn model_interface_local_module_id(statements: &[Stmt]) -> ModelModuleId {
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-model-interface-module.v1\0");
+        for statement in statements {
+            let Some(canonical) = Self::canonical_model_interface_statement(statement) else {
+                continue;
+            };
+            Self::hash_analysis_component(&mut hasher, &canonical);
+        }
+        ModelModuleId::top_level(format!("{:x}", hasher.finalize()))
+    }
+
+    fn model_interface_dependency_imports(statements: &[Stmt]) -> Vec<AnalysisDependencyImport> {
+        fn collect(statement: &Stmt, imports: &mut Vec<AnalysisDependencyImport>) {
+            let (kind, physical_path) = match statement {
+                Stmt::Import(path) => (Some(AnalysisDependencyImportKind::Plain), Some(path)),
+                Stmt::HashImport(hash, path) => (
+                    Some(AnalysisDependencyImportKind::Hash(
+                        hash.clone().into_boxed_str(),
+                    )),
+                    Some(path),
+                ),
+                Stmt::QualifiedImport(name, path) => (
+                    Some(AnalysisDependencyImportKind::Qualified(
+                        name.clone().into_boxed_str(),
+                    )),
+                    Some(path),
+                ),
+                Stmt::Defn(Defn::Module { body, .. }) => {
+                    for child in body {
+                        collect(child, imports);
+                    }
+                    (None, None)
+                }
+                // Type methods, RuleScope bodies, ordinary executable bodies
+                // and Explore bodies cannot contribute to nominal ownership.
+                _ => (None, None),
+            };
+            if let (Some(kind), Some(physical_path)) = (kind, physical_path) {
+                imports.push(AnalysisDependencyImport {
+                    ordinal: imports.len(),
+                    kind,
+                    physical_path: physical_path.clone(),
+                });
+            }
+        }
+
+        let mut imports = Vec::new();
+        for statement in statements {
+            collect(statement, &mut imports);
+        }
+        imports
+    }
+
+    fn collect_model_interface_dependency_closure(
+        statements: &[Stmt],
+        dir: &str,
+        canonical_module: &str,
+        visited: &mut BTreeMap<String, usize>,
+        modules: &mut Vec<ModelInterfaceDependencyModule>,
+    ) -> usize {
+        if let Some(index) = visited.get(canonical_module) {
+            return *index;
+        }
+
+        let index = modules.len();
+        visited.insert(canonical_module.to_string(), index);
+        modules.push(ModelInterfaceDependencyModule {
+            local: Self::model_interface_local_module_id(statements),
+            edges: Box::new([]),
+        });
+        let mut edges = Vec::new();
+        for import in Self::model_interface_dependency_imports(statements) {
+            let Some((canonical_target, imported_dir)) =
+                Self::resolve_prepass_import(&import.physical_path, dir)
+            else {
+                edges.push(AnalysisDependencyEdge {
+                    ordinal: import.ordinal,
+                    kind: import.kind,
+                    target: None,
+                });
+                continue;
+            };
+            let target = if let Some(target) = visited.get(&canonical_target) {
+                Some(*target)
+            } else {
+                parse_source_module_file_cached(Path::new(&canonical_target))
+                    .ok()
+                    .map(|imported| {
+                        Self::collect_model_interface_dependency_closure(
+                            imported.statements(),
+                            &imported_dir,
+                            &canonical_target,
+                            visited,
+                            modules,
+                        )
+                    })
+            };
+            edges.push(AnalysisDependencyEdge {
+                ordinal: import.ordinal,
+                kind: import.kind,
+                target,
+            });
+        }
+        modules[index].edges = edges.into_boxed_slice();
+        index
+    }
+
+    /// Cycle-safe, path-free transitive identity of a model/type interface.
+    /// Physical paths are used only to resolve graph edges and backreferences.
+    fn model_interface_module_id(
+        statements: &[Stmt],
+        dir: &str,
+        canonical_module: &str,
+    ) -> ModelModuleId {
+        let mut visited = BTreeMap::new();
+        let mut modules = Vec::new();
+        Self::collect_model_interface_dependency_closure(
+            statements,
+            dir,
+            canonical_module,
+            &mut visited,
+            &mut modules,
+        );
+
+        let mut hasher = Sha256::new();
+        hasher.update(b"futuruna.checked-model-interface-closure.v1\0");
+        Self::hash_analysis_component(&mut hasher, &modules.len().to_string());
+        for (index, module) in modules.into_iter().enumerate() {
+            Self::hash_analysis_component(&mut hasher, "module");
+            Self::hash_analysis_component(&mut hasher, &index.to_string());
+            Self::hash_analysis_component(&mut hasher, &module.local.interface_hash);
+            Self::hash_analysis_component(&mut hasher, &module.edges.len().to_string());
+            for edge in module.edges.iter() {
+                Self::hash_analysis_component(&mut hasher, &edge.ordinal.to_string());
+                match &edge.kind {
+                    AnalysisDependencyImportKind::Plain => {
+                        Self::hash_analysis_component(&mut hasher, "plain");
+                    }
+                    AnalysisDependencyImportKind::Hash(hash) => {
+                        Self::hash_analysis_component(&mut hasher, "hash");
+                        Self::hash_analysis_component(&mut hasher, hash);
+                    }
+                    AnalysisDependencyImportKind::Qualified(name) => {
+                        Self::hash_analysis_component(&mut hasher, "qualified");
+                        Self::hash_analysis_component(&mut hasher, name);
+                    }
+                }
+                if let Some(target) = edge.target {
+                    Self::hash_analysis_component(&mut hasher, "resolved-node");
+                    Self::hash_analysis_component(&mut hasher, &target.to_string());
+                } else {
+                    Self::hash_analysis_component(
+                        &mut hasher,
+                        "$unresolved-model-interface-target",
+                    );
+                }
+            }
+        }
+        ModelModuleId::top_level(format!("{:x}", hasher.finalize()))
+    }
+
     /// Commit the exact resolved statement sequence consumed by the backend.
     /// `canonical_analysis_statement` is a span-free normalization despite its
     /// historical name; applying it without the analysis-declaration filter
@@ -40613,9 +41067,12 @@ impl TypeChecker {
         statement: &Stmt,
         module: &ModuleId,
         declaration_ordinal: usize,
+        model_module: Option<&ModelModuleId>,
+        model_declaration_ordinal: Option<usize>,
         import_kind: &SourcedImportKind,
         canonical_source_path: &Option<Arc<PathBuf>>,
         qualified_target_module: Option<ModuleId>,
+        qualified_target_model_module: Option<ModelModuleId>,
         qualified_target_source_path: Option<Arc<PathBuf>>,
         participates_in_constructor_normalization: bool,
     ) {
@@ -40624,9 +41081,12 @@ impl TypeChecker {
                 statement: statement.clone(),
                 module: module.clone(),
                 declaration_ordinal,
+                model_module: model_module.cloned(),
+                model_declaration_ordinal,
                 import_kind: import_kind.clone(),
                 canonical_source_path: canonical_source_path.clone(),
                 qualified_target_module,
+                qualified_target_model_module,
                 qualified_target_source_path,
                 participates_in_constructor_normalization,
             });
@@ -40652,17 +41112,30 @@ impl TypeChecker {
         constructor_seen: &mut BTreeSet<String>,
         checked_seen: &mut BTreeSet<String>,
         qualified_target_modules: &mut BTreeMap<String, ModuleId>,
+        qualified_target_model_modules: &mut BTreeMap<String, ModelModuleId>,
         flattened: &mut Vec<Stmt>,
         analysis_declarations: &mut Vec<PrepassAnalysisDeclaration>,
     ) {
         let module = Self::analysis_module_id(statements);
+        let model_module_key = canonical_source_path
+            .as_deref()
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "$checked-root".to_string());
+        let model_module = Self::model_interface_module_id(statements, dir, &model_module_key);
         let mut declaration_ordinal = 0usize;
+        let mut model_declaration_ordinal = 0usize;
         for statement in statements {
             let statement_ordinal = Self::analysis_declaration_signature(statement).map(|_| {
                 let ordinal = declaration_ordinal;
                 declaration_ordinal += 1;
                 ordinal
             });
+            let statement_model_ordinal = Self::model_namespace_declaration_signature(statement)
+                .map(|_| {
+                    let ordinal = model_declaration_ordinal;
+                    model_declaration_ordinal += 1;
+                    ordinal
+                });
 
             if let Stmt::Import(path) = statement {
                 let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
@@ -40691,6 +41164,7 @@ impl TypeChecker {
                     constructor_seen,
                     checked_seen,
                     qualified_target_modules,
+                    qualified_target_model_modules,
                     flattened,
                     analysis_declarations,
                 );
@@ -40700,6 +41174,7 @@ impl TypeChecker {
             if let Stmt::QualifiedImport(name, path) = statement {
                 if emit_analysis_sequence {
                     let mut qualified_target_module = None;
+                    let mut qualified_target_model_module = None;
                     let mut qualified_target_source_path = None;
                     if let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
                     {
@@ -40717,6 +41192,20 @@ impl TypeChecker {
                             qualified_target_modules.insert(canonical.clone(), target.clone());
                             qualified_target_module = Some(target);
                         }
+                        if let Some(cached) = qualified_target_model_modules.get(&canonical) {
+                            qualified_target_model_module = Some(cached.clone());
+                        } else if let Ok(imported) =
+                            parse_source_module_file_cached(Path::new(&canonical))
+                        {
+                            let target = Self::model_interface_module_id(
+                                imported.statements(),
+                                &imported_dir,
+                                &canonical,
+                            );
+                            qualified_target_model_modules
+                                .insert(canonical.clone(), target.clone());
+                            qualified_target_model_module = Some(target);
+                        }
                     }
                     if let Some(statement_ordinal) = statement_ordinal {
                         Self::push_analysis_declaration(
@@ -40724,11 +41213,14 @@ impl TypeChecker {
                             statement,
                             &module,
                             statement_ordinal,
+                            Some(&model_module),
+                            statement_model_ordinal,
                             &SourcedImportKind::QualifiedImport {
                                 module_name: name.clone().into_boxed_str(),
                             },
                             &canonical_source_path,
                             qualified_target_module,
+                            qualified_target_model_module,
                             qualified_target_source_path,
                             false,
                         );
@@ -40738,7 +41230,8 @@ impl TypeChecker {
 
             if let Stmt::HashImport(hash, path) = statement {
                 if emit_analysis_sequence {
-                    if let Some((canonical, _)) = Self::resolve_prepass_import(path, dir) {
+                    if let Some((canonical, imported_dir)) = Self::resolve_prepass_import(path, dir)
+                    {
                         let import_key = format!("{canonical}#{hash}");
                         if checked_seen.insert(import_key) {
                             if let Ok(imported) =
@@ -40746,8 +41239,14 @@ impl TypeChecker {
                             {
                                 let imported_module =
                                     Self::analysis_module_id(imported.statements());
+                                let imported_model_module = Self::model_interface_module_id(
+                                    imported.statements(),
+                                    &imported_dir,
+                                    &canonical,
+                                );
                                 let imported_path = Some(Arc::new(PathBuf::from(&canonical)));
                                 let mut imported_ordinal = 0usize;
+                                let mut imported_model_ordinal = 0usize;
                                 let mut matching = Vec::new();
                                 for candidate in imported.statements() {
                                     let Some(_) = Self::analysis_declaration_signature(candidate)
@@ -40756,6 +41255,14 @@ impl TypeChecker {
                                     };
                                     let candidate_ordinal = imported_ordinal;
                                     imported_ordinal += 1;
+                                    let candidate_model_ordinal =
+                                        Self::model_namespace_declaration_signature(candidate).map(
+                                            |_| {
+                                                let ordinal = imported_model_ordinal;
+                                                imported_model_ordinal += 1;
+                                                ordinal
+                                            },
+                                        );
                                     let selected = match candidate {
                                         Stmt::Defn(definition) => {
                                             content_hash_defn(definition) == *hash
@@ -40766,19 +41273,28 @@ impl TypeChecker {
                                         _ => false,
                                     };
                                     if selected {
-                                        matching.push((candidate, candidate_ordinal));
+                                        matching.push((
+                                            candidate,
+                                            candidate_ordinal,
+                                            candidate_model_ordinal,
+                                        ));
                                     }
                                 }
-                                if let [(candidate, candidate_ordinal)] = matching.as_slice() {
+                                if let [(candidate, candidate_ordinal, candidate_model_ordinal)] =
+                                    matching.as_slice()
+                                {
                                     Self::push_analysis_declaration(
                                         analysis_declarations,
                                         candidate,
                                         &imported_module,
                                         *candidate_ordinal,
+                                        candidate_model_ordinal.map(|_| &imported_model_module),
+                                        *candidate_model_ordinal,
                                         &SourcedImportKind::HashImport {
                                             selected_hash: hash.clone().into_boxed_str(),
                                         },
                                         &imported_path,
+                                        None,
                                         None,
                                         None,
                                         false,
@@ -40810,8 +41326,11 @@ impl TypeChecker {
                         statement,
                         &module,
                         statement_ordinal,
+                        statement_model_ordinal.map(|_| &model_module),
+                        statement_model_ordinal,
                         &import_kind,
                         &canonical_source_path,
+                        None,
                         None,
                         None,
                         true,
@@ -40876,6 +41395,7 @@ impl TypeChecker {
             .collect();
 
         let mut declaration_occurrence_counts = BTreeMap::<DeclarationId, usize>::new();
+        let mut model_occurrence_counts = BTreeMap::<ModelDeclarationId, usize>::new();
         let declarations = declarations
             .into_iter()
             .enumerate()
@@ -40886,10 +41406,38 @@ impl TypeChecker {
                 let id = DeclarationId {
                     module: declaration.module,
                     kind,
-                    owner: owner.map(String::into_boxed_str),
-                    name: name.into_boxed_str(),
+                    owner: owner.clone().map(String::into_boxed_str),
+                    name: name.clone().into_boxed_str(),
                     arity,
                     ordinal: declaration.declaration_ordinal,
+                };
+                let model_owner = match (
+                    declaration.model_module,
+                    declaration.model_declaration_ordinal,
+                ) {
+                    (Some(module), Some(ordinal)) => {
+                        let model_declaration = ModelDeclarationId {
+                            module,
+                            kind,
+                            owner: owner.clone().map(String::into_boxed_str),
+                            name: name.clone().into_boxed_str(),
+                            arity,
+                            ordinal,
+                        };
+                        let next_occurrence = model_occurrence_counts
+                            .entry(model_declaration.clone())
+                            .or_default();
+                        let declaration_occurrence_ordinal = *next_occurrence;
+                        *next_occurrence = next_occurrence
+                            .checked_add(1)
+                            .expect("retained model owner occurrence count fits usize");
+                        Some(CheckedModelOwnerKey {
+                            declaration: model_declaration,
+                            declaration_occurrence_ordinal,
+                        })
+                    }
+                    (None, None) => None,
+                    _ => unreachable!("model module and declaration ordinal are paired"),
                 };
                 let next_occurrence = declaration_occurrence_counts.entry(id.clone()).or_default();
                 let declaration_occurrence_ordinal = *next_occurrence;
@@ -40900,11 +41448,13 @@ impl TypeChecker {
                 SourcedStmt {
                     id,
                     declaration_occurrence_ordinal,
+                    model_owner,
                     normalized_ordinal,
                     import_kind: declaration.import_kind,
                     statement: Arc::new(declaration.statement),
                     canonical_source_path: declaration.canonical_source_path,
                     qualified_target_module: declaration.qualified_target_module,
+                    qualified_target_model_module: declaration.qualified_target_model_module,
                     qualified_target_source_path: declaration.qualified_target_source_path,
                     source_span,
                 }
@@ -40991,6 +41541,7 @@ impl TypeChecker {
         let mut constructor_seen = BTreeSet::new();
         let mut checked_seen = BTreeSet::new();
         let mut qualified_target_modules = BTreeMap::new();
+        let mut qualified_target_model_modules = BTreeMap::new();
         let root_dir = self.source_dir.clone().unwrap_or_else(|| ".".to_string());
         self.flatten_constructor_prepass(
             statements,
@@ -41003,6 +41554,7 @@ impl TypeChecker {
             &mut constructor_seen,
             &mut checked_seen,
             &mut qualified_target_modules,
+            &mut qualified_target_model_modules,
             &mut flattened,
             &mut analysis_declarations,
         );
@@ -49307,6 +49859,336 @@ mod tests {
         TypeChecker::check_with_artifacts(&statements, None, source)
     }
 
+    fn stable_model_owner_identity_source() -> &'static str {
+        r#"
+# IdentityState = IdentityState(value: Int) | IdentityOther
+# IdentityContext = IdentityContext(step: Int) | IdentityContextOther
+
+> identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
+    IdentityState(value = before.value + context.step)
+}
+
+> identity_observer(state: IdentityState, context: IdentityContext) -> Int {
+    state.value
+}
+
+> identity_observer_alt(state: IdentityState, context: IdentityContext) -> Int {
+    state.value + context.step
+}
+
+? explore identity_target {
+    from {
+        before in [IdentityState(value = 1)]
+        context in [IdentityContext(step = 1)]
+    }
+    to after = identity_step(before, context)
+    find all
+    mechanisms paths for selected from identity_observer
+}
+"#
+    }
+
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    struct StableModelOwnerIdentitySnapshot {
+        state_owner: CheckedDataTypeId,
+        context_owner: CheckedDataTypeId,
+        relation_id: explore::RelationId,
+        state_schema_id: [u8; 32],
+        context_schema_id: [u8; 32],
+        transition_type_id: [u8; 32],
+        before_state_id: [u8; 32],
+        after_state_id: [u8; 32],
+        transition_id: [u8; 32],
+    }
+
+    fn stable_model_owner_identity_snapshot(
+        source: &str,
+        query_name: &str,
+    ) -> (
+        TypeCheckArtifacts,
+        StableModelOwnerIdentitySnapshot,
+        explore::MechanismRequestId,
+    ) {
+        stable_model_owner_identity_snapshot_in_dir(source, query_name, None)
+    }
+
+    fn stable_model_owner_identity_snapshot_in_dir(
+        source: &str,
+        query_name: &str,
+        source_dir: Option<String>,
+    ) -> (
+        TypeCheckArtifacts,
+        StableModelOwnerIdentitySnapshot,
+        explore::MechanismRequestId,
+    ) {
+        let statements = parse_test_program(source).expect("parse exploration fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, source_dir, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected identity-fixture diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let query_index = artifacts
+            .exploration_universes
+            .iter()
+            .position(|query| query.name == query_name)
+            .expect("target checked Explore query");
+        let checked = artifacts
+            .checked_exploration_query(query_index)
+            .expect("stable checked Explore identity");
+        let schemas = checked.transition_schemas();
+        let transition = schemas.instantiate(
+            explore::ExploreValue::Unit,
+            explore::ExploreValue::Int(1),
+            explore::ExploreValue::Int(2),
+        );
+        let request_id = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. } => Some(*request_id),
+                CheckedExploreAnalysisIdentity::View { .. } => None,
+            })
+            .expect("mechanism request identity");
+        let snapshot = StableModelOwnerIdentitySnapshot {
+            state_owner: artifacts.checked_resolutions.data_type_identities["IdentityState"]
+                .clone(),
+            context_owner: artifacts.checked_resolutions.data_type_identities["IdentityContext"]
+                .clone(),
+            relation_id: checked.relation_id(),
+            state_schema_id: schemas.state_schema_id().bytes(),
+            context_schema_id: schemas.context_schema_id().bytes(),
+            transition_type_id: schemas.transition_type_id().bytes(),
+            before_state_id: transition.before_state_id().bytes(),
+            after_state_id: transition.after_state_id().bytes(),
+            transition_id: transition.id().bytes(),
+        };
+        (artifacts, snapshot, request_id)
+    }
+
+    #[test]
+    fn stable_model_owners_separate_query_analysis_and_executable_layers() {
+        let baseline_source = stable_model_owner_identity_source();
+        let (_, baseline, baseline_request) =
+            stable_model_owner_identity_snapshot(baseline_source, "identity_target");
+
+        let query_renamed = baseline_source.replace("identity_target", "identity_renamed");
+        let (_, renamed, renamed_request) =
+            stable_model_owner_identity_snapshot(&query_renamed, "identity_renamed");
+        assert_eq!(renamed, baseline);
+        assert_eq!(renamed_request, baseline_request);
+
+        let with_view = baseline_source.replace(
+            "    mechanisms paths for selected from identity_observer\n",
+            r#"    results rows {
+        each case
+        select [case_id, before, after, context]
+    }
+    mechanisms paths for selected from identity_observer
+"#,
+        );
+        let (_, viewed, viewed_request) =
+            stable_model_owner_identity_snapshot(&with_view, "identity_target");
+        assert_eq!(viewed, baseline);
+        assert_eq!(viewed_request, baseline_request);
+
+        let edited_view = with_view
+            .replace("results rows", "results renamed_rows")
+            .replace(
+                "select [case_id, before, after, context]",
+                "select [case_id, before, after]",
+            );
+        let (_, edited_view_identity, edited_view_request) =
+            stable_model_owner_identity_snapshot(&edited_view, "identity_target");
+        assert_eq!(edited_view_identity, baseline);
+        assert_eq!(edited_view_request, baseline_request);
+
+        let unrelated_prefix = r#"
+? explore unrelated {
+    from { before in [0]
+        context = () }
+    to after = before
+    find all
+}
+"#;
+        let with_unrelated = format!("{unrelated_prefix}{baseline_source}");
+        let (_, unrelated, unrelated_request) =
+            stable_model_owner_identity_snapshot(&with_unrelated, "identity_target");
+        assert_eq!(unrelated, baseline);
+        assert_eq!(unrelated_request, baseline_request);
+
+        let observer_selected = baseline_source.replace(
+            "mechanisms paths for selected from identity_observer",
+            "mechanisms paths for selected from identity_observer_alt",
+        );
+        let (_, observer_selected_identity, observer_selected_request) =
+            stable_model_owner_identity_snapshot(&observer_selected, "identity_target");
+        assert_eq!(observer_selected_identity, baseline);
+        assert_ne!(observer_selected_request, baseline_request);
+
+        let observer_body_changed = baseline_source.replace(
+            "    state.value\n}\n\n> identity_observer_alt",
+            "    state.value + context.step + 1\n}\n\n> identity_observer_alt",
+        );
+        let (_, observer_identity, observer_request) =
+            stable_model_owner_identity_snapshot(&observer_body_changed, "identity_target");
+        assert_eq!(observer_identity, baseline);
+        assert_ne!(observer_request, baseline_request);
+
+        let relation_logic_changed = baseline_source.replace(
+            "before.value + context.step)",
+            "before.value + context.step + 1)",
+        );
+        let (_, relation_logic_identity, _) =
+            stable_model_owner_identity_snapshot(&relation_logic_changed, "identity_target");
+        assert_eq!(relation_logic_identity.state_owner, baseline.state_owner);
+        assert_eq!(
+            relation_logic_identity.context_owner,
+            baseline.context_owner
+        );
+        assert_eq!(
+            relation_logic_identity.state_schema_id,
+            baseline.state_schema_id
+        );
+        assert_eq!(
+            relation_logic_identity.context_schema_id,
+            baseline.context_schema_id
+        );
+        assert_eq!(
+            relation_logic_identity.transition_type_id,
+            baseline.transition_type_id
+        );
+        assert_eq!(
+            relation_logic_identity.before_state_id,
+            baseline.before_state_id
+        );
+        assert_eq!(
+            relation_logic_identity.after_state_id,
+            baseline.after_state_id
+        );
+        assert_eq!(
+            relation_logic_identity.transition_id,
+            baseline.transition_id
+        );
+        assert_ne!(relation_logic_identity.relation_id, baseline.relation_id);
+
+        let state_interface_changed = baseline_source.replace(
+            "IdentityState(value: Int) | IdentityOther",
+            "IdentityState(value: Int) | IdentityOther | IdentityThird",
+        );
+        let (_, state_changed, _) =
+            stable_model_owner_identity_snapshot(&state_interface_changed, "identity_target");
+        assert_ne!(state_changed.state_owner, baseline.state_owner);
+        assert_ne!(state_changed.state_schema_id, baseline.state_schema_id);
+        assert_ne!(state_changed.before_state_id, baseline.before_state_id);
+        assert_ne!(
+            state_changed.transition_type_id,
+            baseline.transition_type_id
+        );
+        assert_ne!(state_changed.transition_id, baseline.transition_id);
+        assert_ne!(state_changed.relation_id, baseline.relation_id);
+
+        let context_interface_changed = baseline_source.replace(
+            "IdentityContext(step: Int) | IdentityContextOther",
+            "IdentityContext(step: Int) | IdentityContextOther | IdentityContextThird",
+        );
+        let (_, context_changed, _) =
+            stable_model_owner_identity_snapshot(&context_interface_changed, "identity_target");
+        assert_ne!(context_changed.context_owner, baseline.context_owner);
+        assert_ne!(
+            context_changed.context_schema_id,
+            baseline.context_schema_id
+        );
+        assert_ne!(
+            context_changed.transition_type_id,
+            baseline.transition_type_id
+        );
+        assert_ne!(context_changed.transition_id, baseline.transition_id);
+        assert_ne!(context_changed.relation_id, baseline.relation_id);
+    }
+
+    #[test]
+    fn stable_model_owners_follow_imported_type_interfaces_not_imported_queries_or_paths() {
+        let temp_name = format!(
+            "futuruna_stable_model_owner_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create stable-owner import directory");
+        let model = r#"
+# IdentityState = IdentityState(value: Int) | IdentityOther
+# IdentityContext = IdentityContext(step: Int) | IdentityContextOther
+> identity_step(before: IdentityState, context: IdentityContext) -> IdentityState {
+    IdentityState(value = before.value + context.step)
+}
+> identity_observer(state: IdentityState, context: IdentityContext) -> Int {
+    state.value
+}
+"#;
+        std::fs::write(temp_dir.join("left.runa"), model).expect("write left model");
+        std::fs::write(temp_dir.join("right.runa"), model).expect("write right model");
+        let root = |target: &str| {
+            format!(
+                r#"@ import ./{target}
+? explore identity_target {{
+    from {{
+        before in [IdentityState(value = 1)]
+        context in [IdentityContext(step = 1)]
+    }}
+    to after = identity_step(before, context)
+    find all
+    mechanisms paths for selected from identity_observer
+}}
+"#
+            )
+        };
+        let snapshot = |target: &str| {
+            stable_model_owner_identity_snapshot_in_dir(
+                &root(target),
+                "identity_target",
+                Some(temp_dir.to_string_lossy().into_owned()),
+            )
+            .1
+        };
+
+        let left = snapshot("left");
+        let right = snapshot("right");
+        assert_eq!(left, right, "physical import paths are annotations only");
+
+        std::fs::write(
+            temp_dir.join("right.runa"),
+            format!(
+                r#"{model}
+? explore imported_query_only {{
+    from {{ before in [0]
+        context = () }}
+    to after = before
+    find all
+}}
+"#
+            ),
+        )
+        .expect("add imported query-only content");
+        let query_changed = snapshot("right");
+        assert_eq!(right, query_changed);
+
+        std::fs::write(
+            temp_dir.join("right.runa"),
+            model.replace(
+                "IdentityState(value: Int) | IdentityOther",
+                "IdentityState(value: Int) | IdentityOther | IdentityThird",
+            ),
+        )
+        .expect("edit imported type interface");
+        let interface_changed = snapshot("right");
+        assert_ne!(query_changed, interface_changed);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
     #[test]
     fn mechanism_trace_state_retains_repeated_eventless_call_anchors() {
         let artifacts = explore_artifacts_for_source(
@@ -50595,17 +51477,61 @@ mod tests {
                 .and_then(|declaration| declaration.qualified_target_module.clone())
                 .expect("qualified target identity")
         };
+        let model_target = |artifacts: &TypeCheckArtifacts| {
+            artifacts
+                .analysis_program
+                .declarations
+                .iter()
+                .find(|declaration| declaration.id.name.as_ref() == "Qualified")
+                .and_then(|declaration| declaration.qualified_target_model_module.clone())
+                .expect("qualified model-interface target identity")
+        };
+        let model_instance = |artifacts: &TypeCheckArtifacts| {
+            artifacts
+                .analysis_program
+                .declarations
+                .iter()
+                .find(|declaration| declaration.id.name.as_ref() == "Qualified")
+                .and_then(SourcedStmt::qualified_model_instance_module_id)
+                .expect("qualified model-interface parent instance")
+        };
         assert_eq!(target(&left), target(&right));
+        assert_eq!(model_target(&left), model_target(&right));
+        assert_eq!(model_instance(&left), model_instance(&right));
         assert_eq!(left.analysis_program.id, right.analysis_program.id);
 
         std::fs::write(
             temp_dir.join("dep_right.runa"),
-            "> nested(value: Int) -> Int { value + 2 }\n",
+            r#"> nested(value: Int) -> Int { value + 1 }
+? explore imported_query_only {
+    from { before in [0]
+        context = () }
+    to after = before
+    find all
+}
+"#,
         )
-        .expect("rewrite right dependency");
-        let changed = check("qualified_right");
-        assert_ne!(target(&right), target(&changed));
-        assert_ne!(right.analysis_program.id, changed.analysis_program.id);
+        .expect("add query-only right dependency content");
+        let query_changed = check("qualified_right");
+        assert_ne!(target(&right), target(&query_changed));
+        assert_eq!(model_target(&right), model_target(&query_changed));
+        assert_eq!(model_instance(&right), model_instance(&query_changed));
+        assert_ne!(right.analysis_program.id, query_changed.analysis_program.id);
+
+        std::fs::write(
+            temp_dir.join("dep_right.runa"),
+            "# NestedSchema(value: Int)\n> nested(value: Int) -> Int { value + 2 }\n",
+        )
+        .expect("rewrite right dependency type interface");
+        let interface_changed = check("qualified_right");
+        assert_ne!(
+            model_target(&query_changed),
+            model_target(&interface_changed)
+        );
+        assert_ne!(
+            model_instance(&query_changed),
+            model_instance(&interface_changed)
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }

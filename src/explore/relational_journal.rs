@@ -112,12 +112,12 @@ use super::support_journal::{SupportJournalError, SupportJournalEvent};
 use super::transition::canonical_explore_value_digest;
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 15;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 16;
 
-const JOURNAL_CONTRACT_HASH_V14: &[u8] = b"futuruna.explore.relational-journal-contract.v14";
-const JOURNAL_GENESIS_HASH_V14: &[u8] = b"futuruna.explore.relational-journal-genesis.v14";
+const JOURNAL_CONTRACT_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-contract.v16";
+const JOURNAL_GENESIS_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-genesis.v16";
 const JOURNAL_EVENT_HASH_V15: &[u8] = b"futuruna.explore.relational-journal-event.v15";
-const JOURNAL_ENTRY_HASH_V14: &[u8] = b"futuruna.explore.relational-journal-entry.v14";
+const JOURNAL_ENTRY_HASH_V16: &[u8] = b"futuruna.explore.relational-journal-entry.v16";
 const CORE_EVIDENCE_ROOT_HASH_V4: &[u8] = b"futuruna.explore.relational-core-evidence-root.v4";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -410,7 +410,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V14);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V16);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -434,7 +434,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V14);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V16);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -5997,7 +5997,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V14);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V16);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());

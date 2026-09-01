@@ -6769,3 +6769,45 @@ codec_error_from!(ResultProjectionError, ResultProjection);
 codec_error_from!(ResultViewError, ResultView);
 codec_error_from!(ResultEvidenceError, ResultEvidence);
 codec_error_from!(RelationalAnalysisJournalError, Analysis);
+
+#[cfg(test)]
+mod tests {
+    use super::super::relation::{AdmissionId, FindPolarity, QuestionId, RelationId};
+    use super::super::relational_journal::{RelationalJournal, RelationalJournalContract};
+    use super::*;
+
+    #[test]
+    fn codec_rejects_previous_semantic_journal_schema_before_payload_decode() {
+        let relation = RelationId::from_canonical_semantic_preimage(b"old-schema relation");
+        let admission =
+            AdmissionId::from_canonical_admission_preimage(relation, b"old-schema admission");
+        let question = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"old-schema question",
+            FindPolarity::All,
+        );
+        let contract = RelationalJournalContract::new(relation, admission, question, [0; 32]);
+        let journal = RelationalJournal::new(contract);
+
+        let mut bytes = Vec::new();
+        bytes.extend_from_slice(ENTRY_MAGIC);
+        bytes.extend_from_slice(&RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION.to_be_bytes());
+        bytes.extend_from_slice(&(RELATIONAL_JOURNAL_SCHEMA_VERSION - 1).to_be_bytes());
+
+        let error = decode_relational_journal_entry(
+            contract,
+            journal.next_sequence(),
+            journal.head(),
+            &bytes,
+            RelationalJournalCodecLimits::default(),
+        )
+        .expect_err("old semantic journal schema must fail closed");
+        assert!(matches!(
+            error,
+            RelationalJournalCodecError::UnsupportedJournalSchema {
+                actual: 15,
+                expected: 16
+            }
+        ));
+    }
+}

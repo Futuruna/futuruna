@@ -1112,14 +1112,14 @@ those permissions is a publication error. Owner-only filesystem access reduces
 accidental local disclosure; it is not anonymization and does not make a typed
 bundle safe to publish or share.
 
-Projection V1 collision-checks and counts at most 65,536 selected edges in
+Projection V2 collision-checks and counts at most 65,536 selected edges in
 memory. If discovery proves at least 65,537, the file retains that stable
 65,536-edge prefix and appends `capacity_limited`; it MUST NOT claim an exact
 selected set, content root, state count or transition count. This terminal is
 an honest bounded result, not an empty graph or a completed exploration. A
 later disk-backed or incrementally authenticated projection version may raise
 or remove the operational cap without changing the semantic distinction above;
-the V1 bound itself is schema behavior and cannot change in place.
+the V2 bound itself is schema behavior and cannot change in place.
 
 ### Goals and non-goals
 
@@ -1201,6 +1201,12 @@ The replacement is accepted when:
 - every published count or optimum carries an honest closure status;
 - Carl/John-style distinct transitions may share one complete mechanism
   signature without losing either support;
+- a shared structural node retains one `StructuralNodeId` while distinct
+  correlated origin starters enlarge its request-, target- and facet-conditioned
+  support; confirmed inner support establishes a lower bound, a concrete outer
+  envelope permits `interval(lower, upper)`, an opaque target obligation reports
+  `unknown(lower)`, and only closed starter and successor obligations permit
+  exact correlated support, without multiplying marginal Before-field bounds;
 - an empty exact result is complete, not unknown;
 - resource pressure pauses durably rather than crashing or fabricating closure;
   and
