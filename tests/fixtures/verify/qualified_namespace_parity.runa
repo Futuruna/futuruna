@@ -1,0 +1,46 @@
+@ import Policy from ./qualified_namespace_policy
+@ import Other from ./qualified_namespace_policy
+
+> collide(value: Int) -> Int { value + 1 }
+
+| family(value: Int) -> value + 10
+| family(left: Int, right: Int) -> left + right + 20
+
+= root_function = collide(1)
+= policy_function = Policy.collide(1)
+= policy_private_function = Policy.through_private_function(1)
+= policy_private_rule = Policy.through_private_rule(1)
+= root_same_arity = family(1)
+= policy_same_arity = Policy.family(1)
+= root_different_arity = family(1, 2)
+= policy_different_arity = Policy.family(1, 2)
+= other_same_arity = Other.family(1)
+= other_different_arity = Other.family(1, 2)
+
+| qualified_root_function_isolated: root_function -> root_function == 2
+| qualified_module_function_isolated: policy_function -> policy_function == 101
+| qualified_private_function_is_internal: policy_private_function -> policy_private_function == 101
+| qualified_private_rule_is_internal: policy_private_rule -> policy_private_rule == 101
+| qualified_root_rule_same_arity: root_same_arity -> root_same_arity == 11
+| qualified_module_rule_same_arity: policy_same_arity -> policy_same_arity == 101
+| qualified_root_rule_different_arity: root_different_arity -> root_different_arity == 23
+| qualified_module_rule_different_arity: policy_different_arity -> policy_different_arity == 203
+| qualified_alias_rule_same_arity: other_same_arity -> other_same_arity == 101
+| qualified_alias_rule_different_arity: other_different_arity -> other_different_arity == 203
+| qualified_root_module_families_are_distinct: root_same_arity -> root_same_arity == 11 && policy_same_arity == 101 && root_different_arity == 23 && policy_different_arity == 203
+| qualified_alias_families_have_distinct_symbols: policy_same_arity -> policy_same_arity == other_same_arity && policy_different_arity == other_different_arity
+
+-- Shared backend contract, in declaration order:
+-- interpreter/generated Rust stdout must be exactly these ten lines:
+-- 2, 101, 101, 101, 11, 101, 23, 203, 101, 203.
+-- Each comma-separated value above is one output line below.
+@ print(show(root_function))
+@ print(show(policy_function))
+@ print(show(policy_private_function))
+@ print(show(policy_private_rule))
+@ print(show(root_same_arity))
+@ print(show(policy_same_arity))
+@ print(show(root_different_arity))
+@ print(show(policy_different_arity))
+@ print(show(other_same_arity))
+@ print(show(other_different_arity))
