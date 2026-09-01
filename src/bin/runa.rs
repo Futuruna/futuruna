@@ -52894,6 +52894,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 endpoint_template: coverage_expr("explore_mechanism"),
                 span: Span::dummy(),
             }],
+            starter_projections: Vec::new(),
             span: Span::dummy(),
         })
     }

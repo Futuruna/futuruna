@@ -609,17 +609,34 @@ authorization-neutral `projection_plan_id`, not a public cell job.
 
 Exact correlated materialization is a separate, content-addressed projection
 job whose identity is derived from that plan plus checked publication
-authorization. Publication v8 implements this job for a whole structural
-mechanism in either a selected-case request or a same-question chosen-view
-request. When the checked query already contains a compatible lossless
-selected-input, each-case view which directly exposes `case_id`, `context`,
-`before` and `after` without aggregation, `having` or choice, the publisher
-derives an authorization receipt and automatically schedules
-`mechanisms/<request>.starters.ndjson`. For a chosen-view request, that receipt
+authorization. Publication v9 schedules that job only for an explicit,
+single-subject consumer:
+
+```runa
+starters cliff_node_cases
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+using values from cliff_cases
+```
+
+The selector is exactly one structural mechanism, activation/differential
+node, or activation/differential edge. V1 deliberately has no wildcard, list,
+or predicate selector: a declaration cannot accidentally authorize a
+DAG-wide case-by-subject export. `using values from` is mandatory and must name
+a prior compatible lossless selected-input, each-case view which directly
+exposes `case_id`, `context`, `before` and `after` without aggregation,
+`having`, or choice. For a chosen-view mechanism request, that receipt
 authorizes the selected population from which the same `QuestionId`'s chosen
-target was derived; it need not make the choosing view itself lossless. This is
-a checked consequence of an existing public projection, not yet authored
-export syntax.
+target was derived; the choosing view itself need not be lossless.
+
+The declaration lowers into a publication-consumer graph beside, not inside,
+the answer-defining analysis DAG. Its checked ID binds its authored name,
+request, structural subject/facet and authorizing semantic ViewId. The
+canonical consumer-set identity is declaration-order-independent. Adding a
+new consumer to a completed stream leaves RelationId, QuestionId,
+MechanismRequestId, the analysis-graph root and journal head unchanged; cursor
+reconciliation may append only a new content-addressed subject artifact and
+must reject removal or rebinding of an already owned artifact.
 
 Each published member retains its raw signature ID, `CaseId`, `SourceKey`,
 typed `Context` and `Before`, `SuccessorKey`, and typed `After`. The job
@@ -636,14 +653,16 @@ contributing raw signature plus the current page, so peak memory is
 fixed-fan-in external merge remains a future scaling step for mechanisms with
 very many contributing signatures.
 
-The compact mechanism-support result still closes independently; the scheduled
-typed artifact has its own resumable cursor and closure. Publication v8 does
-not yet schedule typed node, edge or path-conditioned starter projections, and
-there is no authored syntax for choosing an explicit starter export. Their
-factorized compact rows therefore continue to label the inline correlated
-projection `not_materialized`. Typed subject projections are an explicit
-selected/on-demand surface, not an artifact to emit eagerly for every node and
-edge in the catalog.
+The compact mechanism-support result still closes independently; each authored
+typed subject artifact has its own resumable cursor and closure at
+`starters/<consumer>.ndjson`. Its header binds the request, target, exact
+subject/facet, projection plan/job, authorization and structural/support roots;
+bounded typed pages retain the correlated values above; its closure certifies
+the exact case count, distinct-starter count and content root. Factorized rows
+for the complete structural catalog continue to label their inline correlated
+projection `not_materialized`: authoring one selected consumer does not turn
+every node and edge into an eager artifact. Path-conditioned selectors remain
+future work.
 
 Those signature leaves form a disjoint target-partition atom set: an atom is
 either one concrete CaseId singleton or one certified uniform `SupportCell`,

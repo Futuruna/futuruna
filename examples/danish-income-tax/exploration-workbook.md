@@ -1700,16 +1700,25 @@ allocating memory proportional to every case merely because the DAG summary is
 being printed.
 
 The compact row names only an authorization-neutral projection plan.
-Publication v8 now turns that plan into a separate typed artifact for each
-whole structural mechanism in either a selected-case request or a same-question
-chosen-view request when a compatible checked lossless selected-input,
-each-case view already exposes `case_id`, `context`, `before` and `after`
-without aggregation, `having` or choice. For a chosen target, this authorizing
-view covers the selected population from which the same `QuestionId`'s chosen
-subset was derived; the choosing view need not itself expose all four values.
-The publisher automatically schedules
-`mechanisms/<request>.starters.ndjson`; authored syntax for explicitly choosing
-the export remains future work.
+Publication v9 turns one explicitly selected plan into one typed artifact when
+a checked lossless selected-input, each-case view exposes `case_id`, `context`,
+`before` and `after` without aggregation, `having` or choice:
+
+```runa
+starters selected_cliff_node
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+using values from cliffs
+```
+
+The subject may instead be one structural mechanism or an
+activation/differential node or edge. It is deliberately singular: v1 has no
+wildcard or list which could fan out into a hidden `cases x DAG` export. For a chosen
+target, the authorizing view covers the selected population from which the same
+`QuestionId`'s chosen subset was derived; the choosing view need not itself
+expose all four values. The declaration is an appendable publication consumer,
+so it can be added after copying an ID from the completed structural sidecar
+without changing or replaying the core exploration journal.
 
 The content-addressed job merge-deduplicates canonical signature fibers with a
 key-based `(SourceKey, SuccessorKey)` cursor. Every typed member retains its raw
@@ -1725,11 +1734,10 @@ final union. It is not yet a fixed-fan-in external merge; that remains a future
 scaling option for very high signature fan-in. The compact mechanism result can
 close independently of this resumable publication lane. The current compact
 catalog implements factorized **total** support summaries for mechanism, node
-and edge subjects. Typed node, edge and route-conditioned starter projections
-are not scheduled or authorable yet, so their correlated content remains
-`not_materialized` in the compact graph. They belong behind an explicit
-selected/on-demand projection; publication must not emit them eagerly for the
-whole DAG.
+and edge subjects. Those rows retain `not_materialized` correlated content even
+when one typed subject projection is authored: selection schedules a separate
+`starters/<name>.ndjson` artifact and must not emit the whole DAG eagerly.
+Route-conditioned starter projection remains future work.
 
 The shared frontier is itself factorized into pending cases, unavailable cases,
 and complete signature fibers which do not yet have a validated structural
@@ -2081,10 +2089,10 @@ starter subbound is an **exact request-conditioned correlated support**, not a
 range inferred from its case count and not part of the mechanism's stable
 identity.
 
-The public values needed to read those two fibers are already authorized by
-the checked `cliffs` selected-case view. On publication v8, that authorization
-now schedules a separate
-`mechanisms/cliff_paths.starters.ndjson` artifact and deterministically joins
+The public values needed to read those two fibers were already authorized by
+the checked `cliffs` selected-case view. In the historical publication-v8
+experiment, that authorization automatically scheduled a separate
+`mechanisms/cliff_paths.starters.ndjson` artifact and deterministically joined
 the mechanism support keys back to typed relation values. Each whole-mechanism
 group retains raw signature ID, `CaseId`, `SourceKey`, typed
 `(Context, Before)`, `SuccessorKey` and typed `After`; its authenticated closure
@@ -2122,11 +2130,11 @@ node's correlated cross-signature union would decide the exact value. The
 publisher therefore does not relabel the exact case count as an exact starter
 count or manufacture a Cartesian profile box.
 
-This implementation deliberately stops at whole structural mechanisms. The
-next product boundary is typed node/edge starter projection and authored syntax
-for selecting those exports. Publication must not eagerly serialize the case
-fiber for all 8,053 nodes and 20,720 edges merely because the structural DAG is
-published.
+Publication v9 closes that product boundary with the explicit single-subject
+`starters` declaration above. It can materialize the shared node's exact typed
+fiber on demand, while the other 8,052 nodes and 20,720 edges stay factorized.
+Publication must never eagerly serialize all of those case fibers merely
+because the structural DAG is published.
 
 The existing `graphs/case-support.ndjson` remains a different useful object: it
 is the classification/support partition proving how searched regions became
@@ -2150,15 +2158,15 @@ origin-preimage foundation today: request/target/subject/facet identity,
 unions and honest unknown/interval/exact counts. Compact subject rows publish
 authenticated inner/outer fiber-expression identities for the correlated
 `SourceKey -> SuccessorKey set` contract while explicitly marking their inline
-typed content `not_materialized`. For whole structural mechanisms, publication
-v8 can now turn a closed exact expression into the separate authorized typed
-starter artifact described above without inventing a Cartesian product.
+typed content `not_materialized`. Publication v9 can turn one closed exact
+mechanism, node-facet or edge-facet expression into the separate authorized
+typed starter artifact described above without inventing a Cartesian product.
+The compact row remains `not_materialized` because the selected artifact is a
+separate appendable consumer, not inline content.
 
-What remains is not the whole-mechanism join. It is selected/on-demand typed
-value publication for node, edge and route-conditioned subjects, authored
-export selection, and a human-readable region compression which labels
-dimensions as conditioned, explored, derived, proved irrelevant or coverage
-gaps. Until those projections exist, compact node/edge rows correctly remain
+What remains is route-conditioned selection and a human-readable region
+compression which labels dimensions as conditioned, explored, derived, proved
+irrelevant or coverage gaps. Compact unselected rows correctly remain
 `not_materialized` rather than implying that opaque roots or per-field
 marginals are readable correlated subbounds.
 

@@ -87,7 +87,7 @@ than a fixed person:
         measure [
             loss_ore = resources_ore(before) - resources_ore(after)
         ]
-        select [profile = before.profile, before, after, loss_ore]
+        select [case_id, context, profile = before.profile, before, after, loss_ore]
     }
 
     results case_summary from selected {
@@ -1173,14 +1173,18 @@ personskat-200k-result/
   mechanisms/cliff_paths.definitions.ndjson
   mechanisms/cliff_paths.structural.ndjson
   mechanisms/cliff_paths.structural-definitions.ndjson
-  mechanisms/cliff_paths.starters.ndjson
+  starters/selected_cliff_node.ndjson
   graphs/case-support.ndjson
 ```
 
-The `.starters.ndjson` lane is conditional: publication v8 schedules it only
-when an existing checked lossless selected-input `each case` view authorizes
-the required case, Context, Before and After values. Its absence is not an
-empty-support claim.
+The `starters/` lane is explicit and single-subject. Publication v9 schedules
+one artifact only for an authored `starters NAME from mechanisms REQUEST ...`
+consumer whose `using values from VIEW` reference names a checked lossless
+selected-input `each case` view authorizing CaseId, Context, Before and After.
+Its absence is `not_materialized`, not an empty-support claim. Adding another
+consumer to a completed run is an additive publication operation: it leaves
+the existing journal and analysis roots untouched and may only add a new
+content-addressed cursor/artifact.
 
 `manifest.json` names the query and identity ladder, checked program, source
 coverage restrictions/gaps, journal head and sequence, lifecycle/pause reason,
@@ -1285,17 +1289,27 @@ uses exact key cursors and bounded merge pages so pause/resume never requires
 retaining the complete union. Exact starter-set evidence remains distinct from
 exact conditional-successor evidence.
 
-Publication v8 currently specializes that job for each whole structural
-mechanism when a checked lossless selected-input case view supplies the needed
-typed values. It writes `mechanisms/<name>.starters.ndjson` in pages of at most
-64 members, adaptively shortens a page to the byte limit, and uses a k-way merge
-whose peak memory is proportional to the contributing raw signatures plus one
-page. A fixed-fan-in external merge remains future scaling work. Typed node,
-edge and path-conditioned projections are not currently scheduled or
-authorable; they remain selected/on-demand contract work and MUST NOT be
-eagerly emitted merely because the structural catalog exists.
+Publication v9 specializes that job for one explicitly selected structural
+mechanism, activation/differential node, or activation/differential edge:
 
-Publication schema v8 splits each mechanism request into independently
+```runa
+starters selected_cliff_node
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+using values from cliffs
+```
+
+It writes `starters/<name>.ndjson` in pages of at most 64 members, adaptively
+shortens a page to the byte limit, and uses a k-way merge whose peak memory is
+proportional to the contributing raw signatures plus one page. V1 has no
+wildcard or list selector; multiple subjects require multiple named consumers.
+The declaration belongs to the appendable publication-consumer graph, not the
+analysis DAG, so copying a node ID from an existing structural sidecar and
+resuming does not re-explore any cases. A fixed-fan-in external merge and
+path-conditioned selectors remain future scaling work. The whole structural
+catalog MUST NOT be eagerly materialized merely because it exists.
+
+Publication schema v9 splits each mechanism request and authored projection into independently
 resumable artifacts. `mechanisms/<name>.ndjson` is the answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
 reason or case terminal, followed by the incidence closure when authorized.
@@ -1429,7 +1443,7 @@ checkpoint even after the live journal has advanced.
 The warm invocation now reuses that external-resume correctness directly. The
 epoch orchestrator divides the caller's total deadline into short operational
 micro-slices (initially about 15 seconds), lets each semantic sub-slice end at a
-real flushed journal boundary, publishes one bounded v8 suffix plus an atomic
+real flushed journal boundary, publishes one bounded publication suffix plus an atomic
 manifest, and resumes the same prepared epoch while time remains. After
 semantic closure it spends the remaining deadline on publication-only catch-up.
 This is sequential cooperation over one journal, not a concurrent publisher

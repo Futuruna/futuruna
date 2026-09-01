@@ -1516,6 +1516,7 @@ mod tests {
                 .into_boxed_slice(),
             find,
             analysis: Box::new([]),
+            starter_projections: Box::new([]),
             span: Span::dummy(),
         }
     }

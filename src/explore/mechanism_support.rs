@@ -3255,7 +3255,14 @@ pub(super) struct ClosedSubjectStarterFixture {
 /// activation support is exact two while differential support is exact empty.
 #[cfg(test)]
 pub(super) fn closed_subject_starter_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, false)
+    subject_starter_fixture(false, false, false)
+}
+
+/// Two complete raw signatures which quotient to the same structural subject
+/// support and whose cases are distinct successors of one shared origin.
+#[cfg(test)]
+fn multi_signature_shared_starter_fixture() -> ClosedSubjectStarterFixture {
+    subject_starter_fixture(false, true, true)
 }
 
 /// Variant of the shared subject fixture which can leave the second case
@@ -3266,6 +3273,7 @@ pub(super) fn closed_subject_starter_fixture() -> ClosedSubjectStarterFixture {
 fn subject_starter_fixture(
     second_case_unavailable: bool,
     shared_starter: bool,
+    split_raw_signatures: bool,
 ) -> ClosedSubjectStarterFixture {
     use super::mechanism_incidence::{
         MechanismIncidenceCatalogBuilder, MechanismSignatureDefinition,
@@ -3326,6 +3334,8 @@ fn subject_starter_fixture(
         )
     }
 
+    assert!(!split_raw_signatures || !second_case_unavailable);
+
     let relation_id = RelationId::from_canonical_semantic_preimage(b"subject-starter-fixture");
     let admission_id =
         AdmissionId::from_canonical_admission_preimage(relation_id, b"all-fixture-cases");
@@ -3383,10 +3393,16 @@ fn subject_starter_fixture(
         }
     }
 
-    let signature = MechanismSignatureDefinition::from_canonical_definition(
+    let mut signatures = vec![MechanismSignatureDefinition::from_canonical_definition(
         request_id,
         b"subject-starter-structural-fixture".as_slice(),
-    );
+    )];
+    if split_raw_signatures {
+        signatures.push(MechanismSignatureDefinition::from_canonical_definition(
+            request_id,
+            b"subject-starter-structural-fixture-second".as_slice(),
+        ));
+    }
     let mut incidence = MechanismIncidenceCatalogBuilder::new(scope);
     for case_id in cases.iter().copied() {
         incidence
@@ -3404,13 +3420,14 @@ fn subject_starter_fixture(
                 )
                 .expect("fixture unavailable terminal");
         } else {
+            let signature = &signatures[if split_raw_signatures { ordinal } else { 0 }];
             incidence
                 .record_incidence(
                     case_id,
                     TransitionId::from_bytes(
                         Sha256::digest(format!("transition-{ordinal}")).into(),
                     ),
-                    &signature,
+                    signature,
                 )
                 .expect("fixture incidence");
         }
@@ -3462,41 +3479,59 @@ fn subject_starter_fixture(
             after_root: false,
         },
     ];
-    let mut budget = relational_structural_derivation_budget();
-    budget.admit_source(0).expect("fixture source budget");
-    budget
-        .admit_activations(2)
-        .expect("fixture activation budget");
-    budget
-        .admit_occurrences(4)
-        .expect("fixture occurrence budget");
-    budget.admit_edges(2).expect("fixture edge budget");
-    budget
-        .finish_shape_admission()
-        .expect("fixture shape budget");
-    let artifact = derive_structural_signature_quotient_v1(
-        StructuralPairedDagInputV1 {
-            signature_id: signature.id(),
-            before_activations: vec![activation.clone()].into_boxed_slice(),
-            after_activations: vec![activation].into_boxed_slice(),
-            occurrences: occurrences.into(),
-            before_edges: vec![(0, 1)].into_boxed_slice(),
-            after_edges: vec![(0, 1)].into_boxed_slice(),
-        },
-        budget,
-    )
-    .expect("fixture structural quotient");
-    assert!(artifact.differential_node_membership().is_empty());
-    assert!(artifact.differential_edge_membership().is_empty());
-    let mechanism_id = artifact.mechanism().id();
-    let node_ids = artifact.node_membership().to_vec().into_boxed_slice();
-    let edge_ids = artifact.edge_membership().to_vec().into_boxed_slice();
+    let artifacts = signatures
+        .iter()
+        .map(|signature| {
+            let mut budget = relational_structural_derivation_budget();
+            budget.admit_source(0).expect("fixture source budget");
+            budget
+                .admit_activations(2)
+                .expect("fixture activation budget");
+            budget
+                .admit_occurrences(4)
+                .expect("fixture occurrence budget");
+            budget.admit_edges(2).expect("fixture edge budget");
+            budget
+                .finish_shape_admission()
+                .expect("fixture shape budget");
+            derive_structural_signature_quotient_v1(
+                StructuralPairedDagInputV1 {
+                    signature_id: signature.id(),
+                    before_activations: vec![activation.clone()].into_boxed_slice(),
+                    after_activations: vec![activation.clone()].into_boxed_slice(),
+                    occurrences: occurrences.clone().into(),
+                    before_edges: vec![(0, 1)].into_boxed_slice(),
+                    after_edges: vec![(0, 1)].into_boxed_slice(),
+                },
+                budget,
+            )
+            .expect("fixture structural quotient")
+        })
+        .collect::<Vec<_>>();
+    let first_artifact = artifacts.first().expect("fixture structural artifact");
+    assert!(first_artifact.differential_node_membership().is_empty());
+    assert!(first_artifact.differential_edge_membership().is_empty());
+    let mechanism_id = first_artifact.mechanism().id();
+    let node_ids = first_artifact.node_membership().to_vec().into_boxed_slice();
+    let edge_ids = first_artifact.edge_membership().to_vec().into_boxed_slice();
     let mut structural = StructuralMechanismCatalogBuilder::new(request_id);
+    for artifact in &artifacts {
+        assert_eq!(artifact.mechanism().id(), mechanism_id);
+        assert_eq!(artifact.node_membership(), node_ids.as_ref());
+        assert_eq!(artifact.edge_membership(), edge_ids.as_ref());
+        assert!(artifact.differential_node_membership().is_empty());
+        assert!(artifact.differential_edge_membership().is_empty());
+        structural
+            .intern_artifact(artifact)
+            .expect("fixture structural interning");
+    }
+    let mut signature_ids = signatures
+        .iter()
+        .map(MechanismSignatureDefinition::id)
+        .collect::<Vec<_>>();
+    signature_ids.sort_unstable();
     structural
-        .intern_artifact(&artifact)
-        .expect("fixture structural interning");
-    structural
-        .close_against_expected_signatures(1, [signature.id()])
+        .close_against_expected_signatures(signature_ids.len() as u128, signature_ids)
         .expect("fixture structural closure");
 
     let mut support = MechanismSupportCatalogBuilder::new(scope);
@@ -3593,7 +3628,7 @@ mod tests {
 
     #[test]
     fn sealed_unavailable_residual_keeps_subject_case_and_starter_counts_interval_valued() {
-        let fixture = subject_starter_fixture(true, false);
+        let fixture = subject_starter_fixture(true, false, false);
         let summary = fixture
             .support
             .derive_closed_factorized_subject_summary(
@@ -3625,7 +3660,7 @@ mod tests {
 
     #[test]
     fn target_starter_saturation_closes_only_the_distinct_starter_count() {
-        let fixture = subject_starter_fixture(true, true);
+        let fixture = subject_starter_fixture(true, true, false);
         let key = mechanism_support_key(&fixture);
         let summary = fixture
             .support
@@ -3712,6 +3747,125 @@ mod tests {
                 .end_cursor()
                 .is_some_and(|cursor| cursor > first_cursor));
         }
+    }
+
+    #[test]
+    fn shared_origin_across_raw_signatures_remains_distinct_non_additive_subject_support() {
+        let fixture = multi_signature_shared_starter_fixture();
+        let scope = fixture.support.scope();
+        let support_closure = fixture.support.closure().expect("fixture support closure");
+        let structural_closure = fixture
+            .structural
+            .closure()
+            .expect("fixture structural closure");
+        assert_eq!(support_closure.target_case_count(), 2);
+        assert_eq!(support_closure.target_starter_count(), 1);
+        assert_eq!(support_closure.signature_fiber_count(), 2);
+        assert_eq!(structural_closure.expected_signature_count(), 2);
+        assert_eq!(structural_closure.counts().assignments(), 2);
+        assert_eq!(structural_closure.counts().mechanisms(), 1);
+
+        let subjects = [
+            MechanismSupportSubject::Mechanism(fixture.mechanism_id),
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id: fixture.node_ids[0],
+            },
+            MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::Activation,
+                edge_id: fixture.edge_ids[0],
+            },
+        ];
+        let mut view_roots = BTreeSet::new();
+        let mut inner_case_roots = BTreeSet::new();
+        let mut inner_starter_roots = BTreeSet::new();
+        let mut plan_ids = BTreeSet::new();
+        let mut all_raw_signatures = BTreeSet::new();
+        let mut overlapping_case_count = 0;
+        let mut overlapping_starter_count = 0;
+
+        for subject in subjects {
+            let key = MechanismSupportKey::new(scope, subject);
+            let view = fixture
+                .support
+                .derive_closed_view(key, &fixture.structural)
+                .expect("closed overlapping subject view");
+            assert_eq!(view.key(), key);
+            assert_eq!(view.case_count(), MechanismSupportCount::Exact(2));
+            assert_eq!(view.starter_count(), MechanismSupportCount::Exact(1));
+            assert!(view.fiber_expr_bounds_are_equal());
+            assert!(view_roots.insert(view.root()));
+            inner_case_roots.insert(view.inner_case_root());
+            inner_starter_roots.insert(view.inner_starter_root());
+
+            let authority = fixture
+                .support
+                .derive_closed_subject_starter_projection_authority(key, &fixture.structural)
+                .expect("closed overlapping subject authority");
+            assert_eq!(authority.key(), key);
+            assert_eq!(authority.subject(), subject);
+            assert_eq!(authority.exact_case_count(), 2);
+            assert_eq!(authority.support_root(), support_closure.root());
+            assert_eq!(authority.structural_root(), structural_closure.root());
+            assert!(plan_ids.insert(authority.projection_plan_id()));
+
+            let page = fixture
+                .support
+                .closed_subject_starter_page(
+                    authority,
+                    &fixture.structural,
+                    fixture.relation_id,
+                    None,
+                    NonZeroU16::new(8).unwrap(),
+                )
+                .expect("complete overlapping subject page");
+            assert_eq!(page.authority(), authority);
+            assert_eq!(page.start_after(), None);
+            assert_eq!(page.members().len(), 2);
+            assert!(page.exhausted());
+
+            let source_keys = page
+                .members()
+                .iter()
+                .map(|member| member.source_key())
+                .collect::<BTreeSet<_>>();
+            let successor_keys = page
+                .members()
+                .iter()
+                .map(|member| member.successor_key())
+                .collect::<BTreeSet<_>>();
+            let case_ids = page
+                .members()
+                .iter()
+                .map(|member| member.case_id())
+                .collect::<BTreeSet<_>>();
+            let raw_signatures = page
+                .members()
+                .iter()
+                .map(|member| member.raw_signature_id())
+                .collect::<BTreeSet<_>>();
+            assert_eq!(source_keys.len(), 1);
+            assert_eq!(successor_keys.len(), 2);
+            assert_eq!(case_ids.len(), 2);
+            assert_eq!(raw_signatures.len(), 2);
+            all_raw_signatures.extend(raw_signatures);
+
+            overlapping_case_count += authority.exact_case_count();
+            overlapping_starter_count += 1;
+        }
+
+        assert_eq!(view_roots.len(), 3);
+        assert_eq!(plan_ids.len(), 3);
+        assert_eq!(inner_case_roots.len(), 1);
+        assert_eq!(inner_starter_roots.len(), 1);
+        assert_eq!(all_raw_signatures.len(), 2);
+        assert_eq!(overlapping_case_count, 6);
+        assert_eq!(overlapping_starter_count, 3);
+        assert_ne!(overlapping_case_count, support_closure.target_case_count());
+        assert_ne!(
+            overlapping_starter_count,
+            support_closure.target_starter_count()
+        );
     }
 
     #[test]

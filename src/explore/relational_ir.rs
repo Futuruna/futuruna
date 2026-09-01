@@ -7,10 +7,14 @@
 
 use std::collections::BTreeSet;
 
-use super::{ExploreExactDomain, FindPolarity};
+use super::{
+    ExploreExactDomain, FindPolarity, StructuralEdgeId, StructuralMechanismId, StructuralNodeId,
+};
 use crate::{
     ExploreAdmissionScope, ExploreChooseCardinality, ExploreOptimizeDirection,
-    ExploreRelationMultiplicity, Expr, Span, Ty, EXPLORE_RELATION_NORMALIZATION_VERSION,
+    ExploreRelationMultiplicity, ExploreStarterProjectionFacet, Expr, ExprKind, Span, Ty,
+    TypedExploreStarterProjection, TypedExploreStarterProjectionSubject,
+    EXPLORE_RELATION_NORMALIZATION_VERSION,
 };
 
 /// Compare the checked type shapes carried into relational IR without relying
@@ -303,6 +307,78 @@ pub struct ExploreMechanismRequestIr {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum ExploreStarterProjectionFacetIr {
+    Activation,
+    DifferentialParticipation,
+}
+
+impl From<ExploreStarterProjectionFacet> for ExploreStarterProjectionFacetIr {
+    fn from(facet: ExploreStarterProjectionFacet) -> Self {
+        match facet {
+            ExploreStarterProjectionFacet::Activation => Self::Activation,
+            ExploreStarterProjectionFacet::DifferentialParticipation => {
+                Self::DifferentialParticipation
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum ExploreStarterProjectionSubjectIr {
+    Mechanism(StructuralMechanismId),
+    Node {
+        facet: ExploreStarterProjectionFacetIr,
+        node_id: StructuralNodeId,
+    },
+    Edge {
+        facet: ExploreStarterProjectionFacetIr,
+        edge_id: StructuralEdgeId,
+    },
+}
+
+impl From<TypedExploreStarterProjectionSubject> for ExploreStarterProjectionSubjectIr {
+    fn from(subject: TypedExploreStarterProjectionSubject) -> Self {
+        match subject {
+            TypedExploreStarterProjectionSubject::Mechanism(mechanism_id) => {
+                Self::Mechanism(mechanism_id)
+            }
+            TypedExploreStarterProjectionSubject::Node { facet, node_id } => Self::Node {
+                facet: facet.into(),
+                node_id,
+            },
+            TypedExploreStarterProjectionSubject::Edge { facet, edge_id } => Self::Edge {
+                facet: facet.into(),
+                edge_id,
+            },
+        }
+    }
+}
+
+/// One checked, single-subject starter projection consumer. It references the
+/// core analysis DAG but is stored outside that DAG so attaching a publication
+/// consumer cannot rename its upstream semantics.
+#[derive(Debug, Clone)]
+pub(crate) struct ExploreStarterProjectionIr {
+    pub(crate) name: String,
+    pub(crate) request_node_index: usize,
+    pub(crate) subject: ExploreStarterProjectionSubjectIr,
+    pub(crate) value_view_node_index: usize,
+    pub(crate) span: Span,
+}
+
+impl ExploreStarterProjectionIr {
+    pub(crate) fn lower(projection: &TypedExploreStarterProjection) -> Self {
+        Self {
+            name: projection.name.clone(),
+            request_node_index: projection.request_node_index,
+            subject: projection.subject.into(),
+            value_view_node_index: projection.value_view_node_index,
+            span: projection.span,
+        }
+    }
+}
+
 /// One node in declaration order. Positional references form a closed DAG:
 /// every input or target edge must point to a strictly earlier compatible
 /// node.
@@ -341,6 +417,7 @@ pub struct ExploreQueryIr {
     pub admissions: Box<[ExploreAdmissionIr]>,
     pub find: ExploreFindIr,
     pub analysis: Box<[ExploreAnalysisNodeIr]>,
+    pub(crate) starter_projections: Box<[ExploreStarterProjectionIr]>,
     pub span: Span,
 }
 
@@ -364,6 +441,7 @@ impl ExploreQueryIr {
         }
 
         self.validate_analysis()?;
+        self.validate_starter_projections()?;
 
         Ok(())
     }
@@ -413,6 +491,51 @@ impl ExploreQueryIr {
                         }
                     }
                 }
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_starter_projections(&self) -> Result<(), String> {
+        let mut names = self
+            .analysis
+            .iter()
+            .map(ExploreAnalysisNodeIr::name)
+            .collect::<BTreeSet<_>>();
+        for projection in self.starter_projections.iter() {
+            if !names.insert(projection.name.as_str()) {
+                return Err(format!(
+                    "duplicate exploration declaration `{}`",
+                    projection.name
+                ));
+            }
+            if !matches!(
+                self.analysis.get(projection.request_node_index),
+                Some(ExploreAnalysisNodeIr::Mechanisms(_))
+            ) {
+                return Err(format!(
+                    "starter projection `{}` does not resolve mechanism node index {}",
+                    projection.name, projection.request_node_index
+                ));
+            }
+            let Some(ExploreAnalysisNodeIr::Result(value_view)) =
+                self.analysis.get(projection.value_view_node_index)
+            else {
+                return Err(format!(
+                    "starter projection `{}` does not resolve value-view node index {}",
+                    projection.name, projection.value_view_node_index
+                ));
+            };
+            if !starter_value_view_is_compatible(
+                value_view,
+                &self.source.context_ty,
+                &self.source.before_ty,
+                &self.successor.after_ty,
+            ) {
+                return Err(format!(
+                    "starter projection `{}` requires a lossless selected-input each-case value view",
+                    projection.name
+                ));
             }
         }
         Ok(())
@@ -508,6 +631,44 @@ impl ExploreQueryIr {
 
         Ok(())
     }
+}
+
+fn starter_value_view_is_compatible(
+    view: &ExploreResultViewIr,
+    context_ty: &Ty,
+    before_ty: &Ty,
+    after_ty: &Ty,
+) -> bool {
+    if !matches!(&view.input, ExploreResultInputIr::Selected)
+        || !matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
+        || !view.aggregates.is_empty()
+        || view.having.is_some()
+        || view.choose.is_some()
+    {
+        return false;
+    }
+
+    let mut roles = [false; 4];
+    for field in view.select.iter() {
+        let ExprKind::Var(binding) = &field.value.kind else {
+            continue;
+        };
+        let role = match binding.as_str() {
+            "case_id" if matches!(&field.ty, Ty::Name(name) if name == "CaseId") => Some(0),
+            "context" if relational_tys_equivalent(&field.ty, context_ty) => Some(1),
+            "before" if relational_tys_equivalent(&field.ty, before_ty) => Some(2),
+            "after" if relational_tys_equivalent(&field.ty, after_ty) => Some(3),
+            "case_id" | "context" | "before" | "after" => return false,
+            _ => None,
+        };
+        if let Some(role) = role {
+            if roles[role] {
+                return false;
+            }
+            roles[role] = true;
+        }
+    }
+    roles.into_iter().all(|present| present)
 }
 
 impl ExploreSourceRelationIr {

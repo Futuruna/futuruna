@@ -5046,6 +5046,39 @@ pub struct ExploreMechanismRequest {
     pub span: Span,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStarterProjectionFacet {
+    Activation,
+    DifferentialParticipation,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreStarterProjectionSubject {
+    Mechanism([u8; 32]),
+    Node {
+        facet: ExploreStarterProjectionFacet,
+        node_id: [u8; 32],
+    },
+    Edge {
+        facet: ExploreStarterProjectionFacet,
+        edge_id: [u8; 32],
+    },
+}
+
+/// One explicitly selected, typed starter-support publication consumer.
+///
+/// These declarations are intentionally separate from [`ExploreAnalysisNode`]:
+/// adding a presentation consumer must not rename the relation, question,
+/// mechanism request, or core analysis DAG which supplies its authority.
+#[derive(Debug, Clone)]
+pub struct ExploreStarterProjection {
+    pub name: String,
+    pub request_name: String,
+    pub subject: ExploreStarterProjectionSubject,
+    pub value_view_name: String,
+    pub span: Span,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExploreAnalysisNode {
     Result(ExploreResultView),
@@ -5079,6 +5112,9 @@ pub struct ExploreQuery {
     /// resolve only to an earlier node, so the authored order is already a DAG
     /// topological order and cannot encode a cycle.
     pub analysis: Vec<ExploreAnalysisNode>,
+    /// Explicit publication consumers over already-declared analysis nodes.
+    /// They never participate in the core analysis graph identity.
+    pub starter_projections: Vec<ExploreStarterProjection>,
     pub span: Span,
 }
 
@@ -5278,6 +5314,48 @@ pub struct TypedExploreMechanismRequest {
 }
 
 #[derive(Debug, Clone)]
+pub(crate) struct TypedExploreStarterProjection {
+    pub(crate) name: String,
+    pub(crate) request_name: String,
+    pub(crate) request_node_index: usize,
+    pub(crate) subject: TypedExploreStarterProjectionSubject,
+    pub(crate) value_view_name: String,
+    pub(crate) value_view_node_index: usize,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum TypedExploreStarterProjectionSubject {
+    Mechanism(explore::StructuralMechanismId),
+    Node {
+        facet: ExploreStarterProjectionFacet,
+        node_id: explore::StructuralNodeId,
+    },
+    Edge {
+        facet: ExploreStarterProjectionFacet,
+        edge_id: explore::StructuralEdgeId,
+    },
+}
+
+impl From<ExploreStarterProjectionSubject> for TypedExploreStarterProjectionSubject {
+    fn from(subject: ExploreStarterProjectionSubject) -> Self {
+        match subject {
+            ExploreStarterProjectionSubject::Mechanism(bytes) => Self::Mechanism(
+                explore::StructuralMechanismId::from_checked_source_bytes(bytes),
+            ),
+            ExploreStarterProjectionSubject::Node { facet, node_id } => Self::Node {
+                facet,
+                node_id: explore::StructuralNodeId::from_checked_source_bytes(node_id),
+            },
+            ExploreStarterProjectionSubject::Edge { facet, edge_id } => Self::Edge {
+                facet,
+                edge_id: explore::StructuralEdgeId::from_checked_source_bytes(edge_id),
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum TypedExploreAnalysisNode {
     Result(TypedExploreResultView),
     Mechanisms(TypedExploreMechanismRequest),
@@ -5300,6 +5378,7 @@ pub struct TypedExploreQuery {
     pub admissions: Vec<TypedExploreAdmission>,
     pub selection: TypedExploreSelection,
     pub analysis: Vec<TypedExploreAnalysisNode>,
+    pub(crate) starter_projections: Vec<TypedExploreStarterProjection>,
     pub span: Span,
 }
 
@@ -8030,6 +8109,11 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
                 }
             })
             .collect(),
+        // Starter projections are appendable publication consumers with their
+        // own checked identity. Excluding them here keeps the normalized
+        // program and every upstream Explore identity stable when a consumer
+        // is attached to an existing run.
+        starter_projections: Vec::new(),
         span: Span::dummy(),
     }
 }
@@ -9561,6 +9645,97 @@ impl Parser {
         })
     }
 
+    fn parse_explore_structural_digest(&mut self, label: &str) -> Result<[u8; 32], String> {
+        let token = self.expect(TokenKind::String_)?;
+        let bytes = token.text.as_bytes();
+        if bytes.len() != 64
+            || bytes
+                .iter()
+                .any(|byte| !matches!(byte, b'0'..=b'9' | b'a'..=b'f'))
+        {
+            return Err(format!(
+                "{}:{}: exploration {label} must be exactly 64 lowercase hexadecimal characters",
+                token.line, token.col
+            ));
+        }
+        let mut digest = [0_u8; 32];
+        for (index, pair) in bytes.chunks_exact(2).enumerate() {
+            let nibble = |byte| match byte {
+                b'0'..=b'9' => byte - b'0',
+                b'a'..=b'f' => byte - b'a' + 10,
+                _ => unreachable!("validated lowercase hexadecimal digit"),
+            };
+            digest[index] = (nibble(pair[0]) << 4) | nibble(pair[1]);
+        }
+        Ok(digest)
+    }
+
+    fn parse_explore_starter_projection(&mut self) -> Result<ExploreStarterProjection, String> {
+        let start = self.expect_explore_word("starters")?;
+        let (name, _) = self.expect_explore_binder("starter projection name")?;
+        self.expect_explore_word("from")?;
+        self.expect_explore_word("mechanisms")?;
+        let (request_name, _) =
+            self.expect_explore_binder("starter projection mechanism request")?;
+        self.expect_explore_word("for")?;
+        let subject = if self.peek_word("mechanism") {
+            self.advance();
+            ExploreStarterProjectionSubject::Mechanism(
+                self.parse_explore_structural_digest("structural mechanism ID")?,
+            )
+        } else if self.peek_word("node") {
+            self.advance();
+            let facet = self.parse_explore_starter_projection_facet("node")?;
+            ExploreStarterProjectionSubject::Node {
+                facet,
+                node_id: self.parse_explore_structural_digest("structural node ID")?,
+            }
+        } else if self.peek_word("edge") {
+            self.advance();
+            let facet = self.parse_explore_starter_projection_facet("edge")?;
+            ExploreStarterProjectionSubject::Edge {
+                facet,
+                edge_id: self.parse_explore_structural_digest("structural edge ID")?,
+            }
+        } else {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: starter projection subject must be `mechanism`, `node activation|differential`, or `edge activation|differential`",
+                token.line, token.col
+            ));
+        };
+        self.expect_explore_word("using")?;
+        self.expect_explore_word("values")?;
+        self.expect_explore_word("from")?;
+        let (value_view_name, _) = self.expect_explore_binder("starter projection value view")?;
+        Ok(ExploreStarterProjection {
+            name,
+            request_name,
+            subject,
+            value_view_name,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn parse_explore_starter_projection_facet(
+        &mut self,
+        subject_kind: &str,
+    ) -> Result<ExploreStarterProjectionFacet, String> {
+        if self.peek_word("activation") {
+            self.advance();
+            Ok(ExploreStarterProjectionFacet::Activation)
+        } else if self.peek_word("differential") {
+            self.advance();
+            Ok(ExploreStarterProjectionFacet::DifferentialParticipation)
+        } else {
+            let token = self.peek();
+            Err(format!(
+                "{}:{}: starter projection {subject_kind} facet must be `activation` or `differential`",
+                token.line, token.col
+            ))
+        }
+    }
+
     fn parse_explore_query(&mut self, question_token: &Token) -> Result<Stmt, String> {
         self.expect_explore_word("explore")?;
         let (name, _) = self.expect_explore_binder("query name")?;
@@ -9700,10 +9875,58 @@ impl Parser {
             analysis.push(node);
             self.skip_semis();
         }
+        let mut starter_projections = Vec::new();
+        while self.peek_word("starters") {
+            let projection = self.parse_explore_starter_projection()?;
+            match analysis
+                .iter()
+                .find(|node| node.name() == projection.request_name)
+            {
+                Some(ExploreAnalysisNode::Mechanisms(_)) => {}
+                Some(ExploreAnalysisNode::Result(_)) => {
+                    return Err(format!(
+                        "starter projection `{}` expects `{}` to name an earlier mechanism request",
+                        projection.name, projection.request_name
+                    ));
+                }
+                None => {
+                    return Err(format!(
+                        "starter projection `{}` may reference only an earlier mechanism request; `{}` is unresolved or declared later",
+                        projection.name, projection.request_name
+                    ));
+                }
+            }
+            match analysis
+                .iter()
+                .find(|node| node.name() == projection.value_view_name)
+            {
+                Some(ExploreAnalysisNode::Result(_)) => {}
+                Some(ExploreAnalysisNode::Mechanisms(_)) => {
+                    return Err(format!(
+                        "starter projection `{}` expects `{}` to name an earlier result view",
+                        projection.name, projection.value_view_name
+                    ));
+                }
+                None => {
+                    return Err(format!(
+                        "starter projection `{}` may use values only from an earlier result view; `{}` is unresolved or declared later",
+                        projection.name, projection.value_view_name
+                    ));
+                }
+            }
+            if !analysis_names.insert(projection.name.clone()) {
+                return Err(format!(
+                    "duplicate exploration declaration `{}`",
+                    projection.name
+                ));
+            }
+            starter_projections.push(projection);
+            self.skip_semis();
+        }
         if self.peek_kind() != TokenKind::RBrace {
             let token = self.peek();
             return Err(format!(
-                "{}:{}: unexpected exploration clause `{}`; post-`find` analysis declarations must be `results` or `mechanisms` and may depend only on earlier declarations",
+                "{}:{}: unexpected exploration clause `{}`; post-`find` declarations must be `results`, `mechanisms`, or trailing `starters` consumers and may depend only on earlier declarations",
                 token.line, token.col, token.source_text
             ));
         }
@@ -9716,6 +9939,7 @@ impl Parser {
             admissions,
             selection,
             analysis,
+            starter_projections,
             span: self.span_since(question_token),
         }))
     }
@@ -24650,6 +24874,44 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
     },
 }
 
+pub(crate) const CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 1;
+
+/// Durable identity of one explicitly named starter publication consumer.
+///
+/// This identity is deliberately outside the core analysis DAG. Its authored
+/// name participates because a rename denotes a new output artifact/cursor,
+/// while the request, structural subject, and authorizing view bind exactly
+/// which checked data that artifact may expose.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreStarterProjectionId([u8; 32]);
+
+impl CheckedExploreStarterProjectionId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Canonical set identity of the starter consumers attached to one question.
+/// Declaration order is presentation-only; adding or renaming a consumer
+/// changes this ID without renaming any upstream Explore identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreStarterConsumerSetId([u8; 32]);
+
+impl CheckedExploreStarterConsumerSetId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CheckedExploreStarterProjectionIdentity {
+    pub(crate) id: CheckedExploreStarterProjectionId,
+    pub(crate) request_id: explore::MechanismRequestId,
+    pub(crate) subject: explore::ExploreStarterProjectionSubjectIr,
+    pub(crate) authorizing_view_id: explore::ViewId,
+}
+
 struct CheckedExploreIdentityLadder {
     relation_id: explore::RelationId,
     admission_id: explore::AdmissionId,
@@ -24662,6 +24924,8 @@ struct CheckedExploreIdentityLadder {
     transition_schemas: explore::TransitionSchemaIdentities,
     analysis: Box<[CheckedExploreAnalysisIdentity]>,
     analysis_graph_digest: Box<str>,
+    starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
+    starter_consumer_set_id: CheckedExploreStarterConsumerSetId,
     source_coverage: CheckedExploreSourceCoverageManifest,
     source_image_projection: Option<CheckedExploreSourceImageProjectionCertificate>,
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
@@ -25076,6 +25340,11 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// Canonical semantic seal for the requested analysis DAG. Authored names,
     /// node positions and independent topological order are excluded.
     pub(crate) analysis_graph_digest: Box<str>,
+    /// Explicit starter publication consumers in authored declaration order.
+    /// These identities are independent of the core analysis graph seal.
+    pub(crate) starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
+    /// Order-independent identity of the attached starter consumer set.
+    pub(crate) starter_consumer_set_id: CheckedExploreStarterConsumerSetId,
     /// Conservative, producer-owned account of the finite source breadth and
     /// every immutable input reachable from its checked FROM-only semantic
     /// closure. Successor/question/analysis inputs are deliberately excluded.
@@ -25207,6 +25476,27 @@ impl CheckedExploreQueryView<'_> {
 
     pub(crate) fn analysis_graph_hash(&self) -> &str {
         &self.artifact.analysis_graph_digest
+    }
+
+    pub(crate) const fn starter_consumer_set_id(&self) -> CheckedExploreStarterConsumerSetId {
+        self.artifact.starter_consumer_set_id
+    }
+
+    /// Starter declarations paired with their producer-minted publication
+    /// identities. The declaration name remains the output address; the
+    /// checked identity binds that address to its request, subject and view.
+    pub(crate) fn starter_projection_consumers(
+        &self,
+    ) -> impl ExactSizeIterator<
+        Item = (
+            &explore::ExploreStarterProjectionIr,
+            &CheckedExploreStarterProjectionIdentity,
+        ),
+    > + '_ {
+        self.closed_query
+            .starter_projections
+            .iter()
+            .zip(self.artifact.starter_projections.iter())
     }
 
     /// Normalized analysis nodes paired with their producer-minted identities
@@ -26153,6 +26443,8 @@ impl TypeCheckArtifacts {
             || ladder.transition_schemas != artifact.transition_schemas
             || ladder.analysis.as_ref() != artifact.analysis.as_ref()
             || ladder.analysis_graph_digest.as_ref() != artifact.analysis_graph_digest.as_ref()
+            || ladder.starter_projections.as_ref() != artifact.starter_projections.as_ref()
+            || ladder.starter_consumer_set_id != artifact.starter_consumer_set_id
             || ladder.source_coverage != artifact.source_coverage
             || ladder.source_image_projection != artifact.source_image_projection
             || ladder.product_rank_grouped_distinct.as_ref()
@@ -34599,6 +34891,109 @@ fn checked_explore_analysis_graph_digest(
     Ok(format!("{:x}", hasher.finalize()).into_boxed_str())
 }
 
+fn hash_checked_explore_starter_subject(
+    hasher: &mut Sha256,
+    subject: explore::ExploreStarterProjectionSubjectIr,
+) {
+    match subject {
+        explore::ExploreStarterProjectionSubjectIr::Mechanism(mechanism_id) => {
+            hasher.update([0x01]);
+            hasher.update(mechanism_id.bytes());
+        }
+        explore::ExploreStarterProjectionSubjectIr::Node { facet, node_id } => {
+            hasher.update([match facet {
+                explore::ExploreStarterProjectionFacetIr::Activation => 0x02,
+                explore::ExploreStarterProjectionFacetIr::DifferentialParticipation => 0x03,
+            }]);
+            hasher.update(node_id.bytes());
+        }
+        explore::ExploreStarterProjectionSubjectIr::Edge { facet, edge_id } => {
+            hasher.update([match facet {
+                explore::ExploreStarterProjectionFacetIr::Activation => 0x04,
+                explore::ExploreStarterProjectionFacetIr::DifferentialParticipation => 0x05,
+            }]);
+            hasher.update(edge_id.bytes());
+        }
+    }
+}
+
+fn checked_explore_starter_projection_id(
+    name: &str,
+    request_id: explore::MechanismRequestId,
+    subject: explore::ExploreStarterProjectionSubjectIr,
+    authorizing_view_id: explore::ViewId,
+) -> CheckedExploreStarterProjectionId {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-starter-projection-id.v1\0");
+    hasher.update(CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION.to_le_bytes());
+    checked_query_hash_component(&mut hasher, "consumer-name", name);
+    hasher.update(request_id.bytes());
+    hash_checked_explore_starter_subject(&mut hasher, subject);
+    hasher.update(authorizing_view_id.bytes());
+    CheckedExploreStarterProjectionId(hasher.finalize().into())
+}
+
+fn checked_explore_starter_projection_identities(
+    query: &explore::ExploreQueryIr,
+    question_id: explore::QuestionId,
+    analysis: &[CheckedExploreAnalysisIdentity],
+) -> Result<
+    (
+        Box<[CheckedExploreStarterProjectionIdentity]>,
+        CheckedExploreStarterConsumerSetId,
+    ),
+    CheckedExploreQueryArtifactIssue,
+> {
+    let mut identities = Vec::with_capacity(query.starter_projections.len());
+    let mut canonical_set = BTreeSet::new();
+    for projection in query.starter_projections.iter() {
+        let request_id = match analysis.get(projection.request_node_index) {
+            Some(CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. }) => *request_id,
+            _ => {
+                return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                    "starter projection `{}` does not resolve checked mechanism node index {}",
+                    projection.name, projection.request_node_index
+                )))
+            }
+        };
+        let authorizing_view_id = match analysis.get(projection.value_view_node_index) {
+            Some(CheckedExploreAnalysisIdentity::View { view_id }) => *view_id,
+            _ => {
+                return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                    "starter projection `{}` does not resolve checked value-view node index {}",
+                    projection.name, projection.value_view_node_index
+                )))
+            }
+        };
+        let id = checked_explore_starter_projection_id(
+            &projection.name,
+            request_id,
+            projection.subject,
+            authorizing_view_id,
+        );
+        canonical_set.insert(id);
+        identities.push(CheckedExploreStarterProjectionIdentity {
+            id,
+            request_id,
+            subject: projection.subject,
+            authorizing_view_id,
+        });
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-starter-consumer-set-id.v1\0");
+    hasher.update(CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION.to_le_bytes());
+    hasher.update(question_id.bytes());
+    hasher.update((canonical_set.len() as u64).to_le_bytes());
+    for id in canonical_set {
+        hasher.update(id.bytes());
+    }
+    Ok((
+        identities.into_boxed_slice(),
+        CheckedExploreStarterConsumerSetId(hasher.finalize().into()),
+    ))
+}
+
 fn checked_explore_relation_id(
     resolutions: &CheckedResolutionArtifacts,
     query: &explore::ExploreQueryIr,
@@ -34769,6 +35164,8 @@ fn checked_explore_identity_ladder_with_index(
     let source_image_projection = source_projection_analysis.map(|analysis| analysis.certificate);
     let analysis_graph_digest =
         checked_explore_analysis_graph_digest(query, question_id, &analysis)?;
+    let (starter_projections, starter_consumer_set_id) =
+        checked_explore_starter_projection_identities(query, question_id, &analysis)?;
     Ok(CheckedExploreIdentityLadder {
         relation_id,
         admission_id,
@@ -34784,6 +35181,8 @@ fn checked_explore_identity_ladder_with_index(
         transition_schemas,
         analysis,
         analysis_graph_digest,
+        starter_projections,
+        starter_consumer_set_id,
         source_coverage,
         source_image_projection,
         product_rank_grouped_distinct,
@@ -34841,6 +35240,8 @@ fn build_checked_explore_query_artifacts(
             transition_schemas: ladder.transition_schemas,
             analysis: ladder.analysis,
             analysis_graph_digest: ladder.analysis_graph_digest,
+            starter_projections: ladder.starter_projections,
+            starter_consumer_set_id: ladder.starter_consumer_set_id,
             source_coverage: ladder.source_coverage,
             source_image_projection: ladder.source_image_projection,
             product_rank_grouped_distinct: ladder.product_rank_grouped_distinct,
@@ -46689,6 +47090,44 @@ impl TypeChecker {
         }
     }
 
+    fn explore_starter_value_view_is_compatible(
+        view: &TypedExploreResultView,
+        context_ty: &Ty,
+        before_ty: &Ty,
+        after_ty: &Ty,
+    ) -> bool {
+        if !matches!(&view.input, TypedExploreResultInput::Selected)
+            || !matches!(&view.grain, TypedExploreResultGrain::EachCase { .. })
+            || !view.aggregates.is_empty()
+            || view.having.is_some()
+            || view.choose.is_some()
+        {
+            return false;
+        }
+
+        let mut roles = [false; 4];
+        for field in &view.select {
+            let ExprKind::Var(binding) = &field.value.kind else {
+                continue;
+            };
+            let role = match binding.as_str() {
+                "case_id" if matches!(&field.ty, Ty::Name(name) if name == "CaseId") => Some(0),
+                "context" if Self::explore_tys_equivalent(&field.ty, context_ty) => Some(1),
+                "before" if Self::explore_tys_equivalent(&field.ty, before_ty) => Some(2),
+                "after" if Self::explore_tys_equivalent(&field.ty, after_ty) => Some(3),
+                "case_id" | "context" | "before" | "after" => return false,
+                _ => None,
+            };
+            if let Some(role) = role {
+                if roles[role] {
+                    return false;
+                }
+                roles[role] = true;
+            }
+        }
+        roles.into_iter().all(|present| present)
+    }
+
     fn check_explore_query(&mut self, query: &ExploreQuery, selectable: bool) {
         let diagnostic_start = self.diagnostics.len();
         self.checking_explore_query = true;
@@ -47384,6 +47823,70 @@ impl TypeChecker {
             typed_analysis.push(typed_node);
         }
 
+        let mut projection_names = analysis_by_name.keys().cloned().collect::<BTreeSet<_>>();
+        let mut typed_starter_projections = Vec::with_capacity(query.starter_projections.len());
+        for projection in &query.starter_projections {
+            if !projection_names.insert(projection.name.clone()) {
+                self.error_at_span(
+                    projection.span,
+                    format!("duplicate exploration declaration {}", projection.name),
+                );
+            }
+            let request_node_index = analysis_by_name
+                .get(&projection.request_name)
+                .copied()
+                .filter(|index| {
+                    matches!(
+                        typed_analysis.get(*index),
+                        Some(TypedExploreAnalysisNode::Mechanisms(_))
+                    )
+                })
+                .unwrap_or_else(|| {
+                    self.error_at_span(
+                        projection.span,
+                        format!(
+                            "starter projection {} may reference only an earlier mechanism request; {} is unresolved or has the wrong node kind",
+                            projection.name, projection.request_name
+                        ),
+                    );
+                    usize::MAX
+                });
+            let value_view_node_index = analysis_by_name
+                .get(&projection.value_view_name)
+                .copied()
+                .filter(|index| {
+                    matches!(
+                        typed_analysis.get(*index),
+                        Some(TypedExploreAnalysisNode::Result(view))
+                            if Self::explore_starter_value_view_is_compatible(
+                                view,
+                                &context_ty,
+                                &before_ty,
+                                &after_ty,
+                            )
+                    )
+                })
+                .unwrap_or_else(|| {
+                    self.error_at_span(
+                        projection.span,
+                        format!(
+                            "starter projection {} requires earlier value view {} to be a selected-input `each case` view which directly selects case_id, context, before, and after without aggregates, having, or choice",
+                            projection.name, projection.value_view_name
+                        ),
+                    );
+                    usize::MAX
+                });
+            typed_starter_projections.push(TypedExploreStarterProjection {
+                name: projection.name.clone(),
+                request_name: projection.request_name.clone(),
+                request_node_index,
+                subject: projection.subject.into(),
+                value_view_name: projection.value_view_name.clone(),
+                value_view_node_index,
+                span: projection.span,
+            });
+        }
+
         self.pop_scope();
 
         if selectable && self.diagnostics.len() == diagnostic_start {
@@ -47407,6 +47910,7 @@ impl TypeChecker {
                 admissions: typed_admissions,
                 selection: typed_selection,
                 analysis: typed_analysis,
+                starter_projections: typed_starter_projections,
                 span: query.span,
             });
         }
@@ -50453,6 +50957,237 @@ mod tests {
                 if view_name == "cliffs_by_commune"
         ));
         assert_eq!(winner_paths.callable_name, "Tax::observe_income");
+    }
+
+    fn explore_starter_projection_source(projections: &str) -> String {
+        format!(
+            r#"
+> observe(state: Int, context: Unit) -> Int {{ state }}
+? explore starter_projection {{
+    from {{ before in [1, 2]
+        context = () }}
+    to after = before + 1
+    find all
+    results starter_values {{
+        each case
+        select [case_id, context, before, after]
+    }}
+    mechanisms paths for selected from observe
+    {projections}
+}}
+"#
+        )
+    }
+
+    #[test]
+    fn explore_starter_projection_parser_accepts_explicit_single_subject_facets() {
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let projections = format!(
+            r#"
+starters whole from mechanisms paths for mechanism "{digest}" using values from starter_values
+starters node_activation from mechanisms paths for node activation "{digest}" using values from starter_values
+starters node_differential from mechanisms paths for node differential "{digest}" using values from starter_values
+starters edge_activation from mechanisms paths for edge activation "{digest}" using values from starter_values
+starters edge_differential from mechanisms paths for edge differential "{digest}" using values from starter_values
+"#
+        );
+        let source = explore_starter_projection_source(&projections);
+        let statements = parse_test_program(&source).expect("parse starter projections");
+        let Stmt::Explore(query) = &statements[1] else {
+            panic!("expected Explore declaration");
+        };
+        assert_eq!(query.starter_projections.len(), 5);
+        assert!(matches!(
+            query.starter_projections[0].subject,
+            ExploreStarterProjectionSubject::Mechanism(_)
+        ));
+        assert!(matches!(
+            query.starter_projections[1].subject,
+            ExploreStarterProjectionSubject::Node {
+                facet: ExploreStarterProjectionFacet::Activation,
+                ..
+            }
+        ));
+        assert!(matches!(
+            query.starter_projections[2].subject,
+            ExploreStarterProjectionSubject::Node {
+                facet: ExploreStarterProjectionFacet::DifferentialParticipation,
+                ..
+            }
+        ));
+        assert!(matches!(
+            query.starter_projections[3].subject,
+            ExploreStarterProjectionSubject::Edge {
+                facet: ExploreStarterProjectionFacet::Activation,
+                ..
+            }
+        ));
+        assert!(matches!(
+            query.starter_projections[4].subject,
+            ExploreStarterProjectionSubject::Edge {
+                facet: ExploreStarterProjectionFacet::DifferentialParticipation,
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn explore_starter_projection_parser_rejects_bad_digest_names_and_references() {
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let bad_digest = explore_starter_projection_source(
+            "starters values from mechanisms paths for mechanism \"ABC\" using values from starter_values",
+        );
+        let error = parse_test_program(&bad_digest).expect_err("reject malformed digest");
+        assert!(
+            error.contains("exactly 64 lowercase hexadecimal"),
+            "{error}"
+        );
+
+        let unknown_request = explore_starter_projection_source(&format!(
+            "starters values from mechanisms missing for mechanism \"{digest}\" using values from starter_values"
+        ));
+        let error = parse_test_program(&unknown_request).expect_err("reject unknown request");
+        assert!(error.contains("earlier mechanism request"), "{error}");
+
+        let unknown_view = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for mechanism \"{digest}\" using values from missing"
+        ));
+        let error = parse_test_program(&unknown_view).expect_err("reject unknown value view");
+        assert!(error.contains("earlier result view"), "{error}");
+
+        let duplicate = explore_starter_projection_source(&format!(
+            r#"starters values from mechanisms paths for mechanism "{digest}" using values from starter_values
+starters values from mechanisms paths for mechanism "{digest}" using values from starter_values"#
+        ));
+        let error = parse_test_program(&duplicate).expect_err("reject duplicate declaration name");
+        assert!(
+            error.contains("duplicate exploration declaration"),
+            "{error}"
+        );
+    }
+
+    #[test]
+    fn explore_starter_projection_typechecker_requires_lossless_case_values() {
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let valid = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for node activation \"{digest}\" using values from starter_values"
+        ));
+        let artifacts = explore_artifacts_for_source(&valid);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let typed = &artifacts.exploration_queries[0];
+        assert_eq!(typed.starter_projections.len(), 1);
+        assert_eq!(typed.starter_projections[0].request_node_index, 1);
+        assert_eq!(typed.starter_projections[0].value_view_node_index, 0);
+
+        let invalid = valid.replace(
+            "select [case_id, context, before, after]",
+            "select [case_id, before, after]",
+        );
+        let artifacts = explore_artifacts_for_source(&invalid);
+        assert!(artifacts.diagnostics.iter().any(|diagnostic| diagnostic
+            .message
+            .contains("selected-input `each case` view")));
+    }
+
+    #[test]
+    fn explore_starter_projection_identity_is_separate_from_core_analysis() {
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let baseline_source = explore_starter_projection_source("");
+        let projected_source = explore_starter_projection_source(&format!(
+            "starters values from mechanisms paths for edge differential \"{digest}\" using values from starter_values"
+        ));
+        let baseline_artifacts = explore_artifacts_for_source(&baseline_source);
+        let projected_artifacts = explore_artifacts_for_source(&projected_source);
+        assert!(
+            baseline_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            baseline_artifacts.diagnostics
+        );
+        assert!(
+            projected_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            projected_artifacts.diagnostics
+        );
+        let baseline = baseline_artifacts
+            .checked_exploration_query(0)
+            .expect("checked baseline query");
+        let projected = projected_artifacts
+            .checked_exploration_query(0)
+            .expect("checked projected query");
+        assert_eq!(baseline.program_hash(), projected.program_hash());
+        assert_eq!(baseline.relation_id(), projected.relation_id());
+        assert_eq!(baseline.admission_id(), projected.admission_id());
+        assert_eq!(baseline.question_id(), projected.question_id());
+        assert_eq!(
+            baseline.analysis_graph_hash(),
+            projected.analysis_graph_hash()
+        );
+        assert_eq!(
+            baseline
+                .analysis_nodes()
+                .map(|(_, identity)| identity)
+                .collect::<Vec<_>>(),
+            projected
+                .analysis_nodes()
+                .map(|(_, identity)| identity)
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(baseline.starter_projection_consumers().len(), 0);
+        let consumers = projected.starter_projection_consumers().collect::<Vec<_>>();
+        assert_eq!(consumers.len(), 1);
+        assert_eq!(consumers[0].0.name, "values");
+        assert_ne!(
+            baseline.starter_consumer_set_id(),
+            projected.starter_consumer_set_id()
+        );
+
+        let renamed_source = explore_starter_projection_source(&format!(
+            "starters renamed from mechanisms paths for edge differential \"{digest}\" using values from starter_values"
+        ));
+        let renamed_artifacts = explore_artifacts_for_source(&renamed_source);
+        let renamed = renamed_artifacts
+            .checked_exploration_query(0)
+            .expect("checked renamed consumer");
+        assert_eq!(
+            projected.analysis_graph_hash(),
+            renamed.analysis_graph_hash()
+        );
+        assert_ne!(
+            consumers[0].1.id,
+            renamed
+                .starter_projection_consumers()
+                .next()
+                .expect("renamed consumer")
+                .1
+                .id,
+            "the declaration name is part of publication/cursor identity"
+        );
+
+        let first_then_second = explore_starter_projection_source(&format!(
+            r#"starters first from mechanisms paths for node activation "{digest}" using values from starter_values
+starters second from mechanisms paths for edge differential "{digest}" using values from starter_values"#
+        ));
+        let second_then_first = explore_starter_projection_source(&format!(
+            r#"starters second from mechanisms paths for edge differential "{digest}" using values from starter_values
+starters first from mechanisms paths for node activation "{digest}" using values from starter_values"#
+        ));
+        let first_then_second_artifacts = explore_artifacts_for_source(&first_then_second);
+        let second_then_first_artifacts = explore_artifacts_for_source(&second_then_first);
+        let first_then_second = first_then_second_artifacts
+            .checked_exploration_query(0)
+            .expect("checked authored-order consumer set");
+        let second_then_first = second_then_first_artifacts
+            .checked_exploration_query(0)
+            .expect("checked reordered consumer set");
+        assert_eq!(
+            first_then_second.starter_consumer_set_id(),
+            second_then_first.starter_consumer_set_id(),
+            "consumer-set identity is independent of declaration order"
+        );
     }
 
     #[test]
@@ -54532,6 +55267,7 @@ mod tests {
                             span: Span::dummy(),
                         }),
                     ],
+                    starter_projections: Vec::new(),
                     span: Span::dummy(),
                 }),
                 coverage: visits,

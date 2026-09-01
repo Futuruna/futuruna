@@ -168,7 +168,7 @@ fn snapshot_files(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
 }
 
 #[test]
-fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
+fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration() {
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("state");
@@ -226,38 +226,18 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
     );
 
     let manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(manifest["schema_version"], 8);
+    assert_eq!(manifest["schema_version"], 9);
     assert_eq!(
         manifest["publication_cursor"]["file"],
-        ".publication-cursor-v8.json"
+        ".publication-cursor-v9.json"
     );
-    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v8.json"));
-    assert_eq!(publication_cursor["schema_version"], 8);
-
-    let starter_artifact = manifest["artifacts"]
+    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v9.json"));
+    assert_eq!(publication_cursor["schema_version"], 9);
+    assert!(manifest["artifacts"]
         .as_array()
         .expect("manifest artifacts")
         .iter()
-        .find(|artifact| artifact["kind"] == "mechanism_starter_support")
-        .expect("mechanism starter-support artifact");
-    assert_eq!(
-        starter_artifact["availability"]["status"],
-        "exact_projection_available"
-    );
-    assert_eq!(
-        starter_artifact["scope"],
-        "whole_structural_mechanisms_only"
-    );
-    assert_eq!(
-        starter_artifact["canonical_projection_order"],
-        serde_json::json!([
-            "structural_mechanism_ordinal",
-            "source_key",
-            "successor_key",
-        ])
-    );
-    assert_eq!(starter_artifact["contains_typed_values"], true);
-    assert_eq!(starter_artifact["published_lines"], "5");
+        .all(|artifact| artifact["kind"] != "subject_starter_support"));
 
     let selected_artifact = manifest["artifacts"]
         .as_array()
@@ -272,7 +252,7 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
     assert_eq!(selected_records.len(), 2);
     let mut selected_values_by_case = BTreeMap::new();
     for selected in &selected_records {
-        assert_eq!(selected["schema_version"], 8);
+        assert_eq!(selected["schema_version"], 9);
         assert_eq!(selected["record"]["kind"], "selected_case");
         assert_eq!(selected["record"]["row_id"]["kind"], "case");
         assert_eq!(selected["record"]["values"]["case_id"]["kind"], "case_id");
@@ -397,87 +377,6 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
     assert_eq!(summary["record"]["values"]["raw_signatures"], 1);
     assert_eq!(summary["record"]["values"]["explained_cases"], 2);
 
-    let starter_path = starter_artifact["path"]
-        .as_str()
-        .expect("starter artifact path");
-    let starter_records = read_ndjson(&output_directory.join(starter_path));
-    assert_eq!(starter_records.len(), 5);
-    assert!(starter_records
-        .iter()
-        .all(|record| record["schema_version"] == 8));
-    assert!(starter_records
-        .iter()
-        .all(|record| record["artifact"] == starter_artifact["key"]));
-    assert_eq!(
-        starter_records
-            .iter()
-            .map(|record| record["record"]["kind"]
-                .as_str()
-                .expect("starter record kind"))
-            .collect::<Vec<_>>(),
-        vec![
-            "mechanism_starters_header",
-            "mechanism_starter_projection_header",
-            "mechanism_starter_projection_page",
-            "mechanism_starter_projection_closure",
-            "mechanism_starters_closure",
-        ]
-    );
-    assert_eq!(starter_records[0]["record"]["mechanism_count"], "1");
-    assert_eq!(starter_records[1]["record"]["mechanism_ordinal"], "0");
-    assert_eq!(starter_records[1]["record"]["exact_case_count"], "2");
-
-    let starter_page = &starter_records[2]["record"];
-    assert_eq!(starter_page["mechanism_ordinal"], "0");
-    assert_eq!(starter_page["page_ordinal"], "0");
-    assert_eq!(starter_page["start_after"], Value::Null);
-    assert_eq!(starter_page["exhausted"], true);
-    let starter_members = starter_page["members"]
-        .as_array()
-        .expect("starter page members");
-    assert_eq!(starter_members.len(), 2);
-    assert!(
-        starter_members[0]["source_key"]
-            .as_str()
-            .expect("first starter source key")
-            < starter_members[1]["source_key"]
-                .as_str()
-                .expect("second starter source key"),
-        "starter members must use canonical SourceKey order"
-    );
-    for member in starter_members {
-        assert_eq!(member["context"], serde_json::json!({ "kind": "unit" }));
-        let case_id = member["case_id"].as_str().expect("starter member case ID");
-        let &(before, after) = selected_values_by_case
-            .get(case_id)
-            .expect("starter member must be a selected case");
-        assert_eq!(member["before"], before);
-        assert_eq!(member["after"], after);
-    }
-    let last_member = starter_members.last().expect("last starter member");
-    assert_eq!(
-        starter_page["end_cursor"]["source_key"],
-        last_member["source_key"]
-    );
-    assert_eq!(
-        starter_page["end_cursor"]["successor_key"],
-        last_member["successor_key"]
-    );
-
-    assert_eq!(starter_records[3]["record"]["mechanism_ordinal"], "0");
-    assert_eq!(starter_records[3]["record"]["exact_case_count"], "2");
-    assert_eq!(
-        starter_records[3]["record"]["exact_distinct_starter_count"],
-        "2"
-    );
-    assert_eq!(starter_records[3]["record"]["page_count"], "1");
-    assert_eq!(starter_records[4]["record"]["exact_mechanism_count"], "1");
-    assert_eq!(starter_records[4]["record"]["exact_case_count"], "2");
-    assert_eq!(
-        starter_records[4]["record"]["exact_distinct_starter_count_sum"],
-        "2"
-    );
-
     let structural_support = read_ndjson(&artifact_path(
         &manifest,
         &output_directory,
@@ -514,24 +413,43 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
     );
     assert_eq!(
         mechanism_support["record"]["starter_projection"]["status"],
-        "authorized_separate_artifact"
+        "not_materialized"
     );
     assert_eq!(
-        mechanism_support["record"]["starter_projection"]["authorization_id"],
-        starter_artifact["authorization"]["authorization_id"]
+        mechanism_support["record"]["starter_projection"]["artifact"],
+        Value::Null
+    );
+
+    let node_support = structural_support
+        .iter()
+        .find(|record| {
+            record["record"]["kind"] == "structural_subject_support"
+                && record["record"]["subject"]["kind"] == "node"
+                && record["record"]["subject"]["facet"] == "activation"
+                && record["record"]["case_count"]["status"] == "exact"
+                && record["record"]["case_count"]["value"] == "2"
+                && record["record"]["origin_preimage_support"]["distinct_starter_count"]["status"]
+                    == "exact"
+                && record["record"]["origin_preimage_support"]["distinct_starter_count"]["value"]
+                    == "2"
+        })
+        .expect("activation node with exact two-starter origin preimage");
+    assert_eq!(
+        node_support["record"]["origin_preimage_support"]["correlated_origin_successor"]["status"],
+        "not_materialized"
     );
     assert_eq!(
-        mechanism_support["record"]["starter_projection"]["authorizing_view_id"],
-        starter_artifact["authorization"]["authorizing_view_id"]
+        node_support["record"]["starter_projection"]["status"],
+        "not_materialized"
     );
-    assert_eq!(
-        mechanism_support["record"]["starter_projection"]["artifact"]["key"],
-        starter_artifact["key"]
-    );
-    assert_eq!(
-        mechanism_support["record"]["starter_projection"]["artifact"]["path"],
-        starter_artifact["path"]
-    );
+    let node_id = node_support["record"]["subject"]["structural_node_id"]
+        .as_str()
+        .expect("structural node ID")
+        .to_owned();
+    let node_projection_plan_id = node_support["record"]["projection_plan_id"]
+        .as_str()
+        .expect("node projection plan ID")
+        .to_owned();
 
     let structural_definitions = read_ndjson(&artifact_path(
         &manifest,
@@ -572,14 +490,202 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
         "2"
     );
 
-    let published_before_resume = snapshot_files(&output_directory);
+    let published_before_attachment = snapshot_files(&output_directory);
     let first_next_sequence = first["run"]["checkpoint"]["next_sequence"].clone();
     let first_journal_head = first["run"]["checkpoint"]["journal_head"].clone();
+    let first_artifact_count = first["publication"]["artifact_count"]
+        .as_u64()
+        .expect("first artifact count");
 
-    let resumed_output = run_explore(&fixture, &run_state, &output_directory);
+    let fixture_source = std::fs::read_to_string(&fixture).expect("read Explore fixture");
+    let closing_brace = fixture_source
+        .rfind('}')
+        .expect("Explore fixture query closing brace");
+    let projected_source = format!(
+        "{}    starters selected_activation_node from mechanisms paths for node activation \"{}\" using values from selected_cases\n{}",
+        &fixture_source[..closing_brace],
+        node_id,
+        &fixture_source[closing_brace..],
+    );
+    let projected_fixture = temp
+        .path()
+        .join("relational-explore-with-node-starters.runa");
+    std::fs::write(&projected_fixture, projected_source).expect("write projected Explore fixture");
+
+    let attached_output = run_explore(&projected_fixture, &run_state, &output_directory);
+    assert_success(&attached_output);
+    let attached = parse_stdout(&attached_output);
+
+    assert_eq!(attached["run"]["lifecycle"], "complete");
+    assert_eq!(attached["run"]["appended"]["semantic_batches"], 0);
+    assert_eq!(attached["run"]["appended"]["semantic_events"], 0);
+    assert_eq!(
+        attached["run"]["checkpoint"]["next_sequence"],
+        first_next_sequence
+    );
+    assert_eq!(
+        attached["run"]["checkpoint"]["journal_head"],
+        first_journal_head
+    );
+    assert_eq!(attached["query"]["identity"], first["query"]["identity"]);
+    assert_eq!(attached["publication"]["lines_appended"], 3);
+    assert_eq!(attached["publication"]["source_ordinals_advanced"], 3);
+    assert_eq!(attached["publication"]["caught_up"], true);
+    assert_eq!(
+        attached["publication"]["artifact_count"],
+        first_artifact_count + 1
+    );
+
+    let attached_manifest = read_json(&output_directory.join("manifest.json"));
+    assert_eq!(attached_manifest["schema_version"], 9);
+    for identity_key in [
+        "checked_program",
+        "relation_id",
+        "admission_id",
+        "question_id",
+        "analysis_graph_digest",
+        "journal_id",
+    ] {
+        assert_eq!(
+            attached_manifest["identity"][identity_key], manifest["identity"][identity_key],
+            "starter attachment changed core identity `{identity_key}`"
+        );
+    }
+    assert_ne!(
+        attached_manifest["identity"]["starter_consumer_set_id"],
+        manifest["identity"]["starter_consumer_set_id"]
+    );
+
+    let starter_artifact = attached_manifest["artifacts"]
+        .as_array()
+        .expect("attached manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "subject_starter_support"
+                && artifact["name"] == "selected_activation_node"
+        })
+        .expect("explicit node starter artifact");
+    assert_eq!(
+        starter_artifact["path"],
+        "starters/selected_activation_node.ndjson"
+    );
+    assert_eq!(starter_artifact["published_lines"], "3");
+    assert_eq!(starter_artifact["scope"], "one_explicit_structural_subject");
+    assert_eq!(
+        starter_artifact["availability"]["status"],
+        "exact_projection_available"
+    );
+    assert_eq!(starter_artifact["subject"]["kind"], "node");
+    assert_eq!(starter_artifact["subject"]["facet"], "activation");
+    assert_eq!(starter_artifact["subject"]["structural_node_id"], node_id);
+    assert_eq!(starter_artifact["contains_node_edge_projections"], true);
+    assert_eq!(starter_artifact["contains_typed_values"], true);
+    assert_eq!(
+        starter_artifact["authorization"]["authorizing_view_name"],
+        "selected_cases"
+    );
+
+    let starter_records = read_ndjson(
+        &output_directory.join(
+            starter_artifact["path"]
+                .as_str()
+                .expect("starter artifact path"),
+        ),
+    );
+    assert_eq!(starter_records.len(), 3);
+    assert!(starter_records
+        .iter()
+        .all(|record| record["schema_version"] == 9));
+    assert!(starter_records
+        .iter()
+        .all(|record| record["artifact"] == starter_artifact["key"]));
+    assert_eq!(
+        starter_records
+            .iter()
+            .map(|record| record["record"]["kind"]
+                .as_str()
+                .expect("starter record kind"))
+            .collect::<Vec<_>>(),
+        vec![
+            "subject_starters_header",
+            "subject_starters_page",
+            "subject_starters_closure",
+        ]
+    );
+    let starter_header = &starter_records[0]["record"];
+    assert_eq!(
+        starter_header["projection_plan_id"],
+        node_projection_plan_id
+    );
+    assert_eq!(starter_header["exact_case_count"], "2");
+    assert_eq!(starter_header["exact_distinct_starter_count"], Value::Null);
+
+    let starter_page = &starter_records[1]["record"];
+    assert_eq!(starter_page["page_ordinal"], "0");
+    assert_eq!(starter_page["start_after"], Value::Null);
+    assert_eq!(starter_page["exhausted"], true);
+    let starter_members = starter_page["members"]
+        .as_array()
+        .expect("starter page members");
+    assert_eq!(starter_members.len(), 2);
+    assert!(
+        starter_members[0]["source_key"]
+            .as_str()
+            .expect("first starter source key")
+            < starter_members[1]["source_key"]
+                .as_str()
+                .expect("second starter source key"),
+        "starter members must use canonical SourceKey order"
+    );
+    for member in starter_members {
+        assert_eq!(member["context"], serde_json::json!({ "kind": "unit" }));
+        let case_id = member["case_id"].as_str().expect("starter member case ID");
+        let &(before, after) = selected_values_by_case
+            .get(case_id)
+            .expect("starter member must be a selected case");
+        assert_eq!(member["before"], before);
+        assert_eq!(member["after"], after);
+    }
+    let last_member = starter_members.last().expect("last starter member");
+    assert_eq!(
+        starter_page["end_cursor"]["source_key"],
+        last_member["source_key"]
+    );
+    assert_eq!(
+        starter_page["end_cursor"]["successor_key"],
+        last_member["successor_key"]
+    );
+
+    let starter_closure = &starter_records[2]["record"];
+    assert_eq!(starter_closure["exact_case_count"], "2");
+    assert_eq!(starter_closure["exact_distinct_starter_count"], "2");
+    assert_eq!(starter_closure["page_count"], "1");
+
+    let published_after_attachment = snapshot_files(&output_directory);
+    for (path, before) in &published_before_attachment {
+        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v9.json") {
+            continue;
+        }
+        assert_eq!(
+            published_after_attachment.get(path),
+            Some(before),
+            "starter attachment rewrote prior artifact {}",
+            path.display()
+        );
+    }
+    let added_paths = published_after_attachment
+        .keys()
+        .filter(|path| !published_before_attachment.contains_key(*path))
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(
+        added_paths,
+        vec![PathBuf::from("starters/selected_activation_node.ndjson")]
+    );
+
+    let resumed_output = run_explore(&projected_fixture, &run_state, &output_directory);
     assert_success(&resumed_output);
     let resumed = parse_stdout(&resumed_output);
-
     assert_eq!(resumed["run"]["lifecycle"], "complete");
     assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
     assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
@@ -595,5 +701,8 @@ fn relational_explore_cli_publishes_structure_and_resumes_without_additions() {
     assert_eq!(resumed["publication"]["lines_appended"], 0);
     assert_eq!(resumed["publication"]["source_ordinals_advanced"], 0);
     assert_eq!(resumed["publication"]["caught_up"], true);
-    assert_eq!(snapshot_files(&output_directory), published_before_resume);
+    assert_eq!(
+        snapshot_files(&output_directory),
+        published_after_attachment
+    );
 }

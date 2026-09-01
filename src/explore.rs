@@ -146,6 +146,9 @@ pub use relational_ir::{
     ExploreSourceDependencyIr, ExploreSourceRelationIr, ExploreSuccessorKindIr,
     ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
 };
+pub(crate) use relational_ir::{
+    ExploreStarterProjectionFacetIr, ExploreStarterProjectionIr, ExploreStarterProjectionSubjectIr,
+};
 mod relational_analysis_plan;
 pub(crate) use relational_analysis_plan::{
     RelationalAnalysisDependencyId, RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration,
@@ -7289,6 +7292,12 @@ fn elaborate_query(
             .into_boxed_slice(),
         find,
         analysis: analysis.into_boxed_slice(),
+        starter_projections: query
+            .starter_projections
+            .iter()
+            .map(ExploreStarterProjectionIr::lower)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
         span: query.span,
     };
     closed
