@@ -2986,6 +2986,9 @@ mod tests {
             checked.relation_id(),
             checked.admission_id(),
             checked.question_id(),
+            checked.transition_schemas().state_schema_id(),
+            checked.transition_schemas().context_schema_id(),
+            checked.transition_schemas().transition_type_id(),
             analysis_plan.producer_graph_digest().bytes(),
         );
         let make_ready_journal = |authority: Arc<RelationalRegionReplayAuthority>| {
