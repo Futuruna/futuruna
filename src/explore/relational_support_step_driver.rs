@@ -336,7 +336,7 @@ impl RelationalSupportStepDriver {
             })
             .transpose()?;
 
-        let uniform_admission_proof = if let Some(root) = root.as_ref() {
+        let uniform_admission_proof_candidate = if let Some(root) = root.as_ref() {
             match prove_relational_uniform_admission(plan) {
                 Ok(proof) => {
                     let evidence = proof.evidence();
@@ -362,68 +362,71 @@ impl RelationalSupportStepDriver {
             None
         };
 
-        // A uniform root-admission proof is strictly stronger and remains the
-        // first choice. Only its explicit unavailability authorizes replacing
-        // the open root admission obligation with bounded child admissions.
-        let case_chunk_partition = if uniform_admission_proof.is_none() {
-            match verified_case_image_proof.as_ref() {
-                Some(proof) => match plan_relational_bounded_case_chunks(plan, proof)? {
-                    RelationalCaseChunkPlanningOutcome::Partitioned(partition) => {
-                        let root = root.as_ref().ok_or(
-                            RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
-                        )?;
-                        let admission_obligation_id = root.admission_obligation_id.ok_or(
-                            RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
-                        )?;
-                        let parent_admission = plan
-                            .obligations()
-                            .iter()
-                            .find_map(|descriptor| match descriptor {
-                                RelationalStagedObligationDescriptor::Root {
-                                    activation:
-                                        RelationalObligationActivation::RootCasePopulation,
-                                    obligation: SupportObligationRecord::Admission(obligation),
-                                } if obligation.id() == admission_obligation_id => {
-                                    Some(obligation.clone())
-                                }
-                                _ => None,
-                            })
-                            .ok_or(
-                                RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
-                            )?;
-                        let parent_record =
-                            SupportObligationRecord::Admission(parent_admission.clone());
-                        let child_admissions = partition
-                            .chunks()
-                            .iter()
-                            .map(|chunk| {
-                                SupportCellObligation::new(
-                                    chunk.cell(),
-                                    AdmissionClassificationClaim::new(plan.admission_id()),
-                                )
-                                .map(SupportObligationRecord::Admission)
-                            })
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let refinement = SupportObligationRefinement::new(
-                            &parent_record,
-                            partition.certificate(),
-                            child_admissions.iter(),
-                        )?;
-                        Some(CaseChunkPartitionProposal {
-                            artifact: partition.artifact().clone(),
-                            partition_id: partition.certificate().id(),
-                            admission_obligation_id,
-                            refinement_id: refinement.id(),
-                            child_count: partition.chunks().len(),
+        // A proper canonical partition owns the ordered classified stream.
+        // Refine the still-open root admission into its child obligations even
+        // when admission is globally uniform: regional FIND proof and concrete
+        // fallback must agree on those exact mapped children. The stronger
+        // root shortcut remains available only when the root is already
+        // bounded or cannot be partitioned.
+        let case_chunk_partition = match verified_case_image_proof.as_ref() {
+            Some(proof) => match plan_relational_bounded_case_chunks(plan, proof)? {
+                RelationalCaseChunkPlanningOutcome::Partitioned(partition) => {
+                    let root = root.as_ref().ok_or(
+                        RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
+                    )?;
+                    let admission_obligation_id = root.admission_obligation_id.ok_or(
+                        RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
+                    )?;
+                    let parent_admission = plan
+                        .obligations()
+                        .iter()
+                        .find_map(|descriptor| match descriptor {
+                            RelationalStagedObligationDescriptor::Root {
+                                activation: RelationalObligationActivation::RootCasePopulation,
+                                obligation: SupportObligationRecord::Admission(obligation),
+                            } if obligation.id() == admission_obligation_id => {
+                                Some(obligation.clone())
+                            }
+                            _ => None,
                         })
-                    }
-                    RelationalCaseChunkPlanningOutcome::AlreadyBounded { .. }
-                    | RelationalCaseChunkPlanningOutcome::Unsupported(_) => None,
-                },
-                None => None,
-            }
-        } else {
+                        .ok_or(
+                            RelationalSupportStepDriverError::QualifyingChunkAdmissionObligationMissing,
+                        )?;
+                    let parent_record =
+                        SupportObligationRecord::Admission(parent_admission.clone());
+                    let child_admissions = partition
+                        .chunks()
+                        .iter()
+                        .map(|chunk| {
+                            SupportCellObligation::new(
+                                chunk.cell(),
+                                AdmissionClassificationClaim::new(plan.admission_id()),
+                            )
+                            .map(SupportObligationRecord::Admission)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let refinement = SupportObligationRefinement::new(
+                        &parent_record,
+                        partition.certificate(),
+                        child_admissions.iter(),
+                    )?;
+                    Some(CaseChunkPartitionProposal {
+                        artifact: partition.artifact().clone(),
+                        partition_id: partition.certificate().id(),
+                        admission_obligation_id,
+                        refinement_id: refinement.id(),
+                        child_count: partition.chunks().len(),
+                    })
+                }
+                RelationalCaseChunkPlanningOutcome::AlreadyBounded { .. }
+                | RelationalCaseChunkPlanningOutcome::Unsupported(_) => None,
+            },
+            None => None,
+        };
+        let uniform_admission_proof = if case_chunk_partition.is_some() {
             None
+        } else {
+            uniform_admission_proof_candidate
         };
 
         Ok(Self {

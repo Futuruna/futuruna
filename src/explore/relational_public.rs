@@ -2632,3 +2632,584 @@ fn hex(bytes: [u8; 32]) -> String {
     }
     encoded
 }
+
+#[cfg(test)]
+mod regional_stream_acceptance_tests {
+    use std::fs;
+    use std::num::NonZeroU16;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    use super::super::relational_analysis_plan::RelationalAnalysisPlan;
+    use super::super::relational_case_support_projection::{
+        derive_relational_case_support_projection, RelationalCaseSupportClosureAuthority,
+        RelationalCaseSupportCount, RelationalCaseSupportProjectionFrontier,
+        RelationalCaseSupportProjectionRecord,
+    };
+    use super::super::relational_classified_sweep_step_driver::{
+        RelationalClassifiedSweepStepDriver, RelationalClassifiedSweepStepOutcome,
+    };
+    use super::super::relational_durable_journal::{
+        RelationalDurableJournal, RelationalDurableJournalLimits,
+    };
+    use super::super::relational_journal::{
+        RelationalClassifiedSupportFragment, RelationalJournal, RelationalJournalEvent,
+    };
+    use super::super::relational_step_driver::{
+        RelationalStepDriver, RelationalStepOutcome, RelationalStepQuantum,
+    };
+    use super::super::relational_stream_driver::{
+        RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuantum,
+        RelationalStreamStepOutcome,
+    };
+    use super::*;
+    use crate::{Lexer, Parser};
+
+    const EXACT_EMPTY: &str = r#"
+? explore regional_exact_empty {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = before + 1
+    find matches of after < before
+}
+"#;
+
+    const UNIFORMLY_SELECTED: &str = r#"
+? explore regional_uniformly_selected {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = before + 1
+    find matches of after > before
+}
+"#;
+
+    const MIXED_FIRST_CHILD: &str = r#"
+? explore regional_mixed_first_child {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = before + 1
+    find matches of before >= 128
+}
+"#;
+
+    const UNSUPPORTED_NONLINEAR: &str = r#"
+? explore regional_unsupported_nonlinear {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = before + 1
+    find matches of before * before < 0
+}
+"#;
+
+    const HYBRID: &str = r#"
+? explore regional_hybrid {
+    from {
+        before in range(0, 300)
+        context = ()
+    }
+
+    to after = before + 1
+    find matches of before >= 280
+}
+"#;
+
+    fn parse(source: &str) -> Vec<Stmt> {
+        let mut lexer = Lexer::new(source);
+        Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse regional stream fixture")
+    }
+
+    fn prepare(source: &str) -> PreparedRelationalExplore {
+        let statements = parse(source);
+        prepare_checked_relational_stream(&statements, None, source, None)
+            .expect("prepare regional stream fixture")
+    }
+
+    fn append_base_batch(
+        journal: &mut RelationalJournal,
+        batch: super::super::relational_step_driver::RelationalStepBatch,
+    ) {
+        assert_eq!(journal.next_sequence(), batch.expected_sequence());
+        assert_eq!(journal.head(), batch.expected_head());
+        for event in batch.into_events() {
+            journal.append(event).expect("append base scheduler event");
+        }
+    }
+
+    fn first_classification_quantum(source: &str) -> RelationalStepQuantum {
+        let mut prepared = prepare(source);
+        let checked = prepared.checked.view();
+        let analysis_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("plan fixture analysis");
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            prepared.contract,
+            Arc::clone(&prepared.region_replay_authority),
+        );
+        journal
+            .append(RelationalJournalEvent::analysis_plan_registered(
+                analysis_plan,
+            ))
+            .expect("register fixture analysis plan");
+        let driver = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            NonZeroU16::new(1).unwrap(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build fixture base scheduler");
+
+        for _ in 0..64 {
+            let outcome = driver
+                .step_with_max_members_per_quantum(
+                    &journal,
+                    &mut prepared.expression_runtime,
+                    NonZeroU16::new(1).unwrap(),
+                )
+                .expect("advance fixture base scheduler");
+            let RelationalStepOutcome::Emitted(batch) = outcome else {
+                panic!("fixture quiesced before classifying its first child");
+            };
+            let quantum = batch.quantum();
+            if matches!(
+                quantum,
+                RelationalStepQuantum::CertifiedRegion { .. }
+                    | RelationalStepQuantum::ClassifiedSweep(_)
+            ) {
+                return quantum;
+            }
+            append_base_batch(&mut journal, batch);
+        }
+        panic!("fixture did not reach its first classified child");
+    }
+
+    #[test]
+    fn scheduler_proves_before_concrete_and_falls_back_for_nonempty_unsupported_and_partial_children(
+    ) {
+        assert!(matches!(
+            first_classification_quantum(EXACT_EMPTY),
+            RelationalStepQuantum::CertifiedRegion {
+                chunk_ordinal: 0,
+                ..
+            }
+        ));
+        for source in [UNIFORMLY_SELECTED, MIXED_FIRST_CHILD, UNSUPPORTED_NONLINEAR] {
+            assert!(matches!(
+                first_classification_quantum(source),
+                RelationalStepQuantum::ClassifiedSweep(_)
+            ));
+        }
+
+        let mut prepared = prepare(EXACT_EMPTY);
+        let checked = prepared.checked.view();
+        let analysis_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("plan partial fixture analysis");
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            prepared.contract,
+            Arc::clone(&prepared.region_replay_authority),
+        );
+        journal
+            .append(RelationalJournalEvent::analysis_plan_registered(
+                analysis_plan,
+            ))
+            .expect("register partial fixture analysis plan");
+        let base = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            NonZeroU16::new(1).unwrap(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build partial fixture base scheduler");
+        loop {
+            let outcome = base
+                .step_with_max_members_per_quantum(
+                    &journal,
+                    &mut prepared.expression_runtime,
+                    NonZeroU16::new(1).unwrap(),
+                )
+                .expect("advance partial fixture setup");
+            let RelationalStepOutcome::Emitted(batch) = outcome else {
+                panic!("partial fixture quiesced before its proof opportunity");
+            };
+            if matches!(
+                batch.quantum(),
+                RelationalStepQuantum::CertifiedRegion { .. }
+            ) {
+                break;
+            }
+            append_base_batch(&mut journal, batch);
+        }
+
+        let concrete =
+            RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
+                &checked,
+                &prepared.support_plan,
+                None,
+                Some(&prepared.classification_evaluator),
+            )
+            .expect("build direct concrete classifier");
+        let RelationalClassifiedSweepStepOutcome::Emitted(partial) = concrete
+            .step(
+                &journal,
+                NonZeroU16::new(1).unwrap(),
+                &mut prepared.expression_runtime,
+            )
+            .expect("checkpoint one concrete case")
+        else {
+            panic!("first concrete member unexpectedly exhausted the partition");
+        };
+        assert!(partial.quantum().classified_artifact_id().is_none());
+        let (expected_sequence, expected_head) =
+            (partial.expected_sequence(), partial.expected_head());
+        assert_eq!(journal.next_sequence(), expected_sequence);
+        assert_eq!(journal.head(), expected_head);
+        for event in partial.into_events() {
+            journal
+                .append(event)
+                .expect("append partial concrete checkpoint");
+        }
+        assert!(journal
+            .scheduler_view()
+            .expect("inspect partial fixture")
+            .classified_chunk_accumulator()
+            .is_some());
+
+        let RelationalStepOutcome::Emitted(resumed) = base
+            .step_with_max_members_per_quantum(
+                &journal,
+                &mut prepared.expression_runtime,
+                NonZeroU16::new(1).unwrap(),
+            )
+            .expect("resume active concrete child")
+        else {
+            panic!("partial fixture quiesced before resuming its child");
+        };
+        assert!(matches!(
+            resumed.quantum(),
+            RelationalStepQuantum::ClassifiedSweep(_)
+        ));
+    }
+
+    static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "futuruna-regional-stream-{}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock")
+                    .as_nanos(),
+                TEMP_NONCE.fetch_add(1, Ordering::Relaxed),
+            ));
+            fs::create_dir(&path).expect("create regional stream test directory");
+            Self(path)
+        }
+
+        fn path(&self) -> &Path {
+            self.0.as_path()
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).ok();
+        }
+    }
+
+    #[test]
+    fn hybrid_stream_resumes_materializes_sparse_selected_and_projects_exact_public_closure() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let mut prepared = prepare(HYBRID);
+        let paused_checkpoint;
+
+        {
+            let checked = prepared.checked.view();
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build hybrid stream scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract,
+                    RelationalDurableJournalLimits::default(),
+                    Arc::clone(&prepared.region_replay_authority),
+                )
+                .expect("open hybrid durable journal");
+            let mut preceding_base_classifications = 0usize;
+
+            for _ in 0..64 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow durable planning journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(256).unwrap(),
+                    )
+                    .expect("advance hybrid prefix");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("hybrid stream quiesced before its first certified child");
+                };
+                let quantum = batch.quantum();
+                if matches!(
+                    quantum,
+                    RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(_))
+                ) {
+                    preceding_base_classifications += 1;
+                }
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .expect("append hybrid prefix batch");
+                if matches!(
+                    quantum,
+                    RelationalStreamQuantum::Base(RelationalStepQuantum::CertifiedRegion {
+                        chunk_ordinal: 0,
+                        ..
+                    })
+                ) {
+                    break;
+                }
+            }
+            assert_eq!(preceding_base_classifications, 0);
+            let view = durable
+                .journal()
+                .expect("inspect durable prefix")
+                .scheduler_view()
+                .expect("inspect hybrid prefix");
+            assert!(matches!(
+                view.classified_support_fragments(),
+                [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                    _
+                )]
+            ));
+            paused_checkpoint = durable
+                .flush_for_pause()
+                .expect("flush certified hybrid prefix");
+        }
+
+        let checked = prepared.checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("rebuild hybrid stream scheduler after pause");
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract,
+            RelationalDurableJournalLimits::default(),
+            Arc::clone(&prepared.region_replay_authority),
+        )
+        .expect("reopen hybrid durable journal");
+        let reopened = durable.journal().expect("inspect reopened hybrid journal");
+        assert_eq!(reopened.next_sequence(), paused_checkpoint.next_sequence());
+        assert_eq!(reopened.head(), paused_checkpoint.head());
+        assert!(matches!(
+            reopened
+                .scheduler_view()
+                .expect("inspect replayed hybrid prefix")
+                .classified_support_fragments(),
+            [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                _
+            )]
+        ));
+
+        let mut completed = false;
+        for _ in 0..128 {
+            match driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow reopened planning journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(256).unwrap(),
+                )
+                .expect("resume hybrid stream")
+            {
+                RelationalStreamStepOutcome::Emitted(batch) => {
+                    durable
+                        .append_events(
+                            batch.expected_sequence(),
+                            batch.expected_head(),
+                            batch.into_events(),
+                        )
+                        .expect("append resumed hybrid batch");
+                }
+                RelationalStreamStepOutcome::Complete => {
+                    completed = true;
+                    break;
+                }
+                RelationalStreamStepOutcome::Quiescent(quiescence) => {
+                    panic!("hybrid stream quiesced before closure: {quiescence:?}");
+                }
+            }
+        }
+        assert!(
+            completed,
+            "hybrid stream exceeded its compact fixture bound"
+        );
+        durable
+            .flush_for_pause()
+            .expect("flush completed hybrid journal");
+
+        let journal = durable.journal().expect("inspect completed hybrid journal");
+        let view = journal
+            .scheduler_view()
+            .expect("inspect completed hybrid view");
+        let fragments = view.classified_support_fragments();
+        assert!(matches!(
+            fragments,
+            [
+                RelationalClassifiedSupportFragment::CertifiedZeroSelected(_),
+                RelationalClassifiedSupportFragment::Concrete(_)
+            ]
+        ));
+        assert_eq!(
+            fragments
+                .iter()
+                .map(|fragment| fragment.exact_case_count())
+                .sum::<u128>(),
+            300
+        );
+        assert_eq!(
+            fragments
+                .iter()
+                .map(|fragment| fragment.admitted_selected_count())
+                .sum::<u128>(),
+            20
+        );
+        assert_eq!(view.selected_run_materializations().count(), 1);
+        assert!(view.selected_run_materializations_cover_classified_prefix());
+        assert!(view.support_catalog_is_sealed());
+        assert!(journal
+            .analysis_state()
+            .is_some_and(|analysis| analysis.is_closed()));
+
+        let selected_question = journal
+            .analysis_state()
+            .and_then(|analysis| analysis.selected_question())
+            .expect("hybrid selected-question seal");
+        let closure_authority =
+            RelationalCaseSupportClosureAuthority::from_authenticated_certified_support(
+                view.support_catalog_is_sealed(),
+                view.certified_root_case_cardinality()
+                    .expect("hybrid exact root cardinality"),
+                view.support_evidence_root()
+                    .expect("hybrid support evidence root"),
+                selected_question,
+            )
+            .expect("authorize exact public hybrid closure");
+        let partition = view
+            .verified_case_chunk_partition()
+            .expect("hybrid canonical partition");
+        let projection = derive_relational_case_support_projection(
+            partition,
+            fragments,
+            |cell_id| view.selected_run_materialization(cell_id),
+            None,
+            Some(closure_authority),
+        )
+        .expect("derive exact public hybrid projection");
+        let metadata = projection.metadata();
+        assert_eq!(
+            metadata.classified_case_count,
+            RelationalCaseSupportCount::Exact(300)
+        );
+        assert_eq!(
+            metadata.selected_case_count,
+            RelationalCaseSupportCount::Exact(20)
+        );
+        assert_eq!(
+            metadata.materialized_selected_case_count,
+            RelationalCaseSupportCount::Exact(20)
+        );
+        assert!(matches!(
+            metadata.frontier,
+            RelationalCaseSupportProjectionFrontier::Exact(closure)
+                if closure.exact_logical_case_count == 300
+                    && closure.exact_selected_case_count == 20
+                    && closure.classified_chunk_count == 2
+                    && closure.selected_materialization_count == 1
+        ));
+
+        let records = (0..projection.available_source_record_count())
+            .map(|ordinal| {
+                projection
+                    .record_at(ordinal)
+                    .expect("read public hybrid record")
+                    .expect("public hybrid ordinal exists")
+            })
+            .collect::<Vec<_>>();
+        let chunk_authorities = records
+            .iter()
+            .filter_map(|record| match record {
+                RelationalCaseSupportProjectionRecord::Chunk {
+                    classification_authority,
+                    ..
+                } => Some(classification_authority.kind()),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            chunk_authorities,
+            vec!["regional_certificate", "concrete_sweep"]
+        );
+        assert!(records.iter().any(|record| matches!(
+            record,
+            RelationalCaseSupportProjectionRecord::Region {
+                exact_case_count: 256,
+                correlated_starter_region_id: Some(_),
+                ..
+            }
+        )));
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| matches!(
+                    record,
+                    RelationalCaseSupportProjectionRecord::SelectedMaterialization { .. }
+                ))
+                .count(),
+            1
+        );
+        assert!(matches!(
+            records.last(),
+            Some(RelationalCaseSupportProjectionRecord::Closure(closure))
+                if closure.exact_logical_case_count == 300
+                    && closure.exact_selected_case_count == 20
+        ));
+    }
+}
