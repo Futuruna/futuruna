@@ -58187,34 +58187,16 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
     #[test]
     fn exact_exploration_initialization_keeps_transitive_root_callables_isolated() {
-        let temp_name = format!(
-            "futuruna_qualified_explore_namespace_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .expect("clock")
-                .as_nanos()
-        );
-        let temp_dir = std::env::temp_dir().join(temp_name);
-        std::fs::create_dir_all(&temp_dir).expect("create Explore namespace fixture directory");
-        std::fs::write(
-            temp_dir.join("dependency.runa"),
-            "@ export\n> qualified_transitive_helper(value: Int) -> Int { collide(value) + family(value) + family(value, 2) }\n@ export\n| qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)\n@ export\n> collide(value: Int) -> Int { value + 100 }\n| family(value: Int) -> value + 100\n| family(left: Int, right: Int) -> left + right + 200\n@ export family\n",
-        )
-        .expect("write Explore namespace fixture dependency");
-        let source = r#"
-@ import Policy from ./dependency
-> collide(value: Int) -> Int { value + 1 }
-> qualified_transitive_helper(value: Int) -> Int {
-    collide(value) + family(value) + family(value, 2)
-}
-| family(value: Int) -> value + 10
-| family(left: Int, right: Int) -> left + right + 20
-| qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)
-"#;
-        let statements = parse_test_program(source).expect("parse Explore namespace fixture");
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/verify/qualified_namespace_parity.runa");
+        let fixture_dir = fixture
+            .parent()
+            .expect("qualified namespace fixture directory");
+        let source = std::fs::read_to_string(&fixture).expect("read qualified namespace fixture");
+        let statements =
+            parse_test_program(&source).expect("parse shared Explore namespace fixture");
         let mut interpreter = Interpreter::new();
-        interpreter.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        interpreter.source_dir = Some(fixture_dir.to_string_lossy().into_owned());
         let mut env = interpreter.default_env();
         let roots = BTreeSet::from([ExploreRuntimeRoot::Rule {
             name: "qualified_transitive_target".to_string(),
@@ -58277,8 +58259,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 .is_empty(),
             "root callables must not become local-module demand"
         );
-
-        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     #[test]

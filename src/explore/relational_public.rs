@@ -3212,4 +3212,218 @@ mod regional_stream_acceptance_tests {
                     && closure.exact_selected_case_count == 20
         ));
     }
+
+    #[test]
+    fn checked_shared_namespace_query_resumes_before_successor_with_fresh_runtime() {
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/verify/qualified_namespace_parity.runa");
+        let fixture_dir = fixture.parent().expect("fixture directory");
+        let source = fs::read_to_string(&fixture).expect("read shared namespace fixture");
+        let statements = parse(&source);
+        let prepare_fixture = || {
+            prepare_checked_relational_stream(
+                &statements,
+                Some(fixture_dir.to_string_lossy().into_owned()),
+                &source,
+                Some("qualified_namespace_transitive"),
+            )
+            .expect("prepare checked shared namespace exploration")
+        };
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+
+        // Stop at an explicit source-only quantum. Dropping this preparation
+        // guarantees that successor evaluation (including the transitive root
+        // call) happens only after the same checked source is prepared again.
+        {
+            let mut prepared = prepare_fixture();
+            let checked = prepared.checked.view();
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build shared namespace stream scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract,
+                    RelationalDurableJournalLimits::default(),
+                    Arc::clone(&prepared.region_replay_authority),
+                )
+                .expect("open shared namespace durable journal");
+            let mut stopped_at_source_members = false;
+            for _ in 0..32 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow shared namespace planning journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(1).unwrap(),
+                    )
+                    .expect("advance shared namespace source prefix");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("shared namespace stream quiesced before binding its source");
+                };
+                let quantum = batch.quantum();
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .expect("append shared namespace source prefix");
+                if matches!(
+                    quantum,
+                    RelationalStreamQuantum::Base(
+                        RelationalStepQuantum::SourceMembers { .. }
+                            | RelationalStepQuantum::SourceMembersAndBindingExhaustion { .. }
+                    )
+                ) {
+                    stopped_at_source_members = true;
+                    break;
+                }
+            }
+            assert!(
+                stopped_at_source_members,
+                "shared namespace fixture did not reach its source-only boundary"
+            );
+            assert_eq!(
+                durable
+                    .journal()
+                    .expect("inspect source-only shared namespace prefix")
+                    .scheduler_view()
+                    .expect("inspect source-only shared namespace scheduler")
+                    .case_count(),
+                0,
+                "the pause boundary must precede successor evaluation"
+            );
+            durable
+                .flush_for_pause()
+                .expect("flush source-only shared namespace prefix");
+        }
+
+        // Rechecking the identical fixture constructs a fresh expression
+        // runtime and import closure, while reopening the journal replays the
+        // durable source prefix through the active relational architecture.
+        let mut prepared = prepare_fixture();
+        let checked = prepared.checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("rebuild shared namespace stream scheduler");
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract,
+            RelationalDurableJournalLimits::default(),
+            Arc::clone(&prepared.region_replay_authority),
+        )
+        .expect("reopen shared namespace durable journal");
+        let mut completed = false;
+        for _ in 0..64 {
+            match driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow reopened shared namespace planning journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(1).unwrap(),
+                )
+                .expect("resume shared namespace stream")
+            {
+                RelationalStreamStepOutcome::Emitted(batch) => {
+                    durable
+                        .append_events(
+                            batch.expected_sequence(),
+                            batch.expected_head(),
+                            batch.into_events(),
+                        )
+                        .expect("append resumed shared namespace batch");
+                }
+                RelationalStreamStepOutcome::Complete => {
+                    completed = true;
+                    break;
+                }
+                RelationalStreamStepOutcome::Quiescent(quiescence) => {
+                    panic!("shared namespace stream quiesced before closure: {quiescence:?}");
+                }
+            }
+        }
+        assert!(completed, "shared namespace fixture did not close");
+
+        let journal = durable
+            .journal()
+            .expect("inspect completed shared namespace journal");
+        let scheduler = journal
+            .scheduler_view()
+            .expect("inspect completed shared namespace scheduler");
+        assert_eq!(scheduler.case_count(), 1);
+        assert_eq!(scheduler.selected_count(), 1);
+        let analysis = journal
+            .analysis_state()
+            .expect("completed shared namespace analysis");
+        assert!(analysis.is_closed());
+        assert_eq!(
+            analysis
+                .selected_question()
+                .expect("exact shared namespace selected-question seal")
+                .mechanism_target()
+                .count(),
+            1,
+            "the closed selected population must be exactly one case"
+        );
+
+        let [(ExploreAnalysisNodeIr::Result(_), CheckedExploreAnalysisIdentity::View { view_id })] =
+            checked.analysis_nodes().collect::<Vec<_>>().as_slice()
+        else {
+            panic!("shared namespace exploration must have one result layer");
+        };
+        let closed = analysis
+            .closed_catalog()
+            .expect("completed shared namespace analysis catalog");
+        let layer = closed
+            .snapshot()
+            .layer(RelationalAnalysisLayerId::Result(*view_id))
+            .expect("completed shared namespace result layer");
+        let RelationalAnalysisLayerSnapshot::Result(result) = layer else {
+            panic!("shared namespace analysis identity must name a result layer");
+        };
+        let spec = result
+            .state()
+            .spec()
+            .expect("registered shared namespace result specification");
+        let projection = result
+            .state()
+            .projection()
+            .expect("completed shared namespace result projection");
+        assert_eq!(
+            spec.projection_names(),
+            &[Box::<str>::from("before"), Box::<str>::from("score")]
+        );
+        let [record] = projection.records() else {
+            panic!("shared namespace result must contain exactly one projected row");
+        };
+        let row = record
+            .record()
+            .row()
+            .expect("each-case shared namespace projection row");
+        assert_eq!(
+            row.values(),
+            &[
+                ResultValue::Value(super::super::ExploreValue::Int(1)),
+                ResultValue::Value(super::super::ExploreValue::Int(36)),
+            ],
+            "root callable isolation must produce 36, not Policy leakage's 405"
+        );
+    }
 }
