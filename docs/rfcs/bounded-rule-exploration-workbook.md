@@ -1574,3 +1574,12 @@ closure-aware count of selected cases, affected profile projections and
 structural mechanisms, with raw-signature and execution-profile counts retained
 separately, named views such as the 50-DKK structural-mechanism histogram, and
 resumable authenticated evidence handles.
+
+The first compact answer envelope therefore stays bounded: it leads with the
+selected before-to-after population, reports each mechanism request's
+closure-aware structural count, and exposes the sealed target's distinct
+starter count separately from cases. The latter is request-wide support, not a
+per-node count. Per-mechanism, node and edge starter conditions remain
+correlated authenticated support overlays referenced through the publication
+manifest; bulk case rows and grouped histograms remain streamable NDJSON rather
+than one in-memory answer array.

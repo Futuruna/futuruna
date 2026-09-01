@@ -2257,6 +2257,17 @@ irrelevant or coverage gaps. Compact unselected rows correctly remain
 `not_materialized` rather than implying that opaque roots or per-field
 marginals are readable correlated subbounds.
 
+The compact public answer now exposes this distinction directly. Relational
+stream JSON v4 names the closure-aware selected before-to-after case count and,
+for every mechanism request, the structural-mechanism, successful replay and
+unavailable-replay counts plus the exact sealed target's distinct starter
+count and evidence roots. Human output leads with the same answer before
+operational checkpoint telemetry and points to the publication manifest for
+authorized case rows, mechanism DAGs and conditioned starter-support bounds.
+The sealed target starter count is request-wide; it is not relabeled as an
+individual mechanism or node's starter count. Those correlated subject fibers
+remain in their own authenticated result layer.
+
 The next root query is now authored, but deliberately not launched:
 `personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026` uses the
 same 2,000-edge relation and admission predicates with `find all`. Its named

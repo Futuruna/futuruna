@@ -110,6 +110,15 @@ fn analysis_layer<'a>(report: &'a Value, kind: &str, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("missing {kind} analysis layer `{name}`"))
 }
 
+fn answer_mechanism<'a>(report: &'a Value, name: &str) -> &'a Value {
+    report["answer"]["mechanism_requests"]
+        .as_array()
+        .expect("answer mechanism requests")
+        .iter()
+        .find(|request| request["name"] == name)
+        .unwrap_or_else(|| panic!("missing answer mechanism request `{name}`"))
+}
+
 fn read_json(path: &Path) -> Value {
     let bytes = std::fs::read(path).unwrap_or_else(|error| {
         panic!("read {}: {error}", path.display());
@@ -209,6 +218,8 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
     let report = parse_stdout(&output);
     assert_eq!(report["run"]["lifecycle"], "complete");
     assert_exact_count(&report["counts"]["selected"], "0");
+    assert_eq!(report["answer"]["find_frontier_closed"], true);
+    assert_exact_count(&report["answer"]["counts"]["selected_cases"], "0");
     assert_eq!(report["publication"]["caught_up"], true);
 
     let manifest = read_json(&output_directory.join("manifest.json"));
@@ -398,9 +409,12 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_success(&first_output);
     let first = parse_stdout(&first_output);
 
-    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v3");
+    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v4");
+    assert_eq!(first["schema_version"], 4);
     assert_eq!(first["query"]["name"], "relational_stream_nonempty_smoke");
     assert_eq!(first["run"]["lifecycle"], "complete");
+    assert!(first["run"].get("preparation_wall_milliseconds").is_none());
+    assert!(first["run"].get("slice_budget_milliseconds").is_none());
     assert!(
         first["run"]["appended"]["semantic_events"]
             .as_u64()
@@ -410,6 +424,27 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
     assert_exact_count(&first["counts"]["cases"], "4");
     assert_exact_count(&first["counts"]["selected"], "2");
     assert_exact_count(&first["counts"]["not_selected"], "2");
+
+    assert_eq!(first["answer"]["population"], "selected_before_after_cases");
+    assert_eq!(first["answer"]["find_frontier_closed"], true);
+    assert_eq!(first["answer"]["analysis_frontier_closed"], true);
+    assert_eq!(first["answer"]["source_coverage_has_gaps"], false);
+    assert_exact_count(&first["answer"]["counts"]["selected_cases"], "2");
+    assert_exact_count(&first["answer"]["counts"]["admitted_cases"], "4");
+    let answer_paths = answer_mechanism(&first, "paths");
+    assert_exact_count(&answer_paths["counts"]["structural_mechanisms"], "1");
+    assert_exact_count(&answer_paths["counts"]["successful_cases"], "2");
+    assert_exact_count(&answer_paths["counts"]["unavailable_cases"], "0");
+    assert_eq!(
+        answer_paths["sealed_target_support"]["distinct_target_starters"],
+        "2"
+    );
+    assert!(answer_paths["evidence"]["structural_closure_root"]
+        .as_str()
+        .is_some_and(|root| root.len() == 64));
+    assert!(answer_paths["evidence"]["starter_support_closure_root"]
+        .as_str()
+        .is_some_and(|root| root.len() == 64));
 
     let selected_cases = analysis_layer(&first, "result", "selected_cases");
     assert_eq!(selected_cases["status"], "result_published");
@@ -840,6 +875,7 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         first_journal_head
     );
     assert_eq!(attached["query"]["identity"], first["query"]["identity"]);
+    assert_eq!(attached["answer"], first["answer"]);
     assert_eq!(attached["publication"]["lines_appended"], 7);
     assert_eq!(attached["publication"]["source_ordinals_advanced"], 7);
     assert_eq!(attached["publication"]["caught_up"], true);
@@ -1056,6 +1092,7 @@ fn relational_explore_cli_attaches_explicit_node_starters_without_reexploration(
         first_journal_head
     );
     assert_eq!(resumed["query"]["identity"], first["query"]["identity"]);
+    assert_eq!(resumed["answer"], attached["answer"]);
     assert_eq!(resumed["publication"]["lines_appended"], 0);
     assert_eq!(resumed["publication"]["source_ordinals_advanced"], 0);
     assert_eq!(resumed["publication"]["caught_up"], true);

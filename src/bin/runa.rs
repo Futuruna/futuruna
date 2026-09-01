@@ -6237,6 +6237,50 @@ fn relational_explore_count_text(count: explore::ExploreStreamCount) -> String {
     }
 }
 
+fn relational_explore_answer_count_text(
+    count: explore::ExploreStreamCount,
+    singular: &str,
+    plural: &str,
+) -> String {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        } => format!("an unknown number of {plural}"),
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => format!("an unknown number of {plural} ({confirmed_lower_bound} confirmed)"),
+        explore::ExploreStreamCount::LowerBound(1) => {
+            format!("at least 1 {singular}")
+        }
+        explore::ExploreStreamCount::LowerBound(value) => {
+            format!("at least {value} {plural}")
+        }
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => format!("between {lower_bound} and {upper_bound} {plural}"),
+        explore::ExploreStreamCount::Exact(0) => format!("no {plural}"),
+        explore::ExploreStreamCount::Exact(1) => format!("exactly 1 {singular}"),
+        explore::ExploreStreamCount::Exact(value) => format!("exactly {value} {plural}"),
+    }
+}
+
+const fn relational_explore_count_confirmed_lower_bound(
+    count: explore::ExploreStreamCount,
+) -> u128 {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        }
+        | explore::ExploreStreamCount::LowerBound(confirmed_lower_bound)
+        | explore::ExploreStreamCount::Interval {
+            lower_bound: confirmed_lower_bound,
+            ..
+        }
+        | explore::ExploreStreamCount::Exact(confirmed_lower_bound) => confirmed_lower_bound,
+    }
+}
+
 fn relational_explore_lifecycle_name(lifecycle: explore::ExploreStreamLifecycle) -> &'static str {
     match lifecycle {
         explore::ExploreStreamLifecycle::Paused => "paused",
@@ -6627,13 +6671,71 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
     }
 }
 
+fn relational_explore_answer_mechanism_json(
+    mechanism: &explore::ExploreStreamMechanismLayer,
+) -> serde_json::Value {
+    serde_json::json!({
+        "name": mechanism.name,
+        "request_id": mechanism.request_id,
+        "target": relational_explore_mechanism_target_json(&mechanism.target),
+        "status": relational_explore_layer_status_name(mechanism.status),
+        "counts": {
+            "target_cases": relational_explore_count_json(mechanism.target_cases),
+            "successful_cases": relational_explore_count_json(mechanism.incidence_cases),
+            "unavailable_cases": relational_explore_count_json(mechanism.unavailable_cases),
+            "structural_mechanisms": relational_explore_count_json(mechanism.structural_mechanisms),
+            "raw_signatures": relational_explore_count_json(mechanism.raw_signatures),
+            "execution_profiles": relational_explore_count_json(mechanism.execution_profiles),
+        },
+        "sealed_target_support": mechanism.support_closure_totals.map(|totals| serde_json::json!({
+            "status": "exact",
+            "scope": "whole_mechanism_request_target",
+            "target_cases": totals.target_cases.to_string(),
+            "successful_cases": totals.successful_cases.to_string(),
+            "unavailable_cases": totals.unavailable_cases.to_string(),
+            "signature_fibers": totals.signature_fibers.to_string(),
+            "distinct_target_starters": totals.target_starters.to_string(),
+        })),
+        "evidence": {
+            "raw_closure_root": mechanism.raw_closure_root,
+            "structural_closure_root": mechanism.structural_closure_root,
+            "starter_support_closure_root": mechanism.support_closure_root,
+        },
+    })
+}
+
+fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) -> serde_json::Value {
+    serde_json::json!({
+        "population": "selected_before_after_cases",
+        "declared_relation_closed": report.relation_closed,
+        "find_frontier_closed": report.find_closed,
+        "analysis_frontier_closed": report.analysis_closed,
+        "source_coverage_has_gaps": report.source_coverage.has_gaps,
+        "counts": {
+            "selected_cases": relational_explore_count_json(report.counts.selected),
+            "admitted_cases": relational_explore_count_json(report.counts.admitted),
+        },
+        "mechanism_requests": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Mechanisms(mechanism) => {
+                    Some(relational_explore_answer_mechanism_json(mechanism))
+                }
+                explore::ExploreStreamLayer::Result(_) => None,
+            })
+            .collect::<Vec<_>>(),
+    })
+}
+
 fn relational_explore_report_json(
     report: &explore::ExploreStreamSliceReport,
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v3",
+        "schema": "futuruna.explore.relational-stream.v4",
         "schema_version": report.schema_version,
+        "answer": relational_explore_answer_json(report),
         "query": {
             "name": report.query_name,
             "identity": {
@@ -6712,6 +6814,81 @@ fn relational_explore_report_json(
             "caught_up": publication.is_caught_up(),
         })),
     })
+}
+
+fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceReport) {
+    if report.find_closed && report.counts.selected.is_exact() {
+        println!(
+            "Answer: {} satisfy the exploration's FIND condition in this declared relation.",
+            relational_explore_answer_count_text(
+                report.counts.selected,
+                "before-to-after case",
+                "before-to-after cases",
+            )
+        );
+    } else {
+        let confirmed = relational_explore_count_confirmed_lower_bound(report.counts.selected);
+        if confirmed == 0 {
+            println!(
+                "Answer so far: no before-to-after cases have been confirmed; the FIND frontier remains open."
+            );
+        } else {
+            println!(
+                "Answer so far: {confirmed} before-to-after case{} confirmed; the FIND frontier remains open.",
+                if confirmed == 1 { "" } else { "s" },
+            );
+        }
+    }
+
+    for layer in &report.layers {
+        let explore::ExploreStreamLayer::Mechanisms(mechanism) = layer else {
+            continue;
+        };
+        println!(
+            "Mechanisms `{}`: {} for {}; {} and {}.",
+            mechanism.name,
+            relational_explore_answer_count_text(
+                mechanism.structural_mechanisms,
+                "structural mechanism",
+                "structural mechanisms",
+            ),
+            relational_explore_mechanism_target_text(&mechanism.target),
+            relational_explore_answer_count_text(
+                mechanism.incidence_cases,
+                "replay-confirmed case",
+                "replay-confirmed cases",
+            ),
+            relational_explore_answer_count_text(
+                mechanism.unavailable_cases,
+                "replay-unavailable case",
+                "replay-unavailable cases",
+            ),
+        );
+        if let Some(totals) = mechanism.support_closure_totals {
+            println!(
+                "Starter support `{}`: across the whole mechanism-request target, the sealed support contains {} distinct starting state{} beneath {} before-to-after case{} ({} successful, {} unavailable).",
+                mechanism.name,
+                totals.target_starters,
+                if totals.target_starters == 1 { "" } else { "s" },
+                totals.target_cases,
+                if totals.target_cases == 1 { "" } else { "s" },
+                totals.successful_cases,
+                totals.unavailable_cases,
+            );
+        }
+    }
+
+    if report.source_coverage.has_gaps {
+        println!(
+            "Scope warning: the source-coverage manifest has gaps, so this answer must not be generalized beyond the declared relation."
+        );
+    }
+    if let Some(publication) = &report.publication {
+        println!(
+            "Saved authorized views, mechanism DAGs, and conditioned starter-support bounds: {}",
+            publication.manifest_path.display(),
+        );
+    }
 }
 
 fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, run_state: &Path) {
@@ -7166,28 +7343,14 @@ fn run_relational_explore_stream(
     }
 
     if json {
-        let mut payload = relational_explore_report_json(&report, run_state);
-        if let Some(run) = payload
-            .get_mut("run")
-            .and_then(serde_json::Value::as_object_mut)
-        {
-            run.insert(
-                "preparation_wall_milliseconds".to_string(),
-                serde_json::json!(preparation_wall_time.as_millis()),
-            );
-            run.insert(
-                "slice_budget_milliseconds".to_string(),
-                execution_runtime_budget
-                    .map(|duration| serde_json::json!(duration.as_millis()))
-                    .unwrap_or(serde_json::Value::Null),
-            );
-        }
+        let payload = relational_explore_report_json(&report, run_state);
         println!(
             "{}",
             serde_json::to_string_pretty(&payload)
                 .expect("serialize compact relational Explore report")
         );
     } else {
+        render_relational_explore_answer_human(&report);
         println!(
             "Prepared and opened in {:.3}s; remaining observable epoch budget: {}",
             preparation_wall_time.as_secs_f64(),
@@ -49986,6 +50149,39 @@ fn fresh_generated_rust_name(base: &str, used: &mut BTreeSet<String>) -> String 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn relational_explore_answer_count_wording_preserves_certainty() {
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Exact(2),
+                "mechanism",
+                "mechanisms",
+            ),
+            "exactly 2 mechanisms"
+        );
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Interval {
+                    lower_bound: 2,
+                    upper_bound: 5,
+                },
+                "mechanism",
+                "mechanisms",
+            ),
+            "between 2 and 5 mechanisms"
+        );
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Unknown {
+                    confirmed_lower_bound: 2,
+                },
+                "mechanism",
+                "mechanisms",
+            ),
+            "an unknown number of mechanisms (2 confirmed)"
+        );
+    }
 
     #[test]
     fn test_job_count_requires_a_positive_integer() {

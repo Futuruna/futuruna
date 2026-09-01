@@ -55,7 +55,7 @@ use super::{
     RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 3;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 4;
 
 /// Operational proof carried by a CLI slice that is already enclosed by the
 /// validated process-group supervisor.
