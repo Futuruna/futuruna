@@ -196,6 +196,9 @@ pub(crate) enum RelationalStreamQuiescence {
         view_id: ViewId,
         request_id: MechanismRequestId,
     },
+    AwaitingMechanismSupport {
+        request_id: MechanismRequestId,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -213,6 +216,11 @@ pub(crate) struct RelationalStreamDriver<'query> {
     results: RelationalResultStepDriver<'query>,
     incidence_results: RelationalIncidenceResultStepDriver<'query>,
     mechanisms: RelationalMechanismStepDriver<'query>,
+    support_requests: Box<[MechanismRequestId]>,
+    /// Process-local round-robin cursor. Durable support prefixes remain the
+    /// resume authority; this only prevents an idle open request from starving
+    /// another request's ready support suffix.
+    support_request_ordinal: RefCell<usize>,
 }
 
 impl<'query> RelationalStreamDriver<'query> {
@@ -275,12 +283,26 @@ impl<'query> RelationalStreamDriver<'query> {
             limits.mechanism_target_cases_per_quantum,
             limits.mechanism_artifact_chunk_bytes,
         )?;
+        let support_requests = analysis_plan
+            .layer_registrations()
+            .iter()
+            .filter_map(|registration| {
+                let RelationalAnalysisLayerRegistration::Mechanisms(registration) = registration
+                else {
+                    return None;
+                };
+                Some(registration.request_id())
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         Ok(Self {
             analysis_plan,
             base,
             results,
             incidence_results,
             mechanisms,
+            support_requests,
+            support_request_ordinal: RefCell::new(0),
         })
     }
 
@@ -448,6 +470,54 @@ impl<'query> RelationalStreamDriver<'query> {
             return Ok(RelationalStreamStepOutcome::Complete);
         }
 
+        // Import at most one request-local support quantum before admitting
+        // more mechanism or base work. Each of its three independent lanes is
+        // capped by the smaller runtime/protocol bound inside the journal.
+        // A caught-up open request is ordinary Idle and falls through, letting
+        // upstream work continue to grow.
+        if let Some(request_id) = self.next_open_support_request(journal)? {
+            match journal.support_lifecycle_step_events(
+                request_id,
+                self.mechanisms.max_target_cases_per_quantum(),
+            )? {
+                RelationalMechanismSupportStepEvents::Checkpoint {
+                    accepted_target_cases,
+                    cursor,
+                    frontier_root,
+                    events,
+                } => {
+                    return Ok(self.batch(
+                        journal,
+                        RelationalStreamQuantum::CheckpointMechanismSupport {
+                            request_id,
+                            accepted_target_cases,
+                            cursor,
+                            frontier_root,
+                        },
+                        events.into_vec(),
+                    ));
+                }
+                RelationalMechanismSupportStepEvents::Closed {
+                    checkpointed_frontier,
+                    cursor,
+                    support_root,
+                    events,
+                } => {
+                    return Ok(self.batch(
+                        journal,
+                        RelationalStreamQuantum::CloseMechanismSupport {
+                            request_id,
+                            checkpointed_frontier,
+                            cursor,
+                            support_root,
+                        },
+                        events.into_vec(),
+                    ));
+                }
+                RelationalMechanismSupportStepEvents::Idle => {}
+            }
+        }
+
         // Give currently ready mechanism work the same catch-up chance. The
         // selected-target driver admits and replays immutable selected cases
         // from the open FIND prefix, while its exact target seal still waits
@@ -592,13 +662,10 @@ impl<'query> RelationalStreamDriver<'query> {
             }
         }
 
-        // Request-local structural quotient closure is produced by the
-        // mechanism driver, which owns artifact chunk resumption. Once every
-        // mechanism request is structurally closed, import its raw target
-        // coordinates through bounded sparse checkpoints, then close the full
-        // factorized support join before the global analysis barrier.
-        // Canonical plan order makes one request per quantum deterministic
-        // across pause/reopen.
+        // Support was already offered its one interleaved quantum earlier in
+        // this step. If any request remains open, yield honestly and let the
+        // next invocation advance or close it; never run a second support
+        // quantum merely because all upstream drivers are now quiescent.
         for registration in self.analysis_plan.layer_registrations() {
             let RelationalAnalysisLayerRegistration::Mechanisms(registration) = registration else {
                 continue;
@@ -610,46 +677,9 @@ impl<'query> RelationalStreamDriver<'query> {
             if analysis.mechanism_support_closure(request_id).is_some() {
                 continue;
             }
-            if analysis.structural_quotient_closure(request_id).is_none() {
-                return Err(
-                    RelationalStreamDriverError::StructuralQuotientClosureMissing { request_id }
-                        .into(),
-                );
-            }
-            let (quantum, events) = match journal.support_lifecycle_step_events(
-                request_id,
-                self.mechanisms.max_target_cases_per_quantum(),
-            )? {
-                RelationalMechanismSupportStepEvents::Checkpoint {
-                    accepted_target_cases,
-                    cursor,
-                    frontier_root,
-                    events,
-                } => (
-                    RelationalStreamQuantum::CheckpointMechanismSupport {
-                        request_id,
-                        accepted_target_cases,
-                        cursor,
-                        frontier_root,
-                    },
-                    events,
-                ),
-                RelationalMechanismSupportStepEvents::Closed {
-                    checkpointed_frontier,
-                    cursor,
-                    support_root,
-                    events,
-                } => (
-                    RelationalStreamQuantum::CloseMechanismSupport {
-                        request_id,
-                        checkpointed_frontier,
-                        cursor,
-                        support_root,
-                    },
-                    events,
-                ),
-            };
-            return Ok(self.batch(journal, quantum, events.into_vec()));
+            return Ok(RelationalStreamStepOutcome::Quiescent(
+                RelationalStreamQuiescence::AwaitingMechanismSupport { request_id },
+            ));
         }
 
         Ok(self.batch(
@@ -657,6 +687,41 @@ impl<'query> RelationalStreamDriver<'query> {
             RelationalStreamQuantum::CloseAnalysis,
             vec![journal.analysis_terminal_event()?],
         ))
+    }
+
+    fn next_open_support_request(
+        &self,
+        journal: &RelationalJournal,
+    ) -> Result<Option<MechanismRequestId>, RelationalStreamDriverError> {
+        let analysis = journal
+            .analysis_state()
+            .ok_or(RelationalStreamDriverError::AnalysisStateMissing)?;
+        if self.support_requests.is_empty() {
+            return Ok(None);
+        }
+        let mut ordinal = self.support_request_ordinal.borrow_mut();
+        let start = *ordinal % self.support_requests.len();
+        for offset in 0..self.support_requests.len() {
+            let index = (start + offset) % self.support_requests.len();
+            let request_id = self.support_requests[index];
+            if analysis.mechanism_support_closure(request_id).is_none()
+                && analysis
+                    .support_checkpoint_has_ready_work(request_id)
+                    .map_err(RelationalMechanismStepDriverError::from)?
+            {
+                *ordinal = (index + 1) % self.support_requests.len();
+                return Ok(Some(request_id));
+            }
+        }
+        for offset in 0..self.support_requests.len() {
+            let index = (start + offset) % self.support_requests.len();
+            let request_id = self.support_requests[index];
+            if analysis.mechanism_support_closure(request_id).is_none() {
+                *ordinal = (index + 1) % self.support_requests.len();
+                return Ok(Some(request_id));
+            }
+        }
+        Ok(None)
     }
 
     fn batch(
@@ -688,7 +753,6 @@ pub(crate) enum RelationalStreamDriverError {
     SelectedQuestionBridgeMissing,
     ResultDriverQuiescenceMismatch,
     PendingArtifactNotResumed,
-    StructuralQuotientClosureMissing { request_id: MechanismRequestId },
 }
 
 impl fmt::Display for RelationalStreamDriverError {
@@ -715,9 +779,6 @@ impl fmt::Display for RelationalStreamDriverError {
             Self::PendingArtifactNotResumed => formatter.write_str(
                 "open mechanism artifact was not resumed before normal stream scheduling",
             ),
-            Self::StructuralQuotientClosureMissing { .. } => formatter.write_str(
-                "mechanism scheduler reported completion before structural quotient closure",
-            ),
         }
     }
 }
@@ -735,8 +796,7 @@ impl Error for RelationalStreamDriverError {
             | Self::AnalysisStateMissing
             | Self::SelectedQuestionBridgeMissing
             | Self::ResultDriverQuiescenceMismatch
-            | Self::PendingArtifactNotResumed
-            | Self::StructuralQuotientClosureMissing { .. } => None,
+            | Self::PendingArtifactNotResumed => None,
         }
     }
 }

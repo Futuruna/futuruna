@@ -9171,6 +9171,10 @@ fn public_pause_reason_json(reason: &ExploreStreamPauseReason) -> JsonValue {
             "view_id": view_id,
             "request_id": request_id,
         }),
+        ExploreStreamPauseReason::AwaitingMechanismSupport { request_id } => json!({
+            "kind": "awaiting_mechanism_support",
+            "request_id": request_id,
+        }),
     }
 }
 

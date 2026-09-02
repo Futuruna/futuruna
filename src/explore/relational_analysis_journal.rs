@@ -32,7 +32,7 @@ use super::mechanism_incidence::{
 use super::mechanism_support::{
     MechanismSupportCatalogBuilder, MechanismSupportCheckpointCursor,
     MechanismSupportClosureReceipt, MechanismSupportClosureRoot, MechanismSupportError,
-    MechanismSupportFrontierRoot,
+    MechanismSupportFrontierSummary,
 };
 use super::relation::{
     ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
@@ -1563,10 +1563,13 @@ impl RelationalAnalysisJournalState {
         self.closed_closure_set_root
     }
 
-    /// Return the exact derived-cache cursor and the immutable upstream lane
-    /// limits for one structurally closed request.
+    /// Return the exact derived-cache cursor and the currently visible
+    /// upstream lane limits. Support is allowed to trail open raw and
+    /// structural streams; an empty structural catalog is installed lazily so
+    /// its zero-length prefix has the same authenticated resume semantics as
+    /// every later assignment prefix.
     pub(crate) fn support_checkpoint_cursors(
-        &self,
+        &mut self,
         request_id: MechanismRequestId,
     ) -> Result<
         (
@@ -1578,22 +1581,76 @@ impl RelationalAnalysisJournalState {
         if self.closed.is_some() {
             return Err(RelationalAnalysisJournalError::EventAfterAnalysisClosure);
         }
+        let (scope, target_count, terminal_count) = {
+            let catalog = self
+                .open
+                .as_ref()
+                .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
+            let incidence = catalog.mechanism_incidence(request_id)?;
+            (
+                incidence.scope(),
+                incidence.target_discovery_count(),
+                incidence.terminal_discovery_count(),
+            )
+        };
+        let structural = self
+            .structural_mechanisms
+            .entry(request_id)
+            .or_insert_with(|| StructuralMechanismCatalogBuilder::new(request_id));
+        let current = self
+            .mechanism_supports
+            .get(&request_id)
+            .map_or_else(MechanismSupportCheckpointCursor::default, |support| {
+                support.checkpoint_cursor()
+            });
+        let available = MechanismSupportCheckpointCursor::new(
+            target_count as u128,
+            terminal_count as u128,
+            structural.assignment_discovery_count() as u128,
+        );
+        if self
+            .mechanism_supports
+            .get(&request_id)
+            .is_some_and(|support| support.scope() != scope)
+        {
+            return Err(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::RequestMismatch,
+            ));
+        }
+        if current.target_discovery() > available.target_discovery() {
+            return Err(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::TargetDiscoveryCursorRegression,
+            ));
+        }
+        if current.terminal_discovery() > available.terminal_discovery() {
+            return Err(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::TerminalDiscoveryCursorRegression,
+            ));
+        }
+        if current.structural_assignment() > available.structural_assignment() {
+            return Err(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::StructuralAssignmentCursorRegression,
+            ));
+        }
+        Ok((current, available))
+    }
+
+    /// Read-only scheduler hint: a request is ready when an imported lane
+    /// trails its live upstream or when both upstream closures make the final
+    /// checkpoint/close sequence possible. The lifecycle method remains the
+    /// authority and revalidates every cursor/root before emitting anything.
+    pub(crate) fn support_checkpoint_has_ready_work(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<bool, RelationalAnalysisJournalError> {
+        if self.closed.is_some() {
+            return Err(RelationalAnalysisJournalError::EventAfterAnalysisClosure);
+        }
         let catalog = self
             .open
             .as_ref()
             .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
         let incidence = catalog.mechanism_incidence(request_id)?;
-        self.mechanism_closures
-            .get(&request_id)
-            .ok_or(RelationalAnalysisJournalError::MechanismClosureMissing { request_id })?;
-        let structural = self.structural_mechanisms.get(&request_id).ok_or(
-            RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-        )?;
-        if structural.closure().is_none() {
-            return Err(
-                RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-            );
-        }
         let current = self
             .mechanism_supports
             .get(&request_id)
@@ -1603,17 +1660,14 @@ impl RelationalAnalysisJournalState {
         let available = MechanismSupportCheckpointCursor::new(
             incidence.target_discovery_count() as u128,
             incidence.terminal_discovery_count() as u128,
-            structural.assignment_discovery_count() as u128,
+            self.structural_mechanisms
+                .get(&request_id)
+                .map_or(0, |structural| structural.assignment_discovery_count())
+                as u128,
         );
-        if current.target_discovery() > available.target_discovery()
-            || current.terminal_discovery() > available.terminal_discovery()
-            || current.structural_assignment() > available.structural_assignment()
-        {
-            return Err(RelationalAnalysisJournalError::MechanismSupport(
-                MechanismSupportError::ClosurePrerequisite("support checkpoint cursor bounds"),
-            ));
-        }
-        Ok((current, available))
+        Ok(current != available
+            || (self.mechanism_closures.contains_key(&request_id)
+                && self.structural_quotient_closure(request_id).is_some()))
     }
 
     /// Advance each support lane by at most one bounded delta. Target
@@ -1640,17 +1694,10 @@ impl RelationalAnalysisJournalState {
             .as_ref()
             .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
         let incidence = catalog.mechanism_incidence(request_id)?;
-        self.mechanism_closures
-            .get(&request_id)
-            .ok_or(RelationalAnalysisJournalError::MechanismClosureMissing { request_id })?;
-        let structural = self.structural_mechanisms.get(&request_id).ok_or(
-            RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-        )?;
-        if structural.closure().is_none() {
-            return Err(
-                RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-            );
-        }
+        let structural = self
+            .structural_mechanisms
+            .entry(request_id)
+            .or_insert_with(|| StructuralMechanismCatalogBuilder::new(request_id));
         let support = self
             .mechanism_supports
             .entry(request_id)
@@ -1782,27 +1829,18 @@ impl RelationalAnalysisJournalState {
         cursor: MechanismSupportCheckpointCursor,
         resolve_case: impl FnMut(RelationalCaseId) -> Option<RelationalCaseRef<'case>>,
     ) -> Result<usize, RelationalAnalysisJournalError> {
-        // Check every immutable prerequisite before importing even the target
-        // lane. A premature crafted checkpoint therefore cannot leave useful
-        // derived progress behind while its structural authority is absent.
+        // Establish the request-local open upstreams before importing any
+        // lane. Closure is deliberately not a checkpoint prerequisite.
         {
             let catalog = self
                 .open
                 .as_ref()
                 .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
             catalog.mechanism_incidence(request_id)?;
-            self.mechanism_closures
-                .get(&request_id)
-                .ok_or(RelationalAnalysisJournalError::MechanismClosureMissing { request_id })?;
-            let structural = self.structural_mechanisms.get(&request_id).ok_or(
-                RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-            )?;
-            if structural.closure().is_none() {
-                return Err(
-                    RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-                );
-            }
         }
+        self.structural_mechanisms
+            .entry(request_id)
+            .or_insert_with(|| StructuralMechanismCatalogBuilder::new(request_id));
         let accepted_targets = self.catch_up_support_targets_through(
             request_id,
             cursor.target_discovery(),
@@ -1813,9 +1851,10 @@ impl RelationalAnalysisJournalState {
             .as_ref()
             .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
         let incidence = catalog.mechanism_incidence(request_id)?;
-        let structural = self.structural_mechanisms.get(&request_id).ok_or(
-            RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-        )?;
+        let structural = self
+            .structural_mechanisms
+            .get(&request_id)
+            .expect("open support checkpoint restore installed structural state");
         let support = self
             .mechanism_supports
             .get_mut(&request_id)
@@ -1841,7 +1880,7 @@ impl RelationalAnalysisJournalState {
     pub(crate) fn checkpoint_support_frontier(
         &mut self,
         request_id: MechanismRequestId,
-    ) -> Result<MechanismSupportFrontierRoot, RelationalAnalysisJournalError> {
+    ) -> Result<MechanismSupportFrontierSummary, RelationalAnalysisJournalError> {
         if self.closed.is_some() {
             return Err(RelationalAnalysisJournalError::EventAfterAnalysisClosure);
         }
@@ -1850,30 +1889,26 @@ impl RelationalAnalysisJournalState {
             .as_ref()
             .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
         let incidence = catalog.mechanism_incidence(request_id)?;
-        let closed_incidence = self
+        let closed_incidence_root = self
             .mechanism_closures
             .get(&request_id)
             .copied()
-            .ok_or(RelationalAnalysisJournalError::MechanismClosureMissing { request_id })?;
-        let structural = self.structural_mechanisms.get(&request_id).ok_or(
-            RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-        )?;
-        if structural.closure().is_none() {
-            return Err(
-                RelationalAnalysisJournalError::StructuralQuotientClosureMissing { request_id },
-            );
-        }
+            .map(|closure| closure.incidence_root());
+        let structural = self
+            .structural_mechanisms
+            .entry(request_id)
+            .or_insert_with(|| StructuralMechanismCatalogBuilder::new(request_id));
+        let structural_closure_root = structural.closure().map(|closure| closure.root());
         let support = self
             .mechanism_supports
             .entry(request_id)
             .or_insert_with(|| MechanismSupportCatalogBuilder::new(incidence.scope()));
-        Ok(
-            support.checkpoint_frontier(
-                incidence,
-                closed_incidence.incidence_root(),
-                structural,
-            )?,
-        )
+        Ok(support.checkpoint_frontier(
+            incidence,
+            closed_incidence_root,
+            structural,
+            structural_closure_root,
+        )?)
     }
 
     /// Derive a structural-close claim without mutating semantic replay state.
@@ -1928,6 +1963,14 @@ impl RelationalAnalysisJournalState {
         self.pending_mechanism_artifact
             .as_ref()
             .map(|pending| pending.header.claim().request_id())
+    }
+
+    pub(crate) fn pending_mechanism_artifact_claim(
+        &self,
+    ) -> Option<RelationalMechanismArtifactClaim> {
+        self.pending_mechanism_artifact
+            .as_ref()
+            .map(|pending| pending.header.claim())
     }
 
     /// Mint exactly one next event for a deterministic structural quotient
@@ -2374,11 +2417,11 @@ impl RelationalAnalysisJournalState {
         self.mechanism_closures.get(&request_id).copied()
     }
 
-    /// Resolve the exact next canonical raw signature after durable incidence
-    /// closure. The frozen incidence vector gives O(1) ordinal lookup, while
-    /// the structural discovery lane proves that the accepted assignments
-    /// form the same canonical prefix.
-    pub(crate) fn next_structural_signature_id(
+    /// Resolve a missing canonical raw signature after durable incidence
+    /// closure. Open scheduling follows raw discovery order; this separate
+    /// close-time pass validates exact canonical set equality without
+    /// requiring the operational structural-assignment order to be sorted.
+    pub(crate) fn next_closed_structural_signature_id(
         &self,
         request_id: MechanismRequestId,
     ) -> Result<Option<MechanismSignatureId>, RelationalAnalysisJournalError> {
@@ -2399,46 +2442,49 @@ impl RelationalAnalysisJournalState {
                 "structural assignment count exceeds closed raw signatures",
             ));
         }
+        let mut assigned_canonical = 0usize;
+        let mut first_missing = None;
         if let Some(structural) = self.structural_mechanisms.get(&request_id) {
             if structural.assignment_discovery_count() != assignment_count {
                 return Err(RelationalAnalysisJournalError::EventClaimMismatch(
                     "structural assignment discovery count",
                 ));
             }
-            if assignment_count != 0 {
-                let previous_ordinal = assignment_count - 1;
-                let expected_previous = incidence
-                    .closed_signature_id_at(previous_ordinal)
-                    .map_err(RelationalAnalysisCatalogError::Mechanism)?
-                    .ok_or(RelationalAnalysisJournalError::EventClaimMismatch(
-                        "closed structural signature prefix",
-                    ))?;
-                let actual_previous = structural
-                    .assignment_discovery_at(previous_ordinal)
-                    .ok_or(RelationalAnalysisJournalError::EventClaimMismatch(
-                        "structural assignment discovery prefix",
-                    ))?
-                    .signature_id();
-                if actual_previous != expected_previous {
+            for signature_id in structural.assignment_discovery_suffix(0).iter().copied() {
+                if incidence.signature_definition(signature_id).is_none() {
                     return Err(RelationalAnalysisJournalError::EventClaimMismatch(
-                        "structural assignment canonical prefix",
+                        "structural assignment outside closed raw signatures",
                     ));
                 }
             }
         }
-        let next = incidence
-            .closed_signature_id_at(assignment_count)
-            .map_err(RelationalAnalysisCatalogError::Mechanism)?;
-        if next.is_some_and(|signature_id| {
-            self.structural_mechanisms
+        for ordinal in 0..signature_count {
+            let signature_id = incidence
+                .closed_signature_id_at(ordinal)
+                .map_err(RelationalAnalysisCatalogError::Mechanism)?
+                .ok_or(RelationalAnalysisJournalError::EventClaimMismatch(
+                    "closed structural signature set",
+                ))?;
+            if self
+                .structural_mechanisms
                 .get(&request_id)
                 .is_some_and(|structural| structural.assignment(signature_id).is_some())
-        }) {
+            {
+                assigned_canonical = assigned_canonical.checked_add(1).ok_or(
+                    RelationalAnalysisJournalError::EventClaimMismatch(
+                        "structural assignment count overflow",
+                    ),
+                )?;
+            } else if first_missing.is_none() {
+                first_missing = Some(signature_id);
+            }
+        }
+        if assigned_canonical != assignment_count {
             return Err(RelationalAnalysisJournalError::EventClaimMismatch(
-                "next structural signature is already assigned",
+                "structural assignment canonical set",
             ));
         }
-        Ok(next)
+        Ok(first_missing)
     }
 
     /// Borrow one request's append-only publication order before or after the
@@ -3033,13 +3079,31 @@ impl RelationalAnalysisJournalState {
         if let RelationalMechanismArtifactClaim::StructuralQuotient {
             request_id,
             raw_signature_id,
-            ..
+            structural_mechanism_id,
+            execution_profile_id,
         } = claim
         {
-            let expected = self.next_structural_signature_id(request_id)?;
-            if raw_signature_id.request_id() != request_id || expected != Some(raw_signature_id) {
+            let incidence = self
+                .open_catalog_or_error()?
+                .mechanism_incidence(request_id)?;
+            if raw_signature_id.request_id() != request_id
+                || incidence.signature_definition(raw_signature_id).is_none()
+            {
                 return Err(RelationalAnalysisJournalError::EventClaimMismatch(
-                    "structural quotient canonical next raw signature",
+                    "structural quotient existing raw signature",
+                ));
+            }
+            if self
+                .structural_mechanisms
+                .get(&request_id)
+                .and_then(|structural| structural.assignment(raw_signature_id))
+                .is_some_and(|assignment| {
+                    assignment.mechanism_id() != structural_mechanism_id
+                        || assignment.profile_id() != execution_profile_id
+                })
+            {
+                return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                    "structural quotient conflicting raw-signature assignment",
                 ));
             }
         }

@@ -6612,6 +6612,9 @@ fn relational_explore_pause_text(reason: &explore::ExploreStreamPauseReason) -> 
             view_id,
             request_id,
         } => format!("result view {view_id} is waiting for mechanism request {request_id}"),
+        explore::ExploreStreamPauseReason::AwaitingMechanismSupport { request_id } => {
+            format!("mechanism request {request_id} is waiting for support-prefix progress")
+        }
     }
 }
 
@@ -6656,6 +6659,12 @@ fn relational_explore_pause_json(reason: &explore::ExploreStreamPauseReason) -> 
             "view_id": view_id,
             "request_id": request_id,
         }),
+        explore::ExploreStreamPauseReason::AwaitingMechanismSupport { request_id } => {
+            serde_json::json!({
+                "kind": "awaiting_mechanism_support",
+                "request_id": request_id,
+            })
+        }
     }
 }
 

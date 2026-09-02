@@ -8,9 +8,10 @@
 //! signature definition is journaled once before compact per-case replay
 //! receipts may reference it; and request closure is emitted only after the
 //! exact selected target seals and every durable target member has one
-//! observed or permanently-unavailable terminal. Once that raw incidence is
-//! closed, the same chunk-resume protocol derives exactly one structural
-//! quotient assignment per raw signature and seals their complete set.
+//! observed or permanently-unavailable terminal. As each distinct raw
+//! signature appears, the same chunk-resume protocol derives its structural
+//! quotient before another target/replay quantum; final raw and structural
+//! closures still seal their exact canonical sets independently.
 //!
 //! The operational chunk bound is absent from query, plan, event, incidence,
 //! and journal identities. A pause produces no semantic event and therefore
@@ -43,8 +44,8 @@ use super::relational_analysis_catalog::{
 };
 use super::relational_analysis_journal::{
     RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
-    RelationalAnalysisJournalState, RelationalSelectedQuestionSeal,
-    RELATIONAL_MECHANISM_ARTIFACT_DEFAULT_CHUNK_BYTES,
+    RelationalAnalysisJournalState, RelationalMechanismArtifactClaim,
+    RelationalSelectedQuestionSeal, RELATIONAL_MECHANISM_ARTIFACT_DEFAULT_CHUNK_BYTES,
 };
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
@@ -182,6 +183,7 @@ struct SelectedMechanismLayer<'ir> {
 struct SelectedMechanismDiscoveryCursor {
     target_ordinal: usize,
     terminal_ordinal: usize,
+    signature_ordinal: usize,
 }
 
 /// Checked-query-bound scheduler for selected-case mechanism layers.
@@ -407,66 +409,55 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 RelationalMechanismStepDriverError::AnalysisLayerMissing(layer_id),
             )?;
             let incidence = catalog.mechanism_incidence(*request_id)?;
+            let incidence_is_closed = analysis.mechanism_closure(*request_id).is_some();
 
-            if analysis.mechanism_closure(*request_id).is_some() {
-                if status != RelationalAnalysisLayerStatus::MechanismClosed {
-                    return Err(
-                        RelationalMechanismStepDriverError::ClosedIncidenceStateMismatch(
-                            *request_id,
-                        )
+            if incidence_is_closed && status != RelationalAnalysisLayerStatus::MechanismClosed {
+                return Err(
+                    RelationalMechanismStepDriverError::ClosedIncidenceStateMismatch(*request_id)
                         .into(),
-                    );
+                );
+            }
+
+            // A pending artifact is globally exclusive. Resume its exact
+            // structural signature when that is the pending producer;
+            // otherwise let the target/terminal path below reproduce the raw
+            // artifact before scheduling any quotient work. With no pending
+            // artifact, structural derivation follows raw signature discovery
+            // order and runs before another target is admitted or replayed.
+            if analysis.structural_quotient_closure(*request_id).is_none() {
+                let pending_claim = analysis.pending_mechanism_artifact_claim();
+                let mut signature_id = match pending_claim {
+                    Some(RelationalMechanismArtifactClaim::StructuralQuotient {
+                        request_id: pending_request_id,
+                        raw_signature_id,
+                        ..
+                    }) if pending_request_id == *request_id => Some(raw_signature_id),
+                    Some(_) => None,
+                    None => {
+                        self.next_open_structural_signature_id(analysis, incidence, *request_id)
+                    }
+                };
+                if signature_id.is_none() && incidence_is_closed && pending_claim.is_none() {
+                    signature_id = analysis.next_closed_structural_signature_id(*request_id)?;
                 }
+                if let Some(signature_id) = signature_id {
+                    return self
+                        .step_structural_signature(
+                            view,
+                            analysis,
+                            catalog,
+                            incidence,
+                            *request_id,
+                            signature_id,
+                        )
+                        .map_err(RelationalMechanismStepRunError::from);
+                }
+            }
+
+            if incidence_is_closed {
                 if analysis.structural_quotient_closure(*request_id).is_some() {
                     continue;
                 }
-                if let Some(signature_id) = analysis.next_structural_signature_id(*request_id)? {
-                    let mut cached = self.structural_artifact_cache.borrow_mut();
-                    if cached
-                        .as_ref()
-                        .map(StructuralSignatureQuotientArtifact::signature_id)
-                        != Some(signature_id)
-                    {
-                        let definition = incidence.signature_definition(signature_id).ok_or(
-                            RelationalMechanismStepDriverError::
-                                MissingStructuralSignatureDefinition {
-                                    request_id: *request_id,
-                                    signature_id,
-                                },
-                        )?;
-                        let expected_scope =
-                            catalog.mechanism_evidence_contract(*request_id)?.scope();
-                        *cached = Some(
-                            derive_relational_structural_mechanism_v1(
-                                definition,
-                                expected_scope,
-                                relational_structural_derivation_budget(),
-                            )
-                            .map_err(RelationalAnalysisJournalError::from)?,
-                        );
-                    }
-                    let artifact = cached
-                        .as_ref()
-                        .expect("the structural producer cache was just initialized");
-                    let structural_mechanism_id = artifact.mechanism().id();
-                    let execution_profile_id = artifact.profile().id();
-                    let event = analysis.next_structural_quotient_artifact_event(
-                        artifact,
-                        self.mechanism_artifact_chunk_bytes.get() as usize,
-                    )?;
-                    drop(cached);
-                    return Ok(self.batch(
-                        view,
-                        RelationalMechanismStepQuantum::DeriveStructuralQuotient {
-                            request_id: *request_id,
-                            signature_id,
-                            structural_mechanism_id,
-                            execution_profile_id,
-                        },
-                        vec![RelationalJournalEvent::analysis(event)],
-                    ));
-                }
-
                 self.structural_artifact_cache.borrow_mut().take();
                 let closure_event = analysis.structural_quotient_closure_event(*request_id)?;
                 let RelationalAnalysisEvidenceEvent::StructuralQuotientClosed {
@@ -618,6 +609,93 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 }
                 None => RelationalMechanismStepQuiescence::SelectedMechanismsComplete,
             },
+        ))
+    }
+
+    fn next_open_structural_signature_id(
+        &self,
+        analysis: &RelationalAnalysisJournalState,
+        incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSignatureId> {
+        let signature_count = incidence.signature_discovery_count();
+        let mut cursors = self.discovery_cursors.borrow_mut();
+        let cursor = cursors.entry(request_id).or_default();
+        if cursor.signature_ordinal > signature_count {
+            cursor.signature_ordinal = 0;
+        }
+        let structural = analysis.structural_mechanism_catalog(request_id);
+        let mut durable_prefix = 0usize;
+        let mut next = None;
+        for signature_id in incidence
+            .signature_discovery_suffix(cursor.signature_ordinal)
+            .iter()
+            .copied()
+        {
+            if structural.is_some_and(|catalog| catalog.assignment(signature_id).is_some()) {
+                durable_prefix += 1;
+            } else {
+                next = Some(signature_id);
+                break;
+            }
+        }
+        // Advance only across assignments already present in durable state.
+        // The planned signature stays at the cursor until its artifact closes,
+        // so a stale or rejected batch is reproduced exactly.
+        cursor.signature_ordinal += durable_prefix;
+        next
+    }
+
+    fn step_structural_signature(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        analysis: &RelationalAnalysisJournalState,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
+        request_id: MechanismRequestId,
+        signature_id: MechanismSignatureId,
+    ) -> Result<RelationalMechanismStepOutcome, RelationalMechanismStepDriverError> {
+        let mut cached = self.structural_artifact_cache.borrow_mut();
+        if cached
+            .as_ref()
+            .map(StructuralSignatureQuotientArtifact::signature_id)
+            != Some(signature_id)
+        {
+            let definition = incidence.signature_definition(signature_id).ok_or(
+                RelationalMechanismStepDriverError::MissingStructuralSignatureDefinition {
+                    request_id,
+                    signature_id,
+                },
+            )?;
+            let expected_scope = catalog.mechanism_evidence_contract(request_id)?.scope();
+            *cached = Some(
+                derive_relational_structural_mechanism_v1(
+                    definition,
+                    expected_scope,
+                    relational_structural_derivation_budget(),
+                )
+                .map_err(RelationalAnalysisJournalError::from)?,
+            );
+        }
+        let artifact = cached
+            .as_ref()
+            .expect("the structural producer cache was just initialized");
+        let structural_mechanism_id = artifact.mechanism().id();
+        let execution_profile_id = artifact.profile().id();
+        let event = analysis.next_structural_quotient_artifact_event(
+            artifact,
+            self.mechanism_artifact_chunk_bytes.get() as usize,
+        )?;
+        drop(cached);
+        Ok(self.batch(
+            view,
+            RelationalMechanismStepQuantum::DeriveStructuralQuotient {
+                request_id,
+                signature_id,
+                structural_mechanism_id,
+                execution_profile_id,
+            },
+            vec![RelationalJournalEvent::analysis(event)],
         ))
     }
 

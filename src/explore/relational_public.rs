@@ -735,6 +735,9 @@ pub enum ExploreStreamPauseReason {
         view_id: String,
         request_id: String,
     },
+    AwaitingMechanismSupport {
+        request_id: String,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -2482,6 +2485,11 @@ fn public_pause_reason(reason: RelationalStreamSlicePauseReason) -> ExploreStrea
                 view_id: hex(view_id.bytes()),
                 request_id: hex(request_id.bytes()),
             },
+            RelationalStreamQuiescence::AwaitingMechanismSupport { request_id } => {
+                ExploreStreamPauseReason::AwaitingMechanismSupport {
+                    request_id: hex(request_id.bytes()),
+                }
+            }
         },
     }
 }

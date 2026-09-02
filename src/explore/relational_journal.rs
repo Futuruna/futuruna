@@ -18,6 +18,7 @@ use sha2::{Digest, Sha256};
 
 use super::mechanism_support::{
     MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportFrontierRoot,
+    MechanismSupportFrontierSummary,
 };
 use super::relation::{
     install_selected_case_batch, AdmissionCatalog, AdmissionCatalogBuilder, AdmissionContentRoot,
@@ -1447,7 +1448,35 @@ struct RelationalEvidenceState {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct RelationalMechanismSupportCheckpointReceipt {
     cursor: MechanismSupportCheckpointCursor,
-    frontier_root: MechanismSupportFrontierRoot,
+    frontier: MechanismSupportFrontierSummary,
+}
+
+fn validate_support_frontier_enrichment(
+    request_id: MechanismRequestId,
+    durable: MechanismSupportFrontierSummary,
+    current: MechanismSupportFrontierSummary,
+) -> Result<(), RelationalJournalError> {
+    if durable.imported_prefix_root() != current.imported_prefix_root()
+        || !optional_commitment_is_monotone(durable.target_seal_id(), current.target_seal_id())
+        || !optional_commitment_is_monotone(
+            durable.incidence_closure_root(),
+            current.incidence_closure_root(),
+        )
+        || !optional_commitment_is_monotone(
+            durable.structural_closure_root(),
+            current.structural_closure_root(),
+        )
+    {
+        return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+    }
+    Ok(())
+}
+
+fn optional_commitment_is_monotone<T: Copy + Eq>(prior: Option<T>, next: Option<T>) -> bool {
+    match prior {
+        Some(prior) => next == Some(prior),
+        None => true,
+    }
 }
 
 fn validate_support_checkpoint_delta(
@@ -3627,7 +3656,7 @@ impl RelationalEvidenceState {
                 );
             }
             let derived_frontier = analysis.checkpoint_support_frontier(*request_id)?;
-            if durable.frontier_root != derived_frontier {
+            if durable.frontier != derived_frontier {
                 return Err(
                     RelationalJournalError::SupportCheckpointAnchorRootMismatch {
                         request_id: *request_id,
@@ -3926,31 +3955,33 @@ impl RelationalEvidenceState {
                         request_id: *request_id,
                     });
                 }
-                let prior = self
-                    .latest_support_frontiers
-                    .get(request_id)
+                let prior = self.latest_support_frontiers.get(request_id).copied();
+                let prior_cursor = prior
                     .map_or_else(MechanismSupportCheckpointCursor::default, |receipt| {
                         receipt.cursor
                     });
-                validate_support_checkpoint_delta(*request_id, prior, *cursor)?;
+                validate_support_checkpoint_delta(*request_id, prior_cursor, *cursor)?;
                 self.restore_analysis_support_checkpoint_through(*request_id, *cursor)?;
                 let derived = self
                     .analysis
                     .as_mut()
                     .ok_or(RelationalJournalError::AnalysisStateMissing)?
                     .checkpoint_support_frontier(*request_id)?;
-                if derived != *frontier_root {
+                if derived.root() != *frontier_root {
                     return Err(RelationalJournalError::SupportFrontierRootClaimMismatch {
                         request_id: *request_id,
                         claimed: *frontier_root,
-                        derived,
+                        derived: derived.root(),
                     });
+                }
+                if let Some(prior) = prior.filter(|prior| prior.cursor == *cursor) {
+                    validate_support_frontier_enrichment(*request_id, prior.frontier, derived)?;
                 }
                 self.latest_support_frontiers.insert(
                     *request_id,
                     RelationalMechanismSupportCheckpointReceipt {
                         cursor: *cursor,
-                        frontier_root: derived,
+                        frontier: derived,
                     },
                 );
             }
@@ -4165,6 +4196,10 @@ pub(crate) enum RelationalMechanismSupportStepEvents {
         support_root: MechanismSupportClosureRoot,
         events: Box<[RelationalJournalEvent]>,
     },
+    /// The imported prefixes are caught up to all currently visible upstream
+    /// work, but one or both upstream semantic closures are still absent.
+    /// This is ordinary open-stream quiescence, not a failed checkpoint.
+    Idle,
 }
 
 /// Read-only, incrementally indexed scheduler projection of a journal prefix.
@@ -4762,7 +4797,7 @@ impl RelationalJournal {
     pub(crate) fn support_lifecycle_step_events(
         &mut self,
         request_id: MechanismRequestId,
-        maximum_target_cases: NonZeroU16,
+        maximum_lane_delta: NonZeroU16,
     ) -> Result<RelationalMechanismSupportStepEvents, RelationalJournalError> {
         let durable = self
             .state
@@ -4776,7 +4811,7 @@ impl RelationalJournal {
         let (mut cursor, mut available) = self
             .state
             .analysis
-            .as_ref()
+            .as_mut()
             .ok_or(RelationalJournalError::AnalysisStateMissing)?
             .support_checkpoint_cursors(request_id)?;
         let derived_state_is_ahead =
@@ -4788,19 +4823,19 @@ impl RelationalJournal {
             0
         } else {
             if let Some(durable) = durable {
-                let anchored_root = self
+                let current_frontier = self
                     .state
                     .analysis
                     .as_mut()
                     .ok_or(RelationalJournalError::AnalysisStateMissing)?
                     .checkpoint_support_frontier(request_id)?;
-                if anchored_root != durable.frontier_root {
-                    return Err(
-                        RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
-                    );
-                }
+                validate_support_frontier_enrichment(
+                    request_id,
+                    durable.frontier,
+                    current_frontier,
+                )?;
             }
-            let runtime_limit = u128::from(maximum_target_cases.get())
+            let runtime_limit = u128::from(maximum_lane_delta.get())
                 .min(RELATIONAL_SUPPORT_CHECKPOINT_MAX_LANE_DELTA);
             let runtime_limit = NonZeroU16::new(
                 u16::try_from(runtime_limit)
@@ -4816,16 +4851,14 @@ impl RelationalJournal {
             accepted
         };
 
-        let frontier_root = self
+        let frontier = self
             .state
             .analysis
             .as_mut()
             .ok_or(RelationalJournalError::AnalysisStateMissing)?
             .checkpoint_support_frontier(request_id)?;
-        let next_receipt = RelationalMechanismSupportCheckpointReceipt {
-            cursor,
-            frontier_root,
-        };
+        let frontier_root = frontier.root();
+        let next_receipt = RelationalMechanismSupportCheckpointReceipt { cursor, frontier };
         let checkpoint_required = durable != Some(next_receipt);
         // A final cursor is still checkpointed in its own quantum. The
         // semantic close is minted only on the next turn, when that exact
@@ -4845,6 +4878,14 @@ impl RelationalJournal {
         }
         if cursor != available {
             return Err(RelationalJournalError::SupportCheckpointDidNotAdvance { request_id });
+        }
+
+        let upstreams_are_closed = self.state.analysis.as_ref().is_some_and(|analysis| {
+            analysis.mechanism_closure(request_id).is_some()
+                && analysis.structural_quotient_closure(request_id).is_some()
+        });
+        if !upstreams_are_closed {
+            return Ok(RelationalMechanismSupportStepEvents::Idle);
         }
 
         let closure_event = self
@@ -6667,7 +6708,7 @@ fn relational_checkpoint_root(
         hasher.u128(receipt.cursor.target_discovery());
         hasher.u128(receipt.cursor.terminal_discovery());
         hasher.u128(receipt.cursor.structural_assignment());
-        hasher.digest(receipt.frontier_root.bytes());
+        hasher.digest(receipt.frontier.root().bytes());
     }
     RelationalCheckpointRoot(hasher.finish())
 }

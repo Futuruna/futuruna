@@ -30,7 +30,7 @@ use super::structural_mechanism::{
 };
 
 pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 2;
-pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 4;
+pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 5;
 pub(crate) const MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION: u32 = 2;
 pub(crate) const MECHANISM_SUPPORT_FIBER_EXPR_VERSION: u32 = 1;
 pub(crate) const MECHANISM_STARTER_PROJECTION_PLAN_VERSION: u32 = 2;
@@ -44,7 +44,7 @@ pub(crate) const AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT: usize = 256;
 // in the signature fibers and callers may explicitly choose another limit.
 const DEFAULT_HOT_SUBJECT_PROJECTION_LIMIT: usize = 1;
 
-const SUPPORT_VIEW_ROOT_V4: &[u8] = b"futuruna.explore.mechanism-support-view-root.v4";
+const SUPPORT_VIEW_ROOT_V5: &[u8] = b"futuruna.explore.mechanism-support-view-root.v5";
 const FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-factorized-subject-signature-prefix-root.v2";
 const FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
@@ -66,7 +66,9 @@ const STARTER_PROJECTION_PLAN_ID_V2: &[u8] =
     b"futuruna.explore.mechanism-subject-starter-projection-plan-id.v2";
 const SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1: &[u8] =
     b"futuruna.explore.mechanism-support-slice-starter-projection-plan-id.v1";
-const SUPPORT_FRONTIER_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v1";
+const SUPPORT_FRONTIER_ROOT_V2: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v2";
+const SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-frontier-imported-prefix-root.v2";
 const SUPPORT_CLOSURE_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-closure-root.v1";
 const SHARED_RESIDUAL_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-support-factorized-residual-root.v2";
@@ -648,6 +650,41 @@ impl MechanismSupportFrontierRoot {
     }
 }
 
+/// Reproducible decomposition of one V2 frontier. The imported-prefix root is
+/// invariant when only an optional upstream seal arrives, which lets the
+/// journal distinguish legitimate monotone enrichment at the same cursor from
+/// arbitrary rewriting of already-checkpointed derived support state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportFrontierSummary {
+    root: MechanismSupportFrontierRoot,
+    imported_prefix_root: [u8; 32],
+    target_seal_id: Option<MechanismTargetSealId>,
+    incidence_closure_root: Option<MechanismIncidenceRoot>,
+    structural_closure_root: Option<StructuralQuotientClosureRoot>,
+}
+
+impl MechanismSupportFrontierSummary {
+    pub(crate) const fn root(self) -> MechanismSupportFrontierRoot {
+        self.root
+    }
+
+    pub(crate) const fn imported_prefix_root(self) -> [u8; 32] {
+        self.imported_prefix_root
+    }
+
+    pub(crate) const fn target_seal_id(self) -> Option<MechanismTargetSealId> {
+        self.target_seal_id
+    }
+
+    pub(crate) const fn incidence_closure_root(self) -> Option<MechanismIncidenceRoot> {
+        self.incidence_closure_root
+    }
+
+    pub(crate) const fn structural_closure_root(self) -> Option<StructuralQuotientClosureRoot> {
+        self.structural_closure_root
+    }
+}
+
 /// Exact replay cursors for the three independently growing support lanes.
 /// The outer checkpoint event authenticates this tuple together with the
 /// frontier root; no lane may be inferred from another lane's progress.
@@ -876,6 +913,8 @@ impl MechanismSupportView {
 
 #[derive(Clone, Debug)]
 struct SubjectProjectionCache {
+    structural_assignment_cursor: usize,
+    structural_prefix_revision: StructuralCatalogRevision,
     signature_index: AuthenticatedTreapMap,
     case_index: AuthenticatedTreapMap,
     starter_index: AuthenticatedTreapMap,
@@ -883,8 +922,13 @@ struct SubjectProjectionCache {
 }
 
 impl SubjectProjectionCache {
-    fn new() -> Self {
+    fn new(
+        structural_assignment_cursor: usize,
+        structural_prefix_revision: StructuralCatalogRevision,
+    ) -> Self {
         Self {
+            structural_assignment_cursor,
+            structural_prefix_revision,
             signature_index: AuthenticatedTreapMap::new(SUBJECT_SIGNATURE_INDEX_V1),
             case_index: AuthenticatedTreapMap::new(SUBJECT_CASE_INDEX_V1),
             starter_index: AuthenticatedTreapMap::new(SUBJECT_STARTER_INDEX_V1),
@@ -899,12 +943,109 @@ impl SubjectProjectionCache {
     fn starter_count(&self) -> u128 {
         self.starter_index.total_weight()
     }
+
+    fn is_for_structural_prefix(
+        &self,
+        structural_assignment_cursor: usize,
+        structural_prefix_revision: StructuralCatalogRevision,
+    ) -> bool {
+        self.structural_assignment_cursor == structural_assignment_cursor
+            && self.structural_prefix_revision == structural_prefix_revision
+    }
+
+    fn advance_structural_prefix(
+        &mut self,
+        structural_assignment_cursor: usize,
+        structural_prefix_revision: StructuralCatalogRevision,
+    ) {
+        self.structural_assignment_cursor = structural_assignment_cursor;
+        self.structural_prefix_revision = structural_prefix_revision;
+    }
+}
+
+/// V5 view roots distinguish resumable operational prefixes from final
+/// semantic authority. Open roots bind the exact imported discovery prefix;
+/// closed roots return to canonical, discovery-order-independent structural
+/// commitments.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MechanismSupportViewStructuralAuthority {
+    OpenPrefix {
+        assignment_cursor: usize,
+        prefix_revision: StructuralCatalogRevision,
+    },
+    Closed {
+        structural_root: StructuralQuotientClosureRoot,
+        assignment_root: [u8; 32],
+        assignment_count: usize,
+    },
+}
+
+/// One independently authenticated component of the shared possible-support
+/// residual. `member_count` names cases for the pending/unavailable lanes and
+/// raw signatures for the unassigned lane; `case_count` always names the
+/// concrete cases represented by that component.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismSupportResidualComponentRoot([u8; 32]);
+
+impl MechanismSupportResidualComponentRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct FactorizedResidualSummary {
+pub(crate) struct MechanismSupportResidualComponentSummary {
+    root: MechanismSupportResidualComponentRoot,
+    member_count: u128,
+    case_count: u128,
+}
+
+impl MechanismSupportResidualComponentSummary {
+    pub(crate) const fn root(self) -> MechanismSupportResidualComponentRoot {
+        self.root
+    }
+
+    pub(crate) const fn member_count(self) -> u128 {
+        self.member_count
+    }
+
+    pub(crate) const fn case_count(self) -> u128 {
+        self.case_count
+    }
+}
+
+/// Typed decomposition of the shared residual. Keeping the three components
+/// visible prevents a consumer from treating replay unavailability as an
+/// unassigned successful signature, or either one as merely pending work.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportResidualSummary {
     root: MechanismSupportResidualRoot,
     case_count: u128,
+    pending_cases: MechanismSupportResidualComponentSummary,
+    unavailable_cases: MechanismSupportResidualComponentSummary,
+    unassigned_signatures: MechanismSupportResidualComponentSummary,
+}
+
+impl MechanismSupportResidualSummary {
+    pub(crate) const fn root(self) -> MechanismSupportResidualRoot {
+        self.root
+    }
+
+    pub(crate) const fn case_count(self) -> u128 {
+        self.case_count
+    }
+
+    pub(crate) const fn pending_cases(self) -> MechanismSupportResidualComponentSummary {
+        self.pending_cases
+    }
+
+    pub(crate) const fn unavailable_cases(self) -> MechanismSupportResidualComponentSummary {
+        self.unavailable_cases
+    }
+
+    pub(crate) const fn unassigned_signatures(self) -> MechanismSupportResidualComponentSummary {
+        self.unassigned_signatures
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -938,6 +1079,7 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     terminal_discovery_revision: Option<MechanismTerminalDiscoveryRevision>,
     structural_assignment_cursor: usize,
     structural_assignment_revision: Option<StructuralCatalogRevision>,
+    imported_structural_assignments: BTreeSet<MechanismSignatureId>,
     subject_projection_cache: BTreeMap<MechanismSupportSubject, SubjectProjectionCache>,
     subject_projection_lru: VecDeque<MechanismSupportSubject>,
     subject_projection_cache_limit: usize,
@@ -971,6 +1113,7 @@ impl MechanismSupportCatalogBuilder {
             terminal_discovery_revision: None,
             structural_assignment_cursor: 0,
             structural_assignment_revision: None,
+            imported_structural_assignments: BTreeSet::new(),
             subject_projection_cache: BTreeMap::new(),
             subject_projection_lru: VecDeque::new(),
             subject_projection_cache_limit: subject_projection_cache_limit.max(1),
@@ -1193,7 +1336,8 @@ impl MechanismSupportCatalogBuilder {
     /// Consume only the checked structural-assignment suffix. Removing one
     /// signature from the unassigned manifest is independent of the number of
     /// concrete cases in that signature's fiber.
-    pub(crate) fn sync_structural_assignments(
+    #[cfg(test)]
+    fn sync_structural_assignments(
         &mut self,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<usize, MechanismSupportError> {
@@ -1224,6 +1368,13 @@ impl MechanismSupportCatalogBuilder {
         if self.closure.is_some() && !suffix.is_empty() {
             return Err(MechanismSupportError::CatalogClosed);
         }
+        let current_prefix_revision = structural
+            .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
+            .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
+        self.invalidate_projection_caches_outside_prefix(
+            self.structural_assignment_cursor,
+            current_prefix_revision,
+        );
         for signature_id in suffix.iter().copied() {
             let assignment = structural
                 .assignment(signature_id)
@@ -1238,6 +1389,9 @@ impl MechanismSupportCatalogBuilder {
             let assignment = structural
                 .assignment(signature_id)
                 .expect("checked structural assignment remains present");
+            if self.imported_structural_assignments.contains(&signature_id) {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
             if authenticated_contains(
                 &self.unassigned_signature_index,
                 &signature_key(signature_id),
@@ -1250,12 +1404,20 @@ impl MechanismSupportCatalogBuilder {
                     })?;
             }
             self.extend_cached_subjects_for_assignment(signature_id, assignment);
+            let inserted = self.imported_structural_assignments.insert(signature_id);
+            debug_assert!(inserted, "checked structural prefix assignment is new");
             self.structural_assignment_cursor = self
                 .structural_assignment_cursor
                 .checked_add(1)
                 .ok_or(MechanismSupportError::CountOverflow)?;
-            self.structural_assignment_revision =
-                structural.assignment_discovery_prefix_revision(self.structural_assignment_cursor);
+            let prefix_revision = structural
+                .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
+                .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
+            self.structural_assignment_revision = Some(prefix_revision);
+            for projection in self.subject_projection_cache.values_mut() {
+                projection
+                    .advance_structural_prefix(self.structural_assignment_cursor, prefix_revision);
+            }
         }
         let consumed = suffix.len();
         Ok(consumed)
@@ -1309,6 +1471,9 @@ impl MechanismSupportCatalogBuilder {
         &self,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<(), MechanismSupportError> {
+        if self.imported_structural_assignments.len() != self.structural_assignment_cursor {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
         let actual = structural
             .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
             .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
@@ -1383,6 +1548,16 @@ impl MechanismSupportCatalogBuilder {
 
         match terminal {
             MechanismCaseTerminal::Incidence { signature_id, .. } => {
+                let imported_assignment = self
+                    .imported_structural_assignments
+                    .contains(&signature_id)
+                    .then(|| structural.assignment(signature_id))
+                    .flatten();
+                if self.imported_structural_assignments.contains(&signature_id)
+                    && imported_assignment.is_none()
+                {
+                    return Err(MechanismSupportError::UnknownStructuralAssignment);
+                }
                 let existing = self.signature_fibers.get(&signature_id);
                 if existing.is_some_and(|fiber| fiber.cases.contains_key(&record.case_id())) {
                     return Err(MechanismSupportError::SignatureConflict);
@@ -1424,7 +1599,7 @@ impl MechanismSupportCatalogBuilder {
                     "signature fibers",
                 )?;
                 let mut next_unassigned = self.unassigned_signature_index.clone();
-                if structural.assignment(signature_id).is_none() {
+                if imported_assignment.is_none() {
                     set_authenticated_value(
                         &mut next_unassigned,
                         signature_key(signature_id),
@@ -1460,14 +1635,16 @@ impl MechanismSupportCatalogBuilder {
                     .entry(coordinate.source)
                     .or_default()
                     .insert(coordinate.successor);
-                self.extend_cached_subjects_for_case(
-                    structural,
-                    signature_id,
-                    summary,
-                    record.case_id(),
-                    coordinate.source,
-                    coordinate.successor,
-                );
+                if let Some(assignment) = imported_assignment {
+                    self.extend_cached_subjects_for_case(
+                        assignment,
+                        signature_id,
+                        summary,
+                        record.case_id(),
+                        coordinate.source,
+                        coordinate.successor,
+                    );
+                }
             }
             MechanismCaseTerminal::Unavailable { reason_id } => {
                 let mut next_unavailable = self.unavailable_cases.clone();
@@ -1526,16 +1703,13 @@ impl MechanismSupportCatalogBuilder {
 
     fn extend_cached_subjects_for_case(
         &mut self,
-        structural: &StructuralMechanismCatalogBuilder,
+        assignment: &StructuralSignatureAssignment,
         signature_id: MechanismSignatureId,
         summary: SignatureFiberSummary,
         case_id: RelationalCaseId,
         source: SourceKey,
         successor: SuccessorKey,
     ) {
-        let Some(assignment) = structural.assignment(signature_id) else {
-            return;
-        };
         let mut invalid = Vec::new();
         // The cache is deliberately tiny while a structural assignment may
         // contain many nodes and edges. Scan the bounded cache and membership-
@@ -1576,6 +1750,20 @@ impl MechanismSupportCatalogBuilder {
         self.touch_subject_projection(subject);
     }
 
+    fn invalidate_projection_caches_outside_prefix(
+        &mut self,
+        structural_assignment_cursor: usize,
+        structural_prefix_revision: StructuralCatalogRevision,
+    ) {
+        self.subject_projection_cache.retain(|_, projection| {
+            projection
+                .is_for_structural_prefix(structural_assignment_cursor, structural_prefix_revision)
+        });
+        let retained = &self.subject_projection_cache;
+        self.subject_projection_lru
+            .retain(|subject| retained.contains_key(subject));
+    }
+
     fn touch_subject_projection(&mut self, subject: MechanismSupportSubject) {
         if let Some(index) = self
             .subject_projection_lru
@@ -1604,9 +1792,10 @@ impl MechanismSupportCatalogBuilder {
     pub(crate) fn checkpoint_frontier(
         &mut self,
         incidence: &MechanismIncidenceCatalogBuilder,
-        closed_incidence_root: MechanismIncidenceRoot,
+        closed_incidence_root: Option<MechanismIncidenceRoot>,
         structural: &StructuralMechanismCatalogBuilder,
-    ) -> Result<MechanismSupportFrontierRoot, MechanismSupportError> {
+        structural_closure_root: Option<StructuralQuotientClosureRoot>,
+    ) -> Result<MechanismSupportFrontierSummary, MechanismSupportError> {
         self.validate_incidence_scope(incidence)?;
         self.validate_target_prefix(incidence)?;
         self.validate_terminal_prefix(incidence)?;
@@ -1629,35 +1818,54 @@ impl MechanismSupportCatalogBuilder {
             .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
             .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
         let residual = self.factorized_residual()?;
-        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V1);
+        let mut prefix_encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2);
+        prefix_encoder.u32(MECHANISM_SUPPORT_VERSION);
+        prefix_encoder.digest(self.scope.request_id().bytes());
+        encode_target(&mut prefix_encoder, self.scope.target());
+        // Only the imported structural prefix is checkpoint authority. The
+        // live catalog may already contain later assignments, but hashing its
+        // current revision/root here would make the same durable support
+        // cursor depend on unimported upstream work.
+        prefix_encoder.u128(self.target_discovery_cursor as u128);
+        prefix_encoder.digest(target_revision.bytes());
+        prefix_encoder.u128(self.terminal_discovery_cursor as u128);
+        prefix_encoder.digest(terminal_revision.bytes());
+        prefix_encoder.u128(self.structural_assignment_cursor as u128);
+        prefix_encoder.digest(structural_revision.bytes());
+        encode_authenticated_index(&mut prefix_encoder, &self.pending_cases);
+        encode_authenticated_index(&mut prefix_encoder, &self.terminal_fact_index);
+        encode_authenticated_index(&mut prefix_encoder, &self.unavailable_cases);
+        encode_authenticated_index(&mut prefix_encoder, &self.signature_fiber_index);
+        encode_authenticated_index(&mut prefix_encoder, &self.unassigned_signature_index);
+        prefix_encoder.digest(self.target_starter_index.root_hash());
+        prefix_encoder.u128(self.target_starter_index.total_weight());
+        prefix_encoder.digest(residual.root.bytes());
+        prefix_encoder.u128(residual.case_count);
+        let imported_prefix_root = prefix_encoder.finish();
+
+        let target_seal_id = self.target_seal.as_ref().map(MechanismTargetSeal::id);
+        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V2);
         encoder.u32(MECHANISM_SUPPORT_VERSION);
-        encoder.digest(self.scope.request_id().bytes());
-        encode_target(&mut encoder, self.scope.target());
-        encode_optional_target_seal(&mut encoder, self.target_seal.as_ref());
-        // Raw incidence is already durably closed before support lifecycle
-        // starts. Its stored closure root is immutable authority; recomputing
-        // that canonical O(N) root in every sparse checkpoint would defeat
-        // the bounded replay protocol.
-        encoder.digest(closed_incidence_root.bytes());
-        encoder.digest(structural.revision().bytes());
-        encoder.digest(structural.assignment_root());
-        encoder.u128(structural.assignment_count() as u128);
-        encoder.u128(self.target_discovery_cursor as u128);
-        encoder.digest(target_revision.bytes());
-        encoder.u128(self.terminal_discovery_cursor as u128);
-        encoder.digest(terminal_revision.bytes());
-        encoder.u128(self.structural_assignment_cursor as u128);
-        encoder.digest(structural_revision.bytes());
-        encode_authenticated_index(&mut encoder, &self.pending_cases);
-        encode_authenticated_index(&mut encoder, &self.terminal_fact_index);
-        encode_authenticated_index(&mut encoder, &self.unavailable_cases);
-        encode_authenticated_index(&mut encoder, &self.signature_fiber_index);
-        encode_authenticated_index(&mut encoder, &self.unassigned_signature_index);
-        encoder.digest(self.target_starter_index.root_hash());
-        encoder.u128(self.target_starter_index.total_weight());
-        encoder.digest(residual.root.bytes());
-        encoder.u128(residual.case_count);
-        Ok(MechanismSupportFrontierRoot(encoder.finish()))
+        encoder.digest(imported_prefix_root);
+        encode_optional_digest(
+            &mut encoder,
+            target_seal_id.map(MechanismTargetSealId::bytes),
+        );
+        encode_optional_digest(
+            &mut encoder,
+            closed_incidence_root.map(MechanismIncidenceRoot::bytes),
+        );
+        encode_optional_digest(
+            &mut encoder,
+            structural_closure_root.map(StructuralQuotientClosureRoot::bytes),
+        );
+        Ok(MechanismSupportFrontierSummary {
+            root: MechanismSupportFrontierRoot(encoder.finish()),
+            imported_prefix_root,
+            target_seal_id,
+            incidence_closure_root: closed_incidence_root,
+            structural_closure_root,
+        })
     }
 
     /// Derive the exact request-level closure after both upstream authorities
@@ -2358,8 +2566,17 @@ impl MechanismSupportCatalogBuilder {
         {
             return Err(MechanismSupportError::ClosureConflict);
         }
-        validate_structural_subject(structural, key.subject)?;
-        let projection = build_subject_projection(key.subject, structural, &self.signature_fibers)?;
+        let (structural_assignment_cursor, structural_prefix_revision) =
+            self.imported_structural_prefix_authority(structural)?;
+        self.validate_imported_structural_subject(structural, key.subject)?;
+        let projection = build_imported_subject_projection(
+            key.subject,
+            structural,
+            &self.imported_structural_assignments,
+            &self.signature_fibers,
+            structural_assignment_cursor,
+            structural_prefix_revision,
+        )?;
         let view = self.derive_view_from_projection(key, structural, &projection)?;
         if view.target_frontier_is_open() || view.shared_residual_root() != residual.root {
             return Err(MechanismSupportError::ClosureConflict);
@@ -2378,11 +2595,22 @@ impl MechanismSupportCatalogBuilder {
         {
             return Err(MechanismSupportError::RequestMismatch);
         }
-        validate_structural_subject(structural, key.subject)?;
-        self.sync_structural_assignments(structural)?;
+        let (structural_assignment_cursor, structural_prefix_revision) =
+            self.imported_structural_prefix_authority(structural)?;
+        self.invalidate_projection_caches_outside_prefix(
+            structural_assignment_cursor,
+            structural_prefix_revision,
+        );
+        self.validate_imported_structural_subject(structural, key.subject)?;
         if !self.subject_projection_cache.contains_key(&key.subject) {
-            let projection =
-                build_subject_projection(key.subject, structural, &self.signature_fibers)?;
+            let projection = build_imported_subject_projection(
+                key.subject,
+                structural,
+                &self.imported_structural_assignments,
+                &self.signature_fibers,
+                structural_assignment_cursor,
+                structural_prefix_revision,
+            )?;
             self.install_subject_projection(key.subject, projection);
         } else {
             self.touch_subject_projection(key.subject);
@@ -2400,6 +2628,18 @@ impl MechanismSupportCatalogBuilder {
         structural: &StructuralMechanismCatalogBuilder,
         projection: &SubjectProjectionCache,
     ) -> Result<MechanismSupportView, MechanismSupportError> {
+        let (structural_assignment_cursor, structural_prefix_revision) =
+            self.imported_structural_prefix_authority(structural)?;
+        if !projection
+            .is_for_structural_prefix(structural_assignment_cursor, structural_prefix_revision)
+        {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        let structural_authority = self.support_view_structural_authority(
+            structural,
+            structural_assignment_cursor,
+            structural_prefix_revision,
+        )?;
         let inner_signature_root = projection.signature_index.root_hash();
         let inner_case_root = projection.case_index.root_hash();
         let inner_starter_root = projection.starter_index.root_hash();
@@ -2481,7 +2721,7 @@ impl MechanismSupportCatalogBuilder {
         let root = derive_support_view_root(
             key,
             self.target_seal.as_ref().map(MechanismTargetSeal::id),
-            structural.assignment_root(),
+            structural_authority,
             self.terminal_fact_index.root_hash(),
             self.signature_fiber_index.root_hash(),
             target_starter_root,
@@ -2510,7 +2750,76 @@ impl MechanismSupportCatalogBuilder {
         })
     }
 
-    fn factorized_residual(&self) -> Result<FactorizedResidualSummary, MechanismSupportError> {
+    fn imported_structural_prefix_authority(
+        &self,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<(usize, StructuralCatalogRevision), MechanismSupportError> {
+        if structural.request_id() != self.scope.request_id() {
+            return Err(MechanismSupportError::RequestMismatch);
+        }
+        self.validate_structural_assignment_prefix(structural)?;
+        let revision = structural
+            .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
+            .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
+        Ok((self.structural_assignment_cursor, revision))
+    }
+
+    fn support_view_structural_authority(
+        &self,
+        structural: &StructuralMechanismCatalogBuilder,
+        assignment_cursor: usize,
+        prefix_revision: StructuralCatalogRevision,
+    ) -> Result<MechanismSupportViewStructuralAuthority, MechanismSupportError> {
+        let Some(support_closure) = self.closure else {
+            return Ok(MechanismSupportViewStructuralAuthority::OpenPrefix {
+                assignment_cursor,
+                prefix_revision,
+            });
+        };
+        let structural_closure =
+            structural
+                .closure()
+                .ok_or(MechanismSupportError::ClosurePrerequisite(
+                    "structural quotient closure",
+                ))?;
+        if support_closure.structural_root() != structural_closure.root()
+            || assignment_cursor != structural.assignment_count()
+        {
+            return Err(MechanismSupportError::ClosureConflict);
+        }
+        Ok(MechanismSupportViewStructuralAuthority::Closed {
+            structural_root: structural_closure.root(),
+            assignment_root: structural.assignment_root(),
+            assignment_count: structural.assignment_count(),
+        })
+    }
+
+    fn validate_imported_structural_subject(
+        &self,
+        structural: &StructuralMechanismCatalogBuilder,
+        subject: MechanismSupportSubject,
+    ) -> Result<(), MechanismSupportError> {
+        validate_structural_subject(structural, subject)?;
+        for signature_id in &self.imported_structural_assignments {
+            let assignment = structural
+                .assignment(*signature_id)
+                .ok_or(MechanismSupportError::UnknownStructuralAssignment)?;
+            if assignment_introduces_subject(assignment, subject) {
+                return Ok(());
+            }
+        }
+        Err(MechanismSupportError::UnknownStructuralSubject)
+    }
+
+    pub(crate) fn residual_summary(
+        &self,
+    ) -> Result<MechanismSupportResidualSummary, MechanismSupportError> {
+        self.factorized_residual()
+    }
+
+    fn factorized_residual(
+        &self,
+    ) -> Result<MechanismSupportResidualSummary, MechanismSupportError> {
         let pending_cases = self.pending_cases.total_weight();
         let unavailable_cases = self.unavailable_cases.total_weight();
         let unassigned_cases = self.unassigned_signature_index.total_weight();
@@ -2549,9 +2858,26 @@ impl MechanismSupportCatalogBuilder {
         encoder.u128(self.unassigned_signature_index.entry_count());
         encoder.u128(unassigned_cases);
         encoder.u128(case_count);
-        Ok(FactorizedResidualSummary {
+        Ok(MechanismSupportResidualSummary {
             root: MechanismSupportResidualRoot(encoder.finish()),
             case_count,
+            pending_cases: MechanismSupportResidualComponentSummary {
+                root: MechanismSupportResidualComponentRoot(self.pending_cases.root_hash()),
+                member_count: self.pending_cases.entry_count(),
+                case_count: pending_cases,
+            },
+            unavailable_cases: MechanismSupportResidualComponentSummary {
+                root: MechanismSupportResidualComponentRoot(self.unavailable_cases.root_hash()),
+                member_count: self.unavailable_cases.entry_count(),
+                case_count: unavailable_cases,
+            },
+            unassigned_signatures: MechanismSupportResidualComponentSummary {
+                root: MechanismSupportResidualComponentRoot(
+                    self.unassigned_signature_index.root_hash(),
+                ),
+                member_count: self.unassigned_signature_index.entry_count(),
+                case_count: unassigned_cases,
+            },
         })
     }
 }
@@ -2584,6 +2910,27 @@ fn assignment_supports_subject(
                 .binary_search(&edge_id)
                 .is_ok(),
         },
+    }
+}
+
+fn assignment_introduces_subject(
+    assignment: &StructuralSignatureAssignment,
+    subject: MechanismSupportSubject,
+) -> bool {
+    match subject {
+        MechanismSupportSubject::Mechanism(mechanism_id) => {
+            assignment.mechanism_id() == mechanism_id
+        }
+        // Differential participation is a support facet of an activation
+        // subject. Its addressability comes from imported activation
+        // membership even when this signature contributes no differential
+        // support for the node or edge.
+        MechanismSupportSubject::Node { node_id, .. } => {
+            assignment.node_membership().binary_search(&node_id).is_ok()
+        }
+        MechanismSupportSubject::Edge { edge_id, .. } => {
+            assignment.edge_membership().binary_search(&edge_id).is_ok()
+        }
     }
 }
 
@@ -2740,14 +3087,21 @@ fn validate_structural_subject(
     }
 }
 
-fn build_subject_projection(
+fn build_imported_subject_projection(
     subject: MechanismSupportSubject,
     structural: &StructuralMechanismCatalogBuilder,
+    imported_assignments: &BTreeSet<MechanismSignatureId>,
     fibers: &BTreeMap<MechanismSignatureId, SignatureCaseFiber>,
+    structural_assignment_cursor: usize,
+    structural_prefix_revision: StructuralCatalogRevision,
 ) -> Result<SubjectProjectionCache, MechanismSupportError> {
-    let mut projection = SubjectProjectionCache::new();
-    if let Some(signatures) = supporting_signatures(structural, subject) {
-        for signature_id in signatures.iter().copied() {
+    let mut projection =
+        SubjectProjectionCache::new(structural_assignment_cursor, structural_prefix_revision);
+    for signature_id in imported_assignments.iter().copied() {
+        let assignment = structural
+            .assignment(signature_id)
+            .ok_or(MechanismSupportError::UnknownStructuralAssignment)?;
+        if assignment_supports_subject(assignment, subject) {
             if let Some(fiber) = fibers.get(&signature_id) {
                 insert_signature_fiber(&mut projection, signature_id, fiber)?;
             }
@@ -3132,7 +3486,7 @@ fn encode_support_key(encoder: &mut SupportEncoder, key: MechanismSupportKey) {
 fn derive_support_view_root(
     key: MechanismSupportKey,
     target_seal_id: Option<MechanismTargetSealId>,
-    structural_assignment_root: [u8; 32],
+    structural_authority: MechanismSupportViewStructuralAuthority,
     terminal_fact_root: [u8; 32],
     signature_fiber_root: [u8; 32],
     target_starter_root: [u8; 32],
@@ -3145,7 +3499,7 @@ fn derive_support_view_root(
     starter_count: MechanismSupportCount,
     starter_upper_provenance: MechanismStarterUpperProvenance,
 ) -> MechanismSupportViewRoot {
-    let mut encoder = SupportEncoder::new(SUPPORT_VIEW_ROOT_V4);
+    let mut encoder = SupportEncoder::new(SUPPORT_VIEW_ROOT_V5);
     encoder.u32(MECHANISM_SUPPORT_VIEW_VERSION);
     encoder.digest(key.request_id.bytes());
     encode_target(&mut encoder, key.target);
@@ -3173,7 +3527,26 @@ fn derive_support_view_root(
         }
     }
     encoder.u8(u8::from(target_frontier_open));
-    encoder.digest(structural_assignment_root);
+    match structural_authority {
+        MechanismSupportViewStructuralAuthority::OpenPrefix {
+            assignment_cursor,
+            prefix_revision,
+        } => {
+            encoder.u8(0x01);
+            encoder.u128(assignment_cursor as u128);
+            encoder.digest(prefix_revision.bytes());
+        }
+        MechanismSupportViewStructuralAuthority::Closed {
+            structural_root,
+            assignment_root,
+            assignment_count,
+        } => {
+            encoder.u8(0x02);
+            encoder.digest(structural_root.bytes());
+            encoder.digest(assignment_root);
+            encoder.u128(assignment_count as u128);
+        }
+    }
     encoder.digest(terminal_fact_root);
     encoder.digest(signature_fiber_root);
     encoder.digest(target_starter_root);
@@ -3187,14 +3560,11 @@ fn derive_support_view_root(
     MechanismSupportViewRoot(encoder.finish())
 }
 
-fn encode_optional_target_seal(
-    encoder: &mut SupportEncoder,
-    target_seal: Option<&MechanismTargetSeal>,
-) {
-    match target_seal {
-        Some(seal) => {
+fn encode_optional_digest(encoder: &mut SupportEncoder, digest: Option<[u8; 32]>) {
+    match digest {
+        Some(digest) => {
             encoder.u8(0x01);
-            encoder.digest(seal.id().bytes());
+            encoder.digest(digest);
         }
         None => encoder.u8(0x00),
     }
@@ -3445,8 +3815,10 @@ impl SupportEncoder {
 #[cfg(test)]
 pub(super) struct ClosedSubjectStarterFixture {
     pub(super) relation_id: super::relation::RelationId,
+    pre_structural_support: MechanismSupportCatalogBuilder,
     pub(super) open_support: MechanismSupportCatalogBuilder,
     pub(super) support: MechanismSupportCatalogBuilder,
+    incidence: super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
     pub(super) structural: StructuralMechanismCatalogBuilder,
     pub(super) mechanism_id: StructuralMechanismId,
     pub(super) mechanism_ids: Box<[StructuralMechanismId]>,
@@ -3811,6 +4183,7 @@ fn subject_starter_fixture(
             )
             .expect("fixture support target");
     }
+    let pre_structural_support = support.clone();
     support
         .sync_structural_assignments(&structural)
         .expect("fixture support structural assignments");
@@ -3840,8 +4213,10 @@ fn subject_starter_fixture(
 
     ClosedSubjectStarterFixture {
         relation_id,
+        pre_structural_support,
         open_support,
         support,
+        incidence,
         structural,
         mechanism_id,
         mechanism_ids,
@@ -3859,6 +4234,91 @@ mod tests {
             fixture.support.scope(),
             MechanismSupportSubject::Mechanism(fixture.mechanism_id),
         )
+    }
+
+    #[test]
+    fn open_mechanism_support_stream_observes_only_the_imported_structural_prefix() {
+        let fixture = closed_subject_starter_fixture();
+        let mut support = fixture.pre_structural_support;
+        let key = MechanismSupportKey::new(
+            support.scope(),
+            MechanismSupportSubject::Mechanism(fixture.mechanism_id),
+        );
+        let structural_closure = fixture
+            .structural
+            .closure()
+            .expect("fixture structural closure")
+            .root();
+        let incidence_closure = fixture
+            .incidence
+            .closed_ref()
+            .expect("fixture incidence closure")
+            .root();
+        let checkpoint = |support: &mut MechanismSupportCatalogBuilder| {
+            support
+                .checkpoint_frontier(
+                    &fixture.incidence,
+                    Some(incidence_closure),
+                    &fixture.structural,
+                    Some(structural_closure),
+                )
+                .expect("support checkpoint")
+        };
+        let before_cursor = support.checkpoint_cursor();
+        let before_revision = support.structural_assignment_revision;
+        let before_frontier = checkpoint(&mut support);
+
+        assert_eq!(
+            support.derive_view(key, &fixture.structural),
+            Err(MechanismSupportError::UnknownStructuralSubject)
+        );
+        let unchanged_frontier = checkpoint(&mut support);
+        assert_eq!(support.checkpoint_cursor(), before_cursor);
+        assert_eq!(support.structural_assignment_revision, before_revision);
+        assert_eq!(unchanged_frontier, before_frontier);
+
+        assert_eq!(
+            support
+                .sync_structural_assignments_through(&fixture.structural, 1)
+                .expect("bounded structural-prefix import"),
+            1
+        );
+        let imported_cursor = support.checkpoint_cursor();
+        let prefix_revision = fixture
+            .structural
+            .assignment_discovery_prefix_revision(1)
+            .expect("one-assignment prefix revision");
+        let imported_frontier = checkpoint(&mut support);
+        assert_eq!(imported_cursor.structural_assignment(), 1);
+        assert_eq!(
+            support.structural_assignment_revision,
+            Some(prefix_revision)
+        );
+        assert_ne!(
+            imported_frontier.imported_prefix_root(),
+            before_frontier.imported_prefix_root()
+        );
+        assert_eq!(
+            support
+                .support_view_structural_authority(&fixture.structural, 1, prefix_revision)
+                .expect("open V5 structural authority"),
+            MechanismSupportViewStructuralAuthority::OpenPrefix {
+                assignment_cursor: 1,
+                prefix_revision,
+            }
+        );
+        assert_eq!(
+            support
+                .derive_view(key, &fixture.structural)
+                .expect("imported structural subject")
+                .key(),
+            key
+        );
+        assert_eq!(support.checkpoint_cursor(), imported_cursor);
+        assert_eq!(
+            support.structural_assignment_revision,
+            Some(prefix_revision)
+        );
     }
 
     #[test]

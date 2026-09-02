@@ -1267,6 +1267,9 @@ impl From<ResultEvidenceError> for RelationalIncidenceResultStepDriverError {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::explore::mechanism_support::{
+        MechanismSupportCheckpointCursor, MechanismSupportFrontierRoot,
+    };
     use crate::explore::relational_case_executor::{
         RelationalCaseExecutor, RelationalSuccessorAdvance,
     };
@@ -1274,7 +1277,9 @@ mod tests {
         RelationalBoundValue, RelationalExpressionRuntime, RelationalSourceAdvance,
         RelationalSourceContinuation, RelationalSourceEnumerator,
     };
-    use crate::explore::relational_journal::{RelationalEvidenceEvent, RelationalJournalContract};
+    use crate::explore::relational_journal::{
+        RelationalEvidenceEvent, RelationalJournalContract, RelationalMechanismSupportStepEvents,
+    };
     use crate::explore::relational_mechanism_executor::{
         derive_relational_structural_mechanism_v1, replay_relational_mechanism_case,
         RelationalMechanismActivationStep, RelationalMechanismCalleeId,
@@ -1368,6 +1373,31 @@ mod tests {
         }
     }
 
+    fn append_support_checkpoint(
+        journal: &mut RelationalJournal,
+        request_id: MechanismRequestId,
+        expected_cursor: MechanismSupportCheckpointCursor,
+        expected_accepted_target_cases: usize,
+    ) -> MechanismSupportFrontierRoot {
+        let RelationalMechanismSupportStepEvents::Checkpoint {
+            accepted_target_cases,
+            cursor,
+            frontier_root,
+            events,
+        } = journal
+            .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+            .expect("advance bounded support frontier")
+        else {
+            panic!("visible support suffix must emit one checkpoint");
+        };
+        assert_eq!(accepted_target_cases, expected_accepted_target_cases);
+        assert_eq!(cursor, expected_cursor);
+        for event in events.into_vec() {
+            journal.append(event).expect("append support checkpoint");
+        }
+        frontier_root
+    }
+
     fn expect_awaiting(
         outcome: RelationalIncidenceResultStepOutcome,
         view_id: ViewId,
@@ -1385,7 +1415,7 @@ mod tests {
     }
 
     #[test]
-    fn structural_assignment_gates_incidence_evidence_and_both_closures_gate_the_input_seal() {
+    fn open_mechanism_support_stream_structural_assignment_gates_incidence_and_closure() {
         let source = r#"
 > structural_gate_observe(state: Int, context: Int) -> Int {
     state + context
@@ -1655,6 +1685,19 @@ mod tests {
                 .expect("append incidence artifact event");
         }
 
+        let terminal_prefix_root = append_support_checkpoint(
+            &mut journal,
+            request_id,
+            MechanismSupportCheckpointCursor::new(1, 1, 0),
+            1,
+        );
+        assert!(matches!(
+            journal
+                .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+                .expect("open caught-up support frontier"),
+            RelationalMechanismSupportStepEvents::Idle
+        ));
+
         // A successful raw terminal is not yet a typed structural incidence
         // row. The driver must leave it pending, not evaluate it with guessed
         // or placeholder quotient IDs.
@@ -1735,6 +1778,20 @@ mod tests {
         assert_eq!(assignment.mechanism_id(), structural_mechanism_id);
         assert_eq!(assignment.profile_id(), execution_profile_id);
 
+        let assigned_prefix_root = append_support_checkpoint(
+            &mut journal,
+            request_id,
+            MechanismSupportCheckpointCursor::new(1, 1, 1),
+            0,
+        );
+        assert_ne!(assigned_prefix_root, terminal_prefix_root);
+        assert!(matches!(
+            journal
+                .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+                .expect("assigned but unsealed support frontier"),
+            RelationalMechanismSupportStepEvents::Idle
+        ));
+
         let RelationalIncidenceResultStepOutcome::Emitted(evaluate) = driver
             .step(&journal, &mut result_runtime)
             .expect("evaluate structurally assigned incidence")
@@ -1808,6 +1865,30 @@ mod tests {
             .analysis_state()
             .and_then(|analysis| analysis.structural_quotient_closure(request_id))
             .expect("durable structural quotient closure");
+
+        let sealed_frontier_root = append_support_checkpoint(
+            &mut journal,
+            request_id,
+            MechanismSupportCheckpointCursor::new(1, 1, 1),
+            0,
+        );
+        assert_ne!(sealed_frontier_root, assigned_prefix_root);
+        let RelationalMechanismSupportStepEvents::Closed {
+            checkpointed_frontier,
+            cursor,
+            events,
+            ..
+        } = journal
+            .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+            .expect("close fully sealed support frontier")
+        else {
+            panic!("durable final support checkpoint must release closure");
+        };
+        assert!(!checkpointed_frontier);
+        assert_eq!(cursor, MechanismSupportCheckpointCursor::new(1, 1, 1));
+        for event in events.into_vec() {
+            journal.append(event).expect("append support closure");
+        }
 
         let RelationalIncidenceResultStepOutcome::Emitted(seal) = driver
             .step(&journal, &mut result_runtime)
