@@ -6712,6 +6712,13 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
                 "signature_fibers": totals.signature_fibers.to_string(),
                 "target_starters": totals.target_starters.to_string(),
             })),
+            "support_observations": {
+                "points": mechanism.support_observation_points.to_string(),
+                "observed_slices": mechanism.observed_support_slices.to_string(),
+                "sealed_slices": mechanism.sealed_support_slices.to_string(),
+                "chain_root": mechanism.support_observation_chain_root,
+                "initial_point_id": mechanism.initial_support_observation_point_id,
+            },
         }),
     }
 }
@@ -6898,10 +6905,17 @@ fn relational_explore_answer_mechanism_json(
             "signature_fibers": totals.signature_fibers.to_string(),
             "distinct_target_starters": totals.target_starters.to_string(),
         })),
+        "support_observations": {
+            "points": mechanism.support_observation_points.to_string(),
+            "observed_slices": mechanism.observed_support_slices.to_string(),
+            "sealed_slices": mechanism.sealed_support_slices.to_string(),
+            "initial_point_id": mechanism.initial_support_observation_point_id,
+        },
         "evidence": {
             "raw_closure_root": mechanism.raw_closure_root,
             "structural_closure_root": mechanism.structural_closure_root,
             "starter_support_closure_root": mechanism.support_closure_root,
+            "support_observation_chain_root": mechanism.support_observation_chain_root,
         },
     })
 }
@@ -6958,7 +6972,7 @@ fn relational_explore_report_json(
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v5",
+        "schema": "futuruna.explore.relational-stream.v6",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
         "query": {
@@ -7148,6 +7162,25 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
                 "replay-unavailable cases",
             ),
         );
+        if mechanism.support_observation_points != 0 {
+            println!(
+                "Support stream `{}`: {} durable observation point{} across {} slice{}; {} sealed.",
+                mechanism.name,
+                mechanism.support_observation_points,
+                if mechanism.support_observation_points == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.observed_support_slices,
+                if mechanism.observed_support_slices == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.sealed_support_slices,
+            );
+        }
         if let Some(totals) = mechanism.support_closure_totals {
             println!(
                 "Starter support `{}`: across the whole mechanism-request target, the sealed support contains {} distinct starting state{} beneath {} before-to-after case{} ({} successful, {} unavailable).",
@@ -7354,6 +7387,12 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
                     relational_explore_count_text(mechanism.structural_assignments),
                     relational_explore_count_text(mechanism.structural_mechanisms),
                     relational_explore_count_text(mechanism.execution_profiles),
+                );
+                println!(
+                    "    support observations: {} points across {} slices ({} sealed)",
+                    mechanism.support_observation_points,
+                    mechanism.observed_support_slices,
+                    mechanism.sealed_support_slices,
                 );
                 if mechanism.raw_closure_root.is_some()
                     || mechanism.structural_closure_root.is_some()

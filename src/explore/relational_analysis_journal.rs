@@ -30,9 +30,9 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonDefinition, MechanismUnavailableReasonId,
 };
 use super::mechanism_support::{
-    MechanismSupportCatalogBuilder, MechanismSupportCheckpointCursor,
-    MechanismSupportClosureReceipt, MechanismSupportClosureRoot, MechanismSupportError,
-    MechanismSupportFrontierSummary,
+    MechanismFactorizedSupportObservationSummary, MechanismSupportCatalogBuilder,
+    MechanismSupportCheckpointCursor, MechanismSupportClosureReceipt, MechanismSupportClosureRoot,
+    MechanismSupportError, MechanismSupportFrontierSummary, MechanismSupportSlice,
 };
 use super::relation::{
     ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
@@ -1557,6 +1557,74 @@ impl RelationalAnalysisJournalState {
         request_id: MechanismRequestId,
     ) -> Option<MechanismSupportClosureReceipt> {
         self.support_closures.get(&request_id).copied()
+    }
+
+    /// Read the locally derived support prefix without creating any catalog
+    /// state. The outer journal uses this only to prioritize recovery of a
+    /// discarded checkpoint proposal; the durable checkpoint remains the
+    /// authority for observation and closure.
+    pub(crate) fn mechanism_support_checkpoint_cursor(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> MechanismSupportCheckpointCursor {
+        self.mechanism_supports
+            .get(&request_id)
+            .map_or_else(MechanismSupportCheckpointCursor::default, |support| {
+                support.checkpoint_cursor()
+            })
+    }
+
+    /// Resolve the first automatically observed support slice from the first
+    /// structural assignment imported by the support stream. Observation is
+    /// deliberately demand-driven: an empty imported prefix has no invented
+    /// mechanism subject, and later node/edge slices can be scheduled through
+    /// the same coordinate type without changing this lifecycle primitive.
+    pub(crate) fn initial_support_observation_slice(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<Option<MechanismSupportSlice>, RelationalAnalysisJournalError> {
+        let support = self.mechanism_supports.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ),
+        )?;
+        if support.checkpoint_cursor().structural_assignment() == 0 {
+            return Ok(None);
+        }
+        support.automatic_observation_slice().map(Some).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::StructuralAssignmentPrefixConflict,
+            ),
+        )
+    }
+
+    /// Re-derive one compact factorized observation against an exact durable
+    /// imported prefix. The caller supplies the checkpoint cursor and
+    /// frontier from the outer journal; neither a longer live structural
+    /// catalog nor a renderer can leak into the result.
+    pub(crate) fn derive_support_observation_summary(
+        &self,
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier: MechanismSupportFrontierSummary,
+    ) -> Result<MechanismFactorizedSupportObservationSummary, RelationalAnalysisJournalError> {
+        let request_id = slice.key().request_id();
+        let support = self.mechanism_supports.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ),
+        )?;
+        if support.checkpoint_cursor() != cursor || frontier.cursor() != cursor {
+            return Err(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::FrontierConflict,
+            ));
+        }
+        let structural = self.structural_mechanisms.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("structural checkpoint prefix"),
+            ),
+        )?;
+        Ok(support.derive_factorized_support_observation(slice, frontier, structural)?)
     }
 
     pub(crate) const fn closed_closure_set_root(&self) -> Option<RelationalAnalysisClosureSetRoot> {

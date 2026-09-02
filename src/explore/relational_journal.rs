@@ -17,8 +17,9 @@ use std::sync::{Arc, Weak};
 use sha2::{Digest, Sha256};
 
 use super::mechanism_support::{
-    MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportFrontierRoot,
-    MechanismSupportFrontierSummary,
+    MechanismFactorizedSupportObservationSummary, MechanismFactorizedSupportObservationSummaryRoot,
+    MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportError,
+    MechanismSupportFrontierRoot, MechanismSupportFrontierSummary, MechanismSupportSlice,
 };
 use super::relation::{
     install_selected_case_batch, AdmissionCatalog, AdmissionCatalogBuilder, AdmissionContentRoot,
@@ -39,7 +40,9 @@ use super::relational_analysis_journal::{
     RelationalAnalysisJournalState, RelationalSelectedPopulationAuthority,
     RelationalSelectedQuestionSeal,
 };
-use super::relational_analysis_plan::{RelationalAnalysisPlan, RelationalAnalysisPlanRoot};
+use super::relational_analysis_plan::{
+    RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanRoot,
+};
 use super::relational_bounded_chunk_partition::{
     reverify_relational_case_chunk_partition_artifact, RelationalCaseChunkId,
     RelationalCaseChunkPartitionArtifact, RelationalCaseChunkPartitionArtifactId,
@@ -123,12 +126,12 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 18;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 19;
 
-const JOURNAL_CONTRACT_HASH_V18: &[u8] = b"futuruna.explore.relational-journal-contract.v18";
-const JOURNAL_GENESIS_HASH_V18: &[u8] = b"futuruna.explore.relational-journal-genesis.v18";
-const JOURNAL_EVENT_HASH_V17: &[u8] = b"futuruna.explore.relational-journal-event.v17";
-const JOURNAL_ENTRY_HASH_V18: &[u8] = b"futuruna.explore.relational-journal-entry.v18";
+const JOURNAL_CONTRACT_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-contract.v19";
+const JOURNAL_GENESIS_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-genesis.v19";
+const JOURNAL_EVENT_HASH_V18: &[u8] = b"futuruna.explore.relational-journal-event.v18";
+const JOURNAL_ENTRY_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-entry.v19";
 const CORE_EVIDENCE_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-core-evidence-root.v5";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -136,7 +139,15 @@ const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exhaustion-evidence-root.v2";
 const EXTENSIONAL_CONTENT_ROOT_HASH_V4: &[u8] =
     b"futuruna.explore.relational-extensional-content-root.v4";
-const CHECKPOINT_ROOT_HASH_V4: &[u8] = b"futuruna.explore.relational-checkpoint-root.v4";
+const CHECKPOINT_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-checkpoint-root.v5";
+const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-point-id.v1";
+const MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-chain-genesis.v1";
+const MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-chain-step.v1";
+
+pub(crate) const MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION: u32 = 1;
 
 /// Semantic replay bound for every independently authenticated mechanism-
 /// support checkpoint lane. Runtime limits may choose a smaller quantum, but
@@ -442,7 +453,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V18);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V19);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -469,7 +480,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V18);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V19);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -587,6 +598,199 @@ pub(crate) enum RelationalEvidenceEvent {
     Analysis(RelationalAnalysisEvidenceEvent),
 }
 
+/// Stable identity of one replay-derived support observation at an exact
+/// durable checkpoint. The identity changes when either the support summary,
+/// lifecycle status, or linear predecessor changes.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismSupportObservationPointId([u8; 32]);
+
+impl MechanismSupportObservationPointId {
+    pub(super) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Request-local append-only commitment to every accepted observation point
+/// in journal order.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismSupportObservationChainRoot([u8; 32]);
+
+impl MechanismSupportObservationChainRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MechanismSupportObservationStatus {
+    Open,
+    Sealed {
+        support_root: MechanismSupportClosureRoot,
+    },
+}
+
+impl MechanismSupportObservationStatus {
+    pub(crate) const fn support_root(self) -> Option<MechanismSupportClosureRoot> {
+        match self {
+            Self::Open => None,
+            Self::Sealed { support_root } => Some(support_root),
+        }
+    }
+
+    pub(crate) const fn is_sealed(self) -> bool {
+        matches!(self, Self::Sealed { .. })
+    }
+}
+
+/// Fixed-size journal claim. The compact summary payload is deliberately not
+/// serialized: replay re-derives it from the exact imported support prefix and
+/// rejects a mismatching root.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportObservationClaim {
+    version: u32,
+    point_id: MechanismSupportObservationPointId,
+    slice: MechanismSupportSlice,
+    cursor: MechanismSupportCheckpointCursor,
+    frontier_root: MechanismSupportFrontierRoot,
+    summary_root: MechanismFactorizedSupportObservationSummaryRoot,
+    status: MechanismSupportObservationStatus,
+    supersedes: Option<MechanismSupportObservationPointId>,
+}
+
+impl MechanismSupportObservationClaim {
+    pub(crate) fn new(
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        summary_root: MechanismFactorizedSupportObservationSummaryRoot,
+        status: MechanismSupportObservationStatus,
+        supersedes: Option<MechanismSupportObservationPointId>,
+    ) -> Self {
+        let version = MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION;
+        let point_id = derive_mechanism_support_observation_point_id(
+            version,
+            slice,
+            cursor,
+            frontier_root,
+            summary_root,
+            status,
+            supersedes,
+        );
+        Self {
+            version,
+            point_id,
+            slice,
+            cursor,
+            frontier_root,
+            summary_root,
+            status,
+            supersedes,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) const fn restore_from_journal_codec(
+        version: u32,
+        point_id: MechanismSupportObservationPointId,
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        summary_root: MechanismFactorizedSupportObservationSummaryRoot,
+        status: MechanismSupportObservationStatus,
+        supersedes: Option<MechanismSupportObservationPointId>,
+    ) -> Self {
+        Self {
+            version,
+            point_id,
+            slice,
+            cursor,
+            frontier_root,
+            summary_root,
+            status,
+            supersedes,
+        }
+    }
+
+    pub(crate) const fn version(self) -> u32 {
+        self.version
+    }
+
+    pub(crate) const fn point_id(self) -> MechanismSupportObservationPointId {
+        self.point_id
+    }
+
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn cursor(self) -> MechanismSupportCheckpointCursor {
+        self.cursor
+    }
+
+    pub(crate) const fn frontier_root(self) -> MechanismSupportFrontierRoot {
+        self.frontier_root
+    }
+
+    pub(crate) const fn summary_root(self) -> MechanismFactorizedSupportObservationSummaryRoot {
+        self.summary_root
+    }
+
+    pub(crate) const fn status(self) -> MechanismSupportObservationStatus {
+        self.status
+    }
+
+    pub(crate) const fn supersedes(self) -> Option<MechanismSupportObservationPointId> {
+        self.supersedes
+    }
+
+    fn validate_identity(self) -> bool {
+        self.version == MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION
+            && self.point_id
+                == derive_mechanism_support_observation_point_id(
+                    self.version,
+                    self.slice,
+                    self.cursor,
+                    self.frontier_root,
+                    self.summary_root,
+                    self.status,
+                    self.supersedes,
+                )
+    }
+}
+
+/// Replay-owned payload for publication and scheduler inspection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportObservationPoint {
+    claim: MechanismSupportObservationClaim,
+    summary: MechanismFactorizedSupportObservationSummary,
+}
+
+impl MechanismSupportObservationPoint {
+    pub(crate) const fn claim(&self) -> MechanismSupportObservationClaim {
+        self.claim
+    }
+
+    pub(crate) const fn point_id(&self) -> MechanismSupportObservationPointId {
+        self.claim.point_id()
+    }
+
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.claim.slice()
+    }
+
+    pub(crate) const fn status(&self) -> MechanismSupportObservationStatus {
+        self.claim.status()
+    }
+
+    pub(crate) const fn summary(&self) -> &MechanismFactorizedSupportObservationSummary {
+        &self.summary
+    }
+}
+
 /// One resumability mutation. Checkpoints are authenticated by journal order,
 /// but are deliberately absent from the arrival-order-independent semantic
 /// evidence roots: a scheduler may reach the same proof frontier by a
@@ -630,6 +834,11 @@ pub(crate) enum RelationalCheckpointEvent {
         request_id: MechanismRequestId,
         cursor: MechanismSupportCheckpointCursor,
         frontier_root: MechanismSupportFrontierRoot,
+    },
+    /// Append one replay-derived observation of a structural support slice at
+    /// the exact latest durable support frontier.
+    SupportSubjectObserved {
+        claim: MechanismSupportObservationClaim,
     },
     WorkNodeCompleted {
         node_id: WorkNodeId,
@@ -885,6 +1094,10 @@ impl RelationalJournalEvent {
         })
     }
 
+    pub(crate) const fn support_subject_observed(claim: MechanismSupportObservationClaim) -> Self {
+        Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { claim })
+    }
+
     pub(crate) fn relational_classified_chunk_slice_checkpointed(
         artifact: RelationalClassifiedChunkSliceArtifact,
     ) -> Self {
@@ -979,6 +1192,7 @@ impl RelationalJournalEvent {
                 ..
             })
             | Self::Checkpoint(RelationalCheckpointEvent::SupportFrontierCheckpointed { .. })
+            | Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkFrontierCompacted { .. }) => None,
         }
     }
@@ -999,6 +1213,7 @@ impl RelationalJournalEvent {
                 ..
             })
             | Self::Checkpoint(RelationalCheckpointEvent::SupportFrontierCheckpointed { .. })
+            | Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkNodeCompleted { .. }) => None,
         }
     }
@@ -1439,6 +1654,9 @@ struct RelationalEvidenceState {
     /// exists solely to bind resumability into the outer checkpoint root.
     latest_support_frontiers:
         BTreeMap<MechanismRequestId, RelationalMechanismSupportCheckpointReceipt>,
+    /// Replay-derived append-only support observations, partitioned by
+    /// mechanism request so each public artifact can stream by ordinal.
+    mechanism_support_observations: BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
     work: RelationalWorkFrontier,
 }
 
@@ -1449,6 +1667,46 @@ struct RelationalEvidenceState {
 struct RelationalMechanismSupportCheckpointReceipt {
     cursor: MechanismSupportCheckpointCursor,
     frontier: MechanismSupportFrontierSummary,
+}
+
+#[derive(Clone, Debug)]
+struct MechanismSupportObservationLog {
+    points: Vec<MechanismSupportObservationPoint>,
+    latest_by_slice: BTreeMap<MechanismSupportSlice, LatestMechanismSupportObservation>,
+    chain_root: MechanismSupportObservationChainRoot,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct LatestMechanismSupportObservation {
+    ordinal: usize,
+    point_id: MechanismSupportObservationPointId,
+}
+
+impl MechanismSupportObservationLog {
+    fn new(request_id: MechanismRequestId) -> Self {
+        Self {
+            points: Vec::new(),
+            latest_by_slice: BTreeMap::new(),
+            chain_root: mechanism_support_observation_chain_genesis(request_id),
+        }
+    }
+
+    fn latest_point(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Option<&MechanismSupportObservationPoint> {
+        let latest = self.latest_by_slice.get(&slice)?;
+        self.points
+            .get(latest.ordinal)
+            .filter(|point| point.point_id() == latest.point_id)
+    }
+
+    fn all_slices_are_sealed(&self) -> bool {
+        self.latest_by_slice.keys().all(|slice| {
+            self.latest_point(*slice)
+                .is_some_and(|point| point.status().is_sealed())
+        })
+    }
 }
 
 fn validate_support_frontier_enrichment(
@@ -1567,6 +1825,7 @@ impl RelationalEvidenceState {
             successor_exhaustion_receipts: BTreeMap::new(),
             support,
             latest_support_frontiers: BTreeMap::new(),
+            mechanism_support_observations: BTreeMap::new(),
             work: RelationalWorkFrontier::new(),
         }
     }
@@ -3638,33 +3897,52 @@ impl RelationalEvidenceState {
                         request_id: *request_id,
                     },
                 )?;
-            let analysis = self
+            {
+                let analysis = self
+                    .analysis
+                    .as_mut()
+                    .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+                let (current, available) = analysis.support_checkpoint_cursors(*request_id)?;
+                if current != available {
+                    return Err(RelationalJournalError::SupportClosureCheckpointIncomplete {
+                        request_id: *request_id,
+                    });
+                }
+                if durable.cursor != current {
+                    return Err(
+                        RelationalJournalError::SupportClosureFrontierCheckpointMissing {
+                            request_id: *request_id,
+                        },
+                    );
+                }
+                let derived_frontier = analysis.checkpoint_support_frontier(*request_id)?;
+                if durable.frontier != derived_frontier {
+                    return Err(
+                        RelationalJournalError::SupportCheckpointAnchorRootMismatch {
+                            request_id: *request_id,
+                        },
+                    );
+                }
+            }
+            let support_already_closed = self
                 .analysis
+                .as_ref()
+                .and_then(|analysis| analysis.mechanism_support_closure(*request_id))
+                .is_some();
+            if !support_already_closed {
+                self.require_support_observation_ready_to_close(*request_id)?;
+            }
+            self.analysis
                 .as_mut()
-                .ok_or(RelationalJournalError::AnalysisStateMissing)?;
-            let (current, available) = analysis.support_checkpoint_cursors(*request_id)?;
-            if current != available {
-                return Err(RelationalJournalError::SupportClosureCheckpointIncomplete {
-                    request_id: *request_id,
-                });
-            }
-            if durable.cursor != current {
-                return Err(
-                    RelationalJournalError::SupportClosureFrontierCheckpointMissing {
-                        request_id: *request_id,
-                    },
-                );
-            }
-            let derived_frontier = analysis.checkpoint_support_frontier(*request_id)?;
-            if durable.frontier != derived_frontier {
-                return Err(
-                    RelationalJournalError::SupportCheckpointAnchorRootMismatch {
-                        request_id: *request_id,
-                    },
-                );
-            }
-            analysis.apply(event)?;
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                .apply(event)?;
             return Ok(());
+        }
+        if matches!(
+            event,
+            RelationalAnalysisEvidenceEvent::AnalysisClosed { .. }
+        ) {
+            self.require_all_support_observations_sealed()?;
         }
         self.analysis
             .as_mut()
@@ -3985,6 +4263,9 @@ impl RelationalEvidenceState {
                     },
                 );
             }
+            RelationalCheckpointEvent::SupportSubjectObserved { claim } => {
+                self.accept_mechanism_support_observation(*claim)?;
+            }
             RelationalCheckpointEvent::WorkNodeCompleted {
                 node_id,
                 completion,
@@ -3994,6 +4275,187 @@ impl RelationalEvidenceState {
             }
             RelationalCheckpointEvent::WorkFrontierCompacted { receipt } => {
                 self.work.compact(*receipt)?;
+            }
+        }
+        Ok(())
+    }
+
+    fn accept_mechanism_support_observation(
+        &mut self,
+        claim: MechanismSupportObservationClaim,
+    ) -> Result<(), RelationalJournalError> {
+        if !claim.validate_identity() {
+            return Err(RelationalJournalError::SupportObservationPointIdentityMismatch);
+        }
+        let request_id = claim.slice().key().request_id();
+        let durable = self
+            .latest_support_frontiers
+            .get(&request_id)
+            .copied()
+            .ok_or(RelationalJournalError::SupportObservationFrontierMissing { request_id })?;
+        if durable.cursor != claim.cursor() || durable.frontier.root() != claim.frontier_root() {
+            return Err(RelationalJournalError::SupportObservationFrontierMismatch { request_id });
+        }
+        let analysis = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+        let expected_status = analysis.mechanism_support_closure(request_id).map_or(
+            MechanismSupportObservationStatus::Open,
+            |closure| MechanismSupportObservationStatus::Sealed {
+                support_root: closure.root(),
+            },
+        );
+        if claim.status() != expected_status {
+            return Err(RelationalJournalError::SupportObservationStatusMismatch { request_id });
+        }
+        if analysis.initial_support_observation_slice(request_id)? != Some(claim.slice()) {
+            return Err(RelationalJournalError::SupportObservationSliceNotScheduled { request_id });
+        }
+        let summary = analysis.derive_support_observation_summary(
+            claim.slice(),
+            claim.cursor(),
+            durable.frontier,
+        )?;
+        if summary.root() != claim.summary_root() {
+            return Err(RelationalJournalError::SupportObservationSummaryMismatch { request_id });
+        }
+
+        let prior = self
+            .mechanism_support_observations
+            .get(&request_id)
+            .and_then(|log| log.latest_point(claim.slice()));
+        let expected_supersedes = prior.map(MechanismSupportObservationPoint::point_id);
+        if claim.supersedes() != expected_supersedes {
+            return Err(
+                RelationalJournalError::SupportObservationSupersedesMismatch { request_id },
+            );
+        }
+        if prior.is_some_and(|point| point.status().is_sealed()) {
+            return Err(RelationalJournalError::SupportObservationAfterSeal { request_id });
+        }
+        if claim.status().is_sealed() && prior.is_none() {
+            return Err(
+                RelationalJournalError::SupportObservationSealPredecessorMissing { request_id },
+            );
+        }
+        if prior.is_some_and(|point| {
+            point.claim().cursor() == claim.cursor()
+                && point.claim().frontier_root() == claim.frontier_root()
+                && point.summary().root() == summary.root()
+                && point.status() == claim.status()
+        }) {
+            return Err(RelationalJournalError::SupportObservationDidNotAdvance { request_id });
+        }
+        let point = MechanismSupportObservationPoint { claim, summary };
+        let log = self
+            .mechanism_support_observations
+            .entry(request_id)
+            .or_insert_with(|| MechanismSupportObservationLog::new(request_id));
+        let point_ordinal = log.points.len();
+        log.chain_root = extend_mechanism_support_observation_chain(
+            request_id,
+            log.chain_root,
+            point_ordinal as u128,
+            point.point_id(),
+        );
+        log.latest_by_slice.insert(
+            point.slice(),
+            LatestMechanismSupportObservation {
+                ordinal: point_ordinal,
+                point_id: point.point_id(),
+            },
+        );
+        log.points.push(point);
+        Ok(())
+    }
+
+    fn next_mechanism_support_observation_claim(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<Option<MechanismSupportObservationClaim>, RelationalJournalError> {
+        let Some(durable) = self.latest_support_frontiers.get(&request_id).copied() else {
+            return Ok(None);
+        };
+        let analysis = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+        let Some(slice) = analysis.initial_support_observation_slice(request_id)? else {
+            return Ok(None);
+        };
+        let summary =
+            analysis.derive_support_observation_summary(slice, durable.cursor, durable.frontier)?;
+        let status = analysis.mechanism_support_closure(request_id).map_or(
+            MechanismSupportObservationStatus::Open,
+            |closure| MechanismSupportObservationStatus::Sealed {
+                support_root: closure.root(),
+            },
+        );
+        let prior = self
+            .mechanism_support_observations
+            .get(&request_id)
+            .and_then(|log| log.latest_point(slice));
+        if prior.is_some_and(|point| point.status().is_sealed()) {
+            return Ok(None);
+        }
+        if prior.is_some_and(|point| {
+            point.claim().cursor() == durable.cursor
+                && point.claim().frontier_root() == durable.frontier.root()
+                && point.summary().root() == summary.root()
+                && point.status() == status
+        }) {
+            return Ok(None);
+        }
+        if status.is_sealed() && prior.is_none() {
+            return Err(
+                RelationalJournalError::SupportObservationSealPredecessorMissing { request_id },
+            );
+        }
+        Ok(Some(MechanismSupportObservationClaim::new(
+            slice,
+            durable.cursor,
+            durable.frontier.root(),
+            summary.root(),
+            status,
+            prior.map(MechanismSupportObservationPoint::point_id),
+        )))
+    }
+
+    fn require_support_observation_ready_to_close(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<(), RelationalJournalError> {
+        if self
+            .next_mechanism_support_observation_claim(request_id)?
+            .is_some()
+        {
+            return Err(RelationalJournalError::SupportObservationClosurePending { request_id });
+        }
+        Ok(())
+    }
+
+    fn require_all_support_observations_sealed(&self) -> Result<(), RelationalJournalError> {
+        let plan = self
+            .analysis_plan
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisPlanMissing)?;
+        for registration in plan.layer_registrations() {
+            let RelationalAnalysisLayerRegistration::Mechanisms(registration) = registration else {
+                continue;
+            };
+            let request_id = registration.request_id();
+            if self
+                .next_mechanism_support_observation_claim(request_id)?
+                .is_some()
+                || self
+                    .mechanism_support_observations
+                    .get(&request_id)
+                    .is_some_and(|log| !log.all_slices_are_sealed())
+            {
+                return Err(RelationalJournalError::SupportObservationClosurePending {
+                    request_id,
+                });
             }
         }
         Ok(())
@@ -4184,6 +4646,12 @@ pub(crate) struct RelationalJournal {
 /// growing lane is imported in sparse checkpoint quanta; semantic closure is
 /// proposed only after the exact complete cursor has been durably bound.
 pub(crate) enum RelationalMechanismSupportStepEvents {
+    Observed {
+        point_id: MechanismSupportObservationPointId,
+        slice: MechanismSupportSlice,
+        status: MechanismSupportObservationStatus,
+        events: Box<[RelationalJournalEvent]>,
+    },
     Checkpoint {
         accepted_target_cases: usize,
         cursor: MechanismSupportCheckpointCursor,
@@ -4779,6 +5247,7 @@ impl RelationalJournal {
     pub(crate) fn analysis_terminal_event(
         &self,
     ) -> Result<RelationalJournalEvent, RelationalJournalError> {
+        self.state.require_all_support_observations_sealed()?;
         let event = self
             .state
             .analysis
@@ -4817,39 +5286,83 @@ impl RelationalJournal {
         let derived_state_is_ahead =
             validate_support_checkpoint_delta(request_id, anchor_cursor, cursor)?;
 
-        let accepted_target_cases = if derived_state_is_ahead {
-            // A discarded proposal left only bounded derived-cache progress.
-            // Re-emit its exact cursor before doing any further work.
-            0
-        } else {
-            if let Some(durable) = durable {
-                let current_frontier = self
-                    .state
-                    .analysis
-                    .as_mut()
-                    .ok_or(RelationalJournalError::AnalysisStateMissing)?
-                    .checkpoint_support_frontier(request_id)?;
-                validate_support_frontier_enrichment(
-                    request_id,
-                    durable.frontier,
-                    current_frontier,
-                )?;
-            }
-            let runtime_limit = u128::from(maximum_lane_delta.get())
-                .min(RELATIONAL_SUPPORT_CHECKPOINT_MAX_LANE_DELTA);
-            let runtime_limit = NonZeroU16::new(
-                u16::try_from(runtime_limit)
-                    .expect("the protocol support-checkpoint bound fits u16"),
-            )
-            .expect("a nonzero runtime limit remains nonzero after protocol capping");
-            let (accepted, advanced, upstream) = self
+        // A discarded proposal may leave replay-derived caches one bounded
+        // suffix ahead of the durable checkpoint. Re-emit that exact frontier
+        // before interpreting it as an observable prefix.
+        if derived_state_is_ahead {
+            let frontier = self
                 .state
-                .advance_analysis_support_checkpoint_bounded(request_id, runtime_limit)?;
-            validate_support_checkpoint_delta(request_id, cursor, advanced)?;
-            cursor = advanced;
-            available = upstream;
-            accepted
-        };
+                .analysis
+                .as_mut()
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                .checkpoint_support_frontier(request_id)?;
+            let frontier_root = frontier.root();
+            return Ok(RelationalMechanismSupportStepEvents::Checkpoint {
+                accepted_target_cases: 0,
+                cursor,
+                frontier_root,
+                events: vec![RelationalJournalEvent::support_frontier_checkpointed(
+                    request_id,
+                    cursor,
+                    frontier_root,
+                )]
+                .into_boxed_slice(),
+            });
+        }
+        if let Some(durable) = durable {
+            let frontier = self
+                .state
+                .analysis
+                .as_mut()
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                .checkpoint_support_frontier(request_id)?;
+            validate_support_frontier_enrichment(request_id, durable.frontier, frontier)?;
+            if durable.frontier != frontier {
+                let frontier_root = frontier.root();
+                return Ok(RelationalMechanismSupportStepEvents::Checkpoint {
+                    accepted_target_cases: 0,
+                    cursor,
+                    frontier_root,
+                    events: vec![RelationalJournalEvent::support_frontier_checkpointed(
+                        request_id,
+                        cursor,
+                        frontier_root,
+                    )]
+                    .into_boxed_slice(),
+                });
+            }
+        }
+        if let Some(claim) = self.next_mechanism_support_observation_claim(request_id)? {
+            return Ok(RelationalMechanismSupportStepEvents::Observed {
+                point_id: claim.point_id(),
+                slice: claim.slice(),
+                status: claim.status(),
+                events: vec![RelationalJournalEvent::support_subject_observed(claim)]
+                    .into_boxed_slice(),
+            });
+        }
+        if self
+            .state
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?
+            .mechanism_support_closure(request_id)
+            .is_some()
+        {
+            return Ok(RelationalMechanismSupportStepEvents::Idle);
+        }
+        let runtime_limit =
+            u128::from(maximum_lane_delta.get()).min(RELATIONAL_SUPPORT_CHECKPOINT_MAX_LANE_DELTA);
+        let runtime_limit = NonZeroU16::new(
+            u16::try_from(runtime_limit).expect("the protocol support-checkpoint bound fits u16"),
+        )
+        .expect("a nonzero runtime limit remains nonzero after protocol capping");
+        let (accepted_target_cases, advanced, upstream) = self
+            .state
+            .advance_analysis_support_checkpoint_bounded(request_id, runtime_limit)?;
+        validate_support_checkpoint_delta(request_id, cursor, advanced)?;
+        cursor = advanced;
+        available = upstream;
 
         let frontier = self
             .state
@@ -4909,6 +5422,139 @@ impl RelationalJournal {
 
     pub(crate) const fn analysis_state(&self) -> Option<&RelationalAnalysisJournalState> {
         self.state.analysis.as_ref()
+    }
+
+    fn next_mechanism_support_observation_claim(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<Option<MechanismSupportObservationClaim>, RelationalJournalError> {
+        self.state
+            .next_mechanism_support_observation_claim(request_id)
+    }
+
+    pub(crate) fn mechanism_support_observation_pending(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<bool, RelationalJournalError> {
+        Ok(self
+            .next_mechanism_support_observation_claim(request_id)?
+            .is_some())
+    }
+
+    /// Read-only scheduling treats a frontier conflict as recovery work: it
+    /// means a discarded bounded proposal or same-cursor seal enrichment must
+    /// be re-emitted before an observation can be derived from durable state.
+    pub(crate) fn mechanism_support_observation_or_recovery_pending(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<bool, RelationalJournalError> {
+        let analysis = self
+            .state
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+        let derived_cursor = analysis.mechanism_support_checkpoint_cursor(request_id);
+        let durable = self.state.latest_support_frontiers.get(&request_id);
+        // A first checkpoint is observable even for an empty prefix. Likewise,
+        // a discarded proposal must be re-emitted before another request with
+        // a continuously ready upstream lane can monopolize scheduling.
+        if durable.is_none() || durable.is_some_and(|receipt| receipt.cursor != derived_cursor) {
+            return Ok(true);
+        }
+        match self
+            .state
+            .next_mechanism_support_observation_claim(request_id)
+        {
+            Ok(claim) => Ok(claim.is_some()),
+            Err(RelationalJournalError::Analysis(
+                RelationalAnalysisJournalError::MechanismSupport(
+                    MechanismSupportError::FrontierConflict,
+                ),
+            )) => Ok(true),
+            Err(error) => Err(error),
+        }
+    }
+
+    pub(crate) fn mechanism_support_observation_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> u128 {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| log.points.len() as u128)
+    }
+
+    pub(crate) fn mechanism_support_observation_at(
+        &self,
+        request_id: MechanismRequestId,
+        ordinal: usize,
+    ) -> Option<&MechanismSupportObservationPoint> {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)?
+            .points
+            .get(ordinal)
+    }
+
+    pub(crate) fn mechanism_support_observation_latest(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Option<&MechanismSupportObservationPoint> {
+        self.state
+            .mechanism_support_observations
+            .get(&slice.key().request_id())?
+            .latest_point(slice)
+    }
+
+    pub(crate) fn mechanism_support_observation_chain_root(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportObservationChainRoot> {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map(|log| log.chain_root)
+    }
+
+    pub(crate) fn mechanism_support_observed_slice_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> usize {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| log.latest_by_slice.len())
+    }
+
+    pub(crate) fn mechanism_support_sealed_slice_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> usize {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| {
+                log.latest_by_slice
+                    .keys()
+                    .filter(|slice| {
+                        log.latest_point(**slice)
+                            .is_some_and(|point| point.status().is_sealed())
+                    })
+                    .count()
+            })
+    }
+
+    pub(crate) fn mechanism_support_initial_observation_point_id(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportObservationPointId> {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)?
+            .points
+            .first()
+            .map(MechanismSupportObservationPoint::point_id)
     }
 
     /// Prepare one bounded, deterministic checkpoint compaction. The receipt
@@ -5194,6 +5840,7 @@ impl RelationalJournal {
             &support,
             self.state.classified_chunk_accumulator.as_ref(),
             &self.state.latest_support_frontiers,
+            &self.state.mechanism_support_observations,
         );
         Ok(RelationalJournalSnapshot {
             version: RELATIONAL_JOURNAL_SCHEMA_VERSION,
@@ -5330,6 +5977,7 @@ impl RelationalJournal {
             successor_exhaustion_receipts,
             support,
             latest_support_frontiers,
+            mechanism_support_observations,
             work,
         } = self.state;
         debug_assert_eq!(state_contract, self.contract);
@@ -5384,6 +6032,7 @@ impl RelationalJournal {
             &support,
             classified_chunk_accumulator.as_ref(),
             &latest_support_frontiers,
+            &mechanism_support_observations,
         );
         let analysis = analysis.ok_or(RelationalJournalError::AnalysisStateMissing)?;
         Ok(ClosedExtensionalRelationalEvidence {
@@ -5988,6 +6637,37 @@ pub(crate) enum RelationalJournalError {
     SupportClosureFrontierCheckpointMissing {
         request_id: MechanismRequestId,
     },
+    SupportObservationPointIdentityMismatch,
+    SupportObservationFrontierMissing {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationFrontierMismatch {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationSummaryMismatch {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationStatusMismatch {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationSliceNotScheduled {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationSupersedesMismatch {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationAfterSeal {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationSealPredecessorMissing {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationDidNotAdvance {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationClosurePending {
+        request_id: MechanismRequestId,
+    },
     ReadinessRelationMismatch,
     UnknownReadinessSource {
         source_key: SourceKey,
@@ -6469,6 +7149,39 @@ impl fmt::Display for RelationalJournalError {
             Self::SupportClosureFrontierCheckpointMissing { .. } => formatter.write_str(
                 "mechanism-support closure requires its complete durable frontier checkpoint",
             ),
+            Self::SupportObservationPointIdentityMismatch => formatter.write_str(
+                "mechanism-support observation point identity does not match its claim",
+            ),
+            Self::SupportObservationFrontierMissing { .. } => formatter.write_str(
+                "mechanism-support observation requires a durable frontier checkpoint",
+            ),
+            Self::SupportObservationFrontierMismatch { .. } => formatter.write_str(
+                "mechanism-support observation does not match the latest durable frontier",
+            ),
+            Self::SupportObservationSummaryMismatch { .. } => formatter.write_str(
+                "mechanism-support observation summary differs from replay-derived support",
+            ),
+            Self::SupportObservationStatusMismatch { .. } => formatter.write_str(
+                "mechanism-support observation status differs from replay lifecycle state",
+            ),
+            Self::SupportObservationSliceNotScheduled { .. } => formatter.write_str(
+                "mechanism-support observation slice has not been scheduled by this journal",
+            ),
+            Self::SupportObservationSupersedesMismatch { .. } => formatter.write_str(
+                "mechanism-support observation does not extend the latest point for its slice",
+            ),
+            Self::SupportObservationAfterSeal { .. } => formatter.write_str(
+                "sealed mechanism-support observation slices cannot be extended",
+            ),
+            Self::SupportObservationSealPredecessorMissing { .. } => formatter.write_str(
+                "sealed mechanism-support observation requires an earlier open point",
+            ),
+            Self::SupportObservationDidNotAdvance { .. } => formatter.write_str(
+                "mechanism-support observation duplicates its previous durable state",
+            ),
+            Self::SupportObservationClosurePending { .. } => formatter.write_str(
+                "mechanism-support lifecycle cannot close while a scheduled observation is pending or unsealed",
+            ),
             Self::ReadinessRelationMismatch => {
                 formatter.write_str("relational journal readiness belongs to another relation")
             }
@@ -6672,8 +7385,9 @@ fn relational_checkpoint_root(
         MechanismRequestId,
         RelationalMechanismSupportCheckpointReceipt,
     >,
+    mechanism_support_observations: &BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
 ) -> RelationalCheckpointRoot {
-    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V4);
+    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V5);
     hasher.digest(contract.id().bytes());
     hasher.digest(work.bytes());
     hasher.u64(support.latest_cursors().len() as u64);
@@ -6710,6 +7424,17 @@ fn relational_checkpoint_root(
         hasher.u128(receipt.cursor.structural_assignment());
         hasher.digest(receipt.frontier.root().bytes());
     }
+    hasher.u64(mechanism_support_observations.len() as u64);
+    for (request_id, log) in mechanism_support_observations {
+        hasher.digest(request_id.bytes());
+        hasher.u128(log.points.len() as u128);
+        hasher.digest(log.chain_root.bytes());
+        hasher.u64(log.latest_by_slice.len() as u64);
+        for (slice, latest) in &log.latest_by_slice {
+            hasher.digest(slice.id().bytes());
+            hasher.digest(latest.point_id.bytes());
+        }
+    }
     RelationalCheckpointRoot(hasher.finish())
 }
 
@@ -6719,7 +7444,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V18);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V19);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -6728,7 +7453,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V17);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V18);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -7145,6 +7870,65 @@ fn hash_relational_uniform_admission_artifact(
     });
 }
 
+#[allow(clippy::too_many_arguments)]
+fn derive_mechanism_support_observation_point_id(
+    version: u32,
+    slice: MechanismSupportSlice,
+    cursor: MechanismSupportCheckpointCursor,
+    frontier_root: MechanismSupportFrontierRoot,
+    summary_root: MechanismFactorizedSupportObservationSummaryRoot,
+    status: MechanismSupportObservationStatus,
+    supersedes: Option<MechanismSupportObservationPointId>,
+) -> MechanismSupportObservationPointId {
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V1);
+    hasher.u32(version);
+    hasher.digest(slice.id().bytes());
+    hasher.u128(cursor.target_discovery());
+    hasher.u128(cursor.terminal_discovery());
+    hasher.u128(cursor.structural_assignment());
+    hasher.digest(frontier_root.bytes());
+    hasher.digest(summary_root.bytes());
+    match status {
+        MechanismSupportObservationStatus::Open => hasher.tag(0x01),
+        MechanismSupportObservationStatus::Sealed { support_root } => {
+            hasher.tag(0x02);
+            hasher.digest(support_root.bytes());
+        }
+    }
+    match supersedes {
+        Some(point_id) => {
+            hasher.tag(0x01);
+            hasher.digest(point_id.bytes());
+        }
+        None => hasher.tag(0x02),
+    }
+    MechanismSupportObservationPointId(hasher.finish())
+}
+
+fn mechanism_support_observation_chain_genesis(
+    request_id: MechanismRequestId,
+) -> MechanismSupportObservationChainRoot {
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V1);
+    hasher.u32(MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION);
+    hasher.digest(request_id.bytes());
+    MechanismSupportObservationChainRoot(hasher.finish())
+}
+
+fn extend_mechanism_support_observation_chain(
+    request_id: MechanismRequestId,
+    prior: MechanismSupportObservationChainRoot,
+    point_ordinal: u128,
+    point_id: MechanismSupportObservationPointId,
+) -> MechanismSupportObservationChainRoot {
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V1);
+    hasher.u32(MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION);
+    hasher.digest(request_id.bytes());
+    hasher.digest(prior.bytes());
+    hasher.u128(point_ordinal);
+    hasher.digest(point_id.bytes());
+    MechanismSupportObservationChainRoot(hasher.finish())
+}
+
 fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointEvent) {
     match event {
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
@@ -7190,6 +7974,10 @@ fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointE
             hasher.u128(cursor.terminal_discovery());
             hasher.u128(cursor.structural_assignment());
             hasher.digest(frontier_root.bytes());
+        }
+        RelationalCheckpointEvent::SupportSubjectObserved { claim } => {
+            hasher.tag(0x0f);
+            hasher.digest(claim.point_id().bytes());
         }
         RelationalCheckpointEvent::WorkNodeCompleted {
             node_id,

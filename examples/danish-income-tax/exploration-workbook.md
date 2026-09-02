@@ -1378,14 +1378,25 @@ implicit in this design.
 The named observer resolves to one checked pure callable of shape
 `(State, Context) -> Observation`, evaluated independently at Before and After.
 Its reachable rule and call closure, not every theoretical value of those
-types, is sealed into mechanism-request identity. A static totality proof may
-close definedness early, but it is not realistic to require that proof for all
-arithmetic in a large legal model. Exact finite target closure supplies the
-other sound route: every target endpoint is freshly replayed and receives
-either a complete trace or an explicit durable unavailable terminal. Signature
-counts are exact only when the target and terminal frontiers close with no
-unavailable replay; otherwise they remain unknown or lower bounds. The engine
-never silently falls back to tracing selected display fields.
+types, is sealed into mechanism-request identity. Before replay is authorized,
+a request-scoped static certificate proves that observer total for both Before
+and After across the exact bounded `from`/`to` endpoint domains. This is not a
+universal proof over every theoretical value of a large legal model: it is a
+finite, query-relative proof over the correlated starter region and its
+conditional successor fibers. It follows the exact checked call and rule
+closure, rejects unresolved partial dispatch, effects and recursion, and uses
+checked integer ranges to rule out overflow, zero division and the other
+runtime partialities reachable in that request.
+
+Fresh replay remains the sole source of concrete traces and signatures; the
+certificate authorizes that canonical evaluator rather than replacing it with
+an alternate one. A semantic evaluation failure after a valid certificate is
+therefore an integrity error, not an equivalent definedness route. Durable
+unavailable terminals remain appropriate for operational limits such as
+instrumentation or capacity. Signature counts are exact only when the target
+and operational terminal frontiers close with no unavailable replay;
+otherwise they remain unknown or lower bounds. The engine never silently falls
+back to tracing selected display fields.
 
 Mechanism replay over `view NAME chosen` explains the chosen transitions; it
 does not prove that they minimize a measure or lie on the Pareto frontier. That
@@ -1659,10 +1670,12 @@ rule's universal legal trigger condition.
 This overlay is defined, and its confirmed starter witnesses can accumulate,
 before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
-an invented finite interval. The current compact publisher emits subject rows
-only after target/support closure; a future observer may expose that same open
-state under the stable request/target/subject identity. The eventual target
-seal narrows that view; it does not mint a replacement identity.
+an invented finite interval. The journal can accept immutable observation
+points for that open state under the stable request/target/subject identity.
+Publication v10 projects those points into a resumable request-local sidecar;
+it does not wait for closure and then invent an all-subject report. The
+eventual request-level support closure yields a sealed successor for every
+observed slice; it does not mint a replacement slice identity.
 
 Activation is also weaker than causation. A node may be visited with the same
 outcome Before and After, participate differentially by changing presence or
@@ -1727,16 +1740,20 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. The compact
-all-node result does not eagerly rebuild those unions: it publishes a
-factorized summary from signature-fiber weights and labels the correlated
-starter projection `not_materialized`. That keeps a ubiquitous root node from
-allocating memory proportional to every case merely because the DAG summary is
-being printed.
+view is rebuilt from the same authenticated signature leaves. Publication v10
+does not eagerly rebuild those unions or emit closure-time support rows for
+every node and edge. The structural-definition catalog publishes stable
+support-slice descriptors for mechanisms and activation/differential node and
+edge facets. A descriptor is an address, not an observation or a count; only a
+scheduled slice contributes a factorized summary to the append-only
+mechanism-support observation sidecar. The automatically scheduled first slice
+is the whole-mechanism support of the first imported structural assignment.
+This keeps a ubiquitous root node from allocating memory proportional to every
+case merely because the DAG is being printed.
 
-The compact row names only an authorization-neutral projection plan.
-Publication v9 turns one explicitly selected plan into one typed artifact when
-a checked lossless selected-input, each-case view exposes `case_id`, `context`,
+Those descriptors are authorization-neutral. Publication v10 retains the
+explicit single-subject typed materializer introduced in publication v9 when a
+checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
 
 ```runa
@@ -1761,10 +1778,12 @@ node/edge signature index with the named mechanism's signature index. It binds
 the route into the publication plan and resume cursor without renaming the
 structural subject, request, question or analysis DAG.
 
-The route-qualified artifact uses subject-starter record schema v2. An
-unqualified consumer omits that optional coordinate and retains its existing
-v1 ID, roots, cursor bytes and records, so a qualified consumer can be appended
-to a closed publication-v9 output rather than forcing a republish.
+The route-qualified typed artifact uses subject-starter record schema v2. An
+unqualified consumer omits that optional coordinate and retains its v1
+consumer-local identity and record shape. In the historical publication-v9
+contract this allowed a qualified consumer to be appended without republishing
+the core exploration. Publication v10 preserves the semantic separation, but
+has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
 activation/differential node or edge. It is deliberately singular: v1 has no
@@ -1772,8 +1791,8 @@ wildcard or list which could fan out into a hidden `cases x DAG` export. For a c
 target, the authorizing view covers the selected population from which the same
 `QuestionId`'s chosen subset was derived; the choosing view need not itself
 expose all four values. The declaration is an appendable publication consumer,
-so it can be added after copying an ID from the completed structural sidecar
-without changing or replaying the core exploration journal.
+so it can be added after copying an ID from the completed structural-definition
+sidecar without changing or replaying the core exploration journal.
 
 The content-addressed job merge-deduplicates canonical signature fibers with a
 key-based `(SourceKey, SuccessorKey)` cursor. Every typed member retains its raw
@@ -1787,13 +1806,14 @@ signature plus the current page, so memory is
 `O(contributing signatures + 64 members)` rather than proportional to the
 final union. It is not yet a fixed-fan-in external merge; that remains a future
 scaling option for very high signature fan-in. The compact mechanism result can
-close independently of this resumable publication lane. The current compact
-catalog implements factorized **total** support summaries for mechanism, node
-and edge subjects. Those rows retain `not_materialized` correlated content even
-when one typed subject projection is authored: selection schedules a separate
-`starters/<name>.ndjson` artifact and must not emit the whole DAG eagerly.
-Mechanism-route conditioning reuses that same bounded projection; arbitrary
-path predicates and local-entry regions remain separate future work.
+close independently of this resumable typed-publication lane. The structural
+catalog carries stable descriptors for **total** mechanism, node and edge
+support slices; their summaries appear only when those slices are scheduled
+and journaled as observations. An authored typed projection remains a separate
+`starters/<name>.ndjson` consumer and does not turn a descriptor or compact
+observation into inline `(Context, Before) -> After` values. Mechanism-route
+conditioning reuses that same bounded typed projection; arbitrary path
+predicates and local-entry regions remain separate future work.
 
 The shared frontier is itself factorized into pending cases, unavailable cases,
 and complete signature fibers which do not yet have a validated structural
@@ -2020,7 +2040,9 @@ only the 100-DKK promotion intervention; `After` preserves the profile and
 applies that intervention. Birth date is explicit rather than hidden in a
 no-pension helper. A per-signature result view counts distinct
 `(Context, Before)` starters separately from cases, while the structural
-sidecar supplies the deeper factorized mechanism/node/edge starter subbounds.
+definition sidecar supplies stable mechanism/node/edge support-slice
+descriptors and the request-local observation sidecar supplies the bounded
+factorized summaries for slices actually scheduled.
 Copenhagen, tax year, church status and the remaining no/standard facts are
 visibly `conditioned`; commute distance and salary are `explored`. Targeted
 format and static checking pass.
@@ -2185,23 +2207,31 @@ That request-level starter scalar is explicitly the sum of two mechanism-local
 counts, not a generally valid global distinct-starter count: different
 structural mechanisms may have overlapping starter projections.
 
-The compact node rows expose why node starter subbounds are a distinct
-operation. The published structural catalog contains **8,053 nodes** and
-**20,720 edges**, with activation and differential-participation support views
-for a total of **57,548** request-target-conditioned subject rows. For example,
-a shared activation node supported by both signatures has **16 exact cases**
-but only the honest starter interval **8..16** in its factorized row. The lower
-bound is the largest contributing signature's exact starter set; the upper
-bound is the sealed target's 16 starters. Materializing and deduplicating that
-node's correlated cross-signature union would decide the exact value. The
-publisher therefore does not relabel the exact case count as an exact starter
-count or manufacture a Cartesian profile box.
+The historical closure-time compact node rows exposed why node starter
+subbounds are a distinct operation. That publication-v8/v9 structural catalog
+contained **8,053 nodes** and **20,720 edges**, with activation and
+differential-participation support views for a total of **57,548**
+request-target-conditioned subject rows. For example, a shared activation node
+supported by both signatures had **16 exact cases** but only the honest starter
+interval **8..16** in its factorized row. The lower bound was the largest
+contributing signature's exact starter set; the upper bound was the sealed
+target's 16 starters. Materializing and deduplicating that node's correlated
+cross-signature union would decide the exact value. The publisher therefore
+did not relabel the exact case count as an exact starter count or manufacture a
+Cartesian profile box.
 
-Publication v9 closes that product boundary with the explicit single-subject
-`starters` declaration above. It can materialize the shared node's exact typed
-fiber on demand, while the other 8,052 nodes and 20,720 edges stay factorized.
+Publication v9 closed that product boundary with the explicit single-subject
+`starters` declaration above. It could materialize the shared node's exact typed
+fiber on demand while the other 8,052 nodes and 20,720 edges stayed factorized.
 Publication must never eagerly serialize all of those case fibers merely
 because the structural DAG is published.
+
+Publication v10 keeps that typed consumer but removes the eager closure-time
+all-subject `structural_subject_support` row enumeration. Structural
+definitions now carry stable slice descriptors; only scheduled slices
+receive compact, append-only support observations. Thus the old 57,548-row
+measurement remains historical evidence for the support algebra, not the shape
+or cost of the current publication.
 
 The existing `graphs/case-support.ndjson` remains a different useful object: it
 is the classification/support partition proving how searched regions became
@@ -2279,7 +2309,7 @@ cases and two affected starting profiles. These are exact only for the declared
 50/100/150-km by 100-DKK lattice and its conditioned profile facts; they do not
 rule out a narrower endpoint cliff or generalize to unsearched profiles.
 
-The publication-v9 semantic case graph now exists at
+The historical publication-v9 semantic case graph exists at
 `graphs/case-transitions.ndjson`. Its 18 records are one header, 16 selected
 edges and one exact closure. It authenticates **16 distinct CaseIds**, **16
 distinct directional TransitionIds** and **32 distinct role-neutral StateIds**
@@ -2337,33 +2367,35 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Compact subject rows publish
+unions and honest unknown/interval/exact counts. Publication v10 records
 authenticated inner/outer fiber-expression identities for the correlated
-`SourceKey -> SuccessorKey set` contract while explicitly marking their inline
-typed content `not_materialized`. Publication v9 can turn one closed exact
-mechanism, node-facet or edge-facet expression into the separate authorized
-typed starter artifact described above without inventing a Cartesian product.
-For node and edge subjects it may bind one enclosing mechanism and derive the
-route-conditioned intersection from the existing signature indexes.
-The compact row remains `not_materialized` because the selected artifact is a
-separate appendable consumer, not inline content.
+`SourceKey -> SuccessorKey set` contract in append-only observation points.
+The structural-definition catalog supplies stable slice descriptors rather
+than eagerly publishing one closure-time row for every subject. An explicit
+typed `starters` consumer remains the separate authorized materializer for one
+mechanism, node facet or edge facet; for node and edge subjects it may bind one
+enclosing mechanism and derive the route-conditioned intersection from the
+existing signature indexes. Neither the descriptor nor the observation
+implicitly exposes typed starter content.
 
-Publication v9 now implements the one-enclosing-mechanism selector. A focused
-two-mechanism/shared-node fixture proves that total-node support contains two
-cases but one deduplicated starter, while each `node | mechanism` slice contains
-one case and the same one starter. Their plan and fiber identities are distinct,
-and paging retains the two different successors beneath that shared Source. A
-separate CLI attachment fixture closes a small journal first, adds a qualified
-node consumer afterward, and observes zero new semantic batches/events,
-unchanged relation/question/analysis/journal identities, a route-bound v2
-starter artifact, and a byte-identical no-op resume. This is implementation
-evidence for the projection architecture, not a new Personskat execution.
+Publication v9 implemented the one-enclosing-mechanism selector. A focused
+two-mechanism/shared-node fixture proved that total-node support contained two
+cases but one deduplicated starter, while each `node | mechanism` slice
+contained one case and the same one starter. Their plan and fiber identities
+were distinct, and paging retained the two different successors beneath that
+shared Source. A separate CLI attachment fixture closed a small journal first,
+added a qualified node consumer afterward, and observed zero new semantic
+batches/events, unchanged relation/question/analysis/journal identities, a
+route-bound v2 starter artifact, and a byte-identical no-op resume. This remains
+historical implementation evidence for the typed projection architecture, not
+a new Personskat execution or the current compact-observation layout.
 
 What remains is arbitrary path-conditioned selection and a human-readable
 region compression which labels dimensions as conditioned, explored, derived,
-proved irrelevant or coverage gaps. Compact unselected rows correctly remain
-`not_materialized` rather than implying that opaque roots or per-field
-marginals are readable correlated subbounds.
+proved irrelevant or coverage gaps. Unscheduled slice descriptors correctly
+remain addresses without observations or typed materialization, rather than
+implying that opaque roots or per-field marginals are readable correlated
+subbounds.
 
 The starting context is part of every case, not incidental metadata. Write a
 starter as `Source = (Context, Before)` and a case as one supported
@@ -2383,8 +2415,57 @@ counts. Income ranges, commune lists and other per-field bounds are useful
 projections for browsing, but cannot replace the relation: multiplying them
 would invent starting profiles that were never observed or proved reachable.
 
+### Prefix-native support observations
+
+The resumable stream records these overlays as an append-only observation
+chain, not as a closure-time report invented by the renderer. Each point binds
+one stable support-slice ID, the exact durable three-lane support cursor and
+frontier root, a compact factorized summary root, its lifecycle status and the
+point it supersedes. Replay reconstructs the summary from that prefix and
+rejects a mismatching claim. The journal chain is therefore the recovery and
+ordering authority; the public NDJSON artifact is only a resumable projection
+of already accepted points.
+
+Publication v10 emits one flat observation artifact per mechanism request at
+`mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
+contains structural assignments, the quotient closure and, only after every
+observed slice seals, an optional constant-size support-closure receipt. It no
+longer enumerates one factorized `structural_subject_support` row per
+mechanism, node and edge at closure. Its first assignment links to the initial
+observation point, while the structural-definition catalog publishes stable
+slice descriptors for whole-mechanism totals and total node/edge activation or
+differential-participation support. A descriptor makes a slice discoverable;
+it does not schedule or claim an observation. The same coordinate type can
+additionally represent a route-conditioned intersection when a later scheduler
+requests one.
+
+An open point reports `unknown(lower_bound = n)` for an open target. Its inner
+fiber contains only inspected, imported signature support; its outer fiber
+also names the shared pending, unavailable and structurally unassigned
+residual. Later checkpoints can mint monotone refinements without pretending
+that an observed prefix is final. Support closure is forbidden until the
+current open point is durable, and analysis closure is forbidden until every
+observed slice has a sealed successor. At that successor, exact or interval
+counts follow from the closed factorized support algebra rather than from an
+arbitrary case-display cap.
+
+The first automatically scheduled slice is the whole-mechanism support of the
+first imported structural assignment. The same coordinate type already names
+whole mechanisms, node or edge activation, differential participation and
+route-conditioned intersections. Later scheduling can therefore expand from
+the initial useful stream into requested graph regions without changing the
+journal protocol or eagerly multiplying `cases × nodes`. This is also why a
+separate probe language is unnecessary: an early observation is a durable,
+resumable prefix of the real exploration.
+
+The explicit `starters` declaration remains a different consumer. It uses a
+named checked value view to materialize one authorized typed
+`(Context, Before) -> After` fiber, optionally for a node or edge within one
+enclosing mechanism. Support observations stay compact and value-free; adding
+or reading them does not implicitly publish private starter configurations.
+
 The compact public answer now exposes this distinction directly. Relational
-stream JSON v5 names the closure-aware selected before-to-after case count and,
+stream JSON v6 names the closure-aware selected before-to-after case count and,
 for every mechanism request, the structural-mechanism, successful replay and
 unavailable-replay counts plus the exact sealed target's distinct starter
 count and evidence roots. Human output leads with the same answer before
@@ -2392,9 +2473,9 @@ operational checkpoint telemetry. Small exact grouped results are rendered
 inline from their authenticated projection journals, while the operational
 publication index names every complete or still-catching-up NDJSON artifact
 without loading bulk configurations into the answer. The manifest remains the
-full materialization index for authorized case rows, mechanism DAGs and
-conditioned starter-support bounds; the durable journal remains recovery
-authority.
+full materialization index for authorized case rows, mechanism DAGs, compact
+support observations and any explicitly authorized typed starter fibers; the
+durable journal remains recovery authority.
 The sealed target starter count is request-wide; it is not relabeled as an
 individual mechanism or node's starter count. Those correlated subject fibers
 remain in their own authenticated result layer.

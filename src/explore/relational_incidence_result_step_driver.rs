@@ -1398,6 +1398,23 @@ mod tests {
         frontier_root
     }
 
+    fn append_support_observation(
+        journal: &mut RelationalJournal,
+        request_id: MechanismRequestId,
+        expected_sealed: bool,
+    ) {
+        let RelationalMechanismSupportStepEvents::Observed { status, events, .. } = journal
+            .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+            .expect("derive support observation")
+        else {
+            panic!("durable support frontier must emit its pending observation");
+        };
+        assert_eq!(status.is_sealed(), expected_sealed);
+        for event in events.into_vec() {
+            journal.append(event).expect("append support observation");
+        }
+    }
+
     fn expect_awaiting(
         outcome: RelationalIncidenceResultStepOutcome,
         view_id: ViewId,
@@ -1415,7 +1432,7 @@ mod tests {
     }
 
     #[test]
-    fn open_mechanism_support_stream_structural_assignment_gates_incidence_and_closure() {
+    fn support_observation_lifecycle_gates_incidence_and_closure() {
         let source = r#"
 > structural_gate_observe(state: Int, context: Int) -> Int {
     state + context
@@ -1728,6 +1745,19 @@ mod tests {
                 RelationalAnalysisEvidenceEvent::mechanism_incidence_closed(raw_closure),
             ))
             .expect("append raw incidence closure");
+        let raw_closed_prefix_root = append_support_checkpoint(
+            &mut journal,
+            request_id,
+            MechanismSupportCheckpointCursor::new(1, 1, 0),
+            0,
+        );
+        assert_ne!(raw_closed_prefix_root, terminal_prefix_root);
+        assert!(matches!(
+            journal
+                .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+                .expect("raw-closed support frontier awaiting structural assignment"),
+            RelationalMechanismSupportStepEvents::Idle
+        ));
         expect_awaiting(
             driver
                 .step(&journal, &mut result_runtime)
@@ -1785,6 +1815,7 @@ mod tests {
             0,
         );
         assert_ne!(assigned_prefix_root, terminal_prefix_root);
+        append_support_observation(&mut journal, request_id, false);
         assert!(matches!(
             journal
                 .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
@@ -1873,6 +1904,7 @@ mod tests {
             0,
         );
         assert_ne!(sealed_frontier_root, assigned_prefix_root);
+        append_support_observation(&mut journal, request_id, false);
         let RelationalMechanismSupportStepEvents::Closed {
             checkpointed_frontier,
             cursor,
@@ -1889,6 +1921,13 @@ mod tests {
         for event in events.into_vec() {
             journal.append(event).expect("append support closure");
         }
+        append_support_observation(&mut journal, request_id, true);
+        assert!(matches!(
+            journal
+                .support_lifecycle_step_events(request_id, NonZeroU16::MIN)
+                .expect("sealed observed support frontier"),
+            RelationalMechanismSupportStepEvents::Idle
+        ));
 
         let RelationalIncidenceResultStepOutcome::Emitted(seal) = driver
             .step(&journal, &mut result_runtime)

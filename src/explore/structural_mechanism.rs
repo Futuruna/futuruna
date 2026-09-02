@@ -292,6 +292,10 @@ impl StructuralNodeId {
         Self(bytes)
     }
 
+    pub(super) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
     }
@@ -304,6 +308,10 @@ impl StructuralEdgeId {
     /// Decode a canonical digest only after the checked Explore frontend has
     /// validated the authored structural-subject literal.
     pub(crate) const fn from_checked_source_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(super) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 

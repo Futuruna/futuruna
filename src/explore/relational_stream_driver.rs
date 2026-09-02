@@ -20,6 +20,7 @@ use crate::CheckedExploreQueryView;
 
 use super::mechanism_support::{
     MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportFrontierRoot,
+    MechanismSupportSliceId,
 };
 use super::relation::{MechanismRequestId, RelationalCaseId, ViewId};
 use super::relational_analysis_plan::{
@@ -33,7 +34,8 @@ use super::relational_incidence_result_step_driver::{
     RelationalIncidenceResultStepQuiescence,
 };
 use super::relational_journal::{
-    RelationalJournal, RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
+    MechanismSupportObservationPointId, MechanismSupportObservationStatus, RelationalJournal,
+    RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
     RelationalMechanismSupportStepEvents,
 };
 use super::relational_mechanism_executor::{
@@ -129,6 +131,12 @@ pub(crate) enum RelationalStreamQuantum {
     Result(RelationalResultStepQuantum),
     IncidenceResult(RelationalIncidenceResultStepQuantum),
     Mechanism(RelationalMechanismStepQuantum),
+    ObserveMechanismSupport {
+        request_id: MechanismRequestId,
+        point_id: MechanismSupportObservationPointId,
+        slice_id: MechanismSupportSliceId,
+        status: MechanismSupportObservationStatus,
+    },
     CheckpointMechanismSupport {
         request_id: MechanismRequestId,
         accepted_target_cases: usize,
@@ -475,11 +483,28 @@ impl<'query> RelationalStreamDriver<'query> {
         // capped by the smaller runtime/protocol bound inside the journal.
         // A caught-up open request is ordinary Idle and falls through, letting
         // upstream work continue to grow.
-        if let Some(request_id) = self.next_open_support_request(journal)? {
+        if let Some(request_id) = self.next_support_lifecycle_request(journal)? {
             match journal.support_lifecycle_step_events(
                 request_id,
                 self.mechanisms.max_target_cases_per_quantum(),
             )? {
+                RelationalMechanismSupportStepEvents::Observed {
+                    point_id,
+                    slice,
+                    status,
+                    events,
+                } => {
+                    return Ok(self.batch(
+                        journal,
+                        RelationalStreamQuantum::ObserveMechanismSupport {
+                            request_id,
+                            point_id,
+                            slice_id: slice.id(),
+                            status,
+                        },
+                        events.into_vec(),
+                    ));
+                }
                 RelationalMechanismSupportStepEvents::Checkpoint {
                     accepted_target_cases,
                     cursor,
@@ -674,12 +699,13 @@ impl<'query> RelationalStreamDriver<'query> {
             let analysis = journal
                 .analysis_state()
                 .ok_or(RelationalStreamDriverError::AnalysisStateMissing)?;
-            if analysis.mechanism_support_closure(request_id).is_some() {
-                continue;
+            if analysis.mechanism_support_closure(request_id).is_none()
+                || journal.mechanism_support_observation_pending(request_id)?
+            {
+                return Ok(RelationalStreamStepOutcome::Quiescent(
+                    RelationalStreamQuiescence::AwaitingMechanismSupport { request_id },
+                ));
             }
-            return Ok(RelationalStreamStepOutcome::Quiescent(
-                RelationalStreamQuiescence::AwaitingMechanismSupport { request_id },
-            ));
         }
 
         Ok(self.batch(
@@ -689,7 +715,7 @@ impl<'query> RelationalStreamDriver<'query> {
         ))
     }
 
-    fn next_open_support_request(
+    fn next_support_lifecycle_request(
         &self,
         journal: &RelationalJournal,
     ) -> Result<Option<MechanismRequestId>, RelationalStreamDriverError> {
@@ -704,10 +730,12 @@ impl<'query> RelationalStreamDriver<'query> {
         for offset in 0..self.support_requests.len() {
             let index = (start + offset) % self.support_requests.len();
             let request_id = self.support_requests[index];
-            if analysis.mechanism_support_closure(request_id).is_none()
-                && analysis
-                    .support_checkpoint_has_ready_work(request_id)
-                    .map_err(RelationalMechanismStepDriverError::from)?
+            let support_is_closed = analysis.mechanism_support_closure(request_id).is_some();
+            if journal.mechanism_support_observation_or_recovery_pending(request_id)?
+                || (!support_is_closed
+                    && analysis
+                        .support_checkpoint_has_ready_work(request_id)
+                        .map_err(RelationalMechanismStepDriverError::from)?)
             {
                 *ordinal = (index + 1) % self.support_requests.len();
                 return Ok(Some(request_id));

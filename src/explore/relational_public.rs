@@ -63,7 +63,7 @@ use super::{
     RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 5;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 6;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -871,6 +871,13 @@ pub struct ExploreStreamMechanismLayer {
     pub structural_closure_root: Option<String>,
     pub support_closure_root: Option<String>,
     pub support_closure_totals: Option<ExploreStreamMechanismSupportTotals>,
+    /// Append-only prefix observations of correlated starter support. These
+    /// are stream facts, not a fabricated estimate of final case count.
+    pub support_observation_points: u128,
+    pub observed_support_slices: u128,
+    pub sealed_support_slices: u128,
+    pub support_observation_chain_root: Option<String>,
+    pub initial_support_observation_point_id: Option<String>,
 }
 
 /// Bounded materialization progress for the optional public result directory.
@@ -1884,7 +1891,7 @@ fn analysis_layers(
                 ExploreAnalysisNodeIr::Mechanisms(request),
                 CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
             ) => ExploreStreamLayer::Mechanisms(mechanism_layer(
-                analysis,
+                journal,
                 name,
                 *request_id,
                 public_mechanism_target(checked, &request.target)?,
@@ -2297,11 +2304,12 @@ fn explore_value_weight(value: &super::ExploreValue) -> Option<(usize, usize)> {
 }
 
 fn mechanism_layer(
-    analysis: Option<&super::RelationalAnalysisJournalState>,
+    journal: &RelationalJournal,
     name: String,
     request_id: super::MechanismRequestId,
     target: ExploreStreamMechanismTarget,
 ) -> Result<ExploreStreamMechanismLayer, ExploreStreamPreparationError> {
+    let analysis = journal.analysis_state();
     let absent = || ExploreStreamMechanismLayer {
         name: name.clone(),
         request_id: hex(request_id.bytes()),
@@ -2323,6 +2331,11 @@ fn mechanism_layer(
         structural_closure_root: None,
         support_closure_root: None,
         support_closure_totals: None,
+        support_observation_points: 0,
+        observed_support_slices: 0,
+        sealed_support_slices: 0,
+        support_observation_chain_root: None,
+        initial_support_observation_point_id: None,
     };
     let Some(analysis) = analysis else {
         return Ok(absent());
@@ -2433,6 +2446,15 @@ fn mechanism_layer(
                 target_starters: closure.target_starter_count(),
             }
         }),
+        support_observation_points: journal.mechanism_support_observation_count(request_id),
+        observed_support_slices: journal.mechanism_support_observed_slice_count(request_id) as u128,
+        sealed_support_slices: journal.mechanism_support_sealed_slice_count(request_id) as u128,
+        support_observation_chain_root: journal
+            .mechanism_support_observation_chain_root(request_id)
+            .map(|root| hex(root.bytes())),
+        initial_support_observation_point_id: journal
+            .mechanism_support_initial_observation_point_id(request_id)
+            .map(|point_id| hex(point_id.bytes())),
     })
 }
 

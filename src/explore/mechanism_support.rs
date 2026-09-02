@@ -32,6 +32,8 @@ use super::structural_mechanism::{
 pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 2;
 pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 5;
 pub(crate) const MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION: u32 = 2;
+pub(crate) const MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION: u32 = 1;
+pub(crate) const MECHANISM_SUPPORT_SLICE_ID_VERSION: u32 = 1;
 pub(crate) const MECHANISM_SUPPORT_FIBER_EXPR_VERSION: u32 = 1;
 pub(crate) const MECHANISM_STARTER_PROJECTION_PLAN_VERSION: u32 = 2;
 /// Automatic all-subject publication may inspect at most this many immutable
@@ -45,6 +47,15 @@ pub(crate) const AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT: usize = 256;
 const DEFAULT_HOT_SUBJECT_PROJECTION_LIMIT: usize = 1;
 
 const SUPPORT_VIEW_ROOT_V5: &[u8] = b"futuruna.explore.mechanism-support-view-root.v5";
+const SUPPORT_SLICE_ID_V1: &[u8] = b"futuruna.explore.mechanism-support-slice-id.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-signature-prefix-root.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-summary-root.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-inner-fiber-expr-root.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-outer-fiber-expr-root.v1";
 const FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-factorized-subject-signature-prefix-root.v2";
 const FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
@@ -146,6 +157,21 @@ impl MechanismSupportKey {
         }
     }
 
+    /// Reconstruct a serialized slice coordinate before its owning analysis
+    /// state is available. Derivation validates these parts against the live
+    /// request scope before trusting the key.
+    pub(crate) const fn from_journal_codec_parts(
+        request_id: MechanismRequestId,
+        target: MechanismTargetId,
+        subject: MechanismSupportSubject,
+    ) -> Self {
+        Self {
+            request_id,
+            target,
+            subject,
+        }
+    }
+
     pub(crate) const fn request_id(self) -> MechanismRequestId {
         self.request_id
     }
@@ -160,6 +186,22 @@ impl MechanismSupportKey {
 
     pub(crate) const fn subject(self) -> MechanismSupportSubject {
         self.subject
+    }
+}
+
+/// Stable identity of one complete support-slice coordinate. Unlike a subject
+/// identity, this commits both the total/conditioned selector and (for a
+/// conditioned slice) the enclosing mechanism route.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismSupportSliceId([u8; 32]);
+
+impl MechanismSupportSliceId {
+    pub(crate) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
     }
 }
 
@@ -201,6 +243,10 @@ impl MechanismSupportSlice {
 
     pub(crate) const fn enclosing_mechanism(self) -> Option<StructuralMechanismId> {
         self.within_mechanism
+    }
+
+    pub(crate) fn id(self) -> MechanismSupportSliceId {
+        derive_support_slice_id(self)
     }
 }
 
@@ -544,10 +590,17 @@ pub(crate) type MechanismSupportStarterPage = MechanismSupportSubjectStarterPage
 /// materialized.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum MechanismFactorizedStarterBoundBasis {
+    /// The target may still admit new `(Context, Before)` starters, so no
+    /// finite outer starter projection is yet justified.
+    OpenOpaque,
     ExactEmpty,
     ExactFactorizedBoundCollapse,
-    ExactTargetStarterSaturation { target_starter_root: [u8; 32] },
-    ConservativeTargetProjectionUpper { target_starter_root: [u8; 32] },
+    ExactTargetStarterSaturation {
+        target_starter_root: [u8; 32],
+    },
+    ConservativeTargetProjectionUpper {
+        target_starter_root: [u8; 32],
+    },
 }
 
 /// Constant-space automatic-publication summary. Authenticated inner/outer
@@ -634,6 +687,134 @@ impl MechanismFactorizedSubjectSummary {
     }
 }
 
+/// Immutable identity of one prefix-relative support observation. The root is
+/// distinct from both the evolving support-frontier root and the final support
+/// closure root: it commits one slice's bounded interpretation of exactly one
+/// durable imported prefix.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismFactorizedSupportObservationSummaryRoot([u8; 32]);
+
+impl MechanismFactorizedSupportObservationSummaryRoot {
+    pub(crate) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Constant-space observation of one total or mechanism-conditioned support
+/// slice at a durable support frontier. The inner expression contains only
+/// confirmed imported signature fibers inspected under the automatic scan
+/// cap. The outer expression retains the shared residual, any unscanned
+/// imported supporting signatures, and the opaque undiscovered target while
+/// it remains open.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismFactorizedSupportObservationSummary {
+    slice: MechanismSupportSlice,
+    slice_id: MechanismSupportSliceId,
+    root: MechanismFactorizedSupportObservationSummaryRoot,
+    frontier_root: MechanismSupportFrontierRoot,
+    imported_prefix_root: [u8; 32],
+    structural_root: Option<StructuralQuotientClosureRoot>,
+    support_root: Option<MechanismSupportClosureRoot>,
+    projection_plan_id: Option<MechanismStarterProjectionPlanId>,
+    target_frontier_open: bool,
+    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
+    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    contributing_signature_count: u128,
+    inspected_signature_count: u128,
+    signature_scan_complete: bool,
+    signature_prefix_root: [u8; 32],
+    residual: MechanismSupportResidualSummary,
+    case_count: MechanismSupportCount,
+    starter_count: MechanismSupportCount,
+    starter_bound_basis: MechanismFactorizedStarterBoundBasis,
+}
+
+impl MechanismFactorizedSupportObservationSummary {
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn slice_id(self) -> MechanismSupportSliceId {
+        self.slice_id
+    }
+
+    pub(crate) const fn root(self) -> MechanismFactorizedSupportObservationSummaryRoot {
+        self.root
+    }
+
+    pub(crate) const fn frontier_root(self) -> MechanismSupportFrontierRoot {
+        self.frontier_root
+    }
+
+    pub(crate) const fn imported_prefix_root(self) -> [u8; 32] {
+        self.imported_prefix_root
+    }
+
+    pub(crate) const fn structural_root(self) -> Option<StructuralQuotientClosureRoot> {
+        self.structural_root
+    }
+
+    pub(crate) const fn support_root(self) -> Option<MechanismSupportClosureRoot> {
+        self.support_root
+    }
+
+    pub(crate) const fn projection_plan_id(self) -> Option<MechanismStarterProjectionPlanId> {
+        self.projection_plan_id
+    }
+
+    pub(crate) const fn target_frontier_is_open(self) -> bool {
+        self.target_frontier_open
+    }
+
+    pub(crate) const fn inner_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
+        self.inner_fiber_expr_root
+    }
+
+    pub(crate) const fn outer_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
+        self.outer_fiber_expr_root
+    }
+
+    pub(crate) fn fiber_expr_bounds_are_equal(self) -> bool {
+        self.inner_fiber_expr_root == self.outer_fiber_expr_root
+    }
+
+    pub(crate) const fn contributing_signature_count(self) -> u128 {
+        self.contributing_signature_count
+    }
+
+    pub(crate) const fn inspected_signature_count(self) -> u128 {
+        self.inspected_signature_count
+    }
+
+    pub(crate) const fn signature_scan_complete(self) -> bool {
+        self.signature_scan_complete
+    }
+
+    pub(crate) const fn signature_prefix_root(self) -> [u8; 32] {
+        self.signature_prefix_root
+    }
+
+    pub(crate) const fn residual_summary(self) -> MechanismSupportResidualSummary {
+        self.residual
+    }
+
+    pub(crate) const fn case_count(self) -> MechanismSupportCount {
+        self.case_count
+    }
+
+    pub(crate) const fn starter_count(self) -> MechanismSupportCount {
+        self.starter_count
+    }
+
+    pub(crate) const fn starter_bound_basis(self) -> MechanismFactorizedStarterBoundBasis {
+        self.starter_bound_basis
+    }
+}
+
 /// Authenticated resumable prefix of the request-level support join. Unlike a
 /// final support closure, this deliberately binds operational branch revisions
 /// and cursors so a checkpoint cannot resume on a divergent discovery fork.
@@ -658,6 +839,10 @@ impl MechanismSupportFrontierRoot {
 pub(crate) struct MechanismSupportFrontierSummary {
     root: MechanismSupportFrontierRoot,
     imported_prefix_root: [u8; 32],
+    cursor: MechanismSupportCheckpointCursor,
+    target_discovery_revision: MechanismTargetDiscoveryRevision,
+    terminal_discovery_revision: MechanismTerminalDiscoveryRevision,
+    structural_assignment_revision: StructuralCatalogRevision,
     target_seal_id: Option<MechanismTargetSealId>,
     incidence_closure_root: Option<MechanismIncidenceRoot>,
     structural_closure_root: Option<StructuralQuotientClosureRoot>,
@@ -670,6 +855,22 @@ impl MechanismSupportFrontierSummary {
 
     pub(crate) const fn imported_prefix_root(self) -> [u8; 32] {
         self.imported_prefix_root
+    }
+
+    pub(crate) const fn cursor(self) -> MechanismSupportCheckpointCursor {
+        self.cursor
+    }
+
+    pub(crate) const fn target_discovery_revision(self) -> MechanismTargetDiscoveryRevision {
+        self.target_discovery_revision
+    }
+
+    pub(crate) const fn terminal_discovery_revision(self) -> MechanismTerminalDiscoveryRevision {
+        self.terminal_discovery_revision
+    }
+
+    pub(crate) const fn structural_assignment_revision(self) -> StructuralCatalogRevision {
+        self.structural_assignment_revision
     }
 
     pub(crate) const fn target_seal_id(self) -> Option<MechanismTargetSealId> {
@@ -1055,6 +1256,53 @@ struct SignatureFiberSummary {
     starter_count: u128,
 }
 
+/// Imported-prefix index for the one slice the journal schedules
+/// automatically. It is updated once per structural assignment, so deriving a
+/// checkpoint observation never rescans the growing assignment catalog.
+#[derive(Clone, Debug)]
+struct AutomaticSupportObservationIndex {
+    slice: MechanismSupportSlice,
+    observed_assignment_count: u128,
+    contributing_signature_count: u128,
+    inspected_signatures: Vec<MechanismSignatureId>,
+}
+
+impl AutomaticSupportObservationIndex {
+    fn new(scope: MechanismRequestScope, assignment: &StructuralSignatureAssignment) -> Self {
+        Self {
+            slice: MechanismSupportSlice::total(MechanismSupportKey::new(
+                scope,
+                MechanismSupportSubject::Mechanism(assignment.mechanism_id()),
+            )),
+            observed_assignment_count: 0,
+            contributing_signature_count: 0,
+            inspected_signatures: Vec::with_capacity(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT),
+        }
+    }
+
+    fn observe_assignment(
+        &mut self,
+        signature_id: MechanismSignatureId,
+        assignment: &StructuralSignatureAssignment,
+    ) -> Result<(), MechanismSupportError> {
+        self.observed_assignment_count = self
+            .observed_assignment_count
+            .checked_add(1)
+            .ok_or(MechanismSupportError::CountOverflow)?;
+        if !assignment_supports_slice(assignment, self.slice) {
+            return Ok(());
+        }
+        self.contributing_signature_count = self
+            .contributing_signature_count
+            .checked_add(1)
+            .ok_or(MechanismSupportError::CountOverflow)?;
+        if self.inspected_signatures.len() < AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT {
+            self.inspected_signatures.push(signature_id);
+        }
+        Ok(())
+    }
+}
+
 /// Request/target-local support authority. Target coordinates are accepted
 /// once, then imported from checked raw-incidence terminals. Pending replay
 /// and replay unavailability remain in one shared possible-support residual;
@@ -1080,6 +1328,7 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     structural_assignment_cursor: usize,
     structural_assignment_revision: Option<StructuralCatalogRevision>,
     imported_structural_assignments: BTreeSet<MechanismSignatureId>,
+    automatic_observation: Option<AutomaticSupportObservationIndex>,
     subject_projection_cache: BTreeMap<MechanismSupportSubject, SubjectProjectionCache>,
     subject_projection_lru: VecDeque<MechanismSupportSubject>,
     subject_projection_cache_limit: usize,
@@ -1114,6 +1363,7 @@ impl MechanismSupportCatalogBuilder {
             structural_assignment_cursor: 0,
             structural_assignment_revision: None,
             imported_structural_assignments: BTreeSet::new(),
+            automatic_observation: None,
             subject_projection_cache: BTreeMap::new(),
             subject_projection_lru: VecDeque::new(),
             subject_projection_cache_limit: subject_projection_cache_limit.max(1),
@@ -1128,6 +1378,10 @@ impl MechanismSupportCatalogBuilder {
     /// subject view without reconstructing either coordinate from its hashes.
     pub(crate) const fn scope(&self) -> MechanismRequestScope {
         self.scope
+    }
+
+    pub(crate) fn automatic_observation_slice(&self) -> Option<MechanismSupportSlice> {
+        self.automatic_observation.as_ref().map(|index| index.slice)
     }
 
     pub(crate) const fn target_discovery_cursor(&self) -> usize {
@@ -1392,27 +1646,41 @@ impl MechanismSupportCatalogBuilder {
             if self.imported_structural_assignments.contains(&signature_id) {
                 return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
             }
+
+            // Prepare every fallible derived-index transition before mutating
+            // the authoritative imported prefix. A rejected import must leave
+            // observation replay exactly where the cursor says it is.
+            let mut next_automatic_observation = self
+                .automatic_observation
+                .clone()
+                .unwrap_or_else(|| AutomaticSupportObservationIndex::new(self.scope, assignment));
+            next_automatic_observation.observe_assignment(signature_id, assignment)?;
+            let mut next_unassigned_signature_index = self.unassigned_signature_index.clone();
             if authenticated_contains(
-                &self.unassigned_signature_index,
+                &next_unassigned_signature_index,
                 &signature_key(signature_id),
                 "unassigned signatures",
             )? {
-                self.unassigned_signature_index
+                next_unassigned_signature_index
                     .remove(&signature_key(signature_id))
                     .map_err(|_| {
                         MechanismSupportError::AuthenticatedIndex("unassigned signatures")
                     })?;
             }
-            self.extend_cached_subjects_for_assignment(signature_id, assignment);
-            let inserted = self.imported_structural_assignments.insert(signature_id);
-            debug_assert!(inserted, "checked structural prefix assignment is new");
-            self.structural_assignment_cursor = self
+            let next_structural_assignment_cursor = self
                 .structural_assignment_cursor
                 .checked_add(1)
                 .ok_or(MechanismSupportError::CountOverflow)?;
             let prefix_revision = structural
-                .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
+                .assignment_discovery_prefix_revision(next_structural_assignment_cursor)
                 .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
+
+            self.automatic_observation = Some(next_automatic_observation);
+            self.unassigned_signature_index = next_unassigned_signature_index;
+            self.extend_cached_subjects_for_assignment(signature_id, assignment);
+            let inserted = self.imported_structural_assignments.insert(signature_id);
+            debug_assert!(inserted, "checked structural prefix assignment is new");
+            self.structural_assignment_cursor = next_structural_assignment_cursor;
             self.structural_assignment_revision = Some(prefix_revision);
             for projection in self.subject_projection_cache.values_mut() {
                 projection
@@ -1818,50 +2086,27 @@ impl MechanismSupportCatalogBuilder {
             .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
             .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
         let residual = self.factorized_residual()?;
-        let mut prefix_encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2);
-        prefix_encoder.u32(MECHANISM_SUPPORT_VERSION);
-        prefix_encoder.digest(self.scope.request_id().bytes());
-        encode_target(&mut prefix_encoder, self.scope.target());
-        // Only the imported structural prefix is checkpoint authority. The
-        // live catalog may already contain later assignments, but hashing its
-        // current revision/root here would make the same durable support
-        // cursor depend on unimported upstream work.
-        prefix_encoder.u128(self.target_discovery_cursor as u128);
-        prefix_encoder.digest(target_revision.bytes());
-        prefix_encoder.u128(self.terminal_discovery_cursor as u128);
-        prefix_encoder.digest(terminal_revision.bytes());
-        prefix_encoder.u128(self.structural_assignment_cursor as u128);
-        prefix_encoder.digest(structural_revision.bytes());
-        encode_authenticated_index(&mut prefix_encoder, &self.pending_cases);
-        encode_authenticated_index(&mut prefix_encoder, &self.terminal_fact_index);
-        encode_authenticated_index(&mut prefix_encoder, &self.unavailable_cases);
-        encode_authenticated_index(&mut prefix_encoder, &self.signature_fiber_index);
-        encode_authenticated_index(&mut prefix_encoder, &self.unassigned_signature_index);
-        prefix_encoder.digest(self.target_starter_index.root_hash());
-        prefix_encoder.u128(self.target_starter_index.total_weight());
-        prefix_encoder.digest(residual.root.bytes());
-        prefix_encoder.u128(residual.case_count);
-        let imported_prefix_root = prefix_encoder.finish();
+        let imported_prefix_root = self.derive_imported_prefix_root(
+            target_revision,
+            terminal_revision,
+            structural_revision,
+            residual,
+        );
 
         let target_seal_id = self.target_seal.as_ref().map(MechanismTargetSeal::id);
-        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V2);
-        encoder.u32(MECHANISM_SUPPORT_VERSION);
-        encoder.digest(imported_prefix_root);
-        encode_optional_digest(
-            &mut encoder,
-            target_seal_id.map(MechanismTargetSealId::bytes),
-        );
-        encode_optional_digest(
-            &mut encoder,
-            closed_incidence_root.map(MechanismIncidenceRoot::bytes),
-        );
-        encode_optional_digest(
-            &mut encoder,
-            structural_closure_root.map(StructuralQuotientClosureRoot::bytes),
+        let root = derive_support_frontier_root(
+            imported_prefix_root,
+            target_seal_id,
+            closed_incidence_root,
+            structural_closure_root,
         );
         Ok(MechanismSupportFrontierSummary {
-            root: MechanismSupportFrontierRoot(encoder.finish()),
+            root,
             imported_prefix_root,
+            cursor: self.checkpoint_cursor(),
+            target_discovery_revision: target_revision,
+            terminal_discovery_revision: terminal_revision,
+            structural_assignment_revision: structural_revision,
             target_seal_id,
             incidence_closure_root: closed_incidence_root,
             structural_closure_root,
@@ -2004,6 +2249,354 @@ impl MechanismSupportCatalogBuilder {
     ) -> Result<MechanismSupportClosureReceipt, MechanismSupportError> {
         let receipt = self.derive_closure(closed_incidence, structural)?;
         self.commit_derived_closure(receipt)
+    }
+
+    /// Derive one immutable, prefix-relative support observation without
+    /// mutating projection caches or materializing a case/starter union.
+    ///
+    /// Only assignments already imported by this support builder are eligible
+    /// to contribute to the inner expression. A live structural catalog may
+    /// contain a longer discovery suffix; that suffix is deliberately neither
+    /// inspected nor treated as confirmed support. Successful fibers whose
+    /// assignment has not yet been imported remain in the shared unassigned
+    /// residual maintained by the support stream.
+    pub(crate) fn derive_factorized_support_observation(
+        &self,
+        slice: MechanismSupportSlice,
+        frontier: MechanismSupportFrontierSummary,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<MechanismFactorizedSupportObservationSummary, MechanismSupportError> {
+        let key = slice.key();
+        if key.request_id != self.scope.request_id()
+            || key.target != self.scope.target()
+            || structural.request_id() != self.scope.request_id()
+        {
+            return Err(MechanismSupportError::RequestMismatch);
+        }
+        let (structural_assignment_cursor, structural_assignment_revision) =
+            self.imported_structural_prefix_authority(structural)?;
+        let residual = self.factorized_residual()?;
+        self.validate_observation_frontier(
+            frontier,
+            structural,
+            structural_assignment_cursor,
+            structural_assignment_revision,
+            residual,
+        )?;
+        let observation_index = self
+            .automatic_observation
+            .as_ref()
+            .filter(|index| index.slice == slice)
+            .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+
+        let mut signature_prefix_encoder =
+            SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1);
+        signature_prefix_encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
+        encode_total_or_conditioned_support_slice(&mut signature_prefix_encoder, slice);
+        signature_prefix_encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
+
+        let contributing_signature_count = observation_index.contributing_signature_count;
+        let mut inspected_signature_count = 0u128;
+        let mut case_lower_bound = 0u128;
+        let mut starter_lower_bound = 0u128;
+        for signature_id in observation_index.inspected_signatures.iter().copied() {
+            if !self.imported_structural_assignments.contains(&signature_id) {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
+            let assignment = structural
+                .assignment(signature_id)
+                .ok_or(MechanismSupportError::UnknownStructuralAssignment)?;
+            if assignment.signature_id() != signature_id
+                || signature_id.request_id() != self.scope.request_id()
+            {
+                return Err(MechanismSupportError::RequestMismatch);
+            }
+            if !assignment_supports_slice(assignment, slice) {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
+            inspected_signature_count = inspected_signature_count
+                .checked_add(1)
+                .ok_or(MechanismSupportError::CountOverflow)?;
+            signature_prefix_encoder.digest(signature_id.bytes());
+            let Some(fiber) = self.signature_fibers.get(&signature_id) else {
+                // The structural assignment is imported but no successful
+                // terminal for it is confirmed yet. Its possible cases are
+                // already represented by the pending residual.
+                signature_prefix_encoder.u8(0x00);
+                continue;
+            };
+            let summary = signature_fiber_summary(fiber);
+            let authenticated_summary = self
+                .signature_fiber_index
+                .get(&signature_id.bytes())
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
+            if authenticated_summary != Some(signature_fiber_value(signature_id, summary)) {
+                return Err(MechanismSupportError::ResidualPartitionConflict);
+            }
+            signature_prefix_encoder.u8(0x01);
+            signature_prefix_encoder.digest(summary.root);
+            signature_prefix_encoder.u128(summary.case_count);
+            signature_prefix_encoder.u128(summary.starter_count);
+            case_lower_bound = case_lower_bound
+                .checked_add(summary.case_count)
+                .ok_or(MechanismSupportError::CountOverflow)?;
+            starter_lower_bound = starter_lower_bound.max(summary.starter_count);
+        }
+        let scan_limit = u128::try_from(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT)
+            .expect("the fixed signature scan limit fits u128");
+        if observation_index.observed_assignment_count != structural_assignment_cursor as u128
+            || contributing_signature_count > structural_assignment_cursor as u128
+            || inspected_signature_count
+                != u128::try_from(observation_index.inspected_signatures.len())
+                    .expect("the bounded observation signature count fits u128")
+            || inspected_signature_count != contributing_signature_count.min(scan_limit)
+        {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        let signature_scan_complete = inspected_signature_count == contributing_signature_count;
+        signature_prefix_encoder.u128(contributing_signature_count);
+        signature_prefix_encoder.u128(inspected_signature_count);
+        signature_prefix_encoder.u8(u8::from(signature_scan_complete));
+        let signature_prefix_root = signature_prefix_encoder.finish();
+
+        let target_case_count = self.target.len() as u128;
+        let target_starter_count = self.target_starter_index.total_weight();
+        if target_starter_count != self.target_starter_refcounts.len() as u128
+            || case_lower_bound > target_case_count
+            || starter_lower_bound > target_starter_count
+        {
+            return Err(MechanismSupportError::ResidualPartitionConflict);
+        }
+        let target_frontier_open = !self.target_is_complete();
+        let case_count = if target_frontier_open {
+            MechanismSupportCount::Unknown {
+                confirmed_lower_bound: case_lower_bound,
+            }
+        } else {
+            let upper_bound = if signature_scan_complete {
+                case_lower_bound
+                    .checked_add(residual.case_count())
+                    .ok_or(MechanismSupportError::CountOverflow)?
+            } else {
+                target_case_count
+            };
+            if upper_bound < case_lower_bound || upper_bound > target_case_count {
+                return Err(MechanismSupportError::ResidualPartitionConflict);
+            }
+            if upper_bound == case_lower_bound {
+                MechanismSupportCount::Exact(case_lower_bound)
+            } else {
+                MechanismSupportCount::Interval {
+                    lower_bound: case_lower_bound,
+                    upper_bound,
+                }
+            }
+        };
+        let target_starter_root = self.target_starter_index.root_hash();
+        let (starter_count, starter_bound_basis) = if target_frontier_open {
+            (
+                MechanismSupportCount::Unknown {
+                    confirmed_lower_bound: starter_lower_bound,
+                },
+                MechanismFactorizedStarterBoundBasis::OpenOpaque,
+            )
+        } else if starter_lower_bound == target_starter_count {
+            (
+                MechanismSupportCount::Exact(starter_lower_bound),
+                if starter_lower_bound == 0 {
+                    MechanismFactorizedStarterBoundBasis::ExactEmpty
+                } else {
+                    MechanismFactorizedStarterBoundBasis::ExactTargetStarterSaturation {
+                        target_starter_root,
+                    }
+                },
+            )
+        } else if signature_scan_complete
+            && residual.case_count() == 0
+            && contributing_signature_count <= 1
+        {
+            (
+                MechanismSupportCount::Exact(starter_lower_bound),
+                if starter_lower_bound == 0 {
+                    MechanismFactorizedStarterBoundBasis::ExactEmpty
+                } else {
+                    MechanismFactorizedStarterBoundBasis::ExactFactorizedBoundCollapse
+                },
+            )
+        } else {
+            (
+                MechanismSupportCount::Interval {
+                    lower_bound: starter_lower_bound,
+                    upper_bound: target_starter_count,
+                },
+                MechanismFactorizedStarterBoundBasis::ConservativeTargetProjectionUpper {
+                    target_starter_root,
+                },
+            )
+        };
+
+        let structural_root = frontier.structural_closure_root();
+        let support_root = self.closure.map(MechanismSupportClosureReceipt::root);
+        let projection_plan_id =
+            match (structural_root, support_root) {
+                (Some(structural_root), Some(support_root)) => Some(
+                    derive_starter_projection_plan_id(slice, structural_root, support_root),
+                ),
+                _ => None,
+            };
+        let inner_fiber_expr_root = derive_factorized_observation_inner_fiber_expr_root(
+            slice,
+            frontier.imported_prefix_root(),
+            signature_prefix_root,
+            contributing_signature_count,
+            inspected_signature_count,
+            case_lower_bound,
+            starter_lower_bound,
+        );
+        let outer_fiber_expr_root = derive_factorized_observation_outer_fiber_expr_root(
+            slice,
+            inner_fiber_expr_root,
+            frontier.root(),
+            residual,
+            contributing_signature_count,
+            inspected_signature_count,
+            signature_scan_complete,
+            target_frontier_open,
+            support_root.is_some(),
+        );
+        let slice_id = slice.id();
+        let root = derive_factorized_support_observation_summary_root(
+            slice,
+            slice_id,
+            frontier,
+            structural_root,
+            support_root,
+            projection_plan_id,
+            target_frontier_open,
+            inner_fiber_expr_root,
+            outer_fiber_expr_root,
+            contributing_signature_count,
+            inspected_signature_count,
+            signature_scan_complete,
+            signature_prefix_root,
+            residual,
+            case_count,
+            starter_count,
+            starter_bound_basis,
+        );
+        Ok(MechanismFactorizedSupportObservationSummary {
+            slice,
+            slice_id,
+            root,
+            frontier_root: frontier.root(),
+            imported_prefix_root: frontier.imported_prefix_root(),
+            structural_root,
+            support_root,
+            projection_plan_id,
+            target_frontier_open,
+            inner_fiber_expr_root,
+            outer_fiber_expr_root,
+            contributing_signature_count,
+            inspected_signature_count,
+            signature_scan_complete,
+            signature_prefix_root,
+            residual,
+            case_count,
+            starter_count,
+            starter_bound_basis,
+        })
+    }
+
+    fn derive_imported_prefix_root(
+        &self,
+        target_revision: MechanismTargetDiscoveryRevision,
+        terminal_revision: MechanismTerminalDiscoveryRevision,
+        structural_revision: StructuralCatalogRevision,
+        residual: MechanismSupportResidualSummary,
+    ) -> [u8; 32] {
+        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2);
+        encoder.u32(MECHANISM_SUPPORT_VERSION);
+        encoder.digest(self.scope.request_id().bytes());
+        encode_target(&mut encoder, self.scope.target());
+        // Only the imported structural prefix is checkpoint authority. The
+        // live catalog may already contain later assignments, but hashing its
+        // current revision/root here would make the same durable support
+        // cursor depend on unimported upstream work.
+        encoder.u128(self.target_discovery_cursor as u128);
+        encoder.digest(target_revision.bytes());
+        encoder.u128(self.terminal_discovery_cursor as u128);
+        encoder.digest(terminal_revision.bytes());
+        encoder.u128(self.structural_assignment_cursor as u128);
+        encoder.digest(structural_revision.bytes());
+        encode_authenticated_index(&mut encoder, &self.pending_cases);
+        encode_authenticated_index(&mut encoder, &self.terminal_fact_index);
+        encode_authenticated_index(&mut encoder, &self.unavailable_cases);
+        encode_authenticated_index(&mut encoder, &self.signature_fiber_index);
+        encode_authenticated_index(&mut encoder, &self.unassigned_signature_index);
+        encoder.digest(self.target_starter_index.root_hash());
+        encoder.u128(self.target_starter_index.total_weight());
+        encoder.digest(residual.root().bytes());
+        encoder.u128(residual.case_count());
+        encoder.finish()
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn validate_observation_frontier(
+        &self,
+        frontier: MechanismSupportFrontierSummary,
+        structural: &StructuralMechanismCatalogBuilder,
+        structural_assignment_cursor: usize,
+        structural_assignment_revision: StructuralCatalogRevision,
+        residual: MechanismSupportResidualSummary,
+    ) -> Result<(), MechanismSupportError> {
+        if frontier.cursor() != self.checkpoint_cursor()
+            || frontier.structural_assignment_revision() != structural_assignment_revision
+            || frontier.target_seal_id() != self.target_seal.as_ref().map(MechanismTargetSeal::id)
+            || self
+                .target_discovery_revision
+                .is_some_and(|revision| revision != frontier.target_discovery_revision())
+            || self
+                .terminal_discovery_revision
+                .is_some_and(|revision| revision != frontier.terminal_discovery_revision())
+            || structural_assignment_cursor != self.imported_structural_assignments.len()
+        {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        let imported_prefix_root = self.derive_imported_prefix_root(
+            frontier.target_discovery_revision(),
+            frontier.terminal_discovery_revision(),
+            frontier.structural_assignment_revision(),
+            residual,
+        );
+        if imported_prefix_root != frontier.imported_prefix_root()
+            || derive_support_frontier_root(
+                imported_prefix_root,
+                frontier.target_seal_id(),
+                frontier.incidence_closure_root(),
+                frontier.structural_closure_root(),
+            ) != frontier.root()
+        {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        if let Some(structural_root) = frontier.structural_closure_root() {
+            if structural.closure().map(|closure| closure.root()) != Some(structural_root) {
+                return Err(MechanismSupportError::FrontierConflict);
+            }
+        }
+        if let Some(support_closure) = self.closure {
+            if frontier.target_seal_id() != Some(support_closure.target_seal_id())
+                || frontier.incidence_closure_root() != Some(support_closure.incidence_root())
+                || frontier.structural_closure_root() != Some(support_closure.structural_root())
+                || support_closure.request_id() != self.scope.request_id()
+                || support_closure.target() != self.scope.target()
+                || structural_assignment_cursor != structural.assignment_count()
+                || residual.root() != support_closure.residual_root()
+                || residual.case_count() != support_closure.unavailable_case_count()
+            {
+                return Err(MechanismSupportError::ClosureConflict);
+            }
+        }
+        Ok(())
     }
 
     /// Derive the bounded, factorized row used by automatic all-subject
@@ -3318,6 +3911,44 @@ fn signature_key(signature_id: MechanismSignatureId) -> Box<[u8]> {
     signature_id.bytes().to_vec().into_boxed_slice()
 }
 
+fn derive_support_slice_id(slice: MechanismSupportSlice) -> MechanismSupportSliceId {
+    let mut encoder = SupportEncoder::new(SUPPORT_SLICE_ID_V1);
+    encoder.u32(MECHANISM_SUPPORT_SLICE_ID_VERSION);
+    encode_support_key(&mut encoder, slice.key());
+    match slice.enclosing_mechanism() {
+        None => encoder.u8(0x00),
+        Some(mechanism_id) => {
+            encoder.u8(0x01);
+            encoder.digest(mechanism_id.bytes());
+        }
+    }
+    MechanismSupportSliceId(encoder.finish())
+}
+
+fn derive_support_frontier_root(
+    imported_prefix_root: [u8; 32],
+    target_seal_id: Option<MechanismTargetSealId>,
+    incidence_closure_root: Option<MechanismIncidenceRoot>,
+    structural_closure_root: Option<StructuralQuotientClosureRoot>,
+) -> MechanismSupportFrontierRoot {
+    let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V2);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encoder.digest(imported_prefix_root);
+    encode_optional_digest(
+        &mut encoder,
+        target_seal_id.map(MechanismTargetSealId::bytes),
+    );
+    encode_optional_digest(
+        &mut encoder,
+        incidence_closure_root.map(MechanismIncidenceRoot::bytes),
+    );
+    encode_optional_digest(
+        &mut encoder,
+        structural_closure_root.map(StructuralQuotientClosureRoot::bytes),
+    );
+    MechanismSupportFrontierRoot(encoder.finish())
+}
+
 fn derive_starter_projection_plan_id(
     slice: MechanismSupportSlice,
     structural_root: StructuralQuotientClosureRoot,
@@ -3388,6 +4019,119 @@ fn support_fiber_expr_encoder(slice: MechanismSupportSlice, expression_kind: u8)
     encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.u8(expression_kind);
     encoder
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derive_factorized_observation_inner_fiber_expr_root(
+    slice: MechanismSupportSlice,
+    imported_prefix_root: [u8; 32],
+    signature_prefix_root: [u8; 32],
+    contributing_signature_count: u128,
+    inspected_signature_count: u128,
+    confirmed_case_count: u128,
+    confirmed_starter_lower_bound: u128,
+) -> MechanismSupportFiberExprRoot {
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V1);
+    encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
+    encoder.u8(FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE);
+    encoder.u8(FIBER_EXPR_SOURCE_CONTEXT_BEFORE);
+    encoder.u8(FIBER_EXPR_SUCCESSOR_AFTER);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(imported_prefix_root);
+    encoder.digest(signature_prefix_root);
+    encoder.u128(contributing_signature_count);
+    encoder.u128(inspected_signature_count);
+    encoder.u128(confirmed_case_count);
+    encoder.u128(confirmed_starter_lower_bound);
+    MechanismSupportFiberExprRoot(encoder.finish())
+}
+
+fn derive_factorized_observation_outer_fiber_expr_root(
+    slice: MechanismSupportSlice,
+    inner: MechanismSupportFiberExprRoot,
+    frontier_root: MechanismSupportFrontierRoot,
+    residual: MechanismSupportResidualSummary,
+    contributing_signature_count: u128,
+    inspected_signature_count: u128,
+    signature_scan_complete: bool,
+    target_frontier_open: bool,
+    support_is_closed: bool,
+) -> MechanismSupportFiberExprRoot {
+    if signature_scan_complete
+        && residual.case_count() == 0
+        && !target_frontier_open
+        && support_is_closed
+    {
+        return inner;
+    }
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V1);
+    encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
+    encoder.u8(FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE);
+    encoder.u8(FIBER_EXPR_SOURCE_CONTEXT_BEFORE);
+    encoder.u8(FIBER_EXPR_SUCCESSOR_AFTER);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(inner.bytes());
+    encoder.digest(frontier_root.bytes());
+    encode_residual_summary(&mut encoder, residual);
+    encoder.u128(contributing_signature_count);
+    encoder.u128(inspected_signature_count);
+    encoder.u8(u8::from(signature_scan_complete));
+    encoder.u8(u8::from(target_frontier_open));
+    encoder.u8(u8::from(support_is_closed));
+    MechanismSupportFiberExprRoot(encoder.finish())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derive_factorized_support_observation_summary_root(
+    slice: MechanismSupportSlice,
+    slice_id: MechanismSupportSliceId,
+    frontier: MechanismSupportFrontierSummary,
+    structural_root: Option<StructuralQuotientClosureRoot>,
+    support_root: Option<MechanismSupportClosureRoot>,
+    projection_plan_id: Option<MechanismStarterProjectionPlanId>,
+    target_frontier_open: bool,
+    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
+    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    contributing_signature_count: u128,
+    inspected_signature_count: u128,
+    signature_scan_complete: bool,
+    signature_prefix_root: [u8; 32],
+    residual: MechanismSupportResidualSummary,
+    case_count: MechanismSupportCount,
+    starter_count: MechanismSupportCount,
+    starter_bound_basis: MechanismFactorizedStarterBoundBasis,
+) -> MechanismFactorizedSupportObservationSummaryRoot {
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V1);
+    encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(slice_id.bytes());
+    encoder.digest(frontier.root().bytes());
+    encoder.digest(frontier.imported_prefix_root());
+    encode_optional_digest(
+        &mut encoder,
+        structural_root.map(StructuralQuotientClosureRoot::bytes),
+    );
+    encode_optional_digest(
+        &mut encoder,
+        support_root.map(MechanismSupportClosureRoot::bytes),
+    );
+    encode_optional_digest(
+        &mut encoder,
+        projection_plan_id.map(MechanismStarterProjectionPlanId::bytes),
+    );
+    encoder.u8(u8::from(target_frontier_open));
+    encoder.digest(inner_fiber_expr_root.bytes());
+    encoder.digest(outer_fiber_expr_root.bytes());
+    encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
+    encoder.u128(contributing_signature_count);
+    encoder.u128(inspected_signature_count);
+    encoder.u8(u8::from(signature_scan_complete));
+    encoder.digest(signature_prefix_root);
+    encode_residual_summary(&mut encoder, residual);
+    encode_count(&mut encoder, case_count);
+    encode_count(&mut encoder, starter_count);
+    encode_factorized_starter_bound_basis(&mut encoder, starter_bound_basis);
+    MechanismFactorizedSupportObservationSummaryRoot(encoder.finish())
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -3576,6 +4320,23 @@ fn encode_authenticated_index(encoder: &mut SupportEncoder, index: &Authenticate
     encoder.u128(index.total_weight());
 }
 
+fn encode_residual_summary(
+    encoder: &mut SupportEncoder,
+    residual: MechanismSupportResidualSummary,
+) {
+    encoder.digest(residual.root().bytes());
+    encoder.u128(residual.case_count());
+    for component in [
+        residual.pending_cases(),
+        residual.unavailable_cases(),
+        residual.unassigned_signatures(),
+    ] {
+        encoder.digest(component.root().bytes());
+        encoder.u128(component.member_count());
+        encoder.u128(component.case_count());
+    }
+}
+
 fn encode_target(encoder: &mut SupportEncoder, target: MechanismTargetId) {
     match target {
         MechanismTargetId::Selected => encoder.u8(0x01),
@@ -3646,6 +4407,7 @@ fn encode_factorized_starter_bound_basis(
     basis: MechanismFactorizedStarterBoundBasis,
 ) {
     match basis {
+        MechanismFactorizedStarterBoundBasis::OpenOpaque => encoder.u8(0x00),
         MechanismFactorizedStarterBoundBasis::ExactEmpty => encoder.u8(0x01),
         MechanismFactorizedStarterBoundBasis::ExactFactorizedBoundCollapse => encoder.u8(0x02),
         MechanismFactorizedStarterBoundBasis::ExactTargetStarterSaturation {
@@ -3681,6 +4443,7 @@ pub(crate) enum MechanismSupportError {
     TerminalDiscoveryPrefixConflict,
     StructuralAssignmentCursorRegression,
     StructuralAssignmentPrefixConflict,
+    FrontierConflict,
     UnknownStructuralAssignment,
     UnknownStructuralSubject,
     TerminalConflict,
@@ -3734,6 +4497,9 @@ impl fmt::Display for MechanismSupportError {
             }
             Self::StructuralAssignmentPrefixConflict => {
                 "mechanism support structural prefix belongs to a divergent catalog branch"
+            }
+            Self::FrontierConflict => {
+                "mechanism support observation does not match the supplied durable frontier"
             }
             Self::UnknownStructuralAssignment => {
                 "mechanism support structural discovery names no checked assignment"
@@ -3818,6 +4584,7 @@ pub(super) struct ClosedSubjectStarterFixture {
     pre_structural_support: MechanismSupportCatalogBuilder,
     pub(super) open_support: MechanismSupportCatalogBuilder,
     pub(super) support: MechanismSupportCatalogBuilder,
+    open_incidence: super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
     incidence: super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
     pub(super) structural: StructuralMechanismCatalogBuilder,
     pub(super) mechanism_id: StructuralMechanismId,
@@ -3831,14 +4598,14 @@ pub(super) struct ClosedSubjectStarterFixture {
 /// activation support is exact two while differential support is exact empty.
 #[cfg(test)]
 pub(super) fn closed_subject_starter_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, false, false, false)
+    subject_starter_fixture(false, false, 1, false)
 }
 
 /// Two complete raw signatures which quotient to the same structural subject
 /// support and whose cases are distinct successors of one shared origin.
 #[cfg(test)]
 fn multi_signature_shared_starter_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, true, true, false)
+    subject_starter_fixture(false, true, 2, false)
 }
 
 /// Two raw signatures on different mechanism routes. The second route extends
@@ -3846,7 +4613,20 @@ fn multi_signature_shared_starter_fixture() -> ClosedSubjectStarterFixture {
 /// one common node while their structural mechanism identities differ.
 #[cfg(test)]
 fn multi_mechanism_shared_node_fixture() -> ClosedSubjectStarterFixture {
-    subject_starter_fixture(false, true, true, true)
+    subject_starter_fixture(false, true, 2, true)
+}
+
+/// One more raw signature than an automatic observation may inspect. Every
+/// signature has one successful case with a distinct starter and all of them
+/// quotient to the same structural mechanism.
+#[cfg(test)]
+fn capped_automatic_observation_fixture() -> ClosedSubjectStarterFixture {
+    subject_starter_fixture(
+        false,
+        false,
+        AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT + 1,
+        false,
+    )
 }
 
 /// Variant of the shared subject fixture which can leave the second case
@@ -3857,7 +4637,7 @@ fn multi_mechanism_shared_node_fixture() -> ClosedSubjectStarterFixture {
 fn subject_starter_fixture(
     second_case_unavailable: bool,
     shared_starter: bool,
-    split_raw_signatures: bool,
+    raw_signature_count: usize,
     split_structural_mechanisms: bool,
 ) -> ClosedSubjectStarterFixture {
     use super::mechanism_incidence::{
@@ -3919,8 +4699,9 @@ fn subject_starter_fixture(
         )
     }
 
-    assert!(!split_raw_signatures || !second_case_unavailable);
-    assert!(!split_structural_mechanisms || split_raw_signatures);
+    assert!(raw_signature_count > 0);
+    assert!(!second_case_unavailable || raw_signature_count == 1);
+    assert!(!split_structural_mechanisms || raw_signature_count == 2);
 
     let relation_id = RelationId::from_canonical_semantic_preimage(b"subject-starter-fixture");
     let admission_id =
@@ -3941,6 +4722,7 @@ fn subject_starter_fixture(
 
     let mut relation = super::relation::RelationCatalogBuilder::new(relation_id);
     let mut cases = Vec::new();
+    let case_count = raw_signature_count.max(2);
     if shared_starter {
         let source_key = relation
             .insert_source(SourceRow::new(
@@ -3949,7 +4731,10 @@ fn subject_starter_fixture(
                 provenance(b"fixture-shared-source"),
             ))
             .expect("fixture shared source");
-        for (ordinal, after) in [101_i64, 102_i64].into_iter().enumerate() {
+        for ordinal in 0..case_count {
+            let after = 101_i64
+                .checked_add(i64::try_from(ordinal).expect("fixture ordinal fits i64"))
+                .expect("fixture successor value fits i64");
             let label = format!("fixture-shared-successor-{ordinal}");
             let (_, case_id) = relation
                 .insert_successor(
@@ -3960,7 +4745,11 @@ fn subject_starter_fixture(
             cases.push(case_id);
         }
     } else {
-        for (ordinal, before) in [100_i64, 200_i64].into_iter().enumerate() {
+        for ordinal in 0..case_count {
+            let before = i64::try_from(ordinal + 1)
+                .expect("fixture ordinal fits i64")
+                .checked_mul(100)
+                .expect("fixture before value fits i64");
             let label = format!("fixture-case-{ordinal}");
             let source_key = relation
                 .insert_source(SourceRow::new(
@@ -3983,10 +4772,15 @@ fn subject_starter_fixture(
         request_id,
         b"subject-starter-structural-fixture".as_slice(),
     )];
-    if split_raw_signatures {
+    for ordinal in 1..raw_signature_count {
+        let canonical_definition = if ordinal == 1 {
+            b"subject-starter-structural-fixture-second".to_vec()
+        } else {
+            format!("subject-starter-structural-fixture-{ordinal}").into_bytes()
+        };
         signatures.push(MechanismSignatureDefinition::from_canonical_definition(
             request_id,
-            b"subject-starter-structural-fixture-second".as_slice(),
+            canonical_definition,
         ));
     }
     let mut incidence = MechanismIncidenceCatalogBuilder::new(scope);
@@ -4006,7 +4800,7 @@ fn subject_starter_fixture(
                 )
                 .expect("fixture unavailable terminal");
         } else {
-            let signature = &signatures[if split_raw_signatures { ordinal } else { 0 }];
+            let signature = &signatures[if raw_signature_count > 1 { ordinal } else { 0 }];
             incidence
                 .record_incidence(
                     case_id,
@@ -4195,6 +4989,7 @@ fn subject_starter_fixture(
         )
         .expect("fixture support terminals");
     let open_support = support.clone();
+    let open_incidence = incidence.clone();
     incidence
         .seal_selected_target_commitment(
             QuestionContentRoot::from_journal_codec_bytes([0x51; 32]),
@@ -4216,6 +5011,7 @@ fn subject_starter_fixture(
         pre_structural_support,
         open_support,
         support,
+        open_incidence,
         incidence,
         structural,
         mechanism_id,
@@ -4322,6 +5118,323 @@ mod tests {
     }
 
     #[test]
+    fn support_observation_tracks_only_its_imported_prefix_then_seals() {
+        let fixture = multi_signature_shared_starter_fixture();
+        let mut support = fixture.pre_structural_support;
+        let key = MechanismSupportKey::new(
+            support.scope(),
+            MechanismSupportSubject::Mechanism(fixture.mechanism_id),
+        );
+        let slice = MechanismSupportSlice::total(key);
+        let conditioned_slice = MechanismSupportSlice::within_mechanism(key, fixture.mechanism_id);
+        assert_ne!(slice.id(), conditioned_slice.id());
+
+        support
+            .sync_structural_assignments_through(&fixture.structural, 1)
+            .expect("first structural prefix");
+        support
+            .sync_incidence_terminals_through(
+                &fixture.open_incidence,
+                &fixture.structural,
+                fixture.open_incidence.terminal_discovery_count() as u128,
+            )
+            .expect("open terminal prefix");
+        let first_frontier = support
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("first support frontier");
+        let first = support
+            .derive_factorized_support_observation(slice, first_frontier, &fixture.structural)
+            .expect("first factorized observation");
+
+        // The structural catalog is already closed with two assignments, but
+        // only the single imported assignment is confirmed by this support
+        // prefix. The second successful fiber remains one shared residual.
+        assert_eq!(fixture.structural.assignment_discovery_count(), 2);
+        assert_eq!(first.slice_id(), slice.id());
+        assert_eq!(first.contributing_signature_count(), 1);
+        assert_eq!(first.inspected_signature_count(), 1);
+        assert!(first.signature_scan_complete());
+        assert_eq!(
+            first.case_count(),
+            MechanismSupportCount::Unknown {
+                confirmed_lower_bound: 1,
+            }
+        );
+        assert_eq!(first.residual_summary().case_count(), 1);
+        assert!(first.target_frontier_is_open());
+        assert_eq!(
+            first.starter_bound_basis(),
+            MechanismFactorizedStarterBoundBasis::OpenOpaque
+        );
+        assert!(first.structural_root().is_none());
+        assert!(first.support_root().is_none());
+        assert!(first.projection_plan_id().is_none());
+
+        support
+            .sync_structural_assignments_through(&fixture.structural, 2)
+            .expect("complete structural prefix");
+        let second_frontier = support
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("second support frontier");
+        let second = support
+            .derive_factorized_support_observation(slice, second_frontier, &fixture.structural)
+            .expect("second factorized observation");
+        assert_eq!(second.slice_id(), first.slice_id());
+        assert_ne!(second.root(), first.root());
+        assert_eq!(second.contributing_signature_count(), 2);
+        assert_eq!(second.inspected_signature_count(), 2);
+        assert_eq!(
+            second.case_count(),
+            MechanismSupportCount::Unknown {
+                confirmed_lower_bound: 2,
+            }
+        );
+        assert_eq!(second.residual_summary().case_count(), 0);
+        assert!(!second.fiber_expr_bounds_are_equal());
+
+        support
+            .close(
+                fixture
+                    .incidence
+                    .closed_ref()
+                    .expect("fixture incidence closure"),
+                &fixture.structural,
+            )
+            .expect("support closure");
+        let structural_root = fixture
+            .structural
+            .closure()
+            .expect("structural closure")
+            .root();
+        let incidence_root = fixture
+            .incidence
+            .closed_ref()
+            .expect("incidence closure")
+            .root();
+        let sealed_frontier = support
+            .checkpoint_frontier(
+                &fixture.incidence,
+                Some(incidence_root),
+                &fixture.structural,
+                Some(structural_root),
+            )
+            .expect("sealed support frontier");
+        let sealed = support
+            .derive_factorized_support_observation(slice, sealed_frontier, &fixture.structural)
+            .expect("sealed factorized observation");
+        assert_eq!(sealed.slice_id(), first.slice_id());
+        assert_ne!(sealed.root(), second.root());
+        assert!(!sealed.target_frontier_is_open());
+        assert_eq!(sealed.case_count(), MechanismSupportCount::Exact(2));
+        assert_eq!(sealed.starter_count(), MechanismSupportCount::Exact(1));
+        assert_eq!(sealed.structural_root(), Some(structural_root));
+        assert_eq!(
+            sealed.support_root(),
+            support.closure().map(|root| root.root())
+        );
+        assert!(sealed.projection_plan_id().is_some());
+        assert_eq!(
+            sealed.inner_fiber_expr_root(),
+            second.inner_fiber_expr_root()
+        );
+        assert!(sealed.fiber_expr_bounds_are_equal());
+    }
+
+    #[test]
+    fn support_observation_cap_is_conservative_and_replay_equivalent() {
+        let fixture = capped_automatic_observation_fixture();
+        let signature_count = u128::try_from(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT + 1)
+            .expect("automatic observation fixture size fits u128");
+        assert_eq!(
+            fixture.structural.assignment_discovery_count() as u128,
+            signature_count
+        );
+
+        let mut incremental = fixture.pre_structural_support.clone();
+        for cursor in 1..=signature_count {
+            assert_eq!(
+                incremental
+                    .sync_structural_assignments_through(&fixture.structural, cursor)
+                    .expect("incremental structural-prefix import"),
+                1
+            );
+        }
+        let mut batched = fixture.pre_structural_support.clone();
+        assert_eq!(
+            batched
+                .sync_structural_assignments_through(&fixture.structural, signature_count)
+                .expect("batched structural-prefix import") as u128,
+            signature_count
+        );
+
+        let terminal_count = fixture.open_incidence.terminal_discovery_count() as u128;
+        incremental
+            .sync_incidence_terminals_through(
+                &fixture.open_incidence,
+                &fixture.structural,
+                terminal_count,
+            )
+            .expect("incremental-path terminal import");
+        batched
+            .sync_incidence_terminals_through(
+                &fixture.open_incidence,
+                &fixture.structural,
+                terminal_count,
+            )
+            .expect("batched-path terminal import");
+
+        let incremental_open_frontier = incremental
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("incremental open frontier");
+        let batched_open_frontier = batched
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("batched open frontier");
+        assert_eq!(incremental_open_frontier, batched_open_frontier);
+
+        let slice = incremental
+            .automatic_observation_slice()
+            .expect("automatic observation slice");
+        assert_eq!(batched.automatic_observation_slice(), Some(slice));
+        let incremental_open = incremental
+            .derive_factorized_support_observation(
+                slice,
+                incremental_open_frontier,
+                &fixture.structural,
+            )
+            .expect("incremental open observation");
+        let batched_open = batched
+            .derive_factorized_support_observation(
+                slice,
+                batched_open_frontier,
+                &fixture.structural,
+            )
+            .expect("batched open observation");
+        assert_eq!(incremental_open, batched_open);
+        assert_eq!(
+            incremental_open.contributing_signature_count(),
+            signature_count
+        );
+        assert_eq!(
+            incremental_open.inspected_signature_count(),
+            AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128
+        );
+        assert!(!incremental_open.signature_scan_complete());
+        assert_eq!(
+            incremental_open.case_count(),
+            MechanismSupportCount::Unknown {
+                confirmed_lower_bound: AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128,
+            }
+        );
+        assert_eq!(
+            incremental_open.starter_count(),
+            MechanismSupportCount::Unknown {
+                confirmed_lower_bound: 1,
+            }
+        );
+        assert_eq!(incremental_open.residual_summary().case_count(), 0);
+        assert!(!incremental_open.fiber_expr_bounds_are_equal());
+
+        incremental
+            .attach_target_seal(&fixture.incidence)
+            .expect("incremental target seal");
+        batched
+            .attach_target_seal(&fixture.incidence)
+            .expect("batched target seal");
+        let incremental_closure = incremental
+            .close(
+                fixture
+                    .incidence
+                    .closed_ref()
+                    .expect("fixture incidence closure"),
+                &fixture.structural,
+            )
+            .expect("incremental support closure");
+        let batched_closure = batched
+            .close(
+                fixture
+                    .incidence
+                    .closed_ref()
+                    .expect("fixture incidence closure"),
+                &fixture.structural,
+            )
+            .expect("batched support closure");
+        assert_eq!(incremental_closure, batched_closure);
+
+        let structural_root = fixture
+            .structural
+            .closure()
+            .expect("fixture structural closure")
+            .root();
+        let incidence_root = fixture
+            .incidence
+            .closed_ref()
+            .expect("fixture incidence closure")
+            .root();
+        let incremental_sealed_frontier = incremental
+            .checkpoint_frontier(
+                &fixture.incidence,
+                Some(incidence_root),
+                &fixture.structural,
+                Some(structural_root),
+            )
+            .expect("incremental sealed frontier");
+        let batched_sealed_frontier = batched
+            .checkpoint_frontier(
+                &fixture.incidence,
+                Some(incidence_root),
+                &fixture.structural,
+                Some(structural_root),
+            )
+            .expect("batched sealed frontier");
+        assert_eq!(incremental_sealed_frontier, batched_sealed_frontier);
+
+        let incremental_sealed = incremental
+            .derive_factorized_support_observation(
+                slice,
+                incremental_sealed_frontier,
+                &fixture.structural,
+            )
+            .expect("incremental sealed observation");
+        let batched_sealed = batched
+            .derive_factorized_support_observation(
+                slice,
+                batched_sealed_frontier,
+                &fixture.structural,
+            )
+            .expect("batched sealed observation");
+        assert_eq!(incremental_sealed, batched_sealed);
+        assert_eq!(
+            incremental_sealed.contributing_signature_count(),
+            signature_count
+        );
+        assert_eq!(
+            incremental_sealed.inspected_signature_count(),
+            AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128
+        );
+        assert!(!incremental_sealed.signature_scan_complete());
+        assert_eq!(
+            incremental_sealed.case_count(),
+            MechanismSupportCount::Interval {
+                lower_bound: AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128,
+                upper_bound: signature_count,
+            }
+        );
+        assert_eq!(
+            incremental_sealed.starter_count(),
+            MechanismSupportCount::Interval {
+                lower_bound: 1,
+                upper_bound: signature_count,
+            }
+        );
+        assert!(matches!(
+            incremental_sealed.starter_bound_basis(),
+            MechanismFactorizedStarterBoundBasis::ConservativeTargetProjectionUpper { .. }
+        ));
+        assert!(!incremental_sealed.target_frontier_is_open());
+        assert!(!incremental_sealed.fiber_expr_bounds_are_equal());
+    }
+
+    #[test]
     fn open_target_keeps_confirmed_case_and_starter_support_unknown() {
         let mut fixture = closed_subject_starter_fixture();
         let key = MechanismSupportKey::new(
@@ -4357,7 +5470,7 @@ mod tests {
 
     #[test]
     fn sealed_unavailable_residual_keeps_subject_case_and_starter_counts_interval_valued() {
-        let fixture = subject_starter_fixture(true, false, false, false);
+        let fixture = subject_starter_fixture(true, false, 1, false);
         let summary = fixture
             .support
             .derive_closed_factorized_subject_summary(
@@ -4389,7 +5502,7 @@ mod tests {
 
     #[test]
     fn target_starter_saturation_closes_only_the_distinct_starter_count() {
-        let fixture = subject_starter_fixture(true, true, false, false);
+        let fixture = subject_starter_fixture(true, true, 1, false);
         let key = mechanism_support_key(&fixture);
         let summary = fixture
             .support
