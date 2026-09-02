@@ -375,14 +375,14 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     // pending publication cursor committed either line. Reopening must replay
     // the durable journal, reconstruct the projection, authenticate the tail,
     // and adopt the exact bytes without appending or rewriting them.
-    let cursor_path = output_directory.join(".publication-cursor-v10.json");
+    let cursor_path = output_directory.join(".publication-cursor-v11.json");
     let mut cursor = read_json(&cursor_path);
     let artifact_key = graph_artifact_before_recovery["key"]
         .as_str()
         .expect("semantic transition graph artifact key");
     let final_graph_cursor = cursor["artifacts"][artifact_key].clone();
     let mut genesis = Sha256::new();
-    genesis.update(b"futuruna.explore.publication-prefix.v10");
+    genesis.update(b"futuruna.explore.publication-prefix.v11");
     genesis.update((artifact_key.len() as u64).to_be_bytes());
     genesis.update(artifact_key.as_bytes());
     let genesis = genesis
@@ -603,13 +603,15 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
         "dependent mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 10 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 11 && row["record"]["kind"] == "mechanism_support_observation"
     }));
-    let automatic_slice = &support_observations[0]["record"]["slice"];
-    assert_eq!(automatic_slice["subject"]["kind"], "mechanism");
-    assert_eq!(automatic_slice["selection"]["kind"], "total");
-    let automatic_slice_id = automatic_slice["slice_id"]
-        .as_str()
+    let automatic_slice_id = support_observations
+        .iter()
+        .find(|row| {
+            row["record"]["slice"]["subject"]["kind"] == "mechanism"
+                && row["record"]["slice"]["selection"]["kind"] == "total"
+        })
+        .and_then(|row| row["record"]["slice"]["slice_id"].as_str())
         .expect("automatic dependent support-slice ID");
     let mechanism_support = support_observations
         .iter()
@@ -754,7 +756,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
 
     let manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(manifest["schema_version"], 10);
+    assert_eq!(manifest["schema_version"], 11);
     for key in [
         "version",
         "manifest_digest",
@@ -776,10 +778,10 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
     assert_eq!(
         manifest["publication_cursor"]["file"],
-        ".publication-cursor-v10.json"
+        ".publication-cursor-v11.json"
     );
-    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v10.json"));
-    assert_eq!(publication_cursor["schema_version"], 10);
+    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v11.json"));
+    assert_eq!(publication_cursor["schema_version"], 11);
     let report_artifacts = first["publication"]["artifacts"]
         .as_array()
         .expect("report publication artifacts");
@@ -821,7 +823,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(selected_records.len(), 2);
     let mut selected_values_by_case = BTreeMap::new();
     for selected in &selected_records {
-        assert_eq!(selected["schema_version"], 10);
+        assert_eq!(selected["schema_version"], 11);
         assert_eq!(selected["record"]["kind"], "selected_case");
         assert_eq!(selected["record"]["row_id"]["kind"], "case");
         assert_eq!(selected["record"]["values"]["case_id"]["kind"], "case_id");
@@ -1014,11 +1016,24 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(summary["record"]["values"]["raw_signatures"], 1);
     assert_eq!(summary["record"]["values"]["explained_cases"], 2);
 
-    let structural_support = read_ndjson(&artifact_path(
-        &manifest,
-        &output_directory,
-        "mechanism_structural_support",
-    ));
+    let structural_support_artifact = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| artifact["kind"] == "mechanism_structural_support")
+        .expect("mechanism structural-support artifact");
+    assert_eq!(
+        structural_support_artifact["record_schema"],
+        "futuruna.relational-structural-mechanism-support-v7"
+    );
+    assert_eq!(structural_support_artifact["record_schema_version"], 7);
+    let structural_support = read_ndjson(
+        &output_directory.join(
+            structural_support_artifact["path"]
+                .as_str()
+                .expect("mechanism structural-support artifact path"),
+        ),
+    );
     for required_kind in [
         "structural_assignment",
         "structural_quotient_closure",
@@ -1049,6 +1064,27 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         support_observation_artifact["path"],
         "mechanisms/paths.support-observations.ndjson"
     );
+    assert_eq!(
+        support_observation_artifact["automatic_schedule"],
+        "every_discovered_structural_mechanism_total_slice"
+    );
+    assert_eq!(
+        support_observation_artifact["dirty_coalescing"],
+        "affected_mechanism_only"
+    );
+    assert_eq!(
+        support_observation_artifact["seal_schedule"],
+        "lazy_all_registered_slice_sweep"
+    );
+    assert_eq!(
+        support_observation_artifact["layer_roots"]["slice_counts"],
+        serde_json::json!({
+            "registered": "1",
+            "dirty": "0",
+            "observed": "1",
+            "sealed": "1",
+        })
+    );
     let support_observations = read_ndjson(
         &output_directory.join(
             support_observation_artifact["path"]
@@ -1061,13 +1097,38 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         "mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 10 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 11 && row["record"]["kind"] == "mechanism_support_observation"
     }));
-    let automatic_slice = &support_observations[0]["record"]["slice"];
-    assert_eq!(automatic_slice["subject"]["kind"], "mechanism");
-    assert_eq!(automatic_slice["selection"]["kind"], "total");
-    let automatic_slice_id = automatic_slice["slice_id"]
-        .as_str()
+    let automatic_slice_ids = support_observations
+        .iter()
+        .filter(|row| {
+            row["record"]["slice"]["subject"]["kind"] == "mechanism"
+                && row["record"]["slice"]["selection"]["kind"] == "total"
+        })
+        .map(|row| {
+            row["record"]["slice"]["slice_id"]
+                .as_str()
+                .expect("automatic mechanism support-slice ID")
+        })
+        .collect::<BTreeSet<_>>();
+    let automatically_observed_mechanisms = support_observations
+        .iter()
+        .filter(|row| {
+            row["record"]["slice"]["subject"]["kind"] == "mechanism"
+                && row["record"]["slice"]["selection"]["kind"] == "total"
+        })
+        .map(|row| {
+            row["record"]["slice"]["subject"]["structural_mechanism_id"]
+                .as_str()
+                .expect("automatically observed structural mechanism ID")
+        })
+        .collect::<BTreeSet<_>>();
+    assert_eq!(automatic_slice_ids.len(), structural_mechanisms.len());
+    assert_eq!(automatically_observed_mechanisms, structural_mechanisms);
+    let automatic_slice_id = automatic_slice_ids
+        .iter()
+        .next()
+        .copied()
         .expect("automatic mechanism support-slice ID");
     let mechanism_support = support_observations
         .iter()
@@ -1110,13 +1171,55 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
                 && record["record"]["assignment_ordinal"] == "0"
         })
         .expect("first structural assignment");
+    let initial_observation_link = &initial_observation["record"]["initial_support_observation"];
     assert_eq!(
-        initial_observation["record"]["initial_support_observation"]["artifact_key"],
+        initial_observation_link["artifact_key"],
         support_observation_artifact["key"]
     );
+    let initial_observation_ordinal = initial_observation_link["observation_ordinal"]
+        .as_str()
+        .expect("first assignment support-observation ordinal")
+        .parse::<usize>()
+        .expect("numeric first assignment support-observation ordinal");
+    let linked_observation = support_observations
+        .get(initial_observation_ordinal)
+        .expect("linked first assignment support observation");
     assert_eq!(
-        initial_observation["record"]["initial_support_observation"]["point_id"],
-        support_observations[0]["record"]["point_id"]
+        initial_observation_link["point_id"],
+        linked_observation["record"]["point_id"]
+    );
+    assert_eq!(
+        initial_observation_link["slice_id"],
+        linked_observation["record"]["slice"]["slice_id"]
+    );
+    assert_eq!(
+        initial_observation["record"]["structural_mechanism_id"],
+        linked_observation["record"]["slice"]["subject"]["structural_mechanism_id"]
+    );
+    assert!(support_observations[..initial_observation_ordinal]
+        .iter()
+        .all(|row| row["record"]["slice"]["slice_id"] != initial_observation_link["slice_id"]));
+
+    let support_closure = structural_support
+        .iter()
+        .find(|record| record["record"]["kind"] == "mechanism_support_closure")
+        .expect("mechanism support closure");
+    let expected_automatic_slice_count = structural_mechanisms.len().to_string();
+    assert_eq!(
+        support_closure["record"]["counts"]["registered_support_slices"],
+        expected_automatic_slice_count
+    );
+    assert_eq!(
+        support_closure["record"]["counts"]["dirty_support_slices"],
+        "0"
+    );
+    assert_eq!(
+        support_closure["record"]["counts"]["observed_support_slices"],
+        expected_automatic_slice_count
+    );
+    assert_eq!(
+        support_closure["record"]["counts"]["sealed_support_slices"],
+        expected_automatic_slice_count
     );
 
     let structural_definitions = read_ndjson(&artifact_path(
@@ -1201,12 +1304,12 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         .as_u64()
         .expect("first artifact count");
 
-    // Model a completed publication-v10 cursor created before the automatic
+    // Model a completed publication-v11 cursor created before the automatic
     // case-transition consumer existed. The cursor remains authenticated by
     // the unchanged journal and prior artifact prefixes; removing the derived
     // graph entry/file and stale manifest exercises the additive-extension
     // path without altering semantic evidence.
-    let cursor_path = output_directory.join(".publication-cursor-v10.json");
+    let cursor_path = output_directory.join(".publication-cursor-v11.json");
     let mut legacy_cursor = read_json(&cursor_path);
     assert!(legacy_cursor["artifacts"]
         .as_object_mut()
@@ -1273,7 +1376,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
 
     let attached_manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(attached_manifest["schema_version"], 10);
+    assert_eq!(attached_manifest["schema_version"], 11);
     for identity_key in [
         "checked_program",
         "relation_id",
@@ -1384,7 +1487,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(starter_records.len(), 3);
     assert!(starter_records
         .iter()
-        .all(|record| record["schema_version"] == 10));
+        .all(|record| record["schema_version"] == 11));
     assert!(starter_records
         .iter()
         .all(|record| record["artifact"] == starter_artifact["key"]));
@@ -1473,7 +1576,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
 
     let published_after_attachment = snapshot_files(&output_directory);
     for (path, before) in &published_before_attachment {
-        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v10.json") {
+        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v11.json") {
             continue;
         }
         assert_eq!(

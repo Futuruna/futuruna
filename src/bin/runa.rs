@@ -6714,6 +6714,8 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
             })),
             "support_observations": {
                 "points": mechanism.support_observation_points.to_string(),
+                "registered_slices": mechanism.registered_support_slices.to_string(),
+                "dirty_slices": mechanism.dirty_support_slices.to_string(),
                 "observed_slices": mechanism.observed_support_slices.to_string(),
                 "sealed_slices": mechanism.sealed_support_slices.to_string(),
                 "chain_root": mechanism.support_observation_chain_root,
@@ -6907,6 +6909,8 @@ fn relational_explore_answer_mechanism_json(
         })),
         "support_observations": {
             "points": mechanism.support_observation_points.to_string(),
+            "registered_slices": mechanism.registered_support_slices.to_string(),
+            "dirty_slices": mechanism.dirty_support_slices.to_string(),
             "observed_slices": mechanism.observed_support_slices.to_string(),
             "sealed_slices": mechanism.sealed_support_slices.to_string(),
             "initial_point_id": mechanism.initial_support_observation_point_id,
@@ -7164,7 +7168,7 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
         );
         if mechanism.support_observation_points != 0 {
             println!(
-                "Support stream `{}`: {} durable observation point{} across {} slice{}; {} sealed.",
+                "Support stream `{}`: {} durable observation point{}; {} registered slice{}, {} currently dirty, {} observed, {} sealed.",
                 mechanism.name,
                 mechanism.support_observation_points,
                 if mechanism.support_observation_points == 1 {
@@ -7172,12 +7176,14 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
                 } else {
                     "s"
                 },
-                mechanism.observed_support_slices,
-                if mechanism.observed_support_slices == 1 {
+                mechanism.registered_support_slices,
+                if mechanism.registered_support_slices == 1 {
                     ""
                 } else {
                     "s"
                 },
+                mechanism.dirty_support_slices,
+                mechanism.observed_support_slices,
                 mechanism.sealed_support_slices,
             );
         }
@@ -7389,8 +7395,10 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
                     relational_explore_count_text(mechanism.execution_profiles),
                 );
                 println!(
-                    "    support observations: {} points across {} slices ({} sealed)",
+                    "    support observations: {} points; {} registered, {} dirty, {} observed, {} sealed",
                     mechanism.support_observation_points,
+                    mechanism.registered_support_slices,
+                    mechanism.dirty_support_slices,
                     mechanism.observed_support_slices,
                     mechanism.sealed_support_slices,
                 );

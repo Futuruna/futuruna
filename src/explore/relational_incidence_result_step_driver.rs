@@ -1904,7 +1904,10 @@ mod tests {
             0,
         );
         assert_ne!(sealed_frontier_root, assigned_prefix_root);
-        append_support_observation(&mut journal, request_id, false);
+        // Attaching upstream closure roots enriches the same support prefix,
+        // but does not change this mechanism's own indexed support. Its prior
+        // open point remains valid historical evidence; the next point is the
+        // final sealed successor after support closure.
         let RelationalMechanismSupportStepEvents::Closed {
             checkpointed_frontier,
             cursor,

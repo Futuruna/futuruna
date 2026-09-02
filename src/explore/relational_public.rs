@@ -874,6 +874,8 @@ pub struct ExploreStreamMechanismLayer {
     /// Append-only prefix observations of correlated starter support. These
     /// are stream facts, not a fabricated estimate of final case count.
     pub support_observation_points: u128,
+    pub registered_support_slices: u128,
+    pub dirty_support_slices: u128,
     pub observed_support_slices: u128,
     pub sealed_support_slices: u128,
     pub support_observation_chain_root: Option<String>,
@@ -2332,6 +2334,8 @@ fn mechanism_layer(
         support_closure_root: None,
         support_closure_totals: None,
         support_observation_points: 0,
+        registered_support_slices: 0,
+        dirty_support_slices: 0,
         observed_support_slices: 0,
         sealed_support_slices: 0,
         support_observation_chain_root: None,
@@ -2447,8 +2451,10 @@ fn mechanism_layer(
             }
         }),
         support_observation_points: journal.mechanism_support_observation_count(request_id),
-        observed_support_slices: journal.mechanism_support_observed_slice_count(request_id) as u128,
-        sealed_support_slices: journal.mechanism_support_sealed_slice_count(request_id) as u128,
+        registered_support_slices: journal.mechanism_support_registered_slice_count(request_id),
+        dirty_support_slices: journal.mechanism_support_dirty_slice_count(request_id),
+        observed_support_slices: journal.mechanism_support_observed_slice_count(request_id),
+        sealed_support_slices: journal.mechanism_support_sealed_slice_count(request_id),
         support_observation_chain_root: journal
             .mechanism_support_observation_chain_root(request_id)
             .map(|root| hex(root.bytes())),

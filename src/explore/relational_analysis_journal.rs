@@ -30,9 +30,11 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonDefinition, MechanismUnavailableReasonId,
 };
 use super::mechanism_support::{
-    MechanismFactorizedSupportObservationSummary, MechanismSupportCatalogBuilder,
-    MechanismSupportCheckpointCursor, MechanismSupportClosureReceipt, MechanismSupportClosureRoot,
-    MechanismSupportError, MechanismSupportFrontierSummary, MechanismSupportSlice,
+    MechanismAutomaticObservationAck, MechanismAutomaticObservationSchedulerSummary,
+    MechanismDirtyAutomaticObservationSummary, MechanismFactorizedSupportObservationSummary,
+    MechanismSupportCatalogBuilder, MechanismSupportCheckpointCursor,
+    MechanismSupportClosureReceipt, MechanismSupportClosureRoot, MechanismSupportError,
+    MechanismSupportFrontierSummary, MechanismSupportSlice,
 };
 use super::relation::{
     ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
@@ -1477,6 +1479,25 @@ pub(crate) struct RelationalAnalysisJournalState {
     closed: Option<ClosedRelationalAnalysisCatalog>,
 }
 
+/// Prepared removal of one open automatic observation from the request-local
+/// dirty scheduler. The outer journal retains the request identity so commit
+/// can be infallible after the full observation claim and log append have been
+/// preflighted.
+pub(crate) struct RelationalMechanismSupportObservationAck {
+    request_id: MechanismRequestId,
+    inner: MechanismAutomaticObservationAck,
+}
+
+impl RelationalMechanismSupportObservationAck {
+    pub(crate) const fn prior_dirty_summary(&self) -> MechanismDirtyAutomaticObservationSummary {
+        self.inner.prior_dirty_summary()
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyAutomaticObservationSummary {
+        self.inner.next_dirty_summary()
+    }
+}
+
 impl RelationalAnalysisJournalState {
     pub(crate) fn new(
         plan: &RelationalAnalysisPlan,
@@ -1574,28 +1595,75 @@ impl RelationalAnalysisJournalState {
             })
     }
 
-    /// Resolve the first automatically observed support slice from the first
-    /// structural assignment imported by the support stream. Observation is
-    /// deliberately demand-driven: an empty imported prefix has no invented
-    /// mechanism subject, and later node/edge slices can be scheduled through
-    /// the same coordinate type without changing this lifecycle primitive.
-    pub(crate) fn initial_support_observation_slice(
+    /// Return the canonical minimum automatic whole-mechanism slice whose
+    /// imported evidence has not yet been acknowledged by the outer journal.
+    /// This is operational scheduling state, not part of the semantic support
+    /// frontier.
+    pub(crate) fn next_dirty_support_observation_slice(
         &self,
         request_id: MechanismRequestId,
+    ) -> Result<Option<MechanismSupportSlice>, RelationalAnalysisJournalError> {
+        Ok(self
+            .mechanism_supports
+            .get(&request_id)
+            .and_then(MechanismSupportCatalogBuilder::next_dirty_automatic_observation_slice))
+    }
+
+    /// Walk the complete automatic registry in canonical slice order without
+    /// allocating a closure-sized pending set. The registry is immutable once
+    /// support closes, so a request-local last-sealed cursor is sufficient for
+    /// deterministic resume.
+    pub(crate) fn next_support_observation_slice_after(
+        &self,
+        request_id: MechanismRequestId,
+        after: Option<MechanismSupportSlice>,
     ) -> Result<Option<MechanismSupportSlice>, RelationalAnalysisJournalError> {
         let support = self.mechanism_supports.get(&request_id).ok_or(
             RelationalAnalysisJournalError::MechanismSupport(
                 MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
             ),
         )?;
-        if support.checkpoint_cursor().structural_assignment() == 0 {
-            return Ok(None);
-        }
-        support.automatic_observation_slice().map(Some).ok_or(
+        Ok(support.next_automatic_observation_slice_after(after)?)
+    }
+
+    pub(crate) fn mechanism_support_scheduler_summary(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismAutomaticObservationSchedulerSummary> {
+        self.mechanism_supports.get(&request_id).map(|support| {
+            let summary = support.automatic_observation_scheduler_summary();
+            debug_assert_eq!(
+                support.automatic_observation_slice_count(),
+                summary.registry().slice_count()
+            );
+            summary
+        })
+    }
+
+    pub(crate) fn prepare_support_observation_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<RelationalMechanismSupportObservationAck, RelationalAnalysisJournalError> {
+        let request_id = slice.key().request_id();
+        let support = self.mechanism_supports.get(&request_id).ok_or(
             RelationalAnalysisJournalError::MechanismSupport(
-                MechanismSupportError::StructuralAssignmentPrefixConflict,
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
             ),
-        )
+        )?;
+        Ok(RelationalMechanismSupportObservationAck {
+            request_id,
+            inner: support.prepare_automatic_observation_ack(slice)?,
+        })
+    }
+
+    pub(crate) fn commit_support_observation_ack(
+        &mut self,
+        ack: RelationalMechanismSupportObservationAck,
+    ) {
+        self.mechanism_supports
+            .get_mut(&ack.request_id)
+            .expect("a prepared support-observation acknowledgement retains its catalog")
+            .commit_automatic_observation_ack(ack.inner);
     }
 
     /// Re-derive one compact factorized observation against an exact durable

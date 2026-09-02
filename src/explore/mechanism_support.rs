@@ -29,7 +29,7 @@ use super::structural_mechanism::{
     StructuralQuotientClosureRoot, StructuralSignatureAssignment,
 };
 
-pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 2;
+pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 3;
 pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 5;
 pub(crate) const MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION: u32 = 2;
 pub(crate) const MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION: u32 = 1;
@@ -77,9 +77,9 @@ const STARTER_PROJECTION_PLAN_ID_V2: &[u8] =
     b"futuruna.explore.mechanism-subject-starter-projection-plan-id.v2";
 const SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1: &[u8] =
     b"futuruna.explore.mechanism-support-slice-starter-projection-plan-id.v1";
-const SUPPORT_FRONTIER_ROOT_V2: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v2";
-const SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2: &[u8] =
-    b"futuruna.explore.mechanism-support-frontier-imported-prefix-root.v2";
+const SUPPORT_FRONTIER_ROOT_V3: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v3";
+const SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V3: &[u8] =
+    b"futuruna.explore.mechanism-support-frontier-imported-prefix-root.v3";
 const SUPPORT_CLOSURE_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-closure-root.v1";
 const SHARED_RESIDUAL_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-support-factorized-residual-root.v2";
@@ -101,6 +101,10 @@ const SUBJECT_SUCCESSOR_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-subject-successor-index.v1";
 const UNASSIGNED_SIGNATURE_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-unassigned-signature-index.v1";
+const AUTOMATIC_OBSERVATION_REGISTRY_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-automatic-observation-registry-index.v1";
+const DIRTY_AUTOMATIC_OBSERVATION_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-dirty-automatic-observation-index.v1";
 const COORDINATE_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-coordinate-value.v1";
 const UNAVAILABLE_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-unavailable-value.v1";
 const TERMINAL_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-terminal-value.v1";
@@ -109,6 +113,10 @@ const SIGNATURE_FIBER_VALUE_V1: &[u8] =
 const STARTER_FIBER_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-starter-fiber-value.v1";
 const TARGET_STARTER_VALUE_V1: &[u8] =
     b"futuruna.explore.mechanism-support-target-starter-value.v1";
+const AUTOMATIC_OBSERVATION_REGISTRY_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-automatic-observation-registry-value.v1";
+const DIRTY_AUTOMATIC_OBSERVATION_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-dirty-automatic-observation-value.v1";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum MechanismSupportFacet {
@@ -831,7 +839,7 @@ impl MechanismSupportFrontierRoot {
     }
 }
 
-/// Reproducible decomposition of one V2 frontier. The imported-prefix root is
+/// Reproducible decomposition of one V3 frontier. The imported-prefix root is
 /// invariant when only an optional upstream seal arrives, which lets the
 /// journal distinguish legitimate monotone enrichment at the same cursor from
 /// arbitrary rewriting of already-checkpointed derived support state.
@@ -1256,27 +1264,138 @@ struct SignatureFiberSummary {
     starter_count: u128,
 }
 
-/// Imported-prefix index for the one slice the journal schedules
-/// automatically. It is updated once per structural assignment, so deriving a
-/// checkpoint observation never rescans the growing assignment catalog.
+/// Authenticated root of the append-only automatic whole-mechanism registry.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismAutomaticObservationRegistryRoot([u8; 32]);
+
+impl MechanismAutomaticObservationRegistryRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Semantic imported-prefix summary for all automatically observed mechanism
+/// slices. `indexed_assignment_count` is the exact global structural prefix
+/// consumed by the per-mechanism accumulators; every assignment contributes
+/// to exactly one registry value's authenticated weight.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismAutomaticObservationRegistrySummary {
+    root: MechanismAutomaticObservationRegistryRoot,
+    slice_count: u128,
+    indexed_assignment_count: u128,
+}
+
+impl MechanismAutomaticObservationRegistrySummary {
+    pub(crate) const fn root(self) -> MechanismAutomaticObservationRegistryRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+
+    pub(crate) const fn indexed_assignment_count(self) -> u128 {
+        self.indexed_assignment_count
+    }
+}
+
+/// Authenticated root of the operational set of mechanism slices whose latest
+/// semantic evidence has not yet been observed by the outer journal.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismDirtyAutomaticObservationRoot([u8; 32]);
+
+impl MechanismDirtyAutomaticObservationRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismDirtyAutomaticObservationSummary {
+    root: MechanismDirtyAutomaticObservationRoot,
+    slice_count: u128,
+}
+
+impl MechanismDirtyAutomaticObservationSummary {
+    pub(crate) const fn root(self) -> MechanismDirtyAutomaticObservationRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+}
+
+/// Copyable scheduler checkpoint. The registry half is semantic and also
+/// participates in the support frontier; the dirty half is intentionally only
+/// outer-journal scheduling state.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismAutomaticObservationSchedulerSummary {
+    registry: MechanismAutomaticObservationRegistrySummary,
+    dirty: MechanismDirtyAutomaticObservationSummary,
+}
+
+impl MechanismAutomaticObservationSchedulerSummary {
+    pub(crate) const fn registry(self) -> MechanismAutomaticObservationRegistrySummary {
+        self.registry
+    }
+
+    pub(crate) const fn dirty(self) -> MechanismDirtyAutomaticObservationSummary {
+        self.dirty
+    }
+}
+
+/// Opaque two-phase acknowledgement. Preparing clones and removes from the
+/// authenticated dirty treap; committing only installs that already-validated
+/// root and performs the matching infallible `BTreeSet` removal.
+#[derive(Debug)]
+pub(crate) struct MechanismAutomaticObservationAck {
+    slice: MechanismSupportSlice,
+    prior_dirty_root: [u8; 32],
+    prior_dirty_count: u128,
+    next_dirty_index: AuthenticatedTreapMap,
+}
+
+impl MechanismAutomaticObservationAck {
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn prior_dirty_summary(&self) -> MechanismDirtyAutomaticObservationSummary {
+        MechanismDirtyAutomaticObservationSummary {
+            root: MechanismDirtyAutomaticObservationRoot(self.prior_dirty_root),
+            slice_count: self.prior_dirty_count,
+        }
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyAutomaticObservationSummary {
+        MechanismDirtyAutomaticObservationSummary {
+            root: MechanismDirtyAutomaticObservationRoot(self.next_dirty_index.root_hash()),
+            slice_count: self.next_dirty_index.entry_count(),
+        }
+    }
+}
+
+/// Imported-prefix index for one automatically scheduled whole-mechanism
+/// slice. Registry updates touch only the mechanism named by the incoming
+/// structural assignment, so checkpoint observation never rescans either the
+/// growing assignment catalog or unrelated mechanisms.
 #[derive(Clone, Debug)]
 struct AutomaticSupportObservationIndex {
     slice: MechanismSupportSlice,
-    observed_assignment_count: u128,
     contributing_signature_count: u128,
     inspected_signatures: Vec<MechanismSignatureId>,
 }
 
 impl AutomaticSupportObservationIndex {
-    fn new(scope: MechanismRequestScope, assignment: &StructuralSignatureAssignment) -> Self {
+    fn new(scope: MechanismRequestScope, mechanism_id: StructuralMechanismId) -> Self {
         Self {
             slice: MechanismSupportSlice::total(MechanismSupportKey::new(
                 scope,
-                MechanismSupportSubject::Mechanism(assignment.mechanism_id()),
+                MechanismSupportSubject::Mechanism(mechanism_id),
             )),
-            observed_assignment_count: 0,
             contributing_signature_count: 0,
-            inspected_signatures: Vec::with_capacity(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT),
+            inspected_signatures: Vec::new(),
         }
     }
 
@@ -1285,12 +1404,8 @@ impl AutomaticSupportObservationIndex {
         signature_id: MechanismSignatureId,
         assignment: &StructuralSignatureAssignment,
     ) -> Result<(), MechanismSupportError> {
-        self.observed_assignment_count = self
-            .observed_assignment_count
-            .checked_add(1)
-            .ok_or(MechanismSupportError::CountOverflow)?;
         if !assignment_supports_slice(assignment, self.slice) {
-            return Ok(());
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
         }
         self.contributing_signature_count = self
             .contributing_signature_count
@@ -1328,7 +1443,12 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     structural_assignment_cursor: usize,
     structural_assignment_revision: Option<StructuralCatalogRevision>,
     imported_structural_assignments: BTreeSet<MechanismSignatureId>,
-    automatic_observation: Option<AutomaticSupportObservationIndex>,
+    automatic_observation_registry:
+        BTreeMap<StructuralMechanismId, AutomaticSupportObservationIndex>,
+    automatic_observation_registry_index: AuthenticatedTreapMap,
+    automatic_observation_indexed_assignment_count: u128,
+    dirty_automatic_observations: BTreeSet<MechanismSupportSlice>,
+    dirty_automatic_observation_index: AuthenticatedTreapMap,
     subject_projection_cache: BTreeMap<MechanismSupportSubject, SubjectProjectionCache>,
     subject_projection_lru: VecDeque<MechanismSupportSubject>,
     subject_projection_cache_limit: usize,
@@ -1363,7 +1483,15 @@ impl MechanismSupportCatalogBuilder {
             structural_assignment_cursor: 0,
             structural_assignment_revision: None,
             imported_structural_assignments: BTreeSet::new(),
-            automatic_observation: None,
+            automatic_observation_registry: BTreeMap::new(),
+            automatic_observation_registry_index: AuthenticatedTreapMap::new(
+                AUTOMATIC_OBSERVATION_REGISTRY_INDEX_V1,
+            ),
+            automatic_observation_indexed_assignment_count: 0,
+            dirty_automatic_observations: BTreeSet::new(),
+            dirty_automatic_observation_index: AuthenticatedTreapMap::new(
+                DIRTY_AUTOMATIC_OBSERVATION_INDEX_V1,
+            ),
             subject_projection_cache: BTreeMap::new(),
             subject_projection_lru: VecDeque::new(),
             subject_projection_cache_limit: subject_projection_cache_limit.max(1),
@@ -1380,8 +1508,234 @@ impl MechanismSupportCatalogBuilder {
         self.scope
     }
 
-    pub(crate) fn automatic_observation_slice(&self) -> Option<MechanismSupportSlice> {
-        self.automatic_observation.as_ref().map(|index| index.slice)
+    pub(crate) fn automatic_observation_slice_count(&self) -> u128 {
+        self.automatic_observation_registry.len() as u128
+    }
+
+    pub(crate) fn automatic_observation_registry_summary(
+        &self,
+    ) -> MechanismAutomaticObservationRegistrySummary {
+        let slice_count = self.automatic_observation_registry_index.entry_count();
+        debug_assert_eq!(
+            slice_count,
+            self.automatic_observation_registry.len() as u128,
+            "automatic observation registry representations remain aligned"
+        );
+        debug_assert_eq!(
+            self.automatic_observation_registry_index.total_weight(),
+            self.automatic_observation_indexed_assignment_count,
+            "automatic observation registry weight is the indexed structural prefix"
+        );
+        MechanismAutomaticObservationRegistrySummary {
+            root: MechanismAutomaticObservationRegistryRoot(
+                self.automatic_observation_registry_index.root_hash(),
+            ),
+            slice_count,
+            indexed_assignment_count: self.automatic_observation_indexed_assignment_count,
+        }
+    }
+
+    pub(crate) fn dirty_automatic_observation_summary(
+        &self,
+    ) -> MechanismDirtyAutomaticObservationSummary {
+        let slice_count = self.dirty_automatic_observation_index.entry_count();
+        debug_assert_eq!(
+            slice_count,
+            self.dirty_automatic_observations.len() as u128,
+            "dirty automatic observation representations remain aligned"
+        );
+        debug_assert_eq!(
+            self.dirty_automatic_observation_index.total_weight(),
+            slice_count,
+            "every dirty automatic observation has unit weight"
+        );
+        MechanismDirtyAutomaticObservationSummary {
+            root: MechanismDirtyAutomaticObservationRoot(
+                self.dirty_automatic_observation_index.root_hash(),
+            ),
+            slice_count,
+        }
+    }
+
+    pub(crate) fn automatic_observation_scheduler_summary(
+        &self,
+    ) -> MechanismAutomaticObservationSchedulerSummary {
+        MechanismAutomaticObservationSchedulerSummary {
+            registry: self.automatic_observation_registry_summary(),
+            dirty: self.dirty_automatic_observation_summary(),
+        }
+    }
+
+    pub(crate) fn automatic_observation_contains(&self, slice: MechanismSupportSlice) -> bool {
+        automatic_mechanism_id_for_slice(self.scope, slice).is_some_and(|mechanism_id| {
+            self.automatic_observation_registry
+                .get(&mechanism_id)
+                .is_some_and(|index| index.slice == slice)
+        })
+    }
+
+    fn automatic_observation_index_for_slice(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<&AutomaticSupportObservationIndex, MechanismSupportError> {
+        let mechanism_id = automatic_mechanism_id_for_slice(self.scope, slice)
+            .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+        let index = self
+            .automatic_observation_registry
+            .get(&mechanism_id)
+            .filter(|index| index.slice == slice)
+            .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+        let authenticated = self
+            .automatic_observation_registry_index
+            .get(&automatic_observation_registry_key(mechanism_id))
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("automatic observation registry")
+            })?;
+        if authenticated != Some(automatic_observation_registry_value(index)) {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        Ok(index)
+    }
+
+    pub(crate) fn next_dirty_automatic_observation_slice(&self) -> Option<MechanismSupportSlice> {
+        self.dirty_automatic_observations.first().copied()
+    }
+
+    /// Return the next registry slice in canonical mechanism-id order without
+    /// flattening or cloning the registry. The supplied cursor must itself be
+    /// a registered automatic whole-mechanism slice.
+    pub(crate) fn next_automatic_observation_slice_after(
+        &self,
+        after: Option<MechanismSupportSlice>,
+    ) -> Result<Option<MechanismSupportSlice>, MechanismSupportError> {
+        let next = match after {
+            None => self.automatic_observation_registry.first_key_value(),
+            Some(slice) => {
+                let mechanism_id = automatic_mechanism_id_for_slice(self.scope, slice)
+                    .filter(|mechanism_id| {
+                        self.automatic_observation_registry
+                            .get(mechanism_id)
+                            .is_some_and(|index| index.slice == slice)
+                    })
+                    .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+                self.automatic_observation_registry
+                    .range((Excluded(mechanism_id), Unbounded))
+                    .next()
+            }
+        };
+        Ok(next.map(|(_, index)| index.slice))
+    }
+
+    pub(crate) fn prepare_automatic_observation_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismAutomaticObservationAck, MechanismSupportError> {
+        if !self.automatic_observation_contains(slice) {
+            return Err(MechanismSupportError::UnknownStructuralSubject);
+        }
+        if !self.dirty_automatic_observations.contains(&slice) {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        let key = dirty_automatic_observation_key(slice);
+        if self
+            .dirty_automatic_observation_index
+            .get(&key)
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("dirty automatic observations")
+            })?
+            != Some(dirty_automatic_observation_value(slice))
+        {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        let prior_dirty_count = self.dirty_automatic_observation_index.entry_count();
+        let mut next_dirty_index = self.dirty_automatic_observation_index.clone();
+        next_dirty_index.remove(&key).map_err(|_| {
+            MechanismSupportError::AuthenticatedIndex("dirty automatic observations")
+        })?;
+        Ok(MechanismAutomaticObservationAck {
+            slice,
+            prior_dirty_root: self.dirty_automatic_observation_index.root_hash(),
+            prior_dirty_count,
+            next_dirty_index,
+        })
+    }
+
+    /// Commit a previously prepared acknowledgement. Callers must not mutate
+    /// support scheduling state between prepare and commit; the opaque token
+    /// binds the exact prior root/count and makes that contract explicit.
+    pub(crate) fn commit_automatic_observation_ack(
+        &mut self,
+        prepared: MechanismAutomaticObservationAck,
+    ) {
+        assert_eq!(
+            self.dirty_automatic_observation_index.root_hash(),
+            prepared.prior_dirty_root,
+            "automatic observation acknowledgement must commit against its prepared root"
+        );
+        assert_eq!(
+            self.dirty_automatic_observation_index.entry_count(),
+            prepared.prior_dirty_count,
+            "automatic observation acknowledgement must commit against its prepared count"
+        );
+        assert!(
+            self.dirty_automatic_observations.remove(&prepared.slice),
+            "prepared automatic observation must still be dirty"
+        );
+        self.dirty_automatic_observation_index = prepared.next_dirty_index;
+        debug_assert_eq!(
+            self.dirty_automatic_observation_index.entry_count(),
+            self.dirty_automatic_observations.len() as u128
+        );
+    }
+
+    fn prepare_mark_automatic_observation_dirty(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<Option<AuthenticatedTreapMap>, MechanismSupportError> {
+        let key = dirty_automatic_observation_key(slice);
+        let authenticated = self
+            .dirty_automatic_observation_index
+            .get(&key)
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("dirty automatic observations")
+            })?;
+        if self.dirty_automatic_observations.contains(&slice) {
+            if authenticated != Some(dirty_automatic_observation_value(slice)) {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
+            return Ok(None);
+        }
+        if authenticated.is_some() {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        let mut next_dirty_index = self.dirty_automatic_observation_index.clone();
+        next_dirty_index
+            .insert(key, dirty_automatic_observation_value(slice))
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("dirty automatic observations")
+            })?;
+        Ok(Some(next_dirty_index))
+    }
+
+    fn commit_mark_automatic_observation_dirty(
+        &mut self,
+        slice: MechanismSupportSlice,
+        next_dirty_index: Option<AuthenticatedTreapMap>,
+    ) {
+        if let Some(next_dirty_index) = next_dirty_index {
+            let inserted = self.dirty_automatic_observations.insert(slice);
+            assert!(inserted, "prepared automatic observation dirtiness is new");
+            self.dirty_automatic_observation_index = next_dirty_index;
+        } else {
+            assert!(
+                self.dirty_automatic_observations.contains(&slice),
+                "coalesced automatic observation dirtiness remains present"
+            );
+        }
+        debug_assert_eq!(
+            self.dirty_automatic_observation_index.entry_count(),
+            self.dirty_automatic_observations.len() as u128
+        );
     }
 
     pub(crate) const fn target_discovery_cursor(&self) -> usize {
@@ -1649,12 +2003,53 @@ impl MechanismSupportCatalogBuilder {
 
             // Prepare every fallible derived-index transition before mutating
             // the authoritative imported prefix. A rejected import must leave
-            // observation replay exactly where the cursor says it is.
-            let mut next_automatic_observation = self
-                .automatic_observation
-                .clone()
-                .unwrap_or_else(|| AutomaticSupportObservationIndex::new(self.scope, assignment));
+            // observation replay exactly where the cursor says it is. Only the
+            // incoming assignment's mechanism accumulator is cloned/touched.
+            let mechanism_id = assignment.mechanism_id();
+            let existing_automatic_observation =
+                self.automatic_observation_registry.get(&mechanism_id);
+            let authenticated_existing = self
+                .automatic_observation_registry_index
+                .get(&automatic_observation_registry_key(mechanism_id))
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("automatic observation registry")
+                })?;
+            match (existing_automatic_observation, authenticated_existing) {
+                (Some(index), Some(value))
+                    if value == automatic_observation_registry_value(index) => {}
+                (None, None) => {}
+                _ => return Err(MechanismSupportError::StructuralAssignmentPrefixConflict),
+            }
+            let mut next_automatic_observation = existing_automatic_observation
+                .cloned()
+                .unwrap_or_else(|| AutomaticSupportObservationIndex::new(self.scope, mechanism_id));
             next_automatic_observation.observe_assignment(signature_id, assignment)?;
+            let automatic_slice = next_automatic_observation.slice;
+            let mut next_automatic_observation_registry_index =
+                self.automatic_observation_registry_index.clone();
+            set_authenticated_value(
+                &mut next_automatic_observation_registry_index,
+                automatic_observation_registry_key(mechanism_id),
+                automatic_observation_registry_value(&next_automatic_observation),
+                "automatic observation registry",
+            )?;
+            let next_automatic_observation_indexed_assignment_count = self
+                .automatic_observation_indexed_assignment_count
+                .checked_add(1)
+                .ok_or(MechanismSupportError::CountOverflow)?;
+            let expected_registry_count =
+                self.automatic_observation_registry
+                    .len()
+                    .checked_add(usize::from(existing_automatic_observation.is_none()))
+                    .ok_or(MechanismSupportError::CountOverflow)? as u128;
+            if next_automatic_observation_registry_index.entry_count() != expected_registry_count
+                || next_automatic_observation_registry_index.total_weight()
+                    != next_automatic_observation_indexed_assignment_count
+            {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
+            let next_dirty_automatic_observation_index =
+                self.prepare_mark_automatic_observation_dirty(automatic_slice)?;
             let mut next_unassigned_signature_index = self.unassigned_signature_index.clone();
             if authenticated_contains(
                 &next_unassigned_signature_index,
@@ -1675,7 +2070,11 @@ impl MechanismSupportCatalogBuilder {
                 .assignment_discovery_prefix_revision(next_structural_assignment_cursor)
                 .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
 
-            self.automatic_observation = Some(next_automatic_observation);
+            self.automatic_observation_registry_index = next_automatic_observation_registry_index;
+            self.automatic_observation_indexed_assignment_count =
+                next_automatic_observation_indexed_assignment_count;
+            self.automatic_observation_registry
+                .insert(mechanism_id, next_automatic_observation);
             self.unassigned_signature_index = next_unassigned_signature_index;
             self.extend_cached_subjects_for_assignment(signature_id, assignment);
             let inserted = self.imported_structural_assignments.insert(signature_id);
@@ -1686,6 +2085,10 @@ impl MechanismSupportCatalogBuilder {
                 projection
                     .advance_structural_prefix(self.structural_assignment_cursor, prefix_revision);
             }
+            self.commit_mark_automatic_observation_dirty(
+                automatic_slice,
+                next_dirty_automatic_observation_index,
+            );
         }
         let consumed = suffix.len();
         Ok(consumed)
@@ -1739,7 +2142,18 @@ impl MechanismSupportCatalogBuilder {
         &self,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<(), MechanismSupportError> {
-        if self.imported_structural_assignments.len() != self.structural_assignment_cursor {
+        if self.imported_structural_assignments.len() != self.structural_assignment_cursor
+            || self.automatic_observation_indexed_assignment_count
+                != self.structural_assignment_cursor as u128
+            || self.automatic_observation_registry.len() as u128
+                != self.automatic_observation_registry_index.entry_count()
+            || self.automatic_observation_registry_index.total_weight()
+                != self.automatic_observation_indexed_assignment_count
+            || self.dirty_automatic_observations.len() as u128
+                != self.dirty_automatic_observation_index.entry_count()
+            || self.dirty_automatic_observation_index.total_weight()
+                != self.dirty_automatic_observation_index.entry_count()
+        {
             return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
         }
         let actual = structural
@@ -1814,6 +2228,7 @@ impl MechanismSupportCatalogBuilder {
             )
             .map_err(|_| MechanismSupportError::AuthenticatedIndex("terminal facts"))?;
 
+        let mut prepared_dirty_automatic_observation = None;
         match terminal {
             MechanismCaseTerminal::Incidence { signature_id, .. } => {
                 let imported_assignment = self
@@ -1885,6 +2300,17 @@ impl MechanismSupportCatalogBuilder {
                             MechanismSupportError::AuthenticatedIndex("unassigned signatures")
                         })?;
                 }
+                if let Some(assignment) = imported_assignment {
+                    let slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+                        self.scope,
+                        MechanismSupportSubject::Mechanism(assignment.mechanism_id()),
+                    ));
+                    if !self.automatic_observation_contains(slice) {
+                        return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+                    }
+                    prepared_dirty_automatic_observation =
+                        Some((slice, self.prepare_mark_automatic_observation_dirty(slice)?));
+                }
 
                 self.pending_cases = next_pending;
                 self.terminal_fact_index = next_terminal_facts;
@@ -1938,6 +2364,9 @@ impl MechanismSupportCatalogBuilder {
             .get_mut(&record.case_id())
             .expect("checked target coordinate remains present")
             .terminal = Some(terminal);
+        if let Some((slice, next_dirty_index)) = prepared_dirty_automatic_observation {
+            self.commit_mark_automatic_observation_dirty(slice, next_dirty_index);
+        }
         Ok(true)
     }
 
@@ -2283,11 +2712,7 @@ impl MechanismSupportCatalogBuilder {
             structural_assignment_revision,
             residual,
         )?;
-        let observation_index = self
-            .automatic_observation
-            .as_ref()
-            .filter(|index| index.slice == slice)
-            .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+        let observation_index = self.automatic_observation_index_for_slice(slice)?;
 
         let mut signature_prefix_encoder =
             SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1);
@@ -2344,7 +2769,8 @@ impl MechanismSupportCatalogBuilder {
         }
         let scan_limit = u128::try_from(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT)
             .expect("the fixed signature scan limit fits u128");
-        if observation_index.observed_assignment_count != structural_assignment_cursor as u128
+        if self.automatic_observation_indexed_assignment_count
+            != structural_assignment_cursor as u128
             || contributing_signature_count > structural_assignment_cursor as u128
             || inspected_signature_count
                 != u128::try_from(observation_index.inspected_signatures.len())
@@ -2514,7 +2940,7 @@ impl MechanismSupportCatalogBuilder {
         structural_revision: StructuralCatalogRevision,
         residual: MechanismSupportResidualSummary,
     ) -> [u8; 32] {
-        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V2);
+        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V3);
         encoder.u32(MECHANISM_SUPPORT_VERSION);
         encoder.digest(self.scope.request_id().bytes());
         encode_target(&mut encoder, self.scope.target());
@@ -2528,6 +2954,11 @@ impl MechanismSupportCatalogBuilder {
         encoder.digest(terminal_revision.bytes());
         encoder.u128(self.structural_assignment_cursor as u128);
         encoder.digest(structural_revision.bytes());
+        // The automatic registry is semantic imported-prefix evidence: one
+        // assignment contributes to exactly one whole-mechanism accumulator.
+        // The separate dirty scheduler is intentionally not encoded here.
+        encode_authenticated_index(&mut encoder, &self.automatic_observation_registry_index);
+        encoder.u128(self.automatic_observation_indexed_assignment_count);
         encode_authenticated_index(&mut encoder, &self.pending_cases);
         encode_authenticated_index(&mut encoder, &self.terminal_fact_index);
         encode_authenticated_index(&mut encoder, &self.unavailable_cases);
@@ -3537,6 +3968,22 @@ fn assignment_supports_slice(
             .is_none_or(|mechanism_id| assignment.mechanism_id() == mechanism_id)
 }
 
+fn automatic_mechanism_id_for_slice(
+    scope: MechanismRequestScope,
+    slice: MechanismSupportSlice,
+) -> Option<StructuralMechanismId> {
+    if slice.key().request_id() != scope.request_id()
+        || slice.key().target() != scope.target()
+        || slice.enclosing_mechanism().is_some()
+    {
+        return None;
+    }
+    match slice.subject() {
+        MechanismSupportSubject::Mechanism(mechanism_id) => Some(mechanism_id),
+        MechanismSupportSubject::Node { .. } | MechanismSupportSubject::Edge { .. } => None,
+    }
+}
+
 enum SupportingSignatureSlice<'a> {
     Empty,
     Total(&'a BTreeSet<MechanismSignatureId>),
@@ -3850,6 +4297,28 @@ fn signature_fiber_value(
     AuthenticatedTreapValue::new(encoder.finish(), summary.case_count)
 }
 
+fn automatic_observation_registry_value(
+    index: &AutomaticSupportObservationIndex,
+) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(AUTOMATIC_OBSERVATION_REGISTRY_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, index.slice);
+    encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
+    encoder.u128(index.contributing_signature_count);
+    encoder.u128(index.inspected_signatures.len() as u128);
+    for signature_id in index.inspected_signatures.iter().copied() {
+        encoder.digest(signature_id.bytes());
+    }
+    AuthenticatedTreapValue::new(encoder.finish(), index.contributing_signature_count)
+}
+
+fn dirty_automatic_observation_value(slice: MechanismSupportSlice) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(DIRTY_AUTOMATIC_OBSERVATION_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
+}
+
 fn coordinate_value_digest(source: SourceKey, successor: SuccessorKey) -> [u8; 32] {
     let mut encoder = SupportEncoder::new(COORDINATE_VALUE_V1);
     encoder.digest(source.bytes());
@@ -3911,6 +4380,14 @@ fn signature_key(signature_id: MechanismSignatureId) -> Box<[u8]> {
     signature_id.bytes().to_vec().into_boxed_slice()
 }
 
+fn automatic_observation_registry_key(mechanism_id: StructuralMechanismId) -> Box<[u8]> {
+    mechanism_id.bytes().to_vec().into_boxed_slice()
+}
+
+fn dirty_automatic_observation_key(slice: MechanismSupportSlice) -> Box<[u8]> {
+    slice.id().bytes().to_vec().into_boxed_slice()
+}
+
 fn derive_support_slice_id(slice: MechanismSupportSlice) -> MechanismSupportSliceId {
     let mut encoder = SupportEncoder::new(SUPPORT_SLICE_ID_V1);
     encoder.u32(MECHANISM_SUPPORT_SLICE_ID_VERSION);
@@ -3931,7 +4408,7 @@ fn derive_support_frontier_root(
     incidence_closure_root: Option<MechanismIncidenceRoot>,
     structural_closure_root: Option<StructuralQuotientClosureRoot>,
 ) -> MechanismSupportFrontierRoot {
-    let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V2);
+    let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V3);
     encoder.u32(MECHANISM_SUPPORT_VERSION);
     encoder.digest(imported_prefix_root);
     encode_optional_digest(
@@ -5033,6 +5510,92 @@ mod tests {
     }
 
     #[test]
+    fn automatic_observation_registry_tracks_each_mechanism_and_coalesces_dirtiness() {
+        let fixture = multi_mechanism_shared_node_fixture();
+        let mut support = fixture.pre_structural_support;
+        assert_eq!(support.automatic_observation_slice_count(), 0);
+        assert_eq!(
+            support
+                .next_automatic_observation_slice_after(None)
+                .expect("empty automatic registry"),
+            None
+        );
+
+        support
+            .sync_structural_assignments_through(&fixture.structural, 1)
+            .expect("first mechanism assignment");
+        let first_prefix = support.automatic_observation_scheduler_summary();
+        assert_eq!(first_prefix.registry().slice_count(), 1);
+        assert_eq!(first_prefix.registry().indexed_assignment_count(), 1);
+        assert_eq!(first_prefix.dirty().slice_count(), 1);
+
+        support
+            .sync_structural_assignments_through(&fixture.structural, 2)
+            .expect("second mechanism assignment");
+        let complete_prefix = support.automatic_observation_scheduler_summary();
+        assert_eq!(complete_prefix.registry().slice_count(), 2);
+        assert_eq!(complete_prefix.registry().indexed_assignment_count(), 2);
+        assert_eq!(complete_prefix.dirty().slice_count(), 2);
+
+        let first = support
+            .next_automatic_observation_slice_after(None)
+            .expect("automatic registry head")
+            .expect("first automatic mechanism");
+        let second = support
+            .next_automatic_observation_slice_after(Some(first))
+            .expect("automatic registry successor")
+            .expect("second automatic mechanism");
+        assert_ne!(first, second);
+        assert_eq!(
+            support
+                .next_automatic_observation_slice_after(Some(second))
+                .expect("automatic registry tail"),
+            None
+        );
+        assert!(support.automatic_observation_contains(first));
+        assert!(support.automatic_observation_contains(second));
+
+        // Successful terminals alter each touched mechanism, but both slices
+        // are already dirty, so repeated dirtiness coalesces to the same set.
+        support
+            .sync_incidence_terminals_through(
+                &fixture.open_incidence,
+                &fixture.structural,
+                fixture.open_incidence.terminal_discovery_count() as u128,
+            )
+            .expect("successful terminal prefix");
+        assert_eq!(
+            support.dirty_automatic_observation_summary().slice_count(),
+            2
+        );
+        let frontier_before_ack = support
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("frontier before operational acknowledgement");
+        let scheduler_before_ack = support.automatic_observation_scheduler_summary();
+
+        let prepared = support
+            .prepare_automatic_observation_ack(first)
+            .expect("prepare first mechanism observation acknowledgement");
+        assert_eq!(prepared.prior_dirty_summary().slice_count(), 2);
+        assert_eq!(prepared.next_dirty_summary().slice_count(), 1);
+        support.commit_automatic_observation_ack(prepared);
+        assert_eq!(
+            support.next_dirty_automatic_observation_slice(),
+            Some(second)
+        );
+        let frontier_after_ack = support
+            .checkpoint_frontier(&fixture.open_incidence, None, &fixture.structural, None)
+            .expect("frontier after operational acknowledgement");
+        let scheduler_after_ack = support.automatic_observation_scheduler_summary();
+        assert_eq!(frontier_after_ack, frontier_before_ack);
+        assert_eq!(
+            scheduler_after_ack.registry(),
+            scheduler_before_ack.registry()
+        );
+        assert_ne!(scheduler_after_ack.dirty(), scheduler_before_ack.dirty());
+    }
+
+    #[test]
     fn open_mechanism_support_stream_observes_only_the_imported_structural_prefix() {
         let fixture = closed_subject_starter_fixture();
         let mut support = fixture.pre_structural_support;
@@ -5292,9 +5855,15 @@ mod tests {
         assert_eq!(incremental_open_frontier, batched_open_frontier);
 
         let slice = incremental
-            .automatic_observation_slice()
+            .next_automatic_observation_slice_after(None)
+            .expect("automatic observation registry")
             .expect("automatic observation slice");
-        assert_eq!(batched.automatic_observation_slice(), Some(slice));
+        assert_eq!(
+            batched
+                .next_automatic_observation_slice_after(None)
+                .expect("batched automatic observation registry"),
+            Some(slice)
+        );
         let incremental_open = incremental
             .derive_factorized_support_observation(
                 slice,
