@@ -35633,15 +35633,22 @@ impl RustCodegen {
             for stmt in stmts {
                 match stmt {
                     Stmt::TypeDecl(decl) => {
-                        comptime_interp.register_type(decl);
+                        comptime_interp.register_type_with_env(decl, &mut comptime_env);
                         comptime_interp.register_constructors(decl, &mut comptime_env);
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Defn(defn) => {
                         comptime_interp.eval_defn(defn, &mut comptime_env);
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Rule(rule) => {
                         let name = comptime_interp.rule_name(rule);
-                        comptime_interp.register_rule(name, rule.clone());
+                        comptime_interp.register_rule_with_env(
+                            name,
+                            rule.clone(),
+                            &mut comptime_env,
+                        );
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Bind(pat, _ty, expr) => {
                         if let Pat::Var(name) = pat {
@@ -35669,6 +35676,7 @@ impl RustCodegen {
                         comptime_interp.step_limit = 0;
                         if !comptime_interp.budget_exceeded {
                             comptime_interp.bind_pattern(pat, &val, &mut comptime_env);
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
                         }
                     }
                     _ => {}
@@ -35751,8 +35759,9 @@ impl RustCodegen {
                             // Insert before main function
                             comptime_type_decls.push(decl_str);
                             // Register constructors in comptime env for later comptime expressions
-                            comptime_interp.register_type(&type_decl);
+                            comptime_interp.register_type_with_env(&type_decl, &mut comptime_env);
                             comptime_interp.register_constructors(&type_decl, &mut comptime_env);
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
                             // Mark as comptime with empty value so it doesn't re-emit as a binding
                             self.types
                                 .comptime_values
@@ -35775,6 +35784,7 @@ impl RustCodegen {
                             &val,
                             &mut comptime_env,
                         );
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {

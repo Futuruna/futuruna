@@ -2574,6 +2574,8 @@ impl MetaGroundEvaluator {
         self.interpreter.step_count = 0;
         self.interpreter.step_limit = 1_000_000;
         self.interpreter.budget_exceeded = false;
+        self.interpreter
+            .refresh_declaration_environment(&mut self.env);
         let evaluation = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             self.interpreter.eval(expr, &self.env)
         }));
@@ -2599,6 +2601,8 @@ impl MetaGroundEvaluator {
             .and_then(|expr| self.evaluate_expr(expr, bindings))
             .map(|value| {
                 self.env.set(name.to_string(), value);
+                self.interpreter
+                    .refresh_declaration_environment(&mut self.env);
                 self.evaluated_bindings.insert(name.to_string());
             });
         self.visiting_bindings.remove(name);
@@ -7404,7 +7408,7 @@ pub struct RuleScopeFrame {
 /// is frozen after guarded initialization.
 #[derive(Debug)]
 struct PreparedRuntimeRuleDispatch {
-    matching: Vec<Rc<Rule>>,
+    matching: Vec<(Rc<Rule>, RuntimeDeclarationEnv)>,
     exceptions: Vec<usize>,
     conditional_defaults: Vec<usize>,
     clauses: Vec<usize>,
@@ -14270,6 +14274,35 @@ impl fmt::Display for Value {
 }
 
 #[derive(Debug, Clone)]
+struct RuntimeDeclarationEnv {
+    snapshot: Rc<RefCell<Weak<Env>>>,
+}
+
+impl RuntimeDeclarationEnv {
+    fn new() -> Self {
+        Self {
+            snapshot: Rc::new(RefCell::new(Weak::new())),
+        }
+    }
+
+    fn identity(&self) -> usize {
+        Rc::as_ptr(&self.snapshot) as usize
+    }
+
+    fn install(&self, env: &Rc<Env>) {
+        *self.snapshot.borrow_mut() = Rc::downgrade(env);
+    }
+
+    fn clear(&self) {
+        *self.snapshot.borrow_mut() = Weak::new();
+    }
+
+    fn declaration_env(&self) -> Option<Rc<Env>> {
+        self.snapshot.borrow().upgrade()
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Env {
     /// Bindings are immutable snapshots shared by cloned environments. Mutation
     /// uses copy-on-write, so child calls do not recursively clone global values.
@@ -14281,6 +14314,10 @@ pub struct Env {
     /// `None` is accepted only for legacy standalone environments and is
     /// interpreted as the receiving Interpreter's root namespace.
     runtime_namespace: Option<RuntimeNamespace>,
+    /// Shared forward slot for declarations registered in this lexical module
+    /// instance. Child lexical scopes inherit it; a new inline or qualified
+    /// module replaces it before registration.
+    runtime_declaration_env: Option<RuntimeDeclarationEnv>,
 }
 
 impl Env {
@@ -14289,6 +14326,7 @@ impl Env {
             bindings: Rc::new(HashMap::new()),
             parent: None,
             runtime_namespace: None,
+            runtime_declaration_env: None,
         }
     }
 
@@ -14297,6 +14335,7 @@ impl Env {
             bindings: Rc::new(HashMap::new()),
             parent: Some(Rc::new(self.clone())),
             runtime_namespace: self.runtime_namespace.clone(),
+            runtime_declaration_env: self.runtime_declaration_env.clone(),
         }
     }
 
@@ -14307,6 +14346,7 @@ impl Env {
             bindings: Rc::new(HashMap::new()),
             parent: Some(Rc::clone(self_rc)),
             runtime_namespace: self_rc.runtime_namespace.clone(),
+            runtime_declaration_env: self_rc.runtime_declaration_env.clone(),
         }
     }
 
@@ -14348,6 +14388,23 @@ impl Env {
 
     fn with_runtime_namespace(mut self, namespace: RuntimeNamespace) -> Self {
         self.set_runtime_namespace(namespace);
+        self
+    }
+
+    fn ensure_runtime_declaration_env(&mut self) -> RuntimeDeclarationEnv {
+        self.runtime_declaration_env
+            .get_or_insert_with(RuntimeDeclarationEnv::new)
+            .clone()
+    }
+
+    fn reset_runtime_declaration_env(&mut self) -> RuntimeDeclarationEnv {
+        let declaration_env = RuntimeDeclarationEnv::new();
+        self.runtime_declaration_env = Some(declaration_env.clone());
+        declaration_env
+    }
+
+    fn with_runtime_declaration_env(mut self, declaration_env: RuntimeDeclarationEnv) -> Self {
+        self.runtime_declaration_env = Some(declaration_env);
         self
     }
 }
@@ -14576,7 +14633,7 @@ pub(crate) fn runtime_nominal_declared_type_name(type_name: &str) -> &str {
 #[derive(Debug)]
 struct RuntimeNamespaceState {
     parent: Option<RuntimeNamespace>,
-    rules: Vec<(String, Rc<Rule>)>,
+    rules: Vec<(String, Rc<Rule>, RuntimeDeclarationEnv)>,
     rules_by_name: HashMap<String, Vec<usize>>,
     rule_miss_fallbacks: HashMap<String, HashMap<usize, RuleMissFallback>>,
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
@@ -14590,8 +14647,11 @@ struct RuntimeNamespaceState {
     type_variants: BTreeMap<String, Vec<String>>,
     ctor_to_type: BTreeMap<String, String>,
     functions: BTreeMap<String, FnDef>,
+    function_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     impl_methods: BTreeMap<(String, String), FnDef>,
+    impl_method_declaration_envs: BTreeMap<(String, String), RuntimeDeclarationEnv>,
     rule_scopes: BTreeMap<String, Rc<RuleScopeDef>>,
+    rule_scope_declaration_envs: BTreeMap<String, RuntimeDeclarationEnv>,
     invariants: BTreeMap<String, (Expr, Expr)>,
     effect_decls: BTreeMap<String, Vec<(String, Vec<String>)>>,
     actor_defs: BTreeMap<String, Defn>,
@@ -14644,8 +14704,11 @@ impl RuntimeNamespaceState {
             type_variants: BTreeMap::new(),
             ctor_to_type: BTreeMap::new(),
             functions: BTreeMap::new(),
+            function_declaration_envs: BTreeMap::new(),
             impl_methods: BTreeMap::new(),
+            impl_method_declaration_envs: BTreeMap::new(),
             rule_scopes: BTreeMap::new(),
+            rule_scope_declaration_envs: BTreeMap::new(),
             invariants: BTreeMap::new(),
             effect_decls: BTreeMap::new(),
             actor_defs: BTreeMap::new(),
@@ -14830,6 +14893,10 @@ pub struct Interpreter {
     /// Canonical source files successfully initialized through any runtime
     /// import mode. This is inspection-only and never controls completion.
     runtime_loaded_sources: BTreeSet<String>,
+    /// Strong owners for declaration snapshots whose registry slots hold only
+    /// weak references. Keying by slot identity keeps independent `default_env`
+    /// trees isolated even when they share one RuntimeNamespace registry.
+    runtime_declaration_env_snapshots: BTreeMap<usize, Rc<Env>>,
     /// Preparation is enabled only after the guarded Explore initialization
     /// has completed, so declarations cannot make a retained family stale.
     exact_prepared_rule_dispatch_enabled: bool,
@@ -14851,8 +14918,12 @@ pub struct Interpreter {
     pub output: Vec<String>,
     /// Current source file directory (for resolving @ import paths)
     pub source_dir: Option<String>,
-    /// Handler stack for algebraic effects: (effect_name, handlers)
+    /// Handler stack for algebraic effects.
     pub handler_stack: Vec<(String, Vec<EffHandler>)>,
+    /// Lexical handler-site environments, index-aligned with `handler_stack`.
+    /// Publicly inserted legacy frames receive `None` and retain operation-site
+    /// lookup semantics.
+    handler_lexical_env_stack: Vec<Option<Env>>,
     /// Live actor instances: var_name -> (state, actor_name)
     pub actor_instances: BTreeMap<String, (Value, String)>,
     /// Step budget for auto-comptime: 0 = unlimited
@@ -14892,6 +14963,13 @@ pub struct Interpreter {
 }
 
 impl Interpreter {
+    fn synchronize_effect_handler_lexical_env_stack(&mut self) {
+        self.handler_lexical_env_stack
+            .truncate(self.handler_stack.len());
+        self.handler_lexical_env_stack
+            .resize(self.handler_stack.len(), None);
+    }
+
     pub fn new() -> Self {
         Interpreter {
             runtime_root: RuntimeNamespace::root(),
@@ -14899,6 +14977,7 @@ impl Interpreter {
             runtime_qualified_modules: BTreeMap::new(),
             runtime_active_import_paths: BTreeSet::new(),
             runtime_loaded_sources: BTreeSet::new(),
+            runtime_declaration_env_snapshots: BTreeMap::new(),
             exact_prepared_rule_dispatch_enabled: false,
             checked_exact_observer_memo: None,
             checked_mechanism_rule_memo: None,
@@ -14907,6 +14986,7 @@ impl Interpreter {
             output: Vec::new(),
             source_dir: None,
             handler_stack: Vec::new(),
+            handler_lexical_env_stack: Vec::new(),
             actor_instances: BTreeMap::new(),
             step_limit: 0,
             step_count: 0,
@@ -14971,8 +15051,29 @@ impl Interpreter {
         &self,
         namespace: &RuntimeNamespace,
         name: &str,
-    ) -> Option<(RuntimeNamespace, FnDef)> {
-        Self::runtime_namespace_find(namespace, |state| state.functions.get(name).cloned())
+    ) -> Option<(RuntimeNamespace, FnDef, RuntimeDeclarationEnv)> {
+        let mut current = Some(namespace.clone());
+        while let Some(owner) = current {
+            let (definition, declaration_env, parent) = {
+                let state = owner.state.borrow();
+                (
+                    state.functions.get(name).cloned(),
+                    state.function_declaration_envs.get(name).cloned(),
+                    state.parent.clone(),
+                )
+            };
+            if let Some(definition) = definition {
+                let Some(declaration_env) = declaration_env else {
+                    let _ = self.panic_or_ground_fail(format!(
+                        "runtime function `{name}` has no declaration provenance"
+                    ));
+                    return None;
+                };
+                return Some((owner, definition, declaration_env));
+            }
+            current = parent;
+        }
+        None
     }
 
     fn runtime_impl_method(
@@ -14980,13 +15081,31 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         receiver: &str,
         method: &str,
-    ) -> Option<(RuntimeNamespace, FnDef)> {
-        Self::runtime_namespace_find(namespace, |state| {
-            state
-                .impl_methods
-                .get(&(receiver.to_string(), method.to_string()))
-                .cloned()
-        })
+    ) -> Option<(RuntimeNamespace, FnDef, RuntimeDeclarationEnv)> {
+        let key = (receiver.to_string(), method.to_string());
+        let mut current = Some(namespace.clone());
+        while let Some(owner) = current {
+            let (definition, declaration_env, parent) = {
+                let state = owner.state.borrow();
+                (
+                    state.impl_methods.get(&key).cloned(),
+                    state.impl_method_declaration_envs.get(&key).cloned(),
+                    state.parent.clone(),
+                )
+            };
+            if let Some(definition) = definition {
+                let Some(declaration_env) = declaration_env else {
+                    let _ = self.panic_or_ground_fail(format!(
+                        "runtime method `{}.{method}` has no declaration provenance",
+                        receiver
+                    ));
+                    return None;
+                };
+                return Some((owner, definition, declaration_env));
+            }
+            current = parent;
+        }
+        None
     }
 
     fn runtime_constructor_signatures(
@@ -15035,8 +15154,29 @@ impl Interpreter {
         &self,
         namespace: &RuntimeNamespace,
         name: &str,
-    ) -> Option<(RuntimeNamespace, Rc<RuleScopeDef>)> {
-        Self::runtime_namespace_find(namespace, |state| state.rule_scopes.get(name).cloned())
+    ) -> Option<(RuntimeNamespace, Rc<RuleScopeDef>, RuntimeDeclarationEnv)> {
+        let mut current = Some(namespace.clone());
+        while let Some(owner) = current {
+            let (definition, declaration_env, parent) = {
+                let state = owner.state.borrow();
+                (
+                    state.rule_scopes.get(name).cloned(),
+                    state.rule_scope_declaration_envs.get(name).cloned(),
+                    state.parent.clone(),
+                )
+            };
+            if let Some(definition) = definition {
+                let Some(declaration_env) = declaration_env else {
+                    let _ = self.panic_or_ground_fail(format!(
+                        "runtime RuleScope `{name}` has no declaration provenance"
+                    ));
+                    return None;
+                };
+                return Some((owner, definition, declaration_env));
+            }
+            current = parent;
+        }
+        None
     }
 
     fn runtime_actor_definition(
@@ -15154,6 +15294,56 @@ impl Interpreter {
             .unwrap_or_else(|| caller.clone());
         env.set_runtime_namespace(namespace.clone());
         env
+    }
+
+    fn refresh_runtime_declaration_env(
+        &mut self,
+        declaration_env: &RuntimeDeclarationEnv,
+        env: &Env,
+    ) -> Rc<Env> {
+        let mut snapshot = env.clone();
+        // The retained snapshot must identify the exact slot it hydrates even
+        // when a nested declaration scope is about to restore its caller's
+        // slot on the mutable execution environment.
+        snapshot.runtime_declaration_env = Some(declaration_env.clone());
+        let snapshot = Rc::new(snapshot);
+        declaration_env.install(&snapshot);
+        self.runtime_declaration_env_snapshots
+            .insert(declaration_env.identity(), snapshot.clone());
+        snapshot
+    }
+
+    fn discard_runtime_declaration_env(&mut self, declaration_env: &RuntimeDeclarationEnv) {
+        self.runtime_declaration_env_snapshots
+            .remove(&declaration_env.identity());
+        declaration_env.clear();
+    }
+
+    fn registered_declaration_env(
+        &self,
+        declaration_env: &RuntimeDeclarationEnv,
+        kind: &str,
+        name: &str,
+    ) -> Option<Env> {
+        declaration_env
+            .declaration_env()
+            .map(|env| env.as_ref().clone())
+            .or_else(|| {
+                let _ = self.panic_or_ground_fail(format!(
+                    "runtime {kind} `{name}` has no live declaration environment"
+                ));
+                None
+            })
+    }
+
+    fn named_function_declaration_env(&self, captured: &Env, name: &str) -> Option<Env> {
+        let Some(declaration_env) = captured.runtime_declaration_env.as_ref() else {
+            let _ = self.panic_or_ground_fail(format!(
+                "runtime function `{name}` has no declaration provenance"
+            ));
+            return None;
+        };
+        self.registered_declaration_env(declaration_env, "function", name)
     }
 
     fn runtime_constructor_value(
@@ -16038,7 +16228,30 @@ impl Interpreter {
 
     pub fn register_rule(&mut self, name: String, rule: Rule) {
         let namespace = self.runtime_root.clone();
-        self.register_rule_in_namespace(&namespace, name, rule);
+        // Standalone callers promise that the rule has no user-authored free
+        // values. Give that contract a real root/builtin snapshot rather than
+        // leaving an empty provenance slot which could later consult a caller.
+        let mut declaration_basis = self.default_env();
+        let declaration_env = declaration_basis.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, &declaration_basis);
+        self.register_rule_in_namespace(&namespace, name, rule, declaration_env);
+    }
+
+    #[doc(hidden)]
+    pub fn register_rule_with_env(&mut self, name: String, rule: Rule, env: &mut Env) {
+        let namespace = self.namespace_for_env(env);
+        let declaration_env = env.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, env);
+        self.register_rule_in_namespace(&namespace, name, rule, declaration_env);
+    }
+
+    /// Publish the bindings completed so far to declarations registered in
+    /// this lexical module. Manual initialization paths call this only between
+    /// right-hand sides, never while evaluating one.
+    #[doc(hidden)]
+    pub fn refresh_declaration_environment(&mut self, env: &mut Env) {
+        let declaration_env = env.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, env);
     }
 
     fn register_rule_in_namespace(
@@ -16046,6 +16259,7 @@ impl Interpreter {
         namespace: &RuntimeNamespace,
         name: String,
         rule: Rule,
+        declaration_env: RuntimeDeclarationEnv,
     ) {
         self.invalidate_checked_exact_observer_memo();
         let mut state = namespace.state.borrow_mut();
@@ -16092,12 +16306,20 @@ impl Interpreter {
             state.rule_dispatch_keys.insert(dispatch_key);
         }
         let index = state.rules.len();
-        state.rules.push((name.clone(), Rc::new(rule)));
+        state
+            .rules
+            .push((name.clone(), Rc::new(rule), declaration_env));
         state.rules_by_name.entry(name).or_default().push(index);
     }
 
     pub fn registered_rules(&self) -> Vec<(String, Rc<Rule>)> {
-        self.runtime_root.state.borrow().rules.clone()
+        self.runtime_root
+            .state
+            .borrow()
+            .rules
+            .iter()
+            .map(|(name, rule, _)| (name.clone(), rule.clone()))
+            .collect()
     }
 
     /// Canonical files whose runtime declarations completed initialization in
@@ -16611,6 +16833,7 @@ impl Interpreter {
             // imports establish the complete declaration environment.
             let mut module_env = interpreter.default_env();
             module_env.set_runtime_namespace(module_namespace.clone());
+            let module_declaration_env = module_env.ensure_runtime_declaration_env();
             let definitions = imported
                 .statements()
                 .iter()
@@ -16627,19 +16850,36 @@ impl Interpreter {
                         .cloned()
                         .unwrap_or_default()
                 });
-            interpreter.with_runtime_source_dir(
-                Self::imported_source_dir(&file_path),
-                |interpreter| {
-                    interpreter.run_imported_runtime_statements(
-                        &definitions,
-                        &mut module_env,
-                        initialization_mode,
-                        roots,
-                    )
-                },
-            );
+            let initialization = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                interpreter.with_runtime_source_dir(
+                    Self::imported_source_dir(&file_path),
+                    |interpreter| {
+                        interpreter.run_imported_runtime_statements(
+                            &definitions,
+                            &mut module_env,
+                            initialization_mode,
+                            roots,
+                        )
+                    },
+                )
+            }));
+            if let Err(payload) = initialization {
+                // The namespace is not published until successful completion,
+                // and neither may its declaration snapshot survive a failed
+                // qualified initialization.
+                interpreter.discard_runtime_declaration_env(&module_declaration_env);
+                std::panic::resume_unwind(payload);
+            }
+            let initialization_failed = interpreter.budget_exceeded
+                || interpreter.ground_error.borrow().is_some()
+                || interpreter.exhaustive_preview_error.borrow().is_some();
+            if initialization_failed {
+                interpreter.discard_runtime_declaration_env(&module_declaration_env);
+                return Value::Unit;
+            }
 
-            let module_closure_env = Rc::new(module_env.child());
+            let module_closure_env =
+                interpreter.refresh_runtime_declaration_env(&module_declaration_env, &module_env);
             module_namespace.install_declaration_env(&module_closure_env);
             let mut bindings = HashMap::new();
             for (name, value) in module_env.bindings.iter() {
@@ -16775,13 +17015,12 @@ impl Interpreter {
 
     fn bind_method_value(&self, obj_val: &Value, field: &str, env: &Env) -> Option<Value> {
         let object_namespace = self.runtime_value_namespace(obj_val);
-        let object_declaration_env = self.runtime_value_declaration_env(obj_val);
         if let Some(type_name) = self.runtime_type_name(obj_val) {
-            if let Some((owner, func_def)) =
+            if let Some((owner, func_def, declaration_env)) =
                 self.runtime_impl_method(&object_namespace, &type_name, field)
             {
                 let declaration_call_env =
-                    self.runtime_declaration_call_env(&owner, object_declaration_env.as_ref(), env);
+                    self.registered_declaration_env(&declaration_env, "method", field)?;
                 let mut method_env = declaration_call_env.child();
                 method_env.set_runtime_namespace(owner);
                 method_env.set("self".to_string(), obj_val.clone());
@@ -16808,26 +17047,34 @@ impl Interpreter {
 
         let lookup_namespace = self.namespace_for_env(env);
         let method_body_params = if let Some(Value::Closure {
+            name,
             params,
             body,
             env: closure_env,
             ..
         }) = env.get(field)
         {
+            let declaration_call_env = match name {
+                Some(name) => self.named_function_declaration_env(closure_env, name)?,
+                None => closure_env.clone(),
+            };
             Some((
                 body.clone(),
                 params.clone(),
                 self.namespace_for_env(closure_env),
+                declaration_call_env,
             ))
-        } else if let Some((owner, func_def)) = self.runtime_function(&lookup_namespace, field) {
-            Some((func_def.body, func_def.params, owner))
+        } else if let Some((owner, func_def, declaration_env)) =
+            self.runtime_function(&lookup_namespace, field)
+        {
+            let declaration_call_env =
+                self.registered_declaration_env(&declaration_env, "function", field)?;
+            Some((func_def.body, func_def.params, owner, declaration_call_env))
         } else {
             None
         };
 
-        method_body_params.map(|(body, params, owner)| {
-            let declaration_call_env =
-                self.runtime_declaration_call_env(&owner, object_declaration_env.as_ref(), env);
+        method_body_params.map(|(body, params, owner, declaration_call_env)| {
             let mut method_env = declaration_call_env.child();
             method_env.set_runtime_namespace(owner);
             method_env.set("self".to_string(), obj_val.clone());
@@ -16957,7 +17204,9 @@ impl Interpreter {
     }
 
     pub fn default_env(&self) -> Env {
-        let mut env = Env::new().with_runtime_namespace(self.runtime_root.clone());
+        let mut env = Env::new()
+            .with_runtime_namespace(self.runtime_root.clone())
+            .with_runtime_declaration_env(RuntimeDeclarationEnv::new());
         env.set("True".into(), Value::Bool(true));
         env.set("False".into(), Value::Bool(false));
         env.set(
@@ -17295,15 +17544,34 @@ impl Interpreter {
 
     pub fn register_type(&mut self, decl: &TypeDecl) {
         let namespace = self.runtime_root.clone();
-        self.register_type_in_namespace(&namespace, decl);
+        // As with standalone rule registration, this API has an explicit
+        // no-user-free-values contract but still owns a live builtin basis.
+        let mut declaration_basis = self.default_env();
+        let declaration_env = declaration_basis.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, &declaration_basis);
+        self.register_type_in_namespace(&namespace, decl, declaration_env);
     }
 
-    fn register_type_in_namespace(&mut self, namespace: &RuntimeNamespace, decl: &TypeDecl) {
+    #[doc(hidden)]
+    pub fn register_type_with_env(&mut self, decl: &TypeDecl, env: &mut Env) {
+        let namespace = self.namespace_for_env(env);
+        let declaration_env = env.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, env);
+        self.register_type_in_namespace(&namespace, decl, declaration_env);
+    }
+
+    fn register_type_in_namespace(
+        &mut self,
+        namespace: &RuntimeNamespace,
+        decl: &TypeDecl,
+        declaration_env: RuntimeDeclarationEnv,
+    ) {
         self.invalidate_checked_exact_observer_memo();
         match decl {
             TypeDecl::ADT {
                 name,
                 variants,
+                methods,
                 except_from,
                 ..
             } => {
@@ -17361,6 +17629,19 @@ impl Interpreter {
                     }
                 }
 
+                for method in methods {
+                    if let Defn::Fn {
+                        name: method_name, ..
+                    } = method
+                    {
+                        self.register_runtime_callable_declaration(
+                            namespace,
+                            RuntimeCallableKind::Method,
+                            method_name,
+                            Some(name),
+                        );
+                    }
+                }
                 let mut state = namespace.state.borrow_mut();
                 for variant_name in &resolved_variants {
                     state
@@ -17368,6 +17649,34 @@ impl Interpreter {
                         .insert(variant_name.clone(), name.clone());
                 }
                 state.type_variants.insert(name.clone(), resolved_variants);
+                for method in methods {
+                    if let Defn::Fn {
+                        name: method_name,
+                        params,
+                        body,
+                        ..
+                    } = method
+                    {
+                        let definition = FnDef {
+                            params: params
+                                .iter()
+                                .map(|parameter| parameter.name.clone())
+                                .collect(),
+                            body: body.clone(),
+                        };
+                        let method_key = (name.clone(), method_name.clone());
+                        state
+                            .impl_methods
+                            .insert(method_key.clone(), definition.clone());
+                        state
+                            .impl_method_declaration_envs
+                            .insert(method_key, declaration_env.clone());
+                        state.functions.insert(method_name.clone(), definition);
+                        state
+                            .function_declaration_envs
+                            .insert(method_name.clone(), declaration_env.clone());
+                    }
+                }
             }
             TypeDecl::EffectDecl { name, ops } => {
                 // Register effect operations: effect_name -> [(op_name, [param_names])]
@@ -17411,6 +17720,9 @@ impl Interpreter {
                                 body: body.clone(),
                             },
                         );
+                        state
+                            .impl_method_declaration_envs
+                            .insert((for_type.clone(), name.clone()), declaration_env.clone());
                         state.functions.insert(
                             name.clone(),
                             FnDef {
@@ -17418,6 +17730,9 @@ impl Interpreter {
                                 body: body.clone(),
                             },
                         );
+                        state
+                            .function_declaration_envs
+                            .insert(name.clone(), declaration_env.clone());
                     }
                 }
             }
@@ -17473,6 +17788,11 @@ impl Interpreter {
                         rules_by_name,
                     }),
                 );
+                namespace
+                    .state
+                    .borrow_mut()
+                    .rule_scope_declaration_envs
+                    .insert(name.clone(), declaration_env.clone());
                 for stmt in body {
                     if let Stmt::Defn(Defn::Fn {
                         name: method_name,
@@ -17490,6 +17810,11 @@ impl Interpreter {
                                 body: body.clone(),
                             },
                         );
+                        namespace
+                            .state
+                            .borrow_mut()
+                            .impl_method_declaration_envs
+                            .insert((name.clone(), method_name.clone()), declaration_env.clone());
                     }
                 }
             }
@@ -17498,45 +17823,25 @@ impl Interpreter {
 
     fn register_runtime_type_decl(&mut self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
-        self.register_type_in_namespace(&namespace, decl);
+        let declaration_env = env.ensure_runtime_declaration_env();
+        self.register_type_in_namespace(&namespace, decl, declaration_env.clone());
         self.register_constructors(decl, env);
-        if let TypeDecl::ADT { name, methods, .. } = decl {
-            for method in methods {
-                if let Defn::Fn {
-                    name: method_name,
-                    params,
-                    body,
-                    ..
-                } = method
-                {
-                    self.register_runtime_callable_declaration(
-                        &namespace,
-                        RuntimeCallableKind::Method,
-                        method_name,
-                        Some(name),
-                    );
-                    let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
-                    namespace.state.borrow_mut().functions.insert(
-                        method_name.clone(),
-                        FnDef {
-                            params: param_names,
-                            body: body.clone(),
-                        },
-                    );
-                }
-            }
-        }
     }
 
-    fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
-        let mutates_static_registry = stmts.iter().any(|stmt| match stmt {
+    fn statements_define_runtime_declarations(stmts: &[Stmt]) -> bool {
+        stmts.iter().any(|stmt| match stmt {
             Stmt::Defn(Defn::Fn { .. }) | Stmt::Rule(_) | Stmt::Invariant { .. } => true,
             Stmt::TypeDecl(decl) => !matches!(decl, TypeDecl::WhenType { .. }),
             _ => false,
-        });
-        if !mutates_static_registry {
+        })
+    }
+
+    fn register_static_declarations(&mut self, stmts: &[Stmt], env: &mut Env) {
+        if !Self::statements_define_runtime_declarations(stmts) {
             return;
         }
+        let declaration_env = env.ensure_runtime_declaration_env();
+        self.refresh_runtime_declaration_env(&declaration_env, env);
         self.invalidate_checked_exact_observer_memo();
         let namespace = self.namespace_for_env(env);
         for stmt in stmts {
@@ -17561,7 +17866,13 @@ impl Interpreter {
                         &name,
                         None,
                     );
-                    self.register_rule_in_namespace(&namespace, name, rule.clone());
+                    let declaration_env = env.ensure_runtime_declaration_env();
+                    self.register_rule_in_namespace(
+                        &namespace,
+                        name,
+                        rule.clone(),
+                        declaration_env,
+                    );
                 }
                 Stmt::Rule(Rule::ReactiveScope { name, body }) => {
                     self.register_rule_scope_callable_declarations(&namespace, name, body);
@@ -17580,6 +17891,7 @@ impl Interpreter {
                 _ => {}
             }
         }
+        self.refresh_runtime_declaration_env(&declaration_env, env);
     }
 
     fn collect_pattern_binding_names(pattern: &Pat, names: &mut Vec<String>) {
@@ -18682,7 +18994,29 @@ impl Interpreter {
     }
 
     fn run_statement_block(&mut self, stmts: &[Stmt], env: &mut Env) -> Value {
-        self.run_program_internal(stmts, env, RuntimeInitializationMode::Ordinary, false)
+        if !Self::statements_define_runtime_declarations(stmts) {
+            return self.run_program_internal(
+                stmts,
+                env,
+                RuntimeInitializationMode::Ordinary,
+                false,
+            );
+        }
+
+        // Some imperative statement forms intentionally execute their block
+        // against the receiving Env so value bindings persist. A nested
+        // declaration group still owns a distinct declaration slot; restore
+        // the receiver's slot even across an early return or panic.
+        let previous_declaration_env = env.runtime_declaration_env.clone();
+        env.runtime_declaration_env = Some(RuntimeDeclarationEnv::new());
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.run_program_internal(stmts, env, RuntimeInitializationMode::Ordinary, false)
+        }));
+        env.runtime_declaration_env = previous_declaration_env;
+        match result {
+            Ok(value) => value,
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
     }
 
     fn run_program_internal(
@@ -18692,6 +19026,12 @@ impl Interpreter {
         initialization_mode: RuntimeInitializationMode,
         order_value_bindings: bool,
     ) -> Value {
+        let publishes_declaration_env =
+            order_value_bindings || Self::statements_define_runtime_declarations(stmts);
+        let declaration_env = env.ensure_runtime_declaration_env();
+        if publishes_declaration_env {
+            self.refresh_runtime_declaration_env(&declaration_env, env);
+        }
         let prune_top_level_bindings = initialization_mode.prunes_top_level();
         match initialization_mode {
             RuntimeInitializationMode::Calculation => {
@@ -18746,6 +19086,13 @@ impl Interpreter {
             {
                 self.register_static_declarations(stmts, env);
                 static_declarations_registered = true;
+            }
+
+            // Publish only the lexical state completed before this statement.
+            // The current RHS and any call-local bindings cannot enter its own
+            // declaration snapshot.
+            if publishes_declaration_env {
+                self.refresh_runtime_declaration_env(&declaration_env, env);
             }
 
             match stmt {
@@ -18894,7 +19241,8 @@ impl Interpreter {
                         if let (Some(name), Value::TypeDef { kind, fields }) = (bind_name, &val) {
                             let decl = comptime_typedef_to_type_decl(name, kind, fields);
                             let namespace = self.namespace_for_env(env);
-                            self.register_type_in_namespace(&namespace, &decl);
+                            let declaration_env = env.ensure_runtime_declaration_env();
+                            self.register_type_in_namespace(&namespace, &decl, declaration_env);
                             self.register_constructors(&decl, env);
                             last = Value::Unit;
                             continue;
@@ -19328,6 +19676,12 @@ impl Interpreter {
             }
 
             pending_annot = None;
+            if publishes_declaration_env {
+                self.refresh_runtime_declaration_env(&declaration_env, env);
+            }
+        }
+        if publishes_declaration_env {
+            self.refresh_runtime_declaration_env(&declaration_env, env);
         }
         last
     }
@@ -19376,18 +19730,41 @@ impl Interpreter {
         let module_namespace = parent_namespace.child(&format!("inline:{name}"));
         let mut module_env = env.child();
         module_env.set_runtime_namespace(module_namespace.clone());
-        if initialization_mode == RuntimeInitializationMode::Exploration {
-            let roots = self
-                .exploration_runtime_demand
-                .local_module_roots
-                .get(name)
-                .cloned()
-                .unwrap_or_default();
-            self.run_program_internal_with_exploration_roots(body, &mut module_env, true, roots);
-        } else {
-            self.run_program_internal(body, &mut module_env, initialization_mode, true);
+        // An inline module is lexically nested but owns its own declaration
+        // provenance. It may read its parent through `module_env.parent`, while
+        // declarations outside the module can never be refreshed into it.
+        let module_declaration_env = module_env.reset_runtime_declaration_env();
+        let initialization = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            if initialization_mode == RuntimeInitializationMode::Exploration {
+                let roots = self
+                    .exploration_runtime_demand
+                    .local_module_roots
+                    .get(name)
+                    .cloned()
+                    .unwrap_or_default();
+                self.run_program_internal_with_exploration_roots(
+                    body,
+                    &mut module_env,
+                    true,
+                    roots,
+                );
+            } else {
+                self.run_program_internal(body, &mut module_env, initialization_mode, true);
+            }
+        }));
+        if let Err(payload) = initialization {
+            self.discard_runtime_declaration_env(&module_declaration_env);
+            std::panic::resume_unwind(payload);
         }
-        let module_closure_env = Rc::new(module_env.child());
+        let initialization_failed = self.budget_exceeded
+            || self.ground_error.borrow().is_some()
+            || self.exhaustive_preview_error.borrow().is_some();
+        if initialization_failed {
+            self.discard_runtime_declaration_env(&module_declaration_env);
+            return Value::Unit;
+        }
+        let module_closure_env =
+            self.refresh_runtime_declaration_env(&module_declaration_env, &module_env);
         module_namespace.install_declaration_env(&module_closure_env);
         let bindings = Rc::new(
             module_env
@@ -19419,23 +19796,34 @@ impl Interpreter {
             } => {
                 let param_names: Vec<String> = params.iter().map(|p| p.name.clone()).collect();
                 let namespace = self.namespace_for_env(env);
+                let declaration_env = env.ensure_runtime_declaration_env();
+                self.refresh_runtime_declaration_env(&declaration_env, env);
                 // Register in function table for recursion
-                namespace.state.borrow_mut().functions.insert(
-                    name.clone(),
-                    FnDef {
-                        params: param_names.clone(),
-                        body: body.clone(),
-                    },
-                );
-                // Named functions don't capture env — they get it at call time
-                // This avoids exponential env cloning
+                {
+                    let mut state = namespace.state.borrow_mut();
+                    state.functions.insert(
+                        name.clone(),
+                        FnDef {
+                            params: param_names.clone(),
+                            body: body.clone(),
+                        },
+                    );
+                    state
+                        .function_declaration_envs
+                        .insert(name.clone(), declaration_env.clone());
+                }
+                // Named functions carry a shared forward declaration slot;
+                // their body never captures the eventual caller environment.
                 let closure = Value::Closure {
                     name: Some(name.clone()),
                     params: param_names,
                     body: body.clone(),
-                    env: Env::new().with_runtime_namespace(namespace),
+                    env: Env::new()
+                        .with_runtime_namespace(namespace)
+                        .with_runtime_declaration_env(declaration_env.clone()),
                 };
                 env.set(name.clone(), closure.clone());
+                self.refresh_runtime_declaration_env(&declaration_env, env);
                 closure
             }
             Defn::Actor {
@@ -19611,6 +19999,7 @@ impl Interpreter {
 
     pub fn register_constructors(&self, decl: &TypeDecl, env: &mut Env) {
         let namespace = self.namespace_for_env(env);
+        let declaration_env = env.ensure_runtime_declaration_env();
         match decl {
             TypeDecl::ADT {
                 variants, methods, ..
@@ -19658,7 +20047,9 @@ impl Interpreter {
                             name: Some(name.clone()),
                             params: param_names,
                             body: body.clone(),
-                            env: Env::new().with_runtime_namespace(namespace.clone()),
+                            env: Env::new()
+                                .with_runtime_namespace(namespace.clone())
+                                .with_runtime_declaration_env(declaration_env.clone()),
                         };
                         env.set(name.clone(), closure);
                     }
@@ -19680,7 +20071,9 @@ impl Interpreter {
                             name: Some(name.clone()),
                             params: param_names,
                             body: body.clone(),
-                            env: Env::new().with_runtime_namespace(namespace.clone()),
+                            env: Env::new()
+                                .with_runtime_namespace(namespace.clone())
+                                .with_runtime_declaration_env(declaration_env.clone()),
                         };
                         env.set(name.clone(), closure);
                     }
@@ -19718,7 +20111,7 @@ impl Interpreter {
             .collect::<Vec<_>>();
         if self
             .runtime_rule_scope(&owner, ctor_name)
-            .is_some_and(|(scope_owner, _)| scope_owner.same_instance(&owner))
+            .is_some_and(|(scope_owner, _, _)| scope_owner.same_instance(&owner))
         {
             return Some(self.runtime_rule_scope_instance(
                 &owner,
@@ -19898,13 +20291,16 @@ impl Interpreter {
                 }
             }
             if has_named_args(arguments) {
-                if let Some((owner, definition)) = self.runtime_function(&namespace, function_name)
+                if let Some((owner, definition, declaration_env)) =
+                    self.runtime_function(&namespace, function_name)
                 {
                     let callable = Value::Closure {
                         name: Some(function_name.clone()),
                         params: definition.params.clone(),
                         body: definition.body.clone(),
-                        env: Env::new().with_runtime_namespace(owner),
+                        env: Env::new()
+                            .with_runtime_namespace(owner)
+                            .with_runtime_declaration_env(declaration_env),
                     };
                     let argument_values = self
                         .eval_named_args_by_names(&definition.params, arguments, env)
@@ -19986,7 +20382,7 @@ impl Interpreter {
                         .next()
                         .unwrap_or_default();
                     self.runtime_rule_scope(&namespace, scope)
-                        .and_then(|(_, definition)| {
+                        .and_then(|(_, definition, _)| {
                             let parameters = definition
                                 .params
                                 .iter()
@@ -20152,19 +20548,41 @@ impl Interpreter {
                         .filter(|_| Self::value_is_registered_constructor_binding(val, name))
                     {
                         self.runtime_constructor_value(&owner, name.clone(), vec![])
+                    } else if let Value::Closure {
+                        name: Some(function_name),
+                        params,
+                        body,
+                        env: captured,
+                    } = val
+                    {
+                        let Some(declaration_env) =
+                            self.named_function_declaration_env(captured, function_name)
+                        else {
+                            return Value::Unit;
+                        };
+                        Value::Closure {
+                            name: Some(function_name.clone()),
+                            params: params.clone(),
+                            body: body.clone(),
+                            env: declaration_env,
+                        }
                     } else {
                         val.clone()
                     }
                 }
                 // Then function registry (for recursion and cross-function calls)
-                else if let Some((owner, definition)) = self.runtime_function(&namespace, name) {
+                else if let Some((owner, definition, declaration_env)) =
+                    self.runtime_function(&namespace, name)
+                {
                     Value::Closure {
                         name: Some(name.clone()),
                         params: definition.params,
                         body: definition.body,
-                        env: Env::new().with_runtime_namespace(owner),
+                        env: Env::new()
+                            .with_runtime_namespace(owner)
+                            .with_runtime_declaration_env(declaration_env),
                     }
-                } else if let Some(owner) = self.callable_rule_namespace(&namespace, name) {
+                } else if let Some(owner) = self.global_rule_namespace(&namespace, name) {
                     self.runtime_registry_builtin(&owner, format!("rule:{}", name))
                 } else if let Some((owner, (arity, positional))) =
                     self.runtime_constructor_layout(&namespace, name)
@@ -20414,13 +20832,17 @@ impl Interpreter {
                         effect
                     ));
                 }
-                // Push handlers onto the stack
+                self.synchronize_effect_handler_lexical_env_stack();
                 self.handler_stack.push((effect.clone(), handlers.clone()));
-                // Evaluate the body with handlers active
-                let result = self.eval(body, env);
-                // Pop handlers
+                self.handler_lexical_env_stack.push(Some(env.clone()));
+                let result =
+                    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| self.eval(body, env)));
+                self.handler_lexical_env_stack.pop();
                 self.handler_stack.pop();
-                result
+                match result {
+                    Ok(value) => value,
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
             }
             ExprKind::Try(inner) => {
                 if self.exhaustive_preview_forbid_effects {
@@ -20506,19 +20928,22 @@ impl Interpreter {
                 } else {
                     false
                 };
-                // Named functions: use call-site env (has builtins, other fns)
-                // Lambdas: use captured env (has enclosing scope vars)
-                let uses_call_env =
-                    name.is_some() && env.bindings.is_empty() && env.parent.is_none();
-                let base_env = if uses_call_env { call_env } else { env };
-                let mut call = base_env.child();
-                if uses_call_env {
-                    // Named functions retain the historical call-site lexical
-                    // environment, but registry resolution is declaration-owned.
-                    if let Some(namespace) = env.runtime_namespace.clone() {
-                        call.set_runtime_namespace(namespace);
+                // Named declarations execute against their declaration/module
+                // environment. Only lambdas retain ordinary lexical capture.
+                // Arguments have already been evaluated in `call_env`.
+                let declaration_env = match name.as_ref() {
+                    Some(name) => {
+                        let Some(declaration_env) = self.named_function_declaration_env(env, name)
+                        else {
+                            self.checked_mechanism_exit_activation(traced_activation);
+                            return Value::Unit;
+                        };
+                        Some(declaration_env)
                     }
-                }
+                    None => None,
+                };
+                let base_env = declaration_env.as_ref().unwrap_or(env);
+                let mut call = base_env.child();
                 for (p, a) in params.iter().zip(args.iter()) {
                     call.set(p.clone(), a.clone());
                 }
@@ -20608,7 +21033,7 @@ impl Interpreter {
         if name.starts_with("rulescope:") {
             let parts: Vec<&str> = name["rulescope:".len()..].split('/').collect();
             let scope_name = parts[0];
-            let Some((owner, def)) = self.runtime_rule_scope(namespace, scope_name) else {
+            let Some((owner, def, _)) = self.runtime_rule_scope(namespace, scope_name) else {
                 return Value::Unit;
             };
             let mut bindings = HashMap::new();
@@ -23043,20 +23468,26 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Option<Value> {
+        self.synchronize_effect_handler_lexical_env_stack();
         // Search handler stack top-first for a handler matching this operation
         let handler_idx = self
             .handler_stack
             .iter()
-            .rposition(|(_eff_name, handlers)| handlers.iter().any(|h| h.op_name == fn_name));
+            .rposition(|(_, handlers)| handlers.iter().any(|handler| handler.op_name == fn_name));
         let handler_idx = handler_idx?;
 
         // Verify this operation belongs to a declared effect
-        let (ref eff_name, _) = self.handler_stack[handler_idx];
-        let namespace = self.namespace_for_env(env);
+        let (effect, handlers) = self.handler_stack.get(handler_idx)?.clone();
+        let lexical_env = self
+            .handler_lexical_env_stack
+            .get(handler_idx)
+            .and_then(Clone::clone)
+            .unwrap_or_else(|| env.clone());
+        let namespace = self.namespace_for_env(&lexical_env);
         let is_effect_op = Self::runtime_namespace_find(&namespace, |state| {
             state
                 .effect_decls
-                .get(eff_name)
+                .get(&effect)
                 .map(|operations| operations.iter().any(|(operation, _)| operation == fn_name))
         })
         .map(|(_, is_effect_op)| is_effect_op)
@@ -23066,14 +23497,16 @@ impl Interpreter {
         }
 
         // Find the specific handler clause
-        let (_, ref handlers) = self.handler_stack[handler_idx];
-        let handler = handlers.iter().find(|h| h.op_name == fn_name)?.clone();
+        let handler = handlers
+            .iter()
+            .find(|handler| handler.op_name == fn_name)?
+            .clone();
 
         // Evaluate arguments
         let arg_vals: Vec<Value> = args.iter().map(|a| self.eval(a, env)).collect();
 
         // Create handler environment with params bound to args
-        let mut handler_env = env.child();
+        let mut handler_env = lexical_env.child();
         for (param, val) in handler.params.iter().zip(arg_vals.iter()) {
             handler_env.set(param.clone(), val.clone());
         }
@@ -23742,44 +24175,37 @@ impl Interpreter {
         arity: usize,
     ) -> bool {
         self.runtime_rule_scope(namespace, scope_name)
-            .map(|(_, definition)| {
+            .map(|(_, definition, _)| {
                 !Self::rule_scope_matching_rules(&definition, method, arity).is_empty()
             })
             .unwrap_or(false)
     }
 
-    fn callable_rule_namespace(
+    fn global_rule_namespace(
         &self,
         namespace: &RuntimeNamespace,
         name: &str,
     ) -> Option<RuntimeNamespace> {
-        let active_owner = self.active_rule_scopes.last().and_then(|frame| {
-            self.runtime_rule_scope(&frame.namespace, &frame.name)
-                .filter(|(owner, definition)| {
-                    owner.same_instance(&frame.namespace)
-                        && definition.rules_by_name.contains_key(name)
-                })
-                .map(|(owner, _)| owner)
-        });
-
-        active_owner.or_else(|| {
-            Self::runtime_namespace_find(namespace, |state| {
-                state.rules_by_name.contains_key(name).then_some(())
-            })
-            .map(|(owner, ())| owner)
+        Self::runtime_namespace_find(namespace, |state| {
+            state.rules_by_name.contains_key(name).then_some(())
         })
+        .map(|(owner, ())| owner)
     }
 
     fn rules_named(
         &self,
         namespace: &RuntimeNamespace,
         name: &str,
-    ) -> Option<(RuntimeNamespace, Vec<Rc<Rule>>)> {
+    ) -> Option<(RuntimeNamespace, Vec<(Rc<Rule>, RuntimeDeclarationEnv)>)> {
         Self::runtime_namespace_find(namespace, |state| {
             state.rules_by_name.get(name).map(|indices| {
                 indices
                     .iter()
-                    .filter_map(|index| state.rules.get(*index).map(|(_, rule)| rule.clone()))
+                    .filter_map(|index| {
+                        state.rules.get(*index).map(|(_, rule, declaration_env)| {
+                            (rule.clone(), declaration_env.clone())
+                        })
+                    })
                     .collect()
             })
         })
@@ -23823,18 +24249,22 @@ impl Interpreter {
     }
 
     fn prepare_runtime_rule_dispatch(
-        matching: Vec<Rc<Rule>>,
+        matching: Vec<(Rc<Rule>, RuntimeDeclarationEnv)>,
         arity: usize,
     ) -> Option<PreparedRuntimeRuleDispatch> {
         let matching = matching
             .into_iter()
-            .filter(|rule| Self::rule_arity(rule.as_ref()) == Some(arity))
+            .filter(|(rule, _)| Self::rule_arity(rule.as_ref()) == Some(arity))
             .collect::<Vec<_>>();
         if matching.is_empty() {
             return None;
         }
 
-        let named_parameter_order = Self::rule_param_names_from_rules(&matching);
+        let matching_rules = matching
+            .iter()
+            .map(|(rule, _)| rule.clone())
+            .collect::<Vec<_>>();
+        let named_parameter_order = Self::rule_param_names_from_rules(&matching_rules);
         let mut exceptions = Vec::new();
         let mut conditional_defaults = Vec::new();
         let mut clauses = Vec::new();
@@ -23842,7 +24272,7 @@ impl Interpreter {
         let mut head_local_names = BTreeSet::new();
         let mut body_goal_local_names = BTreeSet::new();
 
-        for (index, rule) in matching.iter().enumerate() {
+        for (index, (rule, _)) in matching.iter().enumerate() {
             match rule.dispatch_tier() {
                 Some(RuleDispatchTier::Exception) => exceptions.push(index),
                 Some(RuleDispatchTier::ConditionalDefault) => conditional_defaults.push(index),
@@ -23916,12 +24346,15 @@ impl Interpreter {
             name: name.to_string(),
             arity,
         };
-        let (owner, definition) = self.runtime_rule_scope(namespace, scope)?;
+        let (owner, definition, declaration_env) = self.runtime_rule_scope(namespace, scope)?;
         if let Some(prepared) = owner.state.borrow().exact_prepared_rule_dispatch.get(&key) {
             return Some(prepared.clone());
         }
         let prepared = Rc::new(Self::prepare_runtime_rule_dispatch(
-            Self::rule_scope_matching_rules(&definition, name, arity),
+            Self::rule_scope_matching_rules(&definition, name, arity)
+                .into_iter()
+                .map(|rule| (rule, declaration_env.clone()))
+                .collect(),
             arity,
         )?);
         owner
@@ -23956,9 +24389,6 @@ impl Interpreter {
             })
             .collect();
 
-        if let Some(value) = self.try_active_rule_scope_call(name, &arg_exprs, &arg_env) {
-            return value;
-        }
         if let Some(value) = self.try_rule_call_in_namespace(namespace, name, &arg_exprs, &arg_env)
         {
             return value;
@@ -24002,48 +24432,69 @@ impl Interpreter {
         frame
     }
 
+    fn active_rule_scope_for_env(
+        &self,
+        env: &Env,
+    ) -> Option<(String, Rc<HashMap<String, Value>>, RuntimeNamespace)> {
+        let frame = self.active_rule_scopes.last()?;
+        let receiver = env.get("__rulescope_self")?;
+        let (namespace, name, bindings) = self.runtime_rule_scope_value_parts(receiver)?;
+        (namespace.same_instance(&frame.namespace)
+            && name == frame.name
+            && Rc::ptr_eq(bindings, &frame.bindings))
+        .then(|| (name.to_string(), bindings.clone(), namespace))
+    }
+
     fn eval_rule_scope_method(
         &mut self,
         namespace: &RuntimeNamespace,
         scope_name: &str,
         bindings: &Rc<HashMap<String, Value>>,
-        declaration_env: Option<&Rc<Env>>,
+        _object_declaration_env: Option<&Rc<Env>>,
         method: &str,
         args: &[Expr],
         caller_env: &Env,
     ) -> Value {
+        let Some((owner, definition, scope_declaration_env)) =
+            self.runtime_rule_scope(namespace, scope_name)
+        else {
+            return Value::Unit;
+        };
+        let Some(declaration_call_env) =
+            self.registered_declaration_env(&scope_declaration_env, "RuleScope", scope_name)
+        else {
+            return Value::Unit;
+        };
         let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
             let Some(prepared) =
-                self.exact_scoped_rule_dispatch(namespace, scope_name, method, args.len())
+                self.exact_scoped_rule_dispatch(&owner, scope_name, method, args.len())
             else {
                 return Value::Unit;
             };
             (Some(prepared), None)
         } else {
-            let Some((_, def)) = self.runtime_rule_scope(namespace, scope_name) else {
-                return Value::Unit;
-            };
-            let matching = Self::rule_scope_matching_rules(&def, method, args.len());
+            let matching = Self::rule_scope_matching_rules(&definition, method, args.len())
+                .into_iter()
+                .map(|rule| (rule, scope_declaration_env.clone()))
+                .collect::<Vec<_>>();
             if matching.is_empty() {
                 return Value::Unit;
             }
             (None, Some(matching))
         };
-        let declaration_call_env =
-            self.runtime_declaration_call_env(namespace, declaration_env, caller_env);
         let mut scoped_env = declaration_call_env.child();
-        scoped_env.set_runtime_namespace(namespace.clone());
+        scoped_env.set_runtime_namespace(owner.clone());
         for (name, value) in bindings.iter() {
             scoped_env.set(name.clone(), value.clone());
         }
         scoped_env.set(
             "__rulescope_self".to_string(),
-            self.runtime_rule_scope_instance(namespace, scope_name.to_string(), bindings.clone()),
+            self.runtime_rule_scope_instance(&owner, scope_name.to_string(), bindings.clone()),
         );
         self.push_active_rule_scope_frame(RuleScopeFrame {
             name: scope_name.to_string(),
             bindings: bindings.clone(),
-            namespace: namespace.clone(),
+            namespace: owner.clone(),
             memoized_zero_arg_rules: HashMap::new(),
         });
         let family = RuleDispatchKey {
@@ -24054,14 +24505,14 @@ impl Interpreter {
         let materialized_args = self.materialize_call_arguments(args, caller_env, &mut scoped_env);
         let result = match (prepared, matching) {
             (Some(prepared), _) => self.try_rule_call_from_prepared(
-                namespace,
+                &owner,
                 &materialized_args,
                 &scoped_env,
                 prepared.as_ref(),
                 &family,
             ),
             (None, Some(matching)) => self.try_rule_call_from_rules(
-                namespace,
+                &owner,
                 &family,
                 &materialized_args,
                 &scoped_env,
@@ -24072,7 +24523,7 @@ impl Interpreter {
         self.pop_active_rule_scope_frame();
         result.unwrap_or_else(|| {
             self.boolean_rule_miss_value_in_namespace(
-                namespace,
+                &owner,
                 &RuleDispatchKey {
                     scope: Some(scope_name.to_string()),
                     name: method.to_string(),
@@ -24089,27 +24540,21 @@ impl Interpreter {
         args: &[Expr],
         env: &Env,
     ) -> Option<Value> {
-        let (scope_name, scope_bindings, namespace) =
-            self.active_rule_scopes.last().map(|frame| {
-                (
-                    frame.name.clone(),
-                    Rc::clone(&frame.bindings),
-                    frame.namespace.clone(),
-                )
-            })?;
+        let (scope_name, scope_bindings, namespace) = self.active_rule_scope_for_env(env)?;
+        let (owner, definition, scope_declaration_env) =
+            self.runtime_rule_scope(&namespace, &scope_name)?;
+        let declaration_call_env =
+            self.registered_declaration_env(&scope_declaration_env, "RuleScope", &scope_name)?;
         let (prepared, matching) = if self.exact_prepared_rule_dispatch_is_active() {
             (
-                Some(self.exact_scoped_rule_dispatch(
-                    &namespace,
-                    &scope_name,
-                    fn_name,
-                    args.len(),
-                )?),
+                Some(self.exact_scoped_rule_dispatch(&owner, &scope_name, fn_name, args.len())?),
                 None,
             )
         } else {
-            let (_, def) = self.runtime_rule_scope(&namespace, &scope_name)?;
-            let matching = Self::rule_scope_matching_rules(&def, fn_name, args.len());
+            let matching = Self::rule_scope_matching_rules(&definition, fn_name, args.len())
+                .into_iter()
+                .map(|rule| (rule, scope_declaration_env.clone()))
+                .collect::<Vec<_>>();
             if matching.is_empty() {
                 return None;
             }
@@ -24148,35 +24593,40 @@ impl Interpreter {
                 }
             }
         }
-        let mut scoped_env = env.child();
-        scoped_env.set_runtime_namespace(namespace.clone());
+        let mut scoped_env = declaration_call_env.child();
+        scoped_env.set_runtime_namespace(owner.clone());
         for (name, value) in scope_bindings.iter() {
             scoped_env.set(name.clone(), value.clone());
         }
         scoped_env.set(
             "__rulescope_self".to_string(),
             self.runtime_rule_scope_instance(
-                &namespace,
+                &owner,
                 scope_name.clone(),
                 Rc::clone(&scope_bindings),
             ),
         );
+        let materialized_args = self.materialize_call_arguments(args, env, &mut scoped_env);
         let result = match (prepared, matching) {
             (Some(prepared), _) => self.try_rule_call_from_prepared(
-                &namespace,
-                args,
+                &owner,
+                &materialized_args,
                 &scoped_env,
                 prepared.as_ref(),
                 &family,
             ),
-            (None, Some(matching)) => {
-                self.try_rule_call_from_rules(&namespace, &family, args, &scoped_env, matching)
-            }
+            (None, Some(matching)) => self.try_rule_call_from_rules(
+                &owner,
+                &family,
+                &materialized_args,
+                &scoped_env,
+                matching,
+            ),
             (None, None) => None,
         }
         .unwrap_or_else(|| {
             self.boolean_rule_miss_value_in_namespace(
-                &namespace,
+                &owner,
                 &RuleDispatchKey {
                     scope: Some(scope_name.clone()),
                     name: fn_name.to_string(),
@@ -24251,10 +24701,54 @@ impl Interpreter {
         family: &RuleDispatchKey,
         args: &[Expr],
         env: &Env,
-        matching: Vec<Rc<Rule>>,
+        matching: Vec<(Rc<Rule>, RuntimeDeclarationEnv)>,
     ) -> Option<Value> {
         let prepared = Self::prepare_runtime_rule_dispatch(matching, args.len())?;
         self.try_rule_call_from_prepared(namespace, args, env, &prepared, family)
+    }
+
+    fn runtime_rule_candidate_base_env(
+        &self,
+        namespace: &RuntimeNamespace,
+        family: &RuleDispatchKey,
+        declaration_env: &RuntimeDeclarationEnv,
+        caller_env: &Env,
+        dispatch: &PreparedRuntimeRuleDispatch,
+    ) -> Option<Env> {
+        let mut base_env = self.registered_declaration_env(
+            declaration_env,
+            family.scope.as_ref().map_or("rule", |_| "RuleScope rule"),
+            &family.name,
+        )?;
+        base_env.set_runtime_namespace(namespace.clone());
+
+        let scoped_binding_names = if let Some(scope_name) = family.scope.as_deref() {
+            let (active_name, bindings, active_namespace) =
+                self.active_rule_scope_for_env(caller_env)?;
+            if active_name != scope_name || !active_namespace.same_instance(namespace) {
+                return None;
+            }
+            for (name, value) in bindings.iter() {
+                base_env.set(name.clone(), value.clone());
+            }
+            base_env.set(
+                "__rulescope_self".to_string(),
+                self.runtime_rule_scope_instance(namespace, active_name, bindings.clone()),
+            );
+            bindings.keys().cloned().collect::<BTreeSet<_>>()
+        } else {
+            BTreeSet::new()
+        };
+
+        for name in &dispatch.head_local_names {
+            base_env.remove(name);
+        }
+        for name in &dispatch.body_goal_local_names {
+            if !scoped_binding_names.contains(name) {
+                base_env.remove(name);
+            }
+        }
+        Some(base_env)
     }
 
     fn try_rule_call_from_prepared(
@@ -24318,27 +24812,6 @@ impl Interpreter {
         if memo_key.is_some() {
             self.checked_exact_observer_memo_begin_cold_dispatch();
         }
-        let scoped_binding_names: BTreeSet<String> = self
-            .active_rule_scopes
-            .last()
-            .map(|frame| frame.bindings.keys().cloned().collect())
-            .unwrap_or_default();
-
-        // Create a base env: caller's env minus all rule-local variables
-        // (variables that appear as params in ANY clause head for this function).
-        // This prevents variables like `mid` from leaking between recursive rule calls
-        // while preserving top-level bindings like `threshold`.
-        let mut base_env = env.clone();
-        base_env.set_runtime_namespace(namespace.clone());
-        for name in &dispatch.head_local_names {
-            base_env.remove(name);
-        }
-        for name in &dispatch.body_goal_local_names {
-            if !scoped_binding_names.contains(name) {
-                base_env.remove(name);
-            }
-        }
-
         let traced_activation = self.checked_mechanism_enter_rule_family(family);
         if traced_activation {
             self.checked_mechanism_begin_dependency_scope();
@@ -24348,7 +24821,16 @@ impl Interpreter {
         let result = 'dispatch: {
             // Check exceptions first — they override the default.
             for index in &dispatch.exceptions {
-                let rule = dispatch.matching[*index].as_ref();
+                let Some(base_env) = self.runtime_rule_candidate_base_env(
+                    namespace,
+                    family,
+                    &dispatch.matching[*index].1,
+                    env,
+                    dispatch,
+                ) else {
+                    break 'dispatch None;
+                };
+                let rule = dispatch.matching[*index].0.as_ref();
                 if traced_activation {
                     self.checked_mechanism_enter_rule_candidate(family, *index, rule);
                     self.checked_mechanism_begin_dependency_scope();
@@ -24400,7 +24882,16 @@ impl Interpreter {
 
             // Catala-style: conditional defaults first.
             for index in &dispatch.conditional_defaults {
-                let rule = dispatch.matching[*index].as_ref();
+                let Some(base_env) = self.runtime_rule_candidate_base_env(
+                    namespace,
+                    family,
+                    &dispatch.matching[*index].1,
+                    env,
+                    dispatch,
+                ) else {
+                    break 'dispatch None;
+                };
+                let rule = dispatch.matching[*index].0.as_ref();
                 if traced_activation {
                     self.checked_mechanism_enter_rule_candidate(family, *index, rule);
                     self.checked_mechanism_begin_dependency_scope();
@@ -24446,7 +24937,16 @@ impl Interpreter {
             // Clauses with backtracking (Prolog-style).
             let mut matched_false_clause = false;
             for index in &dispatch.clauses {
-                let rule = dispatch.matching[*index].as_ref();
+                let Some(base_env) = self.runtime_rule_candidate_base_env(
+                    namespace,
+                    family,
+                    &dispatch.matching[*index].1,
+                    env,
+                    dispatch,
+                ) else {
+                    break 'dispatch None;
+                };
+                let rule = dispatch.matching[*index].0.as_ref();
                 if traced_activation {
                     self.checked_mechanism_enter_rule_candidate(family, *index, rule);
                     self.checked_mechanism_begin_dependency_scope();
@@ -24512,7 +25012,16 @@ impl Interpreter {
 
             // Unconditional defaults (lowest priority).
             for index in &dispatch.unconditional_defaults {
-                let rule = dispatch.matching[*index].as_ref();
+                let Some(base_env) = self.runtime_rule_candidate_base_env(
+                    namespace,
+                    family,
+                    &dispatch.matching[*index].1,
+                    env,
+                    dispatch,
+                ) else {
+                    break 'dispatch None;
+                };
+                let rule = dispatch.matching[*index].0.as_ref();
                 if traced_activation {
                     self.checked_mechanism_enter_rule_candidate(family, *index, rule);
                     self.checked_mechanism_begin_dependency_scope();
@@ -24735,7 +25244,7 @@ impl Interpreter {
                             constructor_owner.same_instance(&actual_owner)
                         });
                 }
-                if let Some((scope_owner, _)) =
+                if let Some((scope_owner, _, _)) =
                     self.runtime_rule_scope(expected_namespace, type_name)
                 {
                     return self.runtime_rule_scope_value_parts(value).is_some_and(
@@ -25250,13 +25759,6 @@ impl Interpreter {
             return false;
         };
 
-        // Create clean env: caller's env minus unbound variables (prevents leakage)
-        let mut clean_env = env.clone();
-        clean_env.set_runtime_namespace(owner);
-        for (_, uname) in unbound {
-            clean_env.remove(uname);
-        }
-
         // Evaluate bound arguments
         let bound_vals: Vec<Option<Value>> = goal_args
             .iter()
@@ -25270,16 +25772,27 @@ impl Interpreter {
             .collect();
 
         // Try each rule/fact as a potential source of bindings
-        for rule in &rules {
+        for (rule, declaration_env) in &rules {
             if let Rule::Clause { head, body } = rule.as_ref() {
                 if let ExprKind::App(_, head_params) = &head.kind {
                     if head_params.len() != goal_args.len() {
                         continue;
                     }
 
+                    let Some(mut rule_base_env) =
+                        self.registered_declaration_env(declaration_env, "rule", fn_name)
+                    else {
+                        return false;
+                    };
+                    rule_base_env.set_runtime_namespace(owner.clone());
+
                     // Check if bound args match this fact's ground terms
                     let mut matches = true;
-                    let mut new_env = clean_env.clone();
+                    let mut rule_env = rule_base_env.child();
+                    let mut continuation_env = env.child();
+                    for (_, name) in unbound {
+                        continuation_env.remove(name);
+                    }
 
                     for (i, (head_param, bound_val)) in
                         head_params.iter().zip(bound_vals.iter()).enumerate()
@@ -25299,13 +25812,13 @@ impl Interpreter {
                                 if let Some((_, ref name)) =
                                     unbound.iter().find(|(idx, _)| *idx == i)
                                 {
-                                    new_env.set(name.clone(), val);
+                                    continuation_env.set(name.clone(), val);
                                 }
                             }
                             // Head has a variable — it can provide a binding for our unbound vars
                             // but only if the fact itself has a body that can evaluate
                             (ExprKind::Var(head_var), Some(val)) => {
-                                new_env.set(head_var.clone(), val.clone());
+                                rule_env.set(head_var.clone(), val.clone());
                             }
                             (ExprKind::Var(head_var), None) => {
                                 // Both head and goal have unbound variables — skip
@@ -25325,11 +25838,11 @@ impl Interpreter {
                     let clause_ok = match body.as_ref().map(|e| &e.kind) {
                         None => true, // bare fact
                         Some(ExprKind::Conjunction(goals)) => {
-                            self.eval_conjunction(goals, &new_env)
+                            self.eval_conjunction(goals, &rule_env)
                         }
                         Some(_) => {
                             matches!(
-                                self.eval(body.as_ref().unwrap(), &new_env),
+                                self.eval(body.as_ref().unwrap(), &rule_env),
                                 Value::Bool(true)
                             )
                         }
@@ -25337,7 +25850,7 @@ impl Interpreter {
 
                     if clause_ok {
                         // This fact/clause succeeded — try remaining goals with new bindings
-                        if self.eval_conjunction(remaining, &new_env) {
+                        if self.eval_conjunction(remaining, &continuation_env) {
                             return true;
                         }
                     }
@@ -25382,7 +25895,7 @@ impl Interpreter {
     /// Collect all string values that appear as ground terms in any rule/fact.
     fn collect_all_values(&self, values: &mut std::collections::BTreeSet<String>) {
         let root = self.runtime_root.state.borrow();
-        for (_, rule) in &root.rules {
+        for (_, rule, _) in &root.rules {
             match rule.as_ref() {
                 Rule::Clause { head, .. }
                 | Rule::Default { head, .. }
@@ -25463,7 +25976,11 @@ impl Interpreter {
         };
 
         if let Some(template_pos) = template_pos {
-            if let Some(type_name) = Self::typed_rule_param_type(&rules, template_pos) {
+            let matching_rules = rules
+                .iter()
+                .map(|(rule, _)| rule.clone())
+                .collect::<Vec<_>>();
+            if let Some(type_name) = Self::typed_rule_param_type(&matching_rules, template_pos) {
                 let Some(variants) = self.finite_nullary_variants(&owner, &type_name) else {
                     return;
                 };
@@ -25496,7 +26013,13 @@ impl Interpreter {
             }
         }
 
-        for rule in &rules {
+        for (rule, declaration_env) in &rules {
+            let Some(mut rule_base_env) =
+                self.registered_declaration_env(declaration_env, "rule", fn_name)
+            else {
+                return;
+            };
+            rule_base_env.set_runtime_namespace(owner.clone());
             match rule.as_ref() {
                 Rule::Clause { head, body } => {
                     if let ExprKind::App(_, head_params) = &head.kind {
@@ -25508,7 +26031,7 @@ impl Interpreter {
                         if body.is_none() {
                             let mut ok = true;
                             let mut candidate = None;
-                            let mut fact_env = env.clone();
+                            let mut fact_env = rule_base_env.child();
                             for (i, (hp, bv)) in
                                 head_params.iter().zip(bound_vals.iter()).enumerate()
                             {
@@ -25541,8 +26064,7 @@ impl Interpreter {
                         // For rules with bodies: bind head variables, then evaluate the body
                         // to find all values the template var can take.
                         let body_expr = body.as_ref().unwrap();
-                        let mut rule_env = env.clone();
-                        rule_env.set_runtime_namespace(owner.clone());
+                        let mut rule_env = rule_base_env.child();
 
                         // Bind known (bound) values to head params
                         for (i, hp) in head_params.iter().enumerate() {
@@ -25638,22 +26160,19 @@ impl Interpreter {
                         if !ok {
                             continue;
                         }
-                        let cond_ok = match condition {
-                            Some(c) => {
-                                let mut ce = env.clone();
-                                for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
-                                    if let ExprKind::Var(n) = &hp.kind {
-                                        if let Some(v) = bv {
-                                            ce.set(n.clone(), v.clone());
-                                        }
-                                    }
+                        let mut value_env = rule_base_env.child();
+                        for (hp, bv) in head_params.iter().zip(bound_vals.iter()) {
+                            if let ExprKind::Var(name) = &hp.kind {
+                                if let Some(value) = bv {
+                                    value_env.set(name.clone(), value.clone());
                                 }
-                                matches!(self.eval(c, &ce), Value::Bool(true))
                             }
-                            None => true,
-                        };
+                        }
+                        let cond_ok = condition.as_ref().map_or(true, |condition| {
+                            matches!(self.eval(condition, &value_env), Value::Bool(true))
+                        });
                         if cond_ok {
-                            let val = self.eval(value, env);
+                            let val = self.eval(value, &value_env);
                             {
                                 let vs = format!("{}", val);
                                 if !results.iter().any(|r| format!("{}", r) == vs) {
@@ -57440,6 +57959,125 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert_eq!(
             env.get("not_covered").map(ToString::to_string),
             Some("false".to_string())
+        );
+    }
+
+    #[test]
+    fn lexical_runtime_named_callables_keep_explicit_params_and_declaration_shadows() {
+        let source = r#"
+= bias = 10
+
+> read_bias() -> Int { bias }
+> through_read() -> Int { read_bias() }
+> caller(bias: Int, read_bias: Int) -> Int {
+    through_read() + bias + read_bias
+}
+
+= result = caller(100, 1000)
+"#;
+        let stmts = parse_test_program(source).expect("parse lexical callable fixture");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("1110".to_string())
+        );
+    }
+
+    #[test]
+    fn lexical_runtime_first_class_global_rule_is_not_redirected_by_active_rulescope() {
+        let source = r#"
+| amount() -> 100
+
+# Case(value: Int) {
+    | amount() -> value
+    | direct() -> amount()
+    | first_class() -> {
+        = selected = amount
+        selected()
+    }
+}
+
+= direct = Case(7).direct()
+= first_class = Case(7).first_class()
+"#;
+        let stmts = parse_test_program(source).expect("parse first-class RuleScope fixture");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("direct").map(ToString::to_string),
+            Some("7".to_string()),
+            "bare sibling syntax must stay scoped"
+        );
+        assert_eq!(
+            env.get("first_class").map(ToString::to_string),
+            Some("100".to_string()),
+            "a resolved global rule value must stay global when applied"
+        );
+    }
+
+    #[test]
+    fn lexical_runtime_effect_handler_uses_handler_site_environment() {
+        let source = r#"
+# effect Reader {
+    > read(value: Int) -> Int
+}
+
+= bias = 10
+> invoke(bias: Int) -> Int with Reader { read(1) }
+
+= result = | handle Reader {
+    | read(value) -> value + bias
+} in invoke(100)
+"#;
+        let stmts = parse_test_program(source).expect("parse lexical effect fixture");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&stmts, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("11".to_string())
+        );
+        assert!(interpreter.handler_stack.is_empty());
+        assert!(interpreter.handler_lexical_env_stack.is_empty());
+    }
+
+    #[test]
+    fn lexical_runtime_nested_statement_block_restores_outer_declaration_environment() {
+        let root = parse_test_program(
+            r#"
+= initial = 1
+> later_value() -> Int { later }
+"#,
+        )
+        .expect("parse outer declaration fixture");
+        let nested = parse_test_program("> nested_value() -> Int { 0 }\n")
+            .expect("parse nested declaration fixture");
+        let tail = parse_test_program(
+            r#"
+= later = 42
+= result = later_value()
+"#,
+        )
+        .expect("parse outer declaration tail");
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+
+        interpreter.run_program(&root, &mut env);
+        interpreter.run_statement_block(&nested, &mut env);
+        interpreter.run_program(&tail, &mut env);
+
+        assert_eq!(
+            env.get("result").map(ToString::to_string),
+            Some("42".to_string())
         );
     }
 

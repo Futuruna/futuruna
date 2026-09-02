@@ -1,16 +1,19 @@
 @ import Policy from ./qualified_namespace_policy
 @ import Other from ./qualified_namespace_policy
 
+= before = 0
+
 > collide(value: Int) -> Int { value + 1 }
 
 > qualified_transitive_helper(value: Int) -> Int {
-    collide(value) + family(value) + family(value, 2)
+    collide(value) + family(value) + family(value, 2) + before
 }
 
 | family(value: Int) -> value + 10
 | family(left: Int, right: Int) -> left + right + 20
 
 | qualified_transitive_target(value: Int) -> qualified_transitive_helper(value)
+| qualified_shadow_entry(before: Int, collide: Int) -> qualified_transitive_target(1)
 
 = root_function = collide(1)
 = policy_function = Policy.collide(1)
@@ -22,7 +25,7 @@
 = policy_different_arity = Policy.family(1, 2)
 = other_same_arity = Other.family(1)
 = other_different_arity = Other.family(1, 2)
-= qualified_transitive_result = qualified_transitive_target(1)
+= qualified_transitive_result = qualified_shadow_entry(999, 999)
 
 | qualified_root_function_isolated: root_function -> root_function == 2
 | qualified_module_function_isolated: policy_function -> policy_function == 101

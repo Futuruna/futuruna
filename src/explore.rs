@@ -4437,6 +4437,10 @@ impl ExploreRuntimeGroundEvaluator {
                     definitions.len()
                 ));
             }
+            // Publish only globals completed before this RHS. Case-local
+            // values live in a separate child Env and never hydrate this slot.
+            self.interpreter
+                .refresh_declaration_environment(&mut self.base_env);
             let value = evaluate_relational_expression_with_bounded_retry(
                 &mut self.expression_step_limit,
                 |step_limit| {
@@ -4450,6 +4454,8 @@ impl ExploreRuntimeGroundEvaluator {
             )
             .map_err(|failure| failure.to_string())?;
             self.base_env.set(name.clone(), value);
+            self.interpreter
+                .refresh_declaration_environment(&mut self.base_env);
             self.evaluated_bindings.insert(name.clone());
         }
         Ok(())
