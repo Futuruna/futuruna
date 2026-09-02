@@ -5145,6 +5145,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             }
 
             let mut cg = RustCodegen::new();
+            cg.install_canonical_rule_metadata(&type_check);
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
@@ -14094,6 +14095,7 @@ struct SmtRuleLowerer<'program, 'registry> {
     registry: &'registry RuleDispatchRegistry<'program>,
     rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
     constructors: BTreeMap<String, Vec<SmtConstructorSignature>>,
+    type_parameters_by_owner: BTreeMap<String, Vec<String>>,
     fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
     function_returns: BTreeMap<String, String>,
     binding_types: BTreeMap<String, String>,
@@ -14106,13 +14108,78 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
     ) -> Self {
         let mut constructors: BTreeMap<String, Vec<SmtConstructorSignature>> = BTreeMap::new();
+        let mut type_parameters_by_owner = BTreeMap::from([
+            ("Option".to_string(), vec!["a".to_string()]),
+            ("Result".to_string(), vec!["a".to_string(), "e".to_string()]),
+            ("Pair".to_string(), vec!["a".to_string(), "b".to_string()]),
+        ]);
+        let positional_field = |name: &str, ty: Ty| Field {
+            name: name.to_string(),
+            ty,
+        };
+        constructors.insert(
+            "None".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Option".to_string(),
+                fields: Vec::new(),
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Some".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Option".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("a".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Ok".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Result".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("a".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Err".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Result".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("e".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Pair".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Pair".to_string(),
+                fields: vec![
+                    positional_field("fst", Ty::Var("a".to_string())),
+                    positional_field("snd", Ty::Var("b".to_string())),
+                ],
+                positional: false,
+            }],
+        );
         let mut fields_by_type = BTreeMap::new();
         let mut function_returns = BTreeMap::new();
         let mut binding_types = BTreeMap::new();
 
         for statement in statements {
             match statement {
-                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    params,
+                    variants,
+                    ..
+                }) => {
+                    type_parameters_by_owner.insert(
+                        name.clone(),
+                        params
+                            .iter()
+                            .filter(|parameter| parameter.ty.is_none())
+                            .map(|parameter| parameter.name.clone())
+                            .collect(),
+                    );
                     let fields = fields_by_type
                         .entry(name.clone())
                         .or_insert_with(BTreeMap::new);
@@ -14171,10 +14238,24 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             registry,
             rule_identities,
             constructors,
+            type_parameters_by_owner,
             fields_by_type,
             function_returns,
             binding_types,
         };
+        let canonical_rule_returns = lowerer
+            .registry
+            .groups
+            .values()
+            .filter_map(|group| {
+                group.return_type.as_ref().map(|return_type| {
+                    (lowerer.rule_function_name(&group.key), return_type.clone())
+                })
+            })
+            .collect::<Vec<_>>();
+        for (name, return_type) in canonical_rule_returns {
+            lowerer.function_returns.insert(name, return_type);
+        }
         for _ in 0..statements.len().max(1) {
             let mut changed = false;
             for statement in statements {
@@ -14217,6 +14298,56 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         self.rule_identity(key).name
     }
 
+    fn rule_type_is_smt_representable(&self, ty: &Ty) -> bool {
+        fn visit(
+            lowerer: &SmtRuleLowerer<'_, '_>,
+            ty: &Ty,
+            visiting: &mut BTreeSet<String>,
+        ) -> bool {
+            match ty {
+                Ty::Name(name) if matches!(name.as_str(), "Int" | "Bool" | "String") => true,
+                Ty::Name(name) => {
+                    if lowerer
+                        .type_parameters_by_owner
+                        .get(name)
+                        .is_some_and(|parameters| !parameters.is_empty())
+                    {
+                        return false;
+                    }
+                    if !visiting.insert(name.clone()) {
+                        return true;
+                    }
+                    let signatures = lowerer
+                        .constructors
+                        .values()
+                        .flatten()
+                        .filter(|signature| signature.parent == *name)
+                        .collect::<Vec<_>>();
+                    let representable = !signatures.is_empty()
+                        && signatures.iter().all(|signature| {
+                            signature
+                                .fields
+                                .iter()
+                                .all(|field| visit(lowerer, &field.ty, visiting))
+                        });
+                    visiting.remove(name);
+                    representable
+                }
+                Ty::App(_, _)
+                | Ty::Optional(_)
+                | Ty::Unit
+                | Ty::Ref(_)
+                | Ty::MutRef(_)
+                | Ty::Shared(_)
+                | Ty::Var(_)
+                | Ty::Arrow(_, _)
+                | Ty::Hole => false,
+            }
+        }
+
+        visit(self, ty, &mut BTreeSet::new())
+    }
+
     fn generated_rule_functions(
         &self,
     ) -> (
@@ -14254,6 +14385,16 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     continue;
                 }
             };
+            if !self.rule_type_is_smt_representable(&return_type) {
+                errors.insert(
+                    function_name,
+                    format!(
+                        "rule `{}` return type `{}` is not representable by the exact SMT backend",
+                        display_name, return_type_name
+                    ),
+                );
+                continue;
+            }
 
             let mut params = Vec::new();
             let receiver = group.key.scope.as_ref().map(|scope| {
@@ -14290,6 +14431,13 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     parameter_error = Some(format!(
                         "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
                         display_name
+                    ));
+                    break;
+                }
+                if !self.rule_type_is_smt_representable(&ty) {
+                    parameter_error = Some(format!(
+                        "rule `{}` parameter type `{}` is not representable by the exact SMT backend",
+                        display_name, type_name
                     ));
                     break;
                 }
@@ -14350,6 +14498,89 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         (parents.len() == 1).then(|| parents.into_iter().next().unwrap())
     }
 
+    fn infer_constructor_result_type(
+        &self,
+        signature: &SmtConstructorSignature,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Option<String> {
+        let ordered = if has_named_args(arguments) {
+            reorder_named_args_by_names(&signature.field_names(), arguments)?
+        } else {
+            arguments.to_vec()
+        };
+        let generics = self
+            .type_parameters_by_owner
+            .get(&signature.parent)
+            .cloned()
+            .unwrap_or_default();
+        let generic_names = generics.iter().cloned().collect::<BTreeSet<_>>();
+        fn accepts(
+            actual: &Ty,
+            expected: &Ty,
+            generic_names: &BTreeSet<String>,
+            substitutions: &mut BTreeMap<String, Ty>,
+        ) -> bool {
+            let generic = match expected {
+                Ty::Var(name) => Some(name),
+                Ty::Name(name) if generic_names.contains(name) => Some(name),
+                _ => None,
+            };
+            if let Some(name) = generic {
+                return match substitutions.get(name) {
+                    Some(known) => known == actual,
+                    None => {
+                        substitutions.insert(name.clone(), actual.clone());
+                        true
+                    }
+                };
+            }
+            match expected {
+                Ty::Name(expected) => matches!(actual, Ty::Name(actual) if actual == expected),
+                Ty::App(expected_constructor, expected_arguments) => {
+                    let Ty::App(actual_constructor, actual_arguments) = actual else {
+                        return false;
+                    };
+                    actual_arguments.len() == expected_arguments.len()
+                        && accepts(
+                            actual_constructor,
+                            expected_constructor,
+                            generic_names,
+                            substitutions,
+                        )
+                        && actual_arguments.iter().zip(expected_arguments).all(
+                            |(actual, expected)| {
+                                accepts(actual, expected, generic_names, substitutions)
+                            },
+                        )
+                }
+                Ty::Optional(expected) => matches!(actual, Ty::Optional(actual)
+                    if accepts(actual, expected, generic_names, substitutions)),
+                Ty::Unit => matches!(actual, Ty::Unit),
+                Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+                Ty::Var(_) => unreachable!("generic variables handled above"),
+            }
+        }
+
+        let mut substitutions = BTreeMap::new();
+        for (argument, field) in ordered.iter().zip(&signature.fields) {
+            let actual = self.infer_expr_type(argument, environment)?;
+            let actual = parse_type_annotation(&actual).ok()?;
+            if !accepts(&actual, &field.ty, &generic_names, &mut substitutions) {
+                return None;
+            }
+        }
+        if generics.is_empty() {
+            return Some(signature.parent.clone());
+        }
+        generics
+            .iter()
+            .map(|generic| substitutions.get(generic).map(ToString::to_string))
+            .collect::<Option<Vec<_>>>()
+            .map(|arguments| format!("{}({})", signature.parent, arguments.join(", ")))
+            .or_else(|| Some(signature.parent.clone()))
+    }
+
     fn infer_expr_type(&self, expression: &Expr, environment: &SmtLoweringEnv) -> Option<String> {
         match &expression.kind {
             ExprKind::Lit(Literal::Int(_)) => Some("Int".to_string()),
@@ -14371,7 +14602,11 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             .and_then(|value| self.infer_expr_type(value, environment));
                     }
                     if let Some(signature) = self.constructor_signature(name, arguments) {
-                        return Some(signature.parent.clone());
+                        return self.infer_constructor_result_type(
+                            signature,
+                            arguments,
+                            environment,
+                        );
                     }
                     if let Some((scope, _)) = &environment.active_scope {
                         if let Some(group) = self.registry.get(Some(scope), name, arguments.len()) {
@@ -14471,6 +14706,133 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         })
     }
 
+    fn smt_rule_schema_accepts(
+        actual: &Ty,
+        expected: &Ty,
+        substitutions: &mut BTreeMap<String, Ty>,
+    ) -> bool {
+        match expected {
+            Ty::Var(name) => match substitutions.get(name) {
+                Some(known) => known == actual,
+                None => {
+                    substitutions.insert(name.clone(), actual.clone());
+                    true
+                }
+            },
+            Ty::Name(expected) => matches!(actual, Ty::Name(actual) if actual == expected),
+            Ty::App(expected_constructor, expected_arguments) => {
+                let Ty::App(actual_constructor, actual_arguments) = actual else {
+                    return false;
+                };
+                actual_arguments.len() == expected_arguments.len()
+                    && Self::smt_rule_schema_accepts(
+                        actual_constructor,
+                        expected_constructor,
+                        substitutions,
+                    )
+                    && actual_arguments
+                        .iter()
+                        .zip(expected_arguments)
+                        .all(|(actual, expected)| {
+                            Self::smt_rule_schema_accepts(actual, expected, substitutions)
+                        })
+            }
+            Ty::Optional(expected) => matches!(actual, Ty::Optional(actual)
+                if Self::smt_rule_schema_accepts(actual, expected, substitutions)),
+            Ty::Unit => matches!(actual, Ty::Unit),
+            Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    fn validate_rule_call_arguments(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Result<(), String> {
+        if group.return_type.is_none() {
+            return Err(group.return_type_issue.clone().unwrap_or_else(|| {
+                format!(
+                    "rule `{}` has no canonical SMT dispatch contract",
+                    self.rule_display_name(&group.key)
+                )
+            }));
+        }
+        if arguments.len() != group.parameters.len() {
+            return Err(format!(
+                "rule `{}` expected {} arguments but received {}",
+                self.rule_display_name(&group.key),
+                group.parameters.len(),
+                arguments.len()
+            ));
+        }
+        let mut substitutions = BTreeMap::new();
+        for (index, (argument, parameter)) in arguments.iter().zip(&group.parameters).enumerate() {
+            let expected = parameter.ty.as_deref().ok_or_else(|| {
+                format!(
+                    "rule `{}` parameter {} has no canonical SMT type",
+                    self.rule_display_name(&group.key),
+                    index + 1
+                )
+            })?;
+            let expected = parse_type_annotation(expected).map_err(|error| {
+                format!(
+                    "rule `{}` parameter {} type is invalid for SMT: {}",
+                    self.rule_display_name(&group.key),
+                    index + 1,
+                    error
+                )
+            })?;
+            let actual_name = self.infer_expr_type(argument, environment).ok_or_else(|| {
+                format!(
+                    "SMT cannot prove the type of argument {} to rule `{}`",
+                    index + 1,
+                    self.rule_display_name(&group.key)
+                )
+            })?;
+            let actual = parse_type_annotation(&actual_name).map_err(|error| {
+                format!(
+                    "SMT argument {} type `{}` is invalid: {}",
+                    index + 1,
+                    actual_name,
+                    error
+                )
+            })?;
+            let contextual_nullary_constructor = match (&argument.kind, &expected) {
+                (ExprKind::Var(constructor), Ty::App(expected_owner, _)) => {
+                    let Ty::Name(expected_owner) = expected_owner.as_ref() else {
+                        return Err(format!(
+                            "SMT rule argument {} has a non-nominal applied schema",
+                            index + 1
+                        ));
+                    };
+                    self.unique_nullary_constructor_parent(constructor)
+                        .as_deref()
+                        == Some(expected_owner.as_str())
+                }
+                (ExprKind::Var(constructor), Ty::Optional(_)) => {
+                    self.unique_nullary_constructor_parent(constructor)
+                        .as_deref()
+                        == Some("Option")
+                }
+                _ => false,
+            };
+            if contextual_nullary_constructor {
+                continue;
+            }
+            if !Self::smt_rule_schema_accepts(&actual, &expected, &mut substitutions) {
+                return Err(format!(
+                    "SMT argument {} to rule `{}` has type `{}` but its canonical schema is `{}`",
+                    index + 1,
+                    self.rule_display_name(&group.key),
+                    actual_name,
+                    parameter.ty.as_deref().unwrap_or("?")
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn lower_rule_dispatch_call(
         &self,
         group: &RuleDispatchGroup<'program>,
@@ -14479,6 +14841,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         environment: &SmtLoweringEnv,
         expansion_stack: &mut Vec<RuleDispatchKey>,
     ) -> Result<Expr, String> {
+        self.validate_rule_call_arguments(group, &arguments, environment)?;
         if environment.rule_calls_as_symbols {
             let mut call_arguments =
                 Vec::with_capacity(arguments.len() + usize::from(receiver.is_some()));
@@ -14847,6 +15210,9 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     applicability = smt_and(applicability, guard);
                 }
 
+                // Bool determines clause-as-predicate lowering, but it does
+                // not by itself authorize a checked False value on dispatch
+                // miss.  That capability is carried separately by totality.
                 let return_is_bool = group.return_type.as_deref() == Some("Bool");
                 let (value, condition, clause) = match rule {
                     Rule::Exception {
@@ -14886,7 +15252,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 candidates.push((applicability, selected_value, candidate.source_order));
             }
 
-            let mut fallback = if group.return_type.as_deref() == Some("Bool") {
+            let mut fallback = if group.totality == RuleDispatchTotality::PredicateFallbackFalse {
                 Some(smt_bool(false))
             } else {
                 None
@@ -18200,6 +18566,10 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     };
     let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
+    if print_type_check_diagnostics(&type_artifacts.diagnostics, source, filename) {
+        eprintln!("runa --verify: semantic SMT fallback requires a type-correct program");
+        std::process::exit(1);
+    }
     let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
     let rule_lowerer = SmtRuleLowerer::new(
         &all_stmts,
@@ -25230,6 +25600,34 @@ struct RuleSignatureInferenceCacheEntry {
     result: RuleSignatureInference,
 }
 
+#[derive(Clone, Copy)]
+enum RustRuleHeadBindingMaterialization {
+    Direct,
+    DerefClone,
+    ToOwnedString,
+}
+
+struct RustRuleHeadBinding {
+    source_name: String,
+    temporary_name: String,
+    ty: FirTy,
+    materialization: RustRuleHeadBindingMaterialization,
+}
+
+struct RustRuleHeadApplicability {
+    subject: String,
+    pattern: String,
+    guards: Vec<String>,
+    bindings: Vec<RustRuleHeadBinding>,
+}
+
+struct RustRuleHeadPatternState {
+    used_names: BTreeSet<String>,
+    next_temporary: usize,
+    guards: Vec<String>,
+    bindings: Vec<RustRuleHeadBinding>,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RustCodegenIntArithmeticMode {
     LanguageDefault,
@@ -25309,6 +25707,17 @@ struct RustCodegen {
     ordinary_function_arities: BTreeSet<(String, usize)>,
     /// Source rule name/arity -> collision-free Rust symbol in the active namespace.
     rule_emitted_names: BTreeMap<(String, usize), String>,
+    /// Canonical RuleDispatch result contracts minted by the TypeChecker.
+    /// FIR inference remains useful for parameter ownership, but it may not
+    /// invent a result ABI after the canonical checker rejected the family.
+    canonical_rule_return_types: BTreeMap<RuleDispatchKey, String>,
+    canonical_rule_return_issues: BTreeMap<RuleDispatchKey, String>,
+    canonical_rule_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    canonical_rule_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    canonical_rule_parameter_issues: BTreeSet<RuleDispatchKey>,
+    canonical_rule_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    runtime_rule_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    canonical_rule_metadata_installed: bool,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -30422,6 +30831,14 @@ impl RustCodegen {
             module_callable_metadata: BTreeMap::new(),
             ordinary_function_arities: BTreeSet::new(),
             rule_emitted_names: BTreeMap::new(),
+            canonical_rule_return_types: BTreeMap::new(),
+            canonical_rule_return_issues: BTreeMap::new(),
+            canonical_rule_parameter_types: BTreeMap::new(),
+            canonical_rule_parameter_names: BTreeMap::new(),
+            canonical_rule_parameter_issues: BTreeSet::new(),
+            canonical_rule_boolean_miss_safe_keys: BTreeSet::new(),
+            runtime_rule_irrefutable_keys: BTreeSet::new(),
+            canonical_rule_metadata_installed: false,
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -30467,6 +30884,31 @@ impl RustCodegen {
             persist_tx_stack: Vec::new(),
             current_module_path: Vec::new(),
         }
+    }
+
+    fn install_canonical_rule_metadata(&mut self, artifacts: &TypeCheckArtifacts) {
+        // Definition ABIs and exact-call consumability deliberately differ:
+        // an intrinsically partial but type-consistent rule can still be
+        // emitted, while Explore/SMT must not consume it as a total call.
+        self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
+        self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
+        self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
+        self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
+        self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
+        self.canonical_rule_boolean_miss_safe_keys =
+            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+        self.runtime_rule_irrefutable_keys =
+            artifacts.rule_dispatch_runtime_irrefutable_keys.clone();
+        self.canonical_rule_metadata_installed = true;
+    }
+
+    fn ensure_canonical_rule_metadata(&mut self, statements: &[Stmt]) {
+        if self.canonical_rule_metadata_installed {
+            return;
+        }
+        let artifacts =
+            TypeChecker::check_with_backend_artifacts(statements, self.source_dir.clone(), "");
+        self.install_canonical_rule_metadata(&artifacts);
     }
 
     fn comptime_diagnostics_enabled() -> bool {
@@ -34949,6 +35391,7 @@ impl RustCodegen {
     }
 
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
+        self.ensure_canonical_rule_metadata(input_stmts);
         let all_stmts = self.scan_declarations(input_stmts);
         self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
         self.prescan_actor_message_site_types(&all_stmts);
@@ -36559,6 +37002,69 @@ impl RustCodegen {
         dependencies
     }
 
+    fn rule_parameter_overlay_is_compatible(inferred: &FirTy, proven: &FirTy) -> bool {
+        if inferred == proven
+            || matches!(inferred, FirTy::Unknown | FirTy::Var(_))
+            || matches!(proven, FirTy::Unknown | FirTy::Var(_))
+        {
+            return true;
+        }
+        match (inferred, proven) {
+            (FirTy::List(left), FirTy::List(right))
+            | (FirTy::Option(left), FirTy::Option(right))
+            | (FirTy::Set(left), FirTy::Set(right)) => {
+                Self::rule_parameter_overlay_is_compatible(left, right)
+            }
+            (FirTy::Result(left_ok, left_err), FirTy::Result(right_ok, right_err))
+            | (FirTy::Map(left_ok, left_err), FirTy::Map(right_ok, right_err))
+            | (FirTy::Arrow(left_ok, left_err), FirTy::Arrow(right_ok, right_err)) => {
+                Self::rule_parameter_overlay_is_compatible(left_ok, right_ok)
+                    && Self::rule_parameter_overlay_is_compatible(left_err, right_err)
+            }
+            (FirTy::Tuple(left), FirTy::Tuple(right)) if left.len() == right.len() => left
+                .iter()
+                .zip(right)
+                .all(|(left, right)| Self::rule_parameter_overlay_is_compatible(left, right)),
+            _ => false,
+        }
+    }
+
+    fn overlay_canonical_rule_parameter_types(
+        &self,
+        key: &RuleDispatchKey,
+        parameter_types: &mut [FirTy],
+    ) -> Result<(), String> {
+        if self.canonical_rule_parameter_issues.contains(key) {
+            return Err("the rule family has conflicting or malformed parameter schemas".into());
+        }
+        let parameters = self
+            .canonical_rule_parameter_types
+            .get(key)
+            .ok_or_else(|| "the rule family has no canonical parameter metadata".to_string())?;
+        if parameters.len() != parameter_types.len() {
+            return Err("canonical and inferred parameter arities disagree".into());
+        }
+        for (index, (parameter, inferred)) in parameters
+            .iter()
+            .zip(parameter_types.iter_mut())
+            .enumerate()
+        {
+            let Some(parameter) = parameter.as_deref() else {
+                continue;
+            };
+            let proven = self
+                .rule_type_name_to_fir(parameter)
+                .ok_or_else(|| format!("parameter {index} has an unlowerable canonical type"))?;
+            if !Self::rule_parameter_overlay_is_compatible(inferred, &proven) {
+                return Err(format!(
+                    "parameter {index} has incompatible inferred and canonical types"
+                ));
+            }
+            *inferred = proven;
+        }
+        Ok(())
+    }
+
     fn infer_rule_signature_cached(
         &mut self,
         fn_name: &str,
@@ -36582,7 +37088,38 @@ impl RustCodegen {
             }
         }
 
-        let result = self.infer_rule_signature_uncached(rules);
+        let mut result = self.infer_rule_signature_uncached(rules);
+        if self.canonical_rule_metadata_installed
+            && self.current_module_path.is_empty()
+            && self.current_rule_scope_name.is_none()
+        {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: fn_name.to_string(),
+                arity: Self::rule_arity(rules),
+            };
+            // Proven slots refine broad FIR inference, while unspecified
+            // binders deliberately keep their inferred runtime ABI. An
+            // incompatible overlay is rejected when the definition is emitted.
+            if self
+                .overlay_canonical_rule_parameter_types(&key, &mut result.param_tys)
+                .is_ok()
+            {
+                if let Some(names) = self
+                    .canonical_rule_parameter_names
+                    .get(&key)
+                    .filter(|names| names.len() == result.param_tys.len())
+                    .and_then(|names| names.iter().cloned().collect::<Option<Vec<_>>>())
+                {
+                    result.params = names;
+                }
+            }
+            result.return_type = self
+                .canonical_rule_return_types
+                .get(&key)
+                .and_then(|type_name| parse_type_annotation(type_name).ok())
+                .map(|ty| Self::normalize_rule_rust_type(&self.emit_type(&ty)));
+        }
         self.rule_signature_inference_cache.insert(
             fn_name.to_string(),
             RuleSignatureInferenceCacheEntry {
@@ -36621,10 +37158,19 @@ impl RustCodegen {
                 let inference = self.infer_rule_signature_cached(fn_name, rules);
                 let params = inference.params;
                 if !params.is_empty() || Self::rule_arity(rules) == 0 {
-                    self.types
-                        .call_params
-                        .entry(fn_name.clone())
-                        .or_insert(params.clone());
+                    if self.canonical_rule_metadata_installed
+                        && self.current_module_path.is_empty()
+                        && self.current_rule_scope_name.is_none()
+                    {
+                        self.types
+                            .call_params
+                            .insert(fn_name.clone(), params.clone());
+                    } else {
+                        self.types
+                            .call_params
+                            .entry(fn_name.clone())
+                            .or_insert(params.clone());
+                    }
                 }
                 let param_tys = inference.param_tys;
                 let Some(ret_type) = inference.return_type else {
@@ -36718,10 +37264,23 @@ impl RustCodegen {
         let mut changed = false;
 
         for (method, param_tys) in &method_param_tys {
+            let canonical_key = RuleDispatchKey {
+                scope: Some(scope_name.to_string()),
+                name: method.clone(),
+                arity: param_tys.len(),
+            };
+            if self.canonical_rule_metadata_installed
+                && self.current_module_path.is_empty()
+                && !self
+                    .canonical_rule_return_types
+                    .contains_key(&canonical_key)
+            {
+                continue;
+            }
             let ret_ty = method_return_tys
                 .get(method)
                 .cloned()
-                .unwrap_or(FirTy::Bool);
+                .unwrap_or(FirTy::Unknown);
             changed |= self.register_rule_scope_member_signature_entry(
                 scope_name,
                 &rust_name,
@@ -37908,10 +38467,33 @@ impl RustCodegen {
         let mut method_return_tys = BTreeMap::new();
 
         for (method, rules) in rule_groups {
-            let params = Self::rule_params(rules);
-            let param_tys = self.with_temporary_named_types(&scope_names, &scope_tys, |cg| {
+            let arity = Self::rule_arity(rules);
+            let canonical_key = RuleDispatchKey {
+                scope: Some(scope_name.to_string()),
+                name: method.clone(),
+                arity,
+            };
+            let mut params = Self::rule_params(rules);
+            let mut param_tys = self.with_temporary_named_types(&scope_names, &scope_tys, |cg| {
                 cg.infer_rule_param_fir_tys(&params, rules)
             });
+            if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+                // Keep broad inference for unspecified binders; only
+                // producer-proven slots refine the generated signature.
+                if self
+                    .overlay_canonical_rule_parameter_types(&canonical_key, &mut param_tys)
+                    .is_ok()
+                {
+                    if let Some(names) = self
+                        .canonical_rule_parameter_names
+                        .get(&canonical_key)
+                        .filter(|names| names.len() == param_tys.len())
+                        .and_then(|names| names.iter().cloned().collect::<Option<Vec<_>>>())
+                    {
+                        params = names;
+                    }
+                }
+            }
             method_params.insert(method.clone(), params);
             method_param_tys.insert(method.clone(), param_tys);
             method_return_tys.insert(method.clone(), FirTy::Unknown);
@@ -38000,9 +38582,27 @@ impl RustCodegen {
             saved_rule_scope_member_fn_types,
         );
 
-        for ret_ty in method_return_tys.values_mut() {
-            if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
-                *ret_ty = FirTy::Bool;
+        let canonical_root =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_root {
+            for (method, rules) in rule_groups {
+                let key = RuleDispatchKey {
+                    scope: Some(scope_name.to_string()),
+                    name: method.clone(),
+                    arity: Self::rule_arity(rules),
+                };
+                let canonical = self
+                    .canonical_rule_return_types
+                    .get(&key)
+                    .and_then(|type_name| self.rule_type_name_to_fir(type_name))
+                    .unwrap_or(FirTy::Unknown);
+                method_return_tys.insert(method.clone(), canonical);
+            }
+        } else {
+            for ret_ty in method_return_tys.values_mut() {
+                if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
+                    *ret_ty = FirTy::Bool;
+                }
             }
         }
 
@@ -38470,7 +39070,85 @@ impl RustCodegen {
         compute_method_name: &str,
         memo_value_field: Option<&str>,
     ) -> String {
+        let arity = Self::rule_arity(rules);
+        let canonical_key = RuleDispatchKey {
+            scope: Some(scope_name.to_string()),
+            name: method_name.to_string(),
+            arity,
+        };
+        let canonical_contract_applies =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_contract_applies
+            && self
+                .canonical_rule_parameter_issues
+                .contains(&canonical_key)
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped RuleDispatch `{}({})` with conflicting or malformed parameter schemas",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        if let Some(issue) = canonical_contract_applies
+            .then(|| self.canonical_rule_return_issues.get(&canonical_key))
+            .flatten()
+        {
+            return format!(
+                "    compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped unsafe RuleDispatch `{}.{}({})`: {}",
+                    scope_name, method_name, arity, issue
+                )
+            );
+        }
+        let canonical_ret_ty = canonical_contract_applies
+            .then(|| self.canonical_rule_return_types.get(&canonical_key))
+            .flatten()
+            .and_then(|type_name| self.rule_type_name_to_fir(type_name));
+        if canonical_contract_applies && canonical_ret_ty.is_none() {
+            return format!(
+                "    compile_error!({:?});\n",
+                format!(
+                    "generated Rust has no canonical RuleDispatch contract for `{}.{}({})`",
+                    scope_name, method_name, arity
+                )
+            );
+        }
+        let ret_ty = canonical_ret_ty.as_ref().unwrap_or(ret_ty);
+        let mut params = params.to_vec();
+        let mut param_tys = param_tys.to_vec();
+        if params.len() != arity || param_tys.len() != arity {
+            params = (0..arity)
+                .map(|index| format!("__fut_rule_arg_{index}"))
+                .collect();
+            param_tys =
+                Self::prolog_param_fir_tys(&self.prolog_rule_param_rust_types(rules, arity));
+        }
+        if canonical_contract_applies {
+            if let Err(issue) =
+                self.overlay_canonical_rule_parameter_types(&canonical_key, &mut param_tys)
+            {
+                return format!(
+                    "    compile_error!({:?});\n",
+                    format!(
+                        "generated Rust rejected the parameter ABI for `{}.{}({})`: {}",
+                        scope_name, method_name, arity, issue
+                    )
+                );
+            }
+        }
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
+        let bool_miss_is_safe = !canonical_contract_applies
+            || self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&canonical_key);
         let mut sig_params = vec!["&self".to_string()];
         let uses_binary_global_env = !self.lib_mode
             && self.rule_scope_method_uses_binary_global_env(scope_name, method_name);
@@ -38485,9 +39163,9 @@ impl RustCodegen {
 
         let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
         let mut all_names = scope_names.clone();
-        all_names.extend(params.to_vec());
+        all_names.extend(params.clone());
         let mut all_tys = scope_tys.clone();
-        all_tys.extend(param_tys.to_vec());
+        all_tys.extend(param_tys.clone());
 
         let prev_local_bindings = self.local_bindings.clone();
         let prev_copy_vars = self.copy_vars.clone();
@@ -38604,6 +39282,11 @@ impl RustCodegen {
             }
 
             let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+            let actuals = params
+                .iter()
+                .map(|parameter| sanitize_name(parameter))
+                .collect::<Vec<_>>();
+            let borrowed_strings = vec![false; actuals.len()];
 
             // Same-tier rules retain source order; the first applicable exception wins.
             for candidate in &dispatch.exceptions {
@@ -38612,19 +39295,36 @@ impl RustCodegen {
                     value, condition, ..
                 } = rule
                 {
-                    if let Some(cond) = condition {
-                        out.push_str(&format!(
-                            "        if {} {{ return {}; }}\n",
-                            cg.emit_expr(cond),
-                            cg.emit_rule_value_expr(value, ret_ty)
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "        return {};\n",
-                            cg.emit_rule_value_expr(value, ret_ty)
-                        ));
-                        out.push_str("    }\n\n");
-                        return out;
+                    let Some(head) = rule.head() else { continue };
+                    let mut expressions = vec![value];
+                    expressions.extend(condition.iter());
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &expressions,
+                        "        ",
+                        |cg, indent| {
+                            let value = cg.emit_rule_value_expr(value, ret_ty);
+                            condition.as_ref().map_or_else(
+                                || format!("{indent}return {value};\n"),
+                                |condition| {
+                                    format!(
+                                        "{indent}if {} {{ return {value}; }}\n",
+                                        cg.emit_expr(condition)
+                                    )
+                                },
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
                     }
                 }
             }
@@ -38637,11 +39337,30 @@ impl RustCodegen {
                     ..
                 } = rule
                 {
-                    out.push_str(&format!(
-                        "        if {} {{ return {}; }}\n",
-                        cg.emit_expr(cond),
-                        cg.emit_rule_value_expr(value, ret_ty)
-                    ));
+                    let Some(head) = rule.head() else { continue };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &[value, cond],
+                        "        ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}if {} {{ return {}; }}\n",
+                                cg.emit_expr(cond),
+                                cg.emit_rule_value_expr(value, ret_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
+                    }
                 }
             }
 
@@ -38650,25 +39369,79 @@ impl RustCodegen {
                     Rule::Clause {
                         body: Some(body), ..
                     } if ret_type == "bool" => {
-                        out.push_str(&format!(
-                            "        if {} {{ return true; }}\n",
-                            cg.emit_expr(body)
-                        ));
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "        ",
+                            |cg, indent| {
+                                format!("{indent}if {} {{ return true; }}\n", cg.emit_expr(body))
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
-                        out.push_str(&format!(
-                            "        return {};\n",
-                            cg.emit_rule_value_expr(body, ret_ty)
-                        ));
-                        out.push_str("    }\n\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "        ",
+                            |cg, indent| {
+                                format!(
+                                    "{indent}return {};\n",
+                                    cg.emit_rule_value_expr(body, ret_ty)
+                                )
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     Rule::Clause { body: None, .. } => {
-                        out.push_str("        return true;\n");
-                        out.push_str("    }\n\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[],
+                            "        ",
+                            |_cg, indent| format!("{indent}return true;\n"),
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     _ => {}
                 }
@@ -38676,16 +39449,35 @@ impl RustCodegen {
 
             for candidate in &dispatch.unconditional_defaults {
                 if let Rule::Default { value, .. } = candidate.rule {
-                    out.push_str(&format!(
-                        "        return {};\n",
-                        cg.emit_rule_value_expr(value, ret_ty)
-                    ));
-                    out.push_str("    }\n\n");
-                    return out;
+                    let Some(head) = candidate.rule.head() else {
+                        continue;
+                    };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &[value],
+                        "        ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}return {};\n",
+                                cg.emit_rule_value_expr(value, ret_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
+                    }
                 }
             }
 
-            if ret_type == "bool" {
+            if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("        false\n");
             } else {
                 out.push_str(&format!(
@@ -41086,6 +41878,942 @@ impl RustCodegen {
             .collect()
     }
 
+    fn collect_rule_head_binding_names(argument: &Expr, names: &mut BTreeSet<String>) {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(argument) {
+            Self::collect_rule_head_binding_names(inner, names);
+            return;
+        }
+        match &argument.kind {
+            ExprKind::Var(name)
+                if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+            {
+                names.insert(name.clone());
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    Self::collect_rule_head_binding_names(item, names);
+                }
+            }
+            ExprKind::App(function, arguments) => {
+                if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                    if let Some(value) = arguments.get(1) {
+                        Self::collect_rule_head_binding_names(value, names);
+                    }
+                } else {
+                    for argument in arguments {
+                        Self::collect_rule_head_binding_names(argument, names);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn fresh_rule_head_temporary(state: &mut RustRuleHeadPatternState) -> String {
+        loop {
+            let candidate = format!("__fut_rule_head_{}", state.next_temporary);
+            state.next_temporary += 1;
+            if state.used_names.insert(candidate.clone()) {
+                return candidate;
+            }
+        }
+    }
+
+    fn emit_rule_head_pattern_argument(
+        &self,
+        argument: &Expr,
+        expected_ty: &FirTy,
+        borrowed_string: bool,
+        boxed: bool,
+        state: &mut RustRuleHeadPatternState,
+    ) -> Result<String, String> {
+        if let Some((inner, type_name)) = Self::typed_rule_arg_parts(argument) {
+            let annotated_ty = self.rule_type_name_to_fir(type_name).ok_or_else(|| {
+                format!("rule-head annotation `{type_name}` has no generated Rust type")
+            })?;
+            return self.emit_rule_head_pattern_argument(
+                inner,
+                &annotated_ty,
+                borrowed_string,
+                boxed,
+                state,
+            );
+        }
+
+        if boxed
+            && !matches!(
+                &argument.kind,
+                ExprKind::Var(name)
+                    if name == "_" || !name.chars().next().is_some_and(char::is_uppercase)
+            )
+        {
+            return Err(
+                "nested non-binding patterns inside boxed rule-head fields are unsupported"
+                    .to_string(),
+            );
+        }
+
+        match &argument.kind {
+            ExprKind::Var(name) if name == "_" => Ok("_".to_string()),
+            ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                let temporary_name = Self::fresh_rule_head_temporary(state);
+                let materialization = if boxed {
+                    RustRuleHeadBindingMaterialization::DerefClone
+                } else if borrowed_string {
+                    RustRuleHeadBindingMaterialization::ToOwnedString
+                } else {
+                    RustRuleHeadBindingMaterialization::Direct
+                };
+                state.bindings.push(RustRuleHeadBinding {
+                    source_name: name.clone(),
+                    temporary_name: temporary_name.clone(),
+                    ty: expected_ty.clone(),
+                    materialization,
+                });
+                Ok(temporary_name)
+            }
+            ExprKind::Var(name) => {
+                if matches!(expected_ty, FirTy::String) {
+                    let temporary_name = Self::fresh_rule_head_temporary(state);
+                    state.guards.push(format!("{temporary_name} == {name:?}"));
+                    return Ok(temporary_name);
+                }
+                if name == "True" {
+                    return matches!(expected_ty, FirTy::Bool)
+                        .then(|| "true".to_string())
+                        .ok_or_else(|| "`True` rule-head tag does not match Bool".to_string());
+                }
+                if name == "False" {
+                    return matches!(expected_ty, FirTy::Bool)
+                        .then(|| "false".to_string())
+                        .ok_or_else(|| "`False` rule-head tag does not match Bool".to_string());
+                }
+                let parent = self.find_parent_type_with_expected(name, expected_ty);
+                let fields = self
+                    .types
+                    .variant_fields_for_parent(&parent, name)
+                    .ok_or_else(|| format!("rule-head constructor `{name}` is not available"))?;
+                if !fields.is_empty() {
+                    return Err(format!(
+                        "fielded constructor `{name}` cannot be used as a nullary rule-head tag"
+                    ));
+                }
+                Ok(self.types.emit_nullary_variant_with_parent(name, &parent))
+            }
+            ExprKind::Lit(literal) => {
+                if boxed {
+                    return Err("boxed literal rule-head patterns are unsupported".to_string());
+                }
+                let temporary_name = Self::fresh_rule_head_temporary(state);
+                let literal_value = match literal {
+                    Literal::Str(value) => format!("{value:?}"),
+                    Literal::Char(value) => format!("{value:?}"),
+                    Literal::Int(value) => format!("{value}i64"),
+                    Literal::Float(value) => format!("{value:?}"),
+                    Literal::Bool(value) => value.to_string(),
+                };
+                let guard = match literal {
+                    Literal::Float(_) => {
+                        format!("({temporary_name} - {literal_value}).abs() < f64::EPSILON")
+                    }
+                    _ => format!("{temporary_name} == {literal_value}"),
+                };
+                state.guards.push(guard);
+                Ok(temporary_name)
+            }
+            ExprKind::Tuple(items) => {
+                let FirTy::Tuple(item_tys) = expected_ty else {
+                    return Err("tuple rule-head pattern has no exact tuple parameter ABI".into());
+                };
+                if items.len() != item_tys.len() {
+                    return Err("tuple rule-head pattern has the wrong arity".into());
+                }
+                let patterns = items
+                    .iter()
+                    .zip(item_tys)
+                    .map(|(item, item_ty)| {
+                        self.emit_rule_head_pattern_argument(item, item_ty, false, false, state)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let trailing = (patterns.len() == 1).then_some(",").unwrap_or("");
+                Ok(format!("({}{trailing})", patterns.join(", ")))
+            }
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(constructor) = &function.kind else {
+                    return Err("computed rule-head patterns are unsupported".into());
+                };
+                if constructor == NAMED_ARG_MARKER {
+                    return Err("a named field wrapper cannot be a rule-head pattern".into());
+                }
+                let parent = self.find_parent_type_with_expected(constructor, expected_ty);
+                let fields = self
+                    .types
+                    .variant_fields_for_parent(&parent, constructor)
+                    .cloned()
+                    .ok_or_else(|| {
+                        format!("rule-head constructor `{constructor}` is not available")
+                    })?;
+                if fields.len() != arguments.len() {
+                    return Err(format!(
+                        "rule-head constructor `{constructor}` has the wrong payload arity"
+                    ));
+                }
+                let ordered = if has_named_args(arguments) {
+                    if !all_named_args(arguments) {
+                        return Err(format!(
+                            "rule-head constructor `{constructor}` mixes named and positional fields"
+                        ));
+                    }
+                    fields
+                        .iter()
+                        .map(|field| {
+                            let matches = arguments
+                                .iter()
+                                .filter_map(named_arg_parts)
+                                .filter(|(name, _)| name == field)
+                                .map(|(_, value)| value)
+                                .collect::<Vec<_>>();
+                            let [value] = matches.as_slice() else {
+                                return Err(format!(
+                                    "rule-head constructor `{constructor}` does not match field `{field}`"
+                                ));
+                            };
+                            Ok(*value)
+                        })
+                        .collect::<Result<Vec<_>, String>>()?
+                } else {
+                    arguments.iter().collect::<Vec<_>>()
+                };
+                let positional = self
+                    .types
+                    .variant_positional_for_parent(&parent, constructor);
+                let boxed_indices = self
+                    .types
+                    .variant_boxed_args_for_parent(&parent, constructor)
+                    .cloned()
+                    .unwrap_or_default();
+                let patterns = ordered
+                    .iter()
+                    .enumerate()
+                    .map(|(index, child)| {
+                        let child_ty = if positional {
+                            self.types.positional_pattern_field_ty_with_expected(
+                                constructor,
+                                index,
+                                expected_ty,
+                            )
+                        } else {
+                            self.types.pattern_field_ty_with_expected(
+                                constructor,
+                                &fields[index],
+                                expected_ty,
+                            )
+                        };
+                        self.emit_rule_head_pattern_argument(
+                            child,
+                            &child_ty,
+                            false,
+                            boxed_indices.contains(&index),
+                            state,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                if constructor == "Pair"
+                    && parent == "Pair"
+                    && patterns.len() == 2
+                    && self.types.struct_types.contains("Pair")
+                {
+                    return Ok(format!("({}, {})", patterns[0], patterns[1]));
+                }
+                let is_struct = self.types.struct_types.contains(&parent);
+                if positional {
+                    let owner = if is_struct {
+                        parent
+                    } else {
+                        format!("{parent}::{constructor}")
+                    };
+                    Ok(format!("{owner}({})", patterns.join(", ")))
+                } else {
+                    let owner = if is_struct {
+                        parent
+                    } else {
+                        format!("{parent}::{constructor}")
+                    };
+                    let fields = fields
+                        .iter()
+                        .zip(patterns)
+                        .map(|(field, pattern)| format!("{field}: {pattern}"))
+                        .collect::<Vec<_>>();
+                    Ok(format!("{owner} {{ {} }}", fields.join(", ")))
+                }
+            }
+            _ => Err("rule-head pattern is not representable in generated Rust".into()),
+        }
+    }
+
+    fn prepare_rule_head_applicability(
+        &self,
+        head: &Expr,
+        actuals: &[String],
+        actual_tys: &[FirTy],
+        borrowed_strings: &[bool],
+    ) -> Result<RustRuleHeadApplicability, String> {
+        if actuals.len() != actual_tys.len() || actuals.len() != borrowed_strings.len() {
+            return Err("generated rule ABI vectors have inconsistent arity".into());
+        }
+        let arguments: &[Expr] = match &head.kind {
+            ExprKind::App(_, arguments) => arguments,
+            ExprKind::Var(_) if actuals.is_empty() => &[],
+            _ => return Err("rule head is not a named call".into()),
+        };
+        if arguments.len() != actuals.len() {
+            return Err("rule candidate head does not match its family arity".into());
+        }
+
+        let mut used_names = actuals.iter().cloned().collect::<BTreeSet<_>>();
+        for argument in arguments {
+            Self::collect_rule_head_binding_names(argument, &mut used_names);
+        }
+        let mut state = RustRuleHeadPatternState {
+            used_names,
+            next_temporary: 0,
+            guards: Vec::new(),
+            bindings: Vec::new(),
+        };
+        let patterns = arguments
+            .iter()
+            .zip(actual_tys)
+            .zip(borrowed_strings)
+            .map(|((argument, ty), borrowed_string)| {
+                self.emit_rule_head_pattern_argument(
+                    argument,
+                    ty,
+                    *borrowed_string,
+                    false,
+                    &mut state,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let (subject, pattern) = match actuals.len() {
+            0 => ("()".to_string(), "()".to_string()),
+            1 => (format!("({}).clone()", actuals[0]), patterns[0].clone()),
+            _ => (
+                format!(
+                    "({})",
+                    actuals
+                        .iter()
+                        .map(|actual| format!("({actual}).clone()"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                format!("({})", patterns.join(", ")),
+            ),
+        };
+        Ok(RustRuleHeadApplicability {
+            subject,
+            pattern,
+            guards: state.guards,
+            bindings: state.bindings,
+        })
+    }
+
+    fn with_rule_head_binding_context<R>(
+        &mut self,
+        applicability: &RustRuleHeadApplicability,
+        expressions: &[&Expr],
+        emit: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let previous_local_bindings = self.local_bindings.clone();
+        let previous_var_types = self.var_types.clone();
+        let previous_var_fir_types = self.var_fir_types.clone();
+        let previous_copy_vars = self.copy_vars.clone();
+        let previous_var_use_counts = self.var_use_counts.clone();
+        let previous_var_consuming_counts = self.var_consuming_counts.clone();
+
+        let mut uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        for expression in expressions {
+            count_var_uses(expression, &mut uses);
+            count_consuming_uses_borrow_aware_for_ownership(
+                expression,
+                &mut consuming_uses,
+                &self.borrow_only_params,
+                None,
+                &[],
+            );
+        }
+        for binding in &applicability.bindings {
+            self.local_bindings.insert(binding.source_name.clone());
+            self.var_fir_types
+                .insert(binding.source_name.clone(), binding.ty.clone());
+            if let Some(rust_ty) = Self::fir_type_to_rust(&binding.ty) {
+                self.var_types.insert(binding.source_name.clone(), rust_ty);
+            }
+            if Self::fir_ty_is_copy(&binding.ty) {
+                self.copy_vars.insert(binding.source_name.clone());
+            } else {
+                self.copy_vars.remove(&binding.source_name);
+            }
+            if let Some(count) = uses.get(&binding.source_name) {
+                self.var_use_counts
+                    .insert(binding.source_name.clone(), *count);
+            } else {
+                self.var_use_counts.remove(&binding.source_name);
+            }
+            if let Some(count) = consuming_uses.get(&binding.source_name) {
+                self.var_consuming_counts
+                    .insert(binding.source_name.clone(), *count);
+            } else {
+                self.var_consuming_counts.remove(&binding.source_name);
+            }
+        }
+
+        let result = emit(self);
+        self.local_bindings = previous_local_bindings;
+        self.var_types = previous_var_types;
+        self.var_fir_types = previous_var_fir_types;
+        self.copy_vars = previous_copy_vars;
+        self.var_use_counts = previous_var_use_counts;
+        self.var_consuming_counts = previous_var_consuming_counts;
+        result
+    }
+
+    fn emit_rule_head_candidate(
+        &mut self,
+        head: &Expr,
+        actuals: &[String],
+        actual_tys: &[FirTy],
+        borrowed_strings: &[bool],
+        expressions: &[&Expr],
+        indent: &str,
+        emit_match: impl FnOnce(&mut Self, &str) -> String,
+    ) -> Result<String, String> {
+        let applicability =
+            self.prepare_rule_head_applicability(head, actuals, actual_tys, borrowed_strings)?;
+        Ok(
+            self.with_rule_head_binding_context(&applicability, expressions, |cg| {
+                let mut output = format!(
+                    "{indent}if let {} = {} {{\n",
+                    applicability.pattern, applicability.subject
+                );
+                let inner_indent = format!("{indent}    ");
+                for binding in &applicability.bindings {
+                    let value = match binding.materialization {
+                        RustRuleHeadBindingMaterialization::Direct => {
+                            binding.temporary_name.clone()
+                        }
+                        RustRuleHeadBindingMaterialization::DerefClone => {
+                            format!("(*{}).clone()", binding.temporary_name)
+                        }
+                        RustRuleHeadBindingMaterialization::ToOwnedString => {
+                            format!("{}.to_string()", binding.temporary_name)
+                        }
+                    };
+                    output.push_str(&format!(
+                        "{inner_indent}let {} = {};\n",
+                        sanitize_name(&binding.source_name),
+                        value
+                    ));
+                }
+                if applicability.guards.is_empty() {
+                    output.push_str(&emit_match(cg, &inner_indent));
+                } else {
+                    output.push_str(&format!(
+                        "{inner_indent}if {} {{\n",
+                        applicability.guards.join(" && ")
+                    ));
+                    let guarded_indent = format!("{inner_indent}    ");
+                    output.push_str(&emit_match(cg, &guarded_indent));
+                    output.push_str(&format!("{inner_indent}}}\n"));
+                }
+                output.push_str(&format!("{indent}}}\n"));
+                output
+            }),
+        )
+    }
+
+    fn emit_rule_head_compile_error(
+        indent: &str,
+        family: &str,
+        arity: usize,
+        error: &str,
+    ) -> String {
+        format!(
+            "{indent}compile_error!({:?});\n",
+            format!(
+                "generated Rust cannot preserve rule-head dispatch for `{}({})`: {}",
+                family, arity, error
+            )
+        )
+    }
+
+    fn prolog_clause_has_existential(goals: &[Expr], head_bindings: &BTreeSet<String>) -> bool {
+        goals.iter().any(|goal| {
+            let ExprKind::App(_, arguments) = &goal.kind else {
+                return false;
+            };
+            arguments.iter().any(|argument| {
+                matches!(
+                    &Self::rule_head_arg_expr(argument).kind,
+                    ExprKind::Var(name)
+                        if name != "_"
+                            && !name.chars().next().is_some_and(char::is_uppercase)
+                            && !head_bindings.contains(name)
+                )
+            })
+        })
+    }
+
+    fn complete_prolog_ground_fact_source(
+        &self,
+        goal_name: &str,
+        arity: usize,
+    ) -> Result<(String, bool), String> {
+        let rules = self
+            .types
+            .prolog_rule_groups
+            .get(goal_name)
+            .ok_or_else(|| format!("existential goal `{goal_name}` has no generated source"))?;
+        let rule_refs = rules.iter().collect::<Vec<_>>();
+        if rule_refs
+            .iter()
+            .any(|rule| Self::rule_exact_arity(rule).is_none())
+        {
+            return Err(format!(
+                "existential goal `{goal_name}` has an unrepresentable source candidate"
+            ));
+        }
+        let by_arity = Self::split_rule_group_by_arity(&rule_refs);
+        let Some(candidates) = by_arity.get(&arity) else {
+            return Err(format!(
+                "existential goal `{}({})` has no generated source",
+                goal_name, arity
+            ));
+        };
+        if by_arity.len() != 1 {
+            return Err(format!(
+                "overloaded existential source `{goal_name}` has no arity-qualified fact ABI"
+            ));
+        }
+        if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+            let scoped_key = self.current_rule_scope_name.as_ref().and_then(|scope| {
+                self.types
+                    .rule_scope_member_rules
+                    .get(&(scope.clone(), goal_name.to_string()))
+                    .is_some_and(|rules| {
+                        rules
+                            .iter()
+                            .any(|rule| Self::rule_exact_arity(rule) == Some(arity))
+                    })
+                    .then(|| RuleDispatchKey {
+                        scope: Some(scope.clone()),
+                        name: goal_name.to_string(),
+                        arity,
+                    })
+            });
+            let key = scoped_key.unwrap_or_else(|| RuleDispatchKey {
+                scope: None,
+                name: goal_name.to_string(),
+                arity,
+            });
+            if self.canonical_rule_parameter_issues.contains(&key)
+                || self.canonical_rule_return_issues.contains_key(&key)
+                || self
+                    .canonical_rule_return_types
+                    .get(&key)
+                    .map(String::as_str)
+                    != Some("Bool")
+            {
+                return Err(format!(
+                    "existential source `{goal_name}` has no complete generated Bool ABI"
+                ));
+            }
+        }
+
+        let mut fact_arguments = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            let Rule::Clause { head, body: None } = candidate else {
+                return Err(format!(
+                    "existential source `{goal_name}` is not a complete ground-fact relation"
+                ));
+            };
+            let ExprKind::App(_, arguments) = &head.kind else {
+                return Err(format!(
+                    "existential source `{goal_name}` has an unrepresentable fact head"
+                ));
+            };
+            if arguments.len() != arity || !arguments.iter().all(Self::rule_head_arg_is_ground_term)
+            {
+                return Err(format!(
+                    "existential source `{goal_name}` is not a complete ground-fact relation"
+                ));
+            }
+            fact_arguments.extend(arguments.iter());
+        }
+        if fact_arguments.is_empty() {
+            return Err(format!(
+                "existential source `{goal_name}` has no materialized facts"
+            ));
+        }
+
+        let emitted_name = self
+            .rule_emitted_names
+            .get(&(goal_name.to_string(), arity))
+            .ok_or_else(|| {
+                format!("existential source `{goal_name}` has no generated rule identity")
+            })?;
+        Ok((
+            format!("{}_FACTS", sanitize_name(emitted_name).to_uppercase()),
+            fact_arguments
+                .iter()
+                .any(|argument| Self::rule_head_arg_requires_lazy_fact_table(argument)),
+        ))
+    }
+
+    fn prolog_fact_type_contains_float(
+        &self,
+        ty: &FirTy,
+        visiting_named: &mut BTreeSet<String>,
+    ) -> Option<bool> {
+        match ty {
+            FirTy::Float => Some(true),
+            FirTy::Int | FirTy::Bool | FirTy::Char | FirTy::String | FirTy::Unit => Some(false),
+            FirTy::List(inner) | FirTy::Option(inner) => {
+                self.prolog_fact_type_contains_float(inner, visiting_named)
+            }
+            FirTy::Result(ok, error) => {
+                let left = self.prolog_fact_type_contains_float(ok, visiting_named)?;
+                let right = self.prolog_fact_type_contains_float(error, visiting_named)?;
+                Some(left || right)
+            }
+            FirTy::Tuple(items) => {
+                let mut contains_float = false;
+                for item in items {
+                    contains_float |= self.prolog_fact_type_contains_float(item, visiting_named)?;
+                }
+                Some(contains_float)
+            }
+            // Runtime Prolog equality does not currently define Map/Set
+            // comparison, even though generated Rust derives collection
+            // equality. Keep those sources closed rather than silently drift.
+            FirTy::Map(_, _) | FirTy::Set(_) => None,
+            FirTy::Named(rust_name) => {
+                let owner_name = if self.types.type_decls.contains_key(rust_name) {
+                    rust_name.clone()
+                } else if let Some(emitted) = self.types.type_rename.get(rust_name) {
+                    self.types
+                        .type_decls
+                        .contains_key(emitted)
+                        .then(|| emitted.clone())?
+                } else {
+                    self.types
+                        .type_rename
+                        .iter()
+                        .find_map(|(source, emitted)| {
+                            (emitted == rust_name).then(|| source.clone())
+                        })?
+                };
+                if !visiting_named.insert(owner_name.clone()) {
+                    return Some(false);
+                }
+                let result = (|| {
+                    let (_, variants) = self.types.type_decls.get(&owner_name)?;
+                    let mut contains_float = false;
+                    for variant in variants {
+                        let key = (owner_name.clone(), variant.clone());
+                        let fields = self.types.variant_fields_by_parent.get(&key)?;
+                        let field_types = self.types.variant_field_types_by_parent.get(&key)?;
+                        if fields.len() != field_types.len() {
+                            return None;
+                        }
+                        for field in fields {
+                            let field_type = field_types.get(field)?;
+                            let field_type =
+                                LoweringCtx::ty_to_fir_with_registry(field_type, &self.types);
+                            contains_float |=
+                                self.prolog_fact_type_contains_float(&field_type, visiting_named)?;
+                        }
+                    }
+                    Some(contains_float)
+                })();
+                visiting_named.remove(&owner_name);
+                result
+            }
+            FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown => None,
+        }
+    }
+
+    fn emit_prolog_fact_match_condition(
+        &self,
+        fact_value: &str,
+        expected: &str,
+        ty: &FirTy,
+        fact_string_is_owned: bool,
+        expected_string_is_owned: bool,
+    ) -> Result<String, String> {
+        if matches!(ty, FirTy::Float) {
+            return Ok(format!(
+                "(({fact_value}) - ({expected})).abs() < f64::EPSILON"
+            ));
+        }
+        if matches!(ty, FirTy::String) {
+            let fact_value = if fact_string_is_owned {
+                format!("({fact_value}).as_str()")
+            } else {
+                format!("({fact_value})")
+            };
+            let expected = if expected_string_is_owned {
+                format!("({expected}).as_str()")
+            } else {
+                format!("({expected})")
+            };
+            return Ok(format!("{fact_value} == {expected}"));
+        }
+
+        match self.prolog_fact_type_contains_float(ty, &mut BTreeSet::new()) {
+            Some(false) => Ok(format!("({fact_value}) == ({expected})")),
+            Some(true) => Err(
+                "existential comparison over a value containing Float is unsupported".to_string(),
+            ),
+            None => Err("existential comparison has no exact generated equality ABI".to_string()),
+        }
+    }
+
+    fn emit_prolog_existential_clause_body(
+        &mut self,
+        goals: &[Expr],
+        head_bindings: &BTreeSet<String>,
+        indent: &str,
+    ) -> Result<String, String> {
+        let Some(first_goal) = goals.first() else {
+            return Ok(format!("{indent}return true;\n"));
+        };
+        let ExprKind::App(function, arguments) = &first_goal.kind else {
+            return Err("an existential conjunction must start with a named goal".into());
+        };
+        let goal_name = Self::expr_fn_name(function);
+        let persisted_source = self.types.persisted_types.contains(goal_name.as_str());
+        let goal_param_types = if persisted_source {
+            let fields = self.persisted_fields(&goal_name).ok_or_else(|| {
+                format!("persisted existential goal `{goal_name}` has no field schema")
+            })?;
+            if arguments.len() > fields.len() {
+                return Err(format!(
+                    "persisted existential goal `{}({})` exceeds its field schema",
+                    goal_name,
+                    arguments.len()
+                ));
+            }
+            fields
+                .iter()
+                .take(arguments.len())
+                .map(|field| self.persisted_field_rust_type(&goal_name, field))
+                .collect::<Vec<_>>()
+        } else {
+            self.types
+                .prolog_rule_fns
+                .get(goal_name.as_str())
+                .cloned()
+                .ok_or_else(|| {
+                    format!(
+                        "existential goal `{}({})` has no stable generated ABI",
+                        goal_name,
+                        arguments.len()
+                    )
+                })?
+        };
+        if goal_param_types.len() != arguments.len() {
+            return Err(format!(
+                "existential goal `{}({})` has no stable generated ABI",
+                goal_name,
+                arguments.len()
+            ));
+        }
+        let goal_param_fir_types = goal_param_types
+            .iter()
+            .map(|parameter| match parameter.as_str() {
+                "&str" | "String" => FirTy::String,
+                other => Self::rust_type_to_fir(other),
+            })
+            .collect::<Vec<_>>();
+        if goal_param_fir_types.iter().any(|parameter| {
+            matches!(
+                parameter,
+                FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown
+            )
+        }) {
+            return Err(format!(
+                "existential goal `{}({})` has no comparable generated ABI",
+                goal_name,
+                arguments.len()
+            ));
+        }
+
+        let (source_iter, fact_strings_are_owned) = if persisted_source {
+            // Do not push equality into SQL here. Futuruna fact matching has
+            // type-specific equality (notably epsilon Float equality), while
+            // the storage engine's `=` has different semantics. Scan the
+            // durable source and apply the same generated matcher as in-memory
+            // facts below.
+            let scan_arguments = arguments
+                .iter()
+                .map(|argument| Expr::new(ExprKind::Var("_".to_string()), argument.span))
+                .collect::<Vec<_>>();
+            (
+                self.emit_persisted_query_expr(&goal_name, &scan_arguments, None, &BTreeMap::new())
+                    .ok_or_else(|| {
+                        format!("persisted existential goal `{goal_name}` cannot be lowered")
+                    })?,
+                true,
+            )
+        } else {
+            let (table_name, lazy_fact_table) =
+                self.complete_prolog_ground_fact_source(&goal_name, arguments.len())?;
+            (format!("{table_name}.iter()"), lazy_fact_table)
+        };
+
+        let mut existential_types = BTreeMap::new();
+        let mut bound_existentials = BTreeSet::new();
+        let mut setup = Vec::new();
+        for (index, argument) in arguments.iter().enumerate() {
+            let argument = Self::rule_head_arg_expr(argument);
+            let fact_value = if arguments.len() == 1 && !persisted_source {
+                "(*fact)".to_string()
+            } else {
+                format!("fact.{index}")
+            };
+            match &argument.kind {
+                ExprKind::Var(name) if name == "_" => {}
+                ExprKind::Var(name)
+                    if !name.chars().next().is_some_and(char::is_uppercase)
+                        && head_bindings.contains(name) =>
+                {
+                    let expected = if goal_param_types[index] == "&str" {
+                        format!("{}.as_str()", sanitize_name(name))
+                    } else {
+                        sanitize_name(name)
+                    };
+                    let matches = self.emit_prolog_fact_match_condition(
+                        &fact_value,
+                        &expected,
+                        &goal_param_fir_types[index],
+                        fact_strings_are_owned,
+                        goal_param_types[index] == "String",
+                    )?;
+                    setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                }
+                ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                    if bound_existentials.insert(name.clone()) {
+                        let ty = goal_param_fir_types[index].clone();
+                        existential_types.insert(name.clone(), ty);
+                        let value = if goal_param_types[index] == "&str" {
+                            format!("{fact_value}.to_string()")
+                        } else {
+                            format!("{fact_value}.clone()")
+                        };
+                        setup.push(format!(
+                            "{indent}    let {} = {value};\n",
+                            sanitize_name(name)
+                        ));
+                    } else {
+                        let expected = if goal_param_types[index] == "&str" {
+                            format!("{}.as_str()", sanitize_name(name))
+                        } else {
+                            sanitize_name(name)
+                        };
+                        let matches = self.emit_prolog_fact_match_condition(
+                            &fact_value,
+                            &expected,
+                            &goal_param_fir_types[index],
+                            fact_strings_are_owned,
+                            goal_param_types[index] == "String",
+                        )?;
+                        setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                    }
+                }
+                _ => {
+                    let expected = if goal_param_types[index] == "&str" {
+                        self.emit_prolog_arg(argument)
+                    } else {
+                        self.emit_expr(argument)
+                    };
+                    let matches = self.emit_prolog_fact_match_condition(
+                        &fact_value,
+                        &expected,
+                        &goal_param_fir_types[index],
+                        fact_strings_are_owned,
+                        goal_param_types[index] == "String",
+                    )?;
+                    setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                }
+            }
+        }
+
+        let existential_bindings = existential_types
+            .iter()
+            .map(|(name, ty)| RustRuleHeadBinding {
+                source_name: name.clone(),
+                temporary_name: String::new(),
+                ty: ty.clone(),
+                materialization: RustRuleHeadBindingMaterialization::Direct,
+            })
+            .collect();
+        let existential_context = RustRuleHeadApplicability {
+            subject: String::new(),
+            pattern: String::new(),
+            guards: Vec::new(),
+            bindings: existential_bindings,
+        };
+        let remaining = &goals[1..];
+        let expressions = remaining.iter().collect::<Vec<_>>();
+        let conditions =
+            self.with_rule_head_binding_context(&existential_context, &expressions, |cg| {
+                remaining
+                    .iter()
+                    .map(|goal| {
+                        if let ExprKind::App(function, arguments) = &goal.kind {
+                            let called = Self::expr_fn_name(function);
+                            if cg.types.persisted_types.contains(called.as_str()) {
+                                let bound_variables = arguments
+                                    .iter()
+                                    .filter_map(|argument| match &argument.kind {
+                                        ExprKind::Var(name) if name != "_" => {
+                                            Some((name.clone(), sanitize_name(name)))
+                                        }
+                                        _ => None,
+                                    })
+                                    .collect::<BTreeMap<_, _>>();
+                                return cg
+                                    .emit_persisted_exists_expr(
+                                        &called,
+                                        arguments,
+                                        &bound_variables,
+                                    )
+                                    .unwrap_or_else(|| "false".to_string());
+                            }
+                        }
+                        cg.emit_expr(goal)
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+        let mut output = format!("{indent}for fact in {source_iter} {{\n");
+        for statement in setup {
+            output.push_str(&statement);
+        }
+        if conditions.is_empty() {
+            output.push_str(&format!("{indent}    return true;\n"));
+        } else {
+            output.push_str(&format!(
+                "{indent}    if {} {{ return true; }}\n",
+                conditions.join(" && ")
+            ));
+        }
+        output.push_str(&format!("{indent}}}\n"));
+        Ok(output)
+    }
+
     fn rule_type_name_to_fir(&self, type_name: &str) -> Option<FirTy> {
         let ty = parse_type_annotation(type_name).ok()?;
         Some(self.source_ty_to_fir(&ty))
@@ -41206,12 +42934,61 @@ impl RustCodegen {
         emitted_name: &str,
         rules: &[&Rule],
         arity: usize,
+        bool_miss_is_safe: bool,
+        canonical_return: Option<&str>,
+        canonical_parameters: Option<&[Option<String>]>,
     ) -> String {
         let mut out = String::new();
         let sanitized = sanitize_name(emitted_name);
 
-        // Determine param types from ground terms in any clause head
-        let param_types = self.prolog_rule_param_rust_types(rules, arity);
+        // Root emission consumes the TypeChecker-owned ABI. Qualified module
+        // bodies remain on their isolated legacy metadata path.
+        let mut param_types = self.prolog_rule_param_rust_types(rules, arity);
+        if let Some(parameters) = canonical_parameters {
+            if parameters.len() != arity || param_types.len() != arity {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generated Rust has inconsistent parameter metadata for Prolog rule `{}({})`",
+                        fn_name, arity
+                    )
+                );
+            }
+            for (index, parameter) in parameters.iter().enumerate() {
+                let Some(parameter) = parameter.as_deref() else {
+                    continue;
+                };
+                let Ok(parameter) = parse_type_annotation(parameter) else {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!("invalid canonical Prolog parameter ABI for `{}`", fn_name)
+                    );
+                };
+                let mut type_variables = Vec::new();
+                self.collect_type_vars(&parameter, &mut type_variables);
+                if !type_variables.is_empty() {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!(
+                            "generic canonical Prolog parameter ABI is unsupported for `{}`",
+                            fn_name
+                        )
+                    );
+                }
+                let inferred = Self::rust_type_to_fir(&param_types[index]);
+                let proven = self.source_ty_to_fir(&parameter);
+                if !Self::rule_parameter_overlay_is_compatible(&inferred, &proven) {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!(
+                            "inferred and canonical parameter {} disagree for Prolog rule `{}`",
+                            index, fn_name
+                        )
+                    );
+                }
+                param_types[index] = self.emit_type(&parameter);
+            }
+        }
         let param_fir_tys = Self::prolog_param_fir_tys(&param_types);
 
         // Register this function as Prolog-style so call sites can emit correct types
@@ -41221,10 +42998,36 @@ impl RustCodegen {
             .insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
-        if let Some(value_type_str) = self
-            .infer_prolog_rules_value_type(rules, &param_fir_tys)
-            .or_else(|| Self::prolog_rules_value_type(rules))
-        {
+        let canonical_value_type = if let Some(return_type) = canonical_return {
+            let Ok(return_type) = parse_type_annotation(return_type) else {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!("invalid canonical Prolog return ABI for `{}`", fn_name)
+                );
+            };
+            let mut type_variables = Vec::new();
+            self.collect_type_vars(&return_type, &mut type_variables);
+            if !type_variables.is_empty() {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generic canonical Prolog return ABI is unsupported for `{}`",
+                        fn_name
+                    )
+                );
+            }
+            (!matches!(return_type, Ty::Name(ref name) if name == "Bool"))
+                .then(|| self.emit_type(&return_type))
+        } else {
+            None
+        };
+        let value_type = if canonical_return.is_some() {
+            canonical_value_type
+        } else {
+            self.infer_prolog_rules_value_type(rules, &param_fir_tys)
+                .or_else(|| Self::prolog_rules_value_type(rules))
+        };
+        if let Some(value_type_str) = value_type {
             self.types
                 .prolog_value_fns
                 .insert(fn_name.to_string(), value_type_str.clone());
@@ -41257,17 +43060,26 @@ impl RustCodegen {
             .iter()
             .flatten()
             .any(Self::rule_head_arg_requires_lazy_fact_table);
-        let facts: Vec<Vec<String>> = fact_rows
+        let facts = fact_rows
             .iter()
             .map(|row| {
                 row.iter()
                     .enumerate()
-                    .filter_map(|(idx, arg)| {
+                    .map(|(idx, arg)| {
                         self.emit_rule_fact_value(arg, &param_types[idx], lazy_fact_table)
                     })
-                    .collect()
+                    .collect::<Option<Vec<_>>>()
             })
-            .collect();
+            .collect::<Option<Vec<_>>>();
+        let Some(facts) = facts else {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust cannot materialize every fact of `{}({})`",
+                    fn_name, arity
+                )
+            );
+        };
 
         // Emit fact table
         let table_name = format!("{}_FACTS", sanitized.to_uppercase());
@@ -41365,334 +43177,153 @@ impl RustCodegen {
             pub_prefix, sanitized, param_str
         ));
 
-        // Emit rules with bodies (conjunction / backtracking)
-        for r in rules {
-            if let Rule::Clause {
+        let borrowed_strings = param_types
+            .iter()
+            .map(|parameter| parameter == "String")
+            .collect::<Vec<_>>();
+        let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+
+        for candidate in &dispatch.exceptions {
+            let Rule::Exception {
                 head,
-                body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    // Map head variable names to parameter positions
-                    let head_vars = Self::rule_head_param_vars(head_args);
-                    let (head_var_type_names, head_var_type_tys) =
-                        self.prolog_head_var_type_bindings(head_args, &param_fir_tys);
+                value,
+                condition,
+                ..
+            } = candidate.rule
+            else {
+                continue;
+            };
+            let mut expressions = vec![value];
+            expressions.extend(condition.iter());
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &expressions,
+                "    ",
+                |cg, indent| {
+                    let value = cg.emit_rule_value_expr(value, &FirTy::Bool);
+                    condition.as_ref().map_or_else(
+                        || format!("{indent}return {value};\n"),
+                        |condition| {
+                            format!(
+                                "{indent}if {} {{ return {value}; }}\n",
+                                cg.emit_expr(condition)
+                            )
+                        },
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                    if let ExprKind::Conjunction(goals) = &body.kind {
-                        // Find existential variables (in goals but not in head)
-                        let head_var_names: std::collections::BTreeSet<String> =
-                            head_vars.iter().map(|(n, _)| n.clone()).collect();
+        for candidate in &dispatch.conditional_defaults {
+            let Rule::Default {
+                head,
+                value,
+                condition: Some(condition),
+            } = candidate.rule
+            else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &[value, condition],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}if {} {{ return {}; }}\n",
+                        cg.emit_expr(condition),
+                        cg.emit_rule_value_expr(value, &FirTy::Bool)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                        let has_existential = goals.iter().any(|g| {
-                            if let ExprKind::App(_, gargs) = &g.kind {
-                                gargs.iter().any(|a| {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        !head_var_names.contains(name)
-                                    } else {
-                                        false
-                                    }
-                                })
-                            } else {
-                                false
-                            }
-                        });
-
-                        if has_existential {
-                            // Existential search: iterate over fact table of the first goal
-                            let first_goal = &goals[0];
-                            if let ExprKind::App(func, goal_args) = &first_goal.kind {
-                                let goal_fn = Self::expr_fn_name(func);
-                                let source_iter =
-                                    if self.types.persisted_types.contains(goal_fn.as_str()) {
-                                        let mut bound_vars = BTreeMap::new();
-                                        for ga in goal_args {
-                                            if let ExprKind::Var(name) = &ga.kind {
-                                                if name == "_" {
-                                                    continue;
-                                                }
-                                                if let Some((_, idx)) =
-                                                    head_vars.iter().find(|(n, _)| n == name)
-                                                {
-                                                    bound_vars.insert(
-                                                        name.clone(),
-                                                        param_names[*idx].clone(),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        self.emit_persisted_query_expr(
-                                            &goal_fn,
-                                            goal_args,
-                                            None,
-                                            &bound_vars,
-                                        )
-                                        .unwrap_or_else(|| "Vec::new()".to_string())
-                                    } else {
-                                        let source_table = format!(
-                                            "{}_FACTS",
-                                            sanitize_name(&goal_fn).to_uppercase()
-                                        );
-                                        format!("{}.iter()", source_table)
-                                    };
-
-                                out.push_str(&format!("    for fact in {} {{\n", source_iter));
-                                for (gi, ga) in goal_args.iter().enumerate() {
-                                    if let ExprKind::Var(name) = &ga.kind {
-                                        if name == "_" {
-                                            continue;
-                                        }
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            // Bound from head — check match
-                                            out.push_str(&format!(
-                                                "        if fact.{} != {} {{ continue; }}\n",
-                                                gi, param_names[*idx]
-                                            ));
-                                        } else {
-                                            // Existential — bind
-                                            out.push_str(&format!(
-                                                "        let {} = fact.{};\n",
-                                                sanitize_name(name),
-                                                gi
-                                            ));
-                                        }
-                                    }
-                                }
-                                // Check remaining goals
-                                let remaining: Vec<String> = goals[1..]
-                                    .iter()
-                                    .map(|goal| {
-                                        if let ExprKind::App(func, goal_args) = &goal.kind {
-                                            let gfn = Self::expr_fn_name(func);
-                                            let gargs: Vec<String> = goal_args
-                                                .iter()
-                                                .map(|a| {
-                                                    if let ExprKind::Var(name) = &a.kind {
-                                                        if let Some((_, idx)) = head_vars
-                                                            .iter()
-                                                            .find(|(n, _)| n == name)
-                                                        {
-                                                            param_names[*idx].clone()
-                                                        } else {
-                                                            sanitize_name(name)
-                                                        }
-                                                    } else {
-                                                        self.emit_prolog_arg_with_named_types(
-                                                            a,
-                                                            &head_var_type_names,
-                                                            &head_var_type_tys,
-                                                        )
-                                                    }
-                                                })
-                                                .collect();
-                                            format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                        } else {
-                                            self.emit_prolog_arg_with_named_types(
-                                                goal,
-                                                &head_var_type_names,
-                                                &head_var_type_tys,
-                                            )
-                                        }
-                                    })
-                                    .collect();
-
-                                if remaining.is_empty() {
-                                    out.push_str("        return true;\n");
-                                } else {
-                                    out.push_str(&format!(
-                                        "        if {} {{ return true; }}\n",
-                                        remaining.join(" && ")
-                                    ));
-                                }
-                                out.push_str("    }\n");
-                            }
-                        } else {
-                            // Simple conjunction: all vars bound
-                            let cond_parts: Vec<String> = goals
-                                .iter()
-                                .map(|goal| {
-                                    if let ExprKind::App(func, goal_args) = &goal.kind {
-                                        let gfn = Self::expr_fn_name(func);
-                                        if self.types.persisted_types.contains(gfn.as_str()) {
-                                            let mut bound_vars = BTreeMap::new();
-                                            for a in goal_args {
-                                                if let ExprKind::Var(name) = &a.kind {
-                                                    if name == "_" {
-                                                        continue;
-                                                    }
-                                                    if let Some((_, idx)) =
-                                                        head_vars.iter().find(|(n, _)| n == name)
-                                                    {
-                                                        bound_vars.insert(
-                                                            name.clone(),
-                                                            param_names[*idx].clone(),
-                                                        );
-                                                    } else {
-                                                        bound_vars.insert(
-                                                            name.clone(),
-                                                            sanitize_name(name),
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                            return self
-                                                .emit_persisted_exists_expr(
-                                                    &gfn,
-                                                    goal_args,
-                                                    &bound_vars,
-                                                )
-                                                .unwrap_or_else(|| "false".to_string());
-                                        }
-                                        let gargs: Vec<String> = goal_args
-                                            .iter()
-                                            .map(|a| {
-                                                if let ExprKind::Var(name) = &a.kind {
-                                                    if let Some((_, idx)) =
-                                                        head_vars.iter().find(|(n, _)| n == name)
-                                                    {
-                                                        param_names[*idx].clone()
-                                                    } else {
-                                                        sanitize_name(name)
-                                                    }
-                                                } else {
-                                                    self.emit_prolog_arg_with_named_types(
-                                                        a,
-                                                        &head_var_type_names,
-                                                        &head_var_type_tys,
-                                                    )
-                                                }
-                                            })
-                                            .collect();
-                                        format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                    } else {
-                                        self.emit_prolog_arg_with_named_types(
-                                            goal,
-                                            &head_var_type_names,
-                                            &head_var_type_tys,
-                                        )
-                                    }
-                                })
-                                .collect();
-                            out.push_str(&format!(
-                                "    if {} {{ return true; }}\n",
-                                cond_parts.join(" && ")
-                            ));
-                        }
-                    } else {
-                        // Simple non-conjunction body — emit as a call with proper arg substitution
-                        if let ExprKind::App(func, call_args) = &body.kind {
-                            let called_fn = Self::expr_fn_name(func);
-                            if self.types.persisted_types.contains(called_fn.as_str()) {
-                                let mut bound_vars = BTreeMap::new();
-                                for a in call_args {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        if name == "_" {
-                                            continue;
-                                        }
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            bound_vars
-                                                .insert(name.clone(), param_names[*idx].clone());
-                                        } else {
-                                            bound_vars.insert(name.clone(), sanitize_name(name));
-                                        }
-                                    }
-                                }
-                                let exists = self
-                                    .emit_persisted_exists_expr(&called_fn, call_args, &bound_vars)
-                                    .unwrap_or_else(|| "false".to_string());
-                                out.push_str(&format!("    if {} {{ return true; }}\n", exists));
-                                continue;
-                            }
-                            let gargs: Vec<String> = call_args
-                                .iter()
-                                .map(|a| {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            param_names[*idx].clone()
-                                        } else {
-                                            sanitize_name(name)
-                                        }
-                                    } else {
-                                        self.emit_prolog_arg_with_named_types(
-                                            a,
-                                            &head_var_type_names,
-                                            &head_var_type_tys,
-                                        )
-                                    }
-                                })
-                                .collect();
-                            out.push_str(&format!(
-                                "    if {}({}) {{ return true; }}\n",
-                                sanitize_name(&called_fn),
-                                gargs.join(", ")
-                            ));
-                        } else {
-                            // Fallback: use word-boundary replacement
-                            let mut body_str = self.with_temporary_named_types(
-                                &head_var_type_names,
-                                &head_var_type_tys,
-                                |cg| cg.emit_expr(body),
-                            );
-                            for (var_name, idx) in &head_vars {
-                                let san = sanitize_name(var_name);
-                                let replacement = &param_names[*idx];
-                                let mut result = String::new();
-                                let chars: Vec<char> = body_str.chars().collect();
-                                let san_chars: Vec<char> = san.chars().collect();
-                                let mut i = 0;
-                                while i < chars.len() {
-                                    if i + san_chars.len() <= chars.len()
-                                        && chars[i..i + san_chars.len()] == san_chars[..]
-                                    {
-                                        let before_ok = i == 0
-                                            || !(chars[i - 1].is_alphanumeric()
-                                                || chars[i - 1] == '_');
-                                        let after_ok = i + san_chars.len() >= chars.len()
-                                            || !(chars[i + san_chars.len()].is_alphanumeric()
-                                                || chars[i + san_chars.len()] == '_');
-                                        if before_ok && after_ok {
-                                            result.push_str(replacement);
-                                            i += san_chars.len();
-                                            continue;
-                                        }
-                                    }
-                                    result.push(chars[i]);
-                                    i += 1;
-                                }
-                                body_str = result;
-                            }
-                            out.push_str(&format!("    if {} {{ return true; }}\n", body_str));
-                        }
-                    }
+        for candidate in &dispatch.clauses {
+            let Rule::Clause { head, body } = candidate.rule else {
+                continue;
+            };
+            let mut head_bindings = BTreeSet::new();
+            if let ExprKind::App(_, arguments) = &head.kind {
+                for argument in arguments {
+                    Self::collect_rule_head_binding_names(argument, &mut head_bindings);
                 }
             }
-        }
-
-        // Check fact table
-        if !facts.is_empty() {
-            if arity == 1 {
-                out.push_str(&format!(
-                    "    if {}.contains(&{}) {{ return true; }}\n",
-                    table_name, param_names[0]
-                ));
-            } else {
-                let checks: Vec<String> = (0..arity)
-                    .map(|i| format!("f.{} == {}", i, param_names[i]))
-                    .collect();
-                out.push_str(&format!(
-                    "    if {}.iter().any(|f| {}) {{ return true; }}\n",
-                    table_name,
-                    checks.join(" && ")
-                ));
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &body.iter().collect::<Vec<_>>(),
+                "    ",
+                |cg, indent| match body {
+                    None => format!("{indent}return true;\n"),
+                    Some(Expr {
+                        kind: ExprKind::Conjunction(goals),
+                        ..
+                    }) if Self::prolog_clause_has_existential(goals, &head_bindings) => cg
+                        .emit_prolog_existential_clause_body(goals, &head_bindings, indent)
+                        .unwrap_or_else(|error| {
+                            Self::emit_rule_head_compile_error(indent, fn_name, arity, &error)
+                        }),
+                    Some(body) => {
+                        format!("{indent}if {} {{ return true; }}\n", cg.emit_expr(body))
+                    }
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
-        out.push_str("    false\n}\n");
+        for candidate in &dispatch.unconditional_defaults {
+            let Rule::Default { head, value, .. } = candidate.rule else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &[value],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return {};\n",
+                        cg.emit_rule_value_expr(value, &FirTy::Bool)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
+        if bool_miss_is_safe {
+            out.push_str("    false\n}\n");
+        } else {
+            out.push_str(&format!(
+                "    panic!({:?})\n}}\n",
+                format!("no proven-safe | rule matched for '{}'", fn_name)
+            ));
+        }
         out
     }
 
@@ -42368,67 +43999,6 @@ impl RustCodegen {
         value_type_str: &str,
     ) -> String {
         let mut out = String::new();
-        let value_rust_type = if value_type_str == "String" {
-            "&str"
-        } else {
-            value_type_str
-        };
-
-        // Collect value facts: clauses with all-literal heads and a literal body
-        let value_facts: Vec<(Vec<String>, String)> = rules
-            .iter()
-            .filter_map(|r| {
-                if let Rule::Clause {
-                    head,
-                    body: Some(body),
-                } = r
-                {
-                    if let ExprKind::App(_, args) = &head.kind {
-                        if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                            if let ExprKind::Lit(lit) = &body.kind {
-                                let keys: Vec<String> = args
-                                    .iter()
-                                    .map(|a| {
-                                        if let ExprKind::Lit(l) = &a.kind {
-                                            Self::emit_literal_value(l)
-                                        } else {
-                                            "?".into()
-                                        }
-                                    })
-                                    .collect();
-                                return Some((keys, Self::emit_literal_value(lit)));
-                            }
-                        }
-                    }
-                }
-                None
-            })
-            .collect();
-
-        // Emit fact table (key columns + value column)
-        let table_name = format!("{}_FACTS", sanitized.to_uppercase());
-        if !value_facts.is_empty() {
-            let key_types: Vec<String> = param_types
-                .iter()
-                .map(|t| {
-                    if t == "String" {
-                        "&str".to_string()
-                    } else {
-                        t.clone()
-                    }
-                })
-                .collect();
-            out.push_str(&format!(
-                "const {}: &[({}, {},)] = &[\n",
-                table_name,
-                key_types.join(", "),
-                value_rust_type
-            ));
-            for (keys, val) in &value_facts {
-                out.push_str(&format!("    ({}, {}),\n", keys.join(", "), val));
-            }
-            out.push_str("];\n\n");
-        }
 
         // Function signature: returns Option<T>
         let param_names: Vec<String> = (0..arity).map(|i| format!("_p{}", i)).collect();
@@ -42460,124 +44030,140 @@ impl RustCodegen {
             pub_prefix, sanitized, param_str, ret_type
         ));
 
-        // Lookup in fact table
-        if !value_facts.is_empty() {
-            let key_checks: Vec<String> = (0..arity)
-                .map(|i| format!("f.{} == {}", i, param_names[i]))
-                .collect();
-            let value_idx = arity;
-            let value_expr = if value_type_str == "String" {
-                format!("f.{}.to_string()", value_idx)
-            } else {
-                format!("f.{}", value_idx)
-            };
-            out.push_str(&format!("    for f in {}.iter() {{\n", table_name));
-            out.push_str(&format!(
-                "        if {} {{ return Some({}); }}\n",
-                key_checks.join(" && "),
-                value_expr
-            ));
-            out.push_str("    }\n");
-        }
+        let value_fir_ty = Self::rust_type_to_fir(value_type_str);
+        let borrowed_strings = param_types
+            .iter()
+            .map(|parameter| parameter == "String")
+            .collect::<Vec<_>>();
+        let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
 
-        // Emit computed clauses with fully ground heads that cannot live in the const fact table.
-        for r in rules {
-            if let Rule::Clause {
+        for candidate in &dispatch.exceptions {
+            let Rule::Exception {
                 head,
-                body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_)))
-                        && !matches!(body.kind, ExprKind::Lit(_))
-                    {
-                        let key_checks: Vec<String> = head_args
-                            .iter()
-                            .enumerate()
-                            .map(|(i, a)| {
-                                if let ExprKind::Lit(lit) = &a.kind {
-                                    format!(
-                                        "{} == {}",
-                                        param_names[i],
-                                        Self::emit_literal_value(lit)
-                                    )
-                                } else {
-                                    unreachable!("checked all-literal Prolog head");
-                                }
-                            })
-                            .collect();
-                        let mut body_str = self.emit_expr(body);
-                        let bindings: Vec<(String, String)> = self
-                            .types
-                            .literal_bindings
-                            .iter()
-                            .map(|(k, (v, _))| (k.clone(), v.clone()))
-                            .collect();
-                        for (bind_name, bind_val) in &bindings {
-                            body_str =
-                                self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
-                        }
-                        let wrapped = if value_type_str == "String" {
-                            format!("Some({}.to_string())", body_str)
-                        } else {
-                            format!("Some({})", body_str)
-                        };
-                        out.push_str(&format!(
-                            "    if {} {{ return {}; }}\n",
-                            key_checks.join(" && "),
-                            wrapped
-                        ));
-                    }
-                }
+                value,
+                condition,
+                ..
+            } = candidate.rule
+            else {
+                continue;
+            };
+            let mut expressions = vec![value];
+            expressions.extend(condition.iter());
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &expressions,
+                "    ",
+                |cg, indent| {
+                    let value = cg.emit_rule_value_expr(value, &value_fir_ty);
+                    condition.as_ref().map_or_else(
+                        || format!("{indent}return Some({value});\n"),
+                        |condition| {
+                            format!(
+                                "{indent}if {} {{ return Some({value}); }}\n",
+                                cg.emit_expr(condition)
+                            )
+                        },
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
-        // Emit rules with variable heads (non-fact clauses that return values)
-        for r in rules {
-            if let Rule::Clause {
+        for candidate in &dispatch.conditional_defaults {
+            let Rule::Default {
+                head,
+                value,
+                condition: Some(condition),
+            } = candidate.rule
+            else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[value, condition],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}if {} {{ return Some({}); }}\n",
+                        cg.emit_expr(condition),
+                        cg.emit_rule_value_expr(value, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
+
+        for candidate in &dispatch.clauses {
+            let Rule::Clause {
                 head,
                 body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    // Skip all-literal heads (already in fact table)
-                    if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                        continue;
-                    }
-                    let head_vars = Self::rule_head_param_vars(head_args);
+            } = candidate.rule
+            else {
+                out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ",
+                    fn_name,
+                    arity,
+                    "a value-returning rule candidate has no value body",
+                ));
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[body],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return Some({});\n",
+                        cg.emit_rule_value_expr(body, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                    let (head_var_names, head_var_tys) =
-                        self.prolog_head_var_type_bindings(head_args, param_fir_tys);
-                    let mut body_str =
-                        self.with_temporary_named_types(&head_var_names, &head_var_tys, |cg| {
-                            cg.emit_expr(body)
-                        });
-                    for (var_name, idx) in &head_vars {
-                        body_str = self.word_replace(
-                            &body_str,
-                            &sanitize_name(var_name),
-                            &param_names[*idx],
-                        );
-                    }
-                    // Inline literal bindings from outer scope
-                    let bindings: Vec<(String, String)> = self
-                        .types
-                        .literal_bindings
-                        .iter()
-                        .map(|(k, (v, _))| (k.clone(), v.clone()))
-                        .collect();
-                    for (bind_name, bind_val) in &bindings {
-                        body_str =
-                            self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
-                    }
-
-                    let wrapped = if value_type_str == "String" {
-                        format!("Some({}.to_string())", body_str)
-                    } else {
-                        format!("Some({})", body_str)
-                    };
-                    out.push_str(&format!("    return {};\n", wrapped));
-                }
+        for candidate in &dispatch.unconditional_defaults {
+            let Rule::Default { head, value, .. } = candidate.rule else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[value],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return Some({});\n",
+                        cg.emit_rule_value_expr(value, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
@@ -42600,8 +44186,91 @@ impl RustCodegen {
     ) -> String {
         // Check if this rule group has Prolog-style features (ground terms or conjunction)
         let arity = Self::rule_arity(rules);
+        let canonical_key = RuleDispatchKey {
+            scope: self.current_rule_scope_name.clone(),
+            name: fn_name.to_string(),
+            arity,
+        };
+        let canonical_contract_applies =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_contract_applies
+            && self
+                .canonical_rule_parameter_issues
+                .contains(&canonical_key)
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped RuleDispatch `{}({})` with conflicting or malformed parameter schemas",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        if let Some(issue) = canonical_contract_applies
+            .then(|| self.canonical_rule_return_issues.get(&canonical_key))
+            .flatten()
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped unsafe RuleDispatch `{}({})`: {}",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity,
+                    issue
+                )
+            );
+        }
+        let canonical_return = canonical_contract_applies
+            .then(|| {
+                self.canonical_rule_return_types
+                    .get(&canonical_key)
+                    .cloned()
+            })
+            .flatten();
+        if canonical_contract_applies && canonical_return.is_none() {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust has no canonical RuleDispatch contract for `{}({})`",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        let bool_miss_is_safe = !canonical_contract_applies
+            || self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&canonical_key);
         if Self::rules_have_prolog_features(rules) && arity > 0 {
-            return self.emit_prolog_rule_function(fn_name, emitted_name, rules, arity);
+            let canonical_parameters = canonical_contract_applies
+                .then(|| {
+                    self.canonical_rule_parameter_types
+                        .get(&canonical_key)
+                        .cloned()
+                })
+                .flatten();
+            return self.emit_prolog_rule_function(
+                fn_name,
+                emitted_name,
+                rules,
+                arity,
+                bool_miss_is_safe,
+                canonical_return.as_deref(),
+                canonical_parameters.as_deref(),
+            );
         }
 
         // --- Original Catala-style codegen ---
@@ -42611,8 +44280,28 @@ impl RustCodegen {
         } else {
             self.infer_rule_signature_uncached(rules)
         };
-        let params = inference.params;
-        let inferred_param_tys = inference.param_tys;
+        let mut params = inference.params;
+        let mut inferred_param_tys = inference.param_tys;
+        if params.len() != arity || inferred_param_tys.len() != arity {
+            params = (0..arity)
+                .map(|index| format!("__fut_rule_arg_{index}"))
+                .collect();
+            inferred_param_tys =
+                Self::prolog_param_fir_tys(&self.prolog_rule_param_rust_types(rules, arity));
+        }
+        if canonical_contract_applies {
+            if let Err(issue) =
+                self.overlay_canonical_rule_parameter_types(&canonical_key, &mut inferred_param_tys)
+            {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generated Rust rejected the parameter ABI for `{}({})`: {}",
+                        fn_name, arity, issue
+                    )
+                );
+            }
+        }
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
             .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
@@ -42634,10 +44323,18 @@ impl RustCodegen {
             param_str
         };
 
-        // Infer return type from FIR, seeded with inferred rule param types.
-        let ret_type = inference.return_type.unwrap_or_else(|| "bool".to_string());
+        // Canonical type evidence owns the generated ABI. FIR remains the
+        // parameter/ownership implementation detail and is used only for
+        // namespace bodies the canonical root graph deliberately treats as
+        // opaque.
+        let canonical_ret_type = canonical_return
+            .as_deref()
+            .and_then(|type_name| parse_type_annotation(type_name).ok())
+            .map(|ty| self.emit_type(&ty));
+        let ret_type = canonical_ret_type
+            .or(inference.return_type)
+            .unwrap_or_else(|| "bool".to_string());
         let ret_fir_ty = Self::rust_type_to_fir(&ret_type);
-
         // Mark non-Copy rule params for .clone() at each use site
         for (p, ty) in params.iter().zip(inferred_param_tys.iter()) {
             if !matches!(
@@ -42730,6 +44427,11 @@ impl RustCodegen {
             }
 
             let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+            let actuals = params
+                .iter()
+                .map(|parameter| sanitize_name(parameter))
+                .collect::<Vec<_>>();
+            let borrowed_strings = vec![false; actuals.len()];
 
             // Pass 1: exceptions (highest priority). Within the tier, the first
             // applicable rule in source order wins.
@@ -42739,19 +44441,33 @@ impl RustCodegen {
                     value, condition, ..
                 } = rule
                 {
-                    if let Some(cond) = condition {
-                        out.push_str(&format!(
-                            "    if {} {{ return {}; }}\n",
-                            cg.emit_expr(cond),
-                            cg.emit_rule_value_expr(value, &ret_fir_ty)
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "    return {};\n",
-                            cg.emit_rule_value_expr(value, &ret_fir_ty)
-                        ));
-                        out.push_str("}\n");
-                        return out;
+                    let Some(head) = rule.head() else { continue };
+                    let mut expressions = vec![value];
+                    expressions.extend(condition.iter());
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &expressions,
+                        "    ",
+                        |cg, indent| {
+                            let value = cg.emit_rule_value_expr(value, &ret_fir_ty);
+                            condition.as_ref().map_or_else(
+                                || format!("{indent}return {value};\n"),
+                                |condition| {
+                                    format!(
+                                        "{indent}if {} {{ return {value}; }}\n",
+                                        cg.emit_expr(condition)
+                                    )
+                                },
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
                     }
                 }
             }
@@ -42765,11 +44481,27 @@ impl RustCodegen {
                     ..
                 } = rule
                 {
-                    out.push_str(&format!(
-                        "    if {} {{ return {}; }}\n",
-                        cg.emit_expr(cond),
-                        cg.emit_rule_value_expr(value, &ret_fir_ty)
-                    ));
+                    let Some(head) = rule.head() else { continue };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &[value, cond],
+                        "    ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}if {} {{ return {}; }}\n",
+                                cg.emit_expr(cond),
+                                cg.emit_rule_value_expr(value, &ret_fir_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
+                    }
                 }
             }
 
@@ -42779,24 +44511,54 @@ impl RustCodegen {
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
-                        if ret_type == "bool" {
-                            out.push_str(&format!(
-                                "    if {} {{ return true; }}\n",
-                                cg.emit_expr(body)
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "    {}\n",
-                                cg.emit_rule_value_expr(body, &ret_fir_ty)
-                            ));
-                            out.push_str("}\n");
-                            return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &inferred_param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "    ",
+                            |cg, indent| {
+                                if ret_type == "bool" {
+                                    format!(
+                                        "{indent}if {} {{ return true; }}\n",
+                                        cg.emit_expr(body)
+                                    )
+                                } else {
+                                    format!(
+                                        "{indent}return {};\n",
+                                        cg.emit_rule_value_expr(body, &ret_fir_ty)
+                                    )
+                                }
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "    ", fn_name, arity, &error,
+                            )),
                         }
                     }
                     Rule::Clause { body: None, .. } => {
-                        out.push_str("    true\n");
-                        out.push_str("}\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &inferred_param_tys,
+                            &borrowed_strings,
+                            &[],
+                            "    ",
+                            |_cg, indent| format!("{indent}return true;\n"),
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "    ", fn_name, arity, &error,
+                            )),
+                        }
                     }
                     _ => {}
                 }
@@ -42805,16 +44567,32 @@ impl RustCodegen {
             // Pass 4: unconditional defaults
             for candidate in &dispatch.unconditional_defaults {
                 if let Rule::Default { value, .. } = candidate.rule {
-                    out.push_str(&format!(
-                        "    {}\n",
-                        cg.emit_rule_value_expr(value, &ret_fir_ty)
-                    ));
-                    out.push_str("}\n");
-                    return out;
+                    let Some(head) = candidate.rule.head() else {
+                        continue;
+                    };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &[value],
+                        "    ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}return {};\n",
+                                cg.emit_rule_value_expr(value, &ret_fir_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
+                    }
                 }
             }
 
-            if ret_type == "bool" {
+            if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("    false\n");
             } else {
                 out.push_str(&format!(
@@ -49065,6 +50843,51 @@ impl RustCodegen {
         else {
             return StaticRuleCallResolution::EmitNormally;
         };
+        if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+            let canonical_key = match &func.kind {
+                ExprKind::Var(name) => Some(RuleDispatchKey {
+                    scope: (self.current_rule_scope_methods.get(name) == Some(&args.len()))
+                        .then(|| self.current_rule_scope_name.clone())
+                        .flatten(),
+                    name: name.clone(),
+                    arity: args.len(),
+                }),
+                ExprKind::Field(obj, method)
+                    if self
+                        .qualified_module_callable_key(func, args.len())
+                        .is_none() =>
+                {
+                    let FirTy::Named(scope) = self.infer_expr_fir_ty(obj) else {
+                        return StaticRuleCallResolution::Unsupported(
+                            "dynamic RuleScope owner has no canonical total dispatch contract",
+                        );
+                    };
+                    [
+                        Some(scope.clone()),
+                        self.types.type_rename.get(&scope).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .map(|scope| RuleDispatchKey {
+                        scope: Some(scope),
+                        name: method.clone(),
+                        arity: args.len(),
+                    })
+                    .find(|key| self.canonical_rule_return_types.contains_key(key))
+                }
+                _ => None,
+            };
+            if let Some(key) = canonical_key {
+                if self.canonical_rule_return_types.contains_key(&key)
+                    && !self.runtime_rule_irrefutable_keys.contains(&key)
+                    && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
+                {
+                    return StaticRuleCallResolution::Unsupported(
+                        "RuleDispatch cannot be consumed without a canonical total/miss-safe contract",
+                    );
+                }
+            }
+        }
         if return_type != FirTy::Bool {
             return StaticRuleCallResolution::EmitNormally;
         }
@@ -49300,6 +51123,7 @@ impl RustCodegen {
                     .and_then(|key| self.module_callable_metadata.get(key))
                     .cloned();
                 let emitted_rule_target = self.emitted_free_rule_target(func, args.len());
+                let is_emitted_rule_call = emitted_rule_target.is_some();
                 // Object methods accept string literals as &str. Module-qualified
                 // free functions instead follow their captured module ABI.
                 let is_method_call =
@@ -50436,17 +52260,45 @@ impl RustCodegen {
                     _ => self.emit_expr(func),
                 };
                 let call = format!("{}({})", f, args_str.join(", "));
-                // Value-returning Prolog functions return Option<T> — default on missing fact
+                // Value-returning Prolog functions retain Option<T> internally.
+                // A miss must not manufacture a value of the result type.
                 let is_prolog_value_call = if is_qualified_module_call {
                     module_callable_metadata
                         .as_ref()
                         .is_some_and(|metadata| metadata.prolog_value)
                 } else {
-                    matches!(&func.as_ref().kind, ExprKind::Var(name)
+                    is_emitted_rule_call
+                        && matches!(&func.as_ref().kind, ExprKind::Var(name)
                         if self.types.prolog_value_fns.contains_key(name.as_str()))
                 };
                 if is_prolog_value_call {
-                    return format!("{}.unwrap_or_default()", call);
+                    if self.canonical_rule_metadata_installed
+                        && self.current_module_path.is_empty()
+                        && !is_qualified_module_call
+                    {
+                        let ExprKind::Var(name) = &func.as_ref().kind else {
+                            return "compile_error!(\"canonical Prolog value target is not a root named rule\")".to_string();
+                        };
+                        let key = RuleDispatchKey {
+                            scope: None,
+                            name: name.clone(),
+                            arity: args.len(),
+                        };
+                        if !self.runtime_rule_irrefutable_keys.contains(&key) {
+                            return format!(
+                                "compile_error!({:?})",
+                                format!(
+                                    "partial non-Bool RuleDispatch `{}({})` cannot be consumed as a total value",
+                                    name,
+                                    args.len()
+                                )
+                            );
+                        }
+                    }
+                    return format!(
+                        "{}.expect(\"irrefutable RuleDispatch returned no value\")",
+                        call
+                    );
                 }
                 call
             }
@@ -67053,6 +68905,79 @@ routes <- "b"
             rust.contains("if __d == 0.0 { 0.0 }"),
             "computed ground-body prolog value rule should preserve float-safe division: {}",
             rust
+        );
+    }
+
+    #[test]
+    fn static_rule_dispatch_soundness_prolog_existentials_require_complete_typed_sources() {
+        let emit = |source: &str| {
+            let (mut codegen, statements) = scan_with_codegen(source);
+            codegen.emit_program(&statements)
+        };
+
+        let body_bearing = emit(
+            r#"
+| body_source(0, value: Int) -> value > 0
+| body_query(probe: Int) -> body_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            body_bearing.contains("not a complete ground-fact relation"),
+            "body-bearing existential sources must fail closed: {body_bearing}"
+        );
+        assert!(
+            !body_bearing.contains("for fact in BODY_SOURCE_FACTS.iter()"),
+            "a rejected source must not leave an undefined fact-table reference: {body_bearing}"
+        );
+
+        let missing = emit(
+            r#"
+| missing_query(probe: Int) -> absent_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            missing.contains("compile_error!"),
+            "missing existential sources must fail closed: {missing}"
+        );
+        assert!(
+            !missing.contains("ABSENT_SOURCE_FACTS"),
+            "a missing source must not manufacture an undefined table: {missing}"
+        );
+
+        let complete = emit(
+            r#"
+| ground_source(1, 2)
+| ground_source(2, 3)
+| ground_query(probe: Int) -> ground_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            complete.contains("GROUND_SOURCE_FACTS"),
+            "complete ground facts should materialize a table: {complete}"
+        );
+        assert!(
+            complete.contains("for fact in GROUND_SOURCE_FACTS.iter()"),
+            "the exact-arity existential should enumerate its proven table: {complete}"
+        );
+        assert!(
+            !complete.contains("not a complete ground-fact relation"),
+            "a complete exact-arity source must remain lowerable: {complete}"
+        );
+
+        let floats = emit(
+            r#"
+| float_source(1.0, 2.0)
+| float_source(2.0, 3.0)
+| float_query(probe: Float) -> float_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            floats.contains("if !(((fact.0) - (probe)).abs() < f64::EPSILON) { continue; }"),
+            "Float mismatch must negate the interpreter's positive epsilon predicate: {floats}"
+        );
+        assert!(
+            !floats.contains("fact.0 != probe"),
+            "native Float inequality is NaN-incompatible with interpreter matching: {floats}"
         );
     }
 
