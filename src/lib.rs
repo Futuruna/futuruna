@@ -24,7 +24,7 @@
 
 use serde_json;
 use sha2::{Digest as ShaDigest, Sha256};
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::env;
 use std::fmt;
@@ -4544,7 +4544,7 @@ pub fn should_use_color() -> bool {
 // PART 3: AST
 // ============================================================================
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Ty {
     Name(String),
     App(Box<Ty>, Vec<Ty>),
@@ -5820,6 +5820,22 @@ fn rule_head_is_irrefutable(rule: &Rule) -> bool {
     }
 }
 
+fn rule_dispatch_candidate_is_total(rule: &Rule, return_type: &str) -> bool {
+    rule_head_is_irrefutable(rule)
+        && match rule {
+            Rule::Exception {
+                condition: None, ..
+            }
+            | Rule::Default {
+                condition: None, ..
+            } => true,
+            Rule::Clause { body, .. } => {
+                body.is_some() && TypeChecker::canonical_explore_type_name(return_type) != "Bool"
+            }
+            _ => false,
+        }
+}
+
 impl<'a> RuleDispatchRegistry<'a> {
     pub fn from_statements(stmts: &'a [Stmt], artifacts: &TypeCheckArtifacts) -> Self {
         #[derive(Default)]
@@ -5871,28 +5887,40 @@ impl<'a> RuleDispatchRegistry<'a> {
         let groups = pending
             .into_iter()
             .map(|(key, pending)| {
-                let return_type = artifacts.rule_dispatch_return_types.get(&key).cloned();
-                let return_type_issue = artifacts.rule_dispatch_return_issues.get(&key).cloned();
-                let totality = if return_type.as_deref() == Some("Bool") {
+                let parameter_issue = artifacts.rule_dispatch_parameter_issues.contains(&key);
+                let return_type = (!parameter_issue)
+                    .then(|| artifacts.rule_dispatch_return_types.get(&key).cloned())
+                    .flatten();
+                let return_type_issue = if parameter_issue {
+                    Some(format!(
+                        "rule `{}` has conflicting or malformed canonical parameter schemas",
+                        key.name
+                    ))
+                } else {
+                    artifacts.rule_dispatch_return_issues.get(&key).cloned()
+                };
+                let totality = if return_type.is_some()
+                    && artifacts
+                        .rule_dispatch_boolean_miss_safe_keys
+                        .contains(&key)
+                {
                     RuleDispatchTotality::PredicateFallbackFalse
-                } else if pending.rules.iter().any(|rule| {
-                    rule_head_is_irrefutable(rule)
-                        && match rule {
-                            Rule::Exception {
-                                condition: None, ..
-                            }
-                            | Rule::Default {
-                                condition: None, ..
-                            } => true,
-                            Rule::Clause { body, .. } => body.is_some(),
-                            _ => false,
-                        }
-                }) {
+                } else if artifacts.rule_dispatch_total_value_keys.contains(&key) {
                     RuleDispatchTotality::IrrefutableCandidate
                 } else {
                     RuleDispatchTotality::Partial
                 };
-                let parameters = rule_dispatch_parameters(&pending.rules, key.arity);
+                let mut parameters = rule_dispatch_parameters(&pending.rules, key.arity);
+                if let Some(canonical_types) = artifacts.rule_dispatch_parameter_types.get(&key) {
+                    for (parameter, canonical_type) in parameters.iter_mut().zip(canonical_types) {
+                        parameter.ty = canonical_type.clone();
+                    }
+                }
+                if let Some(canonical_names) = artifacts.rule_dispatch_parameter_names.get(&key) {
+                    for (parameter, canonical_name) in parameters.iter_mut().zip(canonical_names) {
+                        parameter.name = canonical_name.clone();
+                    }
+                }
                 let plan = RuleDispatchPlan::from_rules(pending.rules.iter().copied());
                 let group = RuleDispatchGroup {
                     key: key.clone(),
@@ -16159,8 +16187,8 @@ impl Interpreter {
 
     pub fn install_rule_dispatch_metadata(&mut self, artifacts: &TypeCheckArtifacts) {
         self.install_rule_dispatch_return_metadata(
-            &artifacts.rule_dispatch_return_types,
-            &artifacts.rule_dispatch_return_issues,
+            &artifacts.rule_dispatch_backend_return_types,
+            &artifacts.rule_dispatch_backend_return_issues,
             &artifacts.rule_dispatch_boolean_miss_safe_keys,
         );
     }
@@ -26758,6 +26786,28 @@ impl TypeConstructorSignature {
     }
 }
 
+/// Type evidence retained only while sealing canonical RuleDispatch metadata.
+///
+/// The ordinary checker intentionally keeps its broad, name-based inference
+/// behavior for source diagnostics.  RuleDispatch consumers need a stronger
+/// contract: a nominal value may expose a variant-only field only while the
+/// exact constructor is still known.  Once a value crosses a callable
+/// boundary, projection must be valid for the complete parent type.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct CanonicalDispatchValue {
+    type_name: String,
+    exact_constructor: Option<(String, String)>,
+}
+
+impl CanonicalDispatchValue {
+    fn plain(type_name: impl Into<String>) -> Self {
+        Self {
+            type_name: type_name.into(),
+            exact_constructor: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ProgramSymbolKind {
     Rule,
@@ -27922,6 +27972,19 @@ struct ExplorePurityExpression {
     callable_bound: BTreeSet<String>,
 }
 
+#[derive(Clone)]
+struct InlineModuleConstructorCatalog {
+    types: BTreeSet<String>,
+    constructors: BTreeMap<String, (String, usize)>,
+    constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
+    type_parameters_by_owner: BTreeMap<String, Vec<String>>,
+    constructor_fields: BTreeMap<String, Vec<String>>,
+    type_variants: BTreeMap<String, Vec<String>>,
+    type_fields: BTreeMap<String, BTreeSet<String>>,
+    type_field_types: BTreeMap<String, BTreeMap<String, String>>,
+    type_field_tys: BTreeMap<String, BTreeMap<String, Ty>>,
+}
+
 pub struct TypeChecker {
     /// function name -> param count
     pub functions: BTreeMap<String, usize>,
@@ -27942,6 +28005,9 @@ pub struct TypeChecker {
     pub constructors: BTreeMap<String, (String, usize)>,
     /// Every declaration of a constructor name, retained for overload resolution.
     constructor_signatures: BTreeMap<String, Vec<TypeConstructorSignature>>,
+    /// Type variables explicitly declared by an ADT owner. Unknown type names
+    /// are never treated as generics without this declaration evidence.
+    type_parameters_by_owner: BTreeMap<String, Vec<String>>,
     /// message name -> arity -> actor definitions that emit that bare variant.
     actor_message_arities: BTreeMap<String, BTreeMap<usize, BTreeSet<String>>>,
     /// Bare data constructors present in the backend's flattened root scope.
@@ -27976,6 +28042,11 @@ pub struct TypeChecker {
     rule_scope_value_methods: BTreeMap<String, BTreeMap<String, usize>>,
     /// RuleScope name -> ordinary product method name -> parameter names excluding implicit self.
     rule_scope_value_method_params: BTreeMap<String, BTreeMap<String, Vec<String>>>,
+    /// Exact RuleScope ordinary-method definitions.  The name-only member
+    /// catalogs are retained for legacy checking, while canonical dispatch
+    /// needs owner and arity to avoid stale replacement metadata.
+    rule_scope_function_definitions_by_key:
+        BTreeMap<RuleDispatchKey, Vec<(Vec<Param>, Option<Ty>, Expr)>>,
     /// Rule/function name -> RuleScope type directly constructed by its body.
     rule_scope_returning_rules: BTreeMap<String, String>,
     /// RuleScope-typed variables per lexical scope.
@@ -27993,8 +28064,25 @@ pub struct TypeChecker {
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     /// Exact rule identities whose result type is conflicting or unresolved.
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Type-consistent result ABIs retained before exact-call consumability
+    /// pruning. Ordinary code generation needs this definition contract even
+    /// when Explore must refuse to consume the family as total.
+    rule_dispatch_backend_return_types: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_backend_return_issues: BTreeMap<RuleDispatchKey, String>,
     /// Exact Bool families proven context-closed for the runtime miss override.
     rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Exact parameter schemas retained from the candidates in each canonical
+    /// family.  The legacy name/arity map cannot distinguish scoped owners.
+    rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<Ty>>>,
+    /// Exact declaration-order parameter names for canonical named calls.
+    rule_dispatch_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    /// Families whose candidate heads disagree about a parameter sort.
+    rule_dispatch_parameter_issues: BTreeSet<RuleDispatchKey>,
+    /// Families with an unconditional, irrefutable candidate.  This is kept
+    /// separate from Bool miss safety: only the latter authorizes the runtime
+    /// checked-False miss value.
+    rule_dispatch_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     /// Every canonical rule identity declared in the flattened program.
     rule_dispatch_keys: BTreeSet<RuleDispatchKey>,
     /// Qualified imports, inline modules, and reactive scopes share interpreter
@@ -28053,6 +28141,9 @@ pub struct TypeChecker {
     rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     /// Active RuleScope while fixed-point return inference resolves bare sibling calls.
     active_rule_scope_inference: Option<String>,
+    /// Per-expression strict inference signal distinguishing a definite type
+    /// contradiction from an exact-totality shape that is merely unsupported.
+    canonical_dispatch_definite_error: Cell<bool>,
     /// Variable type names per lexical scope.
     var_types: Vec<BTreeMap<String, String>>,
     /// qualified import module name -> exported member names
@@ -28964,7 +29055,14 @@ pub struct TypeCheckArtifacts {
     pub rule_scope_member_return_types: BTreeMap<String, BTreeMap<String, String>>,
     pub rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     pub rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    pub rule_dispatch_backend_return_types: BTreeMap<RuleDispatchKey, String>,
+    pub rule_dispatch_backend_return_issues: BTreeMap<RuleDispatchKey, String>,
+    pub rule_dispatch_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    pub rule_dispatch_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    pub rule_dispatch_parameter_issues: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    pub rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
+    pub rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     pub exploration_queries: Vec<TypedExploreQuery>,
     /// Closed relational query descriptors. Solver/executor code must consume
     /// this layer, never reinterpret the typed source-domain syntax above.
@@ -43184,6 +43282,7 @@ impl TypeChecker {
             types: BTreeSet::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
+            type_parameters_by_owner: BTreeMap::new(),
             actor_message_arities: BTreeMap::new(),
             top_level_constructor_names: BTreeSet::new(),
             root_actor_runtime_symbols: BTreeSet::new(),
@@ -43200,6 +43299,7 @@ impl TypeChecker {
             rule_scope_method_params: BTreeMap::new(),
             rule_scope_value_methods: BTreeMap::new(),
             rule_scope_value_method_params: BTreeMap::new(),
+            rule_scope_function_definitions_by_key: BTreeMap::new(),
             rule_scope_returning_rules: BTreeMap::new(),
             rule_scope_vars: vec![BTreeMap::new()],
             type_fields: BTreeMap::new(),
@@ -43208,7 +43308,14 @@ impl TypeChecker {
             rule_return_types: BTreeMap::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
+            rule_dispatch_backend_return_types: BTreeMap::new(),
+            rule_dispatch_backend_return_issues: BTreeMap::new(),
             rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
+            rule_dispatch_parameter_types: BTreeMap::new(),
+            rule_dispatch_parameter_names: BTreeMap::new(),
+            rule_dispatch_parameter_issues: BTreeSet::new(),
+            rule_dispatch_irrefutable_keys: BTreeSet::new(),
+            rule_dispatch_runtime_irrefutable_keys: BTreeSet::new(),
             rule_dispatch_keys: BTreeSet::new(),
             rule_dispatch_has_opaque_runtime_graph: false,
             plain_import_rule_dispatch_statements: Arc::from([]),
@@ -43230,6 +43337,7 @@ impl TypeChecker {
             explore_unsupported_top_level_bindings: BTreeSet::new(),
             rule_scope_member_return_types: BTreeMap::new(),
             active_rule_scope_inference: None,
+            canonical_dispatch_definite_error: Cell::new(false),
             var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
             diagnostics: Vec::new(),
@@ -43448,38 +43556,44 @@ impl TypeChecker {
             tc.types.insert(name.to_string());
         }
         // Prelude constructors
+        tc.type_parameters_by_owner
+            .insert("Option".into(), vec!["a".into()]);
+        tc.type_parameters_by_owner
+            .insert("Result".into(), vec!["a".into(), "e".into()]);
+        tc.type_parameters_by_owner
+            .insert("Pair".into(), vec!["a".into(), "b".into()]);
         tc.register_constructor_signature("Option", "None", true, vec![], vec![], vec![]);
         tc.register_constructor_signature(
             "Option",
             "Some",
             true,
             vec!["_0".into()],
-            vec![None],
-            vec![None],
+            vec![Some("a".into())],
+            vec![Some("a".into())],
         );
         tc.register_constructor_signature(
             "Result",
             "Ok",
             true,
             vec!["_0".into()],
-            vec![None],
-            vec![None],
+            vec![Some("a".into())],
+            vec![Some("a".into())],
         );
         tc.register_constructor_signature(
             "Result",
             "Err",
             true,
             vec!["_0".into()],
-            vec![None],
-            vec![None],
+            vec![Some("e".into())],
+            vec![Some("e".into())],
         );
         tc.register_constructor_signature(
             "Pair",
             "Pair",
             false,
             vec!["fst".into(), "snd".into()],
-            vec![None, None],
-            vec![None, None],
+            vec![Some("a".into()), Some("b".into())],
+            vec![Some("a".into()), Some("b".into())],
         );
         tc.register_constructor_signature("Bool", "True", true, vec![], vec![], vec![]);
         tc.register_constructor_signature("Bool", "False", true, vec![], vec![], vec![]);
@@ -43543,15 +43657,16 @@ impl TypeChecker {
             return;
         }
         match statement {
-            Stmt::Bind(pattern, _, initializer) => {
+            Stmt::Bind(Pat::Var(name), _, initializer) => {
+                self.explore_top_level_binding_initializers
+                    .entry(name.clone())
+                    .or_default()
+                    .push(initializer.clone());
+            }
+            Stmt::Bind(pattern, _, _) => {
                 let mut names = BTreeSet::new();
                 collect_pattern_names(pattern, &mut names);
-                for name in names {
-                    self.explore_top_level_binding_initializers
-                        .entry(name)
-                        .or_default()
-                        .push(initializer.clone());
-                }
+                self.explore_unsupported_top_level_bindings.extend(names);
             }
             Stmt::MonadicBind(pattern, _, _) => {
                 let mut names = BTreeSet::new();
@@ -46355,7 +46470,9 @@ impl TypeChecker {
         if let Some((inner, type_name)) = Self::typed_rule_arg_parts(arg) {
             let type_name = Self::canonical_explore_type_name(type_name);
             if let ExprKind::Var(name) = &inner.kind {
-                locals.insert(name.clone(), type_name.clone());
+                if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) {
+                    locals.insert(name.clone(), type_name.clone());
+                }
             }
             self.collect_rule_head_local_types(inner, Some(&type_name), locals);
             return;
@@ -47569,8 +47686,7 @@ impl TypeChecker {
             .active_rule_scope_inference
             .replace(scope_name.to_string());
         self.rule_scope_member_return_types
-            .entry(scope_name.to_string())
-            .or_default();
+            .insert(scope_name.to_string(), BTreeMap::new());
 
         let mut scope_locals = BTreeMap::new();
         for param in params {
@@ -47889,6 +48005,1655 @@ impl TypeChecker {
         }
     }
 
+    fn canonical_rule_head_argument_type(&self, argument: &Expr) -> Option<Ty> {
+        if let Some((_, type_name)) = Self::typed_rule_arg_parts(argument) {
+            return parse_type_annotation(type_name).ok();
+        }
+        match &argument.kind {
+            ExprKind::Lit(literal) => parse_type_annotation(Self::obvious_literal_ty(literal)).ok(),
+            ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) => {
+                arguments
+                    .get(1)
+                    .and_then(|value| self.canonical_rule_head_argument_type(value))
+            }
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(constructor) = &function.kind else {
+                    return None;
+                };
+                self.constructor_signature_for_args(constructor, arguments)
+                    .map(|signature| Ty::Name(signature.parent))
+            }
+            ExprKind::Var(constructor)
+                if constructor.chars().next().is_some_and(char::is_uppercase) =>
+            {
+                self.nullary_constructor_parent(constructor).map(Ty::Name)
+            }
+            _ => None,
+        }
+    }
+
+    fn canonical_dispatch_types_match(actual: &str, expected: &Ty) -> bool {
+        let Ok(actual) = parse_type_annotation(actual) else {
+            return false;
+        };
+        Self::explore_tys_equivalent(&actual, expected)
+    }
+
+    fn canonical_dispatch_type_error<T>(&self) -> Option<T> {
+        self.canonical_dispatch_definite_error.set(true);
+        None
+    }
+
+    fn canonical_schema_accepts_type(
+        &self,
+        actual: &str,
+        expected: &Ty,
+        substitutions: &mut BTreeMap<String, String>,
+    ) -> bool {
+        self.canonical_schema_accepts_type_with_generics(
+            actual,
+            expected,
+            substitutions,
+            &BTreeSet::new(),
+        )
+    }
+
+    fn canonical_schema_is_closed(
+        &self,
+        schema: &Ty,
+        generic_parameters: &BTreeSet<String>,
+    ) -> bool {
+        match schema {
+            Ty::Name(name) if generic_parameters.contains(name) => true,
+            Ty::Name(name) => {
+                self.types.contains(name) && self.canonical_declared_type_arity(name) == 0
+            }
+            Ty::Var(_) => true,
+            Ty::App(constructor, arguments) => match constructor.as_ref() {
+                Ty::Name(name) if !generic_parameters.contains(name) => {
+                    self.types.contains(name)
+                        && self.canonical_declared_type_arity(name) == arguments.len()
+                        && arguments.iter().all(|argument| {
+                            self.canonical_schema_is_closed(argument, generic_parameters)
+                        })
+                }
+                _ => false,
+            },
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                self.canonical_schema_is_closed(inner, generic_parameters)
+            }
+            Ty::Unit => true,
+            Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    fn canonical_declared_type_arity(&self, name: &str) -> usize {
+        self.type_parameters_by_owner
+            .get(name)
+            .map(Vec::len)
+            .unwrap_or_else(|| match name {
+                // These collection owners are built into the type grammar rather
+                // than introduced by an authored ADT declaration.
+                "List" | "Stream" | "Subject" => 1,
+                _ => 0,
+            })
+    }
+
+    fn canonical_schema_has_unknown_name(
+        &self,
+        schema: &Ty,
+        generic_parameters: &BTreeSet<String>,
+    ) -> bool {
+        match schema {
+            Ty::Name(name) => !self.types.contains(name) && !generic_parameters.contains(name),
+            Ty::App(constructor, arguments) => {
+                self.canonical_schema_has_unknown_name(constructor, generic_parameters)
+                    || arguments.iter().any(|argument| {
+                        self.canonical_schema_has_unknown_name(argument, generic_parameters)
+                    })
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                self.canonical_schema_has_unknown_name(inner, generic_parameters)
+            }
+            Ty::Var(_) | Ty::Unit | Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    fn canonical_instantiated_schema_name(
+        &self,
+        schema: &Ty,
+        substitutions: &BTreeMap<String, String>,
+    ) -> Option<String> {
+        let substitutions = substitutions
+            .iter()
+            .map(|(name, ty)| Some((name.clone(), parse_type_annotation(ty).ok()?)))
+            .collect::<Option<BTreeMap<_, _>>>()?;
+        let instantiated = Self::canonical_substitute_type_parameters(schema, &substitutions);
+        (!Self::canonical_type_contains_variable(&instantiated)
+            && self.canonical_schema_is_closed(&instantiated, &BTreeSet::new()))
+        .then(|| Self::canonical_explore_ty_name(&instantiated))
+    }
+
+    fn canonical_schema_accepts_type_with_generics(
+        &self,
+        actual: &str,
+        expected: &Ty,
+        substitutions: &mut BTreeMap<String, String>,
+        generic_parameters: &BTreeSet<String>,
+    ) -> bool {
+        let bind_variable = |name: &str, substitutions: &mut BTreeMap<String, String>| {
+            if let Some(known) = substitutions.get(name) {
+                let Ok(known) = parse_type_annotation(known) else {
+                    return false;
+                };
+                let Ok(actual) = parse_type_annotation(actual) else {
+                    return false;
+                };
+                Self::explore_tys_equivalent(&actual, &known)
+            } else {
+                substitutions.insert(name.to_string(), actual.to_string());
+                true
+            }
+        };
+        match expected {
+            Ty::Var(name) => bind_variable(name, substitutions),
+            Ty::Name(name) if generic_parameters.contains(name) => {
+                bind_variable(name, substitutions)
+            }
+            Ty::App(expected_constructor, expected_arguments) => {
+                let Ok(Ty::App(actual_constructor, actual_arguments)) =
+                    parse_type_annotation(actual)
+                else {
+                    return false;
+                };
+                if expected_arguments.len() != actual_arguments.len()
+                    || !Self::explore_tys_equivalent(&actual_constructor, expected_constructor)
+                {
+                    return false;
+                }
+                actual_arguments
+                    .iter()
+                    .zip(expected_arguments)
+                    .all(|(actual, expected)| {
+                        self.canonical_schema_accepts_type_with_generics(
+                            &Self::canonical_explore_ty_name(actual),
+                            expected,
+                            substitutions,
+                            generic_parameters,
+                        )
+                    })
+            }
+            Ty::Ref(expected) => parse_type_annotation(actual)
+                .ok()
+                .and_then(|actual| match actual {
+                    Ty::Ref(actual) => Some(actual),
+                    _ => None,
+                })
+                .is_some_and(|actual| {
+                    self.canonical_schema_accepts_type_with_generics(
+                        &Self::canonical_explore_ty_name(&actual),
+                        expected,
+                        substitutions,
+                        generic_parameters,
+                    )
+                }),
+            Ty::MutRef(expected) => parse_type_annotation(actual)
+                .ok()
+                .and_then(|actual| match actual {
+                    Ty::MutRef(actual) => Some(actual),
+                    _ => None,
+                })
+                .is_some_and(|actual| {
+                    self.canonical_schema_accepts_type_with_generics(
+                        &Self::canonical_explore_ty_name(&actual),
+                        expected,
+                        substitutions,
+                        generic_parameters,
+                    )
+                }),
+            Ty::Shared(expected) => parse_type_annotation(actual)
+                .ok()
+                .and_then(|actual| match actual {
+                    Ty::Shared(actual) => Some(actual),
+                    _ => None,
+                })
+                .is_some_and(|actual| {
+                    self.canonical_schema_accepts_type_with_generics(
+                        &Self::canonical_explore_ty_name(&actual),
+                        expected,
+                        substitutions,
+                        generic_parameters,
+                    )
+                }),
+            Ty::Optional(expected) => parse_type_annotation(actual)
+                .ok()
+                .and_then(|actual| match actual {
+                    Ty::Optional(actual) => Some(actual),
+                    Ty::App(constructor, mut arguments)
+                        if matches!(*constructor, Ty::Name(ref name) if name == "Option")
+                            && arguments.len() == 1 =>
+                    {
+                        Some(Box::new(arguments.remove(0)))
+                    }
+                    _ => None,
+                })
+                .is_some_and(|actual| {
+                    self.canonical_schema_accepts_type_with_generics(
+                        &Self::canonical_explore_ty_name(&actual),
+                        expected,
+                        substitutions,
+                        generic_parameters,
+                    )
+                }),
+            Ty::Arrow(_, _) | Ty::Hole => false,
+            _ => Self::canonical_dispatch_types_match(actual, expected),
+        }
+    }
+
+    fn canonical_ordered_arguments<'a>(
+        arguments: &'a [Expr],
+        parameter_names: &[Option<String>],
+    ) -> Option<Vec<&'a Expr>> {
+        if !has_named_args(arguments) {
+            return (arguments.len() == parameter_names.len()).then(|| arguments.iter().collect());
+        }
+        if !all_named_args(arguments) || arguments.len() != parameter_names.len() {
+            return None;
+        }
+        let supplied = arguments
+            .iter()
+            .map(|argument| named_arg_parts(argument))
+            .collect::<Option<Vec<_>>>()?;
+        parameter_names
+            .iter()
+            .map(|expected| {
+                let expected = expected.as_deref()?;
+                let matches = supplied
+                    .iter()
+                    .filter(|(name, _)| *name == expected)
+                    .collect::<Vec<_>>();
+                let [(_, value)] = matches.as_slice() else {
+                    return None;
+                };
+                Some(*value)
+            })
+            .collect()
+    }
+
+    fn canonical_constructor_call_type(
+        &self,
+        constructor: &str,
+        arguments: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+        expected_result: Option<&str>,
+    ) -> Option<CanonicalDispatchValue> {
+        let signatures = self.constructor_signatures.get(constructor)?;
+        let matching = signatures
+            .iter()
+            .filter(|signature| signature.matches_args(arguments))
+            .collect::<Vec<_>>();
+        let [signature] = matching.as_slice() else {
+            return self.canonical_dispatch_type_error();
+        };
+        if signature.field_tys.len() != signature.fields.len()
+            || signature.field_types.len() != signature.fields.len()
+        {
+            return self.canonical_dispatch_type_error();
+        }
+        let parameter_names = signature
+            .fields
+            .iter()
+            .cloned()
+            .map(Some)
+            .collect::<Vec<_>>();
+        let Some(ordered) = Self::canonical_ordered_arguments(arguments, &parameter_names) else {
+            return self.canonical_dispatch_type_error();
+        };
+        let mut substitutions = BTreeMap::new();
+        let generic_order = self
+            .type_parameters_by_owner
+            .get(&signature.parent)
+            .cloned()
+            .unwrap_or_default();
+        let generic_parameters = generic_order.iter().cloned().collect::<BTreeSet<_>>();
+        for ((argument, expected), broad_expected) in ordered
+            .iter()
+            .zip(&signature.field_tys)
+            .zip(&signature.field_types)
+        {
+            let expected = expected
+                .as_deref()
+                .and_then(|expected| parse_type_annotation(expected).ok());
+            let expected_name = expected
+                .as_ref()
+                .map(Self::canonical_explore_ty_name)
+                .or_else(|| broad_expected.clone());
+            let actual = self.canonical_dispatch_expr_type(
+                argument,
+                locals,
+                active_scope,
+                visiting_functions,
+                expected_name.as_deref(),
+            )?;
+            if let Some(expected) = expected {
+                if !self.canonical_schema_accepts_type_with_generics(
+                    &actual.type_name,
+                    &expected,
+                    &mut substitutions,
+                    &generic_parameters,
+                ) {
+                    return self.canonical_dispatch_type_error();
+                }
+            } else if let Some(expected) = broad_expected {
+                let expected = parse_type_annotation(expected).ok()?;
+                if !self.canonical_schema_accepts_type_with_generics(
+                    &actual.type_name,
+                    &expected,
+                    &mut substitutions,
+                    &generic_parameters,
+                ) {
+                    return self.canonical_dispatch_type_error();
+                }
+            }
+        }
+        let inferred_type_name = self.infer_expr_type_name_with_locals_in_scope(
+            &Expr::unspanned(ExprKind::App(
+                Box::new(Expr::unspanned(ExprKind::Var(constructor.to_string()))),
+                arguments.to_vec(),
+            )),
+            locals,
+            active_scope,
+        )?;
+        let contextual_type = expected_result.filter(|expected| {
+            if Self::canonical_nominal_owner(expected).as_deref()
+                != Some(signature.parent.as_str())
+            {
+                return false;
+            }
+            let Ok(expected_type) = parse_type_annotation(expected) else {
+                return false;
+            };
+            let expected_arguments = match expected_type {
+                Ty::App(constructor, arguments)
+                    if matches!(*constructor, Ty::Name(ref name) if name == &signature.parent) =>
+                {
+                    arguments
+                }
+                Ty::Optional(inner) if signature.parent == "Option" => vec![*inner],
+                Ty::Name(ref name) if name == &signature.parent && generic_order.is_empty() => {
+                    Vec::new()
+                }
+                _ => return false,
+            };
+            expected_arguments.len() == generic_order.len()
+                && generic_order.iter().zip(expected_arguments).all(
+                    |(parameter, expected_argument)| {
+                        substitutions.get(parameter).is_none_or(|actual| {
+                            parse_type_annotation(actual).ok().is_some_and(|actual| {
+                                Self::explore_tys_equivalent(&actual, &expected_argument)
+                            })
+                        })
+                    },
+                )
+        });
+        let type_name = generic_order
+            .iter()
+            .map(|parameter| substitutions.get(parameter).cloned())
+            .collect::<Option<Vec<_>>>()
+            .filter(|arguments| !arguments.is_empty())
+            .map(|arguments| format!("{}({})", signature.parent, arguments.join(", ")))
+            .or_else(|| contextual_type.map(str::to_string))
+            .unwrap_or(inferred_type_name);
+        Some(CanonicalDispatchValue {
+            type_name,
+            exact_constructor: Some((signature.parent.clone(), constructor.to_string())),
+        })
+    }
+
+    fn canonical_rule_call_type(
+        &self,
+        key: &RuleDispatchKey,
+        arguments: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+    ) -> Option<CanonicalDispatchValue> {
+        if self.rule_dispatch_parameter_issues.contains(key) {
+            return self.canonical_dispatch_type_error();
+        }
+        let parameter_types = self.rule_dispatch_parameter_types.get(key)?;
+        let parameter_names = self.rule_dispatch_parameter_names.get(key)?;
+        let Some(ordered) = Self::canonical_ordered_arguments(arguments, parameter_names) else {
+            return self.canonical_dispatch_type_error();
+        };
+        if ordered.len() != parameter_types.len() {
+            return self.canonical_dispatch_type_error();
+        }
+        let mut substitutions = BTreeMap::new();
+        for (argument, expected) in ordered.iter().zip(parameter_types) {
+            let expected = expected.as_ref()?;
+            if matches!(expected, Ty::Hole | Ty::Arrow(_, _)) {
+                return None;
+            }
+            if Self::canonical_type_contains_float(expected) {
+                return None;
+            }
+            if Self::canonical_type_contains_variable(expected) {
+                return self.canonical_dispatch_type_error();
+            }
+            if !self.canonical_schema_is_closed(expected, &BTreeSet::new()) {
+                return if self.canonical_schema_has_unknown_name(expected, &BTreeSet::new()) {
+                    self.canonical_dispatch_type_error()
+                } else {
+                    None
+                };
+            }
+            let actual = self.canonical_dispatch_expr_type(
+                argument,
+                locals,
+                active_scope,
+                visiting_functions,
+                Some(&Self::canonical_explore_ty_name(expected)),
+            )?;
+            if !self.canonical_schema_accepts_type(&actual.type_name, expected, &mut substitutions)
+            {
+                return self.canonical_dispatch_type_error();
+            }
+        }
+        if !self.rule_dispatch_irrefutable_keys.contains(key)
+            && !self.rule_dispatch_boolean_miss_safe_keys.contains(key)
+        {
+            return None;
+        }
+        let result = self.rule_dispatch_return_types.get(key)?;
+        let result = parse_type_annotation(result).ok()?;
+        if Self::canonical_type_contains_float(&result) {
+            return None;
+        }
+        self.canonical_instantiated_schema_name(&result, &substitutions)
+            .map(CanonicalDispatchValue::plain)
+    }
+
+    fn canonical_function_call_type(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+    ) -> Option<CanonicalDispatchValue> {
+        let key = (name.to_string(), arguments.len());
+        let definitions = self.explore_function_definitions_by_arity.get(&key)?;
+        let [(parameters, _, body)] = definitions.as_slice() else {
+            return None;
+        };
+        if self.explore_declared_effect_callables.contains(&key)
+            || self.explore_function_return_issues.contains_key(&key)
+        {
+            return None;
+        }
+        let result = self.explore_function_return_types_by_arity.get(&key)?;
+        if Self::canonical_type_contains_float(result) {
+            return None;
+        }
+        if !self.canonical_schema_is_closed(result, &BTreeSet::new()) {
+            return if self.canonical_schema_has_unknown_name(result, &BTreeSet::new()) {
+                self.canonical_dispatch_type_error()
+            } else {
+                None
+            };
+        }
+        let parameter_names = parameters
+            .iter()
+            .map(|parameter| Some(parameter.name.clone()))
+            .collect::<Vec<_>>();
+        let Some(ordered) = Self::canonical_ordered_arguments(arguments, &parameter_names) else {
+            return self.canonical_dispatch_type_error();
+        };
+        let mut body_locals = BTreeMap::new();
+        let mut substitutions = BTreeMap::new();
+        for (argument, parameter) in ordered.iter().zip(parameters) {
+            let expected = parameter.ty.as_ref()?;
+            if matches!(expected, Ty::Hole | Ty::Arrow(_, _)) {
+                return None;
+            }
+            if Self::canonical_type_contains_float(expected) {
+                return None;
+            }
+            if !self.canonical_schema_is_closed(expected, &BTreeSet::new()) {
+                return if self.canonical_schema_has_unknown_name(expected, &BTreeSet::new()) {
+                    self.canonical_dispatch_type_error()
+                } else {
+                    None
+                };
+            }
+            let actual = self.canonical_dispatch_expr_type(
+                argument,
+                locals,
+                active_scope,
+                visiting_functions,
+                Some(&Self::canonical_explore_ty_name(expected)),
+            )?;
+            if !self.canonical_schema_accepts_type(&actual.type_name, expected, &mut substitutions)
+            {
+                return self.canonical_dispatch_type_error();
+            }
+            body_locals.insert(parameter.name.clone(), actual.type_name);
+        }
+        let expected_result = self.canonical_instantiated_schema_name(result, &substitutions)?;
+        let visiting_key = RuleDispatchKey {
+            scope: None,
+            name: name.to_string(),
+            arity: arguments.len(),
+        };
+        if visiting_functions.insert(visiting_key.clone()) {
+            let actual = self.canonical_dispatch_expr_type(
+                body,
+                &body_locals,
+                None,
+                visiting_functions,
+                Some(&expected_result),
+            );
+            visiting_functions.remove(&visiting_key);
+            let actual = actual?;
+            let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
+            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+                return self.canonical_dispatch_type_error();
+            }
+        }
+        Some(CanonicalDispatchValue::plain(expected_result))
+    }
+
+    fn canonical_scoped_function_call_type(
+        &self,
+        key: &RuleDispatchKey,
+        arguments: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+    ) -> Option<CanonicalDispatchValue> {
+        let definitions = self.rule_scope_function_definitions_by_key.get(key)?;
+        let [(parameters, declared_result, body)] = definitions.as_slice() else {
+            return None;
+        };
+        let scope = key.scope.as_deref()?;
+        let result = declared_result.as_ref()?;
+        if matches!(result, Ty::Hole) {
+            return None;
+        }
+        if Self::canonical_type_contains_float(result) {
+            return None;
+        }
+        if !self.canonical_schema_is_closed(result, &BTreeSet::new()) {
+            return if self.canonical_schema_has_unknown_name(result, &BTreeSet::new()) {
+                self.canonical_dispatch_type_error()
+            } else {
+                None
+            };
+        }
+        let call_parameters = parameters
+            .iter()
+            .filter(|parameter| parameter.name != "self")
+            .collect::<Vec<_>>();
+        let parameter_names = call_parameters
+            .iter()
+            .map(|parameter| Some(parameter.name.clone()))
+            .collect::<Vec<_>>();
+        let Some(ordered) = Self::canonical_ordered_arguments(arguments, &parameter_names) else {
+            return self.canonical_dispatch_type_error();
+        };
+        let mut body_locals = BTreeMap::new();
+        body_locals.insert("self".to_string(), scope.to_string());
+        if let Some(signatures) = self.constructor_signatures.get(scope) {
+            if let Some(signature) = signatures
+                .iter()
+                .find(|signature| signature.parent == scope)
+            {
+                for (field, field_type) in signature.fields.iter().zip(&signature.field_tys) {
+                    if let Some(field_type) = field_type {
+                        body_locals
+                            .insert(field.clone(), Self::canonical_explore_type_name(field_type));
+                    }
+                }
+            }
+        }
+        let mut substitutions = BTreeMap::new();
+        for (argument, parameter) in ordered.iter().zip(call_parameters) {
+            let expected = parameter.ty.as_ref()?;
+            if matches!(expected, Ty::Hole | Ty::Arrow(_, _)) {
+                return None;
+            }
+            if Self::canonical_type_contains_float(expected) {
+                return None;
+            }
+            if !self.canonical_schema_is_closed(expected, &BTreeSet::new()) {
+                return if self.canonical_schema_has_unknown_name(expected, &BTreeSet::new()) {
+                    self.canonical_dispatch_type_error()
+                } else {
+                    None
+                };
+            }
+            let actual = self.canonical_dispatch_expr_type(
+                argument,
+                locals,
+                active_scope,
+                visiting_functions,
+                Some(&Self::canonical_explore_ty_name(expected)),
+            )?;
+            if !self.canonical_schema_accepts_type(&actual.type_name, expected, &mut substitutions)
+            {
+                return self.canonical_dispatch_type_error();
+            }
+            body_locals.insert(parameter.name.clone(), actual.type_name);
+        }
+        let expected_result = self.canonical_instantiated_schema_name(result, &substitutions)?;
+        if visiting_functions.insert(key.clone()) {
+            let actual = self.canonical_dispatch_expr_type(
+                body,
+                &body_locals,
+                Some(scope),
+                visiting_functions,
+                Some(&expected_result),
+            );
+            visiting_functions.remove(key);
+            let actual = actual?;
+            let expected_result_ty = parse_type_annotation(&expected_result).ok()?;
+            if !Self::canonical_dispatch_types_match(&actual.type_name, &expected_result_ty) {
+                return self.canonical_dispatch_type_error();
+            }
+        }
+        Some(CanonicalDispatchValue::plain(expected_result))
+    }
+
+    fn canonical_uniform_field_type(
+        &self,
+        base: &CanonicalDispatchValue,
+        field: &str,
+    ) -> Option<String> {
+        if let Some((parent, constructor)) = &base.exact_constructor {
+            let signatures = self.constructor_signatures.get(constructor)?;
+            let matching = signatures
+                .iter()
+                .filter(|signature| signature.parent == *parent)
+                .collect::<Vec<_>>();
+            let [signature] = matching.as_slice() else {
+                return None;
+            };
+            let index = signature
+                .fields
+                .iter()
+                .position(|candidate| candidate == field)?;
+            let field_type = signature
+                .field_tys
+                .get(index)
+                .and_then(Option::as_deref)
+                .and_then(|field_type| parse_type_annotation(field_type).ok())?;
+            return Some(self.canonical_instantiate_nominal_type(&base.type_name, &field_type));
+        }
+
+        let parent = Self::canonical_nominal_owner(&base.type_name)?;
+        if let Some(variants) = self.type_variants.get(&parent) {
+            let mut field_type: Option<String> = None;
+            for variant in variants {
+                let signatures = self.constructor_signatures.get(variant)?;
+                let matching = signatures
+                    .iter()
+                    .filter(|signature| signature.parent == parent)
+                    .collect::<Vec<_>>();
+                let [signature] = matching.as_slice() else {
+                    return None;
+                };
+                let index = signature
+                    .fields
+                    .iter()
+                    .position(|candidate| candidate == field)?;
+                let candidate = signature
+                    .field_tys
+                    .get(index)
+                    .and_then(Option::as_deref)
+                    .and_then(|field_type| parse_type_annotation(field_type).ok())?;
+                let candidate =
+                    self.canonical_instantiate_nominal_type(&base.type_name, &candidate);
+                if field_type.as_ref().is_some_and(|known| known != &candidate) {
+                    return None;
+                }
+                field_type = Some(candidate);
+            }
+            return field_type;
+        }
+        if let Some(field_type) = self
+            .type_field_tys
+            .get(&parent)
+            .and_then(|fields| fields.get(field))
+        {
+            return Some(self.canonical_instantiate_nominal_type(&base.type_name, field_type));
+        }
+        self.field_type_name(&parent, field)
+    }
+
+    fn canonical_equality_type_is_safe(&self, type_name: &str) -> bool {
+        fn visit(checker: &TypeChecker, type_name: &str, visiting: &mut BTreeSet<String>) -> bool {
+            let canonical = TypeChecker::canonical_explore_type_name(type_name);
+            if matches!(canonical.as_str(), "Bool" | "Int" | "String") {
+                return true;
+            }
+            // The shared exact map also feeds SMT Real lowering, which cannot
+            // model IEEE-754 values or the runtime's structural epsilon rule.
+            if canonical == "Float" {
+                return false;
+            }
+            if !visiting.insert(canonical.clone()) {
+                // Recursive structural equality is supported at runtime, but
+                // the exact pass deliberately requires a finite proof.
+                return false;
+            }
+            let Some(parent) = TypeChecker::canonical_nominal_owner(&canonical) else {
+                visiting.remove(&canonical);
+                return false;
+            };
+            let signatures = checker
+                .constructor_signatures
+                .values()
+                .flat_map(|signatures| signatures.iter())
+                .filter(|signature| signature.parent == parent)
+                .collect::<Vec<_>>();
+            let safe = !signatures.is_empty()
+                && signatures.iter().all(|signature| {
+                    signature.field_tys.len() == signature.fields.len()
+                        && signature.field_tys.iter().all(|field_type| {
+                            let Some(field_type) = field_type.as_deref() else {
+                                return false;
+                            };
+                            let Ok(field_type) = parse_type_annotation(field_type) else {
+                                return false;
+                            };
+                            let field_type =
+                                checker.canonical_instantiate_nominal_type(&canonical, &field_type);
+                            visit(checker, &field_type, visiting)
+                        })
+                });
+            visiting.remove(&canonical);
+            safe
+        }
+
+        visit(self, type_name, &mut BTreeSet::new())
+    }
+
+    fn canonical_nominal_owner(type_name: &str) -> Option<String> {
+        match parse_type_annotation(type_name).ok()? {
+            Ty::Name(name) => Some(name),
+            Ty::App(constructor, _) => match *constructor {
+                Ty::Name(name) => Some(name),
+                _ => None,
+            },
+            Ty::Optional(_) => Some("Option".to_string()),
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) => {
+                Self::canonical_nominal_owner(&Self::canonical_explore_ty_name(&inner))
+            }
+            Ty::Arrow(_, _) | Ty::Var(_) | Ty::Unit | Ty::Hole => None,
+        }
+    }
+
+    fn canonical_type_contains_float(ty: &Ty) -> bool {
+        match ty {
+            Ty::Name(name) => name == "Float",
+            Ty::App(constructor, arguments) => {
+                Self::canonical_type_contains_float(constructor)
+                    || arguments.iter().any(Self::canonical_type_contains_float)
+            }
+            Ty::Arrow(input, output) => {
+                Self::canonical_type_contains_float(input)
+                    || Self::canonical_type_contains_float(output)
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                Self::canonical_type_contains_float(inner)
+            }
+            Ty::Var(_) | Ty::Unit | Ty::Hole => false,
+        }
+    }
+
+    fn canonical_type_contains_variable(ty: &Ty) -> bool {
+        match ty {
+            Ty::Var(_) => true,
+            Ty::App(constructor, arguments) => {
+                Self::canonical_type_contains_variable(constructor)
+                    || arguments.iter().any(Self::canonical_type_contains_variable)
+            }
+            Ty::Arrow(input, output) => {
+                Self::canonical_type_contains_variable(input)
+                    || Self::canonical_type_contains_variable(output)
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                Self::canonical_type_contains_variable(inner)
+            }
+            Ty::Name(_) | Ty::Unit | Ty::Hole => false,
+        }
+    }
+
+    fn canonical_substitute_type_parameters(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
+        match ty {
+            Ty::Name(name) | Ty::Var(name) if substitutions.contains_key(name) => {
+                substitutions[name].clone()
+            }
+            Ty::App(constructor, arguments) => Ty::App(
+                Box::new(Self::canonical_substitute_type_parameters(
+                    constructor,
+                    substitutions,
+                )),
+                arguments
+                    .iter()
+                    .map(|argument| {
+                        Self::canonical_substitute_type_parameters(argument, substitutions)
+                    })
+                    .collect(),
+            ),
+            Ty::Arrow(input, output) => Ty::Arrow(
+                Box::new(Self::canonical_substitute_type_parameters(
+                    input,
+                    substitutions,
+                )),
+                Box::new(Self::canonical_substitute_type_parameters(
+                    output,
+                    substitutions,
+                )),
+            ),
+            Ty::Ref(inner) => Ty::Ref(Box::new(Self::canonical_substitute_type_parameters(
+                inner,
+                substitutions,
+            ))),
+            Ty::MutRef(inner) => Ty::MutRef(Box::new(Self::canonical_substitute_type_parameters(
+                inner,
+                substitutions,
+            ))),
+            Ty::Shared(inner) => Ty::Shared(Box::new(Self::canonical_substitute_type_parameters(
+                inner,
+                substitutions,
+            ))),
+            Ty::Optional(inner) => Ty::Optional(Box::new(
+                Self::canonical_substitute_type_parameters(inner, substitutions),
+            )),
+            Ty::Name(_) | Ty::Var(_) | Ty::Unit | Ty::Hole => ty.clone(),
+        }
+    }
+
+    fn canonical_instantiate_nominal_type(&self, subject_type: &str, field_type: &Ty) -> String {
+        let Ok(subject) = parse_type_annotation(subject_type) else {
+            return Self::canonical_explore_ty_name(field_type);
+        };
+        let (owner, arguments) = match subject {
+            Ty::App(constructor, arguments) => match *constructor {
+                Ty::Name(owner) => (owner, arguments),
+                _ => return Self::canonical_explore_ty_name(field_type),
+            },
+            Ty::Optional(inner) => ("Option".to_string(), vec![*inner]),
+            _ => return Self::canonical_explore_ty_name(field_type),
+        };
+        let Some(parameters) = self.type_parameters_by_owner.get(&owner) else {
+            return Self::canonical_explore_ty_name(field_type);
+        };
+        if parameters.len() != arguments.len() {
+            return Self::canonical_explore_ty_name(field_type);
+        }
+        let substitutions = parameters
+            .iter()
+            .cloned()
+            .zip(arguments)
+            .collect::<BTreeMap<_, _>>();
+        Self::canonical_explore_ty_name(&Self::canonical_substitute_type_parameters(
+            field_type,
+            &substitutions,
+        ))
+    }
+
+    fn canonical_pattern_is_irrefutable(pattern: &Pat) -> bool {
+        match pattern {
+            Pat::Wild | Pat::Var(_) => true,
+            Pat::As(inner, _) => Self::canonical_pattern_is_irrefutable(inner),
+            Pat::Con(_, fields) => fields.iter().all(Self::canonical_pattern_is_irrefutable),
+            Pat::NamedCon(_, fields) => fields
+                .iter()
+                .all(|(_, pattern)| Self::canonical_pattern_is_irrefutable(pattern)),
+            Pat::Lit(_) => false,
+        }
+    }
+
+    fn canonical_pattern_is_subject_catchall(pattern: &Pat) -> bool {
+        match pattern {
+            Pat::Wild | Pat::Var(_) => true,
+            Pat::As(inner, _) => Self::canonical_pattern_is_subject_catchall(inner),
+            Pat::Lit(_) | Pat::Con(_, _) | Pat::NamedCon(_, _) => false,
+        }
+    }
+
+    fn canonical_pattern_is_well_typed(&self, pattern: &Pat, subject_type: &str) -> bool {
+        match pattern {
+            Pat::Wild | Pat::Var(_) => true,
+            Pat::Lit(literal) => parse_type_annotation(Self::obvious_literal_ty(literal))
+                .ok()
+                .is_some_and(|expected| {
+                    Self::canonical_dispatch_types_match(subject_type, &expected)
+                }),
+            Pat::As(inner, _) => self.canonical_pattern_is_well_typed(inner, subject_type),
+            Pat::Con(constructor, fields) => {
+                let Some(owner) = Self::canonical_nominal_owner(subject_type) else {
+                    return false;
+                };
+                let Some(signatures) = self.constructor_signatures.get(constructor) else {
+                    return false;
+                };
+                let matching = signatures
+                    .iter()
+                    .filter(|signature| {
+                        signature.positional
+                            && signature.fields.len() == fields.len()
+                            && signature.parent == owner
+                    })
+                    .collect::<Vec<_>>();
+                let [signature] = matching.as_slice() else {
+                    return false;
+                };
+                fields.iter().enumerate().all(|(index, field)| {
+                    self.constructor_pattern_field_type_name(constructor, index, Some(subject_type))
+                        .map(|expected| self.canonical_pattern_is_well_typed(field, &expected))
+                        .unwrap_or_else(|| Self::canonical_pattern_is_irrefutable(field))
+                })
+            }
+            Pat::NamedCon(constructor, fields) => {
+                let Some(owner) = Self::canonical_nominal_owner(subject_type) else {
+                    return false;
+                };
+                let Some(signatures) = self.constructor_signatures.get(constructor) else {
+                    return false;
+                };
+                let supplied = fields
+                    .iter()
+                    .map(|(field, _)| field.as_str())
+                    .collect::<BTreeSet<_>>();
+                let matching = signatures
+                    .iter()
+                    .filter(|signature| {
+                        !signature.positional
+                            && supplied.len() == fields.len()
+                            && signature.fields.len() == fields.len()
+                            && signature
+                                .fields
+                                .iter()
+                                .all(|field| supplied.contains(field.as_str()))
+                            && signature.parent == owner
+                    })
+                    .collect::<Vec<_>>();
+                let [signature] = matching.as_slice() else {
+                    return false;
+                };
+                fields.iter().all(|(field, pattern)| {
+                    self.named_constructor_pattern_field_type_name(
+                        constructor,
+                        field,
+                        Some(subject_type),
+                    )
+                    .map(|expected| self.canonical_pattern_is_well_typed(pattern, &expected))
+                    .unwrap_or_else(|| Self::canonical_pattern_is_irrefutable(pattern))
+                })
+            }
+        }
+    }
+
+    fn canonical_match_is_exhaustive(&self, subject_type: &str, arms: &[MatchArm]) -> bool {
+        if arms
+            .iter()
+            .any(|arm| arm.guard.is_none() && Self::canonical_pattern_is_subject_catchall(&arm.pat))
+        {
+            return true;
+        }
+        if Self::canonical_explore_type_name(subject_type) == "Bool" {
+            let literals = arms
+                .iter()
+                .filter(|arm| arm.guard.is_none())
+                .filter_map(|arm| match &arm.pat {
+                    Pat::Lit(Literal::Bool(value)) => Some(*value),
+                    _ => None,
+                })
+                .collect::<BTreeSet<_>>();
+            if literals.len() == 2 {
+                return true;
+            }
+        }
+
+        let Some(subject_parent) = Self::canonical_nominal_owner(subject_type) else {
+            return false;
+        };
+        let all_variants = self
+            .constructor_signatures
+            .iter()
+            .filter(|(_, signatures)| {
+                signatures
+                    .iter()
+                    .any(|signature| signature.parent == subject_parent)
+            })
+            .map(|(constructor, _)| constructor.clone())
+            .collect::<BTreeSet<_>>();
+        if all_variants.is_empty() {
+            return false;
+        }
+        let covered = arms
+            .iter()
+            .filter(|arm| arm.guard.is_none() && Self::canonical_pattern_is_irrefutable(&arm.pat))
+            .filter_map(|arm| match &arm.pat {
+                Pat::Con(constructor, _) | Pat::NamedCon(constructor, _) => {
+                    Some(constructor.clone())
+                }
+                Pat::As(inner, _) => match inner.as_ref() {
+                    Pat::Con(constructor, _) | Pat::NamedCon(constructor, _) => {
+                        Some(constructor.clone())
+                    }
+                    _ => None,
+                },
+                _ => None,
+            })
+            .collect::<BTreeSet<_>>();
+        covered == all_variants
+    }
+
+    fn canonical_builtin_call_type(
+        &self,
+        name: &str,
+        arguments: &[Expr],
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+    ) -> Option<CanonicalDispatchValue> {
+        let canonical = builtin_canonical(name);
+        if !Self::explore_observation_builtin_is_total(canonical) {
+            return None;
+        }
+        let mut values = Vec::with_capacity(arguments.len());
+        for argument in arguments {
+            values.push(self.canonical_dispatch_expr_type(
+                argument,
+                locals,
+                active_scope,
+                visiting_functions,
+                None,
+            )?);
+        }
+        let value_type = |index: usize| {
+            values
+                .get(index)
+                .map(|value| Self::canonical_explore_type_name(&value.type_name))
+        };
+        let exact = |index: usize, expected: &str| {
+            value_type(index).is_some_and(|actual| actual == expected)
+        };
+        let result = match (canonical, arguments.len()) {
+            ("show" | "rust_debug", 1) => {
+                let actual = parse_type_annotation(&values[0].type_name).ok()?;
+                (!matches!(actual, Ty::Arrow(_, _) | Ty::Hole)).then_some("String")
+            }
+            ("show_int", 1) if exact(0, "Int") => Some("String"),
+            ("show_float", 1) if exact(0, "Float") => Some("String"),
+            ("length", 1)
+                if exact(0, "String")
+                    || Self::applied_type_argument(&values[0].type_name, "List", 0).is_some() =>
+            {
+                Some("Int")
+            }
+            ("not", 1) if exact(0, "Bool") => Some("Bool"),
+            ("contains", 2) if exact(0, "String") && exact(1, "String") => Some("Bool"),
+            ("contains", 2) => {
+                let Some(element) = Self::applied_type_argument(&values[0].type_name, "List", 0)
+                else {
+                    return self.canonical_dispatch_type_error();
+                };
+                let Ok(expected) = parse_type_annotation(&element) else {
+                    return self.canonical_dispatch_type_error();
+                };
+                Self::canonical_dispatch_types_match(&values[1].type_name, &expected)
+                    .then_some("Bool")
+            }
+            ("starts_with" | "ends_with", 2) if exact(0, "String") && exact(1, "String") => {
+                Some("Bool")
+            }
+            ("index_of", 2) if exact(0, "String") && exact(1, "String") => Some("Int"),
+            ("string_length", 1) if exact(0, "String") => Some("Int"),
+            ("is_some" | "is_none", 1)
+                if value_type(0).is_some_and(|actual| actual == "Option")
+                    || Self::applied_type_argument(&values[0].type_name, "Option", 0).is_some() =>
+            {
+                Some("Bool")
+            }
+            _ => None,
+        };
+        let Some(result) = result else {
+            return self.canonical_dispatch_type_error();
+        };
+        Some(CanonicalDispatchValue::plain(result))
+    }
+
+    fn canonical_dispatch_expr_type(
+        &self,
+        expression: &Expr,
+        locals: &BTreeMap<String, String>,
+        active_scope: Option<&str>,
+        visiting_functions: &mut BTreeSet<RuleDispatchKey>,
+        expected: Option<&str>,
+    ) -> Option<CanonicalDispatchValue> {
+        let inferred = || {
+            self.infer_expr_type_name_with_locals_in_scope(expression, locals, active_scope)
+                .map(CanonicalDispatchValue::plain)
+        };
+        match &expression.kind {
+            ExprKind::Lit(Literal::Float(_)) => None,
+            ExprKind::Lit(_) | ExprKind::Unit => inferred(),
+            ExprKind::Var(name) => {
+                if locals.contains_key(name) {
+                    return inferred();
+                }
+                if self.explore_unsupported_top_level_bindings.contains(name) {
+                    return None;
+                }
+                if let Some(initializers) = self.explore_top_level_binding_initializers.get(name) {
+                    let [initializer] = initializers.as_slice() else {
+                        return None;
+                    };
+                    let binding_key = RuleDispatchKey {
+                        scope: Some("@binding".to_string()),
+                        name: name.clone(),
+                        arity: 0,
+                    };
+                    if !visiting_functions.insert(binding_key.clone()) {
+                        return None;
+                    }
+                    let declared = self.var_type_name(name).map(str::to_string);
+                    let mut value = self.canonical_dispatch_expr_type(
+                        initializer,
+                        &BTreeMap::new(),
+                        None,
+                        visiting_functions,
+                        declared.as_deref(),
+                    );
+                    visiting_functions.remove(&binding_key);
+                    let mut value = value?;
+                    if let Some(declared) = declared {
+                        let declared_type = parse_type_annotation(&declared).ok()?;
+                        if !Self::canonical_dispatch_types_match(&value.type_name, &declared_type) {
+                            return self.canonical_dispatch_type_error();
+                        }
+                        value.type_name = declared;
+                    }
+                    return Some(value);
+                }
+                let global = RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: 0,
+                };
+                if self.constructor_signatures.contains_key(name)
+                    && (self
+                        .explore_function_definitions_by_arity
+                        .contains_key(&(name.clone(), 0))
+                        || self.rule_dispatch_keys.contains(&global))
+                {
+                    return None;
+                }
+                let signatures = self.constructor_signatures.get(name)?;
+                let matching = signatures
+                    .iter()
+                    .filter(|signature| signature.arity() == 0)
+                    .collect::<Vec<_>>();
+                let [signature] = matching.as_slice() else {
+                    return None;
+                };
+                let contextual_type = expected
+                    .filter(|expected| {
+                        Self::canonical_nominal_owner(expected).as_deref()
+                            == Some(signature.parent.as_str())
+                    })
+                    .unwrap_or(&signature.parent);
+                Some(CanonicalDispatchValue {
+                    type_name: contextual_type.to_string(),
+                    exact_constructor: Some((signature.parent.clone(), name.clone())),
+                })
+            }
+            ExprKind::List(items) => {
+                if items.is_empty() {
+                    let expected = expected?;
+                    let expected_type = parse_type_annotation(expected).ok()?;
+                    if !matches!(expected_type, Ty::App(constructor, ref arguments)
+                        if matches!(*constructor, Ty::Name(ref name) if name == "List")
+                            && arguments.len() == 1)
+                    {
+                        return self.canonical_dispatch_type_error();
+                    }
+                    return Some(CanonicalDispatchValue::plain(expected));
+                }
+                for item in items {
+                    self.canonical_dispatch_expr_type(
+                        item,
+                        locals,
+                        active_scope,
+                        visiting_functions,
+                        None,
+                    )?;
+                }
+                inferred()
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    self.canonical_dispatch_expr_type(
+                        item,
+                        locals,
+                        active_scope,
+                        visiting_functions,
+                        None,
+                    )?;
+                }
+                inferred()
+            }
+            ExprKind::App(function, arguments) => {
+                if let ExprKind::Var(name) = &function.kind {
+                    if name == NAMED_ARG_MARKER {
+                        return arguments.get(1).and_then(|value| {
+                            self.canonical_dispatch_expr_type(
+                                value,
+                                locals,
+                                active_scope,
+                                visiting_functions,
+                                expected,
+                            )
+                        });
+                    }
+                    if matches!(name.as_str(), PATHOF_MARKER | REFOF_MARKER) {
+                        return inferred();
+                    }
+                    // Match the interpreter's bare-call interception order.
+                    // An effect operation or nested logic search wins before
+                    // any same-named RuleScope rule, constructor, function,
+                    // or global rule. Those operations are deliberately not
+                    // part of the exact, effect-free dispatch contract.
+                    if (matches!(name.as_str(), "findall" | "search") && arguments.len() == 2)
+                        || self
+                            .effect_ops
+                            .values()
+                            .any(|operations| operations.contains_key(name))
+                    {
+                        return None;
+                    }
+                    if let Some(scope) = active_scope {
+                        let scoped = RuleDispatchKey {
+                            scope: Some(scope.to_string()),
+                            name: name.clone(),
+                            arity: arguments.len(),
+                        };
+                        if self.rule_dispatch_keys.contains(&scoped) {
+                            return self.canonical_rule_call_type(
+                                &scoped,
+                                arguments,
+                                locals,
+                                active_scope,
+                                visiting_functions,
+                            );
+                        }
+                    }
+                    // A lexical/top-level value binding is resolved before the
+                    // global callable registries. Its runtime value may be an
+                    // Arrow or a non-callable, so no named static contract can
+                    // be substituted for it here.
+                    if locals.contains_key(name)
+                        || self
+                            .explore_top_level_binding_initializers
+                            .contains_key(name)
+                        || self.explore_unsupported_top_level_bindings.contains(name)
+                    {
+                        return None;
+                    }
+                    if !locals.contains_key(name)
+                        && !self.explore_contextual_intrinsic_is_shadowed(name, arguments.len())
+                        && Self::explore_observation_builtin_is_total(name)
+                    {
+                        return self.canonical_builtin_call_type(
+                            name,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                        );
+                    }
+                    let has_constructor = self.constructor_signatures.contains_key(name);
+                    let has_function = self
+                        .explore_function_definitions_by_arity
+                        .contains_key(&(name.clone(), arguments.len()));
+                    let global = RuleDispatchKey {
+                        scope: None,
+                        name: name.clone(),
+                        arity: arguments.len(),
+                    };
+                    let has_rule = self.rule_dispatch_keys.contains(&global);
+                    if usize::from(has_constructor)
+                        + usize::from(has_function)
+                        + usize::from(has_rule)
+                        > 1
+                    {
+                        return None;
+                    }
+                    if has_constructor {
+                        return self.canonical_constructor_call_type(
+                            name,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                            expected,
+                        );
+                    }
+                    if has_function {
+                        return self.canonical_function_call_type(
+                            name,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                        );
+                    }
+                    if has_rule {
+                        return self.canonical_rule_call_type(
+                            &global,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                        );
+                    }
+                    return None;
+                }
+                if let ExprKind::Field(base, member) = &function.kind {
+                    let base = self.canonical_dispatch_expr_type(
+                        base,
+                        locals,
+                        active_scope,
+                        visiting_functions,
+                        None,
+                    )?;
+                    let scoped = RuleDispatchKey {
+                        scope: Some(base.type_name.clone()),
+                        name: member.clone(),
+                        arity: arguments.len(),
+                    };
+                    let scoped_rule = self.rule_dispatch_keys.contains(&scoped);
+                    let scoped_function = self
+                        .rule_scope_function_definitions_by_key
+                        .contains_key(&scoped);
+                    if scoped_rule && scoped_function {
+                        return None;
+                    }
+                    if scoped_rule {
+                        return self.canonical_rule_call_type(
+                            &scoped,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                        );
+                    }
+                    if scoped_function {
+                        return self.canonical_scoped_function_call_type(
+                            &scoped,
+                            arguments,
+                            locals,
+                            active_scope,
+                            visiting_functions,
+                        );
+                    }
+                    return None;
+                }
+                // Applying a lambda, field value, or other computed Arrow is a
+                // runtime dispatch decision and has no canonical call contract.
+                None
+            }
+            ExprKind::Field(base, field) => {
+                let base = self.canonical_dispatch_expr_type(
+                    base,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                self.canonical_uniform_field_type(&base, field)
+                    .map(CanonicalDispatchValue::plain)
+                    .or_else(|| self.canonical_dispatch_type_error())
+            }
+            ExprKind::BinOp(operator, left, right) => {
+                let left = self.canonical_dispatch_expr_type(
+                    left,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                let right = self.canonical_dispatch_expr_type(
+                    right,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                let left_type = Self::canonical_explore_type_name(&left.type_name);
+                let right_type = Self::canonical_explore_type_name(&right.type_name);
+                let numeric = |ty: &str| matches!(ty, "Int" | "Float");
+                match operator.as_str() {
+                    "&&" | "||" if left_type == "Bool" && right_type == "Bool" => inferred(),
+                    "&&" | "||" => self.canonical_dispatch_type_error(),
+                    "<" | ">" | "<=" | ">=" if left_type == "Int" && right_type == "Int" => {
+                        inferred()
+                    }
+                    "<" | ">" | "<=" | ">=" if numeric(&left_type) && numeric(&right_type) => None,
+                    "<" | ">" | "<=" | ">=" => self.canonical_dispatch_type_error(),
+                    "==" | "!=" if left_type == right_type => self
+                        .canonical_equality_type_is_safe(&left_type)
+                        .then(inferred)
+                        .flatten(),
+                    "==" | "!=" => self.canonical_dispatch_type_error(),
+                    "+" if left_type == "String" || right_type == "String" => None,
+                    "+" | "-" | "*" if numeric(&left_type) && numeric(&right_type) => None,
+                    "/" if numeric(&left_type) && numeric(&right_type) => None,
+                    "%" if left_type == "Int" && right_type == "Int" => None,
+                    "+" | "-" | "*" | "/" | "%" => self.canonical_dispatch_type_error(),
+                    _ => self.canonical_dispatch_type_error(),
+                }
+            }
+            ExprKind::UnOp(operator, inner) => {
+                let inner = self.canonical_dispatch_expr_type(
+                    inner,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                let inner_type = Self::canonical_explore_type_name(&inner.type_name);
+                match operator.as_str() {
+                    "!" if inner_type == "Bool" => inferred(),
+                    "-" if matches!(inner_type.as_str(), "Int" | "Float") => None,
+                    "&" | "&mut" => None,
+                    _ => self.canonical_dispatch_type_error(),
+                }
+            }
+            ExprKind::Index(collection, index) => {
+                let collection = self.canonical_dispatch_expr_type(
+                    collection,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                let index = self.canonical_dispatch_expr_type(
+                    index,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    Some("Int"),
+                )?;
+                if Self::canonical_explore_type_name(&index.type_name) != "Int"
+                    || Self::applied_type_argument(&collection.type_name, "List", 0).is_none()
+                {
+                    return self.canonical_dispatch_type_error();
+                }
+                // Bounds are a runtime fact and v1 has no range proof.
+                None
+            }
+            ExprKind::If(condition, then_expression, else_expression) => {
+                let condition = self.canonical_dispatch_expr_type(
+                    condition,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    Some("Bool"),
+                )?;
+                if Self::canonical_explore_type_name(&condition.type_name) != "Bool" {
+                    return self.canonical_dispatch_type_error();
+                }
+                let then_value = self.canonical_dispatch_expr_type(
+                    then_expression,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    expected,
+                )?;
+                let else_value = self.canonical_dispatch_expr_type(
+                    else_expression,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    expected,
+                )?;
+                let type_name =
+                    Self::merge_inferred_type_names(&then_value.type_name, &else_value.type_name)?;
+                let exact_constructor = (then_value.exact_constructor
+                    == else_value.exact_constructor)
+                    .then_some(then_value.exact_constructor)
+                    .flatten();
+                Some(CanonicalDispatchValue {
+                    type_name,
+                    exact_constructor,
+                })
+            }
+            ExprKind::Match(scrutinee, arms) => {
+                let subject = self.canonical_dispatch_expr_type(
+                    scrutinee,
+                    locals,
+                    active_scope,
+                    visiting_functions,
+                    None,
+                )?;
+                if !self.canonical_match_is_exhaustive(&subject.type_name, arms) {
+                    return None;
+                }
+                let mut result: Option<CanonicalDispatchValue> = None;
+                for arm in arms {
+                    if !self.canonical_pattern_is_well_typed(&arm.pat, &subject.type_name) {
+                        return self.canonical_dispatch_type_error();
+                    }
+                    let mut arm_locals = locals.clone();
+                    arm_locals
+                        .extend(self.pattern_type_bindings(&arm.pat, Some(&subject.type_name)));
+                    if let Some(guard) = &arm.guard {
+                        let guard = self.canonical_dispatch_expr_type(
+                            guard,
+                            &arm_locals,
+                            active_scope,
+                            visiting_functions,
+                            Some("Bool"),
+                        )?;
+                        if Self::canonical_explore_type_name(&guard.type_name) != "Bool" {
+                            return self.canonical_dispatch_type_error();
+                        }
+                    }
+                    let arm_value = self.canonical_dispatch_expr_type(
+                        &arm.body,
+                        &arm_locals,
+                        active_scope,
+                        visiting_functions,
+                        expected,
+                    )?;
+                    result = Some(match result {
+                        Some(known) => CanonicalDispatchValue {
+                            type_name: Self::merge_inferred_type_names(
+                                &known.type_name,
+                                &arm_value.type_name,
+                            )?,
+                            exact_constructor: (known.exact_constructor
+                                == arm_value.exact_constructor)
+                                .then_some(known.exact_constructor)
+                                .flatten(),
+                        },
+                        None => arm_value,
+                    });
+                }
+                result
+            }
+            ExprKind::Block(statements) => {
+                let mut block_locals = locals.clone();
+                let mut result = None;
+                for (index, statement) in statements.iter().enumerate() {
+                    let statement_expected = (index + 1 == statements.len())
+                        .then_some(expected)
+                        .flatten();
+                    match statement {
+                        Stmt::Bind(Pat::Var(name), annotation, value) => {
+                            let annotation_name =
+                                annotation.as_ref().map(Self::canonical_explore_ty_name);
+                            let value = self.canonical_dispatch_expr_type(
+                                value,
+                                &block_locals,
+                                active_scope,
+                                visiting_functions,
+                                annotation_name.as_deref().or(statement_expected),
+                            )?;
+                            if annotation.as_ref().is_some_and(|annotation| {
+                                !Self::canonical_dispatch_types_match(&value.type_name, annotation)
+                            }) {
+                                return self.canonical_dispatch_type_error();
+                            }
+                            block_locals.insert(name.clone(), value.type_name.clone());
+                            result = Some(value);
+                        }
+                        Stmt::Expr(value) => {
+                            result = Some(self.canonical_dispatch_expr_type(
+                                value,
+                                &block_locals,
+                                active_scope,
+                                visiting_functions,
+                                statement_expected,
+                            )?);
+                        }
+                        _ => return None,
+                    }
+                }
+                result
+            }
+            ExprKind::Conjunction(items) | ExprKind::Disjunction(items) => {
+                for item in items {
+                    let item = self.canonical_dispatch_expr_type(
+                        item,
+                        locals,
+                        active_scope,
+                        visiting_functions,
+                        Some("Bool"),
+                    )?;
+                    if Self::canonical_explore_type_name(&item.type_name) != "Bool" {
+                        return self.canonical_dispatch_type_error();
+                    }
+                }
+                Some(CanonicalDispatchValue::plain("Bool"))
+            }
+            ExprKind::Try(_)
+            | ExprKind::Lambda(_, _)
+            | ExprKind::Effect(_, _)
+            | ExprKind::Handle { .. }
+            | ExprKind::Pipe(_, _) => None,
+        }
+    }
+
     fn infer_rule_dispatch_return_types(&mut self, stmts: &[Stmt]) {
         type ReturnGroup<'a> = (BTreeMap<String, String>, Vec<&'a Rule>);
 
@@ -47953,8 +49718,75 @@ impl TypeChecker {
 
         self.rule_dispatch_return_types.clear();
         self.rule_dispatch_return_issues.clear();
+        self.rule_dispatch_backend_return_types.clear();
+        self.rule_dispatch_backend_return_issues.clear();
         self.rule_dispatch_boolean_miss_safe_keys.clear();
+        self.rule_dispatch_parameter_types.clear();
+        self.rule_dispatch_parameter_names.clear();
+        self.rule_dispatch_parameter_issues.clear();
+        self.rule_dispatch_irrefutable_keys.clear();
+        self.rule_dispatch_runtime_irrefutable_keys.clear();
         self.rule_dispatch_keys = groups.keys().cloned().collect();
+
+        for (key, (_, rules)) in &groups {
+            let mut parameter_types = vec![None; key.arity];
+            let mut parameter_name_candidates = vec![BTreeSet::new(); key.arity];
+            let mut parameter_issue = false;
+            for rule in rules {
+                let Some(head) = rule.head() else {
+                    parameter_issue = true;
+                    continue;
+                };
+                let arguments: &[Expr] = match &head.kind {
+                    ExprKind::App(_, arguments) => arguments,
+                    ExprKind::Var(_) if key.arity == 0 => &[],
+                    _ => {
+                        parameter_issue = true;
+                        continue;
+                    }
+                };
+                if arguments.len() != key.arity {
+                    parameter_issue = true;
+                    continue;
+                }
+                for (slot, argument) in parameter_types.iter_mut().zip(arguments) {
+                    let Some(candidate) = self.canonical_rule_head_argument_type(argument) else {
+                        continue;
+                    };
+                    if Self::canonical_type_contains_variable(&candidate) {
+                        parameter_issue = true;
+                    }
+                    match slot {
+                        Some(existing) if !Self::explore_tys_equivalent(existing, &candidate) => {
+                            parameter_issue = true;
+                        }
+                        None => *slot = Some(candidate),
+                        Some(_) => {}
+                    }
+                }
+                for (slot, argument) in parameter_name_candidates.iter_mut().zip(arguments) {
+                    if let Some(name) = rule_dispatch_parameter(argument).name {
+                        slot.insert(name);
+                    }
+                }
+            }
+            self.rule_dispatch_parameter_types
+                .insert(key.clone(), parameter_types);
+            self.rule_dispatch_parameter_names.insert(
+                key.clone(),
+                parameter_name_candidates
+                    .into_iter()
+                    .map(|names| {
+                        (names.len() == 1)
+                            .then(|| names.into_iter().next())
+                            .flatten()
+                    })
+                    .collect(),
+            );
+            if parameter_issue {
+                self.rule_dispatch_parameter_issues.insert(key.clone());
+            }
+        }
 
         let infer_group = |checker: &TypeChecker,
                            captures: &BTreeMap<String, String>,
@@ -48076,6 +49908,33 @@ impl TypeChecker {
             }
         }
         self.active_rule_scope_inference = previous_active_scope;
+        self.rule_dispatch_backend_return_types = self.rule_dispatch_return_types.clone();
+        self.rule_dispatch_backend_return_issues = self.rule_dispatch_return_issues.clone();
+        for key in self.rule_dispatch_parameter_issues.clone() {
+            let issue = format!(
+                "rule `{}` with arity {} has conflicting or malformed parameter schemas",
+                key.name, key.arity
+            );
+            self.rule_dispatch_return_types.remove(&key);
+            self.rule_dispatch_return_issues
+                .insert(key.clone(), issue.clone());
+            self.rule_dispatch_backend_return_types.remove(&key);
+            self.rule_dispatch_backend_return_issues.insert(key, issue);
+        }
+        for (key, (_, rules)) in &groups {
+            if self
+                .rule_dispatch_return_types
+                .get(key)
+                .is_some_and(|return_type| {
+                    rules
+                        .iter()
+                        .any(|rule| rule_dispatch_candidate_is_total(rule, return_type))
+                })
+            {
+                self.rule_dispatch_irrefutable_keys.insert(key.clone());
+            }
+        }
+        self.rule_dispatch_runtime_irrefutable_keys = self.rule_dispatch_irrefutable_keys.clone();
         // Static return sorts are useful to Explore/SMT even when runtime
         // lookup is context-dependent. The Interpreter's Bool miss override
         // receives a strictly narrower proof: every possible hit expression
@@ -48161,6 +50020,144 @@ impl TypeChecker {
                 self.rule_dispatch_boolean_miss_safe_keys.extend(newly_safe);
             }
         }
+        // The broad pass above exists only to seed recursive result sorts.
+        // Seal each family with a second, canonical-only proof of every value
+        // and guard.  Removing one unsafe callee is propagated through its
+        // callers until the retained graph is closed.
+        loop {
+            let mut changed = false;
+            for (key, (captures, rules)) in &groups {
+                if self.rule_dispatch_return_issues.contains_key(key) {
+                    continue;
+                }
+                let expected = self.rule_dispatch_return_types.get(key).cloned();
+                let Some(expected) = expected else {
+                    continue;
+                };
+                self.canonical_dispatch_definite_error.set(false);
+                let result_schema = parse_type_annotation(&expected).ok();
+                let result_schema_is_safe = result_schema.as_ref().is_some_and(|result| {
+                    !Self::canonical_type_contains_float(result)
+                        && !Self::canonical_type_contains_variable(result)
+                        && self.canonical_schema_is_closed(result, &BTreeSet::new())
+                        && !matches!(result, Ty::Arrow(_, _) | Ty::Hole)
+                });
+                if result_schema.as_ref().is_some_and(|result| {
+                    self.canonical_schema_has_unknown_name(result, &BTreeSet::new())
+                }) {
+                    self.canonical_dispatch_definite_error.set(true);
+                }
+                let parameter_schemas_are_safe = self
+                    .rule_dispatch_parameter_types
+                    .get(key)
+                    .is_some_and(|parameters| {
+                        parameters.iter().all(|parameter| {
+                            parameter.as_ref().is_some_and(|parameter| {
+                                !Self::canonical_type_contains_float(parameter)
+                                    && !Self::canonical_type_contains_variable(parameter)
+                                    && self.canonical_schema_is_closed(parameter, &BTreeSet::new())
+                                    && !matches!(parameter, Ty::Arrow(_, _) | Ty::Hole)
+                            })
+                        })
+                    });
+                if self
+                    .rule_dispatch_parameter_types
+                    .get(key)
+                    .into_iter()
+                    .flatten()
+                    .filter_map(Option::as_ref)
+                    .any(|parameter| {
+                        self.canonical_schema_has_unknown_name(parameter, &BTreeSet::new())
+                    })
+                {
+                    self.canonical_dispatch_definite_error.set(true);
+                }
+                let safe = result_schema_is_safe
+                    && parameter_schemas_are_safe
+                    && rules.iter().all(|rule| {
+                        let Some(head) = rule.head() else {
+                            return false;
+                        };
+                        let mut locals = captures.clone();
+                        locals.extend(self.rule_head_local_types(head));
+                        let (value, condition) = match rule {
+                            Rule::Clause {
+                                body: Some(value), ..
+                            } => (Some(value), None),
+                            Rule::Clause { body: None, .. } => (None, None),
+                            Rule::Default {
+                                value, condition, ..
+                            }
+                            | Rule::Exception {
+                                value, condition, ..
+                            } => (Some(value), condition.as_ref()),
+                            Rule::ReactiveScope { .. } => return false,
+                        };
+                        let value_is_safe = value.is_none_or(|value| {
+                            let mut visiting_functions = BTreeSet::new();
+                            self.canonical_dispatch_expr_type(
+                                value,
+                                &locals,
+                                key.scope.as_deref(),
+                                &mut visiting_functions,
+                                Some(&expected),
+                            )
+                            .is_some_and(|actual| {
+                                let matches = Self::canonical_explore_type_name(&actual.type_name)
+                                    == Self::canonical_explore_type_name(&expected);
+                                if !matches {
+                                    self.canonical_dispatch_definite_error.set(true);
+                                }
+                                matches
+                            })
+                        });
+                        let condition_is_safe = condition.is_none_or(|condition| {
+                            let mut visiting_functions = BTreeSet::new();
+                            self.canonical_dispatch_expr_type(
+                                condition,
+                                &locals,
+                                key.scope.as_deref(),
+                                &mut visiting_functions,
+                                Some("Bool"),
+                            )
+                            .is_some_and(|actual| {
+                                let matches =
+                                    Self::canonical_explore_type_name(&actual.type_name) == "Bool";
+                                if !matches {
+                                    self.canonical_dispatch_definite_error.set(true);
+                                }
+                                matches
+                            })
+                        });
+                        value_is_safe && condition_is_safe
+                    });
+                let definite_type_error = self.canonical_dispatch_definite_error.replace(false);
+                if !safe {
+                    self.rule_dispatch_return_types.remove(key);
+                    let issue = format!(
+                            "cannot prove every return clause and guard of rule `{}` with arity {} is type-safe and total",
+                            key.scope
+                                .as_ref()
+                                .map(|scope| format!("{}.{}", scope, key.name))
+                                .unwrap_or_else(|| key.name.clone()),
+                            key.arity
+                        );
+                    self.rule_dispatch_return_issues
+                        .insert(key.clone(), issue.clone());
+                    if definite_type_error {
+                        self.rule_dispatch_backend_return_types.remove(key);
+                        self.rule_dispatch_backend_return_issues
+                            .insert(key.clone(), issue);
+                    }
+                    changed = true;
+                }
+            }
+            if !changed {
+                break;
+            }
+        }
+        self.rule_dispatch_irrefutable_keys
+            .retain(|key| self.rule_dispatch_return_types.contains_key(key));
     }
 
     fn establish_explore_function_return_types(&mut self) {
@@ -48458,6 +50455,21 @@ impl TypeChecker {
 
     fn infer_canonical_rule_dispatch_metadata(&mut self, stmts: &[Stmt]) {
         self.infer_rule_dispatch_return_types(stmts);
+    }
+
+    /// Build the exact RuleDispatch contract through the same fixed points for
+    /// the full checker and the lightweight runtime metadata path.  Keeping a
+    /// second abbreviated sequence made ordinary-function calls appear sealed
+    /// in one consumer and unresolved in the other.
+    fn prepare_rule_dispatch_metadata(&mut self, stmts: &[Stmt]) {
+        self.infer_top_level_binding_types(stmts);
+        self.infer_rule_return_types(stmts);
+        self.infer_canonical_rule_dispatch_metadata(stmts);
+        self.establish_explore_function_return_types();
+        self.infer_explore_rule_return_types(stmts);
+        self.validate_explore_function_return_types();
+        self.infer_canonical_rule_dispatch_metadata(stmts);
+        self.infer_explore_rule_return_types(stmts);
     }
 
     fn rule_scope_return_candidate(rule: &Rule) -> Option<(String, String)> {
@@ -49072,6 +51084,35 @@ impl TypeChecker {
         self.explore_inline_module_depth -= 1;
     }
 
+    fn snapshot_inline_module_constructor_catalog(&self) -> InlineModuleConstructorCatalog {
+        InlineModuleConstructorCatalog {
+            types: self.types.clone(),
+            constructors: self.constructors.clone(),
+            constructor_signatures: self.constructor_signatures.clone(),
+            type_parameters_by_owner: self.type_parameters_by_owner.clone(),
+            constructor_fields: self.constructor_fields.clone(),
+            type_variants: self.type_variants.clone(),
+            type_fields: self.type_fields.clone(),
+            type_field_types: self.type_field_types.clone(),
+            type_field_tys: self.type_field_tys.clone(),
+        }
+    }
+
+    fn restore_inline_module_constructor_catalog(
+        &mut self,
+        snapshot: InlineModuleConstructorCatalog,
+    ) {
+        self.types = snapshot.types;
+        self.constructors = snapshot.constructors;
+        self.constructor_signatures = snapshot.constructor_signatures;
+        self.type_parameters_by_owner = snapshot.type_parameters_by_owner;
+        self.constructor_fields = snapshot.constructor_fields;
+        self.type_variants = snapshot.type_variants;
+        self.type_fields = snapshot.type_fields;
+        self.type_field_types = snapshot.type_field_types;
+        self.type_field_tys = snapshot.type_field_tys;
+    }
+
     fn rule_dispatch_prelude_declaration_identity(
         statement: &Stmt,
     ) -> Option<(String, String, String)> {
@@ -49323,15 +51364,26 @@ impl TypeChecker {
                 Stmt::Defn(Defn::Module { name, body }) => {
                     self.record_explore_non_rule_runtime_name(name);
                     self.define_var(name);
+                    let constructor_catalog = self.snapshot_inline_module_constructor_catalog();
                     self.collect_nested_declarations(body);
+                    self.restore_inline_module_constructor_catalog(constructor_catalog);
                 }
                 Stmt::TypeDecl(TypeDecl::ADT {
                     name,
+                    params,
                     variants,
                     methods,
                     ..
                 }) => {
                     self.types.insert(name.clone());
+                    self.type_parameters_by_owner.insert(
+                        name.clone(),
+                        params
+                            .iter()
+                            .filter(|parameter| parameter.ty.is_none())
+                            .map(|parameter| parameter.name.clone())
+                            .collect(),
+                    );
                     let mut type_field_names = BTreeSet::new();
                     let mut type_field_types = BTreeMap::new();
                     let mut type_field_tys = BTreeMap::new();
@@ -49452,6 +51504,32 @@ impl TypeChecker {
                             if let Stmt::Rule(rule) = statement {
                                 self.record_explore_scoped_rule_body(name, params, rule);
                             }
+                        }
+                        self.rule_scope_function_definitions_by_key
+                            .retain(|key, _| key.scope.as_deref() != Some(name));
+                        for statement in body {
+                            let Stmt::Defn(Defn::Fn {
+                                name: member,
+                                params: method_params,
+                                ret_ty,
+                                body: method_body,
+                                ..
+                            }) = statement
+                            else {
+                                continue;
+                            };
+                            let arity = method_params
+                                .iter()
+                                .filter(|parameter| parameter.name != "self")
+                                .count();
+                            self.rule_scope_function_definitions_by_key
+                                .entry(RuleDispatchKey {
+                                    scope: Some(name.clone()),
+                                    name: member.clone(),
+                                    arity,
+                                })
+                                .or_default()
+                                .push((method_params.clone(), ret_ty.clone(), method_body.clone()));
                         }
                     }
                     self.types.insert(name.clone());
@@ -52335,8 +54413,10 @@ impl TypeChecker {
             Stmt::Defn(Defn::Module { name, body, .. }) => {
                 self.push_context(format!("in module `{}`", name));
                 self.push_scope();
+                let constructor_catalog = self.snapshot_inline_module_constructor_catalog();
                 self.collect_nested_declarations(body);
                 self.check_stmt_sequence(body);
+                self.restore_inline_module_constructor_catalog(constructor_catalog);
                 self.pop_scope();
                 self.pop_context();
             }
@@ -53354,11 +55434,10 @@ impl TypeChecker {
         checker.source_dir = source_dir;
         checker.install_constructor_prepass(stmts);
         checker.collect_declarations(stmts);
-        checker.infer_rule_return_types(stmts);
-        checker.infer_canonical_rule_dispatch_metadata(stmts);
+        checker.prepare_rule_dispatch_metadata(stmts);
         (
-            checker.rule_dispatch_return_types,
-            checker.rule_dispatch_return_issues,
+            checker.rule_dispatch_backend_return_types,
+            checker.rule_dispatch_backend_return_issues,
             checker.rule_dispatch_boolean_miss_safe_keys,
         )
     }
@@ -53429,21 +55508,9 @@ impl TypeChecker {
         Self::trace_explore_check_phase(&check_started, "constructor prepass");
         tc.collect_declarations(stmts);
         Self::trace_explore_check_phase(&check_started, "declarations");
-        // Seed annotated and literal top-level values before validating
-        // Explore helper bodies so a hidden immutable producer input retains
-        // its declared type inside that helper. The later pass still refines
-        // bindings whose type depends on the established callable fixed point.
-        tc.infer_top_level_binding_types(stmts);
-        tc.infer_rule_return_types(stmts);
-        tc.infer_canonical_rule_dispatch_metadata(stmts);
-        tc.establish_explore_function_return_types();
-        tc.infer_explore_rule_return_types(stmts);
-        tc.validate_explore_function_return_types();
-        // Re-run canonical dispatch after the exact rule fixed point so
-        // recursive families can resolve through their validated provisional
-        // seed. The final exact pass then consumes only the canonical result.
-        tc.infer_canonical_rule_dispatch_metadata(stmts);
-        tc.infer_explore_rule_return_types(stmts);
+        // The same preparation is used by the lightweight runtime installer;
+        // neither path may infer a callable contract the other cannot prove.
+        tc.prepare_rule_dispatch_metadata(stmts);
         Self::trace_explore_check_phase(&check_started, "rule fixed point");
         tc.infer_top_level_binding_types(stmts);
         Self::trace_explore_check_phase(&check_started, "top-level bindings");
@@ -53528,7 +55595,30 @@ impl TypeChecker {
             rule_scope_member_return_types: tc.rule_scope_member_return_types,
             rule_dispatch_return_types: tc.rule_dispatch_return_types,
             rule_dispatch_return_issues: tc.rule_dispatch_return_issues,
+            rule_dispatch_backend_return_types: tc.rule_dispatch_backend_return_types,
+            rule_dispatch_backend_return_issues: tc.rule_dispatch_backend_return_issues,
+            rule_dispatch_parameter_types: tc
+                .rule_dispatch_parameter_types
+                .into_iter()
+                .map(|(key, parameters)| {
+                    (
+                        key,
+                        parameters
+                            .into_iter()
+                            .map(|parameter| {
+                                parameter.map(|parameter| {
+                                    TypeChecker::canonical_explore_ty_name(&parameter)
+                                })
+                            })
+                            .collect(),
+                    )
+                })
+                .collect(),
+            rule_dispatch_parameter_names: tc.rule_dispatch_parameter_names,
+            rule_dispatch_parameter_issues: tc.rule_dispatch_parameter_issues,
             rule_dispatch_boolean_miss_safe_keys: tc.rule_dispatch_boolean_miss_safe_keys,
+            rule_dispatch_total_value_keys: tc.rule_dispatch_irrefutable_keys,
+            rule_dispatch_runtime_irrefutable_keys: tc.rule_dispatch_runtime_irrefutable_keys,
             exploration_queries,
             exploration_universes,
             checked_exploration_queries,
@@ -55287,12 +57377,12 @@ mod tests {
         let (return_types, return_issues, boolean_miss_safe_keys) =
             TypeChecker::rule_dispatch_metadata_for_runtime(&statements, None);
         assert_eq!(
-            return_types, artifacts.rule_dispatch_return_types,
-            "full and lightweight exact return metadata diverged"
+            return_types, artifacts.rule_dispatch_backend_return_types,
+            "full and lightweight runtime return metadata diverged"
         );
         assert_eq!(
-            return_issues, artifacts.rule_dispatch_return_issues,
-            "full and lightweight exact return issues diverged"
+            return_issues, artifacts.rule_dispatch_backend_return_issues,
+            "full and lightweight runtime return issues diverged"
         );
         assert_eq!(
             boolean_miss_safe_keys, artifacts.rule_dispatch_boolean_miss_safe_keys,
@@ -55318,8 +57408,11 @@ mod tests {
             name: "condition".to_string(),
             arity: 1,
         };
-        assert!(!artifacts.rule_dispatch_return_types.contains_key(&key));
-        assert!(artifacts.rule_dispatch_return_issues.contains_key(&key));
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&key),
+            Some(&"Bool".to_string())
+        );
+        assert!(!artifacts.rule_dispatch_return_issues.contains_key(&key));
         assert!(!artifacts
             .rule_dispatch_boolean_miss_safe_keys
             .contains(&key));
@@ -57629,8 +59722,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
         for (scope, name, arity, expected) in [
             ("Case", "memo_allowed", 0, "Bool"),
             ("Case", "shared", 1, "Bool"),
-            ("Case", "amount", 1, "Int"),
-            ("OtherCase", "shared", 1, "Int"),
         ] {
             assert_eq!(
                 artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
@@ -57642,14 +59733,37 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 "missing exact return metadata for {scope}.{name}/{arity}"
             );
         }
-        assert_eq!(
-            artifacts.rule_dispatch_return_types.get(&RuleDispatchKey {
+        for key in [
+            RuleDispatchKey {
+                scope: Some("Case".to_string()),
+                name: "amount".to_string(),
+                arity: 1,
+            },
+            RuleDispatchKey {
+                scope: Some("OtherCase".to_string()),
+                name: "shared".to_string(),
+                arity: 1,
+            },
+            RuleDispatchKey {
                 scope: None,
                 name: "shared".to_string(),
                 arity: 1,
-            }),
-            Some(&"Int".to_string())
-        );
+            },
+        ] {
+            assert_eq!(
+                artifacts.rule_dispatch_backend_return_types.get(&key),
+                Some(&"Int".to_string()),
+                "runtime ABI must retain the ordinary Int result for {key:?}"
+            );
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "strict return metadata unexpectedly retained {key:?}"
+            );
+            assert!(
+                artifacts.rule_dispatch_return_issues.contains_key(&key),
+                "strict return metadata omitted the issue for {key:?}"
+            );
+        }
 
         let mut interpreter = Interpreter::new();
         interpreter.install_rule_dispatch_metadata(&artifacts);
@@ -57739,32 +59853,71 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert!(artifacts
             .rule_dispatch_boolean_miss_safe_keys
             .contains(&global("closed")));
-        for key in [
-            global("wrapper"),
-            global("free_guard"),
-            global("non_boolean_guard"),
-            global("wildcard"),
-            RuleDispatchKey {
-                scope: None,
-                name: "duplicate".to_string(),
-                arity: 2,
-            },
-            RuleDispatchKey {
-                scope: Some("Case".to_string()),
-                name: "captured".to_string(),
-                arity: 1,
-            },
-        ] {
+        let duplicate = RuleDispatchKey {
+            scope: None,
+            name: "duplicate".to_string(),
+            arity: 2,
+        };
+        let captured = RuleDispatchKey {
+            scope: Some("Case".to_string()),
+            name: "captured".to_string(),
+            arity: 1,
+        };
+        for key in [global("wrapper"), global("free_guard"), captured.clone()] {
             assert_eq!(
                 artifacts.rule_dispatch_return_types.get(&key),
                 Some(&"Bool".to_string()),
                 "static Bool sort must remain available for {key:?}"
             );
+        }
+        for key in [
+            global("non_boolean_guard"),
+            global("wildcard"),
+            duplicate.clone(),
+        ] {
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "strict return metadata unexpectedly retained {key:?}"
+            );
+            assert!(
+                artifacts.rule_dispatch_return_issues.contains_key(&key),
+                "strict return metadata omitted the issue for {key:?}"
+            );
+        }
+        for key in [
+            global("wrapper"),
+            global("free_guard"),
+            global("non_boolean_guard"),
+            global("wildcard"),
+            duplicate.clone(),
+            captured.clone(),
+        ] {
             assert!(
                 !artifacts
                     .rule_dispatch_boolean_miss_safe_keys
                     .contains(&key),
                 "context-dependent family must not authorize a runtime miss override: {key:?}"
+            );
+        }
+        for key in [global("wrapper"), global("free_guard"), duplicate, captured] {
+            assert_eq!(
+                artifacts.rule_dispatch_backend_return_types.get(&key),
+                Some(&"Bool".to_string()),
+                "runtime ABI must survive conservative exact pruning for {key:?}"
+            );
+        }
+        for key in [global("non_boolean_guard"), global("wildcard")] {
+            assert!(
+                !artifacts
+                    .rule_dispatch_backend_return_types
+                    .contains_key(&key),
+                "runtime ABI unexpectedly retained a definite error for {key:?}"
+            );
+            assert!(
+                artifacts
+                    .rule_dispatch_backend_return_issues
+                    .contains_key(&key),
+                "runtime ABI omitted the definite-error diagnostic for {key:?}"
             );
         }
 
@@ -58243,6 +60396,191 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "unexpected unresolved issue: {:?}",
             unresolved.return_type_issue
         );
+    }
+
+    #[test]
+    fn static_rule_dispatch_soundness_strict_schema_closure_preserves_backend_abi() {
+        let source = r#"
+# Box(a) = Box(value: a)
+
+> residual_helper() -> a { 0 }
+> raw_helper() -> Box { Box(value = 1) }
+> wrong_arity_helper() -> Box(Int, Int) { Box(value = 1) }
+> float_helper() -> Float { 1.0 }
+> safe_helper() -> Int { 1 }
+
+| residual_schema() -> residual_helper()
+| raw_schema() -> raw_helper()
+| wrong_arity_schema() -> wrong_arity_helper()
+| float_schema() -> float_helper()
+| safe_schema() -> safe_helper()
+"#;
+        let statements = parse_test_program(source).expect("parse strict schema closure fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let registry = RuleDispatchRegistry::from_statements(&statements, &artifacts);
+
+        let checker = TypeChecker::new();
+        let no_generics = BTreeSet::new();
+        assert!(TypeChecker::canonical_type_contains_variable(&Ty::Var(
+            "a".into()
+        )));
+        assert!(!checker.canonical_schema_is_closed(&Ty::Name("Option".into()), &no_generics));
+        assert!(!checker.canonical_schema_is_closed(
+            &Ty::App(
+                Box::new(Ty::Name("Option".into())),
+                vec![Ty::Name("Int".into()), Ty::Name("Int".into())],
+            ),
+            &no_generics,
+        ));
+        assert!(checker.canonical_schema_is_closed(
+            &Ty::App(
+                Box::new(Ty::Name("Option".into())),
+                vec![Ty::Name("Int".into())],
+            ),
+            &no_generics,
+        ));
+
+        for name in ["residual_schema", "raw_schema", "wrong_arity_schema"] {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: name.to_string(),
+                arity: 0,
+            };
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "strict metadata must reject the open schema for {name}"
+            );
+            assert!(artifacts.rule_dispatch_return_issues.contains_key(&key));
+            assert_eq!(
+                registry
+                    .get(None, name, 0)
+                    .expect("registered unsafe family")
+                    .return_type,
+                None,
+                "the strict registry must not publish {name}"
+            );
+        }
+
+        let float_key = RuleDispatchKey {
+            scope: None,
+            name: "float_schema".to_string(),
+            arity: 0,
+        };
+        assert_eq!(
+            artifacts.rule_dispatch_backend_return_types.get(&float_key),
+            Some(&"Float".to_string()),
+            "ordinary runtime metadata may retain a valid Float ABI"
+        );
+        assert!(!artifacts
+            .rule_dispatch_backend_return_issues
+            .contains_key(&float_key));
+        assert!(!artifacts
+            .rule_dispatch_return_types
+            .contains_key(&float_key));
+        assert!(artifacts
+            .rule_dispatch_return_issues
+            .contains_key(&float_key));
+        assert_eq!(
+            registry
+                .get(None, "float_schema", 0)
+                .expect("registered Float family")
+                .return_type,
+            None,
+            "strict registry must not publish runtime-only Float evidence"
+        );
+
+        let safe_key = RuleDispatchKey {
+            scope: None,
+            name: "safe_schema".to_string(),
+            arity: 0,
+        };
+        assert_eq!(
+            artifacts.rule_dispatch_backend_return_types.get(&safe_key),
+            Some(&"Int".to_string())
+        );
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&safe_key),
+            Some(&"Int".to_string())
+        );
+        assert_eq!(
+            registry
+                .get(None, "safe_schema", 0)
+                .expect("registered safe family")
+                .return_type
+                .as_deref(),
+            Some("Int")
+        );
+    }
+
+    #[test]
+    fn static_rule_dispatch_soundness_respects_runtime_bare_call_precedence() {
+        let source = r#"
+# ScopedCase(seed: Int) {
+    > helper() -> Int { seed }
+    | read(value: Int) -> value
+    | bare_method() -> helper()
+    | explicit_method() -> ScopedCase(seed).helper()
+    | scoped_effect_shadow() -> read(seed)
+}
+
+# effect Reader {
+    > read(value: Int) -> Int
+}
+
+> read(value: Int) -> Int { value }
+> findall(template: Int, goal: Int) -> Int { template }
+> search(template: Int, goal: Int) -> Int { template }
+
+| effect_shadow(value: Int) -> read(value)
+| findall_shadow() -> findall(1, 2)
+| search_shadow() -> search(1, 2)
+"#;
+        let (_, artifacts) = checked_and_lightweight_rule_dispatch_metadata(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+
+        let scoped = |name: &str| RuleDispatchKey {
+            scope: Some("ScopedCase".to_string()),
+            name: name.to_string(),
+            arity: 0,
+        };
+        let global = |name: &str, arity: usize| RuleDispatchKey {
+            scope: None,
+            name: name.to_string(),
+            arity,
+        };
+
+        let explicit_method = scoped("explicit_method");
+        assert_eq!(
+            artifacts.rule_dispatch_return_types.get(&explicit_method),
+            Some(&"Int".to_string()),
+            "member syntax has the same ordinary-method identity at proof and runtime"
+        );
+
+        for key in [
+            scoped("bare_method"),
+            scoped("scoped_effect_shadow"),
+            global("effect_shadow", 1),
+            global("findall_shadow", 0),
+            global("search_shadow", 0),
+        ] {
+            assert_eq!(
+                artifacts.rule_dispatch_backend_return_types.get(&key),
+                Some(&"Int".to_string()),
+                "ordinary generated-backend ABI must remain available for {key:?}"
+            );
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "exact metadata certified a different runtime call target for {key:?}"
+            );
+            assert!(
+                artifacts.rule_dispatch_return_issues.contains_key(&key),
+                "exact metadata omitted the unsupported-dispatch issue for {key:?}"
+            );
+        }
     }
 
     #[test]
