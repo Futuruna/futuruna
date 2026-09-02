@@ -31,10 +31,12 @@ use super::mechanism_incidence::{
 };
 use super::mechanism_support::{
     MechanismAutomaticObservationAck, MechanismAutomaticObservationSchedulerSummary,
-    MechanismDirtyAutomaticObservationSummary, MechanismFactorizedSupportObservationSummary,
-    MechanismSupportCatalogBuilder, MechanismSupportCheckpointCursor,
-    MechanismSupportClosureReceipt, MechanismSupportClosureRoot, MechanismSupportError,
-    MechanismSupportFrontierSummary, MechanismSupportSlice,
+    MechanismDirtyAutomaticObservationSummary, MechanismExplicitObservationAck,
+    MechanismExplicitObservationBackfill, MechanismExplicitObservationRegistration,
+    MechanismExplicitObservationSchedulerSummary, MechanismExplicitObservationSealAck,
+    MechanismFactorizedSupportObservationSummary, MechanismSupportCatalogBuilder,
+    MechanismSupportCheckpointCursor, MechanismSupportClosureReceipt, MechanismSupportClosureRoot,
+    MechanismSupportError, MechanismSupportFrontierSummary, MechanismSupportSlice,
 };
 use super::relation::{
     ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
@@ -1638,6 +1640,166 @@ impl RelationalAnalysisJournalState {
             );
             summary
         })
+    }
+
+    pub(crate) fn mechanism_explicit_observation_scheduler_summary(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismExplicitObservationSchedulerSummary> {
+        self.mechanism_supports
+            .get(&request_id)
+            .map(MechanismSupportCatalogBuilder::explicit_observation_scheduler_summary)
+    }
+
+    pub(crate) fn mechanism_explicit_observation_contains(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> bool {
+        self.mechanism_supports
+            .get(&slice.key().request_id())
+            .is_some_and(|support| support.explicit_observation_contains(slice))
+    }
+
+    pub(crate) fn mechanism_explicit_observation_ready(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> bool {
+        self.mechanism_supports
+            .get(&slice.key().request_id())
+            .is_some_and(|support| support.ready_explicit_observation_contains(slice))
+    }
+
+    pub(crate) fn next_pending_explicit_support_observation_slice(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportSlice> {
+        self.mechanism_supports
+            .get(&request_id)
+            .and_then(MechanismSupportCatalogBuilder::next_pending_explicit_observation_slice)
+    }
+
+    pub(crate) fn next_dirty_explicit_support_observation_slice(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportSlice> {
+        self.mechanism_supports
+            .get(&request_id)
+            .and_then(MechanismSupportCatalogBuilder::next_dirty_explicit_observation_slice)
+    }
+
+    pub(crate) fn next_unsealed_explicit_support_observation_slice(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportSlice> {
+        self.mechanism_supports
+            .get(&request_id)
+            .and_then(MechanismSupportCatalogBuilder::next_unsealed_explicit_observation_slice)
+    }
+
+    pub(crate) fn prepare_explicit_support_observation_registration(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationRegistration, RelationalAnalysisJournalError> {
+        let request_id = slice.key().request_id();
+        let support = self.mechanism_supports.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ),
+        )?;
+        let structural = self.structural_mechanisms.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("structural checkpoint prefix"),
+            ),
+        )?;
+        Ok(support.prepare_explicit_observation_demand_registration(slice, structural)?)
+    }
+
+    pub(crate) fn commit_explicit_support_observation_registration(
+        &mut self,
+        prepared: MechanismExplicitObservationRegistration,
+    ) {
+        let request_id = prepared.slice().key().request_id();
+        self.mechanism_supports
+            .get_mut(&request_id)
+            .expect("a prepared explicit observation retains its support catalog")
+            .commit_explicit_observation_demand_registration(prepared);
+    }
+
+    pub(crate) fn prepare_next_explicit_support_observation_backfill(
+        &self,
+        request_id: MechanismRequestId,
+        maximum_assignments: NonZeroU16,
+    ) -> Result<Option<MechanismExplicitObservationBackfill>, RelationalAnalysisJournalError> {
+        let support = self.mechanism_supports.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ),
+        )?;
+        let structural = self.structural_mechanisms.get(&request_id).ok_or(
+            RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("structural checkpoint prefix"),
+            ),
+        )?;
+        Ok(support.prepare_next_explicit_observation_backfill(structural, maximum_assignments)?)
+    }
+
+    pub(crate) fn commit_explicit_support_observation_backfill(
+        &mut self,
+        prepared: MechanismExplicitObservationBackfill,
+    ) {
+        let request_id = prepared.slice().key().request_id();
+        self.mechanism_supports
+            .get_mut(&request_id)
+            .expect("a prepared explicit backfill retains its support catalog")
+            .commit_explicit_observation_backfill(prepared);
+    }
+
+    pub(crate) fn prepare_explicit_support_observation_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationAck, RelationalAnalysisJournalError> {
+        let support = self
+            .mechanism_supports
+            .get(&slice.key().request_id())
+            .ok_or(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ))?;
+        Ok(support.prepare_explicit_observation_ack(slice)?)
+    }
+
+    pub(crate) fn commit_explicit_support_observation_ack(
+        &mut self,
+        prepared: MechanismExplicitObservationAck,
+    ) {
+        let request_id = prepared.slice().key().request_id();
+        self.mechanism_supports
+            .get_mut(&request_id)
+            .expect("a prepared explicit observation acknowledgement retains its catalog")
+            .commit_explicit_observation_ack(prepared);
+    }
+
+    pub(crate) fn prepare_explicit_support_observation_seal_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationSealAck, RelationalAnalysisJournalError> {
+        let support = self
+            .mechanism_supports
+            .get(&slice.key().request_id())
+            .ok_or(RelationalAnalysisJournalError::MechanismSupport(
+                MechanismSupportError::ClosurePrerequisite("support checkpoint prefix"),
+            ))?;
+        Ok(support.prepare_explicit_observation_seal_ack(slice)?)
+    }
+
+    pub(crate) fn commit_explicit_support_observation_seal_ack(
+        &mut self,
+        prepared: MechanismExplicitObservationSealAck,
+    ) {
+        let request_id = prepared.slice().key().request_id();
+        self.mechanism_supports
+            .get_mut(&request_id)
+            .expect("a prepared explicit observation seal retains its catalog")
+            .commit_explicit_observation_seal_ack(prepared);
     }
 
     pub(crate) fn prepare_support_observation_ack(

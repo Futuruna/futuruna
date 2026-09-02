@@ -375,14 +375,14 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     // pending publication cursor committed either line. Reopening must replay
     // the durable journal, reconstruct the projection, authenticate the tail,
     // and adopt the exact bytes without appending or rewriting them.
-    let cursor_path = output_directory.join(".publication-cursor-v11.json");
+    let cursor_path = output_directory.join(".publication-cursor-v12.json");
     let mut cursor = read_json(&cursor_path);
     let artifact_key = graph_artifact_before_recovery["key"]
         .as_str()
         .expect("semantic transition graph artifact key");
     let final_graph_cursor = cursor["artifacts"][artifact_key].clone();
     let mut genesis = Sha256::new();
-    genesis.update(b"futuruna.explore.publication-prefix.v11");
+    genesis.update(b"futuruna.explore.publication-prefix.v12");
     genesis.update((artifact_key.len() as u64).to_be_bytes());
     genesis.update(artifact_key.as_bytes());
     let genesis = genesis
@@ -603,7 +603,7 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
         "dependent mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 11 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 12 && row["record"]["kind"] == "mechanism_support_observation"
     }));
     let automatic_slice_id = support_observations
         .iter()
@@ -660,8 +660,8 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_success(&first_output);
     let first = parse_stdout(&first_output);
 
-    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v6");
-    assert_eq!(first["schema_version"], 6);
+    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v7");
+    assert_eq!(first["schema_version"], 7);
     assert_eq!(first["query"]["name"], "relational_stream_nonempty_smoke");
     assert_eq!(first["run"]["lifecycle"], "complete");
     assert!(first["run"].get("preparation_wall_milliseconds").is_none());
@@ -717,6 +717,28 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         "1"
     );
     assert_eq!(mechanisms["support_closure_totals"]["target_starters"], "2");
+    let support_observation_summary = &mechanisms["support_observations"];
+    assert_eq!(
+        support_observation_summary["total"]["points"],
+        support_observation_summary["automatic"]["points"]
+    );
+    assert_eq!(
+        support_observation_summary["explicit"]["demand_registrations"],
+        "0"
+    );
+    assert_eq!(support_observation_summary["explicit"]["points"], "0");
+    assert_eq!(
+        support_observation_summary["explicit"]["node_edge_scheduler"],
+        serde_json::json!({
+            "registered_slices": "0",
+            "ready_slices": "0",
+            "pending_backfill_slices": "0",
+            "dirty_slices": "0",
+            "unsealed_slices": "0",
+            "observed_slices": "0",
+            "sealed_slices": "0",
+        })
+    );
 
     let structural_incidences = analysis_layer(&first, "result", "structural_incidences");
     assert_eq!(structural_incidences["status"], "result_published");
@@ -756,7 +778,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
 
     let manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(manifest["schema_version"], 11);
+    assert_eq!(manifest["schema_version"], 12);
     for key in [
         "version",
         "manifest_digest",
@@ -778,10 +800,10 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
     assert_eq!(
         manifest["publication_cursor"]["file"],
-        ".publication-cursor-v11.json"
+        ".publication-cursor-v12.json"
     );
-    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v11.json"));
-    assert_eq!(publication_cursor["schema_version"], 11);
+    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v12.json"));
+    assert_eq!(publication_cursor["schema_version"], 12);
     let report_artifacts = first["publication"]["artifacts"]
         .as_array()
         .expect("report publication artifacts");
@@ -823,7 +845,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(selected_records.len(), 2);
     let mut selected_values_by_case = BTreeMap::new();
     for selected in &selected_records {
-        assert_eq!(selected["schema_version"], 11);
+        assert_eq!(selected["schema_version"], 12);
         assert_eq!(selected["record"]["kind"], "selected_case");
         assert_eq!(selected["record"]["row_id"]["kind"], "case");
         assert_eq!(selected["record"]["values"]["case_id"]["kind"], "case_id");
@@ -1024,9 +1046,9 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         .expect("mechanism structural-support artifact");
     assert_eq!(
         structural_support_artifact["record_schema"],
-        "futuruna.relational-structural-mechanism-support-v7"
+        "futuruna.relational-structural-mechanism-support-v8"
     );
-    assert_eq!(structural_support_artifact["record_schema_version"], 7);
+    assert_eq!(structural_support_artifact["record_schema_version"], 8);
     let structural_support = read_ndjson(
         &output_directory.join(
             structural_support_artifact["path"]
@@ -1085,6 +1107,71 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
             "sealed": "1",
         })
     );
+    let support_observation_demand_artifact = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| artifact["kind"] == "mechanism_support_observation_demands")
+        .expect("mechanism support-observation demand artifact");
+    assert_eq!(
+        support_observation_demand_artifact["name"],
+        "paths_support_observation_demands"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["path"],
+        "mechanisms/paths.support-observation-demands.ndjson"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["record_schema"],
+        "futuruna.relational-mechanism-support-observation-demands-v1"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["record_schema_version"],
+        1
+    );
+    assert_eq!(support_observation_demand_artifact["published_lines"], "0");
+    assert_eq!(
+        support_observation_demand_artifact["available_source_records"],
+        "0"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["source_order"],
+        "journal_support_observation_demand_registration_ordinal"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["shared_observations"],
+        serde_json::json!({
+            "artifact_key": support_observation_artifact["key"],
+            "path": support_observation_artifact["path"],
+            "lookup_identity": "slice.slice_id",
+            "contains_automatic_and_explicit_points": true,
+        })
+    );
+    assert_eq!(
+        support_observation_demand_artifact["demand_counts"],
+        serde_json::json!({
+            "authored_declarations": "0",
+            "unique_checked_demands": "0",
+            "durable_registration_claims": "0",
+            "registered_explicit_slices": "0",
+            "already_registered_claims": "0",
+            "automatic_whole_mechanism_overlaps": "0",
+            "explicit_observed_slices": "0",
+            "explicit_sealed_slices": "0",
+        })
+    );
+    assert_eq!(
+        support_observation_demand_artifact["aliases"],
+        serde_json::json!([])
+    );
+    assert_eq!(
+        support_observation_demand_artifact["explicit_scheduler"]["registry"]["registered_slices"],
+        "0"
+    );
+    assert_eq!(
+        support_observation_demand_artifact["explicit_scheduler"]["registry"]["ready_slices"],
+        "0"
+    );
     let support_observations = read_ndjson(
         &output_directory.join(
             support_observation_artifact["path"]
@@ -1097,7 +1184,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         "mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 11 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 12 && row["record"]["kind"] == "mechanism_support_observation"
     }));
     let automatic_slice_ids = support_observations
         .iter()
@@ -1304,12 +1391,12 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         .as_u64()
         .expect("first artifact count");
 
-    // Model a completed publication-v11 cursor created before the automatic
+    // Model a completed publication-v12 cursor created before the automatic
     // case-transition consumer existed. The cursor remains authenticated by
     // the unchanged journal and prior artifact prefixes; removing the derived
     // graph entry/file and stale manifest exercises the additive-extension
     // path without altering semantic evidence.
-    let cursor_path = output_directory.join(".publication-cursor-v11.json");
+    let cursor_path = output_directory.join(".publication-cursor-v12.json");
     let mut legacy_cursor = read_json(&cursor_path);
     assert!(legacy_cursor["artifacts"]
         .as_object_mut()
@@ -1376,7 +1463,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
 
     let attached_manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(attached_manifest["schema_version"], 11);
+    assert_eq!(attached_manifest["schema_version"], 12);
     for identity_key in [
         "checked_program",
         "relation_id",
@@ -1487,7 +1574,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(starter_records.len(), 3);
     assert!(starter_records
         .iter()
-        .all(|record| record["schema_version"] == 11));
+        .all(|record| record["schema_version"] == 12));
     assert!(starter_records
         .iter()
         .all(|record| record["artifact"] == starter_artifact["key"]));
@@ -1576,7 +1663,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
 
     let published_after_attachment = snapshot_files(&output_directory);
     for (path, before) in &published_before_attachment {
-        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v11.json") {
+        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v12.json") {
             continue;
         }
         assert_eq!(
@@ -1622,5 +1709,279 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(
         snapshot_files(&output_directory),
         published_after_attachment
+    );
+}
+
+#[test]
+fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation() {
+    let fixture = fixture();
+    let temp = TestDirectory::new();
+    let run_state = temp.path().join("explicit-observation-state");
+    let output_directory = temp.path().join("explicit-observation-output");
+
+    let baseline_output = run_explore(&fixture, &run_state, &output_directory);
+    assert_success(&baseline_output);
+    let baseline = parse_stdout(&baseline_output);
+    assert_eq!(baseline["run"]["lifecycle"], "complete");
+    let baseline_manifest = read_json(&output_directory.join("manifest.json"));
+
+    let structural_support = read_ndjson(&artifact_path(
+        &baseline_manifest,
+        &output_directory,
+        "mechanism_structural_support",
+    ));
+    let mechanism_id = structural_support
+        .iter()
+        .find(|row| row["record"]["kind"] == "structural_assignment")
+        .and_then(|row| row["record"]["structural_mechanism_id"].as_str())
+        .expect("smoke structural mechanism ID")
+        .to_owned();
+    let structural_definitions = read_ndjson(&artifact_path(
+        &baseline_manifest,
+        &output_directory,
+        "mechanism_structural_definitions",
+    ));
+    let node_id = structural_definitions
+        .iter()
+        .find(|row| row["record"]["kind"] == "structural_node_definition")
+        .and_then(|row| row["record"]["node_id"].as_str())
+        .expect("smoke structural node ID")
+        .to_owned();
+
+    let fixture_source = std::fs::read_to_string(&fixture).expect("read Explore fixture");
+    let next_query = fixture_source
+        .find("\n? explore relational_stream_empty_smoke")
+        .expect("second Explore fixture query");
+    let closing_brace = fixture_source[..next_query]
+        .rfind('}')
+        .expect("first Explore fixture query closing brace");
+    let demand_name = "selected_activation_node_support";
+    let demanded_source = format!(
+        "{}    observations {demand_name} from mechanisms paths for node activation \"{node_id}\" within mechanism \"{mechanism_id}\"\n{}",
+        &fixture_source[..closing_brace],
+        &fixture_source[closing_brace..],
+    );
+    let demanded_fixture = temp
+        .path()
+        .join("relational-explore-with-node-observation.runa");
+    std::fs::write(&demanded_fixture, demanded_source)
+        .expect("write explicit-observation Explore fixture");
+
+    let attached_output = run_explore(&demanded_fixture, &run_state, &output_directory);
+    assert_success(&attached_output);
+    let attached = parse_stdout(&attached_output);
+    assert_eq!(attached["run"]["lifecycle"], "complete");
+    assert!(
+        attached["run"]["appended"]["semantic_events"]
+            .as_u64()
+            .is_some_and(|events| events > 0),
+        "late demand must durably register, backfill, and seal"
+    );
+    assert_eq!(attached["query"]["identity"], baseline["query"]["identity"]);
+    assert_eq!(
+        attached["analysis"]["analysis_closure_set_root"],
+        baseline["analysis"]["analysis_closure_set_root"],
+        "an explicit reader must not rename closed analysis evidence"
+    );
+
+    let baseline_paths = analysis_layer(&baseline, "mechanisms", "paths");
+    let attached_paths = analysis_layer(&attached, "mechanisms", "paths");
+    assert_eq!(
+        attached_paths["support_closure_root"], baseline_paths["support_closure_root"],
+        "an explicit reader must not rename automatic support closure"
+    );
+    assert_eq!(
+        attached_paths["support_observations"]["automatic"],
+        baseline_paths["support_observations"]["automatic"],
+        "late explicit observation must leave automatic closure authority unchanged"
+    );
+    assert_eq!(
+        attached_paths["support_observations"]["explicit"],
+        serde_json::json!({
+            "demand_registrations": "1",
+            "points": "1",
+            "node_edge_scheduler": {
+                "registered_slices": "1",
+                "ready_slices": "1",
+                "pending_backfill_slices": "0",
+                "dirty_slices": "0",
+                "unsealed_slices": "0",
+                "observed_slices": "1",
+                "sealed_slices": "1",
+            },
+        })
+    );
+
+    let attached_manifest = read_json(&output_directory.join("manifest.json"));
+    for identity_key in [
+        "checked_program",
+        "relation_id",
+        "admission_id",
+        "question_id",
+        "analysis_graph_digest",
+        "journal_id",
+    ] {
+        assert_eq!(
+            attached_manifest["identity"][identity_key],
+            baseline_manifest["identity"][identity_key],
+            "observation demand changed core identity `{identity_key}`"
+        );
+    }
+    assert_ne!(
+        attached_manifest["identity"]["support_observation_demand_set_id"],
+        baseline_manifest["identity"]["support_observation_demand_set_id"]
+    );
+
+    let demand_artifact = attached_manifest["artifacts"]
+        .as_array()
+        .expect("attached manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "mechanism_support_observation_demands"
+                && artifact["name"] == "paths_support_observation_demands"
+        })
+        .expect("paths support-observation demand artifact");
+    assert_eq!(
+        demand_artifact["path"],
+        "mechanisms/paths.support-observation-demands.ndjson"
+    );
+    assert_eq!(
+        demand_artifact["record_schema"],
+        "futuruna.relational-mechanism-support-observation-demands-v1"
+    );
+    assert_eq!(demand_artifact["record_schema_version"], 1);
+    assert_eq!(demand_artifact["published_lines"], "1");
+    assert_eq!(demand_artifact["available_source_records"], "1");
+    assert_eq!(
+        demand_artifact["demand_counts"],
+        serde_json::json!({
+            "authored_declarations": "1",
+            "unique_checked_demands": "1",
+            "durable_registration_claims": "1",
+            "registered_explicit_slices": "1",
+            "already_registered_claims": "0",
+            "automatic_whole_mechanism_overlaps": "0",
+            "explicit_observed_slices": "1",
+            "explicit_sealed_slices": "1",
+        })
+    );
+    assert_eq!(
+        demand_artifact["explicit_scheduler"]["registry"]["registered_slices"],
+        "1"
+    );
+    assert_eq!(
+        demand_artifact["explicit_scheduler"]["registry"]["ready_slices"],
+        "1"
+    );
+    for scheduler_set in ["pending_backfill", "dirty", "unsealed"] {
+        assert_eq!(
+            demand_artifact["explicit_scheduler"][scheduler_set]["slices"], "0",
+            "explicit scheduler set `{scheduler_set}` was not retired"
+        );
+    }
+
+    let aliases = demand_artifact["aliases"]
+        .as_array()
+        .expect("support-observation aliases");
+    assert_eq!(aliases.len(), 1);
+    let alias = &aliases[0];
+    assert_eq!(alias["name"], demand_name);
+    assert_eq!(alias["status"], "sealed");
+    assert_eq!(alias["slice"]["subject"]["kind"], "node");
+    assert_eq!(alias["slice"]["subject"]["facet"], "activation");
+    assert_eq!(alias["slice"]["subject"]["structural_node_id"], node_id);
+    assert_eq!(alias["slice"]["selection"]["kind"], "within_mechanism");
+    assert_eq!(
+        alias["slice"]["selection"]["structural_mechanism_id"],
+        mechanism_id
+    );
+    assert_eq!(alias["registration"]["ordinal"], "0");
+    assert_eq!(alias["registration"]["disposition"], "registered_explicit");
+    assert_eq!(alias["registration"]["phase"]["kind"], "sealed");
+    assert_eq!(
+        alias["shared_observation"]["lookup"]["value"],
+        alias["slice_id"]
+    );
+    assert_eq!(
+        alias["shared_observation"]["latest_status"]["kind"],
+        "sealed"
+    );
+
+    let demand_records = read_ndjson(
+        &output_directory.join(
+            demand_artifact["path"]
+                .as_str()
+                .expect("support-observation demand artifact path"),
+        ),
+    );
+    assert_eq!(demand_records.len(), 1);
+    let demand_record = &demand_records[0];
+    assert_eq!(demand_record["schema_version"], 12);
+    assert_eq!(demand_record["source_ordinal"], "0");
+    assert_eq!(
+        demand_record["record"]["kind"],
+        "mechanism_support_observation_demand_registration"
+    );
+    assert_eq!(demand_record["record"]["registration_ordinal"], "0");
+    assert_eq!(demand_record["record"]["slice"], alias["slice"]);
+    assert_eq!(
+        demand_record["record"]["disposition"],
+        "registered_explicit"
+    );
+    assert_eq!(
+        demand_record["record"]["registration_phase"]["kind"],
+        "sealed"
+    );
+    assert_eq!(
+        demand_record["record"]["next_explicit_scheduler"]["registry"]["registered_slices"],
+        "1"
+    );
+
+    let observation_artifact = attached_manifest["artifacts"]
+        .as_array()
+        .expect("attached manifest artifacts")
+        .iter()
+        .find(|artifact| artifact["kind"] == "mechanism_support_observations")
+        .expect("shared support-observation artifact");
+    assert_eq!(
+        demand_artifact["shared_observations"]["artifact_key"],
+        observation_artifact["key"]
+    );
+    let observations = read_ndjson(
+        &output_directory.join(
+            observation_artifact["path"]
+                .as_str()
+                .expect("shared support-observation artifact path"),
+        ),
+    );
+    let explicit_points = observations
+        .iter()
+        .filter(|row| row["record"]["slice"]["slice_id"] == alias["slice_id"])
+        .collect::<Vec<_>>();
+    assert_eq!(explicit_points.len(), 1);
+    let explicit_point = explicit_points[0];
+    assert_eq!(explicit_point["schema_version"], 12);
+    assert_eq!(explicit_point["record"]["status"]["kind"], "sealed");
+    assert_eq!(explicit_point["record"]["target_frontier"], "closed");
+    assert_exact_count(&explicit_point["record"]["case_count"], "2");
+    assert_eq!(
+        alias["shared_observation"]["latest_point_id"],
+        explicit_point["record"]["point_id"]
+    );
+
+    let attached_checkpoint = attached["run"]["checkpoint"].clone();
+    let published_after_attachment = snapshot_files(&output_directory);
+    let resumed_output = run_explore(&demanded_fixture, &run_state, &output_directory);
+    assert_success(&resumed_output);
+    let resumed = parse_stdout(&resumed_output);
+    assert_eq!(resumed["run"]["lifecycle"], "complete");
+    assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
+    assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
+    assert_eq!(resumed["run"]["checkpoint"], attached_checkpoint);
+    assert_eq!(resumed["publication"]["lines_appended"], 0);
+    assert_eq!(
+        snapshot_files(&output_directory),
+        published_after_attachment,
+        "reopening a sealed explicit demand must be byte-stable"
     );
 }

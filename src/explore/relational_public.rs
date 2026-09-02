@@ -63,7 +63,7 @@ use super::{
     RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 6;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 7;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -871,15 +871,32 @@ pub struct ExploreStreamMechanismLayer {
     pub structural_closure_root: Option<String>,
     pub support_closure_root: Option<String>,
     pub support_closure_totals: Option<ExploreStreamMechanismSupportTotals>,
-    /// Append-only prefix observations of correlated starter support. These
-    /// are stream facts, not a fabricated estimate of final case count.
-    pub support_observation_points: u128,
-    pub registered_support_slices: u128,
-    pub dirty_support_slices: u128,
-    pub observed_support_slices: u128,
-    pub sealed_support_slices: u128,
-    pub support_observation_chain_root: Option<String>,
-    pub initial_support_observation_point_id: Option<String>,
+    /// Total append-only prefix observations across the automatic whole-
+    /// mechanism lane and explicitly requested node/edge lanes. These are
+    /// stream facts, not a fabricated estimate of final case count.
+    pub total_support_observation_points: u128,
+    pub total_support_observation_chain_root: Option<String>,
+    /// Automatic whole-mechanism coverage used to authorize structural
+    /// support closure. Explicit readers never contribute to these fields.
+    pub automatic_support_observation_points: u128,
+    pub automatic_registered_support_slices: u128,
+    pub automatic_dirty_support_slices: u128,
+    pub automatic_observed_support_slices: u128,
+    pub automatic_sealed_support_slices: u128,
+    pub automatic_support_observation_chain_root: Option<String>,
+    pub initial_automatic_support_observation_point_id: Option<String>,
+    /// Durable observation declarations include automatic whole-mechanism
+    /// aliases, so this count is intentionally independent of the explicit
+    /// node/edge scheduler's registered-slice count.
+    pub explicit_support_observation_demand_registrations: u128,
+    pub explicit_support_observation_points: u128,
+    pub explicit_registered_support_slices: u128,
+    pub explicit_ready_support_slices: u128,
+    pub explicit_pending_backfill_support_slices: u128,
+    pub explicit_dirty_support_slices: u128,
+    pub explicit_unsealed_support_slices: u128,
+    pub explicit_observed_support_slices: u128,
+    pub explicit_sealed_support_slices: u128,
 }
 
 /// Bounded materialization progress for the optional public result directory.
@@ -2333,13 +2350,24 @@ fn mechanism_layer(
         structural_closure_root: None,
         support_closure_root: None,
         support_closure_totals: None,
-        support_observation_points: 0,
-        registered_support_slices: 0,
-        dirty_support_slices: 0,
-        observed_support_slices: 0,
-        sealed_support_slices: 0,
-        support_observation_chain_root: None,
-        initial_support_observation_point_id: None,
+        total_support_observation_points: 0,
+        total_support_observation_chain_root: None,
+        automatic_support_observation_points: 0,
+        automatic_registered_support_slices: 0,
+        automatic_dirty_support_slices: 0,
+        automatic_observed_support_slices: 0,
+        automatic_sealed_support_slices: 0,
+        automatic_support_observation_chain_root: None,
+        initial_automatic_support_observation_point_id: None,
+        explicit_support_observation_demand_registrations: 0,
+        explicit_support_observation_points: 0,
+        explicit_registered_support_slices: 0,
+        explicit_ready_support_slices: 0,
+        explicit_pending_backfill_support_slices: 0,
+        explicit_dirty_support_slices: 0,
+        explicit_unsealed_support_slices: 0,
+        explicit_observed_support_slices: 0,
+        explicit_sealed_support_slices: 0,
     };
     let Some(analysis) = analysis else {
         return Ok(absent());
@@ -2413,6 +2441,18 @@ fn mechanism_layer(
             }),
         };
     let raw_unavailable = counts.unavailable_cases();
+    let total_support_observation_points = journal.mechanism_support_observation_count(request_id);
+    let automatic_support_observation_points =
+        journal.mechanism_support_automatic_observation_count(request_id);
+    let explicit_support_observation_points = total_support_observation_points
+        .checked_sub(automatic_support_observation_points)
+        .ok_or_else(|| {
+            ExploreStreamPreparationError::Execution(
+                "automatic support observations exceeded the shared observation log".into(),
+            )
+        })?;
+    let explicit_scheduler =
+        journal.durable_explicit_mechanism_support_scheduler_summary(request_id);
     Ok(ExploreStreamMechanismLayer {
         name,
         request_id: hex(request_id.bytes()),
@@ -2450,17 +2490,40 @@ fn mechanism_layer(
                 target_starters: closure.target_starter_count(),
             }
         }),
-        support_observation_points: journal.mechanism_support_observation_count(request_id),
-        registered_support_slices: journal.mechanism_support_registered_slice_count(request_id),
-        dirty_support_slices: journal.mechanism_support_dirty_slice_count(request_id),
-        observed_support_slices: journal.mechanism_support_observed_slice_count(request_id),
-        sealed_support_slices: journal.mechanism_support_sealed_slice_count(request_id),
-        support_observation_chain_root: journal
+        total_support_observation_points,
+        total_support_observation_chain_root: journal
             .mechanism_support_observation_chain_root(request_id)
             .map(|root| hex(root.bytes())),
-        initial_support_observation_point_id: journal
+        automatic_support_observation_points,
+        automatic_registered_support_slices: journal
+            .mechanism_support_registered_slice_count(request_id),
+        automatic_dirty_support_slices: journal.mechanism_support_dirty_slice_count(request_id),
+        automatic_observed_support_slices: journal
+            .mechanism_support_observed_slice_count(request_id),
+        automatic_sealed_support_slices: journal.mechanism_support_sealed_slice_count(request_id),
+        automatic_support_observation_chain_root: journal
+            .mechanism_support_automatic_observation_chain_root(request_id)
+            .map(|root| hex(root.bytes())),
+        initial_automatic_support_observation_point_id: journal
             .mechanism_support_initial_observation_point_id(request_id)
             .map(|point_id| hex(point_id.bytes())),
+        explicit_support_observation_demand_registrations: journal
+            .mechanism_support_observation_demand_count(request_id),
+        explicit_support_observation_points,
+        explicit_registered_support_slices: explicit_scheduler
+            .map_or(0, |scheduler| scheduler.registry().slice_count()),
+        explicit_ready_support_slices: explicit_scheduler
+            .map_or(0, |scheduler| scheduler.registry().ready_slice_count()),
+        explicit_pending_backfill_support_slices: explicit_scheduler
+            .map_or(0, |scheduler| scheduler.pending_backfill().slice_count()),
+        explicit_dirty_support_slices: explicit_scheduler
+            .map_or(0, |scheduler| scheduler.dirty().slice_count()),
+        explicit_unsealed_support_slices: explicit_scheduler
+            .map_or(0, |scheduler| scheduler.unsealed().slice_count()),
+        explicit_observed_support_slices: journal
+            .mechanism_support_explicit_observed_slice_count(request_id),
+        explicit_sealed_support_slices: journal
+            .mechanism_support_explicit_sealed_slice_count(request_id),
     })
 }
 

@@ -1374,6 +1374,7 @@ mod tests {
                 span: Span::dummy(),
             },
             analysis: Box::new([]),
+            observation_demands: Box::new([]),
             starter_projections: Box::new([]),
             transition_graphs: Box::new([]),
             span: Span::dummy(),

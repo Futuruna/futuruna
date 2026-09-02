@@ -18,11 +18,13 @@
 //! closure marker follows the final discovery event once the journal retains
 //! the request closure; definition payload catch-up never hides that answer.
 //! A request-local observation sidecar streams the journal-owned factorized
-//! support points as they emerge. A second request-local sidecar streams
-//! structural assignments in discovery order, then the exact quotient closure,
-//! and finally one compact support receipt after every automatically registered
-//! whole-mechanism slice seals. A
-//! third, independently resumable sidecar becomes readable at quotient closure and
+//! support points from both the automatic core and explicit extension lanes as
+//! they emerge. A compact demand ledger preserves each unique durable slice
+//! registration and maps authored aliases to the shared point stream. A second
+//! request-local sidecar streams structural assignments in discovery order,
+//! then the exact quotient closure, and finally one compact support receipt
+//! after every automatically registered whole-mechanism slice seals. A third,
+//! independently resumable sidecar becomes readable at quotient closure and
 //! publishes the normalized structural frame/context/node/edge/mechanism/profile
 //! catalog in fixed typed chunks. Automatic structural rows never construct the
 //! correlated starter union or expand a structural subject into subject x case
@@ -61,10 +63,13 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonDefinition,
 };
 use super::mechanism_support::{
-    MechanismClosedSubjectStarterProjectionAuthority, MechanismFactorizedStarterBoundBasis,
-    MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportCount,
-    MechanismSupportFacet, MechanismSupportKey, MechanismSupportSlice,
-    MechanismSupportStarterCursor, MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
+    MechanismClosedSubjectStarterProjectionAuthority,
+    MechanismExplicitObservationRegistrationDisposition,
+    MechanismExplicitObservationRegistrationPhase, MechanismExplicitObservationSchedulerSummary,
+    MechanismFactorizedStarterBoundBasis, MechanismSupportCatalogBuilder,
+    MechanismSupportClosureReceipt, MechanismSupportCount, MechanismSupportFacet,
+    MechanismSupportKey, MechanismSupportSlice, MechanismSupportStarterCursor,
+    MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
     MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION, MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
     MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
 };
@@ -91,12 +96,12 @@ use super::relational_case_transition_projection::{
     RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION,
 };
 use super::relational_ir::{
-    ExploreAnalysisNodeIr, ExploreMechanismTargetIr, ExploreResultGrainIr, ExploreResultInputIr,
-    ExploreStarterProjectionFacetIr, ExploreStarterProjectionSubjectIr,
+    ExploreAnalysisNodeIr, ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr,
+    ExploreMechanismTargetIr, ExploreResultGrainIr, ExploreResultInputIr,
 };
 use super::relational_journal::{
-    MechanismSupportObservationPoint, MechanismSupportObservationStatus, RelationalJournal,
-    RelationalJournalContract,
+    MechanismSupportObservationDemandRegistrationClaim, MechanismSupportObservationPoint,
+    MechanismSupportObservationStatus, RelationalJournal, RelationalJournalContract,
 };
 use super::relational_mechanism_executor::{
     RelationalIfDecisionOutcome, RelationalMechanismCalleeId,
@@ -143,13 +148,13 @@ use super::{
     RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 11;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 12;
 
-const CURSOR_FILE: &str = ".publication-cursor-v11.json";
+const CURSOR_FILE: &str = ".publication-cursor-v12.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
-const RESULT_PREFIX_ROOT_V11: &[u8] = b"futuruna.explore.publication-prefix.v11";
-const RESULT_PREFIX_EXTEND_V11: &[u8] = b"futuruna.explore.publication-prefix-extend.v11";
+const RESULT_PREFIX_ROOT_V12: &[u8] = b"futuruna.explore.publication-prefix.v12";
+const RESULT_PREFIX_EXTEND_V12: &[u8] = b"futuruna.explore.publication-prefix-extend.v12";
 const CASE_SUPPORT_ARTIFACT_KEY: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH: &str = "graphs/case-support.ndjson";
@@ -319,6 +324,16 @@ impl ResultPublicationInput {
     }
 }
 
+/// One authored presentation address for a name-independent checked support
+/// slice. Several aliases may deliberately share both IDs and one durable
+/// registration.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SupportObservationDemandAlias {
+    name: Box<str>,
+    demand_id: [u8; 32],
+    slice: MechanismSupportSlice,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum PublicationArtifactPlan {
     Result {
@@ -350,6 +365,16 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+    },
+    MechanismSupportObservationDemands {
+        key: Box<str>,
+        name: Box<str>,
+        path: PathBuf,
+        request_id: MechanismRequestId,
+        demand_set_id: [u8; 32],
+        aliases: Box<[SupportObservationDemandAlias]>,
+        observations_artifact_key: Box<str>,
+        observations_artifact_path: Box<str>,
     },
     MechanismStructural {
         key: Box<str>,
@@ -408,6 +433,7 @@ impl PublicationArtifactPlan {
             | Self::Mechanism { key, .. }
             | Self::MechanismDefinitions { key, .. }
             | Self::MechanismSupportObservations { key, .. }
+            | Self::MechanismSupportObservationDemands { key, .. }
             | Self::MechanismStructural { key, .. }
             | Self::MechanismStructuralDefinitions { key, .. }
             | Self::SubjectStarters { key, .. }
@@ -423,6 +449,7 @@ impl PublicationArtifactPlan {
             | Self::Mechanism { name, .. }
             | Self::MechanismDefinitions { name, .. }
             | Self::MechanismSupportObservations { name, .. }
+            | Self::MechanismSupportObservationDemands { name, .. }
             | Self::MechanismStructural { name, .. }
             | Self::MechanismStructuralDefinitions { name, .. }
             | Self::SubjectStarters { name, .. }
@@ -438,6 +465,7 @@ impl PublicationArtifactPlan {
             | Self::Mechanism { path, .. }
             | Self::MechanismDefinitions { path, .. }
             | Self::MechanismSupportObservations { path, .. }
+            | Self::MechanismSupportObservationDemands { path, .. }
             | Self::MechanismStructural { path, .. }
             | Self::MechanismStructuralDefinitions { path, .. }
             | Self::SubjectStarters { path, .. }
@@ -453,6 +481,9 @@ impl PublicationArtifactPlan {
             Self::Mechanism { .. } => "mechanism_incidence",
             Self::MechanismDefinitions { .. } => "mechanism_definitions",
             Self::MechanismSupportObservations { .. } => "mechanism_support_observations",
+            Self::MechanismSupportObservationDemands { .. } => {
+                "mechanism_support_observation_demands"
+            }
             Self::MechanismStructural { .. } => "mechanism_structural_support",
             Self::MechanismStructuralDefinitions { .. } => "mechanism_structural_definitions",
             Self::SubjectStarters { .. } => "subject_starter_support",
@@ -470,6 +501,7 @@ pub(crate) struct RelationalPublicationPlan {
     checked_program: Box<str>,
     contract: RelationalJournalContract,
     journal_id: [u8; 32],
+    support_observation_demand_set_id: [u8; 32],
     starter_consumer_set_id: [u8; 32],
     transition_graph_consumer_set_id: [u8; 32],
     artifacts: Box<[PublicationArtifactPlan]>,
@@ -491,18 +523,52 @@ impl RelationalPublicationPlan {
             return Err(RelationalPublicationError::PlanIdentityMismatch);
         }
 
+        let support_observation_demand_set_id = checked.support_observation_demand_set_id().bytes();
+        let mut support_observation_aliases =
+            BTreeMap::<MechanismRequestId, Vec<SupportObservationDemandAlias>>::new();
+        for (demand, identity) in checked.support_observation_demands() {
+            if demand.subject != identity.subject
+                || demand.within_mechanism != identity.within_mechanism
+            {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+            let target = checked_mechanism_target_at(
+                checked,
+                demand.request_node_index,
+                identity.request_id,
+            )?;
+            let key = MechanismSupportKey::from_journal_codec_parts(
+                identity.request_id,
+                target,
+                mechanism_support_subject(identity.subject),
+            );
+            let slice = identity.within_mechanism.map_or_else(
+                || MechanismSupportSlice::total(key),
+                |mechanism_id| MechanismSupportSlice::within_mechanism(key, mechanism_id),
+            );
+            support_observation_aliases
+                .entry(identity.request_id)
+                .or_default()
+                .push(SupportObservationDemandAlias {
+                    name: demand.name.clone().into_boxed_str(),
+                    demand_id: identity.id.bytes(),
+                    slice,
+                });
+        }
+
         let mut artifacts = Vec::with_capacity(
             checked
                 .closed_query
                 .analysis
                 .len()
-                .checked_mul(5)
+                .checked_mul(6)
                 .and_then(|count| count.checked_add(checked.starter_projection_consumers().len()))
                 .and_then(|count| count.checked_add(checked.transition_graph_consumers().len()))
                 .and_then(|count| count.checked_add(2))
                 .ok_or(RelationalPublicationError::ArithmeticOverflow)?,
         );
         let mut definition_artifacts = Vec::new();
+        let mut support_observation_demand_artifacts = Vec::new();
         let mut support_observation_artifacts = Vec::new();
         let mut structural_artifacts = Vec::new();
         let mut structural_definition_artifacts = Vec::new();
@@ -577,6 +643,9 @@ impl RelationalPublicationPlan {
                         format!("mechanism-definitions:{request_id_hex}").into_boxed_str();
                     let observations_artifact_key =
                         format!("mechanism-support-observations:{request_id_hex}").into_boxed_str();
+                    let observation_demands_artifact_key =
+                        format!("mechanism-support-observation-demands:{request_id_hex}")
+                            .into_boxed_str();
                     let structural_artifact_key =
                         format!("mechanism-structural:{request_id_hex}").into_boxed_str();
                     let structural_definitions_artifact_key =
@@ -615,6 +684,29 @@ impl RelationalPublicationPlan {
                         ));
                     }
                     support_observation_artifacts.push(observations);
+                    let observation_demands_path = PathBuf::from("mechanisms")
+                        .join(format!("{safe_name}.support-observation-demands.ndjson"));
+                    let observation_demands =
+                        PublicationArtifactPlan::MechanismSupportObservationDemands {
+                            key: observation_demands_artifact_key,
+                            name: format!("{}_support_observation_demands", request.name)
+                                .into_boxed_str(),
+                            path: observation_demands_path,
+                            request_id: *request_id,
+                            demand_set_id: support_observation_demand_set_id,
+                            aliases: support_observation_aliases
+                                .remove(request_id)
+                                .unwrap_or_default()
+                                .into_boxed_slice(),
+                            observations_artifact_key: observations_artifact_key.clone(),
+                            observations_artifact_path: observations_artifact_path.clone(),
+                        };
+                    if !paths.insert(observation_demands.path().to_path_buf()) {
+                        return Err(RelationalPublicationError::ArtifactPathCollision(
+                            observation_demands.path().to_path_buf(),
+                        ));
+                    }
+                    support_observation_demand_artifacts.push(observation_demands);
                     let structural_path =
                         PathBuf::from("mechanisms").join(format!("{safe_name}.structural.ndjson"));
                     let structural_artifact_path =
@@ -692,9 +784,13 @@ impl RelationalPublicationPlan {
             }
             artifacts.push(artifact);
         }
+        if !support_observation_aliases.is_empty() {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
         // Structural assignments and the compact support quotient are answer
         // artifacts, so service them before the potentially much larger raw
         // definition payload sidecars.
+        artifacts.extend(support_observation_demand_artifacts);
         artifacts.extend(support_observation_artifacts);
         artifacts.extend(structural_artifacts);
         // Explicit typed starter consumers are independently resumable and
@@ -820,6 +916,7 @@ impl RelationalPublicationPlan {
             checked_program: checked.program_hash().to_string().into_boxed_str(),
             contract,
             journal_id: contract.id().bytes(),
+            support_observation_demand_set_id,
             starter_consumer_set_id: checked.starter_consumer_set_id().bytes(),
             transition_graph_consumer_set_id: checked.transition_graph_consumer_set_id().bytes(),
             artifacts: artifacts.into_boxed_slice(),
@@ -867,19 +964,19 @@ fn checked_mechanism_target_at(
 }
 
 const fn mechanism_support_subject(
-    subject: ExploreStarterProjectionSubjectIr,
+    subject: ExploreMechanismSupportSubjectIr,
 ) -> MechanismSupportSubject {
     match subject {
-        ExploreStarterProjectionSubjectIr::Mechanism(mechanism_id) => {
+        ExploreMechanismSupportSubjectIr::Mechanism(mechanism_id) => {
             MechanismSupportSubject::Mechanism(mechanism_id)
         }
-        ExploreStarterProjectionSubjectIr::Node { facet, node_id } => {
+        ExploreMechanismSupportSubjectIr::Node { facet, node_id } => {
             MechanismSupportSubject::Node {
                 facet: mechanism_support_facet(facet),
                 node_id,
             }
         }
-        ExploreStarterProjectionSubjectIr::Edge { facet, edge_id } => {
+        ExploreMechanismSupportSubjectIr::Edge { facet, edge_id } => {
             MechanismSupportSubject::Edge {
                 facet: mechanism_support_facet(facet),
                 edge_id,
@@ -888,10 +985,10 @@ const fn mechanism_support_subject(
     }
 }
 
-const fn mechanism_support_facet(facet: ExploreStarterProjectionFacetIr) -> MechanismSupportFacet {
+const fn mechanism_support_facet(facet: ExploreMechanismSupportFacetIr) -> MechanismSupportFacet {
     match facet {
-        ExploreStarterProjectionFacetIr::Activation => MechanismSupportFacet::Activation,
-        ExploreStarterProjectionFacetIr::DifferentialParticipation => {
+        ExploreMechanismSupportFacetIr::Activation => MechanismSupportFacet::Activation,
+        ExploreMechanismSupportFacetIr::DifferentialParticipation => {
             MechanismSupportFacet::DifferentialParticipation
         }
     }
@@ -1472,6 +1569,7 @@ fn source_cursor_matches_artifact(
             ArtifactSourceCursor::Flat { .. },
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
@@ -1522,6 +1620,7 @@ fn pending_source_end_matches_artifact(
             PendingArtifactSourceEnd::Flat { .. },
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
@@ -2035,6 +2134,7 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             | PublicationArtifactPlan::Mechanism { .. }
             | PublicationArtifactPlan::MechanismDefinitions { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
             | PublicationArtifactPlan::SubjectStarters { .. }
@@ -2055,6 +2155,7 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
                 | PublicationArtifactPlan::Mechanism { .. }
                 | PublicationArtifactPlan::MechanismDefinitions { .. }
                 | PublicationArtifactPlan::MechanismSupportObservations { .. }
+                | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
                 | PublicationArtifactPlan::MechanismStructural { .. }
                 | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
                 | PublicationArtifactPlan::SubjectStarters { .. }
@@ -2877,6 +2978,7 @@ fn initial_artifact_cursor(
         source: match artifact {
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
@@ -3052,6 +3154,7 @@ fn validate_source_cursors(
             (
                 PublicationArtifactPlan::Result { .. }
                 | PublicationArtifactPlan::MechanismSupportObservations { .. }
+                | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
                 | PublicationArtifactPlan::MechanismStructural { .. }
                 | PublicationArtifactPlan::CaseSupport { .. }
                 | PublicationArtifactPlan::CaseTransitions { .. }
@@ -3686,6 +3789,16 @@ fn record_at(
             mechanism_support_observation_record(journal, *request_id, next_source_ordinal)?,
         ),
         (
+            PublicationArtifactPlan::MechanismSupportObservationDemands { request_id, .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => address_flat_record(
+            artifact,
+            next_source_ordinal,
+            mechanism_support_observation_demand_record(journal, *request_id, next_source_ordinal)?,
+        ),
+        (
             PublicationArtifactPlan::MechanismStructural { request_id, .. },
             ArtifactSourceCursor::Flat {
                 next_source_ordinal,
@@ -3990,6 +4103,222 @@ fn mechanism_support_observation_record(
     })))
 }
 
+fn mechanism_support_observation_demand_record(
+    journal: &RelationalJournal,
+    request_id: MechanismRequestId,
+    source_ordinal: u128,
+) -> Result<PublicationRecord, RelationalPublicationError> {
+    let available = journal.mechanism_support_observation_demand_count(request_id);
+    if source_ordinal > available {
+        return Err(RelationalPublicationError::PublicationSourceAhead {
+            artifact: format!(
+                "mechanism-support-observation-demands:{}",
+                hex(request_id.bytes())
+            ),
+            next_source_ordinal: source_ordinal,
+            available,
+        });
+    }
+    if source_ordinal == available {
+        return Ok(PublicationRecord::Exhausted);
+    }
+    let ordinal = usize::try_from(source_ordinal)
+        .map_err(|_| RelationalPublicationError::ArithmeticOverflow)?;
+    let claim = *journal
+        .mechanism_support_observation_demand_at(request_id, ordinal)
+        .ok_or(RelationalPublicationError::MechanismOrdinalIndexMismatch)?;
+    if claim.slice().key().request_id() != request_id {
+        return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
+    }
+    Ok(PublicationRecord::Emit(json!({
+        "kind": "mechanism_support_observation_demand_registration",
+        "registration_version": claim.version(),
+        "registration_ordinal": source_ordinal.to_string(),
+        "request_id": hex(request_id.bytes()),
+        "slice": public_mechanism_support_slice_coordinate(claim.slice()),
+        "checkpoint_cursor": public_mechanism_support_checkpoint_cursor(claim.cursor()),
+        "frontier_root": hex(claim.frontier_root().bytes()),
+        "disposition": public_mechanism_support_observation_registration_disposition(
+            claim.disposition(),
+        ),
+        "registration_phase": public_mechanism_support_observation_registration_phase(
+            claim.phase(),
+        ),
+        "registration_structural_cursor": claim.registration_structural_cursor().to_string(),
+        "prior_explicit_scheduler": public_explicit_mechanism_support_scheduler(
+            claim.prior_scheduler(),
+        ),
+        "next_explicit_scheduler": public_explicit_mechanism_support_scheduler(
+            claim.next_scheduler(),
+        ),
+    })))
+}
+
+fn public_mechanism_support_checkpoint_cursor(
+    cursor: super::mechanism_support::MechanismSupportCheckpointCursor,
+) -> JsonValue {
+    json!({
+        "target_discovery": cursor.target_discovery().to_string(),
+        "terminal_discovery": cursor.terminal_discovery().to_string(),
+        "structural_assignment": cursor.structural_assignment().to_string(),
+    })
+}
+
+fn public_mechanism_support_observation_registration_disposition(
+    disposition: MechanismExplicitObservationRegistrationDisposition,
+) -> &'static str {
+    match disposition {
+        MechanismExplicitObservationRegistrationDisposition::Registered => "registered_explicit",
+        MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered => {
+            "already_registered"
+        }
+        MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism => {
+            "automatic_whole_mechanism_overlap"
+        }
+    }
+}
+
+fn public_mechanism_support_observation_registration_phase(
+    phase: MechanismExplicitObservationRegistrationPhase,
+) -> JsonValue {
+    match phase {
+        MechanismExplicitObservationRegistrationPhase::Open => json!({
+            "kind": "open",
+            "support_root": null,
+        }),
+        MechanismExplicitObservationRegistrationPhase::Sealed { support_root } => json!({
+            "kind": "sealed",
+            "support_root": hex(support_root.bytes()),
+        }),
+    }
+}
+
+fn public_explicit_mechanism_support_scheduler(
+    scheduler: MechanismExplicitObservationSchedulerSummary,
+) -> JsonValue {
+    json!({
+        "registry": {
+            "root": hex(scheduler.registry().root().bytes()),
+            "registered_slices": scheduler.registry().slice_count().to_string(),
+            "ready_slices": scheduler.registry().ready_slice_count().to_string(),
+        },
+        "pending_backfill": {
+            "root": hex(scheduler.pending_backfill().root().bytes()),
+            "slices": scheduler.pending_backfill().slice_count().to_string(),
+        },
+        "dirty": {
+            "root": hex(scheduler.dirty().root().bytes()),
+            "slices": scheduler.dirty().slice_count().to_string(),
+        },
+        "unsealed": {
+            "root": hex(scheduler.unsealed().root().bytes()),
+            "slices": scheduler.unsealed().slice_count().to_string(),
+        },
+    })
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct SupportObservationDemandRegistrationCounts {
+    total: u128,
+    registered_explicit: u128,
+    already_registered: u128,
+    automatic_overlap: u128,
+}
+
+fn mechanism_support_observation_demand_registrations(
+    journal: &RelationalJournal,
+    request_id: MechanismRequestId,
+) -> Result<
+    (
+        SupportObservationDemandRegistrationCounts,
+        BTreeMap<MechanismSupportSlice, (u128, MechanismSupportObservationDemandRegistrationClaim)>,
+    ),
+    RelationalPublicationError,
+> {
+    let total = journal.mechanism_support_observation_demand_count(request_id);
+    let mut counts = SupportObservationDemandRegistrationCounts {
+        total,
+        ..SupportObservationDemandRegistrationCounts::default()
+    };
+    let mut registrations = BTreeMap::new();
+    for ordinal in 0..total {
+        let index =
+            usize::try_from(ordinal).map_err(|_| RelationalPublicationError::ArithmeticOverflow)?;
+        let claim = *journal
+            .mechanism_support_observation_demand_at(request_id, index)
+            .ok_or(RelationalPublicationError::MechanismOrdinalIndexMismatch)?;
+        if claim.slice().key().request_id() != request_id
+            || registrations
+                .insert(claim.slice(), (ordinal, claim))
+                .is_some()
+        {
+            return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
+        }
+        match claim.disposition() {
+            MechanismExplicitObservationRegistrationDisposition::Registered => {
+                counts.registered_explicit = counts
+                    .registered_explicit
+                    .checked_add(1)
+                    .ok_or(RelationalPublicationError::ArithmeticOverflow)?;
+            }
+            MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered => {
+                counts.already_registered = counts
+                    .already_registered
+                    .checked_add(1)
+                    .ok_or(RelationalPublicationError::ArithmeticOverflow)?;
+            }
+            MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism => {
+                counts.automatic_overlap = counts
+                    .automatic_overlap
+                    .checked_add(1)
+                    .ok_or(RelationalPublicationError::ArithmeticOverflow)?;
+            }
+        }
+    }
+    Ok((counts, registrations))
+}
+
+fn public_support_observation_demand_alias(
+    alias: &SupportObservationDemandAlias,
+    registration: Option<(u128, MechanismSupportObservationDemandRegistrationClaim)>,
+    latest: Option<&MechanismSupportObservationPoint>,
+    observations_artifact_key: &str,
+    observations_artifact_path: &str,
+) -> JsonValue {
+    let status = match latest.map(MechanismSupportObservationPoint::status) {
+        Some(MechanismSupportObservationStatus::Sealed { .. }) => "sealed",
+        Some(MechanismSupportObservationStatus::Open) => "open",
+        None if registration.is_some() => "registered_awaiting_first_observation",
+        None => "awaiting_registration",
+    };
+    json!({
+        "name": alias.name,
+        "demand_id": hex(alias.demand_id),
+        "slice_id": hex(alias.slice.id().bytes()),
+        "slice": public_mechanism_support_slice_coordinate(alias.slice),
+        "status": status,
+        "registration": registration.map(|(ordinal, claim)| json!({
+            "ordinal": ordinal.to_string(),
+            "disposition": public_mechanism_support_observation_registration_disposition(
+                claim.disposition(),
+            ),
+            "phase": public_mechanism_support_observation_registration_phase(claim.phase()),
+        })),
+        "shared_observation": {
+            "artifact_key": observations_artifact_key,
+            "path": observations_artifact_path,
+            "lookup": {
+                "field": "slice.slice_id",
+                "value": hex(alias.slice.id().bytes()),
+            },
+            "latest_point_id": latest.map(|point| hex(point.point_id().bytes())),
+            "latest_status": latest.map(|point| {
+                public_mechanism_support_observation_status(point.status())
+            }),
+        },
+    })
+}
+
 fn public_mechanism_support_observation_status(
     status: MechanismSupportObservationStatus,
 ) -> JsonValue {
@@ -4098,7 +4427,6 @@ struct SealedSupportObservationAuthority {
     dirty_slice_count: u128,
     structural_mechanism_count: u128,
     observation_chain_root: Option<[u8; 32]>,
-    initial_observation_point_id: Option<[u8; 32]>,
 }
 
 impl StructuralSidecarAuthority<'_> {
@@ -4193,9 +4521,6 @@ fn structural_sidecar_authority(
         structural,
         support_catalog,
     )?;
-    let initial_observation_point_id = journal
-        .mechanism_support_initial_observation_point_id(request_id)
-        .map(|point_id| point_id.bytes());
     let mechanism_count = structural.structural_mechanism_count() as u128;
     let node_count = structural.canonical_node_ids().len() as u128;
     let edge_count = structural.canonical_edge_ids().len() as u128;
@@ -4259,7 +4584,7 @@ fn structural_sidecar_authority(
         _ => return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch),
     };
 
-    let observation_count = journal.mechanism_support_observation_count(request_id);
+    let observation_count = journal.mechanism_support_automatic_observation_count(request_id);
     let observed_slice_count = journal.mechanism_support_observed_slice_count(request_id);
     let sealed_slice_count = journal.mechanism_support_sealed_slice_count(request_id);
     let registered_slice_count = journal.mechanism_support_registered_slice_count(request_id);
@@ -4274,7 +4599,7 @@ fn structural_sidecar_authority(
         return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
     }
     let observation_chain_root = journal
-        .mechanism_support_observation_chain_root(request_id)
+        .mechanism_support_automatic_observation_chain_root(request_id)
         .map(|root| root.bytes());
     let observation_pending = journal
         .mechanism_support_observation_pending(request_id)
@@ -4284,9 +4609,7 @@ fn structural_sidecar_authority(
         || dirty_slice_count > registered_slice_count
         || registered_slice_count > mechanism_count
         || observation_count < observed_slice_count
-        || (observation_count == 0)
-            != (observation_chain_root.is_none() && initial_observation_point_id.is_none())
-        || (observation_chain_root.is_none() != initial_observation_point_id.is_none())
+        || (observation_count == 0) != observation_chain_root.is_none()
     {
         return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
     }
@@ -4308,7 +4631,6 @@ fn structural_sidecar_authority(
                 dirty_slice_count,
                 structural_mechanism_count: mechanism_count,
                 observation_chain_root,
-                initial_observation_point_id,
             })
     });
 
@@ -5138,11 +5460,11 @@ fn public_mechanism_support_closure(
         "structural_quotient_root": hex(closure.structural_root().bytes()),
         "shared_residual_root": hex(closure.residual_root().bytes()),
         "counts": {
-            "support_observations": authority.observation_count.to_string(),
-            "registered_support_slices": authority.registered_slice_count.to_string(),
-            "dirty_support_slices": authority.dirty_slice_count.to_string(),
-            "observed_support_slices": authority.observed_slice_count.to_string(),
-            "sealed_support_slices": authority.sealed_slice_count.to_string(),
+            "automatic_support_observations": authority.observation_count.to_string(),
+            "automatic_registered_support_slices": authority.registered_slice_count.to_string(),
+            "automatic_dirty_support_slices": authority.dirty_slice_count.to_string(),
+            "automatic_observed_support_slices": authority.observed_slice_count.to_string(),
+            "automatic_sealed_support_slices": authority.sealed_slice_count.to_string(),
             "structural_mechanisms": authority.structural_mechanism_count.to_string(),
             "target_cases": closure.target_case_count().to_string(),
             "successful_cases": closure.successful_case_count().to_string(),
@@ -5155,13 +5477,12 @@ fn public_mechanism_support_closure(
             definitions_artifact_key,
             definitions_artifact_path,
         ),
-        "support_observations": {
+        "automatic_support_observation_authority": {
             "artifact_key": observations_artifact_key,
             "path": observations_artifact_path,
             "schedule": "every_discovered_structural_mechanism_total_slice",
             "observation_count": authority.observation_count.to_string(),
             "chain_root": authority.observation_chain_root.map(hex),
-            "initial_point_id": authority.initial_observation_point_id.map(hex),
             "registered_slice_count": authority.registered_slice_count.to_string(),
             "dirty_slice_count": authority.dirty_slice_count.to_string(),
             "observed_slice_count": authority.observed_slice_count.to_string(),
@@ -6569,6 +6890,7 @@ fn pending_source_end(
         }
         PublicationArtifactPlan::Result { .. }
         | PublicationArtifactPlan::MechanismSupportObservations { .. }
+        | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
         | PublicationArtifactPlan::MechanismStructural { .. }
         | PublicationArtifactPlan::CaseSupport { .. }
         | PublicationArtifactPlan::CaseTransitions { .. }
@@ -8459,6 +8781,10 @@ fn build_manifest(
                     JsonValue::String("immutable_factorized_prefix_summary".into()),
                 );
                 object.insert(
+                    "point_lanes".into(),
+                    json!(["automatic_core", "explicit_support_observation_demands"]),
+                );
+                object.insert(
                     "automatic_schedule".into(),
                     JsonValue::String(
                         "every_discovered_structural_mechanism_total_slice".into(),
@@ -8471,6 +8797,132 @@ fn build_manifest(
                 object.insert(
                     "seal_schedule".into(),
                     JsonValue::String("lazy_all_registered_slice_sweep".into()),
+                );
+                object.insert(
+                    "explicit_schedule".into(),
+                    JsonValue::String(
+                        "stable_slice_deduplicated_registration_with_bounded_backfill".into(),
+                    ),
+                );
+                object.insert("contains_typed_values".into(), JsonValue::Bool(false));
+                object.insert("cells_serialized".into(), JsonValue::Bool(false));
+            }
+            if let PublicationArtifactPlan::MechanismSupportObservationDemands {
+                request_id,
+                demand_set_id,
+                aliases,
+                observations_artifact_key,
+                observations_artifact_path,
+                ..
+            } = artifact
+            {
+                let (registration_counts, registrations) =
+                    mechanism_support_observation_demand_registrations(journal, *request_id)?;
+                let unique_demand_ids = aliases
+                    .iter()
+                    .map(|alias| alias.demand_id)
+                    .collect::<BTreeSet<_>>();
+                let unique_slices = aliases
+                    .iter()
+                    .map(|alias| alias.slice)
+                    .collect::<BTreeSet<_>>();
+                if unique_demand_ids.len() != unique_slices.len() {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+                let authored_declaration_count = aliases.len();
+                let public_aliases = aliases
+                    .iter()
+                    .map(|alias| {
+                        public_support_observation_demand_alias(
+                            alias,
+                            registrations.get(&alias.slice).copied(),
+                            journal.mechanism_support_observation_latest(alias.slice),
+                            observations_artifact_key,
+                            observations_artifact_path,
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                let explicit_scheduler = journal
+                    .durable_explicit_mechanism_support_scheduler_summary(*request_id);
+                object.insert(
+                    "record_schema".into(),
+                    JsonValue::String(
+                        "futuruna.relational-mechanism-support-observation-demands-v1".into(),
+                    ),
+                );
+                object.insert(
+                    "record_schema_version".into(),
+                    JsonValue::Number(1u32.into()),
+                );
+                object.insert(
+                    "request_id".into(),
+                    JsonValue::String(hex(request_id.bytes())),
+                );
+                object.insert(
+                    "demand_set_id".into(),
+                    JsonValue::String(hex(*demand_set_id)),
+                );
+                object.insert(
+                    "source_order".into(),
+                    JsonValue::String(
+                        "journal_support_observation_demand_registration_ordinal".into(),
+                    ),
+                );
+                object.insert(
+                    "shared_observations".into(),
+                    json!({
+                        "artifact_key": observations_artifact_key,
+                        "path": observations_artifact_path,
+                        "lookup_identity": "slice.slice_id",
+                        "contains_automatic_and_explicit_points": true,
+                    }),
+                );
+                object.insert("aliases".into(), JsonValue::Array(public_aliases));
+                object.insert(
+                    "demand_counts".into(),
+                    json!({
+                        "authored_declarations": authored_declaration_count.to_string(),
+                        "unique_checked_demands": unique_slices.len().to_string(),
+                        "durable_registration_claims": registration_counts.total.to_string(),
+                        "registered_explicit_slices": registration_counts.registered_explicit.to_string(),
+                        "already_registered_claims": registration_counts.already_registered.to_string(),
+                        "automatic_whole_mechanism_overlaps": registration_counts.automatic_overlap.to_string(),
+                        "explicit_observed_slices": journal
+                            .mechanism_support_explicit_observed_slice_count(*request_id)
+                            .to_string(),
+                        "explicit_sealed_slices": journal
+                            .mechanism_support_explicit_sealed_slice_count(*request_id)
+                            .to_string(),
+                    }),
+                );
+                object.insert(
+                    "explicit_scheduler".into(),
+                    explicit_scheduler
+                        .map(public_explicit_mechanism_support_scheduler)
+                        .unwrap_or(JsonValue::Null),
+                );
+                object.insert(
+                    "automatic_core".into(),
+                    json!({
+                        "registered_slices": journal
+                            .mechanism_support_registered_slice_count(*request_id)
+                            .to_string(),
+                        "dirty_slices": journal
+                            .mechanism_support_dirty_slice_count(*request_id)
+                            .to_string(),
+                        "observed_slices": journal
+                            .mechanism_support_observed_slice_count(*request_id)
+                            .to_string(),
+                        "sealed_slices": journal
+                            .mechanism_support_sealed_slice_count(*request_id)
+                            .to_string(),
+                        "observation_count": journal
+                            .mechanism_support_automatic_observation_count(*request_id)
+                            .to_string(),
+                        "observation_chain_root": journal
+                            .mechanism_support_automatic_observation_chain_root(*request_id)
+                            .map(|root| hex(root.bytes())),
+                    }),
                 );
                 object.insert("contains_typed_values".into(), JsonValue::Bool(false));
                 object.insert("cells_serialized".into(), JsonValue::Bool(false));
@@ -8485,11 +8937,11 @@ fn build_manifest(
             {
                 object.insert(
                     "record_schema".into(),
-                    JsonValue::String("futuruna.relational-structural-mechanism-support-v7".into()),
+                    JsonValue::String("futuruna.relational-structural-mechanism-support-v8".into()),
                 );
                 object.insert(
                     "record_schema_version".into(),
-                    JsonValue::Number(7u32.into()),
+                    JsonValue::Number(8u32.into()),
                 );
                 object.insert(
                     "source_order".into(),
@@ -8701,7 +9153,7 @@ fn build_manifest(
                         "automatic_schedule": "every_discovered_structural_mechanism_total_slice",
                         "dirty_coalescing": "affected_mechanism_only",
                         "seal_schedule": "lazy_all_registered_slice_sweep",
-                        "node_edge_schedule": "descriptor_only_explicit_demand_future",
+                        "node_edge_schedule": "stable_slice_deduplicated_explicit_demand_registry",
                         "subjects": ["mechanism", "node_activation", "node_differential_participation", "edge_activation", "edge_differential_participation"],
                     }),
                 );
@@ -8856,6 +9308,9 @@ fn build_manifest(
                 "admission_id": report.identity.admission_id,
                 "question_id": report.identity.question_id,
                 "analysis_graph_digest": report.identity.analysis_graph_digest,
+                "support_observation_demand_set_id": hex(
+                    plan.support_observation_demand_set_id,
+                ),
                 "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
                 "transition_graph_consumer_set_id": hex(plan.transition_graph_consumer_set_id),
                 "journal_id": report.identity.journal_id,
@@ -8897,7 +9352,7 @@ fn build_manifest(
                 "This is a materialized view; the durable journal is the recovery authority.",
                 "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
                 "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
-                "Mechanism-support observations publish immutable hard-bounded signature-fiber summaries for every discovered structural mechanism at journal checkpoints; only affected mechanisms become dirty, and capped scans widen bounds rather than falling back to a full case/starter union.",
+                "Mechanism-support observations publish immutable hard-bounded signature-fiber summaries in one shared request artifact: automatic whole-mechanism points form core closure authority, while explicitly demanded node/edge points remain an extension lane; only incident ready slices become dirty, and capped scans widen bounds rather than falling back to a full case/starter union.",
                 "The structural sidecar contains assignments, structural closure, and at most one constant-size support closure receipt; support-slice summaries live in the observation artifact.",
                 "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet, optionally within one enclosing mechanism, through its named checked value view.",
                 "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
@@ -8951,6 +9406,9 @@ fn available_source_record_count(
         )),
         PublicationArtifactPlan::MechanismSupportObservations { request_id, .. } => Ok(Some(
             journal.mechanism_support_observation_count(*request_id),
+        )),
+        PublicationArtifactPlan::MechanismSupportObservationDemands { request_id, .. } => Ok(Some(
+            journal.mechanism_support_observation_demand_count(*request_id),
         )),
         PublicationArtifactPlan::MechanismStructural { request_id, .. } => Ok(Some(
             structural_sidecar_authority(journal, *request_id)?.available_source_record_count()?,
@@ -9033,6 +9491,7 @@ fn artifact_is_caught_up(
     match (artifact, state.source) {
         (
             PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. },
             ArtifactSourceCursor::Flat {
                 next_source_ordinal,
@@ -9304,7 +9763,12 @@ fn artifact_layer_roots(
         });
     }
     if let PublicationArtifactPlan::MechanismSupportObservations { request_id, .. } = artifact {
-        let observation_count = journal.mechanism_support_observation_count(*request_id);
+        let shared_observation_count = journal.mechanism_support_observation_count(*request_id);
+        let automatic_observation_count =
+            journal.mechanism_support_automatic_observation_count(*request_id);
+        let explicit_observation_count = shared_observation_count
+            .checked_sub(automatic_observation_count)
+            .ok_or(RelationalPublicationError::MechanismOrdinalIndexMismatch)?;
         let registered_slice_count = journal.mechanism_support_registered_slice_count(*request_id);
         let dirty_slice_count = journal.mechanism_support_dirty_slice_count(*request_id);
         let observed_slice_count = journal.mechanism_support_observed_slice_count(*request_id);
@@ -9317,38 +9781,113 @@ fn artifact_layer_roots(
         {
             return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
         }
-        let latest = observation_count
+        let latest = shared_observation_count
             .checked_sub(1)
             .and_then(|ordinal| usize::try_from(ordinal).ok())
             .and_then(|ordinal| journal.mechanism_support_observation_at(*request_id, ordinal));
+        let (registration_counts, _) =
+            mechanism_support_observation_demand_registrations(journal, *request_id)?;
+        let explicit_scheduler =
+            journal.durable_explicit_mechanism_support_scheduler_summary(*request_id);
         return Ok(json!({
             "request_id": hex(request_id.bytes()),
-            "observation_count": observation_count.to_string(),
-            "slice_counts": {
-                "registered": registered_slice_count.to_string(),
-                "dirty": dirty_slice_count.to_string(),
-                "observed": observed_slice_count.to_string(),
-                "sealed": sealed_slice_count.to_string(),
+            "shared_observations": {
+                "observation_count": shared_observation_count.to_string(),
+                "observation_chain_root": journal
+                    .mechanism_support_observation_chain_root(*request_id)
+                    .map(|root| hex(root.bytes())),
+                "initial_automatic_observation_point_id": journal
+                    .mechanism_support_initial_observation_point_id(*request_id)
+                    .map(|point_id| hex(point_id.bytes())),
+                "latest_observation_point_id": latest
+                    .map(|point| hex(point.point_id().bytes())),
+                "latest_summary_root": latest
+                    .map(|point| hex(point.summary().root().bytes())),
             },
-            "automatic_registry_root": scheduler
-                .map(|summary| hex(summary.registry().root().bytes())),
-            "dirty_slice_set_root": scheduler
-                .map(|summary| hex(summary.dirty().root().bytes())),
-            "indexed_structural_assignment_count": scheduler
-                .map(|summary| summary.registry().indexed_assignment_count().to_string()),
-            "observation_chain_root": journal
+            "automatic_core": {
+                "observation_count": automatic_observation_count.to_string(),
+                "registered_slices": registered_slice_count.to_string(),
+                "dirty_slices": dirty_slice_count.to_string(),
+                "observed_slices": observed_slice_count.to_string(),
+                "sealed_slices": sealed_slice_count.to_string(),
+                "registry_root": scheduler
+                    .map(|summary| hex(summary.registry().root().bytes())),
+                "dirty_slice_set_root": scheduler
+                    .map(|summary| hex(summary.dirty().root().bytes())),
+                "indexed_structural_assignment_count": scheduler
+                    .map(|summary| summary.registry().indexed_assignment_count().to_string()),
+                "observation_chain_root": journal
+                    .mechanism_support_automatic_observation_chain_root(*request_id)
+                    .map(|root| hex(root.bytes())),
+                "observation_pending": journal
+                    .mechanism_support_observation_pending(*request_id)
+                    .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?,
+            },
+            "explicit_extensions": {
+                "registration_claims": registration_counts.total.to_string(),
+                "registered_slices": registration_counts.registered_explicit.to_string(),
+                "automatic_whole_mechanism_overlaps": registration_counts
+                    .automatic_overlap
+                    .to_string(),
+                "observation_count": explicit_observation_count.to_string(),
+                "observed_slices": journal
+                    .mechanism_support_explicit_observed_slice_count(*request_id)
+                    .to_string(),
+                "sealed_slices": journal
+                    .mechanism_support_explicit_sealed_slice_count(*request_id)
+                    .to_string(),
+                "scheduler": explicit_scheduler
+                    .map(public_explicit_mechanism_support_scheduler),
+            },
+        }));
+    }
+    if let PublicationArtifactPlan::MechanismSupportObservationDemands {
+        request_id,
+        demand_set_id,
+        aliases,
+        ..
+    } = artifact
+    {
+        let (registration_counts, _) =
+            mechanism_support_observation_demand_registrations(journal, *request_id)?;
+        let unique_slice_count = aliases
+            .iter()
+            .map(|alias| alias.slice)
+            .collect::<BTreeSet<_>>()
+            .len();
+        let explicit_scheduler =
+            journal.durable_explicit_mechanism_support_scheduler_summary(*request_id);
+        return Ok(json!({
+            "request_id": hex(request_id.bytes()),
+            "demand_set_id": hex(*demand_set_id),
+            "authored_declarations": aliases.len().to_string(),
+            "unique_checked_demands": unique_slice_count.to_string(),
+            "durable_registration_claims": registration_counts.total.to_string(),
+            "registered_explicit_slices": registration_counts.registered_explicit.to_string(),
+            "already_registered_claims": registration_counts.already_registered.to_string(),
+            "automatic_whole_mechanism_overlaps": registration_counts
+                .automatic_overlap
+                .to_string(),
+            "explicit_observed_slices": journal
+                .mechanism_support_explicit_observed_slice_count(*request_id)
+                .to_string(),
+            "explicit_sealed_slices": journal
+                .mechanism_support_explicit_sealed_slice_count(*request_id)
+                .to_string(),
+            "explicit_scheduler": explicit_scheduler
+                .map(public_explicit_mechanism_support_scheduler),
+            "automatic_observation_count": journal
+                .mechanism_support_automatic_observation_count(*request_id)
+                .to_string(),
+            "automatic_observation_chain_root": journal
+                .mechanism_support_automatic_observation_chain_root(*request_id)
+                .map(|root| hex(root.bytes())),
+            "shared_observation_count": journal
+                .mechanism_support_observation_count(*request_id)
+                .to_string(),
+            "shared_observation_chain_root": journal
                 .mechanism_support_observation_chain_root(*request_id)
                 .map(|root| hex(root.bytes())),
-            "initial_observation_point_id": journal
-                .mechanism_support_initial_observation_point_id(*request_id)
-                .map(|point_id| hex(point_id.bytes())),
-            "latest_observation_point_id": latest
-                .map(|point| hex(point.point_id().bytes())),
-            "latest_summary_root": latest
-                .map(|point| hex(point.summary().root().bytes())),
-            "observation_pending": journal
-                .mechanism_support_observation_pending(*request_id)
-                .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?,
         }));
     }
     let Some(analysis) = journal.analysis_state() else {
@@ -9424,7 +9963,8 @@ fn artifact_layer_roots(
                 "incidence_root": hex(closure.incidence_root().bytes()),
             }))
         }
-        PublicationArtifactPlan::MechanismSupportObservations { .. } => {
+        PublicationArtifactPlan::MechanismSupportObservations { .. }
+        | PublicationArtifactPlan::MechanismSupportObservationDemands { .. } => {
             unreachable!("support-observation roots return before consulting analysis")
         }
         PublicationArtifactPlan::MechanismStructural { request_id, .. } => {
@@ -9463,8 +10003,8 @@ fn artifact_layer_roots(
                     "nodes": structural.canonical_node_ids().len().to_string(),
                     "edges": structural.canonical_edge_ids().len().to_string(),
                 },
-                "support_observation_count": journal
-                    .mechanism_support_observation_count(*request_id)
+                "automatic_support_observation_count": journal
+                    .mechanism_support_automatic_observation_count(*request_id)
                     .to_string(),
                 "support_slice_counts": {
                     "registered": registered_slice_count.to_string(),
@@ -9480,8 +10020,8 @@ fn artifact_layer_roots(
                     .map(|summary| hex(summary.registry().root().bytes())),
                 "dirty_support_slice_set_root": scheduler
                     .map(|summary| hex(summary.dirty().root().bytes())),
-                "support_observation_chain_root": journal
-                    .mechanism_support_observation_chain_root(*request_id)
+                "automatic_support_observation_chain_root": journal
+                    .mechanism_support_automatic_observation_chain_root(*request_id)
                     .map(|root| hex(root.bytes())),
                 "current_assignment_root": hex(structural.assignment_root()),
                 "current_structural_revision": hex(structural.revision().bytes()),
@@ -10065,7 +10605,7 @@ fn path_to_manifest_string(path: &Path) -> Result<String, RelationalPublicationE
 
 fn publication_prefix_genesis(artifact_key: &str) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_ROOT_V11);
+    hasher.update(RESULT_PREFIX_ROOT_V12);
     hasher.update((artifact_key.len() as u64).to_be_bytes());
     hasher.update(artifact_key.as_bytes());
     hasher.finalize().into()
@@ -10073,7 +10613,7 @@ fn publication_prefix_genesis(artifact_key: &str) -> [u8; 32] {
 
 fn extend_publication_prefix(prior: [u8; 32], line_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_EXTEND_V11);
+    hasher.update(RESULT_PREFIX_EXTEND_V12);
     hasher.update(prior);
     hasher.update(line_digest);
     hasher.finalize().into()

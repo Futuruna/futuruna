@@ -41,6 +41,11 @@ pub(crate) const MECHANISM_STARTER_PROJECTION_PLAN_VERSION: u32 = 2;
 /// schema, not a runtime tuning knob: crossing it yields honest wider bounds
 /// and a deferred projection plan instead of a hidden full union.
 pub(crate) const AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT: usize = 256;
+/// One explicit-demand backfill event may inspect at most this many imported
+/// structural assignments. The bound is protocol behavior rather than a
+/// runtime tuning knob so replay never turns one late registration into an
+/// unbounded pause.
+pub(crate) const EXPLICIT_OBSERVATION_BACKFILL_MAX_ASSIGNMENTS: usize = 256;
 // One broad shared-node projection can approach the full target size. Keep the
 // default cache to one such derived accelerator; authority remains factorized
 // in the signature fibers and callers may explicitly choose another limit.
@@ -105,6 +110,14 @@ const AUTOMATIC_OBSERVATION_REGISTRY_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-automatic-observation-registry-index.v1";
 const DIRTY_AUTOMATIC_OBSERVATION_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-dirty-automatic-observation-index.v1";
+const EXPLICIT_OBSERVATION_REGISTRY_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-explicit-observation-registry-index.v1";
+const PENDING_EXPLICIT_OBSERVATION_BACKFILL_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-pending-explicit-observation-backfill-index.v1";
+const DIRTY_EXPLICIT_OBSERVATION_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-dirty-explicit-observation-index.v1";
+const UNSEALED_EXPLICIT_OBSERVATION_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-unsealed-explicit-observation-index.v1";
 const COORDINATE_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-coordinate-value.v1";
 const UNAVAILABLE_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-unavailable-value.v1";
 const TERMINAL_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-terminal-value.v1";
@@ -117,6 +130,14 @@ const AUTOMATIC_OBSERVATION_REGISTRY_VALUE_V1: &[u8] =
     b"futuruna.explore.mechanism-support-automatic-observation-registry-value.v1";
 const DIRTY_AUTOMATIC_OBSERVATION_VALUE_V1: &[u8] =
     b"futuruna.explore.mechanism-support-dirty-automatic-observation-value.v1";
+const EXPLICIT_OBSERVATION_REGISTRY_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-explicit-observation-registry-value.v1";
+const PENDING_EXPLICIT_OBSERVATION_BACKFILL_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-pending-explicit-observation-backfill-value.v1";
+const DIRTY_EXPLICIT_OBSERVATION_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-dirty-explicit-observation-value.v1";
+const UNSEALED_EXPLICIT_OBSERVATION_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-unsealed-explicit-observation-value.v1";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum MechanismSupportFacet {
@@ -1299,6 +1320,208 @@ impl MechanismAutomaticObservationRegistrySummary {
     }
 }
 
+/// Authenticated operational registry of explicitly requested node/edge
+/// slices. Unlike the automatic whole-mechanism registry, this root is not
+/// semantic support-frontier evidence: adding a reader after closure must not
+/// rename the already proved support result.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismExplicitObservationRegistryRoot([u8; 32]);
+
+impl MechanismExplicitObservationRegistryRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismExplicitObservationRegistrySummary {
+    root: MechanismExplicitObservationRegistryRoot,
+    slice_count: u128,
+    ready_slice_count: u128,
+}
+
+impl MechanismExplicitObservationRegistrySummary {
+    pub(crate) const fn root(self) -> MechanismExplicitObservationRegistryRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+
+    pub(crate) const fn ready_slice_count(self) -> u128 {
+        self.ready_slice_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismPendingExplicitObservationBackfillRoot([u8; 32]);
+
+impl MechanismPendingExplicitObservationBackfillRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismPendingExplicitObservationBackfillSummary {
+    root: MechanismPendingExplicitObservationBackfillRoot,
+    slice_count: u128,
+}
+
+impl MechanismPendingExplicitObservationBackfillSummary {
+    pub(crate) const fn root(self) -> MechanismPendingExplicitObservationBackfillRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismDirtyExplicitObservationRoot([u8; 32]);
+
+impl MechanismDirtyExplicitObservationRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismDirtyExplicitObservationSummary {
+    root: MechanismDirtyExplicitObservationRoot,
+    slice_count: u128,
+}
+
+impl MechanismDirtyExplicitObservationSummary {
+    pub(crate) const fn root(self) -> MechanismDirtyExplicitObservationRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MechanismExplicitObservationRegistrationDisposition {
+    Registered,
+    AlreadyRegistered,
+    AutomaticWholeMechanism,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MechanismExplicitObservationRegistrationPhase {
+    Open,
+    Sealed {
+        support_root: MechanismSupportClosureRoot,
+    },
+}
+
+impl MechanismExplicitObservationRegistrationPhase {
+    pub(crate) const fn support_root(self) -> Option<MechanismSupportClosureRoot> {
+        match self {
+            Self::Open => None,
+            Self::Sealed { support_root } => Some(support_root),
+        }
+    }
+
+    pub(crate) const fn is_sealed(self) -> bool {
+        matches!(self, Self::Sealed { .. })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismUnsealedExplicitObservationRoot([u8; 32]);
+
+impl MechanismUnsealedExplicitObservationRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismUnsealedExplicitObservationSummary {
+    root: MechanismUnsealedExplicitObservationRoot,
+    slice_count: u128,
+}
+
+impl MechanismUnsealedExplicitObservationSummary {
+    pub(crate) const fn root(self) -> MechanismUnsealedExplicitObservationRoot {
+        self.root
+    }
+
+    pub(crate) const fn slice_count(self) -> u128 {
+        self.slice_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismExplicitObservationSchedulerSummary {
+    registry: MechanismExplicitObservationRegistrySummary,
+    pending_backfill: MechanismPendingExplicitObservationBackfillSummary,
+    dirty: MechanismDirtyExplicitObservationSummary,
+    unsealed: MechanismUnsealedExplicitObservationSummary,
+}
+
+impl MechanismExplicitObservationSchedulerSummary {
+    /// Rebuilds the durable operational receipt decoded by the outer journal.
+    /// The journal validates these counts against its event transition before
+    /// accepting the receipt; the support builder remains the authority which
+    /// can materialize and mutate the authenticated indexes themselves.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn restore_from_journal_codec(
+        registry_root: [u8; 32],
+        registered_slice_count: u128,
+        ready_slice_count: u128,
+        pending_backfill_root: [u8; 32],
+        pending_backfill_slice_count: u128,
+        dirty_root: [u8; 32],
+        dirty_slice_count: u128,
+        unsealed_root: [u8; 32],
+        unsealed_slice_count: u128,
+    ) -> Self {
+        Self {
+            registry: MechanismExplicitObservationRegistrySummary {
+                root: MechanismExplicitObservationRegistryRoot(registry_root),
+                slice_count: registered_slice_count,
+                ready_slice_count,
+            },
+            pending_backfill: MechanismPendingExplicitObservationBackfillSummary {
+                root: MechanismPendingExplicitObservationBackfillRoot(pending_backfill_root),
+                slice_count: pending_backfill_slice_count,
+            },
+            dirty: MechanismDirtyExplicitObservationSummary {
+                root: MechanismDirtyExplicitObservationRoot(dirty_root),
+                slice_count: dirty_slice_count,
+            },
+            unsealed: MechanismUnsealedExplicitObservationSummary {
+                root: MechanismUnsealedExplicitObservationRoot(unsealed_root),
+                slice_count: unsealed_slice_count,
+            },
+        }
+    }
+
+    pub(crate) const fn registry(self) -> MechanismExplicitObservationRegistrySummary {
+        self.registry
+    }
+
+    pub(crate) const fn pending_backfill(
+        self,
+    ) -> MechanismPendingExplicitObservationBackfillSummary {
+        self.pending_backfill
+    }
+
+    pub(crate) const fn dirty(self) -> MechanismDirtyExplicitObservationSummary {
+        self.dirty
+    }
+
+    pub(crate) const fn unsealed(self) -> MechanismUnsealedExplicitObservationSummary {
+        self.unsealed
+    }
+}
+
 /// Authenticated root of the operational set of mechanism slices whose latest
 /// semantic evidence has not yet been observed by the outer journal.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -1418,6 +1641,353 @@ impl AutomaticSupportObservationIndex {
     }
 }
 
+/// Imported-assignment index for one explicitly requested node/edge slice.
+/// The fixed registration target prevents live discovery from making a late
+/// backfill recede forever. Structural import is held at that target until the
+/// bounded backfill completes; later assignments use the watcher indexes.
+#[derive(Clone, Debug)]
+struct ExplicitSupportObservationIndex {
+    slice: MechanismSupportSlice,
+    registration_phase: MechanismExplicitObservationRegistrationPhase,
+    registration_structural_cursor: usize,
+    registration_structural_revision: StructuralCatalogRevision,
+    backfill_cursor: usize,
+    contributing_signature_count: u128,
+    inspected_signatures: Vec<MechanismSignatureId>,
+}
+
+impl ExplicitSupportObservationIndex {
+    fn new(
+        slice: MechanismSupportSlice,
+        registration_phase: MechanismExplicitObservationRegistrationPhase,
+        registration_structural_cursor: usize,
+        registration_structural_revision: StructuralCatalogRevision,
+    ) -> Self {
+        Self {
+            slice,
+            registration_phase,
+            registration_structural_cursor,
+            registration_structural_revision,
+            backfill_cursor: 0,
+            contributing_signature_count: 0,
+            inspected_signatures: Vec::new(),
+        }
+    }
+
+    fn is_ready(&self) -> bool {
+        self.backfill_cursor == self.registration_structural_cursor
+    }
+
+    fn observe_assignment(
+        &mut self,
+        signature_id: MechanismSignatureId,
+        assignment: &StructuralSignatureAssignment,
+    ) -> Result<(), MechanismSupportError> {
+        if !assignment_supports_slice(assignment, self.slice) {
+            return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+        }
+        self.contributing_signature_count = self
+            .contributing_signature_count
+            .checked_add(1)
+            .ok_or(MechanismSupportError::CountOverflow)?;
+        if self.inspected_signatures.len() < AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT {
+            self.inspected_signatures.push(signature_id);
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct ExplicitObservationWatcherKey {
+    subject: MechanismSupportSubject,
+    enclosing_mechanism: Option<StructuralMechanismId>,
+}
+
+impl ExplicitObservationWatcherKey {
+    const fn from_slice(slice: MechanismSupportSlice) -> Self {
+        Self {
+            subject: slice.subject(),
+            enclosing_mechanism: slice.enclosing_mechanism(),
+        }
+    }
+}
+
+/// Pure, fully preflighted explicit-demand registration. `commit` is a no-op
+/// for an existing explicit slice and for a whole-mechanism demand which is
+/// already served by the automatic registry.
+#[derive(Debug)]
+pub(crate) struct MechanismExplicitObservationRegistration {
+    slice: MechanismSupportSlice,
+    disposition: MechanismExplicitObservationRegistrationDisposition,
+    registration_phase: MechanismExplicitObservationRegistrationPhase,
+    registration_structural_cursor: u128,
+    registration_structural_revision: StructuralCatalogRevision,
+    prior_registry: MechanismExplicitObservationRegistrySummary,
+    prior_pending: MechanismPendingExplicitObservationBackfillSummary,
+    prior_dirty: MechanismDirtyExplicitObservationSummary,
+    prior_unsealed: MechanismUnsealedExplicitObservationSummary,
+    next_registry_index: Option<AuthenticatedTreapMap>,
+    next_pending_index: Option<AuthenticatedTreapMap>,
+    next_dirty_index: Option<AuthenticatedTreapMap>,
+    next_unsealed_index: Option<AuthenticatedTreapMap>,
+    entry: Option<ExplicitSupportObservationIndex>,
+    watcher_key: Option<ExplicitObservationWatcherKey>,
+}
+
+impl MechanismExplicitObservationRegistration {
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn disposition(&self) -> MechanismExplicitObservationRegistrationDisposition {
+        self.disposition
+    }
+
+    pub(crate) const fn registration_phase(&self) -> MechanismExplicitObservationRegistrationPhase {
+        self.registration_phase
+    }
+
+    pub(crate) const fn registration_structural_cursor(&self) -> u128 {
+        self.registration_structural_cursor
+    }
+
+    pub(crate) const fn registration_structural_revision(&self) -> StructuralCatalogRevision {
+        self.registration_structural_revision
+    }
+
+    pub(crate) const fn prior_scheduler_summary(
+        &self,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.prior_registry,
+            pending_backfill: self.prior_pending,
+            dirty: self.prior_dirty,
+            unsealed: self.prior_unsealed,
+        }
+    }
+
+    pub(crate) fn next_registry_summary(&self) -> MechanismExplicitObservationRegistrySummary {
+        match &self.next_registry_index {
+            Some(index) => explicit_observation_registry_summary(
+                index,
+                self.next_pending_summary().slice_count(),
+            ),
+            None => self.prior_registry,
+        }
+    }
+
+    pub(crate) fn next_pending_summary(
+        &self,
+    ) -> MechanismPendingExplicitObservationBackfillSummary {
+        match &self.next_pending_index {
+            Some(index) => pending_explicit_observation_backfill_summary(index),
+            None => self.prior_pending,
+        }
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyExplicitObservationSummary {
+        match &self.next_dirty_index {
+            Some(index) => dirty_explicit_observation_summary(index),
+            None => self.prior_dirty,
+        }
+    }
+
+    pub(crate) fn next_unsealed_summary(&self) -> MechanismUnsealedExplicitObservationSummary {
+        match &self.next_unsealed_index {
+            Some(index) => unsealed_explicit_observation_summary(index),
+            None => self.prior_unsealed,
+        }
+    }
+
+    pub(crate) fn next_scheduler_summary(&self) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.next_registry_summary(),
+            pending_backfill: self.next_pending_summary(),
+            dirty: self.next_dirty_summary(),
+            unsealed: self.next_unsealed_summary(),
+        }
+    }
+}
+
+/// One deterministic bounded backfill page for the canonical minimum pending
+/// explicit slice. Preparing performs every recoverable check and builds the
+/// authenticated successors; committing only installs the prepared state.
+#[derive(Debug)]
+pub(crate) struct MechanismExplicitObservationBackfill {
+    slice: MechanismSupportSlice,
+    registration_phase: MechanismExplicitObservationRegistrationPhase,
+    registration_structural_cursor: u128,
+    registration_structural_revision: StructuralCatalogRevision,
+    from_structural_cursor: u128,
+    through_structural_cursor: u128,
+    prior_registry: MechanismExplicitObservationRegistrySummary,
+    prior_pending: MechanismPendingExplicitObservationBackfillSummary,
+    prior_dirty: MechanismDirtyExplicitObservationSummary,
+    prior_unsealed: MechanismUnsealedExplicitObservationSummary,
+    next_registry_index: AuthenticatedTreapMap,
+    next_pending_index: AuthenticatedTreapMap,
+    next_dirty_index: AuthenticatedTreapMap,
+    next_entry: ExplicitSupportObservationIndex,
+    matched_signatures: Box<[MechanismSignatureId]>,
+}
+
+impl MechanismExplicitObservationBackfill {
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn registration_structural_cursor(&self) -> u128 {
+        self.registration_structural_cursor
+    }
+
+    pub(crate) const fn registration_phase(&self) -> MechanismExplicitObservationRegistrationPhase {
+        self.registration_phase
+    }
+
+    pub(crate) const fn registration_structural_revision(&self) -> StructuralCatalogRevision {
+        self.registration_structural_revision
+    }
+
+    pub(crate) const fn from_structural_cursor(&self) -> u128 {
+        self.from_structural_cursor
+    }
+
+    pub(crate) const fn through_structural_cursor(&self) -> u128 {
+        self.through_structural_cursor
+    }
+
+    pub(crate) const fn prior_scheduler_summary(
+        &self,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.prior_registry,
+            pending_backfill: self.prior_pending,
+            dirty: self.prior_dirty,
+            unsealed: self.prior_unsealed,
+        }
+    }
+
+    pub(crate) fn completed(&self) -> bool {
+        self.next_entry.is_ready()
+    }
+
+    pub(crate) fn next_registry_summary(&self) -> MechanismExplicitObservationRegistrySummary {
+        explicit_observation_registry_summary(
+            &self.next_registry_index,
+            self.next_pending_index.entry_count(),
+        )
+    }
+
+    pub(crate) fn next_pending_summary(
+        &self,
+    ) -> MechanismPendingExplicitObservationBackfillSummary {
+        pending_explicit_observation_backfill_summary(&self.next_pending_index)
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyExplicitObservationSummary {
+        dirty_explicit_observation_summary(&self.next_dirty_index)
+    }
+
+    pub(crate) const fn next_unsealed_summary(
+        &self,
+    ) -> MechanismUnsealedExplicitObservationSummary {
+        self.prior_unsealed
+    }
+
+    pub(crate) fn next_scheduler_summary(&self) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.next_registry_summary(),
+            pending_backfill: self.next_pending_summary(),
+            dirty: self.next_dirty_summary(),
+            unsealed: self.next_unsealed_summary(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct MechanismExplicitObservationAck {
+    slice: MechanismSupportSlice,
+    prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+    next_dirty_index: AuthenticatedTreapMap,
+}
+
+impl MechanismExplicitObservationAck {
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn prior_dirty_summary(&self) -> MechanismDirtyExplicitObservationSummary {
+        self.prior_scheduler.dirty()
+    }
+
+    pub(crate) const fn prior_scheduler_summary(
+        &self,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        self.prior_scheduler
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyExplicitObservationSummary {
+        dirty_explicit_observation_summary(&self.next_dirty_index)
+    }
+
+    pub(crate) fn next_scheduler_summary(&self) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.prior_scheduler.registry(),
+            pending_backfill: self.prior_scheduler.pending_backfill(),
+            dirty: self.next_dirty_summary(),
+            unsealed: self.prior_scheduler.unsealed(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct MechanismExplicitObservationSealAck {
+    slice: MechanismSupportSlice,
+    prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+    retired_dirty: bool,
+    next_dirty_index: AuthenticatedTreapMap,
+    next_unsealed_index: AuthenticatedTreapMap,
+}
+
+impl MechanismExplicitObservationSealAck {
+    pub(crate) const fn slice(&self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn prior_unsealed_summary(
+        &self,
+    ) -> MechanismUnsealedExplicitObservationSummary {
+        self.prior_scheduler.unsealed()
+    }
+
+    pub(crate) const fn prior_scheduler_summary(
+        &self,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        self.prior_scheduler
+    }
+
+    pub(crate) const fn retired_dirty_observation(&self) -> bool {
+        self.retired_dirty
+    }
+
+    pub(crate) fn next_dirty_summary(&self) -> MechanismDirtyExplicitObservationSummary {
+        dirty_explicit_observation_summary(&self.next_dirty_index)
+    }
+
+    pub(crate) fn next_unsealed_summary(&self) -> MechanismUnsealedExplicitObservationSummary {
+        unsealed_explicit_observation_summary(&self.next_unsealed_index)
+    }
+
+    pub(crate) fn next_scheduler_summary(&self) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.prior_scheduler.registry(),
+            pending_backfill: self.prior_scheduler.pending_backfill(),
+            dirty: self.next_dirty_summary(),
+            unsealed: self.next_unsealed_summary(),
+        }
+    }
+}
+
 /// Request/target-local support authority. Target coordinates are accepted
 /// once, then imported from checked raw-incidence terminals. Pending replay
 /// and replay unavailability remain in one shared possible-support residual;
@@ -1449,6 +2019,17 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     automatic_observation_indexed_assignment_count: u128,
     dirty_automatic_observations: BTreeSet<MechanismSupportSlice>,
     dirty_automatic_observation_index: AuthenticatedTreapMap,
+    explicit_observation_registry: BTreeMap<MechanismSupportSlice, ExplicitSupportObservationIndex>,
+    explicit_observation_registry_index: AuthenticatedTreapMap,
+    pending_explicit_observation_backfills: BTreeSet<MechanismSupportSlice>,
+    pending_explicit_observation_backfill_index: AuthenticatedTreapMap,
+    dirty_explicit_observations: BTreeSet<MechanismSupportSlice>,
+    dirty_explicit_observation_index: AuthenticatedTreapMap,
+    unsealed_explicit_observations: BTreeSet<MechanismSupportSlice>,
+    unsealed_explicit_observation_index: AuthenticatedTreapMap,
+    explicit_observation_watchers: BTreeMap<ExplicitObservationWatcherKey, MechanismSupportSlice>,
+    signature_explicit_observation_watchers:
+        BTreeMap<MechanismSignatureId, BTreeSet<MechanismSupportSlice>>,
     subject_projection_cache: BTreeMap<MechanismSupportSubject, SubjectProjectionCache>,
     subject_projection_lru: VecDeque<MechanismSupportSubject>,
     subject_projection_cache_limit: usize,
@@ -1492,6 +2073,24 @@ impl MechanismSupportCatalogBuilder {
             dirty_automatic_observation_index: AuthenticatedTreapMap::new(
                 DIRTY_AUTOMATIC_OBSERVATION_INDEX_V1,
             ),
+            explicit_observation_registry: BTreeMap::new(),
+            explicit_observation_registry_index: AuthenticatedTreapMap::new(
+                EXPLICIT_OBSERVATION_REGISTRY_INDEX_V1,
+            ),
+            pending_explicit_observation_backfills: BTreeSet::new(),
+            pending_explicit_observation_backfill_index: AuthenticatedTreapMap::new(
+                PENDING_EXPLICIT_OBSERVATION_BACKFILL_INDEX_V1,
+            ),
+            dirty_explicit_observations: BTreeSet::new(),
+            dirty_explicit_observation_index: AuthenticatedTreapMap::new(
+                DIRTY_EXPLICIT_OBSERVATION_INDEX_V1,
+            ),
+            unsealed_explicit_observations: BTreeSet::new(),
+            unsealed_explicit_observation_index: AuthenticatedTreapMap::new(
+                UNSEALED_EXPLICIT_OBSERVATION_INDEX_V1,
+            ),
+            explicit_observation_watchers: BTreeMap::new(),
+            signature_explicit_observation_watchers: BTreeMap::new(),
             subject_projection_cache: BTreeMap::new(),
             subject_projection_lru: VecDeque::new(),
             subject_projection_cache_limit: subject_projection_cache_limit.max(1),
@@ -1566,6 +2165,812 @@ impl MechanismSupportCatalogBuilder {
         }
     }
 
+    pub(crate) fn explicit_observation_registry_summary(
+        &self,
+    ) -> MechanismExplicitObservationRegistrySummary {
+        debug_assert_eq!(
+            self.explicit_observation_registry.len() as u128,
+            self.explicit_observation_registry_index.entry_count()
+        );
+        explicit_observation_registry_summary(
+            &self.explicit_observation_registry_index,
+            self.pending_explicit_observation_backfill_index
+                .entry_count(),
+        )
+    }
+
+    pub(crate) fn pending_explicit_observation_backfill_summary(
+        &self,
+    ) -> MechanismPendingExplicitObservationBackfillSummary {
+        debug_assert_eq!(
+            self.pending_explicit_observation_backfills.len() as u128,
+            self.pending_explicit_observation_backfill_index
+                .entry_count()
+        );
+        pending_explicit_observation_backfill_summary(
+            &self.pending_explicit_observation_backfill_index,
+        )
+    }
+
+    pub(crate) fn dirty_explicit_observation_summary(
+        &self,
+    ) -> MechanismDirtyExplicitObservationSummary {
+        debug_assert_eq!(
+            self.dirty_explicit_observations.len() as u128,
+            self.dirty_explicit_observation_index.entry_count()
+        );
+        dirty_explicit_observation_summary(&self.dirty_explicit_observation_index)
+    }
+
+    pub(crate) fn unsealed_explicit_observation_summary(
+        &self,
+    ) -> MechanismUnsealedExplicitObservationSummary {
+        debug_assert_eq!(
+            self.unsealed_explicit_observations.len() as u128,
+            self.unsealed_explicit_observation_index.entry_count()
+        );
+        unsealed_explicit_observation_summary(&self.unsealed_explicit_observation_index)
+    }
+
+    pub(crate) fn explicit_observation_scheduler_summary(
+        &self,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary {
+            registry: self.explicit_observation_registry_summary(),
+            pending_backfill: self.pending_explicit_observation_backfill_summary(),
+            dirty: self.dirty_explicit_observation_summary(),
+            unsealed: self.unsealed_explicit_observation_summary(),
+        }
+    }
+
+    pub(crate) fn explicit_observation_slice_count(&self) -> u128 {
+        self.explicit_observation_registry.len() as u128
+    }
+
+    pub(crate) fn ready_explicit_observation_slice_count(&self) -> u128 {
+        self.explicit_observation_registry
+            .len()
+            .saturating_sub(self.pending_explicit_observation_backfills.len()) as u128
+    }
+
+    pub(crate) fn explicit_observation_contains(&self, slice: MechanismSupportSlice) -> bool {
+        self.explicit_observation_registry.contains_key(&slice)
+    }
+
+    pub(crate) fn ready_explicit_observation_contains(&self, slice: MechanismSupportSlice) -> bool {
+        self.explicit_observation_registry
+            .get(&slice)
+            .is_some_and(ExplicitSupportObservationIndex::is_ready)
+    }
+
+    pub(crate) fn explicit_observation_registration_phase(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationRegistrationPhase, MechanismSupportError> {
+        Ok(self
+            .explicit_observation_index_for_slice(slice, false)?
+            .registration_phase)
+    }
+
+    pub(crate) fn next_pending_explicit_observation_slice(&self) -> Option<MechanismSupportSlice> {
+        self.pending_explicit_observation_backfills.first().copied()
+    }
+
+    pub(crate) fn next_dirty_explicit_observation_slice(&self) -> Option<MechanismSupportSlice> {
+        self.dirty_explicit_observations.first().copied()
+    }
+
+    pub(crate) fn next_unsealed_explicit_observation_slice(&self) -> Option<MechanismSupportSlice> {
+        self.unsealed_explicit_observations.first().copied()
+    }
+
+    pub(crate) fn next_explicit_observation_slice_after(
+        &self,
+        after: Option<MechanismSupportSlice>,
+    ) -> Result<Option<MechanismSupportSlice>, MechanismSupportError> {
+        if !self.pending_explicit_observation_backfills.is_empty() {
+            return Err(MechanismSupportError::ExplicitObservationBackfillPending);
+        }
+        let next = match after {
+            None => self.explicit_observation_registry.first_key_value(),
+            Some(slice) => {
+                self.explicit_observation_index_for_slice(slice, true)?;
+                self.explicit_observation_registry
+                    .range((Excluded(slice), Unbounded))
+                    .next()
+            }
+        };
+        Ok(next.map(|(slice, _)| *slice))
+    }
+
+    pub(crate) fn prepare_explicit_observation_demand_registration(
+        &self,
+        slice: MechanismSupportSlice,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<MechanismExplicitObservationRegistration, MechanismSupportError> {
+        if structural.request_id() != self.scope.request_id()
+            || slice.key().request_id() != self.scope.request_id()
+            || slice.key().target() != self.scope.target()
+        {
+            return Err(MechanismSupportError::RequestMismatch);
+        }
+        self.validate_structural_assignment_prefix(structural)?;
+        self.validate_explicit_observation_indexes()?;
+        let current_revision = structural
+            .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
+            .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
+        let phase = self.closure.map_or(
+            MechanismExplicitObservationRegistrationPhase::Open,
+            |closure| MechanismExplicitObservationRegistrationPhase::Sealed {
+                support_root: closure.root(),
+            },
+        );
+        let prior_registry = self.explicit_observation_registry_summary();
+        let prior_pending = self.pending_explicit_observation_backfill_summary();
+        let prior_dirty = self.dirty_explicit_observation_summary();
+        let prior_unsealed = self.unsealed_explicit_observation_summary();
+
+        if matches!(slice.subject(), MechanismSupportSubject::Mechanism(_)) {
+            validate_explicit_observation_slice(structural, slice)?;
+            return Ok(MechanismExplicitObservationRegistration {
+                slice,
+                disposition:
+                    MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism,
+                registration_phase: phase,
+                registration_structural_cursor: self.structural_assignment_cursor as u128,
+                registration_structural_revision: current_revision,
+                prior_registry,
+                prior_pending,
+                prior_dirty,
+                prior_unsealed,
+                next_registry_index: None,
+                next_pending_index: None,
+                next_dirty_index: None,
+                next_unsealed_index: None,
+                entry: None,
+                watcher_key: None,
+            });
+        }
+        validate_explicit_observation_slice(structural, slice)?;
+
+        if let Some(existing) = self.explicit_observation_registry.get(&slice) {
+            self.validate_explicit_observation_entry(existing)?;
+            return Ok(MechanismExplicitObservationRegistration {
+                slice,
+                disposition: MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered,
+                registration_phase: existing.registration_phase,
+                registration_structural_cursor: existing.registration_structural_cursor as u128,
+                registration_structural_revision: existing.registration_structural_revision,
+                prior_registry,
+                prior_pending,
+                prior_dirty,
+                prior_unsealed,
+                next_registry_index: None,
+                next_pending_index: None,
+                next_dirty_index: None,
+                next_unsealed_index: None,
+                entry: None,
+                watcher_key: None,
+            });
+        }
+
+        let watcher_key = ExplicitObservationWatcherKey::from_slice(slice);
+        if self
+            .explicit_observation_watchers
+            .contains_key(&watcher_key)
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        let entry = ExplicitSupportObservationIndex::new(
+            slice,
+            phase,
+            self.structural_assignment_cursor,
+            current_revision,
+        );
+        let mut next_registry_index = self.explicit_observation_registry_index.clone();
+        next_registry_index
+            .insert(
+                explicit_observation_key(slice),
+                explicit_observation_registry_value(&entry),
+            )
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("explicit observation registry")
+            })?;
+        let mut next_pending_index = self.pending_explicit_observation_backfill_index.clone();
+        let mut next_dirty_index = self.dirty_explicit_observation_index.clone();
+        if entry.is_ready() {
+            next_dirty_index
+                .insert(
+                    explicit_observation_key(slice),
+                    dirty_explicit_observation_value(slice),
+                )
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+                })?;
+        } else {
+            next_pending_index
+                .insert(
+                    explicit_observation_key(slice),
+                    pending_explicit_observation_backfill_value(slice),
+                )
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex(
+                        "pending explicit observation backfills",
+                    )
+                })?;
+        }
+        let mut next_unsealed_index = self.unsealed_explicit_observation_index.clone();
+        next_unsealed_index
+            .insert(
+                explicit_observation_key(slice),
+                unsealed_explicit_observation_value(slice),
+            )
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("unsealed explicit observations")
+            })?;
+        let pending_delta = if entry.is_ready() { 0 } else { 1 };
+        let dirty_delta = if entry.is_ready() { 1 } else { 0 };
+        if next_registry_index.entry_count() != prior_registry.slice_count() + 1
+            || next_pending_index.entry_count() != prior_pending.slice_count() + pending_delta
+            || next_dirty_index.entry_count() != prior_dirty.slice_count() + dirty_delta
+            || next_unsealed_index.entry_count() != prior_unsealed.slice_count() + 1
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        Ok(MechanismExplicitObservationRegistration {
+            slice,
+            disposition: MechanismExplicitObservationRegistrationDisposition::Registered,
+            registration_phase: phase,
+            registration_structural_cursor: self.structural_assignment_cursor as u128,
+            registration_structural_revision: current_revision,
+            prior_registry,
+            prior_pending,
+            prior_dirty,
+            prior_unsealed,
+            next_registry_index: Some(next_registry_index),
+            next_pending_index: Some(next_pending_index),
+            next_dirty_index: Some(next_dirty_index),
+            next_unsealed_index: Some(next_unsealed_index),
+            entry: Some(entry),
+            watcher_key: Some(watcher_key),
+        })
+    }
+
+    pub(crate) fn commit_explicit_observation_demand_registration(
+        &mut self,
+        mut prepared: MechanismExplicitObservationRegistration,
+    ) {
+        assert_eq!(
+            self.explicit_observation_registry_summary(),
+            prepared.prior_registry
+        );
+        assert_eq!(
+            self.pending_explicit_observation_backfill_summary(),
+            prepared.prior_pending
+        );
+        assert_eq!(
+            self.dirty_explicit_observation_summary(),
+            prepared.prior_dirty
+        );
+        assert_eq!(
+            self.unsealed_explicit_observation_summary(),
+            prepared.prior_unsealed
+        );
+        if prepared.disposition != MechanismExplicitObservationRegistrationDisposition::Registered {
+            return;
+        }
+        let entry = prepared
+            .entry
+            .take()
+            .expect("new explicit registration retains its prepared entry");
+        let watcher_key = prepared
+            .watcher_key
+            .expect("new explicit registration retains its watcher key");
+        self.explicit_observation_registry_index = prepared
+            .next_registry_index
+            .take()
+            .expect("new explicit registration retains its registry successor");
+        self.pending_explicit_observation_backfill_index = prepared
+            .next_pending_index
+            .take()
+            .expect("new explicit registration retains its pending successor");
+        self.dirty_explicit_observation_index = prepared
+            .next_dirty_index
+            .take()
+            .expect("new explicit registration retains its dirty successor");
+        self.unsealed_explicit_observation_index = prepared
+            .next_unsealed_index
+            .take()
+            .expect("new explicit registration retains its unsealed successor");
+        assert!(self
+            .explicit_observation_registry
+            .insert(prepared.slice, entry.clone())
+            .is_none());
+        assert!(self
+            .explicit_observation_watchers
+            .insert(watcher_key, prepared.slice)
+            .is_none());
+        if entry.is_ready() {
+            assert!(self.dirty_explicit_observations.insert(prepared.slice));
+        } else {
+            assert!(self
+                .pending_explicit_observation_backfills
+                .insert(prepared.slice));
+        }
+        assert!(self.unsealed_explicit_observations.insert(prepared.slice));
+        debug_assert!(self.validate_explicit_observation_indexes().is_ok());
+    }
+
+    pub(crate) fn register_explicit_observation_demand(
+        &mut self,
+        slice: MechanismSupportSlice,
+        structural: &StructuralMechanismCatalogBuilder,
+    ) -> Result<bool, MechanismSupportError> {
+        let prepared = self.prepare_explicit_observation_demand_registration(slice, structural)?;
+        let changed = prepared.disposition()
+            == MechanismExplicitObservationRegistrationDisposition::Registered;
+        self.commit_explicit_observation_demand_registration(prepared);
+        Ok(changed)
+    }
+
+    pub(crate) fn prepare_next_explicit_observation_backfill(
+        &self,
+        structural: &StructuralMechanismCatalogBuilder,
+        maximum_assignments: NonZeroU16,
+    ) -> Result<Option<MechanismExplicitObservationBackfill>, MechanismSupportError> {
+        if usize::from(maximum_assignments.get()) > EXPLICIT_OBSERVATION_BACKFILL_MAX_ASSIGNMENTS {
+            return Err(MechanismSupportError::ExplicitObservationBackfillPageTooLarge);
+        }
+        if structural.request_id() != self.scope.request_id() {
+            return Err(MechanismSupportError::RequestMismatch);
+        }
+        self.validate_structural_assignment_prefix(structural)?;
+        self.validate_explicit_observation_indexes()?;
+        let Some(slice) = self.next_pending_explicit_observation_slice() else {
+            return Ok(None);
+        };
+        let current = self.explicit_observation_index_for_slice(slice, false)?;
+        if current.is_ready()
+            || current.registration_structural_cursor > self.structural_assignment_cursor
+            || structural
+                .assignment_discovery_prefix_revision(current.registration_structural_cursor)
+                != Some(current.registration_structural_revision)
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        let mut next_entry = current.clone();
+        let from = current.backfill_cursor;
+        let through = from
+            .checked_add(usize::from(maximum_assignments.get()))
+            .ok_or(MechanismSupportError::CountOverflow)?
+            .min(current.registration_structural_cursor);
+        if through <= from {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        let mut matched_signatures = Vec::with_capacity(through - from);
+        for ordinal in from..through {
+            let assignment = structural
+                .assignment_discovery_at(ordinal)
+                .ok_or(MechanismSupportError::UnknownStructuralAssignment)?;
+            let signature_id = assignment.signature_id();
+            if !self.imported_structural_assignments.contains(&signature_id)
+                || signature_id.request_id() != self.scope.request_id()
+            {
+                return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
+            }
+            if assignment_supports_slice(assignment, slice) {
+                if self
+                    .signature_explicit_observation_watchers
+                    .get(&signature_id)
+                    .is_some_and(|watchers| watchers.contains(&slice))
+                {
+                    return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+                }
+                next_entry.observe_assignment(signature_id, assignment)?;
+                matched_signatures.push(signature_id);
+            }
+        }
+        next_entry.backfill_cursor = through;
+        let prior_registry = self.explicit_observation_registry_summary();
+        let prior_pending = self.pending_explicit_observation_backfill_summary();
+        let prior_dirty = self.dirty_explicit_observation_summary();
+        let prior_unsealed = self.unsealed_explicit_observation_summary();
+        let mut next_registry_index = self.explicit_observation_registry_index.clone();
+        set_authenticated_value(
+            &mut next_registry_index,
+            explicit_observation_key(slice),
+            explicit_observation_registry_value(&next_entry),
+            "explicit observation registry",
+        )?;
+        let mut next_pending_index = self.pending_explicit_observation_backfill_index.clone();
+        let mut next_dirty_index = self.dirty_explicit_observation_index.clone();
+        if next_entry.is_ready() {
+            next_pending_index
+                .remove(&explicit_observation_key(slice))
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex(
+                        "pending explicit observation backfills",
+                    )
+                })?;
+            set_authenticated_value(
+                &mut next_dirty_index,
+                explicit_observation_key(slice),
+                dirty_explicit_observation_value(slice),
+                "dirty explicit observations",
+            )?;
+        }
+        Ok(Some(MechanismExplicitObservationBackfill {
+            slice,
+            registration_phase: current.registration_phase,
+            registration_structural_cursor: current.registration_structural_cursor as u128,
+            registration_structural_revision: current.registration_structural_revision,
+            from_structural_cursor: from as u128,
+            through_structural_cursor: through as u128,
+            prior_registry,
+            prior_pending,
+            prior_dirty,
+            prior_unsealed,
+            next_registry_index,
+            next_pending_index,
+            next_dirty_index,
+            next_entry,
+            matched_signatures: matched_signatures.into_boxed_slice(),
+        }))
+    }
+
+    pub(crate) fn commit_explicit_observation_backfill(
+        &mut self,
+        prepared: MechanismExplicitObservationBackfill,
+    ) {
+        assert_eq!(
+            self.explicit_observation_registry_summary(),
+            prepared.prior_registry
+        );
+        assert_eq!(
+            self.pending_explicit_observation_backfill_summary(),
+            prepared.prior_pending
+        );
+        assert_eq!(
+            self.dirty_explicit_observation_summary(),
+            prepared.prior_dirty
+        );
+        assert_eq!(
+            self.unsealed_explicit_observation_summary(),
+            prepared.prior_unsealed
+        );
+        let completed = prepared.next_entry.is_ready();
+        self.explicit_observation_registry_index = prepared.next_registry_index;
+        self.pending_explicit_observation_backfill_index = prepared.next_pending_index;
+        self.dirty_explicit_observation_index = prepared.next_dirty_index;
+        let previous = self
+            .explicit_observation_registry
+            .insert(prepared.slice, prepared.next_entry);
+        assert!(previous.is_some());
+        for signature_id in prepared.matched_signatures.iter().copied() {
+            assert!(self
+                .signature_explicit_observation_watchers
+                .entry(signature_id)
+                .or_default()
+                .insert(prepared.slice));
+        }
+        if completed {
+            assert!(self
+                .pending_explicit_observation_backfills
+                .remove(&prepared.slice));
+            assert!(self.dirty_explicit_observations.insert(prepared.slice));
+        }
+        debug_assert!(self.validate_explicit_observation_indexes().is_ok());
+    }
+
+    pub(crate) fn prepare_explicit_observation_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationAck, MechanismSupportError> {
+        if self.closure.is_some() {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        self.explicit_observation_index_for_slice(slice, true)?;
+        if !self.dirty_explicit_observations.contains(&slice)
+            || self
+                .dirty_explicit_observation_index
+                .get(&explicit_observation_key(slice))
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+                })?
+                != Some(dirty_explicit_observation_value(slice))
+        {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        let prior_scheduler = self.explicit_observation_scheduler_summary();
+        let mut next_dirty_index = self.dirty_explicit_observation_index.clone();
+        next_dirty_index
+            .remove(&explicit_observation_key(slice))
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+            })?;
+        Ok(MechanismExplicitObservationAck {
+            slice,
+            prior_scheduler,
+            next_dirty_index,
+        })
+    }
+
+    pub(crate) fn commit_explicit_observation_ack(
+        &mut self,
+        prepared: MechanismExplicitObservationAck,
+    ) {
+        assert_eq!(
+            self.explicit_observation_scheduler_summary(),
+            prepared.prior_scheduler
+        );
+        assert!(self.dirty_explicit_observations.remove(&prepared.slice));
+        self.dirty_explicit_observation_index = prepared.next_dirty_index;
+        debug_assert!(self.validate_explicit_observation_indexes().is_ok());
+    }
+
+    pub(crate) fn prepare_explicit_observation_seal_ack(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<MechanismExplicitObservationSealAck, MechanismSupportError> {
+        if self.closure.is_none() {
+            return Err(MechanismSupportError::ClosurePrerequisite(
+                "mechanism support closure",
+            ));
+        }
+        self.explicit_observation_index_for_slice(slice, true)?;
+        if self.next_unsealed_explicit_observation_slice() != Some(slice)
+            || self
+                .unsealed_explicit_observation_index
+                .get(&explicit_observation_key(slice))
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("unsealed explicit observations")
+                })?
+                != Some(unsealed_explicit_observation_value(slice))
+        {
+            return Err(MechanismSupportError::FrontierConflict);
+        }
+        let prior_scheduler = self.explicit_observation_scheduler_summary();
+        let retired_dirty = self.dirty_explicit_observations.contains(&slice);
+        let mut next_dirty_index = self.dirty_explicit_observation_index.clone();
+        if retired_dirty {
+            next_dirty_index
+                .remove(&explicit_observation_key(slice))
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+                })?;
+        }
+        let mut next_unsealed_index = self.unsealed_explicit_observation_index.clone();
+        next_unsealed_index
+            .remove(&explicit_observation_key(slice))
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("unsealed explicit observations")
+            })?;
+        Ok(MechanismExplicitObservationSealAck {
+            slice,
+            prior_scheduler,
+            retired_dirty,
+            next_dirty_index,
+            next_unsealed_index,
+        })
+    }
+
+    pub(crate) fn commit_explicit_observation_seal_ack(
+        &mut self,
+        prepared: MechanismExplicitObservationSealAck,
+    ) {
+        assert_eq!(
+            self.explicit_observation_scheduler_summary(),
+            prepared.prior_scheduler
+        );
+        assert!(self.unsealed_explicit_observations.remove(&prepared.slice));
+        if prepared.retired_dirty {
+            assert!(self.dirty_explicit_observations.remove(&prepared.slice));
+        } else {
+            assert!(!self.dirty_explicit_observations.contains(&prepared.slice));
+        }
+        self.dirty_explicit_observation_index = prepared.next_dirty_index;
+        self.unsealed_explicit_observation_index = prepared.next_unsealed_index;
+        debug_assert!(self.validate_explicit_observation_indexes().is_ok());
+    }
+
+    fn validate_explicit_observation_indexes(&self) -> Result<(), MechanismSupportError> {
+        let registry_count = self.explicit_observation_registry.len() as u128;
+        let pending_count = self.pending_explicit_observation_backfills.len() as u128;
+        let dirty_count = self.dirty_explicit_observations.len() as u128;
+        let unsealed_count = self.unsealed_explicit_observations.len() as u128;
+        if self.explicit_observation_registry_index.entry_count() != registry_count
+            || self.explicit_observation_registry_index.total_weight() != registry_count
+            || self
+                .pending_explicit_observation_backfill_index
+                .entry_count()
+                != pending_count
+            || self
+                .pending_explicit_observation_backfill_index
+                .total_weight()
+                != pending_count
+            || self.dirty_explicit_observation_index.entry_count() != dirty_count
+            || self.dirty_explicit_observation_index.total_weight() != dirty_count
+            || self.unsealed_explicit_observation_index.entry_count() != unsealed_count
+            || self.unsealed_explicit_observation_index.total_weight() != unsealed_count
+            || pending_count > registry_count
+            || dirty_count > registry_count - pending_count
+            || unsealed_count > registry_count
+            || self.explicit_observation_watchers.len() as u128 != registry_count
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        Ok(())
+    }
+
+    fn validate_explicit_observation_entry(
+        &self,
+        entry: &ExplicitSupportObservationIndex,
+    ) -> Result<(), MechanismSupportError> {
+        let slice = entry.slice;
+        let key = explicit_observation_key(slice);
+        let authenticated = self
+            .explicit_observation_registry_index
+            .get(&key)
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("explicit observation registry")
+            })?;
+        let pending = self.pending_explicit_observation_backfills.contains(&slice);
+        let authenticated_pending = self
+            .pending_explicit_observation_backfill_index
+            .get(&key)
+            .map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("pending explicit observation backfills")
+            })?;
+        if authenticated != Some(explicit_observation_registry_value(entry))
+            || pending == entry.is_ready()
+            || authenticated_pending
+                != pending.then(|| pending_explicit_observation_backfill_value(slice))
+            || self
+                .explicit_observation_watchers
+                .get(&ExplicitObservationWatcherKey::from_slice(slice))
+                != Some(&slice)
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        let dirty = self.dirty_explicit_observations.contains(&slice);
+        let authenticated_dirty =
+            self.dirty_explicit_observation_index
+                .get(&key)
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+                })?;
+        if (dirty && !entry.is_ready())
+            || authenticated_dirty != dirty.then(|| dirty_explicit_observation_value(slice))
+        {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        let unsealed = self.unsealed_explicit_observations.contains(&slice);
+        let authenticated_unsealed =
+            self.unsealed_explicit_observation_index
+                .get(&key)
+                .map_err(|_| {
+                    MechanismSupportError::AuthenticatedIndex("unsealed explicit observations")
+                })?;
+        if authenticated_unsealed != unsealed.then(|| unsealed_explicit_observation_value(slice)) {
+            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+        }
+        Ok(())
+    }
+
+    fn explicit_observation_index_for_slice(
+        &self,
+        slice: MechanismSupportSlice,
+        require_ready: bool,
+    ) -> Result<&ExplicitSupportObservationIndex, MechanismSupportError> {
+        let entry = self
+            .explicit_observation_registry
+            .get(&slice)
+            .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+        self.validate_explicit_observation_entry(entry)?;
+        if require_ready && !entry.is_ready() {
+            return Err(MechanismSupportError::ExplicitObservationBackfillPending);
+        }
+        Ok(entry)
+    }
+
+    fn explicit_observation_slices_for_assignment(
+        &self,
+        assignment: &StructuralSignatureAssignment,
+    ) -> Result<BTreeSet<MechanismSupportSlice>, MechanismSupportError> {
+        if self.explicit_observation_watchers.is_empty() {
+            return Ok(BTreeSet::new());
+        }
+        if !self.pending_explicit_observation_backfills.is_empty() {
+            return Err(MechanismSupportError::ExplicitObservationBackfillPending);
+        }
+        let mechanism_id = assignment.mechanism_id();
+        let mut slices = BTreeSet::new();
+        let mut collect = |subject| -> Result<(), MechanismSupportError> {
+            for enclosing_mechanism in [None, Some(mechanism_id)] {
+                let key = ExplicitObservationWatcherKey {
+                    subject,
+                    enclosing_mechanism,
+                };
+                if let Some(slice) = self.explicit_observation_watchers.get(&key).copied() {
+                    self.explicit_observation_index_for_slice(slice, true)?;
+                    slices.insert(slice);
+                }
+            }
+            Ok(())
+        };
+        for node_id in assignment.node_membership().iter().copied() {
+            collect(MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id,
+            })?;
+        }
+        for node_id in assignment.differential_node_membership().iter().copied() {
+            collect(MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::DifferentialParticipation,
+                node_id,
+            })?;
+        }
+        for edge_id in assignment.edge_membership().iter().copied() {
+            collect(MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::Activation,
+                edge_id,
+            })?;
+        }
+        for edge_id in assignment.differential_edge_membership().iter().copied() {
+            collect(MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::DifferentialParticipation,
+                edge_id,
+            })?;
+        }
+        Ok(slices)
+    }
+
+    fn prepare_mark_explicit_observations_dirty(
+        &self,
+        slices: &BTreeSet<MechanismSupportSlice>,
+    ) -> Result<Option<AuthenticatedTreapMap>, MechanismSupportError> {
+        if slices.is_empty() {
+            return Ok(None);
+        }
+        let mut next = self.dirty_explicit_observation_index.clone();
+        for slice in slices.iter().copied() {
+            self.explicit_observation_index_for_slice(slice, true)?;
+            let key = explicit_observation_key(slice);
+            let authenticated = next.get(&key).map_err(|_| {
+                MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+            })?;
+            if self.dirty_explicit_observations.contains(&slice) {
+                if authenticated != Some(dirty_explicit_observation_value(slice)) {
+                    return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+                }
+            } else if authenticated.is_some() {
+                return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+            } else {
+                next.insert(key, dirty_explicit_observation_value(slice))
+                    .map_err(|_| {
+                        MechanismSupportError::AuthenticatedIndex("dirty explicit observations")
+                    })?;
+            }
+        }
+        Ok(Some(next))
+    }
+
+    fn commit_mark_explicit_observations_dirty(
+        &mut self,
+        slices: &BTreeSet<MechanismSupportSlice>,
+        next_dirty_index: Option<AuthenticatedTreapMap>,
+    ) {
+        let Some(next_dirty_index) = next_dirty_index else {
+            debug_assert!(slices.is_empty());
+            return;
+        };
+        for slice in slices.iter().copied() {
+            self.dirty_explicit_observations.insert(slice);
+        }
+        self.dirty_explicit_observation_index = next_dirty_index;
+        debug_assert!(self.validate_explicit_observation_indexes().is_ok());
+    }
+
     pub(crate) fn automatic_observation_contains(&self, slice: MechanismSupportSlice) -> bool {
         automatic_mechanism_id_for_slice(self.scope, slice).is_some_and(|mechanism_id| {
             self.automatic_observation_registry
@@ -1595,6 +3000,24 @@ impl MechanismSupportCatalogBuilder {
             return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
         }
         Ok(index)
+    }
+
+    fn observation_index_for_slice(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Result<(u128, &[MechanismSignatureId]), MechanismSupportError> {
+        if automatic_mechanism_id_for_slice(self.scope, slice).is_some() {
+            let index = self.automatic_observation_index_for_slice(slice)?;
+            return Ok((
+                index.contributing_signature_count,
+                &index.inspected_signatures,
+            ));
+        }
+        let index = self.explicit_observation_index_for_slice(slice, true)?;
+        Ok((
+            index.contributing_signature_count,
+            &index.inspected_signatures,
+        ))
     }
 
     pub(crate) fn next_dirty_automatic_observation_slice(&self) -> Option<MechanismSupportSlice> {
@@ -1976,6 +3399,9 @@ impl MechanismSupportCatalogBuilder {
         if self.closure.is_some() && !suffix.is_empty() {
             return Err(MechanismSupportError::CatalogClosed);
         }
+        if !suffix.is_empty() && !self.pending_explicit_observation_backfills.is_empty() {
+            return Err(MechanismSupportError::ExplicitObservationBackfillPending);
+        }
         let current_prefix_revision = structural
             .assignment_discovery_prefix_revision(self.structural_assignment_cursor)
             .ok_or(MechanismSupportError::StructuralAssignmentCursorRegression)?;
@@ -2050,6 +3476,31 @@ impl MechanismSupportCatalogBuilder {
             }
             let next_dirty_automatic_observation_index =
                 self.prepare_mark_automatic_observation_dirty(automatic_slice)?;
+            let explicit_slices = self.explicit_observation_slices_for_assignment(assignment)?;
+            if self
+                .signature_explicit_observation_watchers
+                .contains_key(&signature_id)
+            {
+                return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+            }
+            let mut next_explicit_observation_registry_index =
+                self.explicit_observation_registry_index.clone();
+            let mut next_explicit_observations = Vec::with_capacity(explicit_slices.len());
+            for slice in explicit_slices.iter().copied() {
+                let mut next = self
+                    .explicit_observation_index_for_slice(slice, true)?
+                    .clone();
+                next.observe_assignment(signature_id, assignment)?;
+                set_authenticated_value(
+                    &mut next_explicit_observation_registry_index,
+                    explicit_observation_key(slice),
+                    explicit_observation_registry_value(&next),
+                    "explicit observation registry",
+                )?;
+                next_explicit_observations.push((slice, next));
+            }
+            let next_dirty_explicit_observation_index =
+                self.prepare_mark_explicit_observations_dirty(&explicit_slices)?;
             let mut next_unassigned_signature_index = self.unassigned_signature_index.clone();
             if authenticated_contains(
                 &next_unassigned_signature_index,
@@ -2075,6 +3526,19 @@ impl MechanismSupportCatalogBuilder {
                 next_automatic_observation_indexed_assignment_count;
             self.automatic_observation_registry
                 .insert(mechanism_id, next_automatic_observation);
+            self.explicit_observation_registry_index = next_explicit_observation_registry_index;
+            for (slice, observation) in next_explicit_observations {
+                let previous = self
+                    .explicit_observation_registry
+                    .insert(slice, observation);
+                assert!(previous.is_some());
+            }
+            if !explicit_slices.is_empty() {
+                let previous = self
+                    .signature_explicit_observation_watchers
+                    .insert(signature_id, explicit_slices.clone());
+                assert!(previous.is_none());
+            }
             self.unassigned_signature_index = next_unassigned_signature_index;
             self.extend_cached_subjects_for_assignment(signature_id, assignment);
             let inserted = self.imported_structural_assignments.insert(signature_id);
@@ -2088,6 +3552,10 @@ impl MechanismSupportCatalogBuilder {
             self.commit_mark_automatic_observation_dirty(
                 automatic_slice,
                 next_dirty_automatic_observation_index,
+            );
+            self.commit_mark_explicit_observations_dirty(
+                &explicit_slices,
+                next_dirty_explicit_observation_index,
             );
         }
         let consumed = suffix.len();
@@ -2142,6 +3610,7 @@ impl MechanismSupportCatalogBuilder {
         &self,
         structural: &StructuralMechanismCatalogBuilder,
     ) -> Result<(), MechanismSupportError> {
+        self.validate_explicit_observation_indexes()?;
         if self.imported_structural_assignments.len() != self.structural_assignment_cursor
             || self.automatic_observation_indexed_assignment_count
                 != self.structural_assignment_cursor as u128
@@ -2229,6 +3698,7 @@ impl MechanismSupportCatalogBuilder {
             .map_err(|_| MechanismSupportError::AuthenticatedIndex("terminal facts"))?;
 
         let mut prepared_dirty_automatic_observation = None;
+        let mut prepared_dirty_explicit_observations = None;
         match terminal {
             MechanismCaseTerminal::Incidence { signature_id, .. } => {
                 let imported_assignment = self
@@ -2310,6 +3780,26 @@ impl MechanismSupportCatalogBuilder {
                     }
                     prepared_dirty_automatic_observation =
                         Some((slice, self.prepare_mark_automatic_observation_dirty(slice)?));
+                    let explicit_slices = self
+                        .signature_explicit_observation_watchers
+                        .get(&signature_id)
+                        .map_or_else(BTreeSet::new, |watchers| {
+                            watchers
+                                .iter()
+                                .copied()
+                                .filter(|slice| self.ready_explicit_observation_contains(*slice))
+                                .collect()
+                        });
+                    for explicit_slice in explicit_slices.iter().copied() {
+                        let index =
+                            self.explicit_observation_index_for_slice(explicit_slice, true)?;
+                        if !assignment_supports_slice(assignment, index.slice) {
+                            return Err(MechanismSupportError::ExplicitObservationRegistryConflict);
+                        }
+                    }
+                    let next_dirty =
+                        self.prepare_mark_explicit_observations_dirty(&explicit_slices)?;
+                    prepared_dirty_explicit_observations = Some((explicit_slices, next_dirty));
                 }
 
                 self.pending_cases = next_pending;
@@ -2366,6 +3856,9 @@ impl MechanismSupportCatalogBuilder {
             .terminal = Some(terminal);
         if let Some((slice, next_dirty_index)) = prepared_dirty_automatic_observation {
             self.commit_mark_automatic_observation_dirty(slice, next_dirty_index);
+        }
+        if let Some((slices, next_dirty_index)) = prepared_dirty_explicit_observations {
+            self.commit_mark_explicit_observations_dirty(&slices, next_dirty_index);
         }
         Ok(true)
     }
@@ -2712,7 +4205,8 @@ impl MechanismSupportCatalogBuilder {
             structural_assignment_revision,
             residual,
         )?;
-        let observation_index = self.automatic_observation_index_for_slice(slice)?;
+        let (contributing_signature_count, inspected_signatures) =
+            self.observation_index_for_slice(slice)?;
 
         let mut signature_prefix_encoder =
             SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1);
@@ -2720,11 +4214,10 @@ impl MechanismSupportCatalogBuilder {
         encode_total_or_conditioned_support_slice(&mut signature_prefix_encoder, slice);
         signature_prefix_encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
 
-        let contributing_signature_count = observation_index.contributing_signature_count;
         let mut inspected_signature_count = 0u128;
         let mut case_lower_bound = 0u128;
         let mut starter_lower_bound = 0u128;
-        for signature_id in observation_index.inspected_signatures.iter().copied() {
+        for signature_id in inspected_signatures.iter().copied() {
             if !self.imported_structural_assignments.contains(&signature_id) {
                 return Err(MechanismSupportError::StructuralAssignmentPrefixConflict);
             }
@@ -2773,7 +4266,7 @@ impl MechanismSupportCatalogBuilder {
             != structural_assignment_cursor as u128
             || contributing_signature_count > structural_assignment_cursor as u128
             || inspected_signature_count
-                != u128::try_from(observation_index.inspected_signatures.len())
+                != u128::try_from(inspected_signatures.len())
                     .expect("the bounded observation signature count fits u128")
             || inspected_signature_count != contributing_signature_count.min(scan_limit)
         {
@@ -4127,6 +5620,39 @@ fn validate_structural_subject(
     }
 }
 
+fn validate_explicit_observation_slice(
+    structural: &StructuralMechanismCatalogBuilder,
+    slice: MechanismSupportSlice,
+) -> Result<(), MechanismSupportError> {
+    validate_structural_subject(structural, slice.subject())?;
+    let Some(enclosing_mechanism) = slice.enclosing_mechanism() else {
+        return Ok(());
+    };
+    let activation_signatures = match slice.subject() {
+        MechanismSupportSubject::Mechanism(_) => {
+            return Err(MechanismSupportError::InvalidExplicitObservationRoute);
+        }
+        MechanismSupportSubject::Node { node_id, .. } => {
+            structural.signatures_for_node(node_id, false)
+        }
+        MechanismSupportSubject::Edge { edge_id, .. } => {
+            structural.signatures_for_edge(edge_id, false)
+        }
+    }
+    .ok_or(MechanismSupportError::UnknownStructuralSubject)?;
+    let mechanism_signatures = structural
+        .signatures_for_mechanism(enclosing_mechanism)
+        .ok_or(MechanismSupportError::InvalidExplicitObservationRoute)?;
+    if activation_signatures
+        .intersection(mechanism_signatures)
+        .next()
+        .is_none()
+    {
+        return Err(MechanismSupportError::InvalidExplicitObservationRoute);
+    }
+    Ok(())
+}
+
 fn build_imported_subject_projection(
     subject: MechanismSupportSubject,
     structural: &StructuralMechanismCatalogBuilder,
@@ -4312,6 +5838,101 @@ fn automatic_observation_registry_value(
     AuthenticatedTreapValue::new(encoder.finish(), index.contributing_signature_count)
 }
 
+fn explicit_observation_registry_summary(
+    index: &AuthenticatedTreapMap,
+    pending_slice_count: u128,
+) -> MechanismExplicitObservationRegistrySummary {
+    let slice_count = index.entry_count();
+    debug_assert_eq!(index.total_weight(), slice_count);
+    let ready_slice_count = slice_count
+        .checked_sub(pending_slice_count)
+        .expect("pending explicit observations are a registry subset");
+    MechanismExplicitObservationRegistrySummary {
+        root: MechanismExplicitObservationRegistryRoot(index.root_hash()),
+        slice_count,
+        ready_slice_count,
+    }
+}
+
+fn pending_explicit_observation_backfill_summary(
+    index: &AuthenticatedTreapMap,
+) -> MechanismPendingExplicitObservationBackfillSummary {
+    debug_assert_eq!(index.total_weight(), index.entry_count());
+    MechanismPendingExplicitObservationBackfillSummary {
+        root: MechanismPendingExplicitObservationBackfillRoot(index.root_hash()),
+        slice_count: index.entry_count(),
+    }
+}
+
+fn dirty_explicit_observation_summary(
+    index: &AuthenticatedTreapMap,
+) -> MechanismDirtyExplicitObservationSummary {
+    debug_assert_eq!(index.total_weight(), index.entry_count());
+    MechanismDirtyExplicitObservationSummary {
+        root: MechanismDirtyExplicitObservationRoot(index.root_hash()),
+        slice_count: index.entry_count(),
+    }
+}
+
+fn unsealed_explicit_observation_summary(
+    index: &AuthenticatedTreapMap,
+) -> MechanismUnsealedExplicitObservationSummary {
+    debug_assert_eq!(index.total_weight(), index.entry_count());
+    MechanismUnsealedExplicitObservationSummary {
+        root: MechanismUnsealedExplicitObservationRoot(index.root_hash()),
+        slice_count: index.entry_count(),
+    }
+}
+
+fn explicit_observation_registry_value(
+    index: &ExplicitSupportObservationIndex,
+) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(EXPLICIT_OBSERVATION_REGISTRY_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, index.slice);
+    match index.registration_phase {
+        MechanismExplicitObservationRegistrationPhase::Open => encoder.u8(0x01),
+        MechanismExplicitObservationRegistrationPhase::Sealed { support_root } => {
+            encoder.u8(0x02);
+            encoder.digest(support_root.bytes());
+        }
+    }
+    encoder.u128(index.registration_structural_cursor as u128);
+    encoder.digest(index.registration_structural_revision.bytes());
+    encoder.u128(index.backfill_cursor as u128);
+    encoder.u128(EXPLICIT_OBSERVATION_BACKFILL_MAX_ASSIGNMENTS as u128);
+    encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
+    encoder.u128(index.contributing_signature_count);
+    encoder.u128(index.inspected_signatures.len() as u128);
+    for signature_id in index.inspected_signatures.iter().copied() {
+        encoder.digest(signature_id.bytes());
+    }
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
+}
+
+fn pending_explicit_observation_backfill_value(
+    slice: MechanismSupportSlice,
+) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(PENDING_EXPLICIT_OBSERVATION_BACKFILL_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
+}
+
+fn dirty_explicit_observation_value(slice: MechanismSupportSlice) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(DIRTY_EXPLICIT_OBSERVATION_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
+}
+
+fn unsealed_explicit_observation_value(slice: MechanismSupportSlice) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(UNSEALED_EXPLICIT_OBSERVATION_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
+}
+
 fn dirty_automatic_observation_value(slice: MechanismSupportSlice) -> AuthenticatedTreapValue {
     let mut encoder = SupportEncoder::new(DIRTY_AUTOMATIC_OBSERVATION_VALUE_V1);
     encoder.u32(MECHANISM_SUPPORT_VERSION);
@@ -4382,6 +6003,10 @@ fn signature_key(signature_id: MechanismSignatureId) -> Box<[u8]> {
 
 fn automatic_observation_registry_key(mechanism_id: StructuralMechanismId) -> Box<[u8]> {
     mechanism_id.bytes().to_vec().into_boxed_slice()
+}
+
+fn explicit_observation_key(slice: MechanismSupportSlice) -> Box<[u8]> {
+    slice.id().bytes().to_vec().into_boxed_slice()
 }
 
 fn dirty_automatic_observation_key(slice: MechanismSupportSlice) -> Box<[u8]> {
@@ -4920,6 +6545,10 @@ pub(crate) enum MechanismSupportError {
     TerminalDiscoveryPrefixConflict,
     StructuralAssignmentCursorRegression,
     StructuralAssignmentPrefixConflict,
+    ExplicitObservationBackfillPending,
+    ExplicitObservationBackfillPageTooLarge,
+    ExplicitObservationRegistryConflict,
+    InvalidExplicitObservationRoute,
     FrontierConflict,
     UnknownStructuralAssignment,
     UnknownStructuralSubject,
@@ -4974,6 +6603,18 @@ impl fmt::Display for MechanismSupportError {
             }
             Self::StructuralAssignmentPrefixConflict => {
                 "mechanism support structural prefix belongs to a divergent catalog branch"
+            }
+            Self::ExplicitObservationBackfillPending => {
+                "mechanism support explicit observation backfill is still pending"
+            }
+            Self::ExplicitObservationBackfillPageTooLarge => {
+                "mechanism support explicit observation backfill page exceeds its protocol bound"
+            }
+            Self::ExplicitObservationRegistryConflict => {
+                "mechanism support explicit observation registry is internally inconsistent"
+            }
+            Self::InvalidExplicitObservationRoute => {
+                "mechanism support explicit observation route is not structurally addressable"
             }
             Self::FrontierConflict => {
                 "mechanism support observation does not match the supplied durable frontier"
@@ -5593,6 +7234,284 @@ mod tests {
             scheduler_before_ack.registry()
         );
         assert_ne!(scheduler_after_ack.dirty(), scheduler_before_ack.dirty());
+    }
+
+    #[test]
+    fn explicit_node_and_edge_demands_backfill_canonically_and_only_incident_slices_redirty() {
+        let fixture = subject_starter_fixture(false, false, 3, false);
+        let mut support = fixture.pre_structural_support;
+        support
+            .sync_structural_assignments_through(&fixture.structural, 2)
+            .expect("two-assignment structural prefix");
+
+        let scope = support.scope();
+        let node_slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            scope,
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id: fixture.node_ids[0],
+            },
+        ));
+        let nonincident_edge_slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            scope,
+            MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::DifferentialParticipation,
+                edge_id: fixture.edge_ids[0],
+            },
+        ));
+
+        for slice in [node_slice, nonincident_edge_slice] {
+            let registration = support
+                .prepare_explicit_observation_demand_registration(slice, &fixture.structural)
+                .expect("late explicit observation registration");
+            assert_eq!(
+                registration.disposition(),
+                MechanismExplicitObservationRegistrationDisposition::Registered
+            );
+            assert_eq!(
+                registration.registration_phase(),
+                MechanismExplicitObservationRegistrationPhase::Open
+            );
+            assert_eq!(registration.registration_structural_cursor(), 2);
+            support.commit_explicit_observation_demand_registration(registration);
+        }
+        assert_eq!(support.explicit_observation_slice_count(), 2);
+        assert_eq!(support.ready_explicit_observation_slice_count(), 0);
+        assert_eq!(
+            support
+                .pending_explicit_observation_backfill_summary()
+                .slice_count(),
+            2
+        );
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            0
+        );
+
+        // Whole-mechanism demands alias the automatic registry, and repeated
+        // explicit declarations are idempotent even while backfill is pending.
+        let whole_mechanism_slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            scope,
+            MechanismSupportSubject::Mechanism(fixture.mechanism_id),
+        ));
+        let scheduler_before_alias = support.explicit_observation_scheduler_summary();
+        let alias = support
+            .prepare_explicit_observation_demand_registration(
+                whole_mechanism_slice,
+                &fixture.structural,
+            )
+            .expect("whole-mechanism observation alias");
+        assert_eq!(
+            alias.disposition(),
+            MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism
+        );
+        support.commit_explicit_observation_demand_registration(alias);
+        assert_eq!(
+            support.explicit_observation_scheduler_summary(),
+            scheduler_before_alias
+        );
+        let duplicate = support
+            .prepare_explicit_observation_demand_registration(node_slice, &fixture.structural)
+            .expect("duplicate explicit observation registration");
+        assert_eq!(
+            duplicate.disposition(),
+            MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered
+        );
+        support.commit_explicit_observation_demand_registration(duplicate);
+        assert_eq!(
+            support.explicit_observation_scheduler_summary(),
+            scheduler_before_alias
+        );
+
+        let page_size = NonZeroU16::new(1).expect("nonzero page size");
+        let first_slice = support
+            .next_pending_explicit_observation_slice()
+            .expect("canonical first pending slice");
+        let first_page = support
+            .prepare_next_explicit_observation_backfill(&fixture.structural, page_size)
+            .expect("first bounded backfill page")
+            .expect("pending backfill page");
+        assert_eq!(first_page.slice(), first_slice);
+        assert_eq!(first_page.from_structural_cursor(), 0);
+        assert_eq!(first_page.through_structural_cursor(), 1);
+        assert!(!first_page.completed());
+        support.commit_explicit_observation_backfill(first_page);
+        assert_eq!(
+            support.next_pending_explicit_observation_slice(),
+            Some(first_slice)
+        );
+        assert!(!support.ready_explicit_observation_contains(first_slice));
+        assert!(matches!(
+            support.observation_index_for_slice(first_slice),
+            Err(MechanismSupportError::ExplicitObservationBackfillPending)
+        ));
+
+        let second_page = support
+            .prepare_next_explicit_observation_backfill(&fixture.structural, page_size)
+            .expect("second bounded backfill page")
+            .expect("same canonical pending slice");
+        assert_eq!(second_page.slice(), first_slice);
+        assert_eq!(second_page.from_structural_cursor(), 1);
+        assert_eq!(second_page.through_structural_cursor(), 2);
+        assert!(second_page.completed());
+        support.commit_explicit_observation_backfill(second_page);
+        assert!(support.ready_explicit_observation_contains(first_slice));
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            1
+        );
+
+        let second_slice = support
+            .next_pending_explicit_observation_slice()
+            .expect("canonical second pending slice");
+        assert_ne!(second_slice, first_slice);
+        for (from, through, completed) in [(0, 1, false), (1, 2, true)] {
+            let page = support
+                .prepare_next_explicit_observation_backfill(&fixture.structural, page_size)
+                .expect("bounded second-slice backfill")
+                .expect("second-slice backfill page");
+            assert_eq!(page.slice(), second_slice);
+            assert_eq!(page.from_structural_cursor(), from);
+            assert_eq!(page.through_structural_cursor(), through);
+            assert_eq!(page.completed(), completed);
+            support.commit_explicit_observation_backfill(page);
+        }
+        assert_eq!(support.ready_explicit_observation_slice_count(), 2);
+        assert_eq!(
+            support
+                .pending_explicit_observation_backfill_summary()
+                .slice_count(),
+            0
+        );
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            2
+        );
+
+        while let Some(slice) = support.next_dirty_explicit_observation_slice() {
+            let acknowledgement = support
+                .prepare_explicit_observation_ack(slice)
+                .expect("open explicit observation acknowledgement");
+            support.commit_explicit_observation_ack(acknowledgement);
+        }
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            0
+        );
+
+        support
+            .sync_structural_assignments_through(&fixture.structural, 3)
+            .expect("one live structural assignment");
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            1
+        );
+        assert_eq!(
+            support.next_dirty_explicit_observation_slice(),
+            Some(node_slice)
+        );
+        assert_ne!(node_slice, nonincident_edge_slice);
+    }
+
+    #[test]
+    fn post_closure_explicit_observation_seals_without_changing_automatic_authority() {
+        let fixture = closed_subject_starter_fixture();
+        let mut support = fixture.support;
+        let structural_root = fixture
+            .structural
+            .closure()
+            .expect("fixture structural closure")
+            .root();
+        let incidence_root = fixture
+            .incidence
+            .closed_ref()
+            .expect("fixture incidence closure")
+            .root();
+        let support_root = support.closure().expect("fixture support closure").root();
+        let automatic_before = support.automatic_observation_scheduler_summary();
+        let frontier_before = support
+            .checkpoint_frontier(
+                &fixture.incidence,
+                Some(incidence_root),
+                &fixture.structural,
+                Some(structural_root),
+            )
+            .expect("sealed support frontier before late reader");
+
+        let slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            support.scope(),
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id: fixture.node_ids[0],
+            },
+        ));
+        let registration = support
+            .prepare_explicit_observation_demand_registration(slice, &fixture.structural)
+            .expect("post-closure explicit observation registration");
+        assert_eq!(
+            registration.registration_phase(),
+            MechanismExplicitObservationRegistrationPhase::Sealed { support_root }
+        );
+        support.commit_explicit_observation_demand_registration(registration);
+        let backfill = support
+            .prepare_next_explicit_observation_backfill(
+                &fixture.structural,
+                NonZeroU16::new(1).expect("nonzero page size"),
+            )
+            .expect("post-closure backfill")
+            .expect("post-closure backfill page");
+        assert!(backfill.completed());
+        support.commit_explicit_observation_backfill(backfill);
+        assert!(support.ready_explicit_observation_contains(slice));
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            1
+        );
+        assert_eq!(
+            support
+                .unsealed_explicit_observation_summary()
+                .slice_count(),
+            1
+        );
+
+        let sealed = support
+            .derive_factorized_support_observation(slice, frontier_before, &fixture.structural)
+            .expect("sealed late observation");
+        assert_eq!(sealed.support_root(), Some(support_root));
+        assert!(!sealed.target_frontier_is_open());
+        let acknowledgement = support
+            .prepare_explicit_observation_seal_ack(slice)
+            .expect("direct sealed observation acknowledgement");
+        assert!(acknowledgement.retired_dirty_observation());
+        support.commit_explicit_observation_seal_ack(acknowledgement);
+        assert_eq!(
+            support.dirty_explicit_observation_summary().slice_count(),
+            0
+        );
+        assert_eq!(
+            support
+                .unsealed_explicit_observation_summary()
+                .slice_count(),
+            0
+        );
+
+        assert_eq!(
+            support.automatic_observation_scheduler_summary(),
+            automatic_before
+        );
+        assert_eq!(
+            support.closure().map(|closure| closure.root()),
+            Some(support_root)
+        );
+        let frontier_after = support
+            .checkpoint_frontier(
+                &fixture.incidence,
+                Some(incidence_root),
+                &fixture.structural,
+                Some(structural_root),
+            )
+            .expect("sealed support frontier after late reader");
+        assert_eq!(frontier_after, frontier_before);
     }
 
     #[test]

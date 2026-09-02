@@ -6713,13 +6713,32 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
                 "target_starters": totals.target_starters.to_string(),
             })),
             "support_observations": {
-                "points": mechanism.support_observation_points.to_string(),
-                "registered_slices": mechanism.registered_support_slices.to_string(),
-                "dirty_slices": mechanism.dirty_support_slices.to_string(),
-                "observed_slices": mechanism.observed_support_slices.to_string(),
-                "sealed_slices": mechanism.sealed_support_slices.to_string(),
-                "chain_root": mechanism.support_observation_chain_root,
-                "initial_point_id": mechanism.initial_support_observation_point_id,
+                "total": {
+                    "points": mechanism.total_support_observation_points.to_string(),
+                    "chain_root": mechanism.total_support_observation_chain_root,
+                },
+                "automatic": {
+                    "points": mechanism.automatic_support_observation_points.to_string(),
+                    "registered_slices": mechanism.automatic_registered_support_slices.to_string(),
+                    "dirty_slices": mechanism.automatic_dirty_support_slices.to_string(),
+                    "observed_slices": mechanism.automatic_observed_support_slices.to_string(),
+                    "sealed_slices": mechanism.automatic_sealed_support_slices.to_string(),
+                    "chain_root": mechanism.automatic_support_observation_chain_root,
+                    "initial_point_id": mechanism.initial_automatic_support_observation_point_id,
+                },
+                "explicit": {
+                    "demand_registrations": mechanism.explicit_support_observation_demand_registrations.to_string(),
+                    "points": mechanism.explicit_support_observation_points.to_string(),
+                    "node_edge_scheduler": {
+                        "registered_slices": mechanism.explicit_registered_support_slices.to_string(),
+                        "ready_slices": mechanism.explicit_ready_support_slices.to_string(),
+                        "pending_backfill_slices": mechanism.explicit_pending_backfill_support_slices.to_string(),
+                        "dirty_slices": mechanism.explicit_dirty_support_slices.to_string(),
+                        "unsealed_slices": mechanism.explicit_unsealed_support_slices.to_string(),
+                        "observed_slices": mechanism.explicit_observed_support_slices.to_string(),
+                        "sealed_slices": mechanism.explicit_sealed_support_slices.to_string(),
+                    },
+                },
             },
         }),
     }
@@ -6908,18 +6927,39 @@ fn relational_explore_answer_mechanism_json(
             "distinct_target_starters": totals.target_starters.to_string(),
         })),
         "support_observations": {
-            "points": mechanism.support_observation_points.to_string(),
-            "registered_slices": mechanism.registered_support_slices.to_string(),
-            "dirty_slices": mechanism.dirty_support_slices.to_string(),
-            "observed_slices": mechanism.observed_support_slices.to_string(),
-            "sealed_slices": mechanism.sealed_support_slices.to_string(),
-            "initial_point_id": mechanism.initial_support_observation_point_id,
+            "total": {
+                "points": mechanism.total_support_observation_points.to_string(),
+                "chain_root": mechanism.total_support_observation_chain_root,
+            },
+            "automatic": {
+                "points": mechanism.automatic_support_observation_points.to_string(),
+                "registered_slices": mechanism.automatic_registered_support_slices.to_string(),
+                "dirty_slices": mechanism.automatic_dirty_support_slices.to_string(),
+                "observed_slices": mechanism.automatic_observed_support_slices.to_string(),
+                "sealed_slices": mechanism.automatic_sealed_support_slices.to_string(),
+                "chain_root": mechanism.automatic_support_observation_chain_root,
+                "initial_point_id": mechanism.initial_automatic_support_observation_point_id,
+            },
+            "explicit": {
+                "demand_registrations": mechanism.explicit_support_observation_demand_registrations.to_string(),
+                "points": mechanism.explicit_support_observation_points.to_string(),
+                "node_edge_scheduler": {
+                    "registered_slices": mechanism.explicit_registered_support_slices.to_string(),
+                    "ready_slices": mechanism.explicit_ready_support_slices.to_string(),
+                    "pending_backfill_slices": mechanism.explicit_pending_backfill_support_slices.to_string(),
+                    "dirty_slices": mechanism.explicit_dirty_support_slices.to_string(),
+                    "unsealed_slices": mechanism.explicit_unsealed_support_slices.to_string(),
+                    "observed_slices": mechanism.explicit_observed_support_slices.to_string(),
+                    "sealed_slices": mechanism.explicit_sealed_support_slices.to_string(),
+                },
+            },
         },
         "evidence": {
             "raw_closure_root": mechanism.raw_closure_root,
             "structural_closure_root": mechanism.structural_closure_root,
             "starter_support_closure_root": mechanism.support_closure_root,
-            "support_observation_chain_root": mechanism.support_observation_chain_root,
+            "total_support_observation_chain_root": mechanism.total_support_observation_chain_root,
+            "automatic_support_observation_chain_root": mechanism.automatic_support_observation_chain_root,
         },
     })
 }
@@ -7166,25 +7206,60 @@ fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceRe
                 "replay-unavailable cases",
             ),
         );
-        if mechanism.support_observation_points != 0 {
+        if mechanism.total_support_observation_points != 0 {
             println!(
-                "Support stream `{}`: {} durable observation point{}; {} registered slice{}, {} currently dirty, {} observed, {} sealed.",
+                "Support stream `{}`: {} durable observation point{} total ({} automatic, {} explicit).",
                 mechanism.name,
-                mechanism.support_observation_points,
-                if mechanism.support_observation_points == 1 {
+                mechanism.total_support_observation_points,
+                if mechanism.total_support_observation_points == 1 {
                     ""
                 } else {
                     "s"
                 },
-                mechanism.registered_support_slices,
-                if mechanism.registered_support_slices == 1 {
+                mechanism.automatic_support_observation_points,
+                mechanism.explicit_support_observation_points,
+            );
+        }
+        if mechanism.automatic_registered_support_slices != 0 {
+            println!(
+                "Automatic support coverage `{}`: {} registered slice{}; {} currently dirty, {} observed, {} sealed.",
+                mechanism.name,
+                mechanism.automatic_registered_support_slices,
+                if mechanism.automatic_registered_support_slices == 1 {
                     ""
                 } else {
                     "s"
                 },
-                mechanism.dirty_support_slices,
-                mechanism.observed_support_slices,
-                mechanism.sealed_support_slices,
+                mechanism.automatic_dirty_support_slices,
+                mechanism.automatic_observed_support_slices,
+                mechanism.automatic_sealed_support_slices,
+            );
+        }
+        if mechanism.explicit_support_observation_demand_registrations != 0
+            || mechanism.explicit_registered_support_slices != 0
+            || mechanism.explicit_support_observation_points != 0
+        {
+            println!(
+                "Explicit support observations `{}`: {} demand registration{}; {} node/edge slice{} registered ({} ready, {} awaiting backfill), {} dirty, {} observed, {} sealed, {} unsealed.",
+                mechanism.name,
+                mechanism.explicit_support_observation_demand_registrations,
+                if mechanism.explicit_support_observation_demand_registrations == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.explicit_registered_support_slices,
+                if mechanism.explicit_registered_support_slices == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.explicit_ready_support_slices,
+                mechanism.explicit_pending_backfill_support_slices,
+                mechanism.explicit_dirty_support_slices,
+                mechanism.explicit_observed_support_slices,
+                mechanism.explicit_sealed_support_slices,
+                mechanism.explicit_unsealed_support_slices,
             );
         }
         if let Some(totals) = mechanism.support_closure_totals {
@@ -7395,12 +7470,28 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
                     relational_explore_count_text(mechanism.execution_profiles),
                 );
                 println!(
-                    "    support observations: {} points; {} registered, {} dirty, {} observed, {} sealed",
-                    mechanism.support_observation_points,
-                    mechanism.registered_support_slices,
-                    mechanism.dirty_support_slices,
-                    mechanism.observed_support_slices,
-                    mechanism.sealed_support_slices,
+                    "    support observations total: {} points",
+                    mechanism.total_support_observation_points,
+                );
+                println!(
+                    "      automatic: {} points; {} registered, {} dirty, {} observed, {} sealed",
+                    mechanism.automatic_support_observation_points,
+                    mechanism.automatic_registered_support_slices,
+                    mechanism.automatic_dirty_support_slices,
+                    mechanism.automatic_observed_support_slices,
+                    mechanism.automatic_sealed_support_slices,
+                );
+                println!(
+                    "      explicit: {} demand registrations, {} points; {} registered ({} ready, {} awaiting backfill), {} dirty, {} observed, {} sealed, {} unsealed",
+                    mechanism.explicit_support_observation_demand_registrations,
+                    mechanism.explicit_support_observation_points,
+                    mechanism.explicit_registered_support_slices,
+                    mechanism.explicit_ready_support_slices,
+                    mechanism.explicit_pending_backfill_support_slices,
+                    mechanism.explicit_dirty_support_slices,
+                    mechanism.explicit_observed_support_slices,
+                    mechanism.explicit_sealed_support_slices,
+                    mechanism.explicit_unsealed_support_slices,
                 );
                 if mechanism.raw_closure_root.is_some()
                     || mechanism.structural_closure_root.is_some()
@@ -58911,6 +59002,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     span: Span::dummy(),
                 }),
             ],
+            observation_demands: Vec::new(),
             starter_projections: Vec::new(),
             transition_graphs: Vec::new(),
             span: Span::dummy(),

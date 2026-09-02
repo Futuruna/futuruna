@@ -12,6 +12,7 @@
 //! batch, and a resource governor admits at most one call at a work boundary.
 
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU16, NonZeroU32};
@@ -19,10 +20,12 @@ use std::num::{NonZeroU16, NonZeroU32};
 use crate::CheckedExploreQueryView;
 
 use super::mechanism_support::{
-    MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportFrontierRoot,
-    MechanismSupportSliceId,
+    MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportError,
+    MechanismSupportFacet, MechanismSupportFrontierRoot, MechanismSupportKey,
+    MechanismSupportSlice, MechanismSupportSliceId, MechanismSupportSubject,
 };
 use super::relation::{MechanismRequestId, RelationalCaseId, ViewId};
+use super::relational_analysis_journal::RelationalAnalysisJournalError;
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanError,
 };
@@ -33,10 +36,11 @@ use super::relational_incidence_result_step_driver::{
     RelationalIncidenceResultStepOutcome, RelationalIncidenceResultStepQuantum,
     RelationalIncidenceResultStepQuiescence,
 };
+use super::relational_ir::{ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr};
 use super::relational_journal::{
-    MechanismSupportObservationPointId, MechanismSupportObservationStatus, RelationalJournal,
-    RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
-    RelationalMechanismSupportStepEvents,
+    MechanismSupportObservationPointId, MechanismSupportObservationStatus,
+    RelationalExplicitMechanismSupportStepEvents, RelationalJournal, RelationalJournalError,
+    RelationalJournalEvent, RelationalJournalHead, RelationalMechanismSupportStepEvents,
 };
 use super::relational_mechanism_executor::{
     RelationalMechanismEndpoint, RelationalMechanismReplayPause, RelationalMechanismReplayRunError,
@@ -131,6 +135,17 @@ pub(crate) enum RelationalStreamQuantum {
     Result(RelationalResultStepQuantum),
     IncidenceResult(RelationalIncidenceResultStepQuantum),
     Mechanism(RelationalMechanismStepQuantum),
+    RegisterMechanismSupportObservation {
+        request_id: MechanismRequestId,
+        slice_id: MechanismSupportSliceId,
+    },
+    BackfillMechanismSupportObservation {
+        request_id: MechanismRequestId,
+        slice_id: MechanismSupportSliceId,
+        from_structural_cursor: u128,
+        through_structural_cursor: u128,
+        completed: bool,
+    },
     ObserveMechanismSupport {
         request_id: MechanismRequestId,
         point_id: MechanismSupportObservationPointId,
@@ -225,10 +240,62 @@ pub(crate) struct RelationalStreamDriver<'query> {
     incidence_results: RelationalIncidenceResultStepDriver<'query>,
     mechanisms: RelationalMechanismStepDriver<'query>,
     support_requests: Box<[MechanismRequestId]>,
+    support_observation_demands: Box<[RelationalSupportObservationDemand]>,
     /// Process-local round-robin cursor. Durable support prefixes remain the
     /// resume authority; this only prevents an idle open request from starving
     /// another request's ready support suffix.
     support_request_ordinal: RefCell<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RelationalSupportObservationDemand {
+    request_id: MechanismRequestId,
+    subject: MechanismSupportSubject,
+    within_mechanism: Option<super::structural_mechanism::StructuralMechanismId>,
+}
+
+impl RelationalSupportObservationDemand {
+    fn slice(self, journal: &RelationalJournal) -> Option<MechanismSupportSlice> {
+        let support = journal
+            .analysis_state()?
+            .mechanism_support_catalog(self.request_id)?;
+        let key = MechanismSupportKey::new(support.scope(), self.subject);
+        Some(match self.within_mechanism {
+            Some(mechanism_id) => MechanismSupportSlice::within_mechanism(key, mechanism_id),
+            None => MechanismSupportSlice::total(key),
+        })
+    }
+}
+
+const fn mechanism_support_subject(
+    subject: ExploreMechanismSupportSubjectIr,
+) -> MechanismSupportSubject {
+    match subject {
+        ExploreMechanismSupportSubjectIr::Mechanism(mechanism_id) => {
+            MechanismSupportSubject::Mechanism(mechanism_id)
+        }
+        ExploreMechanismSupportSubjectIr::Node { facet, node_id } => {
+            MechanismSupportSubject::Node {
+                facet: mechanism_support_facet(facet),
+                node_id,
+            }
+        }
+        ExploreMechanismSupportSubjectIr::Edge { facet, edge_id } => {
+            MechanismSupportSubject::Edge {
+                facet: mechanism_support_facet(facet),
+                edge_id,
+            }
+        }
+    }
+}
+
+const fn mechanism_support_facet(facet: ExploreMechanismSupportFacetIr) -> MechanismSupportFacet {
+    match facet {
+        ExploreMechanismSupportFacetIr::Activation => MechanismSupportFacet::Activation,
+        ExploreMechanismSupportFacetIr::DifferentialParticipation => {
+            MechanismSupportFacet::DifferentialParticipation
+        }
+    }
 }
 
 impl<'query> RelationalStreamDriver<'query> {
@@ -303,6 +370,27 @@ impl<'query> RelationalStreamDriver<'query> {
             })
             .collect::<Vec<_>>()
             .into_boxed_slice();
+        let mut support_observation_demands = checked
+            .support_observation_demands()
+            .map(|(_, identity)| {
+                (
+                    identity.id,
+                    RelationalSupportObservationDemand {
+                        request_id: identity.request_id,
+                        subject: mechanism_support_subject(identity.subject),
+                        within_mechanism: identity.within_mechanism,
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        support_observation_demands.sort_by_key(|(id, _)| *id);
+        let mut unique_demand_ids = BTreeSet::new();
+        support_observation_demands.retain(|(id, _)| unique_demand_ids.insert(*id));
+        let support_observation_demands = support_observation_demands
+            .into_iter()
+            .map(|(_, demand)| demand)
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
         Ok(Self {
             analysis_plan,
             base,
@@ -310,8 +398,197 @@ impl<'query> RelationalStreamDriver<'query> {
             incidence_results,
             mechanisms,
             support_requests,
+            support_observation_demands,
             support_request_ordinal: RefCell::new(0),
         })
+    }
+
+    fn support_lifecycle_outcome(
+        &self,
+        journal: &mut RelationalJournal,
+        request_id: MechanismRequestId,
+    ) -> Result<Option<RelationalStreamStepOutcome>, RelationalJournalError> {
+        Ok(
+            match journal.support_lifecycle_step_events(
+                request_id,
+                self.mechanisms.max_target_cases_per_quantum(),
+            )? {
+                RelationalMechanismSupportStepEvents::Observed {
+                    point_id,
+                    slice,
+                    status,
+                    events,
+                } => Some(self.batch(
+                    journal,
+                    RelationalStreamQuantum::ObserveMechanismSupport {
+                        request_id,
+                        point_id,
+                        slice_id: slice.id(),
+                        status,
+                    },
+                    events.into_vec(),
+                )),
+                RelationalMechanismSupportStepEvents::Checkpoint {
+                    accepted_target_cases,
+                    cursor,
+                    frontier_root,
+                    events,
+                } => Some(self.batch(
+                    journal,
+                    RelationalStreamQuantum::CheckpointMechanismSupport {
+                        request_id,
+                        accepted_target_cases,
+                        cursor,
+                        frontier_root,
+                    },
+                    events.into_vec(),
+                )),
+                RelationalMechanismSupportStepEvents::Closed {
+                    checkpointed_frontier,
+                    cursor,
+                    support_root,
+                    events,
+                } => Some(self.batch(
+                    journal,
+                    RelationalStreamQuantum::CloseMechanismSupport {
+                        request_id,
+                        checkpointed_frontier,
+                        cursor,
+                        support_root,
+                    },
+                    events.into_vec(),
+                )),
+                RelationalMechanismSupportStepEvents::Idle => None,
+            },
+        )
+    }
+
+    fn explicit_observation_step(
+        &self,
+        journal: &mut RelationalJournal,
+    ) -> Result<Option<RelationalStreamStepOutcome>, RelationalStreamDriverError> {
+        let analysis_closed = journal
+            .analysis_state()
+            .is_some_and(|analysis| analysis.is_closed());
+        for demand in self.support_observation_demands.iter().copied() {
+            let Some(slice) = demand.slice(journal) else {
+                continue;
+            };
+            if journal.mechanism_support_observation_demand_registered(slice) {
+                continue;
+            }
+            match journal.support_observation_demand_registration_event(slice) {
+                Ok(Some(event)) => {
+                    return Ok(Some(self.batch(
+                        journal,
+                        RelationalStreamQuantum::RegisterMechanismSupportObservation {
+                            request_id: demand.request_id,
+                            slice_id: slice.id(),
+                        },
+                        vec![event],
+                    )));
+                }
+                Ok(None) => {}
+                Err(error) if support_observation_registration_is_deferred(&error) => {
+                    let structural_is_closed = journal
+                        .analysis_state()
+                        .and_then(|analysis| {
+                            analysis.structural_quotient_closure(demand.request_id)
+                        })
+                        .is_some();
+                    if structural_is_closed || analysis_closed {
+                        return Err(RelationalStreamDriverError::ObservationDemandUnresolved {
+                            request_id: demand.request_id,
+                            slice_id: slice.id(),
+                        });
+                    }
+                }
+                Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { .. })
+                    if !analysis_closed =>
+                {
+                    // A discarded support proposal or same-cursor enrichment
+                    // must be the next emitted checkpoint, before unrelated
+                    // result or mechanism work can overtake recovery.
+                    return self
+                        .support_lifecycle_outcome(journal, demand.request_id)
+                        .map_err(RelationalStreamDriverError::from);
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+
+        for request_id in self.support_requests.iter().copied() {
+            if !analysis_closed
+                && journal
+                    .analysis_state()
+                    .and_then(|analysis| analysis.mechanism_support_closure(request_id))
+                    .is_some()
+            {
+                continue;
+            }
+            match journal.explicit_support_observation_step_events(
+                request_id,
+                self.mechanisms.max_target_cases_per_quantum(),
+            ) {
+                Ok(RelationalExplicitMechanismSupportStepEvents::Backfilled {
+                    slice,
+                    from_structural_cursor,
+                    through_structural_cursor,
+                    completed,
+                    events,
+                }) => {
+                    return Ok(Some(self.batch(
+                        journal,
+                        RelationalStreamQuantum::BackfillMechanismSupportObservation {
+                            request_id,
+                            slice_id: slice.id(),
+                            from_structural_cursor,
+                            through_structural_cursor,
+                            completed,
+                        },
+                        events.into_vec(),
+                    )));
+                }
+                Ok(RelationalExplicitMechanismSupportStepEvents::Observed {
+                    point_id,
+                    slice,
+                    status,
+                    events,
+                }) => {
+                    return Ok(Some(self.batch(
+                        journal,
+                        RelationalStreamQuantum::ObserveMechanismSupport {
+                            request_id,
+                            point_id,
+                            slice_id: slice.id(),
+                            status,
+                        },
+                        events.into_vec(),
+                    )));
+                }
+                Ok(RelationalExplicitMechanismSupportStepEvents::Idle) => {}
+                Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { .. })
+                    if !analysis_closed =>
+                {
+                    return self
+                        .support_lifecycle_outcome(journal, request_id)
+                        .map_err(RelationalStreamDriverError::from);
+                }
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Ok(None)
+    }
+
+    fn configured_observation_demands_are_sealed(&self, journal: &RelationalJournal) -> bool {
+        self.support_observation_demands
+            .iter()
+            .copied()
+            .all(|demand| {
+                demand.slice(journal).is_some_and(|slice| {
+                    journal.mechanism_support_observation_demand_is_sealed(slice)
+                })
+            })
     }
 
     /// Execute at most one semantic quantum. A runtime failure is returned as
@@ -373,13 +650,6 @@ impl<'query> RelationalStreamDriver<'query> {
         self.results
             .rebind_certified_source_summaries(journal, expression_runtime)?;
 
-        if journal
-            .analysis_state()
-            .is_some_and(|analysis| analysis.is_closed())
-        {
-            return Ok(RelationalStreamStepOutcome::Complete);
-        }
-
         // An installed segment may end between bounded mechanism chunks. No
         // other answer-defining layer may interleave that artifact, so fresh
         // deterministic replay must reproduce and append its exact suffix
@@ -426,6 +696,28 @@ impl<'query> RelationalStreamDriver<'query> {
                     return Err(RelationalStreamRunError::MechanismReplay(error));
                 }
             }
+        }
+
+        if let Some(outcome) = self.explicit_observation_step(journal)? {
+            return Ok(outcome);
+        }
+
+        if journal
+            .analysis_state()
+            .is_some_and(|analysis| analysis.is_closed())
+        {
+            if self.configured_observation_demands_are_sealed(journal) {
+                return Ok(RelationalStreamStepOutcome::Complete);
+            }
+            let request_id = self
+                .support_observation_demands
+                .first()
+                .map(|demand| demand.request_id)
+                .or_else(|| self.support_requests.first().copied())
+                .expect("an unsealed configured observation has a mechanism request");
+            return Ok(RelationalStreamStepOutcome::Quiescent(
+                RelationalStreamQuiescence::AwaitingMechanismSupport { request_id },
+            ));
         }
 
         // Result specs and row-local evidence are readiness-driven. A case
@@ -768,6 +1060,16 @@ impl<'query> RelationalStreamDriver<'query> {
     }
 }
 
+fn support_observation_registration_is_deferred(error: &RelationalJournalError) -> bool {
+    matches!(
+        error,
+        RelationalJournalError::Analysis(RelationalAnalysisJournalError::MechanismSupport(
+            MechanismSupportError::UnknownStructuralSubject
+                | MechanismSupportError::InvalidExplicitObservationRoute
+        ))
+    )
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalStreamDriverError {
     AnalysisPlan(RelationalAnalysisPlanError),
@@ -781,6 +1083,10 @@ pub(crate) enum RelationalStreamDriverError {
     SelectedQuestionBridgeMissing,
     ResultDriverQuiescenceMismatch,
     PendingArtifactNotResumed,
+    ObservationDemandUnresolved {
+        request_id: MechanismRequestId,
+        slice_id: MechanismSupportSliceId,
+    },
 }
 
 impl fmt::Display for RelationalStreamDriverError {
@@ -807,6 +1113,9 @@ impl fmt::Display for RelationalStreamDriverError {
             Self::PendingArtifactNotResumed => formatter.write_str(
                 "open mechanism artifact was not resumed before normal stream scheduling",
             ),
+            Self::ObservationDemandUnresolved { .. } => formatter.write_str(
+                "support observation demand is not addressable in the closed structural graph",
+            ),
         }
     }
 }
@@ -824,7 +1133,8 @@ impl Error for RelationalStreamDriverError {
             | Self::AnalysisStateMissing
             | Self::SelectedQuestionBridgeMissing
             | Self::ResultDriverQuiescenceMismatch
-            | Self::PendingArtifactNotResumed => None,
+            | Self::PendingArtifactNotResumed
+            | Self::ObservationDemandUnresolved { .. } => None,
         }
     }
 }

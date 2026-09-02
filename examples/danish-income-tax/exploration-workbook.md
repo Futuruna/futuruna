@@ -1672,7 +1672,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v11 projects those points into a resumable request-local sidecar;
+Publication v12 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -1740,7 +1740,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v11
+view is rebuilt from the same authenticated signature leaves. Publication v12
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -1758,12 +1758,44 @@ does not force every older mechanism to be re-observed. Once request support
 closes, a lazy final sweep schedules one sealed successor for every registered
 mechanism slice; the compact closure receipt is withheld until the registered,
 observed and sealed slice counts all equal the exact structural-mechanism count.
-Node and edge descriptors remain unscheduled addresses for now; explicit
-observation-demand registration for selected graph regions is the next
-extension. This keeps a ubiquitous root node from allocating memory
-proportional to every case merely because the DAG is being printed.
+This automatic whole-mechanism registry is the **core lane**. Selected node and
+edge slices use a separate **explicit extension lane**, so attaching one does
+not enlarge the core frontier or delay its closure receipt. A descriptor which
+neither lane requests remains only an address. In particular, publishing the
+DAG never creates a resident `cases × DAG subjects` table.
 
-Those descriptors are authorization-neutral. Publication v11 retains the
+The Experimental checked syntax registers one compact slice explicitly:
+
+```runa
+observations selected_cliff_node_support
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+within mechanism "<StructuralMechanismId>"
+```
+
+The last line is optional and is valid only for a node or edge. The subject may
+also be `mechanism "<StructuralMechanismId>"`, `node activation ...`, or the
+corresponding activation/differential edge form. Declaration names are output
+addresses, not slice identity: two names requesting the same request, subject,
+facet and optional enclosing mechanism share one checked demand ID and one
+scheduler registration. The unique demand-set identity is independent of
+declaration order. Adding or renaming an observation does not rename the
+relation, question, mechanism request or analysis DAG.
+
+An explicit demand may be present before core support closes or attached after
+core analysis has already closed. Registration fixes the current structural
+assignment prefix, then backfills it in canonical pages of at most 256
+signature assignments; a partial backfill is never observable. Backfill also
+installs subject/route and signature watchers, including for a slice with no
+matching fiber yet. Later assignment or terminal evidence therefore dirties
+only ready slices incident to that evidence, rather than rescanning all
+demands. If a demand first becomes observable after durable support closure,
+its first accepted observation may be `sealed`; no invented open predecessor
+is needed. These frontend and scheduler semantics are integrated through the
+journal, stream driver and publication plan; focused executable verification
+is the next gate before a larger audit run.
+
+Those descriptors are authorization-neutral. Publication v12 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -1794,12 +1826,12 @@ The route-qualified typed artifact uses subject-starter record schema v2. An
 unqualified consumer omits that optional coordinate and retains its v1
 consumer-local identity and record shape. In the historical publication-v9
 contract this allowed a qualified consumer to be appended without republishing
-the core exploration. Publication v11 preserves the semantic separation, but
+the core exploration. Publication v12 preserves the semantic separation, but
 has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
 activation/differential node or edge. It is deliberately singular: v1 has no
-wildcard or list which could fan out into a hidden `cases x DAG` export. For a chosen
+wildcard or list which could fan out into a hidden `cases × DAG` export. For a chosen
 target, the authorizing view covers the selected population from which the same
 `QuestionId`'s chosen subset was derived; the choosing view need not itself
 expose all four values. The declaration is an appendable publication consumer,
@@ -1821,8 +1853,9 @@ scaling option for very high signature fan-in. The compact mechanism result can
 close independently of this resumable typed-publication lane. The structural
 catalog carries stable descriptors for **total** mechanism, node and edge
 support slices. Every mechanism-total summary is scheduled automatically;
-node/edge summaries appear only after future explicit demand schedules and
-journals them. An authored typed projection remains a separate
+node/edge summaries appear only when an explicit `observations` declaration
+schedules and journals that stable slice. An authored typed projection remains
+a separate
 `starters/<name>.ndjson` consumer and does not turn a descriptor or compact
 observation into inline `(Context, Before) -> After` values. Mechanism-route
 conditioning reuses that same bounded typed projection; arbitrary path
@@ -2055,8 +2088,10 @@ no-pension helper. A per-signature result view counts distinct
 `(Context, Before)` starters separately from cases, while the structural
 definition sidecar supplies stable mechanism/node/edge support-slice
 descriptors and the request-local observation sidecar supplies bounded
-factorized summaries for every discovered mechanism total. Node/edge
-observation demand remains a later extension.
+factorized summaries for every discovered mechanism total. The checked
+`observations` syntax can additionally name selected node/edge slices without
+requesting their typed starter rows; runtime/publication verification of that
+new extension lane remains pending.
 Copenhagen, tax year, church status and the remaining no/standard facts are
 visibly `conditioned`; commute distance and salary are `explored`. Targeted
 format and static checking pass.
@@ -2240,7 +2275,7 @@ fiber on demand while the other 8,052 nodes and 20,720 edges stayed factorized.
 Publication must never eagerly serialize all of those case fibers merely
 because the structural DAG is published.
 
-Publication v11 keeps that typed consumer but removes the eager closure-time
+Publication v12 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
@@ -2381,7 +2416,7 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v11 records
+unions and honest unknown/interval/exact counts. Publication v12 records
 authenticated inner/outer fiber-expression identities for the correlated
 `SourceKey -> SuccessorKey set` contract in append-only observation points.
 The structural-definition catalog supplies stable slice descriptors rather
@@ -2406,10 +2441,10 @@ a new Personskat execution or the current compact-observation layout.
 
 What remains is arbitrary path-conditioned selection and a human-readable
 region compression which labels dimensions as conditioned, explored, derived,
-proved irrelevant or coverage gaps. Unscheduled node/edge slice descriptors
-correctly remain addresses without observations or typed materialization, rather than
-implying that opaque roots or per-field marginals are readable correlated
-subbounds.
+proved irrelevant or coverage gaps. An undemanded node/edge slice descriptor
+correctly remains an address without an observation or typed materialization,
+rather than implying that opaque roots or per-field marginals are readable
+correlated subbounds.
 
 The starting context is part of every case, not incidental metadata. Write a
 starter as `Source = (Context, Before)` and a case as one supported
@@ -2440,7 +2475,7 @@ rejects a mismatching claim. The journal chain is therefore the recovery and
 ordering authority; the public NDJSON artifact is only a resumable projection
 of already accepted points.
 
-Publication v11 emits one flat observation artifact per mechanism request at
+Publication v12 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -2451,24 +2486,33 @@ whole-mechanism slice; the observation need not have global ordinal zero. The
 structural-definition catalog publishes stable slice descriptors for
 whole-mechanism totals and total node/edge activation or
 differential-participation support. Every whole-mechanism total is scheduled
-automatically. A node/edge descriptor only makes that slice addressable today;
-it does not schedule or claim an observation. The same coordinate type can
-additionally represent a route-conditioned intersection when a future explicit
-demand scheduler requests one.
+automatically in the core lane. A checked `observations` declaration schedules
+one total or route-conditioned node/edge slice in the explicit extension lane.
+Multiple declaration names for the same stable slice coalesce into one
+registration; an explicit whole-mechanism request aliases its automatic slice
+rather than duplicating it. Undemanded descriptors remain addresses only.
+
+A second compact request-local ledger at
+`mechanisms/<request>.support-observation-demands.ndjson` records each unique
+durable registration and its exact checkpoint/scheduler receipt. The manifest
+maps every authored name—including aliases—to its name-independent demand ID,
+stable slice ID and latest point in the shared observation artifact.
 
 An open point reports `unknown(lower_bound = n)` for an open target. Its inner
 fiber contains only inspected, imported signature support; its outer fiber
 also names the shared pending, unavailable and structurally unassigned
 residual. Later checkpoints can mint monotone refinements without pretending
 that an observed prefix is final. Only changes to a mechanism's own indexed
-support make that mechanism dirty, and multiple changes before its turn
+support make its automatic slice dirty, and multiple changes before its turn
 coalesce. Earlier points remain valid historical prefix evidence rather than
-being rewritten when unrelated mechanisms advance. Support closure is
-forbidden until all open dirty work is durable. Closure then seeds a lazy,
-canonical sweep over every registered mechanism slice, and analysis closure is
+being rewritten when unrelated mechanisms advance. Core support closure is
+forbidden until automatic dirty work is durable. Closure then enters a lazy,
+canonical sweep over the automatic mechanism slices, and analysis closure is
 forbidden until each has a sealed successor. At that successor, exact or
 interval counts follow from the closed factorized support algebra rather than
-from an arbitrary case-display cap.
+from an arbitrary case-display cap. Explicit registry, backfill, dirty and
+unsealed roots are authenticated outer scheduler state, but configured-demand
+completion is separate from this core closure.
 
 Let `A` be accepted updates which affect one mechanism's support index, `M` the
 number of structural mechanisms and `P` the accepted open observation points.
@@ -2479,10 +2523,13 @@ across `M` bounded quanta; support closure neither seeds nor allocates an
 `O(cases × mechanisms)` join or rescan all `M` mechanisms on every frontier
 advance. The same coordinate type already names whole mechanisms, node or edge
 activation, differential participation and route-conditioned intersections.
-Future explicit node/edge demand registration can therefore schedule selected
-graph regions without changing the journal protocol or eagerly multiplying
-`cases × nodes`. This is also why a separate probe language is unnecessary: an
-early observation is a durable, resumable prefix of the real exploration.
+Explicit node/edge demand registration therefore schedules selected graph
+regions without changing the core journal identities or eagerly multiplying
+`cases × nodes`. Each registration catches up to its fixed durable structural
+prefix in quanta of at most 256 assignments, then incident-only watchers carry
+later evidence forward. This is also why a separate probe language is
+unnecessary: an early observation is a durable, resumable prefix of the real
+exploration.
 
 The explicit `starters` declaration remains a different consumer. It uses a
 named checked value view to materialize one authorized typed
@@ -2491,7 +2538,7 @@ enclosing mechanism. Support observations stay compact and value-free; adding
 or reading them does not implicitly publish private starter configurations.
 
 The compact public answer now exposes this distinction directly. Relational
-stream JSON v6 names the closure-aware selected before-to-after case count and,
+stream JSON v7 names the closure-aware selected before-to-after case count and,
 for every mechanism request, the structural-mechanism, successful replay and
 unavailable-replay counts plus the exact sealed target's distinct starter
 count and evidence roots. Human output leads with the same answer before

@@ -11,10 +11,11 @@ use super::{
     ExploreExactDomain, FindPolarity, StructuralEdgeId, StructuralMechanismId, StructuralNodeId,
 };
 use crate::{
-    ExploreAdmissionScope, ExploreChooseCardinality, ExploreOptimizeDirection,
-    ExploreRelationMultiplicity, ExploreStarterProjectionFacet, Expr, ExprKind, Span, Ty,
-    TypedExploreStarterProjection, TypedExploreStarterProjectionSubject,
-    TypedExploreTransitionGraph, EXPLORE_RELATION_NORMALIZATION_VERSION,
+    ExploreAdmissionScope, ExploreChooseCardinality, ExploreMechanismSupportFacet,
+    ExploreOptimizeDirection, ExploreRelationMultiplicity, Expr, ExprKind, Span, Ty,
+    TypedExploreMechanismSupportSubject, TypedExploreStarterProjection,
+    TypedExploreSupportObservationDemand, TypedExploreTransitionGraph,
+    EXPLORE_RELATION_NORMALIZATION_VERSION,
 };
 
 /// Compare the checked type shapes carried into relational IR without relying
@@ -308,16 +309,16 @@ pub struct ExploreMechanismRequestIr {
 }
 
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum ExploreStarterProjectionFacetIr {
+pub(crate) enum ExploreMechanismSupportFacetIr {
     Activation,
     DifferentialParticipation,
 }
 
-impl From<ExploreStarterProjectionFacet> for ExploreStarterProjectionFacetIr {
-    fn from(facet: ExploreStarterProjectionFacet) -> Self {
+impl From<ExploreMechanismSupportFacet> for ExploreMechanismSupportFacetIr {
+    fn from(facet: ExploreMechanismSupportFacet) -> Self {
         match facet {
-            ExploreStarterProjectionFacet::Activation => Self::Activation,
-            ExploreStarterProjectionFacet::DifferentialParticipation => {
+            ExploreMechanismSupportFacet::Activation => Self::Activation,
+            ExploreMechanismSupportFacet::DifferentialParticipation => {
                 Self::DifferentialParticipation
             }
         }
@@ -325,32 +326,55 @@ impl From<ExploreStarterProjectionFacet> for ExploreStarterProjectionFacetIr {
 }
 
 #[derive(Debug, Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub(crate) enum ExploreStarterProjectionSubjectIr {
+pub(crate) enum ExploreMechanismSupportSubjectIr {
     Mechanism(StructuralMechanismId),
     Node {
-        facet: ExploreStarterProjectionFacetIr,
+        facet: ExploreMechanismSupportFacetIr,
         node_id: StructuralNodeId,
     },
     Edge {
-        facet: ExploreStarterProjectionFacetIr,
+        facet: ExploreMechanismSupportFacetIr,
         edge_id: StructuralEdgeId,
     },
 }
 
-impl From<TypedExploreStarterProjectionSubject> for ExploreStarterProjectionSubjectIr {
-    fn from(subject: TypedExploreStarterProjectionSubject) -> Self {
+impl From<TypedExploreMechanismSupportSubject> for ExploreMechanismSupportSubjectIr {
+    fn from(subject: TypedExploreMechanismSupportSubject) -> Self {
         match subject {
-            TypedExploreStarterProjectionSubject::Mechanism(mechanism_id) => {
+            TypedExploreMechanismSupportSubject::Mechanism(mechanism_id) => {
                 Self::Mechanism(mechanism_id)
             }
-            TypedExploreStarterProjectionSubject::Node { facet, node_id } => Self::Node {
+            TypedExploreMechanismSupportSubject::Node { facet, node_id } => Self::Node {
                 facet: facet.into(),
                 node_id,
             },
-            TypedExploreStarterProjectionSubject::Edge { facet, edge_id } => Self::Edge {
+            TypedExploreMechanismSupportSubject::Edge { facet, edge_id } => Self::Edge {
                 facet: facet.into(),
                 edge_id,
             },
+        }
+    }
+}
+
+/// One checked compact support-observation demand. The declaration addresses
+/// an earlier mechanism request but remains outside its semantic analysis DAG.
+#[derive(Debug, Clone)]
+pub(crate) struct ExploreSupportObservationDemandIr {
+    pub(crate) name: String,
+    pub(crate) request_node_index: usize,
+    pub(crate) subject: ExploreMechanismSupportSubjectIr,
+    pub(crate) within_mechanism: Option<StructuralMechanismId>,
+    pub(crate) span: Span,
+}
+
+impl ExploreSupportObservationDemandIr {
+    pub(crate) fn lower(demand: &TypedExploreSupportObservationDemand) -> Self {
+        Self {
+            name: demand.name.clone(),
+            request_node_index: demand.request_node_index,
+            subject: demand.subject.into(),
+            within_mechanism: demand.within_mechanism,
+            span: demand.span,
         }
     }
 }
@@ -362,7 +386,7 @@ impl From<TypedExploreStarterProjectionSubject> for ExploreStarterProjectionSubj
 pub(crate) struct ExploreStarterProjectionIr {
     pub(crate) name: String,
     pub(crate) request_node_index: usize,
-    pub(crate) subject: ExploreStarterProjectionSubjectIr,
+    pub(crate) subject: ExploreMechanismSupportSubjectIr,
     pub(crate) within_mechanism: Option<StructuralMechanismId>,
     pub(crate) value_view_node_index: usize,
     pub(crate) span: Span,
@@ -437,6 +461,7 @@ pub struct ExploreQueryIr {
     pub admissions: Box<[ExploreAdmissionIr]>,
     pub find: ExploreFindIr,
     pub analysis: Box<[ExploreAnalysisNodeIr]>,
+    pub(crate) observation_demands: Box<[ExploreSupportObservationDemandIr]>,
     pub(crate) starter_projections: Box<[ExploreStarterProjectionIr]>,
     pub(crate) transition_graphs: Box<[ExploreTransitionGraphIr]>,
     pub span: Span,
@@ -462,9 +487,47 @@ impl ExploreQueryIr {
         }
 
         self.validate_analysis()?;
+        self.validate_observation_demands()?;
         self.validate_starter_projections()?;
         self.validate_transition_graphs()?;
 
+        Ok(())
+    }
+
+    fn validate_observation_demands(&self) -> Result<(), String> {
+        let mut names = self
+            .analysis
+            .iter()
+            .map(ExploreAnalysisNodeIr::name)
+            .collect::<BTreeSet<_>>();
+        for demand in self.observation_demands.iter() {
+            if !names.insert(demand.name.as_str()) {
+                return Err(format!(
+                    "duplicate exploration declaration `{}`",
+                    demand.name
+                ));
+            }
+            if !matches!(
+                self.analysis.get(demand.request_node_index),
+                Some(ExploreAnalysisNodeIr::Mechanisms(_))
+            ) {
+                return Err(format!(
+                    "support observation `{}` does not resolve mechanism node index {}",
+                    demand.name, demand.request_node_index
+                ));
+            }
+            if demand.within_mechanism.is_some()
+                && matches!(
+                    demand.subject,
+                    ExploreMechanismSupportSubjectIr::Mechanism(_)
+                )
+            {
+                return Err(format!(
+                    "support observation `{}` cannot refine a whole mechanism within another mechanism",
+                    demand.name
+                ));
+            }
+        }
         Ok(())
     }
 
@@ -523,6 +586,11 @@ impl ExploreQueryIr {
             .analysis
             .iter()
             .map(ExploreAnalysisNodeIr::name)
+            .chain(
+                self.observation_demands
+                    .iter()
+                    .map(|demand| demand.name.as_str()),
+            )
             .collect::<BTreeSet<_>>();
         for projection in self.starter_projections.iter() {
             if !names.insert(projection.name.as_str()) {
@@ -543,7 +611,7 @@ impl ExploreQueryIr {
             if projection.within_mechanism.is_some()
                 && matches!(
                     projection.subject,
-                    ExploreStarterProjectionSubjectIr::Mechanism(_)
+                    ExploreMechanismSupportSubjectIr::Mechanism(_)
                 )
             {
                 return Err(format!(
@@ -579,6 +647,11 @@ impl ExploreQueryIr {
             .analysis
             .iter()
             .map(ExploreAnalysisNodeIr::name)
+            .chain(
+                self.observation_demands
+                    .iter()
+                    .map(|demand| demand.name.as_str()),
+            )
             .chain(
                 self.starter_projections
                     .iter()

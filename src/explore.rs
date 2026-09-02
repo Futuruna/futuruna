@@ -148,8 +148,8 @@ pub use relational_ir::{
     ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
 };
 pub(crate) use relational_ir::{
-    ExploreStarterProjectionFacetIr, ExploreStarterProjectionIr, ExploreStarterProjectionSubjectIr,
-    ExploreTransitionGraphIr,
+    ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr, ExploreStarterProjectionIr,
+    ExploreSupportObservationDemandIr, ExploreTransitionGraphIr,
 };
 mod relational_analysis_plan;
 pub(crate) use relational_analysis_plan::{
@@ -7378,6 +7378,12 @@ fn elaborate_query(
             .into_boxed_slice(),
         find,
         analysis: analysis.into_boxed_slice(),
+        observation_demands: query
+            .observation_demands
+            .iter()
+            .map(ExploreSupportObservationDemandIr::lower)
+            .collect::<Vec<_>>()
+            .into_boxed_slice(),
         starter_projections: query
             .starter_projections
             .iter()

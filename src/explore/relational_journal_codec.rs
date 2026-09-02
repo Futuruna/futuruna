@@ -22,6 +22,8 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonId,
 };
 use super::mechanism_support::{
+    MechanismExplicitObservationRegistrationDisposition,
+    MechanismExplicitObservationRegistrationPhase, MechanismExplicitObservationSchedulerSummary,
     MechanismFactorizedSupportObservationSummaryRoot, MechanismSupportCheckpointCursor,
     MechanismSupportClosureRoot, MechanismSupportFacet, MechanismSupportFrontierRoot,
     MechanismSupportKey, MechanismSupportSlice, MechanismSupportSubject,
@@ -81,7 +83,8 @@ use super::relational_frontier::{
 };
 use super::relational_ir::ExploreSourceBindingRoleIr;
 use super::relational_journal::{
-    MechanismSupportObservationClaim, MechanismSupportObservationPointId,
+    MechanismSupportObservationBackfillClaim, MechanismSupportObservationClaim,
+    MechanismSupportObservationDemandRegistrationClaim, MechanismSupportObservationPointId,
     MechanismSupportObservationStatus, RelationalCheckpointEvent, RelationalEvidenceEvent,
     RelationalJournalContract, RelationalJournalEntry, RelationalJournalError,
     RelationalJournalEvent, RelationalJournalHead, RELATIONAL_JOURNAL_SCHEMA_VERSION,
@@ -168,7 +171,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 13;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 14;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -6608,6 +6611,173 @@ fn decode_mechanism_support_observation_claim(
     )
 }
 
+fn encode_explicit_observation_scheduler_summary(
+    encoder: &mut Encoder,
+    summary: MechanismExplicitObservationSchedulerSummary,
+) -> Result<(), RelationalJournalCodecError> {
+    let registry = summary.registry();
+    encoder.digest(registry.root().bytes())?;
+    encoder.u128(registry.slice_count())?;
+    encoder.u128(registry.ready_slice_count())?;
+
+    let pending = summary.pending_backfill();
+    encoder.digest(pending.root().bytes())?;
+    encoder.u128(pending.slice_count())?;
+
+    let dirty = summary.dirty();
+    encoder.digest(dirty.root().bytes())?;
+    encoder.u128(dirty.slice_count())?;
+
+    let unsealed = summary.unsealed();
+    encoder.digest(unsealed.root().bytes())?;
+    encoder.u128(unsealed.slice_count())
+}
+
+fn decode_explicit_observation_scheduler_summary(
+    reader: &mut Reader<'_>,
+) -> Result<MechanismExplicitObservationSchedulerSummary, RelationalJournalCodecError> {
+    Ok(
+        MechanismExplicitObservationSchedulerSummary::restore_from_journal_codec(
+            reader.digest()?,
+            reader.u128()?,
+            reader.u128()?,
+            reader.digest()?,
+            reader.u128()?,
+            reader.digest()?,
+            reader.u128()?,
+            reader.digest()?,
+            reader.u128()?,
+        ),
+    )
+}
+
+fn encode_explicit_observation_registration_disposition(
+    encoder: &mut Encoder,
+    disposition: MechanismExplicitObservationRegistrationDisposition,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.tag(match disposition {
+        MechanismExplicitObservationRegistrationDisposition::Registered => 0x01,
+        MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered => 0x02,
+        MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism => 0x03,
+    })
+}
+
+fn decode_explicit_observation_registration_disposition(
+    reader: &mut Reader<'_>,
+) -> Result<MechanismExplicitObservationRegistrationDisposition, RelationalJournalCodecError> {
+    match reader.tag()? {
+        0x01 => Ok(MechanismExplicitObservationRegistrationDisposition::Registered),
+        0x02 => Ok(MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered),
+        0x03 => Ok(MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism),
+        tag => Err(RelationalJournalCodecError::UnknownTag {
+            component: "explicit mechanism-support observation registration disposition",
+            tag,
+        }),
+    }
+}
+
+fn encode_explicit_observation_registration_phase(
+    encoder: &mut Encoder,
+    phase: MechanismExplicitObservationRegistrationPhase,
+) -> Result<(), RelationalJournalCodecError> {
+    match phase {
+        MechanismExplicitObservationRegistrationPhase::Open => encoder.tag(0x01),
+        MechanismExplicitObservationRegistrationPhase::Sealed { support_root } => {
+            encoder.tag(0x02)?;
+            encoder.digest(support_root.bytes())
+        }
+    }
+}
+
+fn decode_explicit_observation_registration_phase(
+    reader: &mut Reader<'_>,
+) -> Result<MechanismExplicitObservationRegistrationPhase, RelationalJournalCodecError> {
+    match reader.tag()? {
+        0x01 => Ok(MechanismExplicitObservationRegistrationPhase::Open),
+        0x02 => Ok(MechanismExplicitObservationRegistrationPhase::Sealed {
+            support_root: MechanismSupportClosureRoot::from_journal_codec_bytes(reader.digest()?),
+        }),
+        tag => Err(RelationalJournalCodecError::UnknownTag {
+            component: "explicit mechanism-support observation registration phase",
+            tag,
+        }),
+    }
+}
+
+fn encode_support_observation_demand_registration_claim(
+    encoder: &mut Encoder,
+    claim: MechanismSupportObservationDemandRegistrationClaim,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.u32(claim.version())?;
+    encode_mechanism_support_slice(encoder, claim.slice())?;
+    encoder.u128(claim.cursor().target_discovery())?;
+    encoder.u128(claim.cursor().terminal_discovery())?;
+    encoder.u128(claim.cursor().structural_assignment())?;
+    encoder.digest(claim.frontier_root().bytes())?;
+    encode_explicit_observation_registration_disposition(encoder, claim.disposition())?;
+    encode_explicit_observation_registration_phase(encoder, claim.phase())?;
+    encoder.u128(claim.registration_structural_cursor())?;
+    encode_explicit_observation_scheduler_summary(encoder, claim.prior_scheduler())?;
+    encode_explicit_observation_scheduler_summary(encoder, claim.next_scheduler())
+}
+
+fn decode_support_observation_demand_registration_claim(
+    reader: &mut Reader<'_>,
+) -> Result<MechanismSupportObservationDemandRegistrationClaim, RelationalJournalCodecError> {
+    Ok(
+        MechanismSupportObservationDemandRegistrationClaim::restore_from_journal_codec(
+            reader.u32()?,
+            decode_mechanism_support_slice(reader)?,
+            MechanismSupportCheckpointCursor::new(reader.u128()?, reader.u128()?, reader.u128()?),
+            MechanismSupportFrontierRoot::from_journal_codec_bytes(reader.digest()?),
+            decode_explicit_observation_registration_disposition(reader)?,
+            decode_explicit_observation_registration_phase(reader)?,
+            reader.u128()?,
+            decode_explicit_observation_scheduler_summary(reader)?,
+            decode_explicit_observation_scheduler_summary(reader)?,
+        ),
+    )
+}
+
+fn encode_support_observation_backfill_claim(
+    encoder: &mut Encoder,
+    claim: MechanismSupportObservationBackfillClaim,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.u32(claim.version())?;
+    encode_mechanism_support_slice(encoder, claim.slice())?;
+    encoder.u128(claim.cursor().target_discovery())?;
+    encoder.u128(claim.cursor().terminal_discovery())?;
+    encoder.u128(claim.cursor().structural_assignment())?;
+    encoder.digest(claim.frontier_root().bytes())?;
+    encode_explicit_observation_registration_phase(encoder, claim.phase())?;
+    encoder.u128(claim.registration_structural_cursor())?;
+    encoder.u128(claim.from_structural_cursor())?;
+    encoder.u128(claim.through_structural_cursor())?;
+    encoder.bool(claim.completed())?;
+    encode_explicit_observation_scheduler_summary(encoder, claim.prior_scheduler())?;
+    encode_explicit_observation_scheduler_summary(encoder, claim.next_scheduler())
+}
+
+fn decode_support_observation_backfill_claim(
+    reader: &mut Reader<'_>,
+) -> Result<MechanismSupportObservationBackfillClaim, RelationalJournalCodecError> {
+    Ok(
+        MechanismSupportObservationBackfillClaim::restore_from_journal_codec(
+            reader.u32()?,
+            decode_mechanism_support_slice(reader)?,
+            MechanismSupportCheckpointCursor::new(reader.u128()?, reader.u128()?, reader.u128()?),
+            MechanismSupportFrontierRoot::from_journal_codec_bytes(reader.digest()?),
+            decode_explicit_observation_registration_phase(reader)?,
+            reader.u128()?,
+            reader.u128()?,
+            reader.u128()?,
+            reader.bool()?,
+            decode_explicit_observation_scheduler_summary(reader)?,
+            decode_explicit_observation_scheduler_summary(reader)?,
+        ),
+    )
+}
+
 fn encode_checkpoint_event(
     encoder: &mut Encoder,
     event: &RelationalCheckpointEvent,
@@ -6659,6 +6829,14 @@ fn encode_checkpoint_event(
         RelationalCheckpointEvent::SupportSubjectObserved { claim } => {
             encoder.tag(0x09)?;
             encode_mechanism_support_observation_claim(encoder, *claim)
+        }
+        RelationalCheckpointEvent::SupportObservationDemandRegistered { claim } => {
+            encoder.tag(0x0a)?;
+            encode_support_observation_demand_registration_claim(encoder, *claim)
+        }
+        RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { claim } => {
+            encoder.tag(0x0b)?;
+            encode_support_observation_backfill_claim(encoder, *claim)
         }
         RelationalCheckpointEvent::WorkNodeCompleted {
             node_id,
@@ -6736,6 +6914,16 @@ fn decode_checkpoint_event(
         0x09 => Ok(RelationalCheckpointEvent::SupportSubjectObserved {
             claim: decode_mechanism_support_observation_claim(reader)?,
         }),
+        0x0a => Ok(
+            RelationalCheckpointEvent::SupportObservationDemandRegistered {
+                claim: decode_support_observation_demand_registration_claim(reader)?,
+            },
+        ),
+        0x0b => Ok(
+            RelationalCheckpointEvent::SupportObservationBackfillCheckpointed {
+                claim: decode_support_observation_backfill_claim(reader)?,
+            },
+        ),
         tag => Err(RelationalJournalCodecError::UnknownTag {
             component: "relational checkpoint event",
             tag,
@@ -7133,6 +7321,27 @@ mod tests {
     use super::super::relational_journal::{RelationalJournal, RelationalJournalContract};
     use super::*;
 
+    fn explicit_observation_scheduler_summary(
+        root_seed: u8,
+        registered_slice_count: u128,
+        ready_slice_count: u128,
+        pending_slice_count: u128,
+        dirty_slice_count: u128,
+        unsealed_slice_count: u128,
+    ) -> MechanismExplicitObservationSchedulerSummary {
+        MechanismExplicitObservationSchedulerSummary::restore_from_journal_codec(
+            [root_seed; 32],
+            registered_slice_count,
+            ready_slice_count,
+            [root_seed + 1; 32],
+            pending_slice_count,
+            [root_seed + 2; 32],
+            dirty_slice_count,
+            [root_seed + 3; 32],
+            unsealed_slice_count,
+        )
+    }
+
     #[test]
     fn support_observation_claim_codec_round_trips_without_summary_payload() {
         let request_id = MechanismRequestId::from_journal_codec_bytes([0x11; 32]);
@@ -7176,6 +7385,71 @@ mod tests {
     }
 
     #[test]
+    fn explicit_support_observation_registration_and_backfill_codec_round_trip() {
+        let request_id = MechanismRequestId::from_journal_codec_bytes([0x12; 32]);
+        let enclosing_mechanism = StructuralMechanismId::from_journal_codec_bytes([0x23; 32]);
+        let key = MechanismSupportKey::from_journal_codec_parts(
+            request_id,
+            MechanismTargetId::Selected,
+            MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::Activation,
+                edge_id: StructuralEdgeId::from_journal_codec_bytes([0x34; 32]),
+            },
+        );
+        let slice = MechanismSupportSlice::within_mechanism(key, enclosing_mechanism);
+        let cursor = MechanismSupportCheckpointCursor::new(12, 11, 300);
+        let frontier_root = MechanismSupportFrontierRoot::from_journal_codec_bytes([0x45; 32]);
+        let phase = MechanismExplicitObservationRegistrationPhase::Sealed {
+            support_root: MechanismSupportClosureRoot::from_journal_codec_bytes([0x56; 32]),
+        };
+        let empty = explicit_observation_scheduler_summary(0x60, 0, 0, 0, 0, 0);
+        let pending = explicit_observation_scheduler_summary(0x70, 1, 0, 1, 0, 1);
+        let ready = explicit_observation_scheduler_summary(0x80, 1, 1, 0, 1, 1);
+        let registration = MechanismSupportObservationDemandRegistrationClaim::new(
+            slice,
+            cursor,
+            frontier_root,
+            MechanismExplicitObservationRegistrationDisposition::Registered,
+            phase,
+            300,
+            empty,
+            pending,
+        );
+        let backfill = MechanismSupportObservationBackfillClaim::new(
+            slice,
+            cursor,
+            frontier_root,
+            phase,
+            300,
+            256,
+            300,
+            true,
+            pending,
+            ready,
+        );
+
+        for event in [
+            RelationalCheckpointEvent::SupportObservationDemandRegistered {
+                claim: registration,
+            },
+            RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { claim: backfill },
+        ] {
+            let limits = RelationalJournalCodecLimits::default();
+            let mut encoder = Encoder::new(limits);
+            encode_checkpoint_event(&mut encoder, &event)
+                .expect("encode explicit support-observation checkpoint");
+            let bytes = encoder.finish();
+            let mut reader = Reader::new(&bytes, limits);
+            let decoded = decode_checkpoint_event(&mut reader)
+                .expect("decode explicit support-observation checkpoint");
+            reader
+                .finish()
+                .expect("consume explicit support-observation checkpoint");
+            assert_eq!(decoded, event);
+        }
+    }
+
+    #[test]
     fn codec_rejects_previous_semantic_journal_schema_before_payload_decode() {
         let relation = RelationId::from_canonical_semantic_preimage(b"old-schema relation");
         let admission =
@@ -7212,8 +7486,8 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 18,
-                expected: 19
+                actual: 20,
+                expected: 21
             }
         ));
     }

@@ -516,13 +516,12 @@ where
                     base_quantum_controller.mark_expensive_checkpoint(Instant::now());
                 }
 
-                if durable
-                    .journal()?
-                    .analysis_state()
-                    .is_some_and(|analysis| analysis.is_closed())
-                {
-                    return complete(durable, semantic_batches_appended, semantic_events_appended);
-                }
+                // Analysis closure seals the answer-defining core, but it is
+                // not necessarily the end of this invocation.  A checked
+                // query may have late, identity-neutral support-observation
+                // demands whose registration, bounded backfill, and seal are
+                // still pending.  Let the driver observe the newly appended
+                // state and make the terminal decision on the next quantum.
             }
             Ok(RelationalStreamStepOutcome::Quiescent(reason)) => {
                 if let Err(error) = finish_relational_quantum(resources, in_flight) {

@@ -256,6 +256,7 @@ product.
 | `results NAME from sources` | a grouped view over canonical `(Context, Before)` source rows | successors, admission, findings or auxiliary lineage |
 | `results NAME from selected` | a named typed case projection/reduction; `from selected` may be omitted | base cases or classifications |
 | `mechanisms NAME` | explicit endpoint replay and signature incidence | optimum or grouping proof |
+| `observations NAME from mechanisms REQUEST` | one value-free compact mechanism/node/edge support slice | a new analysis node, typed starter values or a DAG-wide export |
 | invocation limits | safe scheduling and pause behavior | semantic query identity |
 
 No profile fact is implicitly fixed. When a question intentionally conditions
@@ -318,6 +319,13 @@ completion. When every source and successor frontier seals,
 `RelationContentRoot` commits the completed extensional relation. Eager and
 incremental implementations of the same relation share one RelationId and
 converge to one completed content root.
+
+`SupportObservationDemandId` sits beside this ladder rather than below it. It
+binds one resolved request, structural subject/facet and optional enclosing
+mechanism while excluding the declaration name and position. The demand-set ID
+is the sorted set of unique demand IDs, so aliases and declaration order do not
+rename it. Neither ID enters the analysis-graph digest or any upstream semantic
+identity; declarations are checked readers, not new rule-graph nodes.
 
 Stable case identity contains no rank:
 
@@ -455,6 +463,9 @@ correctness floor. Current hot paths are:
 | publish a grouped no-choice view, including `count_distinct` | `O(R log G + sum(aggregate_count * group_size * log group_size))` after fresh equality-checking all `R` durable rows | `O(R + G)` borrowed references and up to `O(R)` exact distinct members per aggregate pass; no second owned contribution catalog or per-row binding map |
 | optimize one group | `O(K)` | `O(K)` objective candidates |
 | current Pareto choice | `O(K^2 * objectives)` worst case | up to `O(K)` survivors |
+| register one explicit support-observation slice | `O(log D)` authenticated registration, followed by resumable backfill rather than an eager union | one registry entry, pending/dirty/unsealed membership and one subject/route watcher |
+| backfill one explicit observation demand | `O(min(256, remaining assignments))` membership checks per quantum | matching signature watchers for that bounded page; no partially ready slice |
+| accept new structural/support evidence | `O(log M + incident_slices * log D)` dirty-set updates | the affected automatic mechanism plus ready explicit incident slices; never all demands |
 | work compaction | `O(W log W)` conservative scan/root derivation | bounded removal set; defaults trigger at 8,192 completed nodes and remove at most 4,096 |
 | explicit full journal snapshot export | `O(P + S + N + A + Q + W + C + O + M + R + I)` | clones/materializes the published catalogs by request; terminal analysis close preflights and then moves its catalogs instead |
 | durable append | `O(frame_bytes)` plus an occasional segment install/readback | at most one configured segment buffer; default 4 MiB |
@@ -713,6 +724,18 @@ fail merely because its final payload was one oversized frame. Replay rebuilds
 the public closed view from those durable records without rerunning result
 expressions.
 
+Support-observation readers use the same crash-prefix discipline. Registration
+records the stable slice, `Registered`/`AlreadyRegistered`/automatic-overlap
+disposition, open-or-sealed phase, exact durable support cursor/frontier and
+prior/next explicit scheduler roots. A separate backfill checkpoint advances a
+canonical range of no more than 256 structural assignments and makes no partial
+slice observable. Only after readiness may a point enter the shared
+request-local observation chain. While support is open, later assignment or
+terminal evidence dirties only incident ready slices; after support closes, a
+pre-existing demand receives a final sealed point, while a late demand may
+start sealed. Replay re-prepares and compares every registration, backfill and
+point transition before mutation.
+
 Once joined, a valid durable pause commits accepted evidence plus the exact
 open frontier. Resume continues without renaming a source, successor or case.
 The coordinator must treat the in-memory fold and buffered segment tail as
@@ -890,10 +913,13 @@ journal fold, bounded work compaction, readiness-driven selected-case result
 and mechanism scheduling, bounded result-projection publication, a unified
 semantic DAG scheduler, the canonical safe-subset codec, immutable segmented
 byte store, durable journal coordinator, resource-admitted slice loop, prepared
-warm epoch and public `runa explore` product path.
+warm epoch and public `runa explore` product path. The checked frontend and IR
+also carry name-independent `observations` demands outside that DAG. The stream
+now journals demand registration, bounded structural-prefix backfill and shared
+support-observation points with separate automatic and explicit schedulers.
 
-The four-transition `relational-explore-stream-smoke.runa` query has closed
-through the current publication-v7 path with four exact cases, two selected
+The four-transition `relational-explore-stream-smoke.runa` query historically
+closed through publication v7 with four exact cases, two selected
 cases, one shared structural mechanism and execution profile, two incidences,
 and all eight planned artifacts caught up to the same journal prefix. The
 first proof-bearing case-image artifact now installs
@@ -909,6 +935,15 @@ as bounded, prefix-resumable artifacts with checked private restoration.
 The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
+
+Publication v12 is the current artifact plan and report v7 is the current
+compact report. Each mechanism request has one shared value-free observation
+stream plus one demand ledger. Automatic whole-mechanism observations remain
+the sole support-closure authority; explicitly requested mechanism/node/edge
+slices register, backfill in pages of at most 256 assignments, follow
+incident-only updates and can attach before or after analysis closure. This
+source path is integrated; focused executable verification remains the next
+gate before a broader Personskat run.
 
 The first checked policy target now uses 2,000 coordinates, each representing
 100 DKK, rather than 200,000 one-krone edges. On 2026-08-31 its public stream
@@ -1178,6 +1213,13 @@ rule-graph reasoning proves the skipped cell uniform.
   structural identity. Track confirmed inner support, a concrete outer envelope
   or opaque target obligation, and keep case-count, distinct-starter and
   conditional-successor closure independently typed.
+- Automatically observe only each discovered whole-mechanism total slice for
+  core support closure. Register checked explicit mechanism/node/edge slices in
+  a separate scheduler, backfill their frozen structural prefix in pages of at
+  most 256 assignments, and dirty only incident ready slices thereafter.
+- Journal registration, backfill and immutable point evidence so demands can
+  attach before or after analysis closure; allow a late demand's first point to
+  be sealed and keep explicit completion outside the core closure receipt.
 - Add post-mechanism views such as distinct signatures per 50-DKK loss bin.
 - Keep optimum proofs and mechanism explanations separate.
 
@@ -1244,15 +1286,18 @@ personskat-200k-result/
   mechanisms/cliff_paths.definitions.ndjson
   mechanisms/cliff_paths.structural.ndjson
   mechanisms/cliff_paths.structural-definitions.ndjson
+  mechanisms/cliff_paths.support-observations.ndjson
+  mechanisms/cliff_paths.support-observation-demands.ndjson
   starters/selected_cliff_node.ndjson
   graphs/case-support.ndjson
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v9 schedules
-one artifact only for an authored `starters NAME from mechanisms REQUEST ...`
-consumer whose `using values from VIEW` reference names a checked lossless
-selected-input `each case` view authorizing CaseId, Context, Before and After.
+The `starters/` lane is explicit and single-subject. Publication v12 retains
+the materializer first introduced in v9 and schedules one artifact only for an
+authored `starters NAME from mechanisms REQUEST ...` consumer whose `using
+values from VIEW` reference names a checked lossless selected-input `each case`
+view authorizing CaseId, Context, Before and After.
 Its absence is `not_materialized`, not an empty-support claim. Adding another
 consumer to a completed run is an additive publication operation: it leaves
 the existing journal, analysis roots, and prior artifacts untouched while
@@ -1282,6 +1327,15 @@ projection or incidence, so exporting many concrete configurations does not
 require building one giant array. Grouped views use the same NDJSON envelope,
 one authenticated projection record per line, so a large histogram also stays
 bounded and resumable.
+
+Report v7 partitions support observation state explicitly. The request layer
+contains the total shared observation point count/root; automatic point,
+registered, dirty, observed and sealed counts plus its closure-authority chain
+root; and explicit registration, point, registered, ready, pending-backfill,
+dirty, unsealed, observed and sealed counts. These are stream/scheduler facts,
+not invented case counts. The demand ledger additionally distinguishes authored
+aliases, unique checked demands, genuinely new explicit registrations and
+whole-mechanism overlaps with the automatic registry.
 
 An authorized starter-support view publishes correlated `(Context, Before)`
 cells, their inner/outer support status and optional searchable marginals. It
@@ -1356,28 +1410,54 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-The compact all-subject sidecar uses a factorized summary rather than eagerly
-building every correlated union. Disjoint signature-fiber weights give its
-case bounds; the largest inspected single-fiber starter count and sealed target
-starter projection give honest starter bounds until deduplication. Automatic
-publication inspects at most 256 canonical signature-fiber summaries per
-subject. Crossing that schema-fixed cap records a capped scan and wider bounds;
-it never falls back to constructing the full union. Every row says
-`starter_projection.status: not_materialized` and references a stable,
-content-addressed projection plan. It also carries authenticated inner/outer
+Publication v12 replaces the old eager all-subject structural rows with
+scheduled compact observations. The structural-definition catalog advertises
+stable descriptors for every whole mechanism and activation/differential node
+or edge, but a descriptor is only an address. Every discovered whole mechanism
+automatically registers its facetless total slice. New evidence dirties only
+that mechanism; changes may coalesce, and a lazy final sweep seals every
+automatic slice. The core support receipt requires automatic registered,
+observed and sealed counts to equal the exact structural-mechanism count.
+
+Selected mechanism, node and edge slices are explicit readers:
+
+```runa
+observations selected_cliff_node_support
+from mechanisms cliff_paths
+for node differential "<StructuralNodeId>"
+within mechanism "<StructuralMechanismId>"
+```
+
+`within mechanism` is optional and valid only for a node or edge. The subject
+may instead be `mechanism "<StructuralMechanismId>"`, `node activation ...`,
+or the corresponding activation/differential edge form. Names are output
+aliases. The checked demand ID is derived from request, subject/facet and
+optional route, while the sorted unique demand-set ID ignores names, aliases
+and declaration order. Both remain outside the core analysis DAG.
+
+The explicit scheduler anchors registration to the durable support prefix,
+backfills no more than 256 canonical structural assignments per quantum, and
+does not expose a partially caught-up slice. Ready slices install incident
+watchers, so later assignments and terminals do not scan every demand. A demand
+registered before closure can emit open points and a final sealed successor; a
+demand attached after closure can begin sealed. Its progress never gates the
+automatic support receipt. A whole-mechanism demand aliases an existing
+automatic slice instead of duplicating its scheduler state.
+
+Each observation is a constant-size, value-free factorized summary. Disjoint
+signature-fiber weights give case bounds; the largest inspected single-fiber
+starter count and sealed target starter projection give honest starter bounds
+until deduplication. One point inspects at most 256 canonical signature-fiber
+summaries; crossing that cap records wider bounds, never a full union. The point
+keeps `starter_projection.status: not_materialized`, authenticated inner/outer
 fiber-expression identities over
-`SourceKey<(Context, Before)> -> Set<SuccessorKey<After>>`: the factorized inner
-union and the same union extended by the shared residual or opaque target
-obligation. Equal identities mean the expression bounds have collapsed; they
-do not mean typed cells were serialized. The plan is authorization-neutral and
-does not authorize starter cells; a selected export derives its job identity
-from the plan plus checked publication authorization. The target generic job
-uses exact key cursors and bounded merge pages so pause/resume never requires
-retaining the complete union. Exact starter-set evidence remains distinct from
+`SourceKey<(Context, Before)> -> Set<SuccessorKey<After>>`, and an
+authorization-neutral projection plan. Equal expression identities do not mean
+typed cells were serialized. Exact starter-set evidence remains distinct from
 exact conditional-successor evidence.
 
-Publication v9 specializes that job for one explicitly selected structural
-mechanism, activation/differential node, or activation/differential edge:
+The explicit typed materialization job remains a different reader. Publication
+v12 retains the single-subject `starters` form introduced in v9:
 
 ```runa
 starters selected_cliff_node
@@ -1404,10 +1484,10 @@ consumer, plan, job, cursor, checkpoint and public record identities; it never
 renames the structural node or the core analysis DAG.
 
 Qualified artifacts use subject-starter record schema v2. The optional route
-field is omitted from unqualified cursors and records, preserving their v1
-consumer IDs, roots and publication-v9 bytes. A route-qualified consumer can
-therefore attach to an existing closed v9 output as a new artifact without
-replacing its total-subject lane.
+field is omitted from unqualified cursors and records. Publication v9
+established the additive-consumer principle; the current Experimental v12 plan
+preserves that separation without treating historical v9 bytes as a
+compatibility target.
 
 It writes `starters/<name>.ndjson` in pages of at most 64 members, adaptively
 shortens a page to the byte limit, and uses a k-way merge whose peak memory is
@@ -1419,8 +1499,8 @@ resuming does not re-explore any cases. A fixed-fan-in external merge and
 arbitrary path-conditioned selectors remain future scaling work. The whole
 structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v9 splits each mechanism request and authored projection
-into independently resumable artifacts. `mechanisms/<name>.ndjson` is the
+Publication schema v12 keeps each mechanism request and authored projection in
+independently resumable artifacts. `mechanisms/<name>.ndjson` is the
 answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
 reason or case terminal, followed by the incidence closure when authorized.
@@ -1445,22 +1525,24 @@ definition sidecars. The manifest shows their independent source windows and
 caught-up states, so an exact answer may be visible while reconstructable
 definition bytes continue streaming.
 
-`mechanisms/<name>.structural.ndjson` is the quotient-and-support lane. It
+`mechanisms/<name>.structural.ndjson` is the quotient-and-closure lane. It
 streams raw-signature-to-structural assignments, the exact structural closure,
-then one lazy support summary for each canonical whole mechanism and each
-node/edge activation or differential-participation subject. Every summary
-names its origin-preimage case and distinct-starter bounds, factorized support
-root, bounded signature-prefix root, shared residual, upper-bound provenance
-and authorization-neutral projection-plan ID. Exact starter-key saturation is
-kept distinct from an exact correlated successor fiber: the automatic row never
-claims or emits a correlated root, even when its scalar starter count is exact.
-The normative conservative envelope remains
-`conservative_target_projection_upper`. The
-artifact publishes a factorized summary (`cells_serialized: false`) and marks
-the correlated projection `not_materialized`. Its flat cursor counts subjects,
-never case-by-node pairs; automatic publication never constructs a full
-subject union. The final support receipt binds the target, raw incidence and
-structural quotient roots.
+and at most one constant-size automatic support receipt. It no longer emits a
+closure-time row for every mechanism, node and edge.
+
+`mechanisms/<name>.support-observations.ndjson` is the single append-only point
+stream shared by automatic whole-mechanism slices and explicitly demanded
+slices. Each row records its stable slice, prefix status and value-free
+factorized summary. The artifact reports both the total shared chain and the
+separate automatic closure-authority partition.
+
+`mechanisms/<name>.support-observation-demands.ndjson` is the per-request
+demand ledger. It publishes durable registration claims, registration phase
+and disposition, the name-independent demand-set ID, and every authored alias
+with a lookup into the shared observation stream. Automatic whole-mechanism
+overlaps are identified explicitly rather than counted as new explicit
+scheduler slices. Both artifacts say `contains_typed_values: false` and
+`cells_serialized: false`.
 
 `mechanisms/<name>.structural-definitions.ndjson` is a separate,
 self-describing DAG lane. It becomes available at structural quotient closure
@@ -1492,7 +1574,8 @@ node/outcome/root/edge flattening is retired because it repeated full activation
 paths and expanded the 30.1-MB one-case Personskat definition into 320,364
 blocking records. A searchable per-node cell projection can return later as an
 explicit on-demand export; it is not on the critical result path. None of the
-v7 artifacts contains replay-only state or context values.
+v12 structural or compact observation artifacts contains replay-only state or
+context values.
 
 The automatic `graphs/case-support.ndjson` artifact is the complementary
 public reflection of the authenticated case/support prefix. It has two honest
@@ -1535,7 +1618,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v9 treats this new lane as an additive
+case-by-node table. Publication v12 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -1662,9 +1745,10 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest. Report v5 may inline a schema-capped prefix of a small exact grouped
+manifest. Report v7 may inline a schema-capped prefix of a small exact grouped
 view directly from its authenticated projection journal; its evidence roots
 and truncation cursor make that preview auditable. The operational artifact
-index names the corresponding full NDJSON plus every case/mechanism/starter
-artifact and its catch-up state. Bulk case rows and large grouped histograms
-remain streamable NDJSON rather than one in-memory answer array.
+index names the corresponding full NDJSON plus every case, mechanism, compact
+support-observation, demand-ledger and typed-starter artifact and its catch-up
+state. Bulk case rows and large grouped histograms remain streamable NDJSON
+rather than one in-memory answer array.

@@ -18,10 +18,13 @@ use std::sync::{Arc, Weak};
 use sha2::{Digest, Sha256};
 
 use super::mechanism_support::{
-    MechanismAutomaticObservationSchedulerSummary, MechanismFactorizedSupportObservationSummary,
-    MechanismFactorizedSupportObservationSummaryRoot, MechanismSupportCheckpointCursor,
-    MechanismSupportClosureRoot, MechanismSupportError, MechanismSupportFrontierRoot,
-    MechanismSupportFrontierSummary, MechanismSupportSlice,
+    MechanismAutomaticObservationSchedulerSummary,
+    MechanismExplicitObservationRegistrationDisposition,
+    MechanismExplicitObservationRegistrationPhase, MechanismExplicitObservationSchedulerSummary,
+    MechanismFactorizedSupportObservationSummary, MechanismFactorizedSupportObservationSummaryRoot,
+    MechanismSupportCheckpointCursor, MechanismSupportClosureRoot, MechanismSupportError,
+    MechanismSupportFrontierRoot, MechanismSupportFrontierSummary, MechanismSupportSlice,
+    MechanismSupportSubject,
 };
 use super::relation::{
     install_selected_case_batch, AdmissionCatalog, AdmissionCatalogBuilder, AdmissionContentRoot,
@@ -128,12 +131,12 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 20;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 21;
 
-const JOURNAL_CONTRACT_HASH_V20: &[u8] = b"futuruna.explore.relational-journal-contract.v20";
-const JOURNAL_GENESIS_HASH_V20: &[u8] = b"futuruna.explore.relational-journal-genesis.v20";
-const JOURNAL_EVENT_HASH_V18: &[u8] = b"futuruna.explore.relational-journal-event.v18";
-const JOURNAL_ENTRY_HASH_V20: &[u8] = b"futuruna.explore.relational-journal-entry.v20";
+const JOURNAL_CONTRACT_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-contract.v21";
+const JOURNAL_GENESIS_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-genesis.v21";
+const JOURNAL_EVENT_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-event.v19";
+const JOURNAL_ENTRY_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-entry.v21";
 const CORE_EVIDENCE_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-core-evidence-root.v5";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -141,15 +144,23 @@ const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exhaustion-evidence-root.v2";
 const EXTENSIONAL_CONTENT_ROOT_HASH_V4: &[u8] =
     b"futuruna.explore.relational-extensional-content-root.v4";
-const CHECKPOINT_ROOT_HASH_V6: &[u8] = b"futuruna.explore.relational-checkpoint-root.v6";
+const CHECKPOINT_ROOT_HASH_V7: &[u8] = b"futuruna.explore.relational-checkpoint-root.v7";
 const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V1: &[u8] =
     b"futuruna.explore.mechanism-support-observation-point-id.v1";
 const MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V1: &[u8] =
     b"futuruna.explore.mechanism-support-observation-chain-genesis.v1";
 const MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V1: &[u8] =
     b"futuruna.explore.mechanism-support-observation-chain-step.v1";
+const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_GENESIS_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-demand-chain-genesis.v1";
+const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_STEP_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-demand-chain-step.v1";
+const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CLAIM_HASH_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-demand-claim.v1";
 
 pub(crate) const MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION: u32 = 1;
+pub(crate) const MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION: u32 = 1;
+pub(crate) const MECHANISM_SUPPORT_OBSERVATION_BACKFILL_VERSION: u32 = 1;
 
 /// Semantic replay bound for every independently authenticated mechanism-
 /// support checkpoint lane. Runtime limits may choose a smaller quantum, but
@@ -455,7 +466,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V20);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V21);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -482,7 +493,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V20);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V21);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -623,6 +634,15 @@ pub(crate) struct MechanismSupportObservationChainRoot([u8; 32]);
 
 impl MechanismSupportObservationChainRoot {
     pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct MechanismSupportObservationDemandChainRoot([u8; 32]);
+
+impl MechanismSupportObservationDemandChainRoot {
+    const fn bytes(self) -> [u8; 32] {
         self.0
     }
 }
@@ -793,6 +813,230 @@ impl MechanismSupportObservationPoint {
     }
 }
 
+/// Replay-checkable attachment of one compact observation reader to an exact
+/// durable support prefix. This is operational extension state: neither the
+/// claim nor its scheduler roots enter the answer-defining analysis DAG.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportObservationDemandRegistrationClaim {
+    version: u32,
+    slice: MechanismSupportSlice,
+    cursor: MechanismSupportCheckpointCursor,
+    frontier_root: MechanismSupportFrontierRoot,
+    disposition: MechanismExplicitObservationRegistrationDisposition,
+    phase: MechanismExplicitObservationRegistrationPhase,
+    registration_structural_cursor: u128,
+    prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+    next_scheduler: MechanismExplicitObservationSchedulerSummary,
+}
+
+impl MechanismSupportObservationDemandRegistrationClaim {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn new(
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        disposition: MechanismExplicitObservationRegistrationDisposition,
+        phase: MechanismExplicitObservationRegistrationPhase,
+        registration_structural_cursor: u128,
+        prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+        next_scheduler: MechanismExplicitObservationSchedulerSummary,
+    ) -> Self {
+        Self {
+            version: MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION,
+            slice,
+            cursor,
+            frontier_root,
+            disposition,
+            phase,
+            registration_structural_cursor,
+            prior_scheduler,
+            next_scheduler,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) const fn restore_from_journal_codec(
+        version: u32,
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        disposition: MechanismExplicitObservationRegistrationDisposition,
+        phase: MechanismExplicitObservationRegistrationPhase,
+        registration_structural_cursor: u128,
+        prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+        next_scheduler: MechanismExplicitObservationSchedulerSummary,
+    ) -> Self {
+        Self {
+            version,
+            slice,
+            cursor,
+            frontier_root,
+            disposition,
+            phase,
+            registration_structural_cursor,
+            prior_scheduler,
+            next_scheduler,
+        }
+    }
+
+    pub(crate) const fn version(self) -> u32 {
+        self.version
+    }
+
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn cursor(self) -> MechanismSupportCheckpointCursor {
+        self.cursor
+    }
+
+    pub(crate) const fn frontier_root(self) -> MechanismSupportFrontierRoot {
+        self.frontier_root
+    }
+
+    pub(crate) const fn disposition(self) -> MechanismExplicitObservationRegistrationDisposition {
+        self.disposition
+    }
+
+    pub(crate) const fn phase(self) -> MechanismExplicitObservationRegistrationPhase {
+        self.phase
+    }
+
+    pub(crate) const fn registration_structural_cursor(self) -> u128 {
+        self.registration_structural_cursor
+    }
+
+    pub(crate) const fn prior_scheduler(self) -> MechanismExplicitObservationSchedulerSummary {
+        self.prior_scheduler
+    }
+
+    pub(crate) const fn next_scheduler(self) -> MechanismExplicitObservationSchedulerSummary {
+        self.next_scheduler
+    }
+}
+
+/// One deterministic page of late-reader catch-up. The exact support anchor,
+/// prior scheduler and successor scheduler make discarded proposals harmless:
+/// replay either remints this page byte-for-byte or rejects it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportObservationBackfillClaim {
+    version: u32,
+    slice: MechanismSupportSlice,
+    cursor: MechanismSupportCheckpointCursor,
+    frontier_root: MechanismSupportFrontierRoot,
+    phase: MechanismExplicitObservationRegistrationPhase,
+    registration_structural_cursor: u128,
+    from_structural_cursor: u128,
+    through_structural_cursor: u128,
+    completed: bool,
+    prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+    next_scheduler: MechanismExplicitObservationSchedulerSummary,
+}
+
+impl MechanismSupportObservationBackfillClaim {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) const fn new(
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        phase: MechanismExplicitObservationRegistrationPhase,
+        registration_structural_cursor: u128,
+        from_structural_cursor: u128,
+        through_structural_cursor: u128,
+        completed: bool,
+        prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+        next_scheduler: MechanismExplicitObservationSchedulerSummary,
+    ) -> Self {
+        Self {
+            version: MECHANISM_SUPPORT_OBSERVATION_BACKFILL_VERSION,
+            slice,
+            cursor,
+            frontier_root,
+            phase,
+            registration_structural_cursor,
+            from_structural_cursor,
+            through_structural_cursor,
+            completed,
+            prior_scheduler,
+            next_scheduler,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(super) const fn restore_from_journal_codec(
+        version: u32,
+        slice: MechanismSupportSlice,
+        cursor: MechanismSupportCheckpointCursor,
+        frontier_root: MechanismSupportFrontierRoot,
+        phase: MechanismExplicitObservationRegistrationPhase,
+        registration_structural_cursor: u128,
+        from_structural_cursor: u128,
+        through_structural_cursor: u128,
+        completed: bool,
+        prior_scheduler: MechanismExplicitObservationSchedulerSummary,
+        next_scheduler: MechanismExplicitObservationSchedulerSummary,
+    ) -> Self {
+        Self {
+            version,
+            slice,
+            cursor,
+            frontier_root,
+            phase,
+            registration_structural_cursor,
+            from_structural_cursor,
+            through_structural_cursor,
+            completed,
+            prior_scheduler,
+            next_scheduler,
+        }
+    }
+
+    pub(crate) const fn version(self) -> u32 {
+        self.version
+    }
+
+    pub(crate) const fn slice(self) -> MechanismSupportSlice {
+        self.slice
+    }
+
+    pub(crate) const fn cursor(self) -> MechanismSupportCheckpointCursor {
+        self.cursor
+    }
+
+    pub(crate) const fn frontier_root(self) -> MechanismSupportFrontierRoot {
+        self.frontier_root
+    }
+
+    pub(crate) const fn phase(self) -> MechanismExplicitObservationRegistrationPhase {
+        self.phase
+    }
+
+    pub(crate) const fn registration_structural_cursor(self) -> u128 {
+        self.registration_structural_cursor
+    }
+
+    pub(crate) const fn from_structural_cursor(self) -> u128 {
+        self.from_structural_cursor
+    }
+
+    pub(crate) const fn through_structural_cursor(self) -> u128 {
+        self.through_structural_cursor
+    }
+
+    pub(crate) const fn completed(self) -> bool {
+        self.completed
+    }
+
+    pub(crate) const fn prior_scheduler(self) -> MechanismExplicitObservationSchedulerSummary {
+        self.prior_scheduler
+    }
+
+    pub(crate) const fn next_scheduler(self) -> MechanismExplicitObservationSchedulerSummary {
+        self.next_scheduler
+    }
+}
+
 /// One resumability mutation. Checkpoints are authenticated by journal order,
 /// but are deliberately absent from the arrival-order-independent semantic
 /// evidence roots: a scheduler may reach the same proof frontier by a
@@ -836,6 +1080,17 @@ pub(crate) enum RelationalCheckpointEvent {
         request_id: MechanismRequestId,
         cursor: MechanismSupportCheckpointCursor,
         frontier_root: MechanismSupportFrontierRoot,
+    },
+    /// Attach one checked compact reader to the current request-local support
+    /// prefix. Duplicate names are resolved before this slice-level event;
+    /// replay stores at most one registration per stable slice.
+    SupportObservationDemandRegistered {
+        claim: MechanismSupportObservationDemandRegistrationClaim,
+    },
+    /// Advance the canonical minimum late-registration catch-up by one
+    /// protocol-bounded structural-assignment page.
+    SupportObservationBackfillCheckpointed {
+        claim: MechanismSupportObservationBackfillClaim,
     },
     /// Append one replay-derived observation of a structural support slice at
     /// the exact latest durable support frontier.
@@ -1100,6 +1355,20 @@ impl RelationalJournalEvent {
         Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { claim })
     }
 
+    pub(crate) const fn support_observation_demand_registered(
+        claim: MechanismSupportObservationDemandRegistrationClaim,
+    ) -> Self {
+        Self::Checkpoint(RelationalCheckpointEvent::SupportObservationDemandRegistered { claim })
+    }
+
+    pub(crate) const fn support_observation_backfill_checkpointed(
+        claim: MechanismSupportObservationBackfillClaim,
+    ) -> Self {
+        Self::Checkpoint(
+            RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { claim },
+        )
+    }
+
     pub(crate) fn relational_classified_chunk_slice_checkpointed(
         artifact: RelationalClassifiedChunkSliceArtifact,
     ) -> Self {
@@ -1194,6 +1463,10 @@ impl RelationalJournalEvent {
                 ..
             })
             | Self::Checkpoint(RelationalCheckpointEvent::SupportFrontierCheckpointed { .. })
+            | Self::Checkpoint(
+                RelationalCheckpointEvent::SupportObservationDemandRegistered { .. }
+                | RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { .. },
+            )
             | Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkFrontierCompacted { .. }) => None,
         }
@@ -1215,6 +1488,10 @@ impl RelationalJournalEvent {
                 ..
             })
             | Self::Checkpoint(RelationalCheckpointEvent::SupportFrontierCheckpointed { .. })
+            | Self::Checkpoint(
+                RelationalCheckpointEvent::SupportObservationDemandRegistered { .. }
+                | RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { .. },
+            )
             | Self::Checkpoint(RelationalCheckpointEvent::SupportSubjectObserved { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkNodeCompleted { .. }) => None,
         }
@@ -1661,6 +1938,15 @@ struct RelationalEvidenceState {
     /// only this map participates in the outer checkpoint root.
     latest_support_schedulers:
         BTreeMap<MechanismRequestId, MechanismAutomaticObservationSchedulerSummary>,
+    /// Durable extension scheduler paired with the same exact support prefix.
+    /// Unlike the automatic scheduler this may continue after analysis close
+    /// and is committed only by explicit checkpoint events.
+    latest_explicit_support_schedulers:
+        BTreeMap<MechanismRequestId, MechanismExplicitObservationSchedulerSummary>,
+    /// First registration of each stable observation slice, in attachment
+    /// order for streaming publication and indexed for O(log D) deduplication.
+    mechanism_support_observation_demands:
+        BTreeMap<MechanismRequestId, MechanismSupportObservationDemandLog>,
     /// Replay-derived append-only support observations, partitioned by
     /// mechanism request so each public artifact can stream by ordinal.
     mechanism_support_observations: BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
@@ -1677,14 +1963,45 @@ struct RelationalMechanismSupportCheckpointReceipt {
 }
 
 #[derive(Clone, Debug)]
+struct MechanismSupportObservationDemandLog {
+    registrations: Vec<MechanismSupportObservationDemandRegistrationClaim>,
+    by_slice: BTreeMap<MechanismSupportSlice, usize>,
+    chain_root: MechanismSupportObservationDemandChainRoot,
+}
+
+impl MechanismSupportObservationDemandLog {
+    fn new(request_id: MechanismRequestId) -> Self {
+        Self {
+            registrations: Vec::new(),
+            by_slice: BTreeMap::new(),
+            chain_root: mechanism_support_observation_demand_chain_genesis(request_id),
+        }
+    }
+
+    fn registration(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> Option<&MechanismSupportObservationDemandRegistrationClaim> {
+        let ordinal = *self.by_slice.get(&slice)?;
+        self.registrations
+            .get(ordinal)
+            .filter(|claim| claim.slice() == slice)
+    }
+}
+
+#[derive(Clone, Debug)]
 struct MechanismSupportObservationLog {
     points: Vec<MechanismSupportObservationPoint>,
     first_by_slice: BTreeMap<MechanismSupportSlice, usize>,
     latest_by_slice: BTreeMap<MechanismSupportSlice, LatestMechanismSupportObservation>,
-    observed_slice_count: u128,
-    sealed_slice_count: u128,
-    sealed_cursor: Option<MechanismSupportSlice>,
+    automatic_point_count: u128,
+    automatic_observed_slice_count: u128,
+    automatic_sealed_slice_count: u128,
+    automatic_sealed_cursor: Option<MechanismSupportSlice>,
+    explicit_observed_slice_count: u128,
+    explicit_sealed_slice_count: u128,
     chain_root: MechanismSupportObservationChainRoot,
+    automatic_chain_root: MechanismSupportObservationChainRoot,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -1699,10 +2016,14 @@ impl MechanismSupportObservationLog {
             points: Vec::new(),
             first_by_slice: BTreeMap::new(),
             latest_by_slice: BTreeMap::new(),
-            observed_slice_count: 0,
-            sealed_slice_count: 0,
-            sealed_cursor: None,
+            automatic_point_count: 0,
+            automatic_observed_slice_count: 0,
+            automatic_sealed_slice_count: 0,
+            automatic_sealed_cursor: None,
+            explicit_observed_slice_count: 0,
+            explicit_sealed_slice_count: 0,
             chain_root: mechanism_support_observation_chain_genesis(request_id),
+            automatic_chain_root: mechanism_support_observation_chain_genesis(request_id),
         }
     }
 
@@ -1727,8 +2048,8 @@ impl MechanismSupportObservationLog {
             .filter(|point| point.point_id() == latest.point_id)
     }
 
-    fn all_slices_are_sealed(&self) -> bool {
-        self.observed_slice_count == self.sealed_slice_count
+    fn all_automatic_slices_are_sealed(&self) -> bool {
+        self.automatic_observed_slice_count == self.automatic_sealed_slice_count
     }
 }
 
@@ -1821,6 +2142,26 @@ fn validate_support_scheduler_summary(
     Ok(())
 }
 
+fn validate_explicit_support_scheduler_summary(
+    request_id: MechanismRequestId,
+    scheduler: MechanismExplicitObservationSchedulerSummary,
+) -> Result<(), RelationalJournalError> {
+    let registry = scheduler.registry();
+    let pending = scheduler.pending_backfill();
+    let dirty = scheduler.dirty();
+    let unsealed = scheduler.unsealed();
+    if registry
+        .ready_slice_count()
+        .checked_add(pending.slice_count())
+        != Some(registry.slice_count())
+        || dirty.slice_count() > registry.ready_slice_count()
+        || unsealed.slice_count() > registry.slice_count()
+    {
+        return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+    }
+    Ok(())
+}
+
 impl RelationalEvidenceState {
     fn new(
         contract: RelationalJournalContract,
@@ -1865,6 +2206,8 @@ impl RelationalEvidenceState {
             support,
             latest_support_frontiers: BTreeMap::new(),
             latest_support_schedulers: BTreeMap::new(),
+            latest_explicit_support_schedulers: BTreeMap::new(),
+            mechanism_support_observation_demands: BTreeMap::new(),
             mechanism_support_observations: BTreeMap::new(),
             work: RelationalWorkFrontier::new(),
         }
@@ -4283,12 +4626,18 @@ impl RelationalEvidenceState {
                     .latest_support_schedulers
                     .get(request_id)
                     .map_or(0, |scheduler| scheduler.dirty().slice_count());
+                let prior_explicit_pending_count = self
+                    .latest_explicit_support_schedulers
+                    .get(request_id)
+                    .map_or(0, |scheduler| scheduler.pending_backfill().slice_count());
                 // Normal cursor advancement may not skip dirty work from the
                 // durable prefix. Discarded-proposal recovery starts from a
                 // clean durable scheduler even when the live derived suffix
                 // has already become dirty; same-cursor frontier enrichment
                 // never advances a lane.
-                if *cursor != prior_cursor && prior_dirty_count != 0 {
+                if *cursor != prior_cursor
+                    && (prior_dirty_count != 0 || prior_explicit_pending_count != 0)
+                {
                     return Err(
                         RelationalJournalError::SupportCheckpointObservationPending {
                             request_id: *request_id,
@@ -4318,6 +4667,14 @@ impl RelationalEvidenceState {
                             request_id: *request_id,
                         },
                     )?;
+                let explicit_scheduler = analysis
+                    .mechanism_explicit_observation_scheduler_summary(*request_id)
+                    .ok_or(
+                        RelationalJournalError::SupportCheckpointAnchorRootMismatch {
+                            request_id: *request_id,
+                        },
+                    )?;
+                validate_explicit_support_scheduler_summary(*request_id, explicit_scheduler)?;
                 validate_support_scheduler_summary(*request_id, *cursor, scheduler)?;
                 self.latest_support_frontiers.insert(
                     *request_id,
@@ -4328,6 +4685,14 @@ impl RelationalEvidenceState {
                 );
                 self.latest_support_schedulers
                     .insert(*request_id, scheduler);
+                self.latest_explicit_support_schedulers
+                    .insert(*request_id, explicit_scheduler);
+            }
+            RelationalCheckpointEvent::SupportObservationDemandRegistered { claim } => {
+                self.accept_support_observation_demand_registration(*claim)?;
+            }
+            RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { claim } => {
+                self.accept_support_observation_backfill(*claim)?;
             }
             RelationalCheckpointEvent::SupportSubjectObserved { claim } => {
                 self.accept_mechanism_support_observation(*claim)?;
@@ -4346,6 +4711,237 @@ impl RelationalEvidenceState {
         Ok(())
     }
 
+    fn require_support_extension_anchor(
+        &mut self,
+        request_id: MechanismRequestId,
+    ) -> Result<RelationalMechanismSupportCheckpointReceipt, RelationalJournalError> {
+        let durable = self
+            .latest_support_frontiers
+            .get(&request_id)
+            .copied()
+            .ok_or(RelationalJournalError::SupportObservationFrontierMissing { request_id })?;
+        let analysis = self
+            .analysis
+            .as_mut()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+        if analysis.mechanism_support_checkpoint_cursor(request_id) != durable.cursor {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+        if analysis.mechanism_support_closure(request_id).is_none() && !analysis.is_closed() {
+            let derived = analysis.checkpoint_support_frontier(request_id)?;
+            if derived != durable.frontier {
+                return Err(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                );
+            }
+        }
+        let automatic = analysis
+            .mechanism_support_scheduler_summary(request_id)
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        let explicit = analysis
+            .mechanism_explicit_observation_scheduler_summary(request_id)
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        if self.latest_support_schedulers.get(&request_id).copied() != Some(automatic)
+            || self
+                .latest_explicit_support_schedulers
+                .get(&request_id)
+                .copied()
+                != Some(explicit)
+        {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+        Ok(durable)
+    }
+
+    fn accept_support_observation_demand_registration(
+        &mut self,
+        claim: MechanismSupportObservationDemandRegistrationClaim,
+    ) -> Result<(), RelationalJournalError> {
+        let request_id = claim.slice().key().request_id();
+        let durable = self.require_support_extension_anchor(request_id)?;
+        if durable.cursor != claim.cursor() || durable.frontier.root() != claim.frontier_root() {
+            return Err(RelationalJournalError::SupportObservationFrontierMismatch { request_id });
+        }
+        if self
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .and_then(|log| log.registration(claim.slice()))
+            .is_some()
+        {
+            return Err(
+                RelationalJournalError::SupportObservationDemandAlreadyRegistered { request_id },
+            );
+        }
+        let durable_scheduler = self
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        validate_explicit_support_scheduler_summary(request_id, durable_scheduler)?;
+        if durable_scheduler != claim.prior_scheduler() {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+
+        let prepared = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?
+            .prepare_explicit_support_observation_registration(claim.slice())?;
+        let expected = MechanismSupportObservationDemandRegistrationClaim::new(
+            prepared.slice(),
+            durable.cursor,
+            durable.frontier.root(),
+            prepared.disposition(),
+            prepared.registration_phase(),
+            prepared.registration_structural_cursor(),
+            prepared.prior_scheduler_summary(),
+            prepared.next_scheduler_summary(),
+        );
+        if claim != expected
+            || claim.version() != MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION
+        {
+            return Err(
+                RelationalJournalError::SupportObservationDemandClaimMismatch { request_id },
+            );
+        }
+
+        let mut prepared_log = if self
+            .mechanism_support_observation_demands
+            .contains_key(&request_id)
+        {
+            self.mechanism_support_observation_demands
+                .get_mut(&request_id)
+                .expect("checked explicit observation demand log remains present")
+                .registrations
+                .try_reserve(1)
+                .map_err(
+                    |_| RelationalJournalError::SupportObservationPointAllocationFailed {
+                        request_id,
+                    },
+                )?;
+            None
+        } else {
+            let mut log = MechanismSupportObservationDemandLog::new(request_id);
+            log.registrations.try_reserve(1).map_err(|_| {
+                RelationalJournalError::SupportObservationPointAllocationFailed { request_id }
+            })?;
+            Some(log)
+        };
+        let ordinal = self
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .map_or(0, |log| log.registrations.len());
+        self.analysis
+            .as_mut()
+            .expect("prepared explicit observation registration retains analysis state")
+            .commit_explicit_support_observation_registration(prepared);
+        let committed = self
+            .analysis
+            .as_ref()
+            .expect("committed explicit observation registration retains analysis state")
+            .mechanism_explicit_observation_scheduler_summary(request_id)
+            .expect("prepared explicit observation registration retains its scheduler");
+        assert_eq!(committed, claim.next_scheduler());
+        self.latest_explicit_support_schedulers
+            .insert(request_id, committed);
+        if let Some(log) = prepared_log.take() {
+            let previous = self
+                .mechanism_support_observation_demands
+                .insert(request_id, log);
+            debug_assert!(previous.is_none());
+        }
+        let log = self
+            .mechanism_support_observation_demands
+            .get_mut(&request_id)
+            .expect("reserved explicit observation demand log remains installed");
+        let previous = log.by_slice.insert(claim.slice(), ordinal);
+        debug_assert!(previous.is_none());
+        log.chain_root = extend_mechanism_support_observation_demand_chain(
+            request_id,
+            log.chain_root,
+            ordinal as u128,
+            claim,
+        );
+        log.registrations.push(claim);
+        Ok(())
+    }
+
+    fn accept_support_observation_backfill(
+        &mut self,
+        claim: MechanismSupportObservationBackfillClaim,
+    ) -> Result<(), RelationalJournalError> {
+        let request_id = claim.slice().key().request_id();
+        let durable = self.require_support_extension_anchor(request_id)?;
+        if durable.cursor != claim.cursor() || durable.frontier.root() != claim.frontier_root() {
+            return Err(RelationalJournalError::SupportObservationFrontierMismatch { request_id });
+        }
+        if self
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .and_then(|log| log.registration(claim.slice()))
+            .is_none()
+        {
+            return Err(RelationalJournalError::SupportObservationDemandMissing { request_id });
+        }
+        let durable_scheduler = self
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        validate_explicit_support_scheduler_summary(request_id, durable_scheduler)?;
+        if durable_scheduler != claim.prior_scheduler() {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+        let delta = claim
+            .through_structural_cursor()
+            .checked_sub(claim.from_structural_cursor())
+            .filter(|delta| *delta != 0 && *delta <= RELATIONAL_SUPPORT_CHECKPOINT_MAX_LANE_DELTA)
+            .and_then(|delta| u16::try_from(delta).ok())
+            .and_then(NonZeroU16::new)
+            .ok_or(
+                RelationalJournalError::SupportObservationBackfillClaimMismatch { request_id },
+            )?;
+        let prepared = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?
+            .prepare_next_explicit_support_observation_backfill(request_id, delta)?
+            .ok_or(
+                RelationalJournalError::SupportObservationBackfillClaimMismatch { request_id },
+            )?;
+        let expected = MechanismSupportObservationBackfillClaim::new(
+            prepared.slice(),
+            durable.cursor,
+            durable.frontier.root(),
+            prepared.registration_phase(),
+            prepared.registration_structural_cursor(),
+            prepared.from_structural_cursor(),
+            prepared.through_structural_cursor(),
+            prepared.completed(),
+            prepared.prior_scheduler_summary(),
+            prepared.next_scheduler_summary(),
+        );
+        if claim != expected || claim.version() != MECHANISM_SUPPORT_OBSERVATION_BACKFILL_VERSION {
+            return Err(
+                RelationalJournalError::SupportObservationBackfillClaimMismatch { request_id },
+            );
+        }
+        self.analysis
+            .as_mut()
+            .expect("prepared explicit observation backfill retains analysis state")
+            .commit_explicit_support_observation_backfill(prepared);
+        let committed = self
+            .analysis
+            .as_ref()
+            .expect("committed explicit observation backfill retains analysis state")
+            .mechanism_explicit_observation_scheduler_summary(request_id)
+            .expect("prepared explicit observation backfill retains its scheduler");
+        assert_eq!(committed, claim.next_scheduler());
+        self.latest_explicit_support_schedulers
+            .insert(request_id, committed);
+        Ok(())
+    }
+
     fn accept_mechanism_support_observation(
         &mut self,
         claim: MechanismSupportObservationClaim,
@@ -4354,88 +4950,141 @@ impl RelationalEvidenceState {
             return Err(RelationalJournalError::SupportObservationPointIdentityMismatch);
         }
         let request_id = claim.slice().key().request_id();
-        let durable = self
-            .latest_support_frontiers
-            .get(&request_id)
-            .copied()
-            .ok_or(RelationalJournalError::SupportObservationFrontierMissing { request_id })?;
+        let durable = self.require_support_extension_anchor(request_id)?;
         if durable.cursor != claim.cursor() || durable.frontier.root() != claim.frontier_root() {
             return Err(RelationalJournalError::SupportObservationFrontierMismatch { request_id });
         }
-        let (
-            prior,
-            first_exists,
-            sealed_cursor,
-            observed_slice_count,
-            sealed_slice_count,
-            point_ordinal,
-        ) = match self.mechanism_support_observations.get(&request_id) {
-            Some(log) => {
-                if log.observed_slice_count != log.first_by_slice.len() as u128
-                    || log.observed_slice_count != log.latest_by_slice.len() as u128
-                    || log.sealed_slice_count > log.observed_slice_count
-                    || (log.sealed_cursor.is_none() != (log.sealed_slice_count == 0))
-                {
-                    return Err(RelationalJournalError::SupportObservationCountOverflow {
-                        request_id,
-                    });
+        let is_automatic = matches!(
+            claim.slice().subject(),
+            MechanismSupportSubject::Mechanism(_)
+        );
+        let (prior, first_exists, observed_slice_count, sealed_slice_count, point_ordinal) =
+            match self.mechanism_support_observations.get(&request_id) {
+                Some(log) => {
+                    if log
+                        .automatic_observed_slice_count
+                        .checked_add(log.explicit_observed_slice_count)
+                        != Some(log.first_by_slice.len() as u128)
+                        || log.first_by_slice.len() != log.latest_by_slice.len()
+                        || log.automatic_sealed_slice_count > log.automatic_observed_slice_count
+                        || log.explicit_sealed_slice_count > log.explicit_observed_slice_count
+                        || (log.automatic_sealed_cursor.is_none()
+                            != (log.automatic_sealed_slice_count == 0))
+                    {
+                        return Err(RelationalJournalError::SupportObservationCountOverflow {
+                            request_id,
+                        });
+                    }
+                    (
+                        log.latest_point(claim.slice())
+                            .map(|point| (point.claim(), point.summary().root())),
+                        log.first_by_slice.contains_key(&claim.slice()),
+                        if is_automatic {
+                            log.automatic_observed_slice_count
+                        } else {
+                            log.explicit_observed_slice_count
+                        },
+                        if is_automatic {
+                            log.automatic_sealed_slice_count
+                        } else {
+                            log.explicit_sealed_slice_count
+                        },
+                        log.points.len(),
+                    )
                 }
-                (
-                    log.latest_point(claim.slice())
-                        .map(|point| (point.claim(), point.summary().root())),
-                    log.first_by_slice.contains_key(&claim.slice()),
-                    log.sealed_cursor,
-                    log.observed_slice_count,
-                    log.sealed_slice_count,
-                    log.points.len(),
-                )
-            }
-            None => (None, false, None, 0, 0, 0),
-        };
+                None => (None, false, 0, 0, 0),
+            };
         if first_exists != prior.is_some() {
             return Err(RelationalJournalError::SupportObservationCountOverflow { request_id });
         }
 
-        let (expected_status, expected_slice, summary, scheduler) = {
+        let expected_status = {
             let analysis = self
                 .analysis
                 .as_ref()
                 .ok_or(RelationalJournalError::AnalysisStateMissing)?;
-            let expected_status = analysis.mechanism_support_closure(request_id).map_or(
+            analysis.mechanism_support_closure(request_id).map_or(
                 MechanismSupportObservationStatus::Open,
                 |closure| MechanismSupportObservationStatus::Sealed {
                     support_root: closure.root(),
                 },
-            );
-            let expected_slice = if expected_status.is_sealed() {
+            )
+        };
+        if claim.status() != expected_status {
+            return Err(RelationalJournalError::SupportObservationStatusMismatch { request_id });
+        }
+
+        let expected_slice = if is_automatic {
+            let analysis = self
+                .analysis
+                .as_ref()
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+            let sealed_cursor = self
+                .mechanism_support_observations
+                .get(&request_id)
+                .and_then(|log| log.automatic_sealed_cursor);
+            let slice = if expected_status.is_sealed() {
                 analysis.next_support_observation_slice_after(request_id, sealed_cursor)?
             } else {
                 analysis.next_dirty_support_observation_slice(request_id)?
             };
-            let summary = analysis.derive_support_observation_summary(
-                claim.slice(),
-                claim.cursor(),
-                durable.frontier,
-            )?;
             let scheduler = analysis
                 .mechanism_support_scheduler_summary(request_id)
                 .ok_or(
                     RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
                 )?;
-            (expected_status, expected_slice, summary, scheduler)
+            validate_support_scheduler_summary(request_id, claim.cursor(), scheduler)?;
+            if self.latest_support_schedulers.get(&request_id).copied() != Some(scheduler) {
+                return Err(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                );
+            }
+            slice
+        } else {
+            if self
+                .mechanism_support_observation_demands
+                .get(&request_id)
+                .and_then(|log| log.registration(claim.slice()))
+                .is_none()
+            {
+                return Err(RelationalJournalError::SupportObservationDemandMissing { request_id });
+            }
+            let analysis = self
+                .analysis
+                .as_ref()
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+            let scheduler = analysis
+                .mechanism_explicit_observation_scheduler_summary(request_id)
+                .ok_or(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                )?;
+            validate_explicit_support_scheduler_summary(request_id, scheduler)?;
+            if self
+                .latest_explicit_support_schedulers
+                .get(&request_id)
+                .copied()
+                != Some(scheduler)
+            {
+                return Err(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                );
+            }
+            if expected_status.is_sealed() {
+                analysis.next_unsealed_explicit_support_observation_slice(request_id)
+            } else {
+                analysis.next_dirty_explicit_support_observation_slice(request_id)
+            }
         };
-        if claim.status() != expected_status {
-            return Err(RelationalJournalError::SupportObservationStatusMismatch { request_id });
-        }
         if expected_slice != Some(claim.slice()) {
             return Err(RelationalJournalError::SupportObservationSliceNotScheduled { request_id });
         }
+        let summary = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?
+            .derive_support_observation_summary(claim.slice(), claim.cursor(), durable.frontier)?;
         if summary.root() != claim.summary_root() {
             return Err(RelationalJournalError::SupportObservationSummaryMismatch { request_id });
-        }
-        validate_support_scheduler_summary(request_id, claim.cursor(), scheduler)?;
-        if self.latest_support_schedulers.get(&request_id).copied() != Some(scheduler) {
-            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
         }
 
         let expected_supersedes = prior.map(|(prior_claim, _)| prior_claim.point_id());
@@ -4447,7 +5096,8 @@ impl RelationalEvidenceState {
         if prior.is_some_and(|(prior_claim, _)| prior_claim.status().is_sealed()) {
             return Err(RelationalJournalError::SupportObservationAfterSeal { request_id });
         }
-        if claim.status().is_sealed()
+        if is_automatic
+            && claim.status().is_sealed()
             && !prior.is_some_and(|(prior_claim, _)| {
                 prior_claim.status() == MechanismSupportObservationStatus::Open
             })
@@ -4479,6 +5129,15 @@ impl RelationalEvidenceState {
         } else {
             sealed_slice_count
         };
+        let next_automatic_point_count = if is_automatic {
+            self.mechanism_support_observations
+                .get(&request_id)
+                .map_or(0, |log| log.automatic_point_count)
+                .checked_add(1)
+                .ok_or(RelationalJournalError::SupportObservationCountOverflow { request_id })?
+        } else {
+            0
+        };
 
         let mut prepared_log = if self
             .mechanism_support_observations
@@ -4503,52 +5162,101 @@ impl RelationalEvidenceState {
             Some(log)
         };
 
-        let prepared_ack = if claim.status() == MechanismSupportObservationStatus::Open {
-            Some(
-                self.analysis
-                    .as_ref()
-                    .ok_or(RelationalJournalError::AnalysisStateMissing)?
-                    .prepare_support_observation_ack(claim.slice())?,
-            )
-        } else {
-            None
-        };
-        let expected_committed_dirty = match prepared_ack.as_ref() {
-            Some(ack) => {
+        let point = MechanismSupportObservationPoint { claim, summary };
+        if is_automatic {
+            let scheduler = self
+                .latest_support_schedulers
+                .get(&request_id)
+                .copied()
+                .ok_or(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                )?;
+            let prepared_ack = if claim.status() == MechanismSupportObservationStatus::Open {
+                Some(
+                    self.analysis
+                        .as_ref()
+                        .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                        .prepare_support_observation_ack(claim.slice())?,
+                )
+            } else {
+                None
+            };
+            let expected_committed_dirty = prepared_ack
+                .as_ref()
+                .map_or(scheduler.dirty(), |ack| ack.next_dirty_summary());
+            if let Some(ack) = prepared_ack {
                 if ack.prior_dirty_summary() != scheduler.dirty() {
                     return Err(
                         RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
                     );
                 }
-                ack.next_dirty_summary()
+                self.analysis
+                    .as_mut()
+                    .expect("prepared support-observation acknowledgement retains analysis state")
+                    .commit_support_observation_ack(ack);
             }
-            None => scheduler.dirty(),
-        };
-        let point = MechanismSupportObservationPoint { claim, summary };
-        if let Some(ack) = prepared_ack {
-            self.analysis
-                .as_mut()
-                .expect("prepared support-observation acknowledgement retains analysis state")
-                .commit_support_observation_ack(ack);
+            let committed = self
+                .analysis
+                .as_ref()
+                .expect("validated support observation retains analysis state")
+                .mechanism_support_scheduler_summary(request_id)
+                .expect("validated support observation retains its scheduler");
+            assert_eq!(committed.registry(), scheduler.registry());
+            assert_eq!(committed.dirty(), expected_committed_dirty);
+            self.latest_support_schedulers.insert(request_id, committed);
+        } else {
+            let scheduler = self
+                .latest_explicit_support_schedulers
+                .get(&request_id)
+                .copied()
+                .ok_or(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                )?;
+            let next_scheduler = if claim.status() == MechanismSupportObservationStatus::Open {
+                let ack = self
+                    .analysis
+                    .as_ref()
+                    .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                    .prepare_explicit_support_observation_ack(claim.slice())?;
+                if ack.prior_scheduler_summary() != scheduler {
+                    return Err(
+                        RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                    );
+                }
+                let next = ack.next_scheduler_summary();
+                self.analysis
+                    .as_mut()
+                    .expect("prepared explicit observation acknowledgement retains analysis state")
+                    .commit_explicit_support_observation_ack(ack);
+                next
+            } else {
+                let ack = self
+                    .analysis
+                    .as_ref()
+                    .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                    .prepare_explicit_support_observation_seal_ack(claim.slice())?;
+                if ack.prior_scheduler_summary() != scheduler {
+                    return Err(
+                        RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                    );
+                }
+                let next = ack.next_scheduler_summary();
+                self.analysis
+                    .as_mut()
+                    .expect("prepared explicit observation seal retains analysis state")
+                    .commit_explicit_support_observation_seal_ack(ack);
+                next
+            };
+            let committed = self
+                .analysis
+                .as_ref()
+                .expect("validated explicit observation retains analysis state")
+                .mechanism_explicit_observation_scheduler_summary(request_id)
+                .expect("validated explicit observation retains its scheduler");
+            assert_eq!(committed, next_scheduler);
+            self.latest_explicit_support_schedulers
+                .insert(request_id, committed);
         }
-        let committed_scheduler = self
-            .analysis
-            .as_ref()
-            .expect("validated support observation retains analysis state")
-            .mechanism_support_scheduler_summary(request_id)
-            .expect("validated support observation retains its scheduler");
-        assert_eq!(
-            committed_scheduler.registry(),
-            scheduler.registry(),
-            "support-observation acknowledgement cannot rewrite the automatic registry"
-        );
-        assert_eq!(
-            committed_scheduler.dirty(),
-            expected_committed_dirty,
-            "support-observation acknowledgement must install its prepared dirty successor"
-        );
-        self.latest_support_schedulers
-            .insert(request_id, committed_scheduler);
         if let Some(log) = prepared_log.take() {
             let previous = self.mechanism_support_observations.insert(request_id, log);
             debug_assert!(previous.is_none());
@@ -4563,6 +5271,15 @@ impl RelationalEvidenceState {
             point_ordinal as u128,
             point.point_id(),
         );
+        if is_automatic {
+            log.automatic_chain_root = extend_mechanism_support_observation_chain(
+                request_id,
+                log.automatic_chain_root,
+                log.automatic_point_count,
+                point.point_id(),
+            );
+            log.automatic_point_count = next_automatic_point_count;
+        }
         if prior.is_none() {
             let previous = log.first_by_slice.insert(point.slice(), point_ordinal);
             debug_assert!(previous.is_none());
@@ -4574,10 +5291,17 @@ impl RelationalEvidenceState {
                 point_id: point.point_id(),
             },
         );
-        log.observed_slice_count = next_observed_slice_count;
-        if point.status().is_sealed() {
-            log.sealed_slice_count = next_sealed_slice_count;
-            log.sealed_cursor = Some(point.slice());
+        if is_automatic {
+            log.automatic_observed_slice_count = next_observed_slice_count;
+            if point.status().is_sealed() {
+                log.automatic_sealed_slice_count = next_sealed_slice_count;
+                log.automatic_sealed_cursor = Some(point.slice());
+            }
+        } else {
+            log.explicit_observed_slice_count = next_observed_slice_count;
+            if point.status().is_sealed() {
+                log.explicit_sealed_slice_count = next_sealed_slice_count;
+            }
         }
         log.points.push(point);
         Ok(())
@@ -4601,7 +5325,7 @@ impl RelationalEvidenceState {
             },
         );
         let log = self.mechanism_support_observations.get(&request_id);
-        let sealed_cursor = log.and_then(|log| log.sealed_cursor);
+        let sealed_cursor = log.and_then(|log| log.automatic_sealed_cursor);
         let slice = if status.is_sealed() {
             analysis.next_support_observation_slice_after(request_id, sealed_cursor)?
         } else {
@@ -4644,6 +5368,81 @@ impl RelationalEvidenceState {
         )))
     }
 
+    fn next_explicit_mechanism_support_observation_claim(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<Option<MechanismSupportObservationClaim>, RelationalJournalError> {
+        let Some(durable) = self.latest_support_frontiers.get(&request_id).copied() else {
+            return Ok(None);
+        };
+        let analysis = self
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?;
+        let scheduler = analysis
+            .mechanism_explicit_observation_scheduler_summary(request_id)
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        validate_explicit_support_scheduler_summary(request_id, scheduler)?;
+        if self
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+            != Some(scheduler)
+        {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+        if scheduler.pending_backfill().slice_count() != 0 {
+            return Ok(None);
+        }
+        let status = analysis.mechanism_support_closure(request_id).map_or(
+            MechanismSupportObservationStatus::Open,
+            |closure| MechanismSupportObservationStatus::Sealed {
+                support_root: closure.root(),
+            },
+        );
+        let slice = if status.is_sealed() {
+            analysis.next_unsealed_explicit_support_observation_slice(request_id)
+        } else {
+            analysis.next_dirty_explicit_support_observation_slice(request_id)
+        };
+        let Some(slice) = slice else {
+            return Ok(None);
+        };
+        if self
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .and_then(|log| log.registration(slice))
+            .is_none()
+        {
+            return Err(RelationalJournalError::SupportObservationDemandMissing { request_id });
+        }
+        let summary =
+            analysis.derive_support_observation_summary(slice, durable.cursor, durable.frontier)?;
+        let prior = self
+            .mechanism_support_observations
+            .get(&request_id)
+            .and_then(|log| log.latest_point(slice));
+        if prior.is_some_and(|point| point.status().is_sealed()) {
+            return Err(RelationalJournalError::SupportObservationAfterSeal { request_id });
+        }
+        if prior.is_some_and(|point| {
+            point.claim().cursor() == durable.cursor
+                && point.claim().frontier_root() == durable.frontier.root()
+                && point.summary().root() == summary.root()
+                && point.status() == status
+        }) {
+            return Err(RelationalJournalError::SupportObservationDidNotAdvance { request_id });
+        }
+        Ok(Some(MechanismSupportObservationClaim::new(
+            slice,
+            durable.cursor,
+            durable.frontier.root(),
+            summary.root(),
+            status,
+            prior.map(MechanismSupportObservationPoint::point_id),
+        )))
+    }
+
     fn require_support_observation_ready_to_close(
         &self,
         request_id: MechanismRequestId,
@@ -4667,7 +5466,7 @@ impl RelationalEvidenceState {
         let observed_slice_count = self
             .mechanism_support_observations
             .get(&request_id)
-            .map_or(0, |log| log.observed_slice_count);
+            .map_or(0, |log| log.automatic_observed_slice_count);
         if scheduler != analysis_scheduler
             || scheduler.dirty().slice_count() != 0
             || observed_slice_count != scheduler.registry().slice_count()
@@ -4700,10 +5499,10 @@ impl RelationalEvidenceState {
                 .get(&request_id)
                 .map_or((0, 0, None, true), |log| {
                     (
-                        log.observed_slice_count,
-                        log.sealed_slice_count,
-                        log.sealed_cursor,
-                        log.all_slices_are_sealed(),
+                        log.automatic_observed_slice_count,
+                        log.automatic_sealed_slice_count,
+                        log.automatic_sealed_cursor,
+                        log.all_automatic_slices_are_sealed(),
                     )
                 });
             let analysis = self
@@ -4940,6 +5739,25 @@ pub(crate) enum RelationalMechanismSupportStepEvents {
     /// The imported prefixes are caught up to all currently visible upstream
     /// work, but one or both upstream semantic closures are still absent.
     /// This is ordinary open-stream quiescence, not a failed checkpoint.
+    Idle,
+}
+
+/// One bounded operational extension step for explicitly requested support
+/// readers. It can continue after the immutable analysis DAG has closed.
+pub(crate) enum RelationalExplicitMechanismSupportStepEvents {
+    Backfilled {
+        slice: MechanismSupportSlice,
+        from_structural_cursor: u128,
+        through_structural_cursor: u128,
+        completed: bool,
+        events: Box<[RelationalJournalEvent]>,
+    },
+    Observed {
+        point_id: MechanismSupportObservationPointId,
+        slice: MechanismSupportSlice,
+        status: MechanismSupportObservationStatus,
+        events: Box<[RelationalJournalEvent]>,
+    },
     Idle,
 }
 
@@ -5530,6 +6348,140 @@ impl RelationalJournal {
         Ok(RelationalJournalEvent::analysis(event))
     }
 
+    pub(crate) fn support_observation_demand_registration_event(
+        &mut self,
+        slice: MechanismSupportSlice,
+    ) -> Result<Option<RelationalJournalEvent>, RelationalJournalError> {
+        let request_id = slice.key().request_id();
+        if self
+            .state
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .and_then(|log| log.registration(slice))
+            .is_some()
+        {
+            return Ok(None);
+        }
+        if !self
+            .state
+            .latest_support_frontiers
+            .contains_key(&request_id)
+        {
+            return Ok(None);
+        }
+        let durable = self.state.require_support_extension_anchor(request_id)?;
+        let durable_scheduler = self
+            .state
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+            .ok_or(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id })?;
+        validate_explicit_support_scheduler_summary(request_id, durable_scheduler)?;
+        let prepared = self
+            .state
+            .analysis
+            .as_ref()
+            .ok_or(RelationalJournalError::AnalysisStateMissing)?
+            .prepare_explicit_support_observation_registration(slice)?;
+        if prepared.prior_scheduler_summary() != durable_scheduler {
+            return Err(RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id });
+        }
+        let claim = MechanismSupportObservationDemandRegistrationClaim::new(
+            prepared.slice(),
+            durable.cursor,
+            durable.frontier.root(),
+            prepared.disposition(),
+            prepared.registration_phase(),
+            prepared.registration_structural_cursor(),
+            prepared.prior_scheduler_summary(),
+            prepared.next_scheduler_summary(),
+        );
+        Ok(Some(
+            RelationalJournalEvent::support_observation_demand_registered(claim),
+        ))
+    }
+
+    pub(crate) fn explicit_support_observation_step_events(
+        &mut self,
+        request_id: MechanismRequestId,
+        maximum_assignments: NonZeroU16,
+    ) -> Result<RelationalExplicitMechanismSupportStepEvents, RelationalJournalError> {
+        if !self
+            .state
+            .latest_support_frontiers
+            .contains_key(&request_id)
+        {
+            return Ok(RelationalExplicitMechanismSupportStepEvents::Idle);
+        }
+        let durable = self.state.require_support_extension_anchor(request_id)?;
+        let Some(durable_scheduler) = self
+            .state
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+        else {
+            return Ok(RelationalExplicitMechanismSupportStepEvents::Idle);
+        };
+        validate_explicit_support_scheduler_summary(request_id, durable_scheduler)?;
+        let runtime_limit =
+            u128::from(maximum_assignments.get()).min(RELATIONAL_SUPPORT_CHECKPOINT_MAX_LANE_DELTA);
+        let runtime_limit = NonZeroU16::new(
+            u16::try_from(runtime_limit).expect("the explicit backfill protocol bound fits u16"),
+        )
+        .expect("a nonzero runtime limit remains nonzero after protocol capping");
+        if durable_scheduler.pending_backfill().slice_count() != 0 {
+            let prepared = self
+                .state
+                .analysis
+                .as_ref()
+                .ok_or(RelationalJournalError::AnalysisStateMissing)?
+                .prepare_next_explicit_support_observation_backfill(request_id, runtime_limit)?
+                .ok_or(
+                    RelationalJournalError::SupportObservationBackfillClaimMismatch { request_id },
+                )?;
+            if prepared.prior_scheduler_summary() != durable_scheduler {
+                return Err(
+                    RelationalJournalError::SupportCheckpointAnchorRootMismatch { request_id },
+                );
+            }
+            let claim = MechanismSupportObservationBackfillClaim::new(
+                prepared.slice(),
+                durable.cursor,
+                durable.frontier.root(),
+                prepared.registration_phase(),
+                prepared.registration_structural_cursor(),
+                prepared.from_structural_cursor(),
+                prepared.through_structural_cursor(),
+                prepared.completed(),
+                prepared.prior_scheduler_summary(),
+                prepared.next_scheduler_summary(),
+            );
+            return Ok(RelationalExplicitMechanismSupportStepEvents::Backfilled {
+                slice: prepared.slice(),
+                from_structural_cursor: prepared.from_structural_cursor(),
+                through_structural_cursor: prepared.through_structural_cursor(),
+                completed: prepared.completed(),
+                events: vec![
+                    RelationalJournalEvent::support_observation_backfill_checkpointed(claim),
+                ]
+                .into_boxed_slice(),
+            });
+        }
+        if let Some(claim) = self
+            .state
+            .next_explicit_mechanism_support_observation_claim(request_id)?
+        {
+            return Ok(RelationalExplicitMechanismSupportStepEvents::Observed {
+                point_id: claim.point_id(),
+                slice: claim.slice(),
+                status: claim.status(),
+                events: vec![RelationalJournalEvent::support_subject_observed(claim)]
+                    .into_boxed_slice(),
+            });
+        }
+        Ok(RelationalExplicitMechanismSupportStepEvents::Idle)
+    }
+
     /// Advance at most one protocol-bounded suffix on each support lane and
     /// prepare either its sparse durable checkpoint or, on a later turn, the
     /// semantic closure for an already-durable final checkpoint. Planning is
@@ -5613,6 +6565,14 @@ impl RelationalJournal {
                 events: vec![RelationalJournalEvent::support_subject_observed(claim)]
                     .into_boxed_slice(),
             });
+        }
+        if self
+            .state
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .is_some_and(|scheduler| scheduler.pending_backfill().slice_count() != 0)
+        {
+            return Err(RelationalJournalError::SupportCheckpointObservationPending { request_id });
         }
         if self
             .state
@@ -5727,7 +6687,7 @@ impl RelationalJournal {
                 .state
                 .mechanism_support_observations
                 .get(&request_id)
-                .map_or(0, |log| log.sealed_slice_count);
+                .map_or(0, |log| log.automatic_sealed_slice_count);
             Ok(sealed != scheduler.registry().slice_count())
         } else {
             Ok(scheduler.dirty().slice_count() != 0)
@@ -5778,6 +6738,16 @@ impl RelationalJournal {
             .map_or(0, |log| log.points.len() as u128)
     }
 
+    pub(crate) fn mechanism_support_automatic_observation_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> u128 {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| log.automatic_point_count)
+    }
+
     pub(crate) fn mechanism_support_observation_at(
         &self,
         request_id: MechanismRequestId,
@@ -5822,6 +6792,17 @@ impl RelationalJournal {
             .map(|log| log.chain_root)
     }
 
+    pub(crate) fn mechanism_support_automatic_observation_chain_root(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismSupportObservationChainRoot> {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .filter(|log| log.automatic_point_count != 0)
+            .map(|log| log.automatic_chain_root)
+    }
+
     pub(crate) fn mechanism_support_observed_slice_count(
         &self,
         request_id: MechanismRequestId,
@@ -5829,7 +6810,7 @@ impl RelationalJournal {
         self.state
             .mechanism_support_observations
             .get(&request_id)
-            .map_or(0, |log| log.observed_slice_count)
+            .map_or(0, |log| log.automatic_observed_slice_count)
     }
 
     pub(crate) fn mechanism_support_sealed_slice_count(
@@ -5839,7 +6820,7 @@ impl RelationalJournal {
         self.state
             .mechanism_support_observations
             .get(&request_id)
-            .map_or(0, |log| log.sealed_slice_count)
+            .map_or(0, |log| log.automatic_sealed_slice_count)
     }
 
     pub(crate) fn mechanism_support_registered_slice_count(
@@ -5872,6 +6853,79 @@ impl RelationalJournal {
             .copied()
     }
 
+    pub(crate) fn durable_explicit_mechanism_support_scheduler_summary(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Option<MechanismExplicitObservationSchedulerSummary> {
+        self.state
+            .latest_explicit_support_schedulers
+            .get(&request_id)
+            .copied()
+    }
+
+    pub(crate) fn mechanism_support_observation_demand_registered(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> bool {
+        self.state
+            .mechanism_support_observation_demands
+            .get(&slice.key().request_id())
+            .and_then(|log| log.registration(slice))
+            .is_some()
+    }
+
+    pub(crate) fn mechanism_support_observation_demand_is_sealed(
+        &self,
+        slice: MechanismSupportSlice,
+    ) -> bool {
+        self.mechanism_support_observation_demand_registered(slice)
+            && self
+                .mechanism_support_observation_latest(slice)
+                .is_some_and(|point| point.status().is_sealed())
+    }
+
+    pub(crate) fn mechanism_support_observation_demand_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> u128 {
+        self.state
+            .mechanism_support_observation_demands
+            .get(&request_id)
+            .map_or(0, |log| log.registrations.len() as u128)
+    }
+
+    pub(crate) fn mechanism_support_observation_demand_at(
+        &self,
+        request_id: MechanismRequestId,
+        ordinal: usize,
+    ) -> Option<&MechanismSupportObservationDemandRegistrationClaim> {
+        self.state
+            .mechanism_support_observation_demands
+            .get(&request_id)?
+            .registrations
+            .get(ordinal)
+    }
+
+    pub(crate) fn mechanism_support_explicit_observed_slice_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> u128 {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| log.explicit_observed_slice_count)
+    }
+
+    pub(crate) fn mechanism_support_explicit_sealed_slice_count(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> u128 {
+        self.state
+            .mechanism_support_observations
+            .get(&request_id)
+            .map_or(0, |log| log.explicit_sealed_slice_count)
+    }
+
     pub(crate) fn mechanism_support_initial_observation_point_id(
         &self,
         request_id: MechanismRequestId,
@@ -5880,7 +6934,13 @@ impl RelationalJournal {
             .mechanism_support_observations
             .get(&request_id)?
             .points
-            .first()
+            .iter()
+            .find(|point| {
+                matches!(
+                    point.slice().subject(),
+                    MechanismSupportSubject::Mechanism(_)
+                )
+            })
             .map(MechanismSupportObservationPoint::point_id)
     }
 
@@ -6168,6 +7228,8 @@ impl RelationalJournal {
             self.state.classified_chunk_accumulator.as_ref(),
             &self.state.latest_support_frontiers,
             &self.state.latest_support_schedulers,
+            &self.state.latest_explicit_support_schedulers,
+            &self.state.mechanism_support_observation_demands,
             &self.state.mechanism_support_observations,
         );
         Ok(RelationalJournalSnapshot {
@@ -6306,6 +7368,8 @@ impl RelationalJournal {
             support,
             latest_support_frontiers,
             latest_support_schedulers,
+            latest_explicit_support_schedulers,
+            mechanism_support_observation_demands,
             mechanism_support_observations,
             work,
         } = self.state;
@@ -6362,6 +7426,8 @@ impl RelationalJournal {
             classified_chunk_accumulator.as_ref(),
             &latest_support_frontiers,
             &latest_support_schedulers,
+            &latest_explicit_support_schedulers,
+            &mechanism_support_observation_demands,
             &mechanism_support_observations,
         );
         let analysis = analysis.ok_or(RelationalJournalError::AnalysisStateMissing)?;
@@ -7007,6 +8073,18 @@ pub(crate) enum RelationalJournalError {
     SupportObservationClosurePending {
         request_id: MechanismRequestId,
     },
+    SupportObservationDemandAlreadyRegistered {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationDemandMissing {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationDemandClaimMismatch {
+        request_id: MechanismRequestId,
+    },
+    SupportObservationBackfillClaimMismatch {
+        request_id: MechanismRequestId,
+    },
     ReadinessRelationMismatch,
     UnknownReadinessSource {
         source_key: SourceKey,
@@ -7530,6 +8608,18 @@ impl fmt::Display for RelationalJournalError {
             Self::SupportObservationClosurePending { .. } => formatter.write_str(
                 "mechanism-support lifecycle cannot close while a scheduled observation is pending or unsealed",
             ),
+            Self::SupportObservationDemandAlreadyRegistered { .. } => formatter.write_str(
+                "mechanism-support observation demand repeats an already journaled slice",
+            ),
+            Self::SupportObservationDemandMissing { .. } => formatter.write_str(
+                "mechanism-support observation work has no registered slice demand",
+            ),
+            Self::SupportObservationDemandClaimMismatch { .. } => formatter.write_str(
+                "mechanism-support observation registration differs from replay-derived state",
+            ),
+            Self::SupportObservationBackfillClaimMismatch { .. } => formatter.write_str(
+                "mechanism-support observation backfill differs from the canonical bounded page",
+            ),
             Self::ReadinessRelationMismatch => {
                 formatter.write_str("relational journal readiness belongs to another relation")
             }
@@ -7737,9 +8827,17 @@ fn relational_checkpoint_root(
         MechanismRequestId,
         MechanismAutomaticObservationSchedulerSummary,
     >,
+    latest_explicit_support_schedulers: &BTreeMap<
+        MechanismRequestId,
+        MechanismExplicitObservationSchedulerSummary,
+    >,
+    mechanism_support_observation_demands: &BTreeMap<
+        MechanismRequestId,
+        MechanismSupportObservationDemandLog,
+    >,
     mechanism_support_observations: &BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
 ) -> RelationalCheckpointRoot {
-    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V6);
+    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V7);
     hasher.digest(contract.id().bytes());
     hasher.digest(work.bytes());
     hasher.u64(support.latest_cursors().len() as u64);
@@ -7787,22 +8885,90 @@ fn relational_checkpoint_root(
         hasher.digest(dirty.root().bytes());
         hasher.u128(dirty.slice_count());
     }
+    hasher.u64(latest_explicit_support_schedulers.len() as u64);
+    for (request_id, scheduler) in latest_explicit_support_schedulers {
+        hasher.digest(request_id.bytes());
+        hash_explicit_support_observation_scheduler(&mut hasher, *scheduler);
+    }
+    hasher.u64(mechanism_support_observation_demands.len() as u64);
+    for (request_id, log) in mechanism_support_observation_demands {
+        hasher.digest(request_id.bytes());
+        hasher.u128(log.registrations.len() as u128);
+        hasher.digest(log.chain_root.bytes());
+    }
     hasher.u64(mechanism_support_observations.len() as u64);
     for (request_id, log) in mechanism_support_observations {
         hasher.digest(request_id.bytes());
         hasher.u128(log.points.len() as u128);
         hasher.digest(log.chain_root.bytes());
-        hasher.u128(log.observed_slice_count);
-        hasher.u128(log.sealed_slice_count);
-        match log.sealed_cursor {
+        hasher.u128(log.automatic_point_count);
+        hasher.digest(log.automatic_chain_root.bytes());
+        hasher.u128(log.automatic_observed_slice_count);
+        hasher.u128(log.automatic_sealed_slice_count);
+        match log.automatic_sealed_cursor {
             Some(slice) => {
                 hasher.tag(0x01);
                 hasher.digest(slice.id().bytes());
             }
             None => hasher.tag(0x02),
         }
+        hasher.u128(log.explicit_observed_slice_count);
+        hasher.u128(log.explicit_sealed_slice_count);
     }
     RelationalCheckpointRoot(hasher.finish())
+}
+
+fn hash_explicit_support_observation_scheduler(
+    hasher: &mut ChainHasher,
+    scheduler: MechanismExplicitObservationSchedulerSummary,
+) {
+    let registry = scheduler.registry();
+    let pending = scheduler.pending_backfill();
+    let dirty = scheduler.dirty();
+    let unsealed = scheduler.unsealed();
+    hasher.digest(registry.root().bytes());
+    hasher.u128(registry.slice_count());
+    hasher.u128(registry.ready_slice_count());
+    hasher.digest(pending.root().bytes());
+    hasher.u128(pending.slice_count());
+    hasher.digest(dirty.root().bytes());
+    hasher.u128(dirty.slice_count());
+    hasher.digest(unsealed.root().bytes());
+    hasher.u128(unsealed.slice_count());
+}
+
+fn hash_explicit_support_observation_phase(
+    hasher: &mut ChainHasher,
+    phase: MechanismExplicitObservationRegistrationPhase,
+) {
+    match phase {
+        MechanismExplicitObservationRegistrationPhase::Open => hasher.tag(0x01),
+        MechanismExplicitObservationRegistrationPhase::Sealed { support_root } => {
+            hasher.tag(0x02);
+            hasher.digest(support_root.bytes());
+        }
+    }
+}
+
+fn hash_support_observation_demand_registration_claim(
+    hasher: &mut ChainHasher,
+    claim: MechanismSupportObservationDemandRegistrationClaim,
+) {
+    hasher.u32(claim.version());
+    hasher.digest(claim.slice().id().bytes());
+    hasher.u128(claim.cursor().target_discovery());
+    hasher.u128(claim.cursor().terminal_discovery());
+    hasher.u128(claim.cursor().structural_assignment());
+    hasher.digest(claim.frontier_root().bytes());
+    hasher.tag(match claim.disposition() {
+        MechanismExplicitObservationRegistrationDisposition::Registered => 0x01,
+        MechanismExplicitObservationRegistrationDisposition::AlreadyRegistered => 0x02,
+        MechanismExplicitObservationRegistrationDisposition::AutomaticWholeMechanism => 0x03,
+    });
+    hash_explicit_support_observation_phase(hasher, claim.phase());
+    hasher.u128(claim.registration_structural_cursor());
+    hash_explicit_support_observation_scheduler(hasher, claim.prior_scheduler());
+    hash_explicit_support_observation_scheduler(hasher, claim.next_scheduler());
 }
 
 fn journal_entry_head(
@@ -7811,7 +8977,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V20);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V21);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -7820,7 +8986,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V18);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V19);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -8296,6 +9462,33 @@ fn extend_mechanism_support_observation_chain(
     MechanismSupportObservationChainRoot(hasher.finish())
 }
 
+fn mechanism_support_observation_demand_chain_genesis(
+    request_id: MechanismRequestId,
+) -> MechanismSupportObservationDemandChainRoot {
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_GENESIS_V1);
+    hasher.u32(MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION);
+    hasher.digest(request_id.bytes());
+    MechanismSupportObservationDemandChainRoot(hasher.finish())
+}
+
+fn extend_mechanism_support_observation_demand_chain(
+    request_id: MechanismRequestId,
+    prior: MechanismSupportObservationDemandChainRoot,
+    ordinal: u128,
+    claim: MechanismSupportObservationDemandRegistrationClaim,
+) -> MechanismSupportObservationDemandChainRoot {
+    let mut claim_hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_DEMAND_CLAIM_HASH_V1);
+    hash_support_observation_demand_registration_claim(&mut claim_hasher, claim);
+    let claim_digest = claim_hasher.finish();
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_STEP_V1);
+    hasher.u32(MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION);
+    hasher.digest(request_id.bytes());
+    hasher.digest(prior.bytes());
+    hasher.u128(ordinal);
+    hasher.digest(claim_digest);
+    MechanismSupportObservationDemandChainRoot(hasher.finish())
+}
+
 fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointEvent) {
     match event {
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
@@ -8341,6 +9534,26 @@ fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointE
             hasher.u128(cursor.terminal_discovery());
             hasher.u128(cursor.structural_assignment());
             hasher.digest(frontier_root.bytes());
+        }
+        RelationalCheckpointEvent::SupportObservationDemandRegistered { claim } => {
+            hasher.tag(0x10);
+            hash_support_observation_demand_registration_claim(hasher, *claim);
+        }
+        RelationalCheckpointEvent::SupportObservationBackfillCheckpointed { claim } => {
+            hasher.tag(0x11);
+            hasher.u32(claim.version());
+            hasher.digest(claim.slice().id().bytes());
+            hasher.u128(claim.cursor().target_discovery());
+            hasher.u128(claim.cursor().terminal_discovery());
+            hasher.u128(claim.cursor().structural_assignment());
+            hasher.digest(claim.frontier_root().bytes());
+            hash_explicit_support_observation_phase(hasher, claim.phase());
+            hasher.u128(claim.registration_structural_cursor());
+            hasher.u128(claim.from_structural_cursor());
+            hasher.u128(claim.through_structural_cursor());
+            hasher.tag(if claim.completed() { 0x01 } else { 0x02 });
+            hash_explicit_support_observation_scheduler(hasher, claim.prior_scheduler());
+            hash_explicit_support_observation_scheduler(hasher, claim.next_scheduler());
         }
         RelationalCheckpointEvent::SupportSubjectObserved { claim } => {
             hasher.tag(0x0f);
@@ -8418,6 +9631,9 @@ impl ChainHasher {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::explore::mechanism_support::{
+        closed_subject_starter_fixture, MechanismSupportFacet, MechanismSupportKey,
+    };
     use crate::explore::{
         ExploreValue, RelationalAnalysisPlan, RelationalBoundValue, RelationalCaseExecutor,
         RelationalExpressionRuntime, RelationalSourceEnumerator, RelationalSuccessorAdvance,
@@ -8441,6 +9657,135 @@ mod tests {
                 )),
             }
         }
+    }
+
+    #[test]
+    fn explicit_observation_claims_remint_and_replay_the_same_demand_chain() {
+        let fixture = closed_subject_starter_fixture();
+        let mut support = fixture.support.clone();
+        let scope = support.scope();
+        let request_id = scope.request_id();
+        let cursor = support.checkpoint_cursor();
+        let frontier_root = MechanismSupportFrontierRoot::from_journal_codec_bytes([0x71; 32]);
+        let automatic_scheduler = support.automatic_observation_scheduler_summary();
+        let node_slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            scope,
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id: fixture.node_ids[0],
+            },
+        ));
+        let edge_slice = MechanismSupportSlice::total(MechanismSupportKey::new(
+            scope,
+            MechanismSupportSubject::Edge {
+                facet: MechanismSupportFacet::Activation,
+                edge_id: fixture.edge_ids[0],
+            },
+        ));
+
+        let node_registration = support
+            .prepare_explicit_observation_demand_registration(node_slice, &fixture.structural)
+            .expect("prepare explicit node demand");
+        let node_claim = MechanismSupportObservationDemandRegistrationClaim::new(
+            node_registration.slice(),
+            cursor,
+            frontier_root,
+            node_registration.disposition(),
+            node_registration.registration_phase(),
+            node_registration.registration_structural_cursor(),
+            node_registration.prior_scheduler_summary(),
+            node_registration.next_scheduler_summary(),
+        );
+        support.commit_explicit_observation_demand_registration(node_registration);
+
+        // Preparing is non-mutating: a discarded bounded page must remint the
+        // exact claim when resumed from the same durable scheduler anchor.
+        let discarded = support
+            .prepare_next_explicit_observation_backfill(&fixture.structural, NonZeroU16::MIN)
+            .expect("prepare bounded node backfill")
+            .expect("registered node requires backfill");
+        let discarded_claim = MechanismSupportObservationBackfillClaim::new(
+            discarded.slice(),
+            cursor,
+            frontier_root,
+            discarded.registration_phase(),
+            discarded.registration_structural_cursor(),
+            discarded.from_structural_cursor(),
+            discarded.through_structural_cursor(),
+            discarded.completed(),
+            discarded.prior_scheduler_summary(),
+            discarded.next_scheduler_summary(),
+        );
+        let resumed = support
+            .prepare_next_explicit_observation_backfill(&fixture.structural, NonZeroU16::MIN)
+            .expect("resume bounded node backfill")
+            .expect("discarded page remains pending");
+        let resumed_claim = MechanismSupportObservationBackfillClaim::new(
+            resumed.slice(),
+            cursor,
+            frontier_root,
+            resumed.registration_phase(),
+            resumed.registration_structural_cursor(),
+            resumed.from_structural_cursor(),
+            resumed.through_structural_cursor(),
+            resumed.completed(),
+            resumed.prior_scheduler_summary(),
+            resumed.next_scheduler_summary(),
+        );
+        assert_eq!(resumed_claim, discarded_claim);
+        assert_eq!(resumed.through_structural_cursor(), 1);
+        support.commit_explicit_observation_backfill(resumed);
+
+        let edge_registration = support
+            .prepare_explicit_observation_demand_registration(edge_slice, &fixture.structural)
+            .expect("prepare explicit edge demand");
+        let edge_claim = MechanismSupportObservationDemandRegistrationClaim::new(
+            edge_registration.slice(),
+            cursor,
+            frontier_root,
+            edge_registration.disposition(),
+            edge_registration.registration_phase(),
+            edge_registration.registration_structural_cursor(),
+            edge_registration.prior_scheduler_summary(),
+            edge_registration.next_scheduler_summary(),
+        );
+        support.commit_explicit_observation_demand_registration(edge_registration);
+        assert_eq!(
+            support.automatic_observation_scheduler_summary(),
+            automatic_scheduler
+        );
+
+        let claims = [node_claim, edge_claim];
+        let replay = |claims: &[MechanismSupportObservationDemandRegistrationClaim]| {
+            claims.iter().copied().enumerate().fold(
+                mechanism_support_observation_demand_chain_genesis(request_id),
+                |root, (ordinal, claim)| {
+                    extend_mechanism_support_observation_demand_chain(
+                        request_id,
+                        root,
+                        ordinal as u128,
+                        claim,
+                    )
+                },
+            )
+        };
+        let mut log = MechanismSupportObservationDemandLog::new(request_id);
+        for claim in claims {
+            let ordinal = log.registrations.len();
+            assert!(log.by_slice.insert(claim.slice(), ordinal).is_none());
+            log.chain_root = extend_mechanism_support_observation_demand_chain(
+                request_id,
+                log.chain_root,
+                ordinal as u128,
+                claim,
+            );
+            log.registrations.push(claim);
+        }
+
+        assert_eq!(log.chain_root, replay(&claims));
+        assert_eq!(log.registration(node_slice), Some(&node_claim));
+        assert_eq!(log.registration(edge_slice), Some(&edge_claim));
+        assert_ne!(log.chain_root, replay(&[edge_claim, node_claim]));
     }
 
     #[test]

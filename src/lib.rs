@@ -5072,22 +5072,40 @@ pub struct ExploreMechanismRequest {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreStarterProjectionFacet {
+pub enum ExploreMechanismSupportFacet {
     Activation,
     DifferentialParticipation,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExploreStarterProjectionSubject {
+pub enum ExploreMechanismSupportSubject {
     Mechanism([u8; 32]),
     Node {
-        facet: ExploreStarterProjectionFacet,
+        facet: ExploreMechanismSupportFacet,
         node_id: [u8; 32],
     },
     Edge {
-        facet: ExploreStarterProjectionFacet,
+        facet: ExploreMechanismSupportFacet,
         edge_id: [u8; 32],
     },
+}
+
+/// One explicitly requested compact support-observation stream.
+///
+/// The demand selects one value-free mechanism-support slice. It is kept
+/// outside [`ExploreAnalysisNode`] so attaching or renaming an observation
+/// cannot rename the relation, question, mechanism request, or core analysis
+/// DAG whose evidence it observes.
+#[derive(Debug, Clone)]
+pub struct ExploreSupportObservationDemand {
+    pub name: String,
+    pub request_name: String,
+    pub subject: ExploreMechanismSupportSubject,
+    /// Optional enclosing structural mechanism used to refine a shared node
+    /// or edge's total support. The route is part of the support slice, never
+    /// part of the underlying structural subject identity.
+    pub within_mechanism: Option<[u8; 32]>,
+    pub span: Span,
 }
 
 /// One explicitly selected, typed starter-support publication consumer.
@@ -5099,7 +5117,7 @@ pub enum ExploreStarterProjectionSubject {
 pub struct ExploreStarterProjection {
     pub name: String,
     pub request_name: String,
-    pub subject: ExploreStarterProjectionSubject,
+    pub subject: ExploreMechanismSupportSubject,
     /// Optional enclosing structural mechanism used to refine a shared node
     /// or edge's total support. This is a publication-time support slice; it
     /// never participates in the structural subject's identity.
@@ -5152,6 +5170,10 @@ pub struct ExploreQuery {
     /// resolve only to an earlier node, so the authored order is already a DAG
     /// topological order and cannot encode a cycle.
     pub analysis: Vec<ExploreAnalysisNode>,
+    /// Explicit compact, value-free observation demands over mechanism
+    /// support slices. They do not participate in the core analysis graph
+    /// identity.
+    pub observation_demands: Vec<ExploreSupportObservationDemand>,
     /// Explicit publication consumers over already-declared analysis nodes.
     /// They never participate in the core analysis graph identity.
     pub starter_projections: Vec<ExploreStarterProjection>,
@@ -5360,10 +5382,20 @@ pub(crate) struct TypedExploreStarterProjection {
     pub(crate) name: String,
     pub(crate) request_name: String,
     pub(crate) request_node_index: usize,
-    pub(crate) subject: TypedExploreStarterProjectionSubject,
+    pub(crate) subject: TypedExploreMechanismSupportSubject,
     pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
     pub(crate) value_view_name: String,
     pub(crate) value_view_node_index: usize,
+    pub(crate) span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct TypedExploreSupportObservationDemand {
+    pub(crate) name: String,
+    pub(crate) request_name: String,
+    pub(crate) request_node_index: usize,
+    pub(crate) subject: TypedExploreMechanismSupportSubject,
+    pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
     pub(crate) span: Span,
 }
 
@@ -5374,29 +5406,29 @@ pub(crate) struct TypedExploreTransitionGraph {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum TypedExploreStarterProjectionSubject {
+pub(crate) enum TypedExploreMechanismSupportSubject {
     Mechanism(explore::StructuralMechanismId),
     Node {
-        facet: ExploreStarterProjectionFacet,
+        facet: ExploreMechanismSupportFacet,
         node_id: explore::StructuralNodeId,
     },
     Edge {
-        facet: ExploreStarterProjectionFacet,
+        facet: ExploreMechanismSupportFacet,
         edge_id: explore::StructuralEdgeId,
     },
 }
 
-impl From<ExploreStarterProjectionSubject> for TypedExploreStarterProjectionSubject {
-    fn from(subject: ExploreStarterProjectionSubject) -> Self {
+impl From<ExploreMechanismSupportSubject> for TypedExploreMechanismSupportSubject {
+    fn from(subject: ExploreMechanismSupportSubject) -> Self {
         match subject {
-            ExploreStarterProjectionSubject::Mechanism(bytes) => Self::Mechanism(
+            ExploreMechanismSupportSubject::Mechanism(bytes) => Self::Mechanism(
                 explore::StructuralMechanismId::from_checked_source_bytes(bytes),
             ),
-            ExploreStarterProjectionSubject::Node { facet, node_id } => Self::Node {
+            ExploreMechanismSupportSubject::Node { facet, node_id } => Self::Node {
                 facet,
                 node_id: explore::StructuralNodeId::from_checked_source_bytes(node_id),
             },
-            ExploreStarterProjectionSubject::Edge { facet, edge_id } => Self::Edge {
+            ExploreMechanismSupportSubject::Edge { facet, edge_id } => Self::Edge {
                 facet,
                 edge_id: explore::StructuralEdgeId::from_checked_source_bytes(edge_id),
             },
@@ -5427,6 +5459,7 @@ pub struct TypedExploreQuery {
     pub admissions: Vec<TypedExploreAdmission>,
     pub selection: TypedExploreSelection,
     pub analysis: Vec<TypedExploreAnalysisNode>,
+    pub(crate) observation_demands: Vec<TypedExploreSupportObservationDemand>,
     pub(crate) starter_projections: Vec<TypedExploreStarterProjection>,
     pub(crate) transition_graphs: Vec<TypedExploreTransitionGraph>,
     pub span: Span,
@@ -8188,10 +8221,11 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
                 }
             })
             .collect(),
-        // Starter projections are appendable publication consumers with their
-        // own checked identity. Excluding them here keeps the normalized
-        // program and every upstream Explore identity stable when a consumer
-        // is attached to an existing run.
+        // Support observations and starter projections are appendable
+        // consumers with their own checked identities. Excluding them here
+        // keeps the normalized program and every upstream Explore identity
+        // stable when either consumer is attached to an existing run.
+        observation_demands: Vec::new(),
         starter_projections: Vec::new(),
         // Full transition-graph declarations are publication consumers too.
         // They must never rename the relation/admission/question or analysis
@@ -9760,47 +9794,8 @@ impl Parser {
         self.expect_explore_word("mechanisms")?;
         let (request_name, _) =
             self.expect_explore_binder("starter projection mechanism request")?;
-        self.expect_explore_word("for")?;
-        let subject = if self.peek_word("mechanism") {
-            self.advance();
-            ExploreStarterProjectionSubject::Mechanism(
-                self.parse_explore_structural_digest("structural mechanism ID")?,
-            )
-        } else if self.peek_word("node") {
-            self.advance();
-            let facet = self.parse_explore_starter_projection_facet("node")?;
-            ExploreStarterProjectionSubject::Node {
-                facet,
-                node_id: self.parse_explore_structural_digest("structural node ID")?,
-            }
-        } else if self.peek_word("edge") {
-            self.advance();
-            let facet = self.parse_explore_starter_projection_facet("edge")?;
-            ExploreStarterProjectionSubject::Edge {
-                facet,
-                edge_id: self.parse_explore_structural_digest("structural edge ID")?,
-            }
-        } else {
-            let token = self.peek();
-            return Err(format!(
-                "{}:{}: starter projection subject must be `mechanism`, `node activation|differential`, or `edge activation|differential`",
-                token.line, token.col
-            ));
-        };
-        let within_mechanism = if self.peek_word("within") {
-            self.advance();
-            self.expect_explore_word("mechanism")?;
-            if matches!(subject, ExploreStarterProjectionSubject::Mechanism(_)) {
-                let token = self.peek();
-                return Err(format!(
-                    "{}:{}: whole-mechanism starter support cannot be refined `within mechanism`; select the mechanism directly",
-                    token.line, token.col
-                ));
-            }
-            Some(self.parse_explore_structural_digest("enclosing structural mechanism ID")?)
-        } else {
-            None
-        };
+        let (subject, within_mechanism) =
+            self.parse_explore_mechanism_support_selector("starter projection")?;
         self.expect_explore_word("using")?;
         self.expect_explore_word("values")?;
         self.expect_explore_word("from")?;
@@ -9815,21 +9810,90 @@ impl Parser {
         })
     }
 
-    fn parse_explore_starter_projection_facet(
+    fn parse_explore_support_observation_demand(
         &mut self,
+    ) -> Result<ExploreSupportObservationDemand, String> {
+        let start = self.expect_explore_word("observations")?;
+        let (name, _) = self.expect_explore_binder("support observation demand name")?;
+        self.expect_explore_word("from")?;
+        self.expect_explore_word("mechanisms")?;
+        let (request_name, _) =
+            self.expect_explore_binder("support observation mechanism request")?;
+        let (subject, within_mechanism) =
+            self.parse_explore_mechanism_support_selector("support observation")?;
+        Ok(ExploreSupportObservationDemand {
+            name,
+            request_name,
+            subject,
+            within_mechanism,
+            span: self.span_since(&start),
+        })
+    }
+
+    fn parse_explore_mechanism_support_selector(
+        &mut self,
+        declaration_kind: &str,
+    ) -> Result<(ExploreMechanismSupportSubject, Option<[u8; 32]>), String> {
+        self.expect_explore_word("for")?;
+        let subject = if self.peek_word("mechanism") {
+            self.advance();
+            ExploreMechanismSupportSubject::Mechanism(
+                self.parse_explore_structural_digest("structural mechanism ID")?,
+            )
+        } else if self.peek_word("node") {
+            self.advance();
+            let facet = self.parse_explore_mechanism_support_facet(declaration_kind, "node")?;
+            ExploreMechanismSupportSubject::Node {
+                facet,
+                node_id: self.parse_explore_structural_digest("structural node ID")?,
+            }
+        } else if self.peek_word("edge") {
+            self.advance();
+            let facet = self.parse_explore_mechanism_support_facet(declaration_kind, "edge")?;
+            ExploreMechanismSupportSubject::Edge {
+                facet,
+                edge_id: self.parse_explore_structural_digest("structural edge ID")?,
+            }
+        } else {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: {declaration_kind} subject must be `mechanism`, `node activation|differential`, or `edge activation|differential`",
+                token.line, token.col,
+            ));
+        };
+        let within_mechanism = if self.peek_word("within") {
+            self.advance();
+            self.expect_explore_word("mechanism")?;
+            if matches!(subject, ExploreMechanismSupportSubject::Mechanism(_)) {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: whole-mechanism {declaration_kind} cannot be refined `within mechanism`; select the mechanism directly",
+                    token.line, token.col,
+                ));
+            }
+            Some(self.parse_explore_structural_digest("enclosing structural mechanism ID")?)
+        } else {
+            None
+        };
+        Ok((subject, within_mechanism))
+    }
+
+    fn parse_explore_mechanism_support_facet(
+        &mut self,
+        declaration_kind: &str,
         subject_kind: &str,
-    ) -> Result<ExploreStarterProjectionFacet, String> {
+    ) -> Result<ExploreMechanismSupportFacet, String> {
         if self.peek_word("activation") {
             self.advance();
-            Ok(ExploreStarterProjectionFacet::Activation)
+            Ok(ExploreMechanismSupportFacet::Activation)
         } else if self.peek_word("differential") {
             self.advance();
-            Ok(ExploreStarterProjectionFacet::DifferentialParticipation)
+            Ok(ExploreMechanismSupportFacet::DifferentialParticipation)
         } else {
             let token = self.peek();
             Err(format!(
-                "{}:{}: starter projection {subject_kind} facet must be `activation` or `differential`",
-                token.line, token.col
+                "{}:{}: {declaration_kind} {subject_kind} facet must be `activation` or `differential`",
+                token.line, token.col,
             ))
         }
     }
@@ -9985,9 +10049,13 @@ impl Parser {
             analysis.push(node);
             self.skip_semis();
         }
+        let mut observation_demands = Vec::new();
         let mut starter_projections = Vec::new();
         let mut transition_graphs = Vec::new();
-        while self.peek_word("starters") || self.peek_word("transitions") {
+        while self.peek_word("observations")
+            || self.peek_word("starters")
+            || self.peek_word("transitions")
+        {
             if self.peek_word("transitions") {
                 let graph = self.parse_explore_transition_graph()?;
                 if !analysis_names.insert(graph.name.clone()) {
@@ -9997,6 +10065,36 @@ impl Parser {
                     ));
                 }
                 transition_graphs.push(graph);
+                self.skip_semis();
+                continue;
+            }
+            if self.peek_word("observations") {
+                let demand = self.parse_explore_support_observation_demand()?;
+                match analysis
+                    .iter()
+                    .find(|node| node.name() == demand.request_name)
+                {
+                    Some(ExploreAnalysisNode::Mechanisms(_)) => {}
+                    Some(ExploreAnalysisNode::Result(_)) => {
+                        return Err(format!(
+                            "support observation `{}` expects `{}` to name an earlier mechanism request",
+                            demand.name, demand.request_name
+                        ));
+                    }
+                    None => {
+                        return Err(format!(
+                            "support observation `{}` may reference only an earlier mechanism request; `{}` is unresolved or declared later",
+                            demand.name, demand.request_name
+                        ));
+                    }
+                }
+                if !analysis_names.insert(demand.name.clone()) {
+                    return Err(format!(
+                        "duplicate exploration declaration `{}`",
+                        demand.name
+                    ));
+                }
+                observation_demands.push(demand);
                 self.skip_semis();
                 continue;
             }
@@ -10050,7 +10148,7 @@ impl Parser {
         if self.peek_kind() != TokenKind::RBrace {
             let token = self.peek();
             return Err(format!(
-                "{}:{}: unexpected exploration clause `{}`; post-`find` declarations must be `results`, `mechanisms`, or trailing `starters`/`transitions` consumers and may depend only on earlier declarations",
+                "{}:{}: unexpected exploration clause `{}`; post-`find` declarations must be `results`, `mechanisms`, or trailing `observations`/`starters`/`transitions` declarations and may depend only on earlier declarations",
                 token.line, token.col, token.source_text
             ));
         }
@@ -10063,6 +10161,7 @@ impl Parser {
             admissions,
             selection,
             analysis,
+            observation_demands,
             starter_projections,
             transition_graphs,
             span: self.span_since(question_token),
@@ -28230,11 +28329,39 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
     },
 }
 
+pub(crate) const CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_SET_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_ROUTED_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION: u32 = 1;
+
+/// Stable identity of one compact support-observation demand.
+///
+/// Authored names and declaration positions are presentation addresses only:
+/// two declarations of the same request-relative support slice deliberately
+/// share this identity and one scheduler registration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreSupportObservationDemandId([u8; 32]);
+
+impl CheckedExploreSupportObservationDemandId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Canonical identity of the unique compact support slices explicitly
+/// requested by one checked query. Declaration order, aliases and names do
+/// not affect this identity or any upstream analysis identity.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) struct CheckedExploreSupportObservationDemandSetId([u8; 32]);
+
+impl CheckedExploreSupportObservationDemandSetId {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
 
 /// Durable identity of one explicitly named starter publication consumer.
 ///
@@ -28298,9 +28425,17 @@ pub(crate) struct CheckedExploreTransitionGraphIdentity {
 pub(crate) struct CheckedExploreStarterProjectionIdentity {
     pub(crate) id: CheckedExploreStarterProjectionId,
     pub(crate) request_id: explore::MechanismRequestId,
-    pub(crate) subject: explore::ExploreStarterProjectionSubjectIr,
+    pub(crate) subject: explore::ExploreMechanismSupportSubjectIr,
     pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
     pub(crate) authorizing_view_id: explore::ViewId,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct CheckedExploreSupportObservationDemandIdentity {
+    pub(crate) id: CheckedExploreSupportObservationDemandId,
+    pub(crate) request_id: explore::MechanismRequestId,
+    pub(crate) subject: explore::ExploreMechanismSupportSubjectIr,
+    pub(crate) within_mechanism: Option<explore::StructuralMechanismId>,
 }
 
 struct CheckedExploreIdentityLadder {
@@ -28315,6 +28450,8 @@ struct CheckedExploreIdentityLadder {
     transition_schemas: explore::TransitionSchemaIdentities,
     analysis: Box<[CheckedExploreAnalysisIdentity]>,
     analysis_graph_digest: Box<str>,
+    observation_demands: Box<[CheckedExploreSupportObservationDemandIdentity]>,
+    observation_demand_set_id: CheckedExploreSupportObservationDemandSetId,
     starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
     starter_consumer_set_id: CheckedExploreStarterConsumerSetId,
     transition_graphs: Box<[CheckedExploreTransitionGraphIdentity]>,
@@ -28830,6 +28967,11 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// Canonical semantic seal for the requested analysis DAG. Authored names,
     /// node positions and independent topological order are excluded.
     pub(crate) analysis_graph_digest: Box<str>,
+    /// Explicit compact support-observation demands in authored declaration
+    /// order. Duplicate slices intentionally carry the same checked identity.
+    pub(crate) observation_demands: Box<[CheckedExploreSupportObservationDemandIdentity]>,
+    /// Order- and name-independent identity of the unique demanded slices.
+    pub(crate) observation_demand_set_id: CheckedExploreSupportObservationDemandSetId,
     /// Explicit starter publication consumers in authored declaration order.
     /// These identities are independent of the core analysis graph seal.
     pub(crate) starter_projections: Box<[CheckedExploreStarterProjectionIdentity]>,
@@ -28987,6 +29129,12 @@ impl CheckedExploreQueryView<'_> {
         &self.artifact.analysis_graph_digest
     }
 
+    pub(crate) const fn support_observation_demand_set_id(
+        &self,
+    ) -> CheckedExploreSupportObservationDemandSetId {
+        self.artifact.observation_demand_set_id
+    }
+
     pub(crate) const fn starter_consumer_set_id(&self) -> CheckedExploreStarterConsumerSetId {
         self.artifact.starter_consumer_set_id
     }
@@ -28995,6 +29143,24 @@ impl CheckedExploreQueryView<'_> {
         &self,
     ) -> CheckedExploreTransitionGraphConsumerSetId {
         self.artifact.transition_graph_consumer_set_id
+    }
+
+    /// Compact support-observation declarations paired with their
+    /// name-independent checked slice identities. Declaration names remain
+    /// presentation addresses, so duplicate aliases for one slice expose the
+    /// same demand identity through this iterator.
+    pub(crate) fn support_observation_demands(
+        &self,
+    ) -> impl ExactSizeIterator<
+        Item = (
+            &explore::ExploreSupportObservationDemandIr,
+            &CheckedExploreSupportObservationDemandIdentity,
+        ),
+    > + '_ {
+        self.closed_query
+            .observation_demands
+            .iter()
+            .zip(self.artifact.observation_demands.iter())
     }
 
     /// Starter declarations paired with their producer-minted publication
@@ -29990,6 +30156,8 @@ impl TypeCheckArtifacts {
             || ladder.transition_schemas != artifact.transition_schemas
             || ladder.analysis.as_ref() != artifact.analysis.as_ref()
             || ladder.analysis_graph_digest.as_ref() != artifact.analysis_graph_digest.as_ref()
+            || ladder.observation_demands.as_ref() != artifact.observation_demands.as_ref()
+            || ladder.observation_demand_set_id != artifact.observation_demand_set_id
             || ladder.starter_projections.as_ref() != artifact.starter_projections.as_ref()
             || ladder.starter_consumer_set_id != artifact.starter_consumer_set_id
             || ladder.transition_graphs.as_ref() != artifact.transition_graphs.as_ref()
@@ -38858,36 +39026,107 @@ fn checked_explore_analysis_graph_digest(
     Ok(format!("{:x}", hasher.finalize()).into_boxed_str())
 }
 
-fn hash_checked_explore_starter_subject(
+fn hash_checked_explore_mechanism_support_subject(
     hasher: &mut Sha256,
-    subject: explore::ExploreStarterProjectionSubjectIr,
+    subject: explore::ExploreMechanismSupportSubjectIr,
 ) {
     match subject {
-        explore::ExploreStarterProjectionSubjectIr::Mechanism(mechanism_id) => {
+        explore::ExploreMechanismSupportSubjectIr::Mechanism(mechanism_id) => {
             hasher.update([0x01]);
             hasher.update(mechanism_id.bytes());
         }
-        explore::ExploreStarterProjectionSubjectIr::Node { facet, node_id } => {
+        explore::ExploreMechanismSupportSubjectIr::Node { facet, node_id } => {
             hasher.update([match facet {
-                explore::ExploreStarterProjectionFacetIr::Activation => 0x02,
-                explore::ExploreStarterProjectionFacetIr::DifferentialParticipation => 0x03,
+                explore::ExploreMechanismSupportFacetIr::Activation => 0x02,
+                explore::ExploreMechanismSupportFacetIr::DifferentialParticipation => 0x03,
             }]);
             hasher.update(node_id.bytes());
         }
-        explore::ExploreStarterProjectionSubjectIr::Edge { facet, edge_id } => {
+        explore::ExploreMechanismSupportSubjectIr::Edge { facet, edge_id } => {
             hasher.update([match facet {
-                explore::ExploreStarterProjectionFacetIr::Activation => 0x04,
-                explore::ExploreStarterProjectionFacetIr::DifferentialParticipation => 0x05,
+                explore::ExploreMechanismSupportFacetIr::Activation => 0x04,
+                explore::ExploreMechanismSupportFacetIr::DifferentialParticipation => 0x05,
             }]);
             hasher.update(edge_id.bytes());
         }
     }
 }
 
+fn checked_explore_support_observation_demand_id(
+    request_id: explore::MechanismRequestId,
+    subject: explore::ExploreMechanismSupportSubjectIr,
+    within_mechanism: Option<explore::StructuralMechanismId>,
+) -> CheckedExploreSupportObservationDemandId {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-support-observation-demand-id.v1\0");
+    hasher.update(CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_ID_VERSION.to_le_bytes());
+    hasher.update(request_id.bytes());
+    hash_checked_explore_mechanism_support_subject(&mut hasher, subject);
+    match within_mechanism {
+        None => hasher.update([0x00]),
+        Some(mechanism_id) => {
+            hasher.update([0x01]);
+            hasher.update(mechanism_id.bytes());
+        }
+    }
+    CheckedExploreSupportObservationDemandId(hasher.finalize().into())
+}
+
+fn checked_explore_support_observation_demand_identities(
+    query: &explore::ExploreQueryIr,
+    question_id: explore::QuestionId,
+    analysis: &[CheckedExploreAnalysisIdentity],
+) -> Result<
+    (
+        Box<[CheckedExploreSupportObservationDemandIdentity]>,
+        CheckedExploreSupportObservationDemandSetId,
+    ),
+    CheckedExploreQueryArtifactIssue,
+> {
+    let mut identities = Vec::with_capacity(query.observation_demands.len());
+    let mut canonical_set = BTreeSet::new();
+    for demand in query.observation_demands.iter() {
+        let request_id = match analysis.get(demand.request_node_index) {
+            Some(CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. }) => *request_id,
+            _ => {
+                return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                    "support observation `{}` does not resolve checked mechanism node index {}",
+                    demand.name, demand.request_node_index
+                )))
+            }
+        };
+        let id = checked_explore_support_observation_demand_id(
+            request_id,
+            demand.subject,
+            demand.within_mechanism,
+        );
+        canonical_set.insert(id);
+        identities.push(CheckedExploreSupportObservationDemandIdentity {
+            id,
+            request_id,
+            subject: demand.subject,
+            within_mechanism: demand.within_mechanism,
+        });
+    }
+
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-support-observation-demand-set-id.v1\0");
+    hasher.update(CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_SET_ID_VERSION.to_le_bytes());
+    hasher.update(question_id.bytes());
+    hasher.update((canonical_set.len() as u64).to_le_bytes());
+    for id in canonical_set {
+        hasher.update(id.bytes());
+    }
+    Ok((
+        identities.into_boxed_slice(),
+        CheckedExploreSupportObservationDemandSetId(hasher.finalize().into()),
+    ))
+}
+
 fn checked_explore_starter_projection_id(
     name: &str,
     request_id: explore::MechanismRequestId,
-    subject: explore::ExploreStarterProjectionSubjectIr,
+    subject: explore::ExploreMechanismSupportSubjectIr,
     within_mechanism: Option<explore::StructuralMechanismId>,
     authorizing_view_id: explore::ViewId,
 ) -> CheckedExploreStarterProjectionId {
@@ -38904,7 +39143,7 @@ fn checked_explore_starter_projection_id(
     }
     checked_query_hash_component(&mut hasher, "consumer-name", name);
     hasher.update(request_id.bytes());
-    hash_checked_explore_starter_subject(&mut hasher, subject);
+    hash_checked_explore_mechanism_support_subject(&mut hasher, subject);
     if let Some(mechanism_id) = within_mechanism {
         hasher.update(mechanism_id.bytes());
     }
@@ -39189,6 +39428,8 @@ fn checked_explore_identity_ladder_with_index(
     let source_image_projection = source_projection_analysis.map(|analysis| analysis.certificate);
     let analysis_graph_digest =
         checked_explore_analysis_graph_digest(query, question_id, &analysis)?;
+    let (observation_demands, observation_demand_set_id) =
+        checked_explore_support_observation_demand_identities(query, question_id, &analysis)?;
     let (starter_projections, starter_consumer_set_id) =
         checked_explore_starter_projection_identities(query, question_id, &analysis)?;
     let (transition_graphs, transition_graph_consumer_set_id) =
@@ -39208,6 +39449,8 @@ fn checked_explore_identity_ladder_with_index(
         transition_schemas,
         analysis,
         analysis_graph_digest,
+        observation_demands,
+        observation_demand_set_id,
         starter_projections,
         starter_consumer_set_id,
         transition_graphs,
@@ -39284,6 +39527,8 @@ fn build_checked_explore_query_artifacts(
             transition_schemas: ladder.transition_schemas,
             analysis: ladder.analysis,
             analysis_graph_digest: ladder.analysis_graph_digest,
+            observation_demands: ladder.observation_demands,
+            observation_demand_set_id: ladder.observation_demand_set_id,
             starter_projections: ladder.starter_projections,
             starter_consumer_set_id: ladder.starter_consumer_set_id,
             transition_graphs: ladder.transition_graphs,
@@ -54263,6 +54508,44 @@ impl TypeChecker {
         }
 
         let mut projection_names = analysis_by_name.keys().cloned().collect::<BTreeSet<_>>();
+        let mut typed_observation_demands = Vec::with_capacity(query.observation_demands.len());
+        for demand in &query.observation_demands {
+            if !projection_names.insert(demand.name.clone()) {
+                self.error_at_span(
+                    demand.span,
+                    format!("duplicate exploration declaration {}", demand.name),
+                );
+            }
+            let request_node_index = analysis_by_name
+                .get(&demand.request_name)
+                .copied()
+                .filter(|index| {
+                    matches!(
+                        typed_analysis.get(*index),
+                        Some(TypedExploreAnalysisNode::Mechanisms(_))
+                    )
+                })
+                .unwrap_or_else(|| {
+                    self.error_at_span(
+                        demand.span,
+                        format!(
+                            "support observation {} may reference only an earlier mechanism request; {} is unresolved or has the wrong node kind",
+                            demand.name, demand.request_name
+                        ),
+                    );
+                    usize::MAX
+                });
+            typed_observation_demands.push(TypedExploreSupportObservationDemand {
+                name: demand.name.clone(),
+                request_name: demand.request_name.clone(),
+                request_node_index,
+                subject: demand.subject.into(),
+                within_mechanism: demand
+                    .within_mechanism
+                    .map(explore::StructuralMechanismId::from_checked_source_bytes),
+                span: demand.span,
+            });
+        }
         let mut typed_starter_projections = Vec::with_capacity(query.starter_projections.len());
         for projection in &query.starter_projections {
             if !projection_names.insert(projection.name.clone()) {
@@ -54365,6 +54648,7 @@ impl TypeChecker {
                 admissions: typed_admissions,
                 selection: typed_selection,
                 analysis: typed_analysis,
+                observation_demands: typed_observation_demands,
                 starter_projections: typed_starter_projections,
                 transition_graphs: typed_transition_graphs,
                 span: query.span,
@@ -58170,6 +58454,151 @@ mod tests {
         )
     }
 
+    fn explore_support_observation_source(observations: &str) -> String {
+        explore_starter_projection_source(observations)
+    }
+
+    #[test]
+    fn explore_support_observations_are_checked_name_independent_extensions() {
+        let node = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let edge = "123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef0";
+        let route = "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210";
+        let declarations = format!(
+            r#"
+observations whole from mechanisms paths for mechanism "{route}"
+observations node_total from mechanisms paths for node activation "{node}"
+observations node_route from mechanisms paths for node differential "{node}" within mechanism "{route}"
+observations edge_total from mechanisms paths for edge activation "{edge}"
+observations edge_route from mechanisms paths for edge differential "{edge}" within mechanism "{route}"
+"#
+        );
+        let source = explore_support_observation_source(&declarations);
+        let statements = parse_test_program(&source).expect("parse support observations");
+        let Stmt::Explore(query) = &statements[1] else {
+            panic!("expected Explore declaration");
+        };
+        assert_eq!(query.observation_demands.len(), 5);
+        assert!(matches!(
+            query.observation_demands[0].subject,
+            ExploreMechanismSupportSubject::Mechanism(_)
+        ));
+        assert!(matches!(
+            query.observation_demands[2].subject,
+            ExploreMechanismSupportSubject::Node {
+                facet: ExploreMechanismSupportFacet::DifferentialParticipation,
+                ..
+            }
+        ));
+        assert!(matches!(
+            query.observation_demands[4].subject,
+            ExploreMechanismSupportSubject::Edge {
+                facet: ExploreMechanismSupportFacet::DifferentialParticipation,
+                ..
+            }
+        ));
+        assert!(query.observation_demands[2].within_mechanism.is_some());
+
+        let baseline_artifacts =
+            explore_artifacts_for_source(&explore_support_observation_source(""));
+        let observed_artifacts = explore_artifacts_for_source(&source);
+        assert!(
+            observed_artifacts.diagnostics.is_empty(),
+            "{:?}",
+            observed_artifacts.diagnostics
+        );
+        let baseline = baseline_artifacts
+            .checked_exploration_query(0)
+            .expect("checked baseline query");
+        let observed = observed_artifacts
+            .checked_exploration_query(0)
+            .expect("checked observed query");
+        assert_eq!(baseline.program_hash(), observed.program_hash());
+        assert_eq!(baseline.relation_id(), observed.relation_id());
+        assert_eq!(baseline.admission_id(), observed.admission_id());
+        assert_eq!(baseline.question_id(), observed.question_id());
+        assert_eq!(
+            baseline.analysis_graph_hash(),
+            observed.analysis_graph_hash()
+        );
+        assert_ne!(
+            baseline.support_observation_demand_set_id(),
+            observed.support_observation_demand_set_id()
+        );
+
+        let aliases = explore_artifacts_for_source(&explore_support_observation_source(&format!(
+            r#"observations first from mechanisms paths for node activation "{node}"
+observations second from mechanisms paths for node activation "{node}""#
+        )));
+        let aliases = aliases
+            .checked_exploration_query(0)
+            .expect("checked aliased observations");
+        let alias_ids = aliases
+            .support_observation_demands()
+            .map(|(_, identity)| identity.id)
+            .collect::<Vec<_>>();
+        assert_eq!(alias_ids.len(), 2);
+        assert_eq!(alias_ids[0], alias_ids[1]);
+
+        let ordered = explore_artifacts_for_source(&explore_support_observation_source(&format!(
+            r#"observations node from mechanisms paths for node activation "{node}"
+observations edge from mechanisms paths for edge activation "{edge}""#
+        )));
+        let reversed = explore_artifacts_for_source(&explore_support_observation_source(&format!(
+            r#"observations edge from mechanisms paths for edge activation "{edge}"
+observations node from mechanisms paths for node activation "{node}""#
+        )));
+        assert_eq!(
+            ordered
+                .checked_exploration_query(0)
+                .unwrap()
+                .support_observation_demand_set_id(),
+            reversed
+                .checked_exploration_query(0)
+                .unwrap()
+                .support_observation_demand_set_id(),
+            "demand-set identity is independent of declaration order"
+        );
+    }
+
+    #[test]
+    fn explore_support_observation_parser_rejects_invalid_addresses() {
+        let digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+        let bad_digest = explore_support_observation_source(
+            "observations values from mechanisms paths for mechanism \"ABC\"",
+        );
+        let error = parse_test_program(&bad_digest).expect_err("reject malformed digest");
+        assert!(
+            error.contains("exactly 64 lowercase hexadecimal"),
+            "{error}"
+        );
+
+        let unknown_request = explore_support_observation_source(&format!(
+            "observations values from mechanisms missing for node activation \"{digest}\""
+        ));
+        let error = parse_test_program(&unknown_request).expect_err("reject unknown request");
+        assert!(error.contains("earlier mechanism request"), "{error}");
+
+        let duplicate = explore_support_observation_source(&format!(
+            r#"observations values from mechanisms paths for node activation "{digest}"
+observations values from mechanisms paths for edge activation "{digest}""#
+        ));
+        let error = parse_test_program(&duplicate).expect_err("reject duplicate declaration name");
+        assert!(
+            error.contains("duplicate exploration declaration"),
+            "{error}"
+        );
+
+        let whole_within = explore_support_observation_source(&format!(
+            "observations values from mechanisms paths for mechanism \"{digest}\" within mechanism \"{digest}\""
+        ));
+        let error = parse_test_program(&whole_within)
+            .expect_err("whole-mechanism observation has no enclosing route selector");
+        assert!(
+            error.contains("cannot be refined `within mechanism`"),
+            "{error}"
+        );
+    }
+
     fn explore_transition_graph_source(consumers: &str) -> String {
         format!(
             r#"
@@ -58314,33 +58743,33 @@ starters edge_differential from mechanisms paths for edge differential "{digest}
         assert_eq!(query.starter_projections.len(), 5);
         assert!(matches!(
             query.starter_projections[0].subject,
-            ExploreStarterProjectionSubject::Mechanism(_)
+            ExploreMechanismSupportSubject::Mechanism(_)
         ));
         assert!(matches!(
             query.starter_projections[1].subject,
-            ExploreStarterProjectionSubject::Node {
-                facet: ExploreStarterProjectionFacet::Activation,
+            ExploreMechanismSupportSubject::Node {
+                facet: ExploreMechanismSupportFacet::Activation,
                 ..
             }
         ));
         assert!(matches!(
             query.starter_projections[2].subject,
-            ExploreStarterProjectionSubject::Node {
-                facet: ExploreStarterProjectionFacet::DifferentialParticipation,
+            ExploreMechanismSupportSubject::Node {
+                facet: ExploreMechanismSupportFacet::DifferentialParticipation,
                 ..
             }
         ));
         assert!(matches!(
             query.starter_projections[3].subject,
-            ExploreStarterProjectionSubject::Edge {
-                facet: ExploreStarterProjectionFacet::Activation,
+            ExploreMechanismSupportSubject::Edge {
+                facet: ExploreMechanismSupportFacet::Activation,
                 ..
             }
         ));
         assert!(matches!(
             query.starter_projections[4].subject,
-            ExploreStarterProjectionSubject::Edge {
-                facet: ExploreStarterProjectionFacet::DifferentialParticipation,
+            ExploreMechanismSupportSubject::Edge {
+                facet: ExploreMechanismSupportFacet::DifferentialParticipation,
                 ..
             }
         ));
@@ -63515,6 +63944,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                             span: Span::dummy(),
                         }),
                     ],
+                    observation_demands: Vec::new(),
                     starter_projections: Vec::new(),
                     transition_graphs: Vec::new(),
                     span: Span::dummy(),
