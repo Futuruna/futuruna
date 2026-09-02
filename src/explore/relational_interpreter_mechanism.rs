@@ -639,3 +639,558 @@ impl std::error::Error for RelationalInterpreterMechanismReplayError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::mechanism::MechanismObservationIr;
+    use super::*;
+    use crate::{
+        CheckedCallTarget, CheckedInterpreterMechanismEvent, Lexer, Parser, Rule, RuleDispatchTier,
+        TypeChecker, Value,
+    };
+
+    fn checked_mechanism_trace_artifacts(
+        source: &str,
+        rewrite: impl FnOnce(&mut [Stmt]),
+    ) -> TypeCheckArtifacts {
+        let mut lexer = Lexer::new(source);
+        let mut statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse checked mechanism trace fixture");
+        rewrite(&mut statements);
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "checked mechanism trace fixture diagnostics: {:?}; rule returns: {:?}; rule issues: {:?}",
+            artifacts.diagnostics,
+            artifacts.rule_dispatch_return_types,
+            artifacts.rule_dispatch_return_issues,
+        );
+        artifacts
+    }
+
+    fn raw_checked_interpreter_mechanism_trace(
+        source: &str,
+        state: i64,
+    ) -> CheckedInterpreterMechanismTrace {
+        raw_checked_interpreter_mechanism_trace_after_parse(source, state, |_| {})
+    }
+
+    fn raw_checked_interpreter_mechanism_trace_after_parse(
+        source: &str,
+        state: i64,
+        rewrite: impl FnOnce(&mut [Stmt]),
+    ) -> CheckedInterpreterMechanismTrace {
+        let artifacts = checked_mechanism_trace_artifacts(source, rewrite);
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join checked mechanism trace Explore query");
+        let observation = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::Mechanisms { observation, .. } => {
+                    Some(observation.clone())
+                }
+                CheckedExploreAnalysisIdentity::View { .. } => None,
+            })
+            .expect("fixture declares one mechanism observer");
+
+        let mut runtime = RelationalInterpreterMechanismReplayRuntime::from_checked_artifacts(
+            &artifacts, &checked,
+        )
+        .expect("build checked interpreter mechanism runtime");
+
+        evaluate_checked_interpreter_mechanism_endpoint(&mut runtime, &observation, state)
+            .expect("evaluate one fresh checked mechanism endpoint")
+    }
+
+    fn evaluate_checked_interpreter_mechanism_endpoint(
+        runtime: &mut RelationalInterpreterMechanismReplayRuntime,
+        observation: &MechanismObservationIr,
+        state: i64,
+    ) -> Result<CheckedInterpreterMechanismTrace, CheckedInterpreterMechanismEvaluationError> {
+        let binding_order = runtime
+            .required_binding_order(&observation.endpoint_template)
+            .expect("derive observer binding order");
+        let mut evaluator = ExploreRuntimeGroundEvaluator::new(&runtime.definitions);
+        if let Some(plan) = runtime.mechanism_memo_plan.clone() {
+            evaluator
+                .interpreter
+                .install_checked_mechanism_rule_memo_plan(plan)
+                .expect("install checked mechanism memo plan");
+        }
+        evaluator
+            .evaluate_required_bindings(&binding_order)
+            .expect("evaluate observer bindings");
+        let base_env = evaluator.base_env.clone();
+        evaluator.interpreter.eval_checked_mechanism_endpoint(
+            Arc::clone(&runtime.catalog),
+            &observation.template_site,
+            &observation.endpoint_template,
+            Value::Int(state),
+            Value::Unit,
+            &observation.state_type,
+            &observation.context_type,
+            &observation.observation_type,
+            &base_env,
+            runtime.step_limit,
+            runtime.collection_limit,
+        )
+    }
+
+    fn rewrite_clause_as_unconditional_default(statement: &mut Stmt) {
+        let Stmt::Rule(Rule::Clause {
+            head,
+            body: Some(value),
+        }) = statement
+        else {
+            panic!("unconditional-default fixture must start as one valued clause");
+        };
+        *statement = Stmt::Rule(Rule::Default {
+            head: head.clone(),
+            value: value.clone(),
+            condition: None,
+        });
+    }
+
+    fn event_rule_family<'a>(
+        trace: &'a CheckedInterpreterMechanismTrace,
+        event: &CheckedInterpreterMechanismEvent,
+    ) -> Option<&'a crate::RuleDispatchKey> {
+        let activation = &trace.activation_paths[event.activation_path.index()].activation;
+        match &activation.callee {
+            CheckedInterpreterMechanismCallee::RuleFamily(family) => Some(family),
+            CheckedInterpreterMechanismCallee::Function(_) => None,
+        }
+    }
+
+    #[test]
+    fn checked_rule_trace_preserves_authoritative_tier_order_and_selected_prefix() {
+        let trace = raw_checked_interpreter_mechanism_trace_after_parse(
+            r#"
+| cascade(value: Int) -> False
+| cascade(value: Int) -> True
+| cascade(value: Int) -> True
+| cascade(value: Int) -> True under False
+| exception literal_miss cascade(99) -> True
+
+> observe_cascade(state: Int, context: Unit) -> Bool {
+    cascade(state)
+}
+
+? explore trace_cascade {
+    from {
+        before = 7
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from observe_cascade
+}
+"#,
+            7,
+            |statements| {
+                // The parser currently has no spelling for this AST tier. Keep
+                // the dispatch contract covered without inventing syntax.
+                rewrite_clause_as_unconditional_default(&mut statements[1]);
+                rewrite_clause_as_unconditional_default(&mut statements[2]);
+            },
+        );
+
+        let cascade_events = trace
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| {
+                event_rule_family(&trace, event)
+                    .is_some_and(|family| family.scope.is_none() && family.name == "cascade")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(cascade_events.len(), 5);
+
+        let expected_attempts = [
+            (
+                RuleDispatchTier::Exception,
+                4,
+                CheckedInterpreterRuleAttemptOutcome::HeadMismatch,
+            ),
+            (
+                RuleDispatchTier::ConditionalDefault,
+                3,
+                CheckedInterpreterRuleAttemptOutcome::GuardFalse,
+            ),
+            (
+                RuleDispatchTier::Clause,
+                0,
+                CheckedInterpreterRuleAttemptOutcome::BodyFalse,
+            ),
+            (
+                RuleDispatchTier::UnconditionalDefault,
+                1,
+                CheckedInterpreterRuleAttemptOutcome::Applicable,
+            ),
+        ];
+        for ((event_index, event), (tier, source_order, outcome)) in cascade_events
+            .iter()
+            .take(expected_attempts.len())
+            .zip(expected_attempts)
+        {
+            let CheckedInterpreterMechanismEventSite::RuleCandidate(candidate) = &event.site else {
+                panic!("event {event_index} is not a rule attempt candidate");
+            };
+            assert_eq!(
+                (candidate.tier, candidate.source_order),
+                (tier, source_order)
+            );
+            assert_eq!(
+                event.outcome,
+                CheckedInterpreterMechanismEventOutcome::RuleAttempt(outcome)
+            );
+        }
+
+        let (selection_index, selection) = cascade_events[4];
+        let CheckedInterpreterMechanismEventOutcome::RuleSelection(
+            CheckedInterpreterRuleSelectionOutcome::Selected(selected),
+        ) = &selection.outcome
+        else {
+            panic!("event {selection_index} is not a selected-rule closure");
+        };
+        let CheckedInterpreterMechanismEventSite::RuleCandidate(applicable) =
+            &cascade_events[3].1.site
+        else {
+            unreachable!("fourth reached event is the applicable candidate")
+        };
+        assert_eq!(selected, applicable);
+        assert_eq!(
+            (selected.tier, selected.source_order),
+            (RuleDispatchTier::UnconditionalDefault, 1)
+        );
+        assert_eq!(selection.dependencies.as_ref(), &[0, 1, 2, 3]);
+        assert_eq!(trace.roots.as_ref(), &[selection_index]);
+        assert!(trace.events.iter().all(|event| !matches!(
+            &event.site,
+            CheckedInterpreterMechanismEventSite::RuleCandidate(candidate)
+                if candidate.source_order == 2
+        )));
+    }
+
+    #[test]
+    fn checked_rule_trace_closes_no_applicable_rule_after_complete_failed_prefix() {
+        let trace = raw_checked_interpreter_mechanism_trace(
+            r#"
+| never_applies(value: Int) -> False
+| never_applies(value: Int) -> True under False
+| exception literal_miss never_applies(99) -> True
+
+> observe_miss(state: Int, context: Unit) -> Bool {
+    never_applies(state)
+}
+
+? explore trace_no_applicable {
+    from {
+        before = 7
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from observe_miss
+}
+"#,
+            7,
+        );
+
+        let family_events = trace
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| {
+                event_rule_family(&trace, event)
+                    .is_some_and(|family| family.scope.is_none() && family.name == "never_applies")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(family_events.len(), 4);
+        assert_eq!(
+            family_events[..3]
+                .iter()
+                .map(|(_, event)| match &event.outcome {
+                    CheckedInterpreterMechanismEventOutcome::RuleAttempt(outcome) => *outcome,
+                    other => panic!("failed prefix contains non-attempt event: {other:?}"),
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                CheckedInterpreterRuleAttemptOutcome::HeadMismatch,
+                CheckedInterpreterRuleAttemptOutcome::GuardFalse,
+                CheckedInterpreterRuleAttemptOutcome::BodyFalse,
+            ]
+        );
+        let (selection_index, selection) = family_events[3];
+        assert_eq!(
+            selection.outcome,
+            CheckedInterpreterMechanismEventOutcome::RuleSelection(
+                CheckedInterpreterRuleSelectionOutcome::NoApplicableRule
+            )
+        );
+        assert_eq!(selection.dependencies.as_ref(), &[0, 1, 2]);
+        assert_eq!(trace.roots.as_ref(), &[selection_index]);
+    }
+
+    #[test]
+    fn checked_rule_trace_rejects_an_incomplete_no_applicable_prefix() {
+        let source = r#"
+| never_applies(value: Int) -> False
+
+> observe_miss(state: Int, context: Unit) -> Bool {
+    never_applies(state)
+}
+
+? explore trace_incomplete_prefix {
+    from {
+        before = 7
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from observe_miss
+}
+"#;
+        let artifacts = checked_mechanism_trace_artifacts(source, |_| {});
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join incomplete-prefix fixture");
+        let observation = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::Mechanisms { observation, .. } => {
+                    Some(observation.clone())
+                }
+                CheckedExploreAnalysisIdentity::View { .. } => None,
+            })
+            .expect("fixture declares one mechanism observer");
+        let mut runtime = RelationalInterpreterMechanismReplayRuntime::from_checked_artifacts(
+            &artifacts, &checked,
+        )
+        .expect("build incomplete-prefix checked runtime");
+        let family = runtime
+            .catalog
+            .rule_family_orders
+            .keys()
+            .find(|family| family.scope.is_none() && family.name == "never_applies")
+            .cloned()
+            .expect("catalog retains the checked family roster");
+        let catalog = Arc::get_mut(&mut runtime.catalog)
+            .expect("test runtime has the only checked catalog reference");
+        let order = catalog
+            .rule_family_orders
+            .get_mut(&family)
+            .expect("checked family order remains present");
+        let mut corrupted_order = order.to_vec();
+        corrupted_order.push(usize::MAX);
+        *order = corrupted_order.into_boxed_slice();
+
+        let error = evaluate_checked_interpreter_mechanism_endpoint(&mut runtime, &observation, 7)
+            .expect_err("NoApplicableRule cannot close an incomplete checked family prefix");
+        assert_eq!(
+            error,
+            CheckedInterpreterMechanismEvaluationError::Trace(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family,
+                    reason: "selection does not close the exact checked candidate prefix",
+                }
+            )
+        );
+    }
+
+    #[test]
+    fn checked_rulescope_memo_reuse_has_fresh_scoped_activation_and_cold_provenance() {
+        let trace = raw_checked_interpreter_mechanism_trace(
+            r#"
+# MemoScope() {
+    | leaf() -> True
+    | total() -> leaf() == leaf()
+}
+
+> observe_scope(state: Int, context: Unit) -> Bool {
+    MemoScope().total()
+}
+
+? explore trace_scoped_memo {
+    from {
+        before = 7
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from observe_scope
+}
+"#,
+            7,
+        );
+
+        let total_activations = trace
+            .activation_paths
+            .iter()
+            .filter(|path| {
+                matches!(
+                    &path.activation.callee,
+                    CheckedInterpreterMechanismCallee::RuleFamily(family)
+                        if family.scope.as_deref() == Some("MemoScope")
+                            && family.name == "total"
+                            && family.arity == 0
+                )
+            })
+            .count();
+        assert_eq!(total_activations, 1);
+
+        let leaf_selections = trace
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(_, event)| {
+                event_rule_family(&trace, event).is_some_and(|family| {
+                    family.scope.as_deref() == Some("MemoScope")
+                        && family.name == "leaf"
+                        && family.arity == 0
+                }) && event.kind == CheckedInterpreterMechanismEventKind::RuleSelection
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(leaf_selections.len(), 2);
+        let (cold_index, cold) = leaf_selections[0];
+        let (hot_index, hot) = leaf_selections[1];
+
+        assert_ne!(cold.activation_path, hot.activation_path);
+        let cold_activation = &trace.activation_paths[cold.activation_path.index()];
+        let hot_activation = &trace.activation_paths[hot.activation_path.index()];
+        assert_eq!(cold_activation.parent, hot_activation.parent);
+        assert_eq!(
+            cold_activation.activation.callee,
+            hot_activation.activation.callee
+        );
+        assert!(matches!(
+            &cold_activation.activation.callee,
+            CheckedInterpreterMechanismCallee::RuleFamily(family)
+                if family.scope.as_deref() == Some("MemoScope")
+                    && family.name == "leaf"
+                    && family.arity == 0
+        ));
+
+        let CheckedInterpreterMechanismEventOutcome::RuleSelection(cold_outcome) = &cold.outcome
+        else {
+            unreachable!("filtered cold selection outcome")
+        };
+        let CheckedInterpreterMechanismEventOutcome::RuleSelection(hot_outcome) = &hot.outcome
+        else {
+            unreachable!("filtered hot selection outcome")
+        };
+        assert_eq!(hot_outcome, cold_outcome);
+        assert_eq!(hot.dependencies.as_ref(), &[cold_index]);
+        assert!(cold.dependencies.len() == 1 && cold.dependencies[0] < cold_index);
+        assert!(trace.events.iter().enumerate().all(|(event_index, event)| {
+            event_index == hot_index
+                || event.activation_path != hot.activation_path
+                || event.kind != CheckedInterpreterMechanismEventKind::RuleAttempt
+        }));
+    }
+
+    #[test]
+    fn checked_rulescope_target_cannot_fall_through_to_function_or_global_dispatch() {
+        let source = r#"
+# RuleOnlyScope(seed: Int) {
+    | total() -> seed > 0
+}
+
+> observe_rule(state: Int, context: Unit) -> Bool {
+    RuleOnlyScope(seed = state).total()
+}
+
+? explore trace_unresolved_scoped_member {
+    from {
+        before = 7
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from observe_rule
+}
+"#;
+        let mut artifacts = checked_mechanism_trace_artifacts(source, |_| {});
+        let owned_checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join unresolved-member fixture before corrupting its checked target")
+            .to_owned_checked_query();
+        let (scoped_site, owner_type, member, arity, family) = artifacts
+            .checked_resolutions
+            .expressions
+            .iter()
+            .find_map(|(site, resolution)| match &resolution.call_target {
+                Some(CheckedCallTarget::ScopedMember {
+                    owner_type,
+                    member,
+                    arity,
+                    rule_family: Some(family),
+                }) if owner_type.as_ref() == "RuleOnlyScope"
+                    && member.as_ref() == "total"
+                    && *arity == 0 =>
+                {
+                    Some((
+                        site.clone(),
+                        owner_type.clone(),
+                        member.clone(),
+                        *arity,
+                        family.clone(),
+                    ))
+                }
+                _ => None,
+            })
+            .expect("checked fixture resolves total() to its exact scoped rule family");
+        assert_eq!(family.scope.as_deref(), Some("RuleOnlyScope"));
+        assert_eq!((family.name.as_str(), family.arity), ("total", 0));
+        artifacts
+            .checked_resolutions
+            .expressions
+            .get_mut(&scoped_site)
+            .expect("scoped rule resolution remains present")
+            .call_target = Some(CheckedCallTarget::ScopedMember {
+            owner_type: owner_type.clone(),
+            member: member.clone(),
+            arity,
+            rule_family: None,
+        });
+
+        let checked = owned_checked.view();
+        let observation = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::Mechanisms { observation, .. } => {
+                    Some(observation.clone())
+                }
+                CheckedExploreAnalysisIdentity::View { .. } => None,
+            })
+            .expect("fixture declares one mechanism observer");
+        let mut definitions = checked_ground_definitions(&artifacts.analysis_program)
+            .expect("rebuild checked unresolved-member definitions");
+        definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
+        definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+        definitions.rule_dispatch_boolean_miss_safe_keys =
+            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+        let mut runtime = RelationalInterpreterMechanismReplayRuntime::from_checked_definitions(
+            &artifacts,
+            &checked,
+            Arc::new(definitions),
+            None,
+        )
+        .expect("build catalog with deliberately unresolved scoped callable target");
+
+        let error = evaluate_checked_interpreter_mechanism_endpoint(&mut runtime, &observation, 7)
+            .expect_err("a scoped rule cannot fall through to another callable namespace");
+        assert_eq!(
+            error,
+            CheckedInterpreterMechanismEvaluationError::Trace(
+                CheckedInterpreterMechanismTraceError::ScopedCallableMissing {
+                    owner_type: owner_type.into(),
+                    member: member.into(),
+                    arity,
+                }
+            )
+        );
+    }
+}

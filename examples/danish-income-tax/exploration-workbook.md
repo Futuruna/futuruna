@@ -2589,6 +2589,17 @@ endpoints. This is the first real mechanism artifact from the Personskat path;
 it is not evidence about an income cliff or about any wider income/profile
 support.
 
+The checked rule trace now certifies the dispatch proof before that evidence
+can enter a signature. A cold activation advances through the exact checked
+family roster in exception, conditional-default, clause and
+unconditional-default order. `Selected` must close the last `Applicable`
+attempt, while `NoApplicableRule` requires the whole family to have failed;
+early runtime aborts cannot masquerade as an empty selection. Scope-local and
+producer-certified global memo hits take a separate path: each keeps a fresh
+activation and may reference only a validated cold selection in the same
+endpoint, so repeated hits form a star rooted at the original proof rather
+than a chain of increasingly indirect claims.
+
 The `exact(1)` raw-signature count in that historical calibration is
 specifically the replay-ABI-v2 complete execution-occurrence-signature count.
 With only one case its cardinality is necessarily also a lower bound of one for

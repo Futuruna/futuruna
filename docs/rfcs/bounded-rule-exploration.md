@@ -1001,6 +1001,16 @@ builtin calls MUST bind callbacks to their exact checked argument site and
 callable/rule target; an expected activation frame that is not consumed fails
 closed.
 
+Every cold `RuleFamily` activation MUST consume an exact prefix of the checked
+family's exception, conditional-default, clause and unconditional-default
+candidates in authoritative dispatch order. Each retained attempt binds the
+next full checked candidate identity and one structurally possible outcome. A
+`Selected` closure is valid only for the immediately preceding `Applicable`
+attempt; `NoApplicableRule` is valid only after the complete checked family has
+been attempted without an applicable candidate. A skipped suffix after
+selection is deliberately absent. The trace producer MUST reject an activation
+that exits with a pending candidate or without one coherent selection.
+
 Within one fresh endpoint replay, a non-evicting scope-local semantic memo MAY
 retain a completed rule-selection occurrence together with its value. A later
 equivalent source call MUST still enter a fresh checked activation and emit its

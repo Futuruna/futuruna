@@ -31113,6 +31113,9 @@ pub(crate) struct CheckedInterpreterMechanismCatalog {
     builtin_callbacks: BTreeMap<(ExprSiteId, usize), CheckedInterpreterMechanismBuiltinCallback>,
     callables: BTreeMap<CheckedCallableId, CheckedInterpreterMechanismCallable>,
     scoped_callables: BTreeMap<(String, String, usize), Box<[CheckedCallableId]>>,
+    /// Authoritative dispatch order, separated from the existing full
+    /// candidate index so large checked programs do not duplicate identities.
+    rule_family_orders: BTreeMap<RuleDispatchKey, Box<[usize]>>,
     rule_candidates: BTreeMap<(RuleDispatchKey, usize), CheckedRuleCandidateResolution>,
     rule_candidate_digests: BTreeMap<(RuleDispatchKey, usize), [u8; 32]>,
 }
@@ -31135,6 +31138,7 @@ impl CheckedInterpreterMechanismCatalog {
                 builtin_callbacks: BTreeMap::new(),
                 callables: BTreeMap::new(),
                 scoped_callables: BTreeMap::new(),
+                rule_family_orders: BTreeMap::new(),
                 rule_candidates: BTreeMap::new(),
                 rule_candidate_digests: BTreeMap::new(),
             });
@@ -31153,6 +31157,7 @@ impl CheckedInterpreterMechanismCatalog {
         let mut builtin_callbacks = BTreeMap::new();
         let mut callables = BTreeMap::new();
         let mut scoped_callables = BTreeMap::new();
+        let mut rule_family_orders = BTreeMap::new();
         let mut rule_candidates = BTreeMap::new();
         let mut rule_candidate_digests = BTreeMap::new();
         let mut pending_callables = Vec::new();
@@ -31271,6 +31276,21 @@ impl CheckedInterpreterMechanismCatalog {
                         .ok_or_else(|| {
                             CheckedInterpreterMechanismTraceError::RuleFamilyMissing(family.clone())
                         })?;
+                let candidate_order = resolution
+                    .candidates
+                    .iter()
+                    .map(|candidate| candidate.source_order)
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice();
+                if candidate_order.is_empty()
+                    || rule_family_orders
+                        .insert(family.clone(), candidate_order)
+                        .is_some()
+                {
+                    return Err(CheckedInterpreterMechanismTraceError::RuleFamilyMissing(
+                        family,
+                    ));
+                }
                 for candidate in resolution.candidates.iter() {
                     if indexed_declarations.insert(candidate.declaration.clone())
                         && !index.index_declaration_syntax(&candidate.declaration)
@@ -31355,6 +31375,7 @@ impl CheckedInterpreterMechanismCatalog {
             builtin_callbacks,
             callables,
             scoped_callables,
+            rule_family_orders,
             rule_candidates,
             rule_candidate_digests,
         })
@@ -31724,9 +31745,17 @@ impl CheckedInterpreterMechanismCatalog {
     }
 
     fn contains_rule_family(&self, family: &RuleDispatchKey) -> bool {
-        self.rule_candidates
-            .keys()
-            .any(|(candidate, _)| candidate == family)
+        self.rule_family_orders.contains_key(family)
+    }
+
+    fn rule_family_order(
+        &self,
+        family: &RuleDispatchKey,
+    ) -> Result<&[usize], CheckedInterpreterMechanismTraceError> {
+        self.rule_family_orders
+            .get(family)
+            .map(Box::as_ref)
+            .ok_or_else(|| CheckedInterpreterMechanismTraceError::RuleFamilyMissing(family.clone()))
     }
 
     fn expression_site(
@@ -31999,6 +32028,10 @@ pub(crate) enum CheckedInterpreterMechanismTraceError {
         family: RuleDispatchKey,
         source_order: usize,
     },
+    RuleDispatchTraceMismatch {
+        family: RuleDispatchKey,
+        reason: &'static str,
+    },
     RuntimeExpressionMissing {
         kind: CheckedInterpreterMechanismExpressionKind,
         span: Span,
@@ -32077,6 +32110,18 @@ impl fmt::Display for CheckedInterpreterMechanismTraceError {
             Self::RuleCandidateBodyMismatch { .. } => formatter.write_str(
                 "runtime mechanism rule candidate disagrees with its checked source body",
             ),
+            Self::RuleDispatchTraceMismatch { family, reason } => match &family.scope {
+                Some(scope) => write!(
+                    formatter,
+                    "runtime mechanism rule dispatch {scope}::{}/{} is incoherent: {reason}",
+                    family.name, family.arity,
+                ),
+                None => write!(
+                    formatter,
+                    "runtime mechanism rule dispatch {}/{} is incoherent: {reason}",
+                    family.name, family.arity,
+                ),
+            },
             Self::RuntimeExpressionMissing { kind, span } => write!(
                 formatter,
                 "runtime {kind:?} at {}..{} has no checked site in the active declaration",
@@ -32167,6 +32212,15 @@ impl fmt::Display for CheckedInterpreterMechanismTraceError {
 
 impl std::error::Error for CheckedInterpreterMechanismTraceError {}
 
+#[derive(Debug, Clone)]
+struct CheckedInterpreterRuleDispatchProgress {
+    family: RuleDispatchKey,
+    next_candidate: usize,
+    current_candidate: Option<usize>,
+    last_attempt: Option<(usize, CheckedInterpreterRuleAttemptOutcome)>,
+    completed: bool,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum CheckedInterpreterMechanismEvaluationError {
     Trace(CheckedInterpreterMechanismTraceError),
@@ -32252,6 +32306,11 @@ struct CheckedInterpreterMechanismTraceState {
     family_diagnostics: BTreeMap<RuleDispatchKey, CheckedInterpreterMechanismFamilyDiagnostics>,
     validated_callable_bodies: BTreeSet<CheckedCallableId>,
     validated_rule_candidates: BTreeSet<(RuleDispatchKey, usize)>,
+    /// One pointer-sized optional dispatch proof per activation-path slot.
+    /// Indexing by the already dense path ID keeps validation constant-time;
+    /// only active rule families allocate a proof, which is dropped on exit.
+    rule_dispatches: Vec<Option<Box<CheckedInterpreterRuleDispatchProgress>>>,
+    cold_rule_selections: BTreeSet<usize>,
     error: Option<CheckedInterpreterMechanismTraceError>,
 }
 
@@ -32308,6 +32367,8 @@ impl CheckedInterpreterMechanismTraceState {
             family_diagnostics: BTreeMap::new(),
             validated_callable_bodies: BTreeSet::new(),
             validated_rule_candidates: BTreeSet::new(),
+            rule_dispatches: vec![None],
+            cold_rule_selections: BTreeSet::new(),
             error: None,
         })
     }
@@ -32826,6 +32887,7 @@ impl CheckedInterpreterMechanismTraceState {
                 },
                 depth: (current_depth + 1) as u16,
             });
+        self.rule_dispatches.push(None);
         if self.diagnostics_enabled {
             self.directly_event_bearing_activation_paths.push(false);
         }
@@ -32946,27 +33008,126 @@ impl CheckedInterpreterMechanismTraceState {
             },
         );
         if entered {
+            let Some(progress) = self
+                .rule_dispatches
+                .get_mut(self.current_activation_path.index())
+            else {
+                self.fail(CheckedInterpreterMechanismTraceError::TraceStackMismatch);
+                return false;
+            };
+            if progress.is_some() {
+                self.fail(
+                    CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                        family: family.clone(),
+                        reason: "rule-family activation path was reused",
+                    },
+                );
+                return false;
+            }
+            *progress = Some(Box::new(CheckedInterpreterRuleDispatchProgress {
+                family: family.clone(),
+                next_candidate: 0,
+                current_candidate: None,
+                last_attempt: None,
+                completed: false,
+            }));
             self.mark_current_call_frame_consumed();
         }
         entered
     }
 
     fn enter_rule_candidate(&mut self, family: &RuleDispatchKey, source_order: usize, rule: &Rule) {
+        let expected_source_order = match self
+            .rule_dispatches
+            .get(self.current_activation_path.index())
+            .and_then(Option::as_ref)
+        {
+            Some(progress)
+                if &progress.family == family
+                    && !progress.completed
+                    && progress.current_candidate.is_none()
+                    && !matches!(
+                        progress.last_attempt.as_ref(),
+                        Some((_, CheckedInterpreterRuleAttemptOutcome::Applicable))
+                    ) =>
+            {
+                self.catalog
+                    .rule_family_order(family)
+                    .ok()
+                    .and_then(|order| order.get(progress.next_candidate))
+                    .copied()
+            }
+            _ => None,
+        };
+        let Some(expected_source_order) = expected_source_order else {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "candidate attempt is not the next checked family member",
+                },
+            );
+            return;
+        };
+        if expected_source_order != source_order {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "candidate attempt is not the next checked family member",
+                },
+            );
+            return;
+        }
+        let expected = match self.catalog.rule_candidate(family, source_order) {
+            Ok(candidate) => candidate,
+            Err(error) => {
+                self.fail(error);
+                return;
+            }
+        };
+        if expected.source_order != expected_source_order {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "checked family order disagrees with its candidate index",
+                },
+            );
+            return;
+        }
         let candidate_key = (family.clone(), source_order);
         if !self.validated_rule_candidates.contains(&candidate_key) {
             match self.catalog.rule_candidate_digest(family, source_order) {
                 Ok(expected) if expected == checked_interpreter_mechanism_rule_digest(rule) => {
                     self.validated_rule_candidates.insert(candidate_key);
                 }
-                Ok(_) => self.fail(
-                    CheckedInterpreterMechanismTraceError::RuleCandidateBodyMismatch {
-                        family: family.clone(),
-                        source_order,
-                    },
-                ),
-                Err(error) => self.fail(error),
+                Ok(_) => {
+                    self.fail(
+                        CheckedInterpreterMechanismTraceError::RuleCandidateBodyMismatch {
+                            family: family.clone(),
+                            source_order,
+                        },
+                    );
+                    return;
+                }
+                Err(error) => {
+                    self.fail(error);
+                    return;
+                }
             }
         }
+        let Some(progress) = self
+            .rule_dispatches
+            .get_mut(self.current_activation_path.index())
+            .and_then(Option::as_mut)
+        else {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "candidate attempt has no active family proof",
+                },
+            );
+            return;
+        };
+        progress.current_candidate = Some(expected.source_order);
         let Some(owner) = self.owners.last_mut() else {
             self.fail(CheckedInterpreterMechanismTraceError::TraceStackMismatch);
             return;
@@ -32978,6 +33139,43 @@ impl CheckedInterpreterMechanismTraceState {
     }
 
     fn exit_activation(&mut self) {
+        let current_path_index = self.current_activation_path.index();
+        let owner_family = self.owners.last().and_then(|owner| match owner {
+            CheckedInterpreterMechanismOwner::RuleCandidate { family, .. } => Some(family.clone()),
+            CheckedInterpreterMechanismOwner::Callable(_) => None,
+        });
+        let progress = self
+            .rule_dispatches
+            .get(current_path_index)
+            .and_then(Option::as_deref);
+        let dispatch_error = match (owner_family.as_ref(), progress) {
+            (Some(owner), Some(progress))
+                if owner == &progress.family
+                    && progress.completed
+                    && progress.current_candidate.is_none() =>
+            {
+                None
+            }
+            (Some(owner), _) => Some((
+                owner.clone(),
+                "rule-family activation exited before a coherent selection",
+            )),
+            (None, Some(progress)) => Some((
+                progress.family.clone(),
+                "function activation unexpectedly carried a rule-family proof",
+            )),
+            (None, None) => None,
+        };
+        if let Some((family, reason)) = dispatch_error {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch { family, reason },
+            );
+        }
+        let Some(dispatch_slot) = self.rule_dispatches.get_mut(current_path_index) else {
+            self.fail(CheckedInterpreterMechanismTraceError::TraceStackMismatch);
+            return;
+        };
+        dispatch_slot.take();
         let parent = self
             .activation_paths
             .get(self.current_activation_path.index())
@@ -33037,6 +33235,25 @@ impl CheckedInterpreterMechanismTraceState {
         source_order: usize,
         outcome: CheckedInterpreterRuleAttemptOutcome,
     ) -> Option<CheckedRuleCandidateResolution> {
+        let active_candidate_matches = self
+            .rule_dispatches
+            .get(self.current_activation_path.index())
+            .and_then(Option::as_deref)
+            .is_some_and(|progress| {
+                &progress.family == family
+                    && !progress.completed
+                    && progress.current_candidate == Some(source_order)
+            });
+        if !active_candidate_matches {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "rule outcome has no matching active checked candidate",
+                },
+            );
+            self.bubble_dependency_scope();
+            return None;
+        }
         let candidate = match self.catalog.rule_candidate(family, source_order) {
             Ok(candidate) => candidate,
             Err(error) => {
@@ -33045,12 +33262,41 @@ impl CheckedInterpreterMechanismTraceState {
                 return None;
             }
         };
-        let _ = self.record_event(
-            CheckedInterpreterMechanismEventSite::RuleCandidate(candidate.clone()),
+        let outcome_is_possible = match outcome {
+            CheckedInterpreterRuleAttemptOutcome::HeadMismatch
+            | CheckedInterpreterRuleAttemptOutcome::Applicable => true,
+            CheckedInterpreterRuleAttemptOutcome::GuardFalse => candidate.condition_site.is_some(),
+            CheckedInterpreterRuleAttemptOutcome::BodyFalse => {
+                candidate.tier == RuleDispatchTier::Clause && candidate.value_site.is_some()
+            }
+        };
+        if !outcome_is_possible {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "candidate outcome is impossible for its checked rule shape",
+                },
+            );
+            self.bubble_dependency_scope();
+            return None;
+        }
+        let selected = (outcome == CheckedInterpreterRuleAttemptOutcome::Applicable)
+            .then(|| candidate.clone());
+        let recorded = self.record_event(
+            CheckedInterpreterMechanismEventSite::RuleCandidate(candidate),
             CheckedInterpreterMechanismEventKind::RuleAttempt,
             CheckedInterpreterMechanismEventOutcome::RuleAttempt(outcome),
         );
-        Some(candidate)
+        recorded?;
+        let progress = self
+            .rule_dispatches
+            .get_mut(self.current_activation_path.index())
+            .and_then(Option::as_deref_mut)
+            .expect("recorded checked rule attempt has active family progress");
+        progress.current_candidate = None;
+        progress.next_candidate = progress.next_candidate.saturating_add(1);
+        progress.last_attempt = Some((source_order, outcome));
+        selected
     }
 
     fn record_rule_selection(
@@ -33058,14 +33304,116 @@ impl CheckedInterpreterMechanismTraceState {
         family: &RuleDispatchKey,
         selected: Option<CheckedRuleCandidateResolution>,
     ) -> Option<usize> {
-        self.record_event(
+        if self.error.is_some() {
+            return None;
+        }
+        let family_len = match self.catalog.rule_family_order(family) {
+            Ok(order) => order.len(),
+            Err(error) => {
+                self.fail(error);
+                return None;
+            }
+        };
+        let selected_is_checked = selected.as_ref().is_none_or(|candidate| {
+            self.catalog
+                .rule_candidate(family, candidate.source_order)
+                .is_ok_and(|checked| &checked == candidate)
+        });
+        let coherent = self
+            .rule_dispatches
+            .get(self.current_activation_path.index())
+            .and_then(Option::as_deref)
+            .is_some_and(|progress| {
+                if &progress.family != family
+                    || progress.completed
+                    || progress.current_candidate.is_some()
+                    || !selected_is_checked
+                {
+                    return false;
+                }
+                match (&selected, &progress.last_attempt) {
+                    (
+                        Some(selected),
+                        Some((attempted_source, CheckedInterpreterRuleAttemptOutcome::Applicable)),
+                    ) => selected.source_order == *attempted_source,
+                    (None, last_attempt) => {
+                        progress.next_candidate == family_len
+                            && !matches!(
+                                last_attempt,
+                                Some((_, CheckedInterpreterRuleAttemptOutcome::Applicable))
+                            )
+                    }
+                    _ => false,
+                }
+            });
+        if !coherent {
+            self.fail(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: family.clone(),
+                    reason: "selection does not close the exact checked candidate prefix",
+                },
+            );
+            return None;
+        }
+        let event_index = self.record_event(
             CheckedInterpreterMechanismEventSite::RuleFamily(family.clone()),
             CheckedInterpreterMechanismEventKind::RuleSelection,
             CheckedInterpreterMechanismEventOutcome::RuleSelection(match selected {
                 Some(candidate) => CheckedInterpreterRuleSelectionOutcome::Selected(candidate),
                 None => CheckedInterpreterRuleSelectionOutcome::NoApplicableRule,
             }),
-        )
+        )?;
+        self.rule_dispatches
+            .get_mut(self.current_activation_path.index())
+            .and_then(Option::as_deref_mut)
+            .expect("recorded checked rule selection has active family progress")
+            .completed = true;
+        self.cold_rule_selections.insert(event_index);
+        Some(event_index)
+    }
+
+    fn record_replayed_rule_selection(
+        &mut self,
+        family: &RuleDispatchKey,
+        outcome: CheckedInterpreterRuleSelectionOutcome,
+    ) -> Option<usize> {
+        if self.error.is_some() {
+            return None;
+        }
+        let selected_belongs_to_family = match &outcome {
+            CheckedInterpreterRuleSelectionOutcome::NoApplicableRule => true,
+            CheckedInterpreterRuleSelectionOutcome::Selected(selected) => self
+                .catalog
+                .rule_candidate(family, selected.source_order)
+                .is_ok_and(|candidate| &candidate == selected),
+        };
+        let coherent = selected_belongs_to_family
+            && self
+                .rule_dispatches
+                .get(self.current_activation_path.index())
+                .and_then(Option::as_deref)
+                .is_some_and(|progress| {
+                    &progress.family == family
+                        && progress.next_candidate == 0
+                        && progress.current_candidate.is_none()
+                        && progress.last_attempt.is_none()
+                        && !progress.completed
+                });
+        if !coherent {
+            self.fail(CheckedInterpreterMechanismTraceError::MemoizedRuleSelectionMismatch);
+            return None;
+        }
+        let event_index = self.record_event(
+            CheckedInterpreterMechanismEventSite::RuleFamily(family.clone()),
+            CheckedInterpreterMechanismEventKind::RuleSelection,
+            CheckedInterpreterMechanismEventOutcome::RuleSelection(outcome),
+        )?;
+        self.rule_dispatches
+            .get_mut(self.current_activation_path.index())
+            .and_then(Option::as_mut)
+            .expect("recorded memo selection has active family progress")
+            .completed = true;
+        Some(event_index)
     }
 
     fn completed_rule_selection_memo(&mut self, family: &RuleDispatchKey) -> Option<usize> {
@@ -33089,7 +33437,7 @@ impl CheckedInterpreterMechanismTraceState {
                 CheckedInterpreterMechanismEventOutcome::RuleSelection(_),
             ) if event_family == family
         );
-        if !matches_selection {
+        if !matches_selection || !self.cold_rule_selections.contains(&cold_event_index) {
             self.fail(CheckedInterpreterMechanismTraceError::MemoizedRuleSelectionMismatch);
             return None;
         }
@@ -33102,16 +33450,22 @@ impl CheckedInterpreterMechanismTraceState {
         cold_event_index: usize,
         scoped: bool,
     ) -> bool {
-        let outcome = self.events.get(cold_event_index).and_then(|event| {
-            match (&event.site, event.kind, &event.outcome) {
+        if self.error.is_some() {
+            return false;
+        }
+        let outcome = self
+            .cold_rule_selections
+            .contains(&cold_event_index)
+            .then(|| self.events.get(cold_event_index))
+            .flatten()
+            .and_then(|event| match (&event.site, event.kind, &event.outcome) {
                 (
                     CheckedInterpreterMechanismEventSite::RuleFamily(event_family),
                     CheckedInterpreterMechanismEventKind::RuleSelection,
                     CheckedInterpreterMechanismEventOutcome::RuleSelection(outcome),
                 ) if event_family == family => Some(outcome.clone()),
                 _ => None,
-            }
-        });
+            });
         let Some(outcome) = outcome else {
             self.fail(CheckedInterpreterMechanismTraceError::MemoizedRuleSelectionMismatch);
             return false;
@@ -33129,11 +33483,9 @@ impl CheckedInterpreterMechanismTraceState {
             .last_mut()
             .expect("checked memoized rule selection dependency scope")
             .push(cold_event_index);
-        let selected = match outcome {
-            CheckedInterpreterRuleSelectionOutcome::NoApplicableRule => None,
-            CheckedInterpreterRuleSelectionOutcome::Selected(candidate) => Some(candidate),
-        };
-        let recorded = self.record_rule_selection(family, selected).is_some();
+        let recorded = self
+            .record_replayed_rule_selection(family, outcome)
+            .is_some();
         self.exit_activation();
         if recorded {
             self.memoized_rule_reuses = self.memoized_rule_reuses.saturating_add(1);
@@ -33221,6 +33573,19 @@ impl CheckedInterpreterMechanismTraceState {
         self.emit_diagnostics();
         if let Some(error) = self.error {
             return Err(error);
+        }
+        if let Some(progress) = self
+            .rule_dispatches
+            .iter()
+            .flatten()
+            .find(|progress| !progress.completed || progress.current_candidate.is_some())
+        {
+            return Err(
+                CheckedInterpreterMechanismTraceError::RuleDispatchTraceMismatch {
+                    family: progress.family.clone(),
+                    reason: "trace ended before the rule-family proof was closed",
+                },
+            );
         }
         if !self.call_stack.is_empty()
             || self.dependency_scopes.len() != 1
@@ -56788,6 +57153,7 @@ mod tests {
             builtin_callbacks: BTreeMap::new(),
             callables: BTreeMap::new(),
             scoped_callables: BTreeMap::new(),
+            rule_family_orders: BTreeMap::new(),
             rule_candidates: BTreeMap::new(),
             rule_candidate_digests: BTreeMap::new(),
         });
@@ -56820,6 +57186,8 @@ mod tests {
             family_diagnostics: BTreeMap::new(),
             validated_callable_bodies: BTreeSet::new(),
             validated_rule_candidates: BTreeSet::new(),
+            rule_dispatches: vec![None],
+            cold_rule_selections: BTreeSet::new(),
             error: None,
         };
         let callee = CheckedInterpreterMechanismCallee::Function(child_callable.clone());
