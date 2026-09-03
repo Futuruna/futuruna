@@ -1,26 +1,38 @@
--- Tiny domain-neutral oracle for exercising the durable Explore lifecycle.
--- Of ten configurations, exactly two match. This is intentionally small: it
--- demonstrates probe, pause, resume, publication, sealing, and readback
--- without standing in for a real policy exploration.
+----
+Tiny domain-neutral oracle for exercising the durable Explore lifecycle.
+
+The shared finite relation contains ten transitions and the named cliff
+question matches exactly two of them. This is intentionally small: it
+demonstrates pause, resume, publication, sealing, and readback without standing
+in for a real policy exploration. There is no separate probe phase; an initial
+bounded stream slice and every resumed slice advance the same durable work.
+----
 
 | synthetic_support_cliff(income_before: Int, step: Int) -> {
     step == 1 && (income_before == 4 || income_before == 7)
 }
 
 ? explore synthetic_support_cliffs {
-    over synthetic_support_cliff(income_before, step)
-    find matches
-    bounds {
-        income_before in range(0, 10)
-        step = 1
+    from {
+        vary before in range(0, 10)
+        given context = ()
     }
-    boundaries on income_before by step
-    output {
-        key [income_before]
-        show [
-            income_after = income_before + step,
-            amount_lost = 20
+
+    transition after = before + 1
+
+    find cliff_cases = matches of synthetic_support_cliff(before, after - before)
+
+    results cliffs from find cliff_cases {
+        each case
+        measure [amount_lost = 20]
+        select [
+            case_id,
+            context,
+            income_before = before,
+            income_after = after,
+            amount_lost
         ]
-        representative first
     }
+
+    transitions case_graph from all cases
 }

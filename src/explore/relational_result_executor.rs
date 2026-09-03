@@ -107,7 +107,7 @@ impl<'ir> RelationalResultExecutor<'ir> {
     ) -> Result<Self, RelationalResultExecutorError> {
         let input_kind = match &view.input {
             ExploreResultInputIr::Sources => ResultViewInputKind::Source,
-            ExploreResultInputIr::Selected => ResultViewInputKind::Case,
+            ExploreResultInputIr::Find { .. } => ResultViewInputKind::Case,
             ExploreResultInputIr::MechanismIncidence { .. } => ResultViewInputKind::Incidence,
         };
         let grain = match &view.grain {
@@ -1506,7 +1506,7 @@ mod tests {
         let view = ExploreResultViewIr {
             node_index: 0,
             name: "lowest_tax".to_string(),
-            input: ExploreResultInputIr::Selected,
+            input: ExploreResultInputIr::Find { find_index: 0 },
             grain: ExploreResultGrainIr::GroupAll {
                 span: Span::dummy(),
             },

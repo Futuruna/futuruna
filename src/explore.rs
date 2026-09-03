@@ -155,11 +155,12 @@ pub(crate) use relational_ir::relational_tys_equivalent;
 pub use relational_ir::{
     ExploreAdmissionIr, ExploreAggregateFieldIr, ExploreAggregateReducerIr, ExploreAnalysisNodeIr,
     ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismRequestIr, ExploreMechanismTargetIr,
-    ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr, ExploreResultFieldIr,
-    ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
-    ExploreSourceBindingIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr,
-    ExploreSourceDependencyIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
-    ExploreSuccessorKindIr, ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
+    ExploreNamedFindIr, ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr,
+    ExploreResultFieldIr, ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr,
+    ExploreResultViewIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
+    ExploreSourceBindingRoleIr, ExploreSourceDependencyIr, ExploreSourceProducerRoleIr,
+    ExploreSourceRelationIr, ExploreSuccessorKindIr, ExploreSuccessorRelationIr,
+    EXPLORE_RELATIONAL_IR_VERSION,
 };
 pub(crate) use relational_ir::{
     ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr, ExploreStarterProjectionIr,
@@ -404,9 +405,9 @@ pub use relational_public::{
     ExploreStreamCoverageEntry, ExploreStreamCoverageFieldPathSegment,
     ExploreStreamCoverageGapReason, ExploreStreamCoverageLiteralKind,
     ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject, ExploreStreamEpochOptions,
-    ExploreStreamGroupedResultPreview, ExploreStreamIdentity, ExploreStreamLayer,
-    ExploreStreamLayerStatus, ExploreStreamLifecycle, ExploreStreamMechanismLayer,
-    ExploreStreamMechanismSupportTotals, ExploreStreamMechanismTarget,
+    ExploreStreamFind, ExploreStreamGroupedResultPreview, ExploreStreamIdentity,
+    ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
+    ExploreStreamMechanismLayer, ExploreStreamMechanismSupportTotals, ExploreStreamMechanismTarget,
     ExploreStreamObserverMemoStats, ExploreStreamOuterContainment, ExploreStreamPauseReason,
     ExploreStreamPopulationCounts, ExploreStreamPreparationError, ExploreStreamPreviewLimit,
     ExploreStreamPreviewStatus, ExploreStreamProjectedValue, ExploreStreamPublication,
@@ -4619,8 +4620,10 @@ fn relational_runtime_expression_roots(query: &ExploreQueryIr) -> Vec<&Expr> {
             .iter()
             .map(|admission| &admission.predicate),
     );
-    if let Some(predicate) = query.find.predicate() {
-        expressions.push(predicate);
+    for named_find in query.finds.iter() {
+        if let Some(predicate) = named_find.find.predicate() {
+            expressions.push(predicate);
+        }
     }
     for node in query.analysis.iter() {
         match node {
@@ -6720,11 +6723,13 @@ fn validate_query_replay_callable_identities(
     for admission in &query.admissions {
         check_expression(&admission.predicate, &semantic_case_names, true);
     }
-    match &query.selection {
-        TypedExploreSelection::All { .. } => {}
-        TypedExploreSelection::Matches { predicate, .. }
-        | TypedExploreSelection::Violations { predicate, .. } => {
-            check_expression(predicate, &semantic_case_names, true);
+    for find in &query.finds {
+        match &find.selection {
+            TypedExploreSelection::All { .. } => {}
+            TypedExploreSelection::Matches { predicate, .. }
+            | TypedExploreSelection::Violations { predicate, .. } => {
+                check_expression(predicate, &semantic_case_names, true);
+            }
         }
     }
 
@@ -7221,7 +7226,9 @@ fn lower_result_view(view: &TypedExploreResultView, node_index: usize) -> Explor
         name: view.name.clone(),
         input: match &view.input {
             TypedExploreResultInput::Sources => ExploreResultInputIr::Sources,
-            TypedExploreResultInput::Selected => ExploreResultInputIr::Selected,
+            TypedExploreResultInput::Find { find_index, .. } => ExploreResultInputIr::Find {
+                find_index: *find_index,
+            },
             TypedExploreResultInput::MechanismIncidence {
                 request_node_index, ..
             } => ExploreResultInputIr::MechanismIncidence {
@@ -7356,17 +7363,27 @@ fn elaborate_query(
         },
     };
 
-    let find = match &query.selection {
-        TypedExploreSelection::All { span } => ExploreFindIr::All { span: *span },
-        TypedExploreSelection::Matches { predicate, span } => ExploreFindIr::Matches {
-            predicate: predicate.clone(),
-            span: *span,
-        },
-        TypedExploreSelection::Violations { predicate, span } => ExploreFindIr::Violations {
-            predicate: predicate.clone(),
-            span: *span,
-        },
-    };
+    let finds = query
+        .finds
+        .iter()
+        .map(|named_find| ExploreNamedFindIr {
+            name: named_find.name.clone(),
+            find: match &named_find.selection {
+                TypedExploreSelection::All { span } => ExploreFindIr::All { span: *span },
+                TypedExploreSelection::Matches { predicate, span } => ExploreFindIr::Matches {
+                    predicate: predicate.clone(),
+                    span: *span,
+                },
+                TypedExploreSelection::Violations { predicate, span } => {
+                    ExploreFindIr::Violations {
+                        predicate: predicate.clone(),
+                        span: *span,
+                    }
+                }
+            },
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
 
     let mut analysis = Vec::with_capacity(query.analysis.len());
     for (node_index, node) in query.analysis.iter().enumerate() {
@@ -7376,8 +7393,10 @@ fn elaborate_query(
             }
             TypedExploreAnalysisNode::Mechanisms(request) => {
                 let target = match &request.target {
-                    TypedExploreMechanismTarget::SelectedCases => {
-                        ExploreMechanismTargetIr::SelectedCases
+                    TypedExploreMechanismTarget::FindCases { find_index, .. } => {
+                        ExploreMechanismTargetIr::Find {
+                            find_index: *find_index,
+                        }
                     }
                     TypedExploreMechanismTarget::ViewChosen {
                         view_node_index, ..
@@ -7427,7 +7446,7 @@ fn elaborate_query(
             })
             .collect::<Vec<_>>()
             .into_boxed_slice(),
-        find,
+        finds,
         analysis: analysis.into_boxed_slice(),
         observation_demands: query
             .observation_demands
@@ -8461,7 +8480,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find payload_cases = all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8560,7 +8579,7 @@ mod tests {
         given context = ()
     }
     transition after = before + 1
-    find all
+    find dependent_cases = all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8646,7 +8665,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find generic_cases = all
 }
 "#;
         let artifacts = artifacts(source);
@@ -8704,7 +8723,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#,
                 "FilingStatus.Paper.copies",
@@ -8719,7 +8738,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#,
                 "multiple declarations",
@@ -8736,7 +8755,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#,
                 "rule scope",
@@ -8751,7 +8770,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#,
                 "declared type",
@@ -8766,7 +8785,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#,
                 "already initialized declaration prefix",
@@ -8801,7 +8820,7 @@ mod tests {
         given context = ()
     }
     transition after = helper(before)
-    find matches of eligible(after)
+    find eligible_cases = matches of eligible(after)
 }
 "#;
         let ambiguous_artifacts = artifacts(ambiguous);
@@ -8833,7 +8852,10 @@ mod tests {
                 .collect::<Vec<_>>(),
             ["seed"]
         );
-        assert!(matches!(&query.find, ExploreFindIr::Matches { .. }));
+        assert!(matches!(
+            &query.finds[0].find,
+            ExploreFindIr::Matches { .. }
+        ));
     }
 
     fn ground_binding_value(source: &str, binding: &str) -> Result<ExploreValue, String> {
@@ -9008,7 +9030,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find imported_cases = all
 }
 "#;
         let artifacts = artifacts_with_dir(source, &directory);
@@ -9052,7 +9074,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#;
         let artifacts = artifacts_with_dir(capture, &directory);
@@ -9079,7 +9101,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find invalid_cases = all
 }
 "#;
         let artifacts = artifacts(invalid_members);

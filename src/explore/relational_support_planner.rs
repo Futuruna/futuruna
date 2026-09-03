@@ -49,7 +49,7 @@ use crate::{
     CheckedExploreSourceProjectionEndpoint, ExploreAdmissionScope, Expr, ExprKind, Literal,
 };
 
-pub(crate) const RELATIONAL_SUPPORT_PLANNER_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_SUPPORT_PLANNER_VERSION: u32 = 3;
 pub(crate) const RELATIONAL_SUPPORT_MATERIALIZER_ABI_VERSION: u32 = 1;
 
 const BINDING_STAGE_ID_V1: &[u8] = b"futuruna.explore.relational-support.binding-stage.v1";
@@ -68,7 +68,7 @@ const COMPOSED_SINGLETON_SUCCESSOR_MATERIALIZER_V1: &[u8] =
     b"futuruna.explore.relational-support.composed-singleton-successor-materializer.v1";
 const CASE_IMAGE_MATERIALIZER_V1: &[u8] =
     b"futuruna.explore.relational-support.case-image-materializer.v1";
-const SUPPORT_PLAN_ROOT_V1: &[u8] = b"futuruna.explore.relational-support.plan-root.v1";
+const SUPPORT_PLAN_ROOT_V2: &[u8] = b"futuruna.explore.relational-support.plan-root.v2";
 const CASE_IMAGE_INJECTIVITY_CERTIFICATE_V1: &[u8] =
     b"futuruna.explore.relational-support.case-image-injectivity-certificate.v1";
 const CASE_IMAGE_INJECTIVITY_PROOF_V1: &[u8] =
@@ -997,7 +997,7 @@ impl RelationalUniformAdmissionProofRecipe {
 struct RelationalSupportPlanPayload {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
     uniform_admission_proof: RelationalUniformAdmissionProofRecipe,
     stages: Box<[RelationalBindingStage]>,
     source_assignments: RelationalPlannedPopulation,
@@ -1020,7 +1020,7 @@ impl RelationalSupportPlan {
     pub(super) fn restore_from_journal_codec(
         relation_id: RelationId,
         admission_id: AdmissionId,
-        question_id: QuestionId,
+        question_ids: Box<[QuestionId]>,
         uniform_admission_proof: RelationalUniformAdmissionProofRecipe,
         stages: Box<[RelationalBindingStage]>,
         source_assignments: RelationalPlannedPopulation,
@@ -1043,6 +1043,7 @@ impl RelationalSupportPlan {
             || source_rows.kind() != RelationalSupportPopulationKind::SourceRows
             || successor_coordinates.kind() != RelationalSupportPopulationKind::SuccessorCoordinates
             || cases.kind() != RelationalSupportPopulationKind::Cases
+            || question_ids.windows(2).any(|pair| pair[0] >= pair[1])
             || matches!(
                 &root_obligations,
                 RelationalRootObligationPlan::ResolvedExactEmpty {
@@ -1061,6 +1062,7 @@ impl RelationalSupportPlan {
             &stages,
             source_image_projection.as_ref(),
         )?;
+        validate_root_question_descriptors(&root_obligations, &question_ids)?;
         let cell_catalog = build_cell_catalog(
             &stages,
             [
@@ -1074,7 +1076,7 @@ impl RelationalSupportPlan {
         Ok(Self::from_payload(RelationalSupportPlanPayload {
             relation_id,
             admission_id,
-            question_id,
+            question_ids,
             uniform_admission_proof,
             stages,
             source_assignments,
@@ -1104,8 +1106,8 @@ impl RelationalSupportPlan {
         self.payload.admission_id
     }
 
-    pub(crate) const fn question_id(&self) -> QuestionId {
-        self.payload.question_id
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        &self.payload.question_ids
     }
 
     pub(crate) const fn uniform_admission_proof(&self) -> &RelationalUniformAdmissionProofRecipe {
@@ -1166,6 +1168,30 @@ impl RelationalSupportPlan {
     ) -> Option<&CheckedExploreSourceImageProjectionCertificate> {
         self.payload.source_image_projection.as_ref()
     }
+}
+
+fn validate_root_question_descriptors(
+    root_obligations: &RelationalRootObligationPlan,
+    question_ids: &[QuestionId],
+) -> Result<(), RelationalSupportPlannerError> {
+    let RelationalRootObligationPlan::CellBacked { descriptors, .. } = root_obligations else {
+        return Ok(());
+    };
+    let descriptor_questions = descriptors
+        .iter()
+        .filter_map(|descriptor| match descriptor {
+            RelationalStagedObligationDescriptor::SelectionOnAdmitted { question_id, .. } => {
+                Some(*question_id)
+            }
+            RelationalStagedObligationDescriptor::Root { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    if descriptor_questions != question_ids {
+        return Err(RelationalSupportPlannerError::PlanInvariant(
+            "support-plan FIND obligations do not match its canonical question set",
+        ));
+    }
+    Ok(())
 }
 
 /// Whether canonical source assignments can be recovered from the resulting
@@ -2271,7 +2297,7 @@ fn validate_restored_stages(
 }
 
 fn derive_support_plan_root(payload: &RelationalSupportPlanPayload) -> RelationalSupportPlanRoot {
-    let mut hasher = CanonicalPlannerHasher::new(SUPPORT_PLAN_ROOT_V1);
+    let mut hasher = CanonicalPlannerHasher::new(SUPPORT_PLAN_ROOT_V2);
     hasher.u32(RELATIONAL_SUPPORT_PLANNER_VERSION);
     hasher.u32(RELATIONAL_SUPPORT_MATERIALIZER_ABI_VERSION);
 
@@ -2280,13 +2306,15 @@ fn derive_support_plan_root(payload: &RelationalSupportPlanPayload) -> Relationa
     hasher.u8(0x02);
     hasher.digest(payload.admission_id.bytes());
     hasher.u8(0x03);
-    hasher.digest(payload.question_id.bytes());
+    hasher.u128(payload.question_ids.len() as u128);
+    for question_id in &payload.question_ids {
+        hasher.digest(question_id.bytes());
+    }
 
     hash_coverage_qualifier(&mut hasher, &payload.coverage);
 
-    // Keep legacy plan roots byte-for-byte stable when no checked projection
-    // proof exists. A supported certificate introduces its own tagged,
-    // versioned extension to the root preimage.
+    // A supported projection certificate introduces its own tagged extension
+    // to the already versioned plural-question root preimage.
     if let Some(certificate) = &payload.source_image_projection {
         hasher.u8(0x06);
         hash_source_image_projection_certificate(&mut hasher, certificate);
@@ -2695,7 +2723,7 @@ fn hash_obligation_activation(
 pub(crate) struct RelationalSupportPlanner<'a> {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: &'a [QuestionId],
     query: &'a ExploreQueryIr,
     coverage: &'a CheckedExploreSourceCoverageManifest,
     source_image_projection: Option<&'a CheckedExploreSourceImageProjectionCertificate>,
@@ -2718,7 +2746,7 @@ impl<'a> RelationalSupportPlanner<'a> {
         Ok(Self {
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
-            question_id: checked.question_id(),
+            question_ids: checked.question_ids(),
             query: checked.closed_query,
             coverage: checked.source_coverage(),
             source_image_projection: checked.source_image_projection(),
@@ -3223,13 +3251,17 @@ impl<'a> RelationalSupportPlanner<'a> {
                         activation: RelationalObligationActivation::RootCasePopulation,
                         obligation: admission,
                     },
+                ]
+                .into_iter()
+                .chain(self.question_ids.iter().copied().map(|question_id| {
                     RelationalStagedObligationDescriptor::SelectionOnAdmitted {
                         activation: RelationalObligationActivation::AdmissionDecision(
                             AdmissionDecision::Admitted,
                         ),
-                        question_id: self.question_id,
-                    },
-                ]
+                        question_id,
+                    }
+                }))
+                .collect::<Vec<_>>()
                 .into_boxed_slice(),
             }
         } else {
@@ -3252,7 +3284,7 @@ impl<'a> RelationalSupportPlanner<'a> {
             RelationalSupportPlanPayload {
                 relation_id: self.relation_id,
                 admission_id: self.admission_id,
-                question_id: self.question_id,
+                question_ids: self.question_ids.to_vec().into_boxed_slice(),
                 uniform_admission_proof,
                 stages: stages.into_boxed_slice(),
                 source_assignments,
@@ -4415,7 +4447,7 @@ mod tests {
         RelationalSupportPlanPayload {
             relation_id,
             admission_id,
-            question_id,
+            question_ids: vec![question_id].into_boxed_slice(),
             uniform_admission_proof: RelationalUniformAdmissionProofRecipe::Unsupported,
             stages: stages.into_boxed_slice(),
             source_assignments: exact_empty_population(

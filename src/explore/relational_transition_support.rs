@@ -1,7 +1,7 @@
 //! Canonical layered semantic-transition support retained by the journal.
 //!
 //! Relation discovery creates the universe layer `U`; admitted classifications
-//! add `D`; selected FIND classifications add `M`.  The index stores only
+//! add `D`; each named FIND classification adds its own `M(question)`. The index stores only
 //! semantic identities, source/successor coordinates and collision witnesses.
 //! The coordinates authenticate each support member's route back to its
 //! relation-scoped `(Context, Before)` starter and per-starter After fiber.
@@ -25,15 +25,15 @@ use super::authenticated_treap::{
     AuthenticatedTreapError, AuthenticatedTreapMap, AuthenticatedTreapValue,
 };
 use super::relation::{
-    AdmissionDecision, RelationCatalogBuilder, RelationalCaseId, SelectionDecision, SourceKey,
-    SourceRow, SuccessorKey, SuccessorRow,
+    AdmissionDecision, QuestionId, RelationCatalogBuilder, RelationalCaseId, SelectionDecision,
+    SourceKey, SourceRow, SuccessorKey, SuccessorRow,
 };
 use super::transition::{
     canonical_explore_value_digest, ContextSchemaId, StateId, StateSchemaId, TransitionId,
     TransitionTypeId,
 };
 
-pub(crate) const RELATIONAL_TRANSITION_SUPPORT_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_TRANSITION_SUPPORT_VERSION: u32 = 2;
 
 const STATE_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.states.v1";
 const TRANSITION_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.transitions.v1";
@@ -41,12 +41,12 @@ const UNIVERSE_SUPPORT_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.univer
 const ADMITTED_TRANSITION_TREE_DOMAIN: &[u8] =
     b"futuruna.transition-support.admitted-transitions.v1";
 const ADMITTED_SUPPORT_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.admitted.v1";
-const MATCHED_TRANSITION_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.matched-transitions.v1";
-const MATCHED_SUPPORT_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.matched.v1";
-const ROOT_DOMAIN: &[u8] = b"futuruna.transition-support.root.v1";
+const MATCHED_TRANSITION_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.matched-transitions.v2";
+const MATCHED_SUPPORT_TREE_DOMAIN: &[u8] = b"futuruna.transition-support.matched.v2";
+const ROOT_DOMAIN: &[u8] = b"futuruna.transition-support.root.v2";
 const STATE_MEMBER_DOMAIN: &[u8] = b"futuruna.transition-support.state-member.v1";
 const TRANSITION_MEMBER_DOMAIN: &[u8] = b"futuruna.transition-support.transition-member.v1";
-const SUPPORT_MEMBER_DOMAIN: &[u8] = b"futuruna.transition-support.support-member.v1";
+const SUPPORT_MEMBER_DOMAIN: &[u8] = b"futuruna.transition-support.support-member.v2";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalTransitionSupportRoot([u8; 32]);
@@ -61,7 +61,7 @@ impl RelationalTransitionSupportRoot {
 pub(crate) enum RelationalTransitionLayer {
     Universe,
     Admitted,
-    Matched,
+    Matched(QuestionId),
 }
 
 impl RelationalTransitionLayer {
@@ -69,41 +69,72 @@ impl RelationalTransitionLayer {
         match self {
             Self::Universe => 1,
             Self::Admitted => 2,
-            Self::Matched => 3,
+            Self::Matched(_) => 3,
         }
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalTransitionSupportCounts {
     states: u128,
     universe_cases: u128,
     universe_transitions: u128,
     admitted_cases: u128,
     admitted_transitions: u128,
-    matched_cases: u128,
-    matched_transitions: u128,
+    matched: BTreeMap<QuestionId, RelationalMatchedTransitionSupportCounts>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalMatchedTransitionSupportCounts {
+    cases: u128,
+    transitions: u128,
+}
+
+impl RelationalMatchedTransitionSupportCounts {
+    pub(crate) const fn cases(self) -> u128 {
+        self.cases
+    }
+
+    pub(crate) const fn transitions(self) -> u128 {
+        self.transitions
+    }
 }
 
 impl RelationalTransitionSupportCounts {
-    pub(crate) const fn states(self) -> u128 {
+    pub(crate) const fn states(&self) -> u128 {
         self.states
     }
 
-    pub(crate) const fn cases(self, layer: RelationalTransitionLayer) -> u128 {
+    /// Return the exact case count for a registered semantic layer. An
+    /// unregistered QuestionId is never interpreted as an empty result.
+    pub(crate) fn cases(&self, layer: RelationalTransitionLayer) -> Option<u128> {
         match layer {
-            RelationalTransitionLayer::Universe => self.universe_cases,
-            RelationalTransitionLayer::Admitted => self.admitted_cases,
-            RelationalTransitionLayer::Matched => self.matched_cases,
+            RelationalTransitionLayer::Universe => Some(self.universe_cases),
+            RelationalTransitionLayer::Admitted => Some(self.admitted_cases),
+            RelationalTransitionLayer::Matched(question_id) => {
+                self.matched.get(&question_id).map(|counts| counts.cases)
+            }
         }
     }
 
-    pub(crate) const fn transitions(self, layer: RelationalTransitionLayer) -> u128 {
+    pub(crate) fn transitions(&self, layer: RelationalTransitionLayer) -> Option<u128> {
         match layer {
-            RelationalTransitionLayer::Universe => self.universe_transitions,
-            RelationalTransitionLayer::Admitted => self.admitted_transitions,
-            RelationalTransitionLayer::Matched => self.matched_transitions,
+            RelationalTransitionLayer::Universe => Some(self.universe_transitions),
+            RelationalTransitionLayer::Admitted => Some(self.admitted_transitions),
+            RelationalTransitionLayer::Matched(question_id) => self
+                .matched
+                .get(&question_id)
+                .map(|counts| counts.transitions),
         }
+    }
+
+    pub(crate) fn matched(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (QuestionId, RelationalMatchedTransitionSupportCounts)> + '_
+    {
+        self.matched
+            .iter()
+            .map(|(question_id, counts)| (*question_id, *counts))
     }
 }
 
@@ -190,6 +221,21 @@ struct CaseTransition {
 }
 
 #[derive(Clone, Debug)]
+struct MatchedTransitionSupport {
+    transition_tree: AuthenticatedTreapMap,
+    support_tree: AuthenticatedTreapMap,
+}
+
+impl MatchedTransitionSupport {
+    fn new() -> Self {
+        Self {
+            transition_tree: AuthenticatedTreapMap::new(MATCHED_TRANSITION_TREE_DOMAIN),
+            support_tree: AuthenticatedTreapMap::new(MATCHED_SUPPORT_TREE_DOMAIN),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub(crate) struct PreparedUniverseTransition {
     case_id: RelationalCaseId,
     source_key: SourceKey,
@@ -229,8 +275,7 @@ pub(crate) struct RelationalTransitionSupportIndex {
     universe_support_tree: AuthenticatedTreapMap,
     admitted_transition_tree: AuthenticatedTreapMap,
     admitted_support_tree: AuthenticatedTreapMap,
-    matched_transition_tree: AuthenticatedTreapMap,
-    matched_support_tree: AuthenticatedTreapMap,
+    matched: BTreeMap<QuestionId, MatchedTransitionSupport>,
 }
 
 impl RelationalTransitionSupportIndex {
@@ -251,9 +296,25 @@ impl RelationalTransitionSupportIndex {
             universe_support_tree: AuthenticatedTreapMap::new(UNIVERSE_SUPPORT_TREE_DOMAIN),
             admitted_transition_tree: AuthenticatedTreapMap::new(ADMITTED_TRANSITION_TREE_DOMAIN),
             admitted_support_tree: AuthenticatedTreapMap::new(ADMITTED_SUPPORT_TREE_DOMAIN),
-            matched_transition_tree: AuthenticatedTreapMap::new(MATCHED_TRANSITION_TREE_DOMAIN),
-            matched_support_tree: AuthenticatedTreapMap::new(MATCHED_SUPPORT_TREE_DOMAIN),
+            matched: BTreeMap::new(),
         }
+    }
+
+    /// Register one question-scoped matched layer before classifications are
+    /// accepted. Registration is idempotent and an empty layer remains part
+    /// of the authenticated root, so an unknown question can never masquerade
+    /// as a known question with zero matches.
+    pub(crate) fn register_question(&mut self, question_id: QuestionId) -> bool {
+        if self.matched.contains_key(&question_id) {
+            return false;
+        }
+        self.matched
+            .insert(question_id, MatchedTransitionSupport::new());
+        true
+    }
+
+    pub(crate) fn contains_question(&self, question_id: QuestionId) -> bool {
+        self.matched.contains_key(&question_id)
     }
 
     pub(crate) const fn state_schema_id(&self) -> StateSchemaId {
@@ -275,8 +336,19 @@ impl RelationalTransitionSupportIndex {
             universe_transitions: self.transition_tree.entry_count(),
             admitted_cases: self.admitted_support_tree.entry_count(),
             admitted_transitions: self.admitted_transition_tree.entry_count(),
-            matched_cases: self.matched_support_tree.entry_count(),
-            matched_transitions: self.matched_transition_tree.entry_count(),
+            matched: self
+                .matched
+                .iter()
+                .map(|(question_id, support)| {
+                    (
+                        *question_id,
+                        RelationalMatchedTransitionSupportCounts {
+                            cases: support.support_tree.entry_count(),
+                            transitions: support.transition_tree.entry_count(),
+                        },
+                    )
+                })
+                .collect(),
         }
     }
 
@@ -293,15 +365,23 @@ impl RelationalTransitionSupportIndex {
         hash_tree(&mut hasher, &self.universe_support_tree);
         hash_tree(&mut hasher, &self.admitted_transition_tree);
         hash_tree(&mut hasher, &self.admitted_support_tree);
-        hash_tree(&mut hasher, &self.matched_transition_tree);
-        hash_tree(&mut hasher, &self.matched_support_tree);
+        hasher.update((self.matched.len() as u64).to_be_bytes());
+        for (question_id, support) in &self.matched {
+            hasher.update(question_id.bytes());
+            hash_tree(&mut hasher, &support.transition_tree);
+            hash_tree(&mut hasher, &support.support_tree);
+        }
         hasher.update(counts.states.to_be_bytes());
         hasher.update(counts.universe_cases.to_be_bytes());
         hasher.update(counts.universe_transitions.to_be_bytes());
         hasher.update(counts.admitted_cases.to_be_bytes());
         hasher.update(counts.admitted_transitions.to_be_bytes());
-        hasher.update(counts.matched_cases.to_be_bytes());
-        hasher.update(counts.matched_transitions.to_be_bytes());
+        hasher.update((counts.matched.len() as u64).to_be_bytes());
+        for (question_id, counts) in &counts.matched {
+            hasher.update(question_id.bytes());
+            hasher.update(counts.cases.to_be_bytes());
+            hasher.update(counts.transitions.to_be_bytes());
+        }
         RelationalTransitionSupportRoot(hasher.finalize().into())
     }
 
@@ -518,9 +598,13 @@ impl RelationalTransitionSupportIndex {
 
     pub(crate) fn preflight_question(
         &self,
+        question_id: QuestionId,
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     ) -> Result<PreparedTransitionClassification, RelationalTransitionSupportError> {
+        if !self.contains_question(question_id) {
+            return Err(RelationalTransitionSupportError::UnknownQuestion { question_id });
+        }
         if self
             .admitted_support_tree
             .get(&self.support_key_for_case(case_id)?)?
@@ -529,7 +613,7 @@ impl RelationalTransitionSupportIndex {
             return Err(RelationalTransitionSupportError::LayerInvariant { case_id });
         }
         self.preflight_layer(
-            RelationalTransitionLayer::Matched,
+            RelationalTransitionLayer::Matched(question_id),
             case_id,
             decision == SelectionDecision::Selected,
         )
@@ -547,9 +631,9 @@ impl RelationalTransitionSupportIndex {
             .ok_or(RelationalTransitionSupportError::UnknownCase { case_id })?;
         let transition_id = case.transition_id;
         let key = support_key(transition_id, case_id);
-        let support = self.support_tree(layer).get(&key)?.is_some();
+        let support = self.support_tree(layer)?.get(&key)?.is_some();
         let transition_support = self
-            .support_transition_tree(layer)
+            .support_transition_tree(layer)?
             .get(&transition_id.bytes())?
             .is_some();
         if support != transition_support {
@@ -570,9 +654,9 @@ impl RelationalTransitionSupportIndex {
                 transition_member_digest(transition_id, node.before_state_id, node.after_state_id),
                 1,
             );
-            let mut transition_tree = self.support_transition_tree(layer).clone();
+            let mut transition_tree = self.support_transition_tree(layer)?.clone();
             transition_tree.insert(transition_id.bytes().to_vec(), transition_value)?;
-            let mut support_tree = self.support_tree(layer).clone();
+            let mut support_tree = self.support_tree(layer)?.clone();
             support_tree.insert(
                 key,
                 AuthenticatedTreapValue::new(
@@ -621,9 +705,13 @@ impl RelationalTransitionSupportIndex {
                 self.admitted_transition_tree = transition_tree;
                 self.admitted_support_tree = support_tree;
             }
-            RelationalTransitionLayer::Matched => {
-                self.matched_transition_tree = transition_tree;
-                self.matched_support_tree = support_tree;
+            RelationalTransitionLayer::Matched(question_id) => {
+                let support = self
+                    .matched
+                    .get_mut(&question_id)
+                    .expect("a prepared matched classification names a registered question");
+                support.transition_tree = transition_tree;
+                support.support_tree = support_tree;
             }
         }
         true
@@ -663,7 +751,7 @@ impl RelationalTransitionSupportIndex {
         layer: RelationalTransitionLayer,
         ordinal: u128,
     ) -> Result<Option<RelationalTransitionCaseSupport>, RelationalTransitionSupportError> {
-        let Some((key, _)) = self.support_tree(layer).entry_at_ordinal(ordinal)? else {
+        let Some((key, _)) = self.support_tree(layer)?.entry_at_ordinal(ordinal)? else {
             return Ok(None);
         };
         if key.len() != 64 {
@@ -714,20 +802,38 @@ impl RelationalTransitionSupportIndex {
         Ok(support_key(transition_id, case_id))
     }
 
-    fn support_tree(&self, layer: RelationalTransitionLayer) -> &AuthenticatedTreapMap {
-        match layer {
+    fn support_tree(
+        &self,
+        layer: RelationalTransitionLayer,
+    ) -> Result<&AuthenticatedTreapMap, RelationalTransitionSupportError> {
+        Ok(match layer {
             RelationalTransitionLayer::Universe => &self.universe_support_tree,
             RelationalTransitionLayer::Admitted => &self.admitted_support_tree,
-            RelationalTransitionLayer::Matched => &self.matched_support_tree,
-        }
+            RelationalTransitionLayer::Matched(question_id) => {
+                &self
+                    .matched
+                    .get(&question_id)
+                    .ok_or(RelationalTransitionSupportError::UnknownQuestion { question_id })?
+                    .support_tree
+            }
+        })
     }
 
-    fn support_transition_tree(&self, layer: RelationalTransitionLayer) -> &AuthenticatedTreapMap {
-        match layer {
+    fn support_transition_tree(
+        &self,
+        layer: RelationalTransitionLayer,
+    ) -> Result<&AuthenticatedTreapMap, RelationalTransitionSupportError> {
+        Ok(match layer {
             RelationalTransitionLayer::Universe => &self.transition_tree,
             RelationalTransitionLayer::Admitted => &self.admitted_transition_tree,
-            RelationalTransitionLayer::Matched => &self.matched_transition_tree,
-        }
+            RelationalTransitionLayer::Matched(question_id) => {
+                &self
+                    .matched
+                    .get(&question_id)
+                    .ok_or(RelationalTransitionSupportError::UnknownQuestion { question_id })?
+                    .transition_tree
+            }
+        })
     }
 }
 
@@ -768,6 +874,9 @@ fn support_member_digest(
     let mut hasher = Sha256::new();
     hasher.update(SUPPORT_MEMBER_DOMAIN);
     hasher.update([layer.canonical_tag()]);
+    if let RelationalTransitionLayer::Matched(question_id) = layer {
+        hasher.update(question_id.bytes());
+    }
     hasher.update(transition_id.bytes());
     hasher.update(case_id.bytes());
     hasher.update(source_key.bytes());
@@ -790,6 +899,9 @@ fn array32(bytes: &[u8]) -> [u8; 32] {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalTransitionSupportError {
+    UnknownQuestion {
+        question_id: QuestionId,
+    },
     UnknownCase {
         case_id: RelationalCaseId,
     },
@@ -824,6 +936,10 @@ pub(crate) enum RelationalTransitionSupportError {
 impl fmt::Display for RelationalTransitionSupportError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::UnknownQuestion { question_id } => write!(
+                formatter,
+                "semantic transition matched layer for question {question_id:?} is unknown"
+            ),
             Self::UnknownCase { case_id } => {
                 write!(formatter, "semantic transition case {case_id:?} is unknown")
             }
@@ -904,6 +1020,8 @@ mod tests {
             ContextSchemaId::from_bytes([43; 32]),
             TransitionTypeId::from_bytes([44; 32]),
         );
+        let question_id = QuestionId::from_journal_codec_bytes([45; 32]);
+        assert!(support.register_question(question_id));
         let rows = [
             (10, 100, 100, AdmissionDecision::Rejected, None),
             (
@@ -968,7 +1086,9 @@ mod tests {
                 .unwrap();
             support.commit_classification(admission);
             if let Some(decision) = case.question {
-                let question = support.preflight_question(case.case_id, decision).unwrap();
+                let question = support
+                    .preflight_question(question_id, case.case_id, decision)
+                    .unwrap();
                 support.commit_classification(question);
             }
         }
@@ -983,23 +1103,36 @@ mod tests {
         assert_eq!(forward.counts(), reverse.counts());
 
         let counts = forward.counts();
+        let question_id = QuestionId::from_journal_codec_bytes([45; 32]);
         assert_eq!(
             counts.states(),
             5,
             "the self-edge interns one role-neutral state"
         );
-        assert_eq!(counts.cases(RelationalTransitionLayer::Universe), 3);
-        assert_eq!(counts.transitions(RelationalTransitionLayer::Universe), 3);
-        assert_eq!(counts.cases(RelationalTransitionLayer::Admitted), 2);
-        assert_eq!(counts.transitions(RelationalTransitionLayer::Admitted), 2);
-        assert_eq!(counts.cases(RelationalTransitionLayer::Matched), 1);
-        assert_eq!(counts.transitions(RelationalTransitionLayer::Matched), 1);
+        assert_eq!(counts.cases(RelationalTransitionLayer::Universe), Some(3));
+        assert_eq!(
+            counts.transitions(RelationalTransitionLayer::Universe),
+            Some(3)
+        );
+        assert_eq!(counts.cases(RelationalTransitionLayer::Admitted), Some(2));
+        assert_eq!(
+            counts.transitions(RelationalTransitionLayer::Admitted),
+            Some(2)
+        );
+        assert_eq!(
+            counts.cases(RelationalTransitionLayer::Matched(question_id)),
+            Some(1)
+        );
+        assert_eq!(
+            counts.transitions(RelationalTransitionLayer::Matched(question_id)),
+            Some(1)
+        );
 
         let expected_universe = cases
             .iter()
             .map(|case| (case.case_id, case.source_key, case.successor_key))
             .collect::<BTreeSet<_>>();
-        let actual_universe = (0..counts.cases(RelationalTransitionLayer::Universe))
+        let actual_universe = (0..counts.cases(RelationalTransitionLayer::Universe).unwrap())
             .map(|ordinal| {
                 let row = forward
                     .support_at_ordinal(RelationalTransitionLayer::Universe, ordinal)
@@ -1013,7 +1146,7 @@ mod tests {
         let rejected = cases[0];
         let nonmatch = cases[1];
         let selected = cases[2];
-        let admitted_cases = (0..counts.cases(RelationalTransitionLayer::Admitted))
+        let admitted_cases = (0..counts.cases(RelationalTransitionLayer::Admitted).unwrap())
             .map(|ordinal| {
                 forward
                     .support_at_ordinal(RelationalTransitionLayer::Admitted, ordinal)
@@ -1027,7 +1160,7 @@ mod tests {
         assert!(admitted_cases.contains(&selected.case_id));
         assert_eq!(
             forward
-                .support_at_ordinal(RelationalTransitionLayer::Matched, 0)
+                .support_at_ordinal(RelationalTransitionLayer::Matched(question_id), 0)
                 .unwrap()
                 .unwrap()
                 .case_id(),
@@ -1064,9 +1197,50 @@ mod tests {
         assert_eq!(support.root(), before);
 
         assert!(matches!(
-            support.preflight_question(cases[2].case_id, SelectionDecision::NotSelected),
+            support.preflight_question(
+                QuestionId::from_journal_codec_bytes([45; 32]),
+                cases[2].case_id,
+                SelectionDecision::NotSelected,
+            ),
             Err(RelationalTransitionSupportError::ClassificationConflict { .. })
         ));
         assert_eq!(support.root(), before);
+    }
+
+    #[test]
+    fn matched_support_is_question_scoped_and_foreign_questions_fail_closed() {
+        let (mut support, cases) = build_index(&[0, 1, 2]);
+        let first = QuestionId::from_journal_codec_bytes([45; 32]);
+        let second = QuestionId::from_journal_codec_bytes([46; 32]);
+        let foreign = QuestionId::from_journal_codec_bytes([47; 32]);
+        assert!(support.register_question(second));
+
+        let prepared = support
+            .preflight_question(second, cases[1].case_id, SelectionDecision::Selected)
+            .unwrap();
+        assert!(support.commit_classification(prepared));
+
+        let counts = support.counts();
+        assert_eq!(
+            counts.cases(RelationalTransitionLayer::Matched(first)),
+            Some(1)
+        );
+        assert_eq!(
+            counts.cases(RelationalTransitionLayer::Matched(second)),
+            Some(1)
+        );
+        assert_eq!(
+            counts.cases(RelationalTransitionLayer::Matched(foreign)),
+            None
+        );
+        assert!(matches!(
+            support.preflight_question(
+                foreign,
+                cases[1].case_id,
+                SelectionDecision::Selected,
+            ),
+            Err(RelationalTransitionSupportError::UnknownQuestion { question_id })
+                if question_id == foreign
+        ));
     }
 }

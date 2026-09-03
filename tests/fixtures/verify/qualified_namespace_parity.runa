@@ -47,8 +47,8 @@
         given context = ()
     }
     transition after = qualified_transitive_target(before)
-    find all
-    results qualified_namespace_transitive_cases from selected {
+    find all_cases = all
+    results qualified_namespace_transitive_cases from find all_cases {
         each case
         measure [score = after]
         select [before, score]

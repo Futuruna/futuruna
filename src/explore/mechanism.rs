@@ -33,7 +33,7 @@ const MECHANISM_SITE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-site.v2";
 const MECHANISM_OCCURRENCE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-occurrence.v2";
 const MECHANISM_SIGNATURE_HASH_V2: &[u8] = b"futuruna.explore.mechanism-signature.v2";
 const CHECKED_MECHANISM_REQUEST_HASH_V1: &[u8] = b"futuruna.explore.checked-mechanism-request.v1";
-const MECHANISM_CHECKED_QUERY_HASH_V2: &[u8] = b"futuruna.explore.mechanism-checked-query.v2";
+const MECHANISM_CHECKED_QUERY_HASH_V3: &[u8] = b"futuruna.explore.mechanism-checked-query.v3";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct MechanismValidationError(String);
@@ -127,7 +127,7 @@ impl MechanismQueryId {
             "checked Explore analysis-graph identity",
         )?;
 
-        let mut hasher = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V2);
+        let mut hasher = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V3);
         hasher.segment(
             checked
                 .artifact
@@ -138,7 +138,10 @@ impl MechanismQueryId {
         );
         hasher.segment(&checked.relation_id().bytes());
         hasher.segment(&checked.admission_id().bytes());
-        hasher.segment(&checked.question_id().bytes());
+        hasher.segment(&(checked.question_ids().len() as u64).to_be_bytes());
+        for question_id in checked.question_ids() {
+            hasher.segment(&question_id.bytes());
+        }
         hasher.segment(checked.analysis_graph_hash().as_bytes());
         Ok(Self(hasher.digest()))
     }
@@ -3481,7 +3484,7 @@ mod tests {
 
         let identity = MechanismQueryId::from_checked_query(&checked)
             .expect("checked query and domain identities");
-        let mut expected = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V2);
+        let mut expected = StableHasher::new(MECHANISM_CHECKED_QUERY_HASH_V3);
         expected.segment(
             checked
                 .artifact
@@ -3492,7 +3495,10 @@ mod tests {
         );
         expected.segment(&checked.relation_id().bytes());
         expected.segment(&checked.admission_id().bytes());
-        expected.segment(&checked.question_id().bytes());
+        expected.segment(&(checked.question_ids().len() as u64).to_be_bytes());
+        for question_id in checked.question_ids() {
+            expected.segment(&question_id.bytes());
+        }
         expected.segment(checked.analysis_graph_hash().as_bytes());
 
         assert_eq!(identity, MechanismQueryId(expected.digest()));

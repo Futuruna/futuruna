@@ -47,23 +47,34 @@ impl RelationalClassificationProgressCounts {
     pub(crate) fn derive(
         plan: &RelationalSupportPlan,
         support: &SupportEvidenceSnapshot,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedRelationalClassificationCountsError> {
-        Self::derive_from_view(plan, support.classification_view())
+        Self::derive_from_view(plan, support.classification_view(), question_id)
     }
 
     pub(crate) fn derive_from_builder(
         plan: &RelationalSupportPlan,
         support: &SupportEvidenceCatalogBuilder,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedRelationalClassificationCountsError> {
-        Self::derive_from_view(plan, support.classification_view())
+        Self::derive_from_view(plan, support.classification_view(), question_id)
     }
 
     fn derive_from_view(
         plan: &RelationalSupportPlan,
         support: SupportEvidenceClassificationView<'_>,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedRelationalClassificationCountsError> {
         if !plan.validate_root() {
             return Err(CertifiedRelationalClassificationCountsError::InvalidSupportPlanRoot);
+        }
+        let [registered_question_id] = plan.question_ids() else {
+            return Err(CertifiedRelationalClassificationCountsError::UnsupportedQuestionSet);
+        };
+        if *registered_question_id != question_id {
+            return Err(
+                CertifiedRelationalClassificationCountsError::UnknownQuestion { question_id },
+            );
         }
 
         match plan.root_obligations() {
@@ -93,12 +104,7 @@ impl RelationalClassificationProgressCounts {
                         CertifiedRelationalClassificationCountsError::SupportPlanScopeMismatch,
                     );
                 }
-                derive_positive_progress(
-                    *root_cell_id,
-                    plan.admission_id(),
-                    plan.question_id(),
-                    support,
-                )
+                derive_positive_progress(*root_cell_id, plan.admission_id(), question_id, support)
             }
         }
     }
@@ -136,6 +142,7 @@ impl CertifiedRelationalClassificationCounts {
     pub(crate) fn derive(
         plan: &RelationalSupportPlan,
         support: &SupportEvidenceSnapshot,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedRelationalClassificationCountsError> {
         if !support.catalog_is_sealed()
             || !support.support_frontier_is_complete()
@@ -144,7 +151,7 @@ impl CertifiedRelationalClassificationCounts {
             return Err(CertifiedRelationalClassificationCountsError::SupportEvidenceOpen);
         }
 
-        let progress = RelationalClassificationProgressCounts::derive(plan, support)?;
+        let progress = RelationalClassificationProgressCounts::derive(plan, support, question_id)?;
         if !progress.is_complete() || progress.classified() != progress.candidates() {
             return Err(CertifiedRelationalClassificationCountsError::SupportEvidenceOpen);
         }
@@ -545,6 +552,10 @@ fn merge_fact<T: Copy + Eq>(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CertifiedRelationalClassificationCountsError {
     InvalidSupportPlanRoot,
+    UnsupportedQuestionSet,
+    UnknownQuestion {
+        question_id: QuestionId,
+    },
     SupportEvidenceOpen,
     SupportPlanScopeMismatch,
     AmbiguousPartitionTree {
@@ -593,6 +604,13 @@ impl fmt::Display for CertifiedRelationalClassificationCountsError {
             Self::InvalidSupportPlanRoot => {
                 formatter.write_str("classification counts received an invalid support plan")
             }
+            Self::UnsupportedQuestionSet => formatter.write_str(
+                "certified classification-count acceleration requires exactly one semantic question",
+            ),
+            Self::UnknownQuestion { question_id } => write!(
+                formatter,
+                "classification counts requested unregistered question {question_id:?}"
+            ),
             Self::SupportEvidenceOpen => formatter.write_str(
                 "classification counts require closed support, partition, and obligation frontiers",
             ),

@@ -1,10 +1,12 @@
 ----
 Tiny nonempty oracle for the relational Explore stream.
 
-The declared relation has four transitions. Exactly two are selected, and
-both execute the same checked rule/branch path at Before and After. A correct
-run therefore closes with two concrete cases, one replay-derived mechanism,
-and one mechanism-incidence aggregate containing both cases.
+The declared relation has four transitions. One named FIND selects all four;
+another selects exactly two, and those two execute the same checked
+rule/branch path at Before and After. A correct run traverses the four
+endpoints once, closes both question catalogs, and produces one replay-derived
+mechanism plus one mechanism-incidence aggregate containing the two
+interesting cases.
 
 This fixture is intentionally small enough for pause/reopen checks. It is not
 a probe phase and it is not evidence about Personskat. Its source deliberately
@@ -31,21 +33,28 @@ journal restoration honest about transitive finite-dimension dependencies.
     transition after = before + 1
 
     where transition after == before + 1
-    find matches of before == 1 || before == 2
+    find all_cases = all
+    find interesting = matches of before == 1 || before == 2
 
-    results selected_cases from selected {
-        each case
-        measure [increase = after - before]
-        select [case_id, context, before, after, increase]
-    }
-
-    results case_summary from selected {
+    results all_case_summary from find all_cases {
         group all
         aggregate [cases = count_distinct(case_id)]
         select [cases]
     }
 
-    mechanisms paths for selected from relational_smoke_observe
+    results selected_cases from find interesting {
+        each case
+        measure [increase = after - before]
+        select [case_id, context, before, after, increase]
+    }
+
+    results case_summary from find interesting {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+
+    mechanisms paths from find interesting using relational_smoke_observe
 
     results structural_incidences from mechanisms paths {
         each incidence
@@ -67,6 +76,8 @@ journal restoration honest about transitive finite-dimension dependencies.
         ]
         select [mechanisms, execution_profiles, raw_signatures, explained_cases]
     }
+
+    transitions case_graph from all cases
 }
 
 ? explore relational_stream_empty_smoke {
@@ -78,9 +89,9 @@ journal restoration honest about transitive finite-dimension dependencies.
     transition after = before + 1
 
     where transition after == before + 1
-    find matches of before < 0
+    find impossible = matches of before < 0
 
-    results selected_cases_empty from selected {
+    results selected_cases_empty from find impossible {
         each case
         select [case_id, context, before, after]
     }

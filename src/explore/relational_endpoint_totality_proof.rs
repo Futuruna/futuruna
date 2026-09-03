@@ -10758,8 +10758,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_bad_result
+    find all_cases = all
+    mechanisms paths from find all_cases using endpoint_bad_result
 }
 "#;
         let mut lexer = Lexer::new(source);

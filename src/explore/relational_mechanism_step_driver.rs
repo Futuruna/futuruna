@@ -150,7 +150,9 @@ impl RelationalMechanismStepBatch {
 /// selected population.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalMechanismStepQuiescence {
-    AwaitingSelectedQuestion,
+    AwaitingSelectedQuestion {
+        question_id: QuestionId,
+    },
     ReplayPaused {
         request_id: MechanismRequestId,
         case_id: RelationalCaseId,
@@ -172,6 +174,7 @@ pub(crate) enum RelationalMechanismStepOutcome {
 }
 
 struct SelectedMechanismLayer<'ir> {
+    question_id: QuestionId,
     observation: &'ir MechanismObservationIr,
     endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     replay_observation_id: RelationalMechanismReplayObservationId,
@@ -192,7 +195,7 @@ struct SelectedMechanismDiscoveryCursor {
 pub(crate) struct RelationalMechanismStepDriver<'query> {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     transition_schemas: &'query TransitionSchemaIdentities,
     selected: BTreeMap<MechanismRequestId, SelectedMechanismLayer<'query>>,
@@ -253,7 +256,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             );
         }
         let plan = RelationalAnalysisPlan::from_checked(checked)?;
-        if plan.question_id() != checked.question_id() {
+        if plan.question_ids() != checked.question_ids() {
             return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
         }
 
@@ -299,16 +302,17 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 RelationalMechanismReplayObservationId::derive_checked(observation)?;
             match (&request.target, registration.target()) {
                 (
-                    ExploreMechanismTargetIr::SelectedCases,
+                    ExploreMechanismTargetIr::Find { find_index },
                     RelationalResolvedMechanismTarget::Selected(question_id),
                 ) => {
-                    if question_id != checked.question_id() {
+                    if checked.find_question_ids().get(*find_index) != Some(&question_id) {
                         return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
                     }
                     if selected
                         .insert(
                             *request_id,
                             SelectedMechanismLayer {
+                                question_id,
                                 observation,
                                 endpoint_totality_certificate_id: endpoint_totality
                                     .certificate_id(),
@@ -347,7 +351,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         Ok(Self {
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
-            question_id: checked.question_id(),
+            question_ids: plan.question_ids().to_vec().into_boxed_slice(),
             analysis_plan_root: plan.root(),
             transition_schemas: checked.transition_schemas(),
             selected,
@@ -387,18 +391,6 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 RelationalMechanismStepQuiescence::AnalysisAlreadyClosed,
             ));
         }
-        let question_seal = analysis.selected_question();
-        if let Some(question_seal) = question_seal {
-            question_seal
-                .validate_identity()
-                .map_err(RelationalMechanismStepDriverError::from)?;
-            if question_seal.question_id() != self.question_id {
-                return Err(
-                    RelationalMechanismStepDriverError::SelectedQuestionScopeMismatch.into(),
-                );
-            }
-        }
-
         let catalog = analysis
             .open_catalog()
             .ok_or(RelationalMechanismStepDriverError::AnalysisCatalogMissing)?;
@@ -413,7 +405,14 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         }
 
         let pending_request_id = analysis.pending_mechanism_artifact_request_id();
+        let mut first_awaiting_selected_question = None;
         for (request_id, layer) in &self.selected {
+            let question_seal = analysis.selected_question(layer.question_id);
+            if let Some(question_seal) = question_seal {
+                question_seal
+                    .validate_identity()
+                    .map_err(RelationalMechanismStepDriverError::from)?;
+            }
             if pending_request_id.is_some_and(|pending| pending != *request_id) {
                 continue;
             }
@@ -517,7 +516,12 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                     // letting hash order hide it.
                     if terminal_cases < target_cases
                         && self
-                            .next_unreplayed_selected_target(view, incidence, *request_id)
+                            .next_unreplayed_selected_target(
+                                view,
+                                incidence,
+                                *request_id,
+                                layer.question_id,
+                            )?
                             .is_some()
                     {
                         return self.step_selected_terminal(
@@ -531,7 +535,13 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         );
                     }
                     if let Some(outcome) = self
-                        .step_selected_target(view, incidence, *request_id, question_seal)
+                        .step_selected_target(
+                            view,
+                            incidence,
+                            *request_id,
+                            layer.question_id,
+                            question_seal,
+                        )
                         .map_err(RelationalMechanismStepRunError::from)?
                     {
                         return Ok(outcome);
@@ -546,9 +556,8 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                             .into(),
                         );
                     }
-                    return Ok(RelationalMechanismStepOutcome::Quiescent(
-                        RelationalMechanismStepQuiescence::AwaitingSelectedQuestion,
-                    ));
+                    first_awaiting_selected_question.get_or_insert(layer.question_id);
+                    continue;
                 }
                 RelationalAnalysisLayerStatus::MechanismTerminalOpen => {
                     if !incidence.target_is_sealed() || incidence.frontier_is_complete() {
@@ -613,14 +622,17 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         }
 
         Ok(RelationalMechanismStepOutcome::Quiescent(
-            match self.first_deferred_chosen {
-                Some((request_id, view_id)) => {
+            match (first_awaiting_selected_question, self.first_deferred_chosen) {
+                (Some(question_id), _) => {
+                    RelationalMechanismStepQuiescence::AwaitingSelectedQuestion { question_id }
+                }
+                (None, Some((request_id, view_id))) => {
                     RelationalMechanismStepQuiescence::DeferredChosenView {
                         request_id,
                         view_id,
                     }
                 }
-                None => RelationalMechanismStepQuiescence::SelectedMechanismsComplete,
+                (None, None) => RelationalMechanismStepQuiescence::SelectedMechanismsComplete,
             },
         ))
     }
@@ -717,6 +729,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         view: RelationalSchedulerView<'_>,
         incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
         request_id: MechanismRequestId,
+        question_id: QuestionId,
         question_seal: Option<RelationalSelectedQuestionSeal>,
     ) -> Result<Option<RelationalMechanismStepOutcome>, RelationalMechanismStepDriverError> {
         let durable_cases = incidence.target_case_count() as u128;
@@ -733,7 +746,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             }
         }
 
-        let cases = self.missing_selected_target_chunk(view, incidence, request_id);
+        let cases = self.missing_selected_target_chunk(view, incidence, request_id, question_id)?;
         let pending_cases = cases.len() as u128;
         let projected_cases = durable_cases
             .checked_add(pending_cases)
@@ -788,7 +801,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         let seals_target = false;
         let mut events = Vec::with_capacity(cases.len());
         for case_id in cases {
-            if view.question_decision(case_id) != Some(SelectionDecision::Selected) {
+            if view.question_decision(question_id, case_id)? != Some(SelectionDecision::Selected) {
                 return Err(
                     RelationalMechanismStepDriverError::TargetCaseOutsideSelectedPopulation {
                         request_id,
@@ -819,8 +832,9 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         view: RelationalSchedulerView<'_>,
         incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
         request_id: MechanismRequestId,
-    ) -> Vec<RelationalCaseId> {
-        let selected_count = view.selected_count();
+        question_id: QuestionId,
+    ) -> Result<Vec<RelationalCaseId>, RelationalMechanismStepDriverError> {
+        let selected_count = view.selected_count(question_id)?;
         let mut cursors = self.discovery_cursors.borrow_mut();
         let cursor = cursors.entry(request_id).or_default();
         if cursor.target_ordinal > selected_count
@@ -832,7 +846,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         let mut durable_prefix = 0usize;
         let mut missing = Vec::with_capacity(usize::from(self.max_target_cases_per_quantum.get()));
         for case_id in view
-            .selected_discovery_suffix(cursor.target_ordinal)
+            .selected_discovery_suffix(question_id, cursor.target_ordinal)?
             .iter()
             .copied()
         {
@@ -851,7 +865,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         // Planned rows remain at the cursor until the outer coordinator has
         // appended them, so a rejected/stale batch can be retried verbatim.
         cursor.target_ordinal += durable_prefix;
-        missing
+        Ok(missing)
     }
 
     fn step_selected_terminal<R: RelationalMechanismReplayRuntime>(
@@ -875,7 +889,8 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             .into());
         }
 
-        let next_case = self.next_unreplayed_selected_target(view, incidence, request_id);
+        let next_case =
+            self.next_unreplayed_selected_target(view, incidence, request_id, layer.question_id)?;
         let Some(case_id) = next_case else {
             return Err(if terminal_cases == target_cases {
                 RelationalMechanismStepDriverError::MechanismLayerStateMismatch(request_id)
@@ -898,7 +913,11 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 .into(),
             );
         }
-        if view.question_decision(case_id) != Some(SelectionDecision::Selected) {
+        if view
+            .question_decision(layer.question_id, case_id)
+            .map_err(RelationalMechanismStepDriverError::from)?
+            != Some(SelectionDecision::Selected)
+        {
             return Err(
                 RelationalMechanismStepDriverError::TargetCaseOutsideSelectedPopulation {
                     request_id,
@@ -1063,8 +1082,9 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         view: RelationalSchedulerView<'_>,
         incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
         request_id: MechanismRequestId,
-    ) -> Option<RelationalCaseId> {
-        let selected_count = view.selected_count();
+        question_id: QuestionId,
+    ) -> Result<Option<RelationalCaseId>, RelationalMechanismStepDriverError> {
+        let selected_count = view.selected_count(question_id)?;
         let mut cursors = self.discovery_cursors.borrow_mut();
         let cursor = cursors.entry(request_id).or_default();
         if cursor.terminal_ordinal > selected_count
@@ -1074,7 +1094,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         }
 
         for case_id in view
-            .selected_discovery_suffix(cursor.terminal_ordinal)
+            .selected_discovery_suffix(question_id, cursor.terminal_ordinal)?
             .iter()
             .copied()
         {
@@ -1082,14 +1102,14 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             // target yet: it may become replayable after the pending target
             // batch is appended.
             if !incidence.contains_target_case(case_id) {
-                return None;
+                return Ok(None);
             }
             if incidence.terminal(case_id).is_none() {
-                return Some(case_id);
+                return Ok(Some(case_id));
             }
             cursor.terminal_ordinal += 1;
         }
-        None
+        Ok(None)
     }
 
     fn validate_scope(
@@ -1099,7 +1119,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         let contract = view.contract();
         if contract.relation_id() != self.relation_id
             || contract.admission_id() != self.admission_id
-            || contract.question_id() != self.question_id
+            || contract.question_ids() != self.question_ids.as_ref()
         {
             return Err(RelationalMechanismStepDriverError::JournalScopeMismatch);
         }
@@ -1151,7 +1171,6 @@ pub(crate) enum RelationalMechanismStepDriverError {
     AnalysisLayerKindMismatch(RelationalAnalysisLayerId),
     EndpointTotalityAuthorizationMismatch(MechanismRequestId),
     DuplicateMechanismRequest(MechanismRequestId),
-    SelectedQuestionScopeMismatch,
     MechanismLayerStateMismatch(MechanismRequestId),
     ClosedIncidenceStateMismatch(MechanismRequestId),
     SelectedTargetCountMismatch {
@@ -1243,8 +1262,6 @@ impl fmt::Display for RelationalMechanismStepDriverError {
             Self::DuplicateMechanismRequest(_) => {
                 formatter.write_str("checked query repeats a semantic mechanism request")
             }
-            Self::SelectedQuestionScopeMismatch => formatter
-                .write_str("selected-question seal belongs to another FIND question"),
             Self::MechanismLayerStateMismatch(_) => formatter
                 .write_str("mechanism layer status and incidence frontier disagree"),
             Self::ClosedIncidenceStateMismatch(_) => formatter
@@ -1325,7 +1342,6 @@ impl Error for RelationalMechanismStepDriverError {
             | Self::AnalysisLayerKindMismatch(_)
             | Self::EndpointTotalityAuthorizationMismatch(_)
             | Self::DuplicateMechanismRequest(_)
-            | Self::SelectedQuestionScopeMismatch
             | Self::MechanismLayerStateMismatch(_)
             | Self::ClosedIncidenceStateMismatch(_)
             | Self::SelectedTargetCountMismatch { .. }

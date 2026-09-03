@@ -5,11 +5,11 @@
 //! the storage adapter must install each encoded entry before publication.
 //! Its chain commits semantic evidence events, while invocation limits and
 //! scheduler order remain outside the contract. Replaying a valid chain
-//! rebuilds the same stable relation, admission, FIND, and semantic work
+//! rebuilds the same stable relation, admission, named FIND set, and semantic work
 //! frontiers. Runtime interleaving remains outside the semantic contract, but
 //! accepted automatic-observation progress is bound into the checkpoint root.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU16, NonZeroU32};
@@ -131,20 +131,22 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 22;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 23;
 
-const JOURNAL_CONTRACT_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-contract.v22";
-const JOURNAL_GENESIS_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-genesis.v22";
-const JOURNAL_EVENT_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-event.v19";
-const JOURNAL_ENTRY_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-entry.v22";
-const CORE_EVIDENCE_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-core-evidence-root.v5";
+const JOURNAL_CONTRACT_HASH_V23: &[u8] = b"futuruna.explore.relational-journal-contract.v23";
+const JOURNAL_GENESIS_HASH_V23: &[u8] = b"futuruna.explore.relational-journal-genesis.v23";
+const JOURNAL_EVENT_HASH_V20: &[u8] = b"futuruna.explore.relational-journal-event.v20";
+const JOURNAL_ENTRY_HASH_V23: &[u8] = b"futuruna.explore.relational-journal-entry.v23";
+const CORE_EVIDENCE_ROOT_HASH_V6: &[u8] = b"futuruna.explore.relational-core-evidence-root.v6";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
 const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exhaustion-evidence-root.v2";
-const EXTENSIONAL_CONTENT_ROOT_HASH_V4: &[u8] =
-    b"futuruna.explore.relational-extensional-content-root.v4";
-const CHECKPOINT_ROOT_HASH_V7: &[u8] = b"futuruna.explore.relational-checkpoint-root.v7";
+const EXTENSIONAL_CONTENT_ROOT_HASH_V5: &[u8] =
+    b"futuruna.explore.relational-extensional-content-root.v5";
+const CHECKPOINT_ROOT_HASH_V8: &[u8] = b"futuruna.explore.relational-checkpoint-root.v8";
+const QUESTION_FRONTIER_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.question-frontier-set-root.v1";
+const QUESTION_CONTENT_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.question-content-set-root.v1";
 const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V2: &[u8] =
     b"futuruna.explore.mechanism-support-observation-point-id.v2";
 const MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V2: &[u8] =
@@ -398,6 +400,28 @@ impl RelationalCheckpointRoot {
     }
 }
 
+/// Canonical commitment to every registered QuestionId and its current FIND
+/// frontier. This is distinct from each question-local frontier root and
+/// commits the empty question set as a valid exploration state.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct RelationalQuestionFrontierSetRoot([u8; 32]);
+
+impl RelationalQuestionFrontierSetRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Canonical commitment to every closed QuestionId -> FIND content root.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct RelationalQuestionContentSetRoot([u8; 32]);
+
+impl RelationalQuestionContentSetRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
 /// Semantic configuration sealed by one journal chain.
 ///
 /// The analysis graph digest commits the resolved result/mechanism DAG. Its
@@ -405,11 +429,11 @@ impl RelationalCheckpointRoot {
 /// and semantic layer identities are unchanged. CPU,
 /// RAM, workers, deadlines, checkpoint paths, and declaration names are
 /// intentionally absent so a run may resume under different safe resources.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalJournalContract {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Arc<[QuestionId]>,
     state_schema_id: StateSchemaId,
     context_schema_id: ContextSchemaId,
     transition_type_id: TransitionTypeId,
@@ -417,19 +441,25 @@ pub(crate) struct RelationalJournalContract {
 }
 
 impl RelationalJournalContract {
-    pub(crate) const fn new(
+    pub(crate) fn new(
         relation_id: RelationId,
         admission_id: AdmissionId,
-        question_id: QuestionId,
+        question_ids: impl IntoIterator<Item = QuestionId>,
         state_schema_id: StateSchemaId,
         context_schema_id: ContextSchemaId,
         transition_type_id: TransitionTypeId,
         analysis_graph_digest: [u8; 32],
     ) -> Self {
+        let question_ids: Arc<[QuestionId]> = question_ids
+            .into_iter()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .into();
         Self {
             relation_id,
             admission_id,
-            question_id,
+            question_ids,
             state_schema_id,
             context_schema_id,
             transition_type_id,
@@ -437,40 +467,47 @@ impl RelationalJournalContract {
         }
     }
 
-    pub(crate) const fn relation_id(self) -> RelationId {
+    pub(crate) const fn relation_id(&self) -> RelationId {
         self.relation_id
     }
 
-    pub(crate) const fn admission_id(self) -> AdmissionId {
+    pub(crate) const fn admission_id(&self) -> AdmissionId {
         self.admission_id
     }
 
-    pub(crate) const fn question_id(self) -> QuestionId {
-        self.question_id
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        &self.question_ids
     }
 
-    pub(crate) const fn state_schema_id(self) -> StateSchemaId {
+    pub(crate) fn contains_question(&self, question_id: QuestionId) -> bool {
+        self.question_ids.binary_search(&question_id).is_ok()
+    }
+
+    pub(crate) const fn state_schema_id(&self) -> StateSchemaId {
         self.state_schema_id
     }
 
-    pub(crate) const fn context_schema_id(self) -> ContextSchemaId {
+    pub(crate) const fn context_schema_id(&self) -> ContextSchemaId {
         self.context_schema_id
     }
 
-    pub(crate) const fn transition_type_id(self) -> TransitionTypeId {
+    pub(crate) const fn transition_type_id(&self) -> TransitionTypeId {
         self.transition_type_id
     }
 
-    pub(crate) const fn analysis_graph_digest(self) -> [u8; 32] {
+    pub(crate) const fn analysis_graph_digest(&self) -> [u8; 32] {
         self.analysis_graph_digest
     }
 
-    pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V22);
+    pub(crate) fn id(&self) -> RelationalJournalId {
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V23);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
-        hasher.digest(self.question_id.bytes());
+        hasher.u64(self.question_ids.len() as u64);
+        for question_id in self.question_ids.iter() {
+            hasher.digest(question_id.bytes());
+        }
         hasher.digest(self.state_schema_id.bytes());
         hasher.digest(self.context_schema_id.bytes());
         hasher.digest(self.transition_type_id.bytes());
@@ -493,7 +530,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V22);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V23);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -601,6 +638,7 @@ pub(crate) enum RelationalEvidenceEvent {
         decision: AdmissionDecision,
     },
     QuestionClassified {
+        question_id: QuestionId,
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     },
@@ -1266,10 +1304,15 @@ impl RelationalJournalEvent {
     }
 
     pub(crate) const fn question_classified(
+        question_id: QuestionId,
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     ) -> Self {
-        Self::Evidence(RelationalEvidenceEvent::QuestionClassified { case_id, decision })
+        Self::Evidence(RelationalEvidenceEvent::QuestionClassified {
+            question_id,
+            case_id,
+            decision,
+        })
     }
 
     pub(crate) const fn support(event: SupportJournalEvent) -> Self {
@@ -1902,7 +1945,7 @@ struct RelationalEvidenceState {
     constructor_interner: RelationalConstructorInterner,
     relation: RelationCatalogBuilder,
     admission: AdmissionCatalogBuilder,
-    question: QuestionCatalogBuilder,
+    questions: BTreeMap<QuestionId, QuestionCatalogBuilder>,
     transition_support: RelationalTransitionSupportIndex,
     analysis_plan: Option<RelationalAnalysisPlan>,
     analysis: Option<RelationalAnalysisJournalState>,
@@ -2171,25 +2214,38 @@ impl RelationalEvidenceState {
         support
             .register_admission(contract.admission_id, contract.relation_id)
             .expect("an empty support catalog accepts its contract admission layer");
-        support
-            .register_question(contract.question_id, contract.admission_id)
-            .expect("an empty support catalog accepts its contract question layer");
+        let mut transition_support = RelationalTransitionSupportIndex::new(
+            contract.state_schema_id,
+            contract.context_schema_id,
+            contract.transition_type_id,
+        );
+        let questions = contract
+            .question_ids()
+            .iter()
+            .copied()
+            .map(|question_id| {
+                support
+                    .register_question(question_id, contract.admission_id)
+                    .expect("an empty support catalog accepts every contract question layer");
+                assert!(transition_support.register_question(question_id));
+                (
+                    question_id,
+                    QuestionCatalogBuilder::new(
+                        contract.relation_id,
+                        contract.admission_id,
+                        question_id,
+                    ),
+                )
+            })
+            .collect();
         Self {
-            contract,
+            contract: contract.clone(),
             region_replay_authority,
             constructor_interner: RelationalConstructorInterner::default(),
             relation: RelationCatalogBuilder::new(contract.relation_id),
             admission: AdmissionCatalogBuilder::new(contract.relation_id, contract.admission_id),
-            question: QuestionCatalogBuilder::new(
-                contract.relation_id,
-                contract.admission_id,
-                contract.question_id,
-            ),
-            transition_support: RelationalTransitionSupportIndex::new(
-                contract.state_schema_id,
-                contract.context_schema_id,
-                contract.transition_type_id,
-            ),
+            questions,
+            transition_support,
             analysis_plan: None,
             analysis: None,
             support_plan: None,
@@ -2210,6 +2266,41 @@ impl RelationalEvidenceState {
             mechanism_support_observation_demands: BTreeMap::new(),
             mechanism_support_observations: BTreeMap::new(),
             work: RelationalWorkFrontier::new(),
+        }
+    }
+
+    fn question(
+        &self,
+        question_id: QuestionId,
+    ) -> Result<&QuestionCatalogBuilder, RelationalJournalError> {
+        self.questions
+            .get(&question_id)
+            .ok_or(RelationalJournalError::UnknownQuestion { question_id })
+    }
+
+    fn question_mut(
+        &mut self,
+        question_id: QuestionId,
+    ) -> Result<&mut QuestionCatalogBuilder, RelationalJournalError> {
+        self.questions
+            .get_mut(&question_id)
+            .ok_or(RelationalJournalError::UnknownQuestion { question_id })
+    }
+
+    /// The classified-region optimization still carries one selection
+    /// outcome per support run. It is therefore available only when the
+    /// contract itself contains exactly the artifact's explicit question;
+    /// zero- and plural-question contracts continue through the shared
+    /// concrete traversal and never acquire an ambient primary question.
+    fn require_single_question_optimization(
+        &self,
+        question_id: QuestionId,
+    ) -> Result<(), RelationalJournalError> {
+        match self.contract.question_ids() {
+            [registered] if *registered == question_id => Ok(()),
+            _ => {
+                Err(RelationalJournalError::SingleQuestionOptimizationScopeMismatch { question_id })
+            }
         }
     }
 
@@ -2527,19 +2618,25 @@ impl RelationalEvidenceState {
                 self.admission
                     .commit_preflight_classification(*case_id, *decision, insert);
             }
-            RelationalEvidenceEvent::QuestionClassified { case_id, decision } => {
-                let insert = self.question.preflight_classify_open(
+            RelationalEvidenceEvent::QuestionClassified {
+                question_id,
+                case_id,
+                decision,
+            } => {
+                let insert = self.question(*question_id)?.preflight_classify_open(
                     &self.relation,
                     &self.admission,
                     *case_id,
                     *decision,
                 )?;
-                let prepared_transition = self
-                    .transition_support
-                    .preflight_question(*case_id, *decision)?;
+                let prepared_transition = self.transition_support.preflight_question(
+                    *question_id,
+                    *case_id,
+                    *decision,
+                )?;
                 self.transition_support
                     .commit_classification(prepared_transition);
-                self.question
+                self.question_mut(*question_id)?
                     .commit_preflight_classification(*case_id, *decision, insert);
             }
             RelationalEvidenceEvent::Support(event) => {
@@ -2563,7 +2660,7 @@ impl RelationalEvidenceState {
                 derived: plan.root(),
             });
         }
-        if plan.question_id() != self.contract.question_id()
+        if plan.question_ids() != self.contract.question_ids()
             || plan.producer_graph_digest().bytes() != self.contract.analysis_graph_digest()
         {
             return Err(RelationalJournalError::AnalysisPlanScopeMismatch);
@@ -2604,7 +2701,7 @@ impl RelationalEvidenceState {
         }
         if plan.relation_id() != self.relation.relation_id()
             || plan.admission_id() != self.admission.admission_id()
-            || plan.question_id() != self.question.question_id()
+            || plan.question_ids() != self.contract.question_ids()
         {
             return Err(RelationalJournalError::SupportPlanScopeMismatch);
         }
@@ -2835,6 +2932,7 @@ impl RelationalEvidenceState {
         &mut self,
         artifact: &RelationalCaseChunkPartitionArtifact,
     ) -> Result<(), RelationalJournalError> {
+        self.require_single_question_optimization(artifact.question_id())?;
         if self.concrete_source_traversal_has_started() {
             return Err(RelationalJournalError::ClassifiedSweepConflictsWithSourceTraversal);
         }
@@ -2971,10 +3069,15 @@ impl RelationalEvidenceState {
             .verified_case_chunk_partition
             .as_ref()
             .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
+        self.require_single_question_optimization(verified_partition.artifact().question_id())?;
         if verified_partition.artifact().plan_root() != plan.root()
             || verified_partition.artifact().relation_id() != plan.relation_id()
             || verified_partition.artifact().admission_id() != plan.admission_id()
-            || verified_partition.artifact().question_id() != plan.question_id()
+            || plan
+                .question_ids()
+                .binary_search(&verified_partition.artifact().question_id())
+                .is_err()
+            || artifact.question_id() != verified_partition.artifact().question_id()
             || verified_partition.artifact().id() != artifact.chunk_partition_id()
         {
             return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3065,10 +3168,15 @@ impl RelationalEvidenceState {
                 .verified_case_chunk_partition
                 .as_ref()
                 .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
+            self.require_single_question_optimization(verified_partition.artifact().question_id())?;
             if verified_partition.artifact().plan_root() != plan.root()
                 || verified_partition.artifact().relation_id() != plan.relation_id()
                 || verified_partition.artifact().admission_id() != plan.admission_id()
-                || verified_partition.artifact().question_id() != plan.question_id()
+                || plan
+                    .question_ids()
+                    .binary_search(&verified_partition.artifact().question_id())
+                    .is_err()
+                || artifact.question_id() != verified_partition.artifact().question_id()
                 || verified_partition.artifact().id() != artifact.chunk_partition_id()
             {
                 return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3248,7 +3356,7 @@ impl RelationalEvidenceState {
                         != RelationalObligationActivation::AdmissionDecision(
                             AdmissionDecision::Admitted,
                         )
-                        || *question_id != plan.question_id()
+                        || plan.question_ids().binary_search(question_id).is_err()
                     {
                         return Err(RelationalJournalError::InvalidSupportPlanActivation);
                     }
@@ -3555,6 +3663,7 @@ impl RelationalEvidenceState {
             .support_plan
             .as_ref()
             .ok_or(RelationalJournalError::SupportPlanMissing)?;
+        self.require_single_question_optimization(artifact.question_id())?;
         if authority.support_plan_root() != plan.root()
             || authority.classification_capsule_id() != artifact.classification_capsule_id()
         {
@@ -3581,10 +3690,14 @@ impl RelationalEvidenceState {
         };
         if partition_artifact_id != verified_partition.artifact().id()
             || artifact.root_cell_id() != verified_partition.artifact().root_cell_id()
+            || artifact.question_id() != verified_partition.artifact().question_id()
             || artifact.plan_root() != plan.root()
             || artifact.relation_id() != plan.relation_id()
             || artifact.admission_id() != plan.admission_id()
-            || artifact.question_id() != plan.question_id()
+            || plan
+                .question_ids()
+                .binary_search(&artifact.question_id())
+                .is_err()
         {
             return Err(RelationalJournalError::RegionProofSubjectMismatch);
         }
@@ -3660,7 +3773,7 @@ impl RelationalEvidenceState {
             Some(decision) => {
                 let obligation = SupportCellObligation::new(
                     chunk.cell(),
-                    SelectionClassificationClaim::new(plan.question_id()),
+                    SelectionClassificationClaim::new(artifact.question_id()),
                 )
                 .map_err(RelationalRegionProofError::from)?;
                 Some((
@@ -3823,10 +3936,15 @@ impl RelationalEvidenceState {
             .verified_case_chunk_partition
             .as_ref()
             .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
+        self.require_single_question_optimization(verified_partition.artifact().question_id())?;
         if verified_partition.artifact().plan_root() != plan.root()
             || verified_partition.artifact().relation_id() != plan.relation_id()
             || verified_partition.artifact().admission_id() != plan.admission_id()
-            || verified_partition.artifact().question_id() != plan.question_id()
+            || plan
+                .question_ids()
+                .binary_search(&verified_partition.artifact().question_id())
+                .is_err()
+            || artifact.question_id() != verified_partition.artifact().question_id()
             || verified_partition.artifact().id() != artifact.chunk_partition_id()
         {
             return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3873,6 +3991,7 @@ impl RelationalEvidenceState {
         &mut self,
         artifact: &RelationalSelectedRunMaterializationArtifact,
     ) -> Result<(), RelationalJournalError> {
+        self.require_single_question_optimization(artifact.question_id())?;
         let chunk_ordinal = usize::try_from(artifact.chunk_ordinal()).map_err(|_| {
             RelationalJournalError::SelectedRunClassifiedArtifactMissing {
                 chunk_ordinal: artifact.chunk_ordinal(),
@@ -3907,6 +4026,10 @@ impl RelationalEvidenceState {
             &verified_classified,
             artifact.run_ordinal(),
         )?;
+        let question_id = artifact.question_id();
+        if !self.contract.contains_question(question_id) {
+            return Err(RelationalJournalError::UnknownQuestion { question_id });
+        }
         let run_cell_id = verified.artifact().run_cell_id();
 
         if let Some(existing) = self.selected_run_materializations.get(&run_cell_id) {
@@ -3948,8 +4071,11 @@ impl RelationalEvidenceState {
             let admitted = staged_transition_support
                 .preflight_admission(record.case_id(), AdmissionDecision::Admitted)?;
             staged_transition_support.commit_classification(admitted);
-            let matched = staged_transition_support
-                .preflight_question(record.case_id(), SelectionDecision::Selected)?;
+            let matched = staged_transition_support.preflight_question(
+                question_id,
+                record.case_id(),
+                SelectionDecision::Selected,
+            )?;
             staged_transition_support.commit_classification(matched);
         }
 
@@ -3958,10 +4084,14 @@ impl RelationalEvidenceState {
         // has no semantic failure path and does not clone the selected prefix.
         // No enumeration seal is minted here: these remain sparse witnesses
         // emerging from an open certified population.
+        let question = self
+            .questions
+            .get_mut(&question_id)
+            .ok_or(RelationalJournalError::UnknownQuestion { question_id })?;
         install_selected_case_batch(
             &mut self.relation,
             &mut self.admission,
-            &mut self.question,
+            question,
             verified.cases().iter().map(|record| {
                 SelectedCaseBatchRow::new(
                     record.source_key(),
@@ -4209,7 +4339,7 @@ impl RelationalEvidenceState {
                         != RelationalObligationActivation::AdmissionDecision(
                             AdmissionDecision::Admitted,
                         )
-                        || *question_id != self.question.question_id()
+                        || !self.contract.contains_question(*question_id)
                     {
                         return Err(RelationalJournalError::InvalidSupportPlanActivation);
                     }
@@ -4262,7 +4392,8 @@ impl RelationalEvidenceState {
             reverify_relational_certified_source_summary_artifact(artifact, plan, spec, source)?;
         }
         if let RelationalAnalysisEvidenceEvent::SelectedQuestionBound { seal, .. } = event {
-            let expected = self.remint_selected_question_seal(seal.authority())?;
+            let expected =
+                self.remint_selected_question_seal(seal.question_id(), seal.authority())?;
             if *seal != expected {
                 return Err(RelationalJournalError::SelectedQuestionSealBaseMismatch);
             }
@@ -4400,29 +4531,34 @@ impl RelationalEvidenceState {
     /// support authority must agree byte-for-byte.
     fn remint_selected_question_seal(
         &self,
+        question_id: QuestionId,
         authority: RelationalSelectedPopulationAuthority,
     ) -> Result<RelationalSelectedQuestionSeal, RelationalJournalError> {
         match authority {
             RelationalSelectedPopulationAuthority::ExtensionalQuestion { .. } => {
-                self.remint_extensional_selected_question_seal()
+                self.remint_extensional_selected_question_seal(question_id)
             }
             RelationalSelectedPopulationAuthority::CertifiedSupport { .. } => {
-                self.remint_certified_selected_question_seal()
+                self.remint_certified_selected_question_seal(question_id)
             }
         }
     }
 
     fn remint_extensional_selected_question_seal(
         &self,
+        question_id: QuestionId,
     ) -> Result<RelationalSelectedQuestionSeal, RelationalJournalError> {
         let relation = self.relation.close_borrowed()?;
         let admission = self.admission.close_borrowed(&relation)?;
-        let question = self.question.close_borrowed(&relation, &admission)?;
+        let question = self
+            .question(question_id)?
+            .close_borrowed(&relation, &admission)?;
         Ok(RelationalSelectedQuestionSeal::from_borrowed_closed_question(&question)?)
     }
 
     fn remint_certified_selected_question_seal(
         &self,
+        question_id: QuestionId,
     ) -> Result<RelationalSelectedQuestionSeal, RelationalJournalError> {
         let plan = self
             .support_plan
@@ -4432,9 +4568,16 @@ impl RelationalEvidenceState {
         if !support.catalog_is_sealed() {
             return Err(RelationalJournalError::SupportCatalogOpen);
         }
-        let population =
-            ClosedCertifiedSelectedPopulation::derive_from_validated_support(plan, &support)?;
-        let selected_case_ids = self.certified_selected_materialization_case_ids(&population)?;
+        let population = ClosedCertifiedSelectedPopulation::derive_from_validated_support(
+            plan,
+            &support,
+            question_id,
+        )?;
+        if population.question_id() != question_id {
+            return Err(RelationalJournalError::SelectedQuestionSealBaseMismatch);
+        }
+        let selected_case_ids =
+            self.certified_selected_materialization_case_ids(question_id, &population)?;
         Ok(RelationalSelectedQuestionSeal::from_certified_population(
             &population,
             selected_case_ids,
@@ -4448,10 +4591,12 @@ impl RelationalEvidenceState {
     /// representatives for support cells.
     fn certified_selected_materialization_case_ids(
         &self,
+        question_id: QuestionId,
         population: &ClosedCertifiedSelectedPopulation,
     ) -> Result<Vec<RelationalCaseId>, RelationalJournalError> {
         let certified = population.exact_cardinality();
-        let catalog = self.question.selected_count() as u128;
+        let question = self.question(question_id)?;
+        let catalog = question.selected_count() as u128;
 
         let Some(progress) = self.classified_sweep_progress.as_ref() else {
             if population.is_exact_empty()
@@ -4496,7 +4641,7 @@ impl RelationalEvidenceState {
                     .checked_add(artifact.materialized_case_count())
                     .ok_or(RelationalJournalError::SequenceOverflow)?;
                 all_materialized_cases_are_selected &= artifact.cases().iter().all(|record| {
-                    self.question.decision(record.case_id()) == Some(SelectionDecision::Selected)
+                    question.decision(record.case_id()) == Some(SelectionDecision::Selected)
                 });
             }
         }
@@ -4515,7 +4660,7 @@ impl RelationalEvidenceState {
             );
         }
 
-        let selected_case_ids = self.question.selected_case_ids().collect::<Vec<_>>();
+        let selected_case_ids = question.selected_case_ids().collect::<Vec<_>>();
         if selected_case_ids.len() as u128 != certified {
             return Err(
                 RelationalJournalError::CertifiedSelectedMaterializationCaseSetMismatch {
@@ -4536,12 +4681,15 @@ impl RelationalEvidenceState {
         if !analysis.is_closed() || analysis.closed_closure_set_root().is_none() {
             return Err(RelationalJournalError::AnalysisNotClosed);
         }
-        let supplied = analysis
-            .selected_question()
-            .ok_or(RelationalJournalError::AnalysisNotClosed)?;
-        let expected = self.remint_selected_question_seal(supplied.authority())?;
-        if supplied != expected {
-            return Err(RelationalJournalError::SelectedQuestionSealBaseMismatch);
+        for question_id in self.contract.question_ids() {
+            let supplied = analysis
+                .selected_question(*question_id)
+                .ok_or(RelationalJournalError::AnalysisNotClosed)?;
+            let expected =
+                self.remint_selected_question_seal(*question_id, supplied.authority())?;
+            if supplied != expected {
+                return Err(RelationalJournalError::SelectedQuestionSealBaseMismatch);
+            }
         }
         Ok(())
     }
@@ -5645,9 +5793,7 @@ impl RelationalEvidenceState {
                 case_id,
                 decision,
             } => {
-                if *question_id != self.question.question_id()
-                    || self.question.decision(*case_id) != Some(*decision)
-                {
+                if self.question(*question_id)?.decision(*case_id) != Some(*decision) {
                     return Err(RelationalJournalError::CompletionPrecedesEvidence);
                 }
             }
@@ -5775,8 +5921,8 @@ pub(crate) struct RelationalSchedulerView<'a> {
 }
 
 impl<'a> RelationalSchedulerView<'a> {
-    pub(crate) const fn contract(self) -> RelationalJournalContract {
-        self.journal.contract
+    pub(crate) const fn contract(self) -> &'a RelationalJournalContract {
+        &self.journal.contract
     }
 
     pub(crate) const fn sequence(self) -> u64 {
@@ -5883,8 +6029,14 @@ impl<'a> RelationalSchedulerView<'a> {
     /// Typed contiguous classified prefix rebuilt only from accepted outer
     /// evidence events. This, rather than a generic cursor, is the scheduler's
     /// authority for choosing the next canonical chunk.
-    pub(crate) fn classified_sweep_progress(self) -> Option<&'a RelationalClassifiedSweepProgress> {
-        self.journal.state.classified_sweep_progress.as_ref()
+    pub(crate) fn classified_sweep_progress(
+        self,
+        question_id: QuestionId,
+    ) -> Result<Option<&'a RelationalClassifiedSweepProgress>, RelationalJournalError> {
+        self.journal
+            .state
+            .require_single_question_optimization(question_id)?;
+        Ok(self.journal.state.classified_sweep_progress.as_ref())
     }
 
     /// Replay-derived checked prefix of the next canonical chunk. This is
@@ -5893,15 +6045,25 @@ impl<'a> RelationalSchedulerView<'a> {
     /// finalized and its canonical whole-chunk artifact is accepted.
     pub(crate) fn classified_chunk_accumulator(
         self,
-    ) -> Option<&'a RelationalClassifiedChunkAccumulator> {
-        self.journal.state.classified_chunk_accumulator.as_ref()
+        question_id: QuestionId,
+    ) -> Result<Option<&'a RelationalClassifiedChunkAccumulator>, RelationalJournalError> {
+        self.journal
+            .state
+            .require_single_question_optimization(question_id)?;
+        Ok(self.journal.state.classified_chunk_accumulator.as_ref())
     }
 
     /// Retained accepted chunk payloads in canonical partition ordinal order.
     /// The typed progress record remains the cursor authority; this slice is
     /// the replay input for sparse selected-run realization.
-    pub(crate) fn classified_support_fragments(self) -> &'a [RelationalClassifiedSupportFragment] {
-        &self.journal.state.classified_support_fragments
+    pub(crate) fn classified_support_fragments(
+        self,
+        question_id: QuestionId,
+    ) -> Result<&'a [RelationalClassifiedSupportFragment], RelationalJournalError> {
+        self.journal
+            .state
+            .require_single_question_optimization(question_id)?;
+        Ok(&self.journal.state.classified_support_fragments)
     }
 
     /// Borrow the opaque partition authority reconstructed when the
@@ -5910,25 +6072,38 @@ impl<'a> RelationalSchedulerView<'a> {
     /// standalone cache or snapshot.
     pub(crate) fn verified_case_chunk_partition(
         self,
-    ) -> Option<&'a VerifiedRelationalCaseChunkPartition> {
-        self.journal.state.verified_case_chunk_partition.as_ref()
+        question_id: QuestionId,
+    ) -> Result<Option<&'a VerifiedRelationalCaseChunkPartition>, RelationalJournalError> {
+        self.journal
+            .state
+            .require_single_question_optimization(question_id)?;
+        Ok(self.journal.state.verified_case_chunk_partition.as_ref())
     }
 
     pub(crate) fn selected_run_materialization(
         self,
+        question_id: QuestionId,
         run_cell_id: SupportCellId,
-    ) -> Option<&'a RelationalSelectedRunMaterializationArtifact> {
-        self.journal
+    ) -> Result<Option<&'a RelationalSelectedRunMaterializationArtifact>, RelationalJournalError>
+    {
+        self.journal.state.question(question_id)?;
+        Ok(self
+            .journal
             .state
             .selected_run_materializations
             .get(&run_cell_id)
+            .filter(|artifact| artifact.question_id() == question_id))
     }
 
     /// Whether every admitted+selected run in the accepted classified prefix
     /// has exactly one admitted sparse materialization and no other run-cell
     /// payload is present. Full-population closure additionally requires the
     /// classified progress itself to cover the complete canonical partition.
-    pub(crate) fn selected_run_materializations_cover_classified_prefix(self) -> bool {
+    pub(crate) fn selected_run_materializations_cover_classified_prefix(
+        self,
+        question_id: QuestionId,
+    ) -> Result<bool, RelationalJournalError> {
+        self.journal.state.question(question_id)?;
         let mut expected = 0usize;
         for artifact in &self.journal.state.classified_support_fragments {
             let Some(artifact) = artifact.concrete() else {
@@ -5940,29 +6115,57 @@ impl<'a> RelationalSchedulerView<'a> {
                 }
                 expected = match expected.checked_add(1) {
                     Some(expected) => expected,
-                    None => return false,
+                    None => return Ok(false),
                 };
                 if !self
                     .journal
                     .state
                     .selected_run_materializations
-                    .contains_key(&run.cell_id())
+                    .get(&run.cell_id())
+                    .is_some_and(|artifact| artifact.question_id() == question_id)
                 {
-                    return false;
+                    return Ok(false);
                 }
             }
         }
-        self.journal.state.selected_run_materializations.len() == expected
+        Ok(self
+            .journal
+            .state
+            .selected_run_materializations
+            .values()
+            .filter(|artifact| artifact.question_id() == question_id)
+            .count()
+            == expected)
     }
 
-    pub(crate) fn selected_run_materialization_count(self) -> usize {
-        self.journal.state.selected_run_materializations.len()
+    pub(crate) fn selected_run_materialization_count(
+        self,
+        question_id: QuestionId,
+    ) -> Result<usize, RelationalJournalError> {
+        self.journal.state.question(question_id)?;
+        Ok(self
+            .journal
+            .state
+            .selected_run_materializations
+            .values()
+            .filter(|artifact| artifact.question_id() == question_id)
+            .count())
     }
 
     pub(crate) fn selected_run_materializations(
         self,
-    ) -> impl Iterator<Item = &'a RelationalSelectedRunMaterializationArtifact> + 'a {
-        self.journal.state.selected_run_materializations.values()
+        question_id: QuestionId,
+    ) -> Result<
+        impl Iterator<Item = &'a RelationalSelectedRunMaterializationArtifact> + 'a,
+        RelationalJournalError,
+    > {
+        self.journal.state.question(question_id)?;
+        Ok(self
+            .journal
+            .state
+            .selected_run_materializations
+            .values()
+            .filter(move |artifact| artifact.question_id() == question_id))
     }
 
     /// Concrete selected CaseIds admitted by sparse run artifacts. They are
@@ -5970,12 +6173,16 @@ impl<'a> RelationalSchedulerView<'a> {
     /// not itself claim that the selected population is closed.
     pub(crate) fn materialized_selected_case_ids(
         self,
-    ) -> impl Iterator<Item = RelationalCaseId> + 'a {
-        self.journal
+        question_id: QuestionId,
+    ) -> Result<impl Iterator<Item = RelationalCaseId> + 'a, RelationalJournalError> {
+        self.journal.state.question(question_id)?;
+        Ok(self
+            .journal
             .state
             .selected_run_materializations
             .values()
-            .flat_map(|artifact| artifact.cases().iter().map(|record| record.case_id()))
+            .filter(move |artifact| artifact.question_id() == question_id)
+            .flat_map(|artifact| artifact.cases().iter().map(|record| record.case_id())))
     }
 
     /// Canonical concrete selected CaseId order from the incrementally
@@ -5984,8 +6191,13 @@ impl<'a> RelationalSchedulerView<'a> {
     /// population rather than merely an observed lower bound.
     pub(crate) fn canonical_concrete_selected_case_ids(
         self,
-    ) -> impl Iterator<Item = RelationalCaseId> + 'a {
-        self.journal.state.question.selected_case_ids()
+        question_id: QuestionId,
+    ) -> Result<impl Iterator<Item = RelationalCaseId> + 'a, RelationalJournalError> {
+        Ok(self
+            .journal
+            .state
+            .question(question_id)?
+            .selected_case_ids())
     }
 
     /// Borrow the latest authenticated operational cursor for one support
@@ -6040,7 +6252,9 @@ impl<'a> RelationalSchedulerView<'a> {
     /// which walks only the installed case-root subtree.
     pub(crate) fn classification_progress_counts(
         self,
+        question_id: QuestionId,
     ) -> Result<Option<RelationalClassificationProgressCounts>, RelationalJournalError> {
+        self.journal.state.question(question_id)?;
         if self.certified_root_case_cardinality().is_none() {
             return Ok(None);
         }
@@ -6053,6 +6267,7 @@ impl<'a> RelationalSchedulerView<'a> {
         RelationalClassificationProgressCounts::derive_from_builder(
             plan,
             &self.journal.state.support,
+            question_id,
         )
         .map(Some)
         .map_err(RelationalJournalError::from)
@@ -6086,10 +6301,13 @@ impl<'a> RelationalSchedulerView<'a> {
     /// Whether the concrete U/D/M transition relation is extensionally
     /// complete. Proof closure alone does not satisfy this predicate: a
     /// symbolic answer may still require its authenticated materializer.
-    pub(crate) fn transition_support_is_extentionally_closed(self) -> bool {
-        self.relation_enumeration_is_complete()
+    pub(crate) fn transition_support_is_extentionally_closed(
+        self,
+        question_id: QuestionId,
+    ) -> Result<bool, RelationalJournalError> {
+        Ok(self.relation_enumeration_is_complete()
             && self.admission_decision_count() == self.case_count()
-            && self.question_decision_count() == self.admitted_count()
+            && self.question_decision_count(question_id)? == self.admitted_count())
     }
 
     pub(crate) fn source_row(self, source_key: SourceKey) -> Option<&'a SourceRow> {
@@ -6122,8 +6340,12 @@ impl<'a> RelationalSchedulerView<'a> {
         self.journal.state.admission.decision(case_id)
     }
 
-    pub(crate) fn question_decision(self, case_id: RelationalCaseId) -> Option<SelectionDecision> {
-        self.journal.state.question.decision(case_id)
+    pub(crate) fn question_decision(
+        self,
+        question_id: QuestionId,
+        case_id: RelationalCaseId,
+    ) -> Result<Option<SelectionDecision>, RelationalJournalError> {
+        Ok(self.journal.state.question(question_id)?.decision(case_id))
     }
 
     pub(crate) fn admission_decision_count(self) -> usize {
@@ -6134,36 +6356,57 @@ impl<'a> RelationalSchedulerView<'a> {
         self.journal.state.admission.admitted_count()
     }
 
-    pub(crate) fn question_decision_count(self) -> usize {
-        self.journal.state.question.decision_count()
+    pub(crate) fn question_decision_count(
+        self,
+        question_id: QuestionId,
+    ) -> Result<usize, RelationalJournalError> {
+        Ok(self.journal.state.question(question_id)?.decision_count())
     }
 
-    pub(crate) fn selected_count(self) -> usize {
-        self.journal.state.question.selected_count()
+    pub(crate) fn selected_count(
+        self,
+        question_id: QuestionId,
+    ) -> Result<usize, RelationalJournalError> {
+        Ok(self.journal.state.question(question_id)?.selected_count())
     }
 
     /// Canonical selected CaseIds from the incremental FIND catalog. This is
     /// a borrow-only scheduling index, not proof that FIND has closed; callers
     /// must separately require the authenticated selected-question seal.
-    pub(crate) fn selected_case_ids(self) -> impl Iterator<Item = RelationalCaseId> + 'a {
-        self.journal.state.question.selected_case_ids()
+    pub(crate) fn selected_case_ids(
+        self,
+        question_id: QuestionId,
+    ) -> Result<impl Iterator<Item = RelationalCaseId> + 'a, RelationalJournalError> {
+        Ok(self
+            .journal
+            .state
+            .question(question_id)?
+            .selected_case_ids())
     }
 
     /// Borrow the operational selected-discovery suffix reconstructed by
     /// journal replay. Its ordinal is suitable only for an invocation-local
     /// catch-up cursor; canonical roots and exact seals continue to use the
     /// arrival-order-independent classification map.
-    pub(crate) fn selected_discovery_suffix(self, from_ordinal: usize) -> &'a [RelationalCaseId] {
-        self.journal
+    pub(crate) fn selected_discovery_suffix(
+        self,
+        question_id: QuestionId,
+        from_ordinal: usize,
+    ) -> Result<&'a [RelationalCaseId], RelationalJournalError> {
+        Ok(self
+            .journal
             .state
-            .question
-            .selected_discovery_suffix(from_ordinal)
+            .question(question_id)?
+            .selected_discovery_suffix(from_ordinal))
     }
 
-    pub(crate) fn concrete_base_is_classified(self) -> bool {
-        self.relation_enumeration_is_complete()
+    pub(crate) fn concrete_base_is_classified(
+        self,
+        question_id: QuestionId,
+    ) -> Result<bool, RelationalJournalError> {
+        Ok(self.relation_enumeration_is_complete()
             && self.admission_decision_count() == self.case_count()
-            && self.question_decision_count() == self.admitted_count()
+            && self.question_decision_count(question_id)? == self.admitted_count())
     }
 
     pub(crate) fn work_node(self, node_id: WorkNodeId) -> Option<WorkNodeSnapshot> {
@@ -6226,18 +6469,20 @@ impl RelationalJournal {
         retain_history: bool,
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
     ) -> Self {
+        let head = RelationalJournalHead::genesis(contract.id());
+        let state = RelationalEvidenceState::new(contract.clone(), region_replay_authority);
         Self {
             contract,
             sequence: 0,
-            head: RelationalJournalHead::genesis(contract.id()),
+            head,
             entries: Vec::new(),
             retain_history,
-            state: RelationalEvidenceState::new(contract, region_replay_authority),
+            state,
         }
     }
 
-    pub(crate) const fn contract(&self) -> RelationalJournalContract {
-        self.contract
+    pub(crate) const fn contract(&self) -> &RelationalJournalContract {
+        &self.contract
     }
 
     pub(crate) const fn head(&self) -> RelationalJournalHead {
@@ -6314,8 +6559,11 @@ impl RelationalJournal {
     /// the base/analysis boundary, never once per case.
     pub(crate) fn selected_question_extensional_event(
         &self,
+        question_id: QuestionId,
     ) -> Result<RelationalJournalEvent, RelationalJournalError> {
-        let seal = self.state.remint_extensional_selected_question_seal()?;
+        let seal = self
+            .state
+            .remint_extensional_selected_question_seal(question_id)?;
         Ok(RelationalJournalEvent::analysis(
             RelationalAnalysisEvidenceEvent::selected_question_bound(seal),
         ))
@@ -6326,8 +6574,11 @@ impl RelationalJournal {
     /// needs no rows; positive support must be covered by every selected run.
     pub(crate) fn selected_question_certified_event(
         &self,
+        question_id: QuestionId,
     ) -> Result<RelationalJournalEvent, RelationalJournalError> {
-        let seal = self.state.remint_certified_selected_question_seal()?;
+        let seal = self
+            .state
+            .remint_certified_selected_question_seal(question_id)?;
         Ok(RelationalJournalEvent::analysis(
             RelationalAnalysisEvidenceEvent::selected_question_bound(seal),
         ))
@@ -7102,7 +7353,7 @@ impl RelationalJournal {
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
     ) -> Result<Self, RelationalJournalError> {
         let mut journal =
-            Self::with_history_retention(contract, retain_history, region_replay_authority);
+            Self::with_history_retention(contract.clone(), retain_history, region_replay_authority);
         for mut supplied in entries {
             let expected_sequence = journal.sequence;
             if supplied.sequence != expected_sequence {
@@ -7148,12 +7399,31 @@ impl RelationalJournal {
     pub(crate) fn snapshot(&self) -> Result<RelationalJournalSnapshot, RelationalJournalError> {
         let relation = self.state.relation.snapshot();
         let admission_frontier_root = self.state.admission.frontier_root(relation.frontier_root());
-        let question_frontier_root = self.state.question.frontier_root(admission_frontier_root);
-        let admission = self.state.admission.counts_at(&relation)?;
-        let question = self
+        let question_frontier_roots = self
             .state
-            .question
-            .counts_at(&relation, &self.state.admission)?;
+            .questions
+            .iter()
+            .map(|(question_id, question)| {
+                (
+                    *question_id,
+                    question.frontier_root(admission_frontier_root),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let question_frontier_root =
+            relational_question_frontier_set_root(&question_frontier_roots);
+        let admission = self.state.admission.counts_at(&relation)?;
+        let questions = self
+            .state
+            .questions
+            .iter()
+            .map(|(question_id, question)| {
+                Ok((
+                    *question_id,
+                    question.counts_at(&relation, &self.state.admission)?,
+                ))
+            })
+            .collect::<Result<BTreeMap<_, _>, RelationalJournalError>>()?;
         let analysis_plan_root = self
             .state
             .analysis_plan
@@ -7181,7 +7451,7 @@ impl RelationalJournal {
         );
         let support = self.state.support.snapshot()?;
         let core_evidence_root = relational_core_evidence_root(
-            self.contract,
+            &self.contract,
             analysis_plan_root,
             support_plan_root,
             exhaustion_evidence_root,
@@ -7213,7 +7483,7 @@ impl RelationalJournal {
             .as_ref()
             .and_then(RelationalAnalysisJournalState::closed_closure_set_root);
         let exploration_evidence_root = relational_exploration_evidence_root(
-            self.contract,
+            &self.contract,
             core_evidence_root,
             analysis_scope_root,
             analysis_catalog.as_ref().map(|catalog| catalog.root()),
@@ -7221,11 +7491,24 @@ impl RelationalJournal {
             analysis_closure_set_root,
         );
         let work = self.state.work.snapshot()?;
+        let classified_chunk_accumulator = match self.state.classified_chunk_accumulator.as_ref() {
+            Some(accumulator) => Some((
+                self.state
+                    .verified_case_chunk_partition
+                    .as_ref()
+                    .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?
+                    .artifact()
+                    .question_id(),
+                accumulator,
+            )),
+            None => None,
+        };
         let checkpoint_root = relational_checkpoint_root(
-            self.contract,
+            &self.contract,
+            question_frontier_root,
             work.root,
             &support,
-            self.state.classified_chunk_accumulator.as_ref(),
+            classified_chunk_accumulator,
             &self.state.latest_support_frontiers,
             &self.state.latest_support_schedulers,
             &self.state.latest_explicit_support_schedulers,
@@ -7234,12 +7517,13 @@ impl RelationalJournal {
         );
         Ok(RelationalJournalSnapshot {
             version: RELATIONAL_JOURNAL_SCHEMA_VERSION,
-            contract: self.contract,
+            contract: self.contract.clone(),
             sequence: self.sequence,
             head: self.head,
             relation_frontier_root: relation.frontier_root(),
             admission_frontier_root,
             question_frontier_root,
+            question_frontier_roots,
             transition_support_root: self.state.transition_support.root(),
             transition_support_counts: self.state.transition_support.counts(),
             analysis_plan_root,
@@ -7258,7 +7542,7 @@ impl RelationalJournal {
             checkpoint_root,
             relation,
             admission,
-            question,
+            questions,
             support,
             work,
         })
@@ -7274,7 +7558,9 @@ impl RelationalJournal {
     /// is discharged, and are still visible through the checkpoint root.
     pub(crate) fn finish_certified_core(
         &self,
+        question_id: QuestionId,
     ) -> Result<ClosedCertifiedRelationalCore, RelationalJournalError> {
+        self.state.question(question_id)?;
         let snapshot = self.snapshot()?;
         if snapshot.analysis_plan_root().is_none() {
             return Err(RelationalJournalError::AnalysisPlanMissing);
@@ -7290,10 +7576,13 @@ impl RelationalJournal {
             .support_plan
             .as_ref()
             .ok_or(RelationalJournalError::SupportPlanMissing)?;
-        let selected_population =
-            ClosedCertifiedSelectedPopulation::derive(support_plan, snapshot.support())?;
+        let selected_population = ClosedCertifiedSelectedPopulation::derive(
+            support_plan,
+            snapshot.support(),
+            question_id,
+        )?;
         Ok(ClosedCertifiedRelationalCore {
-            contract: self.contract,
+            contract: self.contract.clone(),
             journal_head: self.head,
             core_evidence_root: snapshot.core_evidence_root(),
             checkpoint_root: snapshot.checkpoint_root(),
@@ -7307,9 +7596,10 @@ impl RelationalJournal {
     /// still remints from this exact base prefix.
     pub(crate) fn finish_certified(
         self,
+        question_id: QuestionId,
     ) -> Result<ClosedCertifiedRelationalEvidence, RelationalJournalError> {
         self.state.validate_closed_analysis_bridge()?;
-        let core = self.finish_certified_core()?;
+        let core = self.finish_certified_core(question_id)?;
         let exploration_evidence_root = core.snapshot().exploration_evidence_root();
         let analysis = self
             .state
@@ -7350,7 +7640,7 @@ impl RelationalJournal {
             constructor_interner: _,
             relation,
             admission,
-            question,
+            questions,
             transition_support,
             analysis_plan,
             analysis,
@@ -7358,7 +7648,7 @@ impl RelationalJournal {
             source_image_exactness: _,
             source_traversal,
             source_relation_exhaustion,
-            verified_case_chunk_partition: _,
+            verified_case_chunk_partition,
             classified_sweep_progress: _,
             classified_chunk_accumulator,
             classified_support_fragments: _,
@@ -7392,9 +7682,19 @@ impl RelationalJournal {
         let support = support.snapshot()?;
         let relation_frontier_root = relation.snapshot().frontier_root();
         let admission_frontier_root = admission.frontier_root(relation_frontier_root);
-        let question_frontier_root = question.frontier_root(admission_frontier_root);
+        let question_frontier_roots = questions
+            .iter()
+            .map(|(question_id, question)| {
+                (
+                    *question_id,
+                    question.frontier_root(admission_frontier_root),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let question_frontier_root =
+            relational_question_frontier_set_root(&question_frontier_roots);
         let core_evidence_root = relational_core_evidence_root(
-            self.contract,
+            &self.contract,
             Some(analysis_plan_root),
             Some(support_plan_root),
             exhaustion_evidence_root,
@@ -7406,24 +7706,46 @@ impl RelationalJournal {
         );
         let relation = relation.finish()?;
         let admission = admission.finish(&relation)?;
-        let question = question.finish(&relation, &admission)?;
+        let questions = questions
+            .into_iter()
+            .map(|(question_id, question)| {
+                Ok((question_id, question.finish(&relation, &admission)?))
+            })
+            .collect::<Result<BTreeMap<_, _>, RelationalJournalError>>()?;
+        let question_content_roots = questions
+            .iter()
+            .map(|(question_id, question)| (*question_id, question.content_root()))
+            .collect::<BTreeMap<_, _>>();
+        let question_content_root = relational_question_content_set_root(&question_content_roots);
         let extensional_content_root = relational_extensional_content_root(
-            self.contract,
+            &self.contract,
             analysis_plan_root,
             support_plan_root,
             source_relation_exhaustion_receipt_id,
             exhaustion_evidence_root,
             relation.content_root(),
             admission.content_root(),
-            question.content_root(),
+            question_content_root,
             transition_support.root(),
             support.root(),
         );
+        let classified_chunk_accumulator = match classified_chunk_accumulator.as_ref() {
+            Some(accumulator) => Some((
+                verified_case_chunk_partition
+                    .as_ref()
+                    .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?
+                    .artifact()
+                    .question_id(),
+                accumulator,
+            )),
+            None => None,
+        };
         let checkpoint_root = relational_checkpoint_root(
-            self.contract,
+            &self.contract,
+            question_frontier_root,
             work_snapshot.root,
             &support,
-            classified_chunk_accumulator.as_ref(),
+            classified_chunk_accumulator,
             &latest_support_frontiers,
             &latest_support_schedulers,
             &latest_explicit_support_schedulers,
@@ -7432,11 +7754,12 @@ impl RelationalJournal {
         );
         let analysis = analysis.ok_or(RelationalJournalError::AnalysisStateMissing)?;
         Ok(ClosedExtensionalRelationalEvidence {
-            contract: self.contract,
+            contract: self.contract.clone(),
             journal_head: self.head,
             relation_content_root: relation.content_root(),
             admission_content_root: admission.content_root(),
-            question_content_root: question.content_root(),
+            question_content_root,
+            question_content_roots,
             analysis_plan_root,
             support_plan_root,
             source_relation_exhaustion_receipt_id,
@@ -7453,7 +7776,7 @@ impl RelationalJournal {
             analysis,
             relation,
             admission,
-            question,
+            questions,
             transition_support,
             support,
         })
@@ -7474,8 +7797,8 @@ pub(crate) struct ClosedCertifiedRelationalCore {
 }
 
 impl ClosedCertifiedRelationalCore {
-    pub(crate) const fn contract(&self) -> RelationalJournalContract {
-        self.contract
+    pub(crate) const fn contract(&self) -> &RelationalJournalContract {
+        &self.contract
     }
 
     pub(crate) const fn journal_head(&self) -> RelationalJournalHead {
@@ -7554,7 +7877,10 @@ pub(crate) struct RelationalJournalSnapshot {
     head: RelationalJournalHead,
     relation_frontier_root: RelationFrontierRoot,
     admission_frontier_root: AdmissionFrontierRoot,
-    question_frontier_root: QuestionFrontierRoot,
+    /// Aggregate commitment to the exact canonical QuestionId -> frontier
+    /// root map, including registered questions with empty prefixes.
+    question_frontier_root: RelationalQuestionFrontierSetRoot,
+    question_frontier_roots: BTreeMap<QuestionId, QuestionFrontierRoot>,
     transition_support_root: RelationalTransitionSupportRoot,
     transition_support_counts: RelationalTransitionSupportCounts,
     analysis_plan_root: Option<RelationalAnalysisPlanRoot>,
@@ -7573,7 +7899,7 @@ pub(crate) struct RelationalJournalSnapshot {
     checkpoint_root: RelationalCheckpointRoot,
     relation: RelationCatalogSnapshot,
     admission: AdmissionCounts,
-    question: SelectionCounts,
+    questions: BTreeMap<QuestionId, SelectionCounts>,
     support: SupportEvidenceSnapshot,
     work: WorkFrontierSnapshot,
 }
@@ -7583,8 +7909,8 @@ impl RelationalJournalSnapshot {
         self.version
     }
 
-    pub(crate) const fn contract(&self) -> RelationalJournalContract {
-        self.contract
+    pub(crate) const fn contract(&self) -> &RelationalJournalContract {
+        &self.contract
     }
 
     pub(crate) const fn sequence(&self) -> u64 {
@@ -7603,16 +7929,31 @@ impl RelationalJournalSnapshot {
         self.admission_frontier_root
     }
 
-    pub(crate) const fn question_frontier_root(&self) -> QuestionFrontierRoot {
+    pub(crate) const fn question_frontier_root(&self) -> RelationalQuestionFrontierSetRoot {
         self.question_frontier_root
+    }
+
+    pub(crate) fn question_frontier_roots(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (QuestionId, QuestionFrontierRoot)> + '_ {
+        self.question_frontier_roots
+            .iter()
+            .map(|(question_id, root)| (*question_id, *root))
+    }
+
+    pub(crate) fn question_frontier_root_for(
+        &self,
+        question_id: QuestionId,
+    ) -> Option<QuestionFrontierRoot> {
+        self.question_frontier_roots.get(&question_id).copied()
     }
 
     pub(crate) const fn transition_support_root(&self) -> RelationalTransitionSupportRoot {
         self.transition_support_root
     }
 
-    pub(crate) const fn transition_support_counts(&self) -> RelationalTransitionSupportCounts {
-        self.transition_support_counts
+    pub(crate) const fn transition_support_counts(&self) -> &RelationalTransitionSupportCounts {
+        &self.transition_support_counts
     }
 
     pub(crate) const fn analysis_plan_root(&self) -> Option<RelationalAnalysisPlanRoot> {
@@ -7685,8 +8026,16 @@ impl RelationalJournalSnapshot {
         self.admission
     }
 
-    pub(crate) const fn question(&self) -> SelectionCounts {
-        self.question
+    pub(crate) fn questions(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (QuestionId, SelectionCounts)> + '_ {
+        self.questions
+            .iter()
+            .map(|(question_id, counts)| (*question_id, *counts))
+    }
+
+    pub(crate) fn question(&self, question_id: QuestionId) -> Option<SelectionCounts> {
+        self.questions.get(&question_id).copied()
     }
 
     pub(crate) const fn support(&self) -> &SupportEvidenceSnapshot {
@@ -7704,7 +8053,9 @@ pub(crate) struct ClosedExtensionalRelationalEvidence {
     journal_head: RelationalJournalHead,
     relation_content_root: RelationContentRoot,
     admission_content_root: AdmissionContentRoot,
-    question_content_root: QuestionContentRoot,
+    /// Aggregate commitment to the canonical QuestionId -> content-root map.
+    question_content_root: RelationalQuestionContentSetRoot,
+    question_content_roots: BTreeMap<QuestionId, QuestionContentRoot>,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     support_plan_root: RelationalSupportPlanRoot,
     source_relation_exhaustion_receipt_id: SourceRelationExhaustionReceiptId,
@@ -7721,14 +8072,14 @@ pub(crate) struct ClosedExtensionalRelationalEvidence {
     analysis: RelationalAnalysisJournalState,
     relation: RelationCatalog,
     admission: AdmissionCatalog,
-    question: QuestionCatalog,
+    questions: BTreeMap<QuestionId, QuestionCatalog>,
     transition_support: RelationalTransitionSupportIndex,
     support: SupportEvidenceSnapshot,
 }
 
 impl ClosedExtensionalRelationalEvidence {
-    pub(crate) const fn contract(&self) -> RelationalJournalContract {
-        self.contract
+    pub(crate) const fn contract(&self) -> &RelationalJournalContract {
+        &self.contract
     }
 
     pub(crate) const fn journal_head(&self) -> RelationalJournalHead {
@@ -7743,8 +8094,23 @@ impl ClosedExtensionalRelationalEvidence {
         self.admission_content_root
     }
 
-    pub(crate) const fn question_content_root(&self) -> QuestionContentRoot {
+    pub(crate) const fn question_content_root(&self) -> RelationalQuestionContentSetRoot {
         self.question_content_root
+    }
+
+    pub(crate) fn question_content_roots(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (QuestionId, QuestionContentRoot)> + '_ {
+        self.question_content_roots
+            .iter()
+            .map(|(question_id, root)| (*question_id, *root))
+    }
+
+    pub(crate) fn question_content_root_for(
+        &self,
+        question_id: QuestionId,
+    ) -> Option<QuestionContentRoot> {
+        self.question_content_roots.get(&question_id).copied()
     }
 
     pub(crate) const fn transition_support(&self) -> &RelationalTransitionSupportIndex {
@@ -7817,8 +8183,16 @@ impl ClosedExtensionalRelationalEvidence {
         &self.admission
     }
 
-    pub(crate) fn question(&self) -> &QuestionCatalog {
-        &self.question
+    pub(crate) fn question(&self, question_id: QuestionId) -> Option<&QuestionCatalog> {
+        self.questions.get(&question_id)
+    }
+
+    pub(crate) fn questions(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (QuestionId, &QuestionCatalog)> + '_ {
+        self.questions
+            .iter()
+            .map(|(question_id, question)| (*question_id, question))
     }
 
     pub(crate) const fn support(&self) -> &SupportEvidenceSnapshot {
@@ -7846,6 +8220,12 @@ pub(crate) enum RelationalJournalError {
     SourceTraversal(SourceTraversalClosureError),
     CertifiedPopulation(CertifiedSelectedPopulationError),
     Analysis(RelationalAnalysisJournalError),
+    UnknownQuestion {
+        question_id: QuestionId,
+    },
+    SingleQuestionOptimizationScopeMismatch {
+        question_id: QuestionId,
+    },
     AnalysisPlanRootMismatch {
         claimed: RelationalAnalysisPlanRoot,
         derived: RelationalAnalysisPlanRoot,
@@ -8270,6 +8650,14 @@ impl fmt::Display for RelationalJournalError {
             Self::SourceTraversal(error) => fmt::Display::fmt(error, formatter),
             Self::CertifiedPopulation(error) => fmt::Display::fmt(error, formatter),
             Self::Analysis(error) => fmt::Display::fmt(error, formatter),
+            Self::UnknownQuestion { question_id } => write!(
+                formatter,
+                "relational journal question {question_id:?} is not registered by its contract"
+            ),
+            Self::SingleQuestionOptimizationScopeMismatch { question_id } => write!(
+                formatter,
+                "classified-region optimization for question {question_id:?} requires a contract with exactly that one question"
+            ),
             Self::AnalysisPlanRootMismatch { .. } => formatter
                 .write_str("relational analysis-plan root does not match its complete payload"),
             Self::AnalysisPlanScopeMismatch => formatter.write_str(
@@ -8680,18 +9068,42 @@ impl Error for RelationalJournalError {
     }
 }
 
+fn relational_question_frontier_set_root(
+    roots: &BTreeMap<QuestionId, QuestionFrontierRoot>,
+) -> RelationalQuestionFrontierSetRoot {
+    let mut hasher = ChainHasher::new(QUESTION_FRONTIER_SET_ROOT_HASH_V1);
+    hasher.u64(roots.len() as u64);
+    for (question_id, root) in roots {
+        hasher.digest(question_id.bytes());
+        hasher.digest(root.bytes());
+    }
+    RelationalQuestionFrontierSetRoot(hasher.finish())
+}
+
+fn relational_question_content_set_root(
+    roots: &BTreeMap<QuestionId, QuestionContentRoot>,
+) -> RelationalQuestionContentSetRoot {
+    let mut hasher = ChainHasher::new(QUESTION_CONTENT_SET_ROOT_HASH_V1);
+    hasher.u64(roots.len() as u64);
+    for (question_id, root) in roots {
+        hasher.digest(question_id.bytes());
+        hasher.digest(root.bytes());
+    }
+    RelationalQuestionContentSetRoot(hasher.finish())
+}
+
 fn relational_core_evidence_root(
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
     analysis_plan: Option<RelationalAnalysisPlanRoot>,
     support_plan: Option<RelationalSupportPlanRoot>,
     exhaustion: RelationalExhaustionEvidenceRoot,
     relation: RelationFrontierRoot,
     admission: AdmissionFrontierRoot,
-    question: QuestionFrontierRoot,
+    question: RelationalQuestionFrontierSetRoot,
     transition_support: RelationalTransitionSupportRoot,
     support: SupportEvidenceRoot,
 ) -> RelationalCoreEvidenceRoot {
-    let mut hasher = ChainHasher::new(CORE_EVIDENCE_ROOT_HASH_V5);
+    let mut hasher = ChainHasher::new(CORE_EVIDENCE_ROOT_HASH_V6);
     hasher.digest(contract.id().bytes());
     match analysis_plan {
         Some(root) => {
@@ -8717,7 +9129,7 @@ fn relational_core_evidence_root(
 }
 
 fn relational_exploration_evidence_root(
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
     core: RelationalCoreEvidenceRoot,
     analysis_scope: Option<RelationalAnalysisJournalScopeRoot>,
     analysis_catalog: Option<RelationalAnalysisCatalogRoot>,
@@ -8759,18 +9171,18 @@ fn relational_exploration_evidence_root(
 }
 
 fn relational_extensional_content_root(
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
     analysis_plan: RelationalAnalysisPlanRoot,
     support_plan: RelationalSupportPlanRoot,
     source_relation_exhaustion: SourceRelationExhaustionReceiptId,
     exhaustion: RelationalExhaustionEvidenceRoot,
     relation: RelationContentRoot,
     admission: AdmissionContentRoot,
-    question: QuestionContentRoot,
+    question: RelationalQuestionContentSetRoot,
     transition_support: RelationalTransitionSupportRoot,
     support: SupportEvidenceRoot,
 ) -> RelationalExtensionalContentRoot {
-    let mut hasher = ChainHasher::new(EXTENSIONAL_CONTENT_ROOT_HASH_V4);
+    let mut hasher = ChainHasher::new(EXTENSIONAL_CONTENT_ROOT_HASH_V5);
     hasher.digest(contract.id().bytes());
     hasher.digest(analysis_plan.bytes());
     hasher.digest(support_plan.bytes());
@@ -8815,10 +9227,11 @@ fn relational_exhaustion_evidence_root(
 }
 
 fn relational_checkpoint_root(
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
+    question_frontier: RelationalQuestionFrontierSetRoot,
     work: WorkFrontierRoot,
     support: &SupportEvidenceSnapshot,
-    classified_chunk_accumulator: Option<&RelationalClassifiedChunkAccumulator>,
+    classified_chunk_accumulator: Option<(QuestionId, &RelationalClassifiedChunkAccumulator)>,
     latest_support_frontiers: &BTreeMap<
         MechanismRequestId,
         RelationalMechanismSupportCheckpointReceipt,
@@ -8837,8 +9250,9 @@ fn relational_checkpoint_root(
     >,
     mechanism_support_observations: &BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
 ) -> RelationalCheckpointRoot {
-    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V7);
+    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V8);
     hasher.digest(contract.id().bytes());
+    hasher.digest(question_frontier.bytes());
     hasher.digest(work.bytes());
     hasher.u64(support.latest_cursors().len() as u64);
     for cursor in support.latest_cursors() {
@@ -8846,8 +9260,9 @@ fn relational_checkpoint_root(
         hasher.digest(cursor.id().bytes());
     }
     match classified_chunk_accumulator {
-        Some(accumulator) => {
+        Some((question_id, accumulator)) => {
             hasher.tag(0x01);
+            hasher.digest(question_id.bytes());
             hasher.digest(accumulator.chunk_partition_id().bytes());
             hasher.digest(accumulator.chunk_id().bytes());
             hasher.u128(accumulator.chunk_ordinal());
@@ -8977,7 +9392,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V22);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V23);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -8986,7 +9401,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V19);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V20);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -9090,8 +9505,13 @@ fn hash_evidence_event(hasher: &mut ChainHasher, event: &RelationalEvidenceEvent
                 AdmissionDecision::Admitted => 0x02,
             });
         }
-        RelationalEvidenceEvent::QuestionClassified { case_id, decision } => {
+        RelationalEvidenceEvent::QuestionClassified {
+            question_id,
+            case_id,
+            decision,
+        } => {
             hasher.tag(0x08);
+            hasher.digest(question_id.bytes());
             hasher.digest(case_id.bytes());
             hasher.tag(match decision {
                 SelectionDecision::NotSelected => 0x01,
@@ -9659,6 +10079,69 @@ mod tests {
         }
     }
 
+    fn contract_with_questions(
+        question_ids: impl IntoIterator<Item = QuestionId>,
+    ) -> RelationalJournalContract {
+        let relation = RelationId::from_canonical_semantic_preimage(b"plural journal relation");
+        let admission =
+            AdmissionId::from_canonical_admission_preimage(relation, b"plural journal admission");
+        RelationalJournalContract::new(
+            relation,
+            admission,
+            question_ids,
+            StateSchemaId::from_bytes([0x31; 32]),
+            ContextSchemaId::from_bytes([0x32; 32]),
+            TransitionTypeId::from_bytes([0x33; 32]),
+            [0x34; 32],
+        )
+    }
+
+    #[test]
+    fn journal_contract_canonicalizes_the_complete_question_set_and_rejects_foreign_events() {
+        let admission = contract_with_questions([]).admission_id();
+        let first = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"first",
+            super::super::relation::FindPolarity::All,
+        );
+        let second = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"second",
+            super::super::relation::FindPolarity::Matches,
+        );
+        let contract = contract_with_questions([second, first, second]);
+        let canonical = contract_with_questions([first, second]);
+        let mut expected = vec![first, second];
+        expected.sort_unstable();
+        assert_eq!(contract, canonical);
+        assert_eq!(contract.question_ids(), expected);
+        let empty_contract = contract_with_questions([]);
+        assert!(empty_contract.question_ids().is_empty());
+        let empty_snapshot = RelationalJournal::new(empty_contract).snapshot().unwrap();
+        assert_eq!(empty_snapshot.questions().count(), 0);
+        assert_eq!(empty_snapshot.question_frontier_roots().count(), 0);
+
+        let mut journal = RelationalJournal::new(contract);
+        let plural_snapshot = journal.snapshot().unwrap();
+        assert_eq!(plural_snapshot.questions().count(), 2);
+        assert!(plural_snapshot.question(first).is_some());
+        assert!(plural_snapshot.question(second).is_some());
+        let foreign = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"foreign",
+            super::super::relation::FindPolarity::Violations,
+        );
+        assert!(matches!(
+            journal.append(RelationalJournalEvent::question_classified(
+                foreign,
+                RelationalCaseId::from_journal_codec_bytes([0x35; 32]),
+                SelectionDecision::Selected,
+            )),
+            Err(RelationalJournalError::UnknownQuestion { question_id })
+                if question_id == foreign
+        ));
+    }
+
     #[test]
     fn explicit_observation_claims_remint_and_replay_the_same_demand_chain() {
         let fixture = closed_subject_starter_fixture();
@@ -9797,7 +10280,7 @@ mod tests {
         given context = 1
     }
     transition after = 200000
-    find all
+    find all_cases = all
 }
 "#;
         let mut lexer = Lexer::new(source);
@@ -9818,16 +10301,17 @@ mod tests {
         let support_plan = RelationalSupportPlanner::from_checked(&checked)
             .and_then(|planner| planner.plan())
             .expect("plan exact source support");
+        let question_id = checked.question_ids()[0];
         let contract = RelationalJournalContract::new(
             checked.relation_id(),
             checked.admission_id(),
-            checked.question_id(),
+            checked.question_ids().iter().copied(),
             checked.transition_schemas().state_schema_id(),
             checked.transition_schemas().context_schema_id(),
             checked.transition_schemas().transition_type_id(),
             analysis_plan.producer_graph_digest().bytes(),
         );
-        let mut journal = RelationalJournal::new(contract);
+        let mut journal = RelationalJournal::new(contract.clone());
         journal
             .append(RelationalJournalEvent::analysis_plan_registered(
                 analysis_plan,
@@ -9943,7 +10427,7 @@ mod tests {
             .unwrap();
         let find_work = RelationalJournalEvent::work_node_inserted(
             WorkNodeSpec::EvaluateFind {
-                question_id: contract.question_id(),
+                question_id,
                 case_id,
             },
             [case_ready_id, admission_work_id],
@@ -9953,6 +10437,7 @@ mod tests {
         journal.append(find_work).unwrap();
         journal
             .append(RelationalJournalEvent::question_classified(
+                question_id,
                 case_id,
                 SelectionDecision::Selected,
             ))
@@ -9961,7 +10446,7 @@ mod tests {
             .append(RelationalJournalEvent::work_node_completed(
                 find_work_id,
                 WorkCompletionRef::FindDecided {
-                    question_id: contract.question_id(),
+                    question_id,
                     case_id,
                     decision: SelectionDecision::Selected,
                 },
@@ -9974,7 +10459,7 @@ mod tests {
             RelationCountEvidence::LowerBound(1)
         );
         assert_eq!(
-            open.question().selected(),
+            open.question(question_id).unwrap().selected(),
             RelationCountEvidence::LowerBound(1)
         );
         assert_eq!(
@@ -10048,7 +10533,7 @@ mod tests {
             RelationCountEvidence::Exact(1)
         );
         assert_eq!(
-            closed_snapshot.question().selected(),
+            closed_snapshot.question(question_id).unwrap().selected(),
             RelationCountEvidence::Exact(1)
         );
         let transition_counts = closed_snapshot.transition_support_counts();
@@ -10056,10 +10541,10 @@ mod tests {
         for layer in [
             RelationalTransitionLayer::Universe,
             RelationalTransitionLayer::Admitted,
-            RelationalTransitionLayer::Matched,
+            RelationalTransitionLayer::Matched(question_id),
         ] {
-            assert_eq!(transition_counts.cases(layer), 1);
-            assert_eq!(transition_counts.transitions(layer), 1);
+            assert_eq!(transition_counts.cases(layer), Some(1));
+            assert_eq!(transition_counts.transitions(layer), Some(1));
             let support = journal
                 .scheduler_view()
                 .unwrap()
@@ -10078,7 +10563,7 @@ mod tests {
             .all(|node| node.progress.is_complete()));
 
         let entries = journal.entries().to_vec();
-        let replayed = RelationalJournal::replay(contract, entries.clone()).unwrap();
+        let replayed = RelationalJournal::replay(contract.clone(), entries.clone()).unwrap();
         let replayed_snapshot = replayed.snapshot().unwrap();
         assert_eq!(replayed.head(), journal.head());
         assert_eq!(
@@ -10094,7 +10579,10 @@ mod tests {
             closed_snapshot.checkpoint_root()
         );
         assert_eq!(replayed_snapshot.admission(), closed_snapshot.admission());
-        assert_eq!(replayed_snapshot.question(), closed_snapshot.question());
+        assert_eq!(
+            replayed_snapshot.question(question_id),
+            closed_snapshot.question(question_id)
+        );
         assert_eq!(
             replayed_snapshot.core_evidence_root(),
             closed_snapshot.core_evidence_root()

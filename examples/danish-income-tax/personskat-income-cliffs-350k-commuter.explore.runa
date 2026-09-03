@@ -43,13 +43,13 @@ over an income coordinate detached from its profile.
 
 Both endpoint calculations must pass the model-wide validity and reconciliation
 checks before a transition is admitted. Rejected transitions stay visible in
-the stream's admission accounting. Exact closure with no selected cases and no
+the stream's admission accounting. Exact closure with an empty `cliff_cases` find and no
 rejections would prove only that no declared 100-DKK endpoint transition is
 harmful. It would not rule out a narrower cliff and recovery within one coarse
 interval, nor say anything about another municipality, church-tax status,
 commute distance or conditioned profile fact.
 
-Mechanism replay targets selected cliffs only. Each selected result retains
+Mechanism replay explicitly targets `cliff_cases` only. Each matching result retains
 Before, After and Context, while the authenticated query closure retains the
 pure constructors that expand those compact states into complete Personskat
 inputs. The mechanism views count distinct replay-derived signatures directly,
@@ -59,7 +59,7 @@ mechanism count from a case count.
 The two trailing `starters` consumers were appended after an exact first run
 identified the current structural mechanism IDs. They authorize typed starter
 fibers for those two subjects only. They do not alter or seed the source
-relation, selected cases, mechanism replay or structural quotient; removing
+relation, cliff cases, mechanism replay or structural quotient; removing
 them leaves the answer-defining analysis identity unchanged. Their 100/150-km
 names describe the subsequently authenticated fibers rather than candidate
 coordinates supplied to the search.
@@ -330,13 +330,13 @@ calculation. This file is a bounded model audit, not individual tax advice.
     after.bruttoløn_kroner ==
     before.bruttoløn_kroner + context.lønstigning_kroner
 
-    find violations of personskat_350k_commuter_ressourcer_falder_ikke(
+    find cliff_cases = violations of personskat_350k_commuter_ressourcer_falder_ikke(
         before,
         after,
         context
     )
 
-    results cliffs from selected {
+    results cliffs from find cliff_cases {
         each case
         measure [
             loss_ore = personskat_350k_commuter_tab_øre(
@@ -354,7 +354,7 @@ calculation. This file is a bounded model audit, not individual tax advice.
         ]
     }
 
-    results case_summary from selected {
+    results case_summary from find cliff_cases {
         group all
         aggregate [
             cases = count_distinct(case_id),
@@ -375,7 +375,7 @@ calculation. This file is a bounded model audit, not individual tax advice.
         select [starting_profile, transition_context, income_coordinates]
     }
 
-    mechanisms cliff_paths for selected from personskat_350k_commuter_assess
+    mechanisms cliff_paths from find cliff_cases using personskat_350k_commuter_assess
 
     results mechanism_summary from mechanisms cliff_paths {
         group all

@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 
-use super::relation::AdmissionDecision;
+use super::relation::{AdmissionDecision, QuestionId};
 use super::relational_bounded_chunk_partition::{
     plan_relational_bounded_case_chunks, RelationalCaseChunkPartitionArtifact,
     RelationalCaseChunkPartitionArtifactId, RelationalCaseChunkPartitionError,
@@ -173,6 +173,11 @@ pub(crate) enum RelationalSupportStepOutcome {
 /// support journal for a later FIND producer.
 pub(crate) struct RelationalSupportStepDriver {
     plan_root: RelationalSupportPlanRoot,
+    // Certified support is currently an exact-one optimization. Keeping this
+    // optional lets the concrete zero/plural path construct the driver without
+    // inventing a primary question.
+    certified_question_id: Option<QuestionId>,
+    question_count: usize,
     root: Option<RootSupportFrontier>,
     source_image_exactness_proof: Option<SourceImageExactnessProofProposal>,
     case_image_proof: Option<CaseImageProofProposal>,
@@ -187,6 +192,10 @@ impl RelationalSupportStepDriver {
         if !plan.validate_root() {
             return Err(RelationalSupportStepDriverError::InvalidPlanRoot);
         }
+        let certified_question_id = match plan.question_ids() {
+            [question_id] => Some(*question_id),
+            _ => None,
+        };
 
         let root = match plan.root_obligations() {
             RelationalRootObligationPlan::ResolvedExactEmpty { .. } => None,
@@ -273,16 +282,19 @@ impl RelationalSupportStepDriver {
             }
         };
 
-        let source_image_exactness_proof = match prove_relational_source_image_exactness(plan) {
-            Ok(proof) => Some(SourceImageExactnessProofProposal {
-                artifact: proof.proof().artifact().clone(),
-                binding: proof.population_binding(),
-            }),
-            Err(RelationalSourceImageExactnessProofError::UnsupportedPlanShape(_)) => None,
-            Err(error) => return Err(error.into()),
+        let source_image_exactness_proof = match certified_question_id {
+            Some(_) => match prove_relational_source_image_exactness(plan) {
+                Ok(proof) => Some(SourceImageExactnessProofProposal {
+                    artifact: proof.proof().artifact().clone(),
+                    binding: proof.population_binding(),
+                }),
+                Err(RelationalSourceImageExactnessProofError::UnsupportedPlanShape(_)) => None,
+                Err(error) => return Err(error.into()),
+            },
+            None => None,
         };
 
-        let verified_case_image_proof = if root.is_some() {
+        let verified_case_image_proof = if certified_question_id.is_some() && root.is_some() {
             match prove_relational_case_image_injectivity(plan) {
                 Ok(proof) => Some(proof),
                 Err(RelationalCaseImageInjectivityProofError::UnsupportedPlanShape(_)) => None,
@@ -336,17 +348,17 @@ impl RelationalSupportStepDriver {
             })
             .transpose()?;
 
-        let uniform_admission_proof_candidate = if let Some(root) = root.as_ref() {
-            match prove_relational_uniform_admission(plan) {
+        let uniform_admission_proof_candidate = match (certified_question_id, root.as_ref()) {
+            (Some(_), Some(root)) => match prove_relational_uniform_admission(plan) {
                 Ok(proof) => {
                     let evidence = proof.evidence();
                     let obligation_id = evidence.obligation().id();
                     if root.admission_obligation_id != Some(obligation_id)
                         || evidence.obligation().cell_id() != root.cell_id
                     {
-                        return Err(
-                            RelationalSupportStepDriverError::QualifyingAdmissionProofObligationMismatch,
-                        );
+                        let error = RelationalSupportStepDriverError::
+                            QualifyingAdmissionProofObligationMismatch;
+                        return Err(error);
                     }
                     Some(UniformAdmissionProofProposal {
                         artifact: proof.proof().artifact().clone(),
@@ -357,9 +369,8 @@ impl RelationalSupportStepDriver {
                 }
                 Err(RelationalUniformAdmissionProofError::UnsupportedPlanShape(_)) => None,
                 Err(error) => return Err(error.into()),
-            }
-        } else {
-            None
+            },
+            _ => None,
         };
 
         // A proper canonical partition owns the ordered classified stream.
@@ -431,6 +442,8 @@ impl RelationalSupportStepDriver {
 
         Ok(Self {
             plan_root: plan.root(),
+            certified_question_id,
+            question_count: plan.question_ids().len(),
             root,
             source_image_exactness_proof,
             case_image_proof,
@@ -454,6 +467,11 @@ impl RelationalSupportStepDriver {
         &self,
         view: RelationalSchedulerView<'_>,
     ) -> Result<RelationalSupportStepOutcome, RelationalSupportStepDriverError> {
+        let question_id = self.certified_question_id.ok_or(
+            RelationalSupportStepDriverError::QuestionArityMismatch {
+                actual: self.question_count,
+            },
+        )?;
         match view.support_plan_root() {
             None => return Ok(RelationalSupportStepOutcome::AwaitingSupportPlanRegistration),
             Some(actual) if actual != self.plan_root => {
@@ -465,7 +483,7 @@ impl RelationalSupportStepDriver {
             Some(_) => {}
         }
 
-        if let Some(batch) = self.source_image_exactness_proof_batch(view)? {
+        if let Some(batch) = self.source_image_exactness_proof_batch(view, question_id)? {
             return Ok(RelationalSupportStepOutcome::Emitted(batch));
         }
 
@@ -561,6 +579,7 @@ impl RelationalSupportStepDriver {
     fn source_image_exactness_proof_batch(
         &self,
         view: RelationalSchedulerView<'_>,
+        question_id: QuestionId,
     ) -> Result<Option<RelationalSupportStepBatch>, RelationalSupportStepDriverError> {
         let Some(proposal) = &self.source_image_exactness_proof else {
             return Ok(None);
@@ -582,7 +601,9 @@ impl RelationalSupportStepDriver {
             // classified branch.  Do not wait for chunk zero: a late source
             // proof would otherwise make accepted event order depend on
             // whether the first expensive classification had finished.
-            || view.classified_sweep_progress().is_some()
+            || view
+                .classified_sweep_progress(question_id)?
+                .is_some()
             || view.support_catalog_is_sealed()
         {
             return Err(
@@ -893,6 +914,9 @@ impl RelationalSupportStepDriver {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalSupportStepDriverError {
     InvalidPlanRoot,
+    QuestionArityMismatch {
+        actual: usize,
+    },
     RootCellMissing(SupportCellId),
     InvalidRootActivation(SupportProofObligationId),
     RootObligationCellMismatch {
@@ -937,6 +961,10 @@ impl fmt::Display for RelationalSupportStepDriverError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidPlanRoot => formatter.write_str("support plan root is not canonical"),
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "support-step driver requires exactly one semantic question, found {actual}"
+            ),
             Self::RootCellMissing(_) => {
                 formatter.write_str("support plan case root is absent from its cell catalog")
             }
@@ -1021,6 +1049,7 @@ impl Error for RelationalSupportStepDriverError {
             Self::Journal(error) => Some(error),
             Self::Work(error) => Some(error),
             Self::InvalidPlanRoot
+            | Self::QuestionArityMismatch { .. }
             | Self::RootCellMissing(_)
             | Self::InvalidRootActivation(_)
             | Self::RootObligationCellMismatch { .. }

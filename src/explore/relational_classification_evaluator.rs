@@ -17,6 +17,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::num::NonZeroUsize;
 use std::sync::Arc;
 
+use super::relation::{AdmissionDecision, QuestionId, SelectionDecision};
 use super::relational_classification_capsule::{
     ClassificationBinaryOp, ClassificationCallableId, ClassificationInputLane,
     ClassificationInputSlot, ClassificationLaneStatus, ClassificationNodeId,
@@ -107,7 +108,7 @@ pub(crate) struct RelationalClassificationEvaluatorFallback {
 pub(crate) enum RelationalClassificationEvaluatorFallbackReason {
     InvalidCapsuleIdentity,
     ResidualClassificationLane(ClassificationSemanticLane),
-    MissingNormalizedFindRoot,
+    MissingNormalizedFindRoot(QuestionId),
     MissingNode(ClassificationNodeId),
     MissingCallable(ClassificationCallableId),
     UnsupportedInputSlot(ClassificationInputSlot),
@@ -130,10 +131,51 @@ pub(crate) enum RelationalClassificationEvaluatorFallbackReason {
 #[derive(Clone, Debug)]
 struct ClassificationExecutionPlan {
     admission_roots: Box<[ClassificationNodeId]>,
-    find_root: ClassificationNodeId,
+    find_roots: Box<[(QuestionId, ClassificationNodeId)]>,
     node_kinds: BTreeMap<ClassificationNodeId, Arc<ClassificationNodeKind>>,
     runtime_shapes_by_constructor: BTreeMap<[u8; 32], Arc<RuntimeConstructorShape>>,
     runtime_shapes_by_variant: BTreeMap<RuntimeConstructorKey, Arc<RuntimeConstructorShape>>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalQuestionDecision {
+    question_id: QuestionId,
+    decision: SelectionDecision,
+}
+
+impl RelationalQuestionDecision {
+    pub(crate) const fn question_id(self) -> QuestionId {
+        self.question_id
+    }
+
+    pub(crate) const fn decision(self) -> SelectionDecision {
+        self.decision
+    }
+}
+
+/// One admission decision plus the complete, QuestionId-keyed classification
+/// vector for an admitted subject. Rejected subjects carry no FIND decisions.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalQuestionBatchOutcome {
+    admission: AdmissionDecision,
+    questions: Box<[RelationalQuestionDecision]>,
+}
+
+impl RelationalQuestionBatchOutcome {
+    pub(crate) const fn admission(&self) -> AdmissionDecision {
+        self.admission
+    }
+
+    pub(crate) fn questions(&self) -> &[RelationalQuestionDecision] {
+        &self.questions
+    }
+
+    pub(crate) fn decision(&self, question_id: QuestionId) -> Option<SelectionDecision> {
+        self.questions
+            .binary_search_by_key(&question_id, |question| question.question_id)
+            .ok()
+            .map(|index| self.questions[index].decision)
+    }
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -549,6 +591,62 @@ impl RelationalClassificationEvaluatorBackend {
     pub(crate) const fn call_cache_capacity(&self) -> NonZeroUsize {
         self.call_cache.capacity
     }
+
+    /// Evaluate admission once and every QuestionId lane for each subject.
+    /// Capsule failure is returned explicitly; this plural boundary never
+    /// chooses an ambient or "primary" question as a fallback.
+    pub(crate) fn classify_ordered_question_batch(
+        &mut self,
+        subjects: &[RelationalOrderedClassificationSubject<'_>],
+    ) -> Result<Box<[RelationalQuestionBatchOutcome]>, RelationalClassificationEvaluatorFallback>
+    {
+        let mut delta = RelationalClassificationEvaluatorStats::default();
+        match self.try_classify_ordered_question_batch(subjects, &mut delta) {
+            Ok(outcomes) => {
+                delta.completed_batches = 1;
+                delta.capsule_batches = 1;
+                delta.capsule_subjects = subject_count(subjects);
+                self.stats.commit(delta);
+                self.last_fallback = None;
+                Ok(outcomes)
+            }
+            Err(fallback) => {
+                self.last_fallback = Some(fallback.clone());
+                Err(fallback)
+            }
+        }
+    }
+
+    fn try_classify_ordered_question_batch(
+        &mut self,
+        subjects: &[RelationalOrderedClassificationSubject<'_>],
+        delta: &mut RelationalClassificationEvaluatorStats,
+    ) -> Result<Box<[RelationalQuestionBatchOutcome]>, RelationalClassificationEvaluatorFallback>
+    {
+        let mut transaction =
+            CompleteCallCacheTransaction::new(&mut self.call_cache).map_err(|()| {
+                RelationalClassificationEvaluatorFallback {
+                subject_index: None,
+                reason:
+                    RelationalClassificationEvaluatorFallbackReason::InvalidCompleteCallCacheState,
+            }
+            })?;
+        let outcomes = classify_with_capsule(
+            self.capsule.as_ref(),
+            &self.plan,
+            subjects,
+            &mut transaction,
+            delta,
+        )?;
+        transaction
+            .commit()
+            .map_err(|()| RelationalClassificationEvaluatorFallback {
+                subject_index: None,
+                reason:
+                    RelationalClassificationEvaluatorFallbackReason::InvalidCompleteCallCacheState,
+            })?;
+        Ok(outcomes)
+    }
 }
 
 impl RelationalOrderedClassificationBackend for RelationalClassificationEvaluatorBackend {
@@ -557,29 +655,47 @@ impl RelationalOrderedClassificationBackend for RelationalClassificationEvaluato
         subjects: &[RelationalOrderedClassificationSubject<'_>],
         checked: &mut RelationalCheckedClassificationContext<'_, '_, '_, R>,
     ) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalClassifiedSweepError> {
-        let mut capsule_delta = RelationalClassificationEvaluatorStats::default();
-        let capsule_attempt = match CompleteCallCacheTransaction::new(&mut self.call_cache) {
-            Ok(mut transaction) => match classify_with_capsule(
-                self.capsule.as_ref(),
-                &self.plan,
-                subjects,
-                &mut transaction,
-                &mut capsule_delta,
-            ) {
-                Ok(outcomes) => transaction.commit().map(|()| outcomes).map_err(|()| {
-                    RelationalClassificationEvaluatorFallback {
-                        subject_index: None,
-                        reason: RelationalClassificationEvaluatorFallbackReason::InvalidCompleteCallCacheState,
-                    }
-                }),
-                Err(fallback) => Err(fallback),
-            },
-            Err(()) => Err(RelationalClassificationEvaluatorFallback {
-                subject_index: None,
-                reason:
-                    RelationalClassificationEvaluatorFallbackReason::InvalidCompleteCallCacheState,
-            }),
+        let question_id = match self.capsule.question_ids() {
+            [question_id] => *question_id,
+            _ => {
+                return Err(RelationalClassifiedSweepError::InvalidQuery(
+                    "legacy single-question classification cannot consume a plural QuestionId set"
+                        .to_string(),
+                ));
+            }
         };
+        let mut capsule_delta = RelationalClassificationEvaluatorStats::default();
+        let capsule_attempt = self
+            .try_classify_ordered_question_batch(subjects, &mut capsule_delta)
+            .and_then(|outcomes| {
+                outcomes
+                    .iter()
+                    .map(|outcome| match outcome.admission() {
+                        AdmissionDecision::Rejected if outcome.questions().is_empty() => {
+                            Ok(RelationalClassifiedCaseOutcome::Rejected)
+                        }
+                        AdmissionDecision::Admitted => match outcome.decision(question_id) {
+                            Some(SelectionDecision::Selected) => {
+                                Ok(RelationalClassifiedCaseOutcome::AdmittedSelected)
+                            }
+                            Some(SelectionDecision::NotSelected) => {
+                                Ok(RelationalClassifiedCaseOutcome::AdmittedNotSelected)
+                            }
+                            None => Err(RelationalClassificationEvaluatorFallback {
+                                subject_index: None,
+                                reason: RelationalClassificationEvaluatorFallbackReason::InvalidCapsuleIdentity,
+                            }),
+                        },
+                        AdmissionDecision::Rejected => {
+                            Err(RelationalClassificationEvaluatorFallback {
+                                subject_index: None,
+                                reason: RelationalClassificationEvaluatorFallbackReason::InvalidCapsuleIdentity,
+                            })
+                        }
+                    })
+                    .collect::<Result<Vec<_>, _>>()
+                    .map(Vec::into_boxed_slice)
+            });
         match capsule_attempt {
             Ok(outcomes) => {
                 capsule_delta.completed_batches = 1;
@@ -610,7 +726,7 @@ fn classify_with_capsule(
     subjects: &[RelationalOrderedClassificationSubject<'_>],
     transactional_cache: &mut CompleteCallCacheTransaction<'_>,
     delta: &mut RelationalClassificationEvaluatorStats,
-) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalClassificationEvaluatorFallback> {
+) -> Result<Box<[RelationalQuestionBatchOutcome]>, RelationalClassificationEvaluatorFallback> {
     let plan = plan
         .as_ref()
         .map_err(|reason| RelationalClassificationEvaluatorFallback {
@@ -644,7 +760,7 @@ fn prepare_execution_plan(
     }
     let graph = capsule.graph();
     let mut admissions = Vec::new();
-    let mut find_root = None;
+    let mut pending_find_roots = BTreeMap::new();
     for entry in graph.lane_manifest() {
         match entry.lane {
             ClassificationSemanticLane::Admission { ordinal, .. } => {
@@ -660,7 +776,7 @@ fn prepare_execution_plan(
                 )?;
                 admissions.push((ordinal, node));
             }
-            ClassificationSemanticLane::Find => {
+            ClassificationSemanticLane::Find(question_id) => {
                 if entry.status == ClassificationLaneStatus::Residual {
                     return Err(
                         RelationalClassificationEvaluatorFallbackReason::ResidualClassificationLane(
@@ -668,13 +784,40 @@ fn prepare_execution_plan(
                         ),
                     );
                 }
-                find_root = root_for_lane(graph.roots(), entry.lane);
+                let root = root_for_lane(graph.roots(), entry.lane).ok_or(
+                    RelationalClassificationEvaluatorFallbackReason::MissingNormalizedFindRoot(
+                        question_id,
+                    ),
+                )?;
+                if pending_find_roots.insert(question_id, root).is_some() {
+                    return Err(
+                        RelationalClassificationEvaluatorFallbackReason::InvalidCapsuleIdentity,
+                    );
+                }
             }
             ClassificationSemanticLane::SourceBinding(_)
             | ClassificationSemanticLane::Successor => {}
         }
     }
     admissions.sort_unstable_by_key(|(ordinal, _)| *ordinal);
+    let find_roots = capsule
+        .question_ids()
+        .iter()
+        .copied()
+        .map(|question_id| {
+            pending_find_roots
+                .remove(&question_id)
+                .map(|root| (question_id, root))
+                .ok_or(
+                    RelationalClassificationEvaluatorFallbackReason::MissingNormalizedFindRoot(
+                        question_id,
+                    ),
+                )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    if !pending_find_roots.is_empty() {
+        return Err(RelationalClassificationEvaluatorFallbackReason::InvalidCapsuleIdentity);
+    }
     let mut node_kinds = BTreeMap::new();
     for (node_id, node) in graph.nodes() {
         if node_kinds
@@ -704,8 +847,7 @@ fn prepare_execution_plan(
             .map(|(_, node)| node)
             .collect::<Vec<_>>()
             .into_boxed_slice(),
-        find_root: find_root
-            .ok_or(RelationalClassificationEvaluatorFallbackReason::MissingNormalizedFindRoot)?,
+        find_roots: find_roots.into_boxed_slice(),
         node_kinds,
         runtime_shapes_by_constructor,
         runtime_shapes_by_variant,
@@ -753,23 +895,36 @@ impl CapsuleBatchEvaluator<'_, '_, '_, '_> {
     fn classify_subject(
         &mut self,
         subject: RelationalOrderedClassificationSubject<'_>,
-    ) -> Result<RelationalClassifiedCaseOutcome, RelationalClassificationEvaluatorFallbackReason>
+    ) -> Result<RelationalQuestionBatchOutcome, RelationalClassificationEvaluatorFallbackReason>
     {
         for index in 0..self.plan.admission_roots.len() {
             let root = self.plan.admission_roots[index];
             self.stats.admission_root_evaluations =
                 self.stats.admission_root_evaluations.saturating_add(1);
             if !self.evaluate_boolean(root, subject, None, 0)? {
-                return Ok(RelationalClassifiedCaseOutcome::Rejected);
+                return Ok(RelationalQuestionBatchOutcome {
+                    admission: AdmissionDecision::Rejected,
+                    questions: Box::new([]),
+                });
             }
         }
-        self.stats.find_root_evaluations = self.stats.find_root_evaluations.saturating_add(1);
-        let find_root = self.plan.find_root;
-        if self.evaluate_boolean(find_root, subject, None, 0)? {
-            Ok(RelationalClassifiedCaseOutcome::AdmittedSelected)
-        } else {
-            Ok(RelationalClassifiedCaseOutcome::AdmittedNotSelected)
+        let mut questions = Vec::with_capacity(self.plan.find_roots.len());
+        for (question_id, find_root) in self.plan.find_roots.iter().copied() {
+            self.stats.find_root_evaluations = self.stats.find_root_evaluations.saturating_add(1);
+            let decision = if self.evaluate_boolean(find_root, subject, None, 0)? {
+                SelectionDecision::Selected
+            } else {
+                SelectionDecision::NotSelected
+            };
+            questions.push(RelationalQuestionDecision {
+                question_id,
+                decision,
+            });
         }
+        Ok(RelationalQuestionBatchOutcome {
+            admission: AdmissionDecision::Admitted,
+            questions: questions.into_boxed_slice(),
+        })
     }
 
     fn evaluate_boolean(
@@ -1237,15 +1392,16 @@ mod tests {
         ClassificationCallableDefinition, ClassificationInterner, ClassificationLaneRoot,
         ClassificationNodeKey, ClassificationProvenanceRoot, ClassificationRuntimeLayout,
         ClassificationSpecializationRoot, ClassificationTypeId, FrozenClassificationProgram,
-        FrozenClassificationRuntimeShapes, RuntimeConstructorShape,
+        FrozenClassificationQuestionSet, FrozenClassificationRuntimeShapes,
+        RuntimeConstructorShape,
     };
     use super::super::relational_executor::{
         RelationalBoundValue, RelationalCompletedSource, RelationalSourceEnumerator,
     };
     use super::super::relational_ir::{
-        ExploreFindIr, ExploreQueryIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
-        ExploreSourceBindingRoleIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
-        ExploreSuccessorKindIr, ExploreSuccessorRelationIr,
+        ExploreFindIr, ExploreNamedFindIr, ExploreQueryIr, ExploreSourceBindingIr,
+        ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSourceProducerRoleIr,
+        ExploreSourceRelationIr, ExploreSuccessorKindIr, ExploreSuccessorRelationIr,
     };
     use super::super::relational_support_planner::RelationalSupportPlanRoot;
     use super::*;
@@ -1313,6 +1469,11 @@ mod tests {
         ClassificationTypeId::from_checked_type_digest([tag; 32])
     }
 
+    fn question_id(relation_id: RelationId, tag: u8) -> QuestionId {
+        let admission_id = AdmissionId::from_canonical_admission_digest(relation_id, [31; 32]);
+        QuestionId::from_canonical_find_digest(admission_id, [tag; 32], FindPolarity::Matches)
+    }
+
     fn int(value: i64) -> Expr {
         Expr::unspanned(ExprKind::Lit(Literal::Int(value)))
     }
@@ -1371,10 +1532,14 @@ mod tests {
                 span: Span::dummy(),
             },
             admissions: Box::new([]),
-            find: ExploreFindIr::Matches {
-                predicate,
-                span: Span::dummy(),
-            },
+            finds: vec![ExploreNamedFindIr {
+                name: "cases".to_string(),
+                find: ExploreFindIr::Matches {
+                    predicate,
+                    span: Span::dummy(),
+                },
+            }]
+            .into_boxed_slice(),
             analysis: Box::new([]),
             observation_demands: Box::new([]),
             starter_projections: Box::new([]),
@@ -1428,10 +1593,9 @@ mod tests {
         graph: Arc<FrozenClassificationProgram>,
         runtime_shapes: Arc<FrozenClassificationRuntimeShapes>,
         relation_id: RelationId,
+        question_ids: impl IntoIterator<Item = QuestionId>,
     ) -> Arc<RelationalClassificationCapsule> {
         let admission_id = AdmissionId::from_canonical_admission_digest(relation_id, [31; 32]);
-        let question_id =
-            QuestionId::from_canonical_find_digest(admission_id, [32; 32], FindPolarity::Matches);
         Arc::new(
             RelationalClassificationCapsule::bind(
                 graph,
@@ -1439,7 +1603,7 @@ mod tests {
                 [33; 32],
                 relation_id,
                 admission_id,
-                question_id,
+                FrozenClassificationQuestionSet::freeze(question_ids).unwrap(),
                 RelationalSupportPlanRoot::from_journal_codec_bytes([34; 32]),
                 None,
                 ClassificationSpecializationRoot::none(),
@@ -1449,7 +1613,7 @@ mod tests {
         )
     }
 
-    fn adjacent_observation_graph() -> Arc<FrozenClassificationProgram> {
+    fn adjacent_observation_graph(question_id: QuestionId) -> Arc<FrozenClassificationProgram> {
         let integer = type_id(1);
         let boolean = type_id(2);
         let callable_id = ClassificationCallableId::from_checked_callable_digest([41; 32]);
@@ -1512,11 +1676,73 @@ mod tests {
                     return_type: integer,
                     body: parameter,
                 }],
-                [ClassificationSemanticLane::Find],
+                [ClassificationSemanticLane::Find(question_id)],
                 [ClassificationLaneRoot {
-                    lane: ClassificationSemanticLane::Find,
+                    lane: ClassificationSemanticLane::Find(question_id),
                     node: find,
                 }],
+                [],
+            )
+            .unwrap(),
+        )
+    }
+
+    fn plural_comparison_graph(
+        increasing: QuestionId,
+        decreasing: QuestionId,
+    ) -> Arc<FrozenClassificationProgram> {
+        let integer = type_id(1);
+        let boolean = type_id(2);
+        let mut interner = ClassificationInterner::default();
+        let before = interner
+            .intern(ClassificationNodeKey {
+                ty: integer,
+                kind: ClassificationNodeKind::Input(ClassificationInputSlot::BEFORE),
+            })
+            .unwrap();
+        let after = interner
+            .intern(ClassificationNodeKey {
+                ty: integer,
+                kind: ClassificationNodeKind::Input(ClassificationInputSlot::AFTER),
+            })
+            .unwrap();
+        let increasing_root = interner
+            .intern(ClassificationNodeKey {
+                ty: boolean,
+                kind: ClassificationNodeKind::Binary {
+                    op: ClassificationBinaryOp::LessThan,
+                    left: before,
+                    right: after,
+                },
+            })
+            .unwrap();
+        let decreasing_root = interner
+            .intern(ClassificationNodeKey {
+                ty: boolean,
+                kind: ClassificationNodeKind::Binary {
+                    op: ClassificationBinaryOp::LessThan,
+                    left: after,
+                    right: before,
+                },
+            })
+            .unwrap();
+        Arc::new(
+            FrozenClassificationProgram::freeze(
+                interner,
+                [
+                    ClassificationSemanticLane::Find(increasing),
+                    ClassificationSemanticLane::Find(decreasing),
+                ],
+                [
+                    ClassificationLaneRoot {
+                        lane: ClassificationSemanticLane::Find(increasing),
+                        node: increasing_root,
+                    },
+                    ClassificationLaneRoot {
+                        lane: ClassificationSemanticLane::Find(decreasing),
+                        node: decreasing_root,
+                    },
+                ],
                 [],
             )
             .unwrap(),
@@ -1532,7 +1758,9 @@ mod tests {
         }
     }
 
-    fn variant_graph_and_shapes() -> (
+    fn variant_graph_and_shapes(
+        question_id: QuestionId,
+    ) -> (
         Arc<FrozenClassificationProgram>,
         Arc<FrozenClassificationRuntimeShapes>,
         ClassificationNodeId,
@@ -1584,9 +1812,9 @@ mod tests {
                     return_type: state,
                     body: parameter,
                 }],
-                [ClassificationSemanticLane::Find],
+                [ClassificationSemanticLane::Find(question_id)],
                 [ClassificationLaneRoot {
-                    lane: ClassificationSemanticLane::Find,
+                    lane: ClassificationSemanticLane::Find(question_id),
                     node: find,
                 }],
                 [],
@@ -1633,9 +1861,15 @@ mod tests {
         let materialized = materialize_cases(relation_id, &query, 3);
         let subjects = subjects(&materialized);
         let cases = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+        let question_id = question_id(relation_id, 32);
+        let questions = cases
+            .question_evaluation_plan(&[question_id])
+            .expect("fixture question id must align with its single FIND");
         let expected = {
             let mut runtime = FixtureRuntime;
-            let mut checked = RelationalCheckedClassificationContext::new(&cases, &mut runtime);
+            let mut checked =
+                RelationalCheckedClassificationContext::new(&cases, &questions, &mut runtime)
+                    .expect("single-question fixture must construct a checked classifier");
             subjects
                 .iter()
                 .copied()
@@ -1643,14 +1877,17 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         let capsule = bind_capsule(
-            adjacent_observation_graph(),
+            adjacent_observation_graph(question_id),
             Arc::new(FrozenClassificationRuntimeShapes::freeze([]).unwrap()),
             relation_id,
+            [question_id],
         );
         let mut backend =
             RelationalClassificationEvaluatorBackend::new(capsule, NonZeroUsize::new(16).unwrap());
         let mut runtime = FixtureRuntime;
-        let mut checked = RelationalCheckedClassificationContext::new(&cases, &mut runtime);
+        let mut checked =
+            RelationalCheckedClassificationContext::new(&cases, &questions, &mut runtime)
+                .expect("single-question fixture must construct a checked fallback");
 
         let outcomes = backend
             .classify_ordered_batch(&subjects, &mut checked)
@@ -1676,6 +1913,56 @@ mod tests {
     }
 
     #[test]
+    fn plural_question_batch_returns_every_question_without_a_primary_selection() {
+        let relation_id =
+            RelationId::from_canonical_semantic_preimage(b"classification-plural-fixture");
+        let query = fixture_query(
+            Ty::Name("Int".to_string()),
+            ExploreExactDomain::IntRange {
+                start: 0,
+                end_exclusive: 3,
+                cardinality: 3,
+            },
+            Expr::unspanned(ExprKind::BinOp(
+                "+".to_string(),
+                Box::new(variable("before")),
+                Box::new(int(1)),
+            )),
+            Expr::unspanned(ExprKind::Lit(Literal::Bool(true))),
+        );
+        let materialized = materialize_cases(relation_id, &query, 3);
+        let subjects = subjects(&materialized);
+        let increasing = question_id(relation_id, 61);
+        let decreasing = question_id(relation_id, 62);
+        let capsule = bind_capsule(
+            plural_comparison_graph(increasing, decreasing),
+            Arc::new(FrozenClassificationRuntimeShapes::freeze([]).unwrap()),
+            relation_id,
+            [increasing, decreasing],
+        );
+        let mut backend =
+            RelationalClassificationEvaluatorBackend::new(capsule, NonZeroUsize::new(4).unwrap());
+
+        let outcomes = backend.classify_ordered_question_batch(&subjects).unwrap();
+
+        assert_eq!(outcomes.len(), 3);
+        for outcome in outcomes.iter() {
+            assert_eq!(outcome.admission(), AdmissionDecision::Admitted);
+            assert_eq!(
+                outcome.decision(increasing),
+                Some(SelectionDecision::Selected)
+            );
+            assert_eq!(
+                outcome.decision(decreasing),
+                Some(SelectionDecision::NotSelected)
+            );
+            assert_eq!(outcome.questions().len(), 2);
+        }
+        assert_eq!(backend.stats().find_root_evaluations, 6);
+        assert!(backend.last_fallback().is_none());
+    }
+
+    #[test]
     fn runtime_shape_mismatch_falls_back_for_the_whole_batch_atomically() {
         let relation_id =
             RelationId::from_canonical_semantic_preimage(b"classification-shape-fallback-fixture");
@@ -1691,22 +1978,30 @@ mod tests {
         let materialized = materialize_cases(relation_id, &query, 2);
         let subjects = subjects(&materialized);
         let cases = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+        let question_id = question_id(relation_id, 32);
+        let questions = cases
+            .question_evaluation_plan(&[question_id])
+            .expect("fixture question id must align with its single FIND");
         let expected = {
             let mut runtime = FixtureRuntime;
-            let mut checked = RelationalCheckedClassificationContext::new(&cases, &mut runtime);
+            let mut checked =
+                RelationalCheckedClassificationContext::new(&cases, &questions, &mut runtime)
+                    .expect("single-question fixture must construct a checked classifier");
             subjects
                 .iter()
                 .copied()
                 .map(|subject| checked.classify(subject).unwrap())
                 .collect::<Vec<_>>()
         };
-        let (graph, shapes, find) = variant_graph_and_shapes();
-        let capsule = bind_capsule(graph, shapes, relation_id);
+        let (graph, shapes, find) = variant_graph_and_shapes(question_id);
+        let capsule = bind_capsule(graph, shapes, relation_id, [question_id]);
         let mut backend =
             RelationalClassificationEvaluatorBackend::new(capsule, NonZeroUsize::new(1).unwrap());
         {
             let mut runtime = FixtureRuntime;
-            let mut checked = RelationalCheckedClassificationContext::new(&cases, &mut runtime);
+            let mut checked =
+                RelationalCheckedClassificationContext::new(&cases, &questions, &mut runtime)
+                    .expect("single-question fixture must construct a checked seed fallback");
             let seeded = backend
                 .classify_ordered_batch(&subjects[..1], &mut checked)
                 .unwrap();
@@ -1720,7 +2015,9 @@ mod tests {
         let seeded_stats = backend.stats();
 
         let mut runtime = FixtureRuntime;
-        let mut checked = RelationalCheckedClassificationContext::new(&cases, &mut runtime);
+        let mut checked =
+            RelationalCheckedClassificationContext::new(&cases, &questions, &mut runtime)
+                .expect("single-question fixture must construct a checked batch fallback");
 
         let outcomes = backend
             .classify_ordered_batch(&subjects, &mut checked)

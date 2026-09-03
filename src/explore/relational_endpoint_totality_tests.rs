@@ -93,8 +93,8 @@ fn guarded_transitive_integer_division_certifies_and_plans_deterministically() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_guarded_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_guarded_observer
 }
 "#;
 
@@ -128,8 +128,8 @@ fn deep_acyclic_endpoint_helper_chain_certifies_on_the_default_stack() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_deep_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_deep_observer
 }
 "#,
     );
@@ -159,8 +159,8 @@ fn acyclic_endpoint_helper_depth_exhaustion_is_a_typed_capacity_refusal() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_too_deep_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_too_deep_observer
 }
 "#,
     );
@@ -191,8 +191,8 @@ fn endpoint_equality_honors_the_canonical_runtime_node_limit_before_planning() {
         given context = ()
     }}
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_equality_limit_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_equality_limit_observer
 }}
 "#
         )
@@ -232,8 +232,8 @@ fn endpoint_totality_sort_by_skips_the_callback_for_an_exact_empty_list() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_empty_sort_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_empty_sort_observer
 }
 "#;
 
@@ -253,8 +253,8 @@ fn endpoint_totality_sort_by_proves_the_callback_on_each_reachable_exact_item() 
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_nonempty_sort_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_nonempty_sort_observer
 }
 "#;
 
@@ -279,8 +279,8 @@ fn endpoint_totality_sort_by_preserves_exact_runtime_key_order() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_exact_sort_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_exact_sort_observer
 }
 "#;
 
@@ -314,8 +314,8 @@ fn endpoint_totality_find_skips_the_callback_for_an_exact_empty_list() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_empty_find_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_empty_find_observer
 }
 "#;
 
@@ -338,8 +338,8 @@ fn endpoint_totality_find_proves_the_callback_on_reachable_items() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_reachable_find_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_reachable_find_observer
 }
 "#;
 
@@ -378,8 +378,8 @@ fn distinct_nullary_variants_keep_filter_length_and_nested_guards_exact() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_municipal_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_municipal_observer
 }
 "#;
 
@@ -407,8 +407,8 @@ fn endpoint_totality_attributes_callback_failure_to_the_callback_argument() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_callback_site_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_callback_site_observer
 }
 "#;
 
@@ -445,8 +445,8 @@ fn endpoint_totality_cached_base_call_does_not_hide_reachable_recursion() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_warm_recursive_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_warm_recursive_observer
 }
 "#;
 
@@ -477,8 +477,8 @@ fn endpoint_totality_false_clause_does_not_close_an_unrelated_dispatch_residual(
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_partial_false_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_partial_false_observer
 }
 "#;
 
@@ -509,8 +509,8 @@ fn endpoint_totality_reached_false_clause_closes_its_dispatch_domain() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_reached_false_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_reached_false_observer
 }
 "#;
 
@@ -534,8 +534,8 @@ fn unguarded_transitive_integer_division_is_rejected_before_planning() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_unguarded_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_unguarded_observer
 }
 "#;
 
@@ -560,8 +560,8 @@ fn integer_overflow_is_rejected_before_planning() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_overflowing_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_overflowing_observer
 }
 "#;
 
@@ -586,8 +586,8 @@ fn bounded_sum_list_certifies_exact_integer_inputs() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_sum_list_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_sum_list_observer
 }
 "#;
 
@@ -607,8 +607,8 @@ fn overflowing_sum_list_is_rejected_before_planning() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_overflowing_sum_list_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_overflowing_sum_list_observer
 }
 "#;
 
@@ -637,8 +637,8 @@ fn structural_unit_equality_cannot_prune_a_runtime_partial_branch() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_unit_contains_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_unit_contains_observer
 }
 "#;
 
@@ -665,8 +665,8 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_partial_rule_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_partial_rule_observer
 }
 "#;
     let issue = endpoint_issue_before_plan(partial);
@@ -690,8 +690,8 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_total_rule_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_total_rule_observer
 }
 "#;
     checked_plan_identity(total);
@@ -713,8 +713,8 @@ fn complementary_modulo_guards_close_the_ordered_dispatch_residual() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_modulo_partition_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_modulo_partition_observer
 }
 "#;
 
@@ -737,8 +737,8 @@ fn reversed_complementary_inequality_guards_close_the_ordered_dispatch_residual(
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_order_partition_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_order_partition_observer
 }
 "#;
 
@@ -761,8 +761,8 @@ fn non_covering_modulo_guards_leave_a_partial_dispatch_residual() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_incomplete_modulo_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_incomplete_modulo_observer
 }
 "#;
 
@@ -792,8 +792,8 @@ fn reversed_string_concatenation_guards_do_not_form_a_complementary_partition() 
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_concat_partition_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_concat_partition_observer
 }
 "#;
 
@@ -821,8 +821,8 @@ fn nan_order_guards_do_not_masquerade_as_a_complementary_partition() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_nan_split_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_nan_split_observer
 }
 "#;
 
@@ -849,8 +849,8 @@ fn nan_self_equality_does_not_masquerade_as_reflexive_dispatch() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_nan_reflexive_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_nan_reflexive_observer
 }
 "#;
 
@@ -880,8 +880,8 @@ fn bare_scoped_rule_call_retains_its_exact_receiver_captures() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_scoped_sibling_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_scoped_sibling_observer
 }
 "#;
 
@@ -904,8 +904,8 @@ fn closed_higher_order_rule_contract_certifies_without_legacy_totality() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_higher_order_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_higher_order_observer
 }
 "#;
 
@@ -933,8 +933,8 @@ fn exhaustive_match_valued_rule_retains_a_type_contract_for_endpoint_proof() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_match_rule_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_match_rule_observer
 }
 "#;
 
@@ -987,8 +987,8 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from endpoint_test_effect_observer
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_effect_observer
 }
 "#;
 

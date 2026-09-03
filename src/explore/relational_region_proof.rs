@@ -36,7 +36,8 @@ use super::relational_classification_capsule::{
     ClassificationCapsuleId, ClassificationConstant, ClassificationInputSlot, ClassificationNodeId,
     ClassificationNodeKey, ClassificationNodeKind, ClassificationProvenanceRoot,
     ClassificationSemanticLane, ClassificationSpecializationRoot, ClassificationTypeId,
-    ClassificationUnaryOp, FrozenClassificationProgram, RelationalClassificationCapsule,
+    ClassificationUnaryOp, FrozenClassificationProgram, FrozenClassificationQuestionSet,
+    RelationalClassificationCapsule,
 };
 use super::relational_ir::{
     ExploreFindIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSuccessorKindIr,
@@ -612,6 +613,7 @@ fn fallback(residual: RelationalRegionProofResidual) -> RelationalRegionProofOut
 #[derive(Clone, Debug)]
 pub(crate) struct RelationalRegionReplayAuthority {
     id: [u8; 32],
+    question_id: QuestionId,
     checked: Arc<OwnedCheckedExploreQuery>,
     support_plan: RelationalSupportPlan,
     capsule: Arc<RelationalClassificationCapsule>,
@@ -624,17 +626,19 @@ impl RelationalRegionReplayAuthority {
         capsule: Arc<RelationalClassificationCapsule>,
     ) -> Result<Self, RelationalRegionProofError> {
         let checked_view = checked.view();
-        validate_relational_region_scope(&checked_view, &support_plan, capsule.as_ref())?;
+        let question_id =
+            validate_relational_region_scope(&checked_view, &support_plan, capsule.as_ref())?;
         let mut hasher = CanonicalProofHasher::new(REPLAY_AUTHORITY_ID_V1);
         hasher.u32(RELATIONAL_REGION_PROOF_VERSION);
         hasher.digest(capsule.id().bytes());
         hasher.digest(support_plan.root().bytes());
         hasher.digest(checked_view.relation_id().bytes());
         hasher.digest(checked_view.admission_id().bytes());
-        hasher.digest(checked_view.question_id().bytes());
+        hasher.digest(question_id.bytes());
         let id = hasher.finish();
         Ok(Self {
             id,
+            question_id,
             checked,
             support_plan,
             capsule,
@@ -710,7 +714,7 @@ impl RelationalRegionReplayAuthority {
         if artifact.plan_root() != self.support_plan.root()
             || artifact.relation_id() != self.support_plan.relation_id()
             || artifact.admission_id() != self.support_plan.admission_id()
-            || artifact.question_id() != self.support_plan.question_id()
+            || artifact.question_id() != self.question_id
             || artifact.root_cell_id()
                 != self
                     .support_plan
@@ -776,15 +780,17 @@ fn validate_relational_region_scope(
     checked: &CheckedExploreQueryView<'_>,
     support_plan: &RelationalSupportPlan,
     capsule: &RelationalClassificationCapsule,
-) -> Result<(), RelationalRegionProofError> {
+) -> Result<QuestionId, RelationalRegionProofError> {
     checked
         .closed_query
         .validate()
         .map_err(RelationalRegionProofError::InvalidQuery)?;
+    let checked_question_id = require_single_question(checked.question_ids())?;
+    let plan_question_id = require_single_question(support_plan.question_ids())?;
     if !support_plan.validate_root()
         || checked.relation_id() != support_plan.relation_id()
         || checked.admission_id() != support_plan.admission_id()
-        || checked.question_id() != support_plan.question_id()
+        || checked_question_id != plan_question_id
     {
         return Err(RelationalRegionProofError::CheckedPlanScopeMismatch);
     }
@@ -793,14 +799,17 @@ fn validate_relational_region_scope(
     let checked_provenance =
         decode_lowercase_sha256(checked.source_coverage().manifest_digest.as_ref())
             .ok_or(RelationalRegionProofError::InvalidCheckedProvenanceDigest)?;
+    let questions = FrozenClassificationQuestionSet::freeze([checked_question_id])
+        .map_err(|_| RelationalRegionProofError::ClassificationCapsuleScopeMismatch)?;
     if !capsule.validates_binding(
         checked_program,
         checked.relation_id(),
         checked.admission_id(),
-        checked.question_id(),
+        questions.root(),
         support_plan.root(),
         support_plan.root_cell_id(),
-    ) || capsule.graph_root() != checked.classification_program().graph_root()
+    ) || capsule.question_ids() != questions.question_ids()
+        || capsule.graph_root() != checked.classification_program().graph_root()
         || capsule.runtime_shape_root()
             != checked.classification_runtime_shapes().runtime_shape_root()
         || capsule.specialization_root() != ClassificationSpecializationRoot::none()
@@ -809,7 +818,7 @@ fn validate_relational_region_scope(
     {
         return Err(RelationalRegionProofError::ClassificationCapsuleScopeMismatch);
     }
-    Ok(())
+    Ok(checked_question_id)
 }
 
 fn prove_relational_region(
@@ -819,7 +828,7 @@ fn prove_relational_region(
     target: Option<&RelationalRegionProofTarget<'_>>,
     replay_authority_id: [u8; 32],
 ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
-    validate_relational_region_scope(checked, support_plan, capsule)?;
+    let question_id = validate_relational_region_scope(checked, support_plan, capsule)?;
     let graph = capsule.graph();
 
     let inventory = RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
@@ -893,7 +902,12 @@ fn prove_relational_region(
             },
         ));
     }
-    if matches!(&checked.closed_query.find, ExploreFindIr::All { .. }) {
+    if checked
+        .closed_query
+        .finds
+        .iter()
+        .all(|named_find| matches!(&named_find.find, ExploreFindIr::All { .. }))
+    {
         return Ok(fallback(
             RelationalRegionProofResidual::SelectionUniformlySelected,
         ));
@@ -903,10 +917,11 @@ fn prove_relational_region(
         Ok(root) => root,
         Err(residual) => return Ok(fallback(residual)),
     };
-    let find_root_id = match required_lane_root(graph, ClassificationSemanticLane::Find) {
-        Ok(root) => root,
-        Err(residual) => return Ok(fallback(residual)),
-    };
+    let find_root_id =
+        match required_lane_root(graph, ClassificationSemanticLane::Find(question_id)) {
+            Ok(root) => root,
+            Err(residual) => return Ok(fallback(residual)),
+        };
     let integer_type = classification_node(graph, axis_root_id)?.ty;
     let boolean_type = classification_node(graph, find_root_id)?.ty;
     if integer_type == boolean_type {
@@ -1004,10 +1019,8 @@ fn prove_relational_region(
         )?,
         None => root_admission_obligation,
     };
-    let selection_obligation = SupportCellObligation::new(
-        proof_cell,
-        SelectionClassificationClaim::new(checked.question_id()),
-    )?;
+    let selection_obligation =
+        SupportCellObligation::new(proof_cell, SelectionClassificationClaim::new(question_id))?;
     let case_cardinality = axis.cardinality();
 
     let selected_formula_digest = formula_digest(&selected_formula);
@@ -1020,7 +1033,7 @@ fn prove_relational_region(
         find_root_id,
         relation_id: checked.relation_id(),
         admission_id: checked.admission_id(),
-        question_id: checked.question_id(),
+        question_id,
         plan_root: support_plan.root(),
         root_cell_id,
         subject: target.map_or(RelationalRegionProofSubject::Root, |target| target.subject),
@@ -1154,6 +1167,17 @@ fn required_lane_root(
         Some(false) => Err(RelationalRegionProofResidual::ClassificationLaneResidual { lane }),
         None => Err(RelationalRegionProofResidual::ClassificationLaneMissing { lane }),
     }
+}
+
+fn require_single_question(
+    question_ids: &[QuestionId],
+) -> Result<QuestionId, RelationalRegionProofError> {
+    let [question_id] = question_ids else {
+        return Err(RelationalRegionProofError::QuestionArityMismatch {
+            actual: question_ids.len(),
+        });
+    };
+    Ok(*question_id)
 }
 
 fn classification_node(
@@ -2541,6 +2565,7 @@ impl CanonicalProofHasher {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalRegionProofError {
     InvalidQuery(String),
+    QuestionArityMismatch { actual: usize },
     CheckedPlanScopeMismatch,
     InvalidCheckedProgramDigest,
     InvalidCheckedProvenanceDigest,
@@ -2584,6 +2609,10 @@ impl fmt::Display for RelationalRegionProofError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidQuery(message) => write!(formatter, "invalid relational query: {message}"),
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "relational region optimization requires exactly one semantic question, found {actual}"
+            ),
             Self::CheckedPlanScopeMismatch => formatter.write_str(
                 "checked query and relational support plan have different semantic scope",
             ),
@@ -2706,7 +2735,7 @@ mod tests {
     }
 
     transition after = bump(before)
-    find matches of after < before
+    find cliffs = matches of after < before
 }
 "#;
 
@@ -2720,7 +2749,7 @@ mod tests {
     }
 
     transition after = bump(before)
-    find violations of after >= before
+    find cliffs = violations of after >= before
 }
 "#;
 
@@ -2734,7 +2763,7 @@ mod tests {
     }
 
     transition after = bump(before)
-    find matches of after < before
+    find cliffs = matches of after < before
 }
 "#;
 
@@ -2754,7 +2783,8 @@ mod tests {
             checked_program,
             checked.relation_id(),
             checked.admission_id(),
-            checked.question_id(),
+            FrozenClassificationQuestionSet::freeze(checked.question_ids().iter().copied())
+                .expect("freeze fixture question set"),
             support_plan.root(),
             support_plan.root_cell_id(),
             specialization,
@@ -2911,6 +2941,7 @@ mod tests {
         let checked = artifacts
             .checked_exploration_query(0)
             .expect("join the checked partitioned query");
+        let question_id = checked.question_ids()[0];
         let support_plan = RelationalSupportPlanner::from_checked(&checked)
             .and_then(|planner| planner.plan())
             .expect("plan exact support for the partitioned fixture");
@@ -2985,7 +3016,7 @@ mod tests {
         let contract = RelationalJournalContract::new(
             checked.relation_id(),
             checked.admission_id(),
-            checked.question_id(),
+            checked.question_ids().iter().copied(),
             checked.transition_schemas().state_schema_id(),
             checked.transition_schemas().context_schema_id(),
             checked.transition_schemas().transition_type_id(),
@@ -2993,7 +3024,7 @@ mod tests {
         );
         let make_ready_journal = |authority: Arc<RelationalRegionReplayAuthority>| {
             let mut journal =
-                RelationalJournal::new_with_region_replay_authority(contract, authority);
+                RelationalJournal::new_with_region_replay_authority(contract.clone(), authority);
             journal
                 .append(RelationalJournalEvent::analysis_plan_registered(
                     analysis_plan.clone(),
@@ -3030,21 +3061,25 @@ mod tests {
         let view = journal
             .scheduler_view()
             .expect("inspect accepted proof prefix");
-        assert_eq!(view.classified_support_fragments().len(), 1);
+        let classified_support_fragments = view
+            .classified_support_fragments(question_id)
+            .expect("read classified support fragments");
+        assert_eq!(classified_support_fragments.len(), 1);
         assert!(matches!(
-            &view.classified_support_fragments()[0],
+            &classified_support_fragments[0],
             RelationalClassifiedSupportFragment::CertifiedZeroSelected(retained)
                 if retained == artifact
         ));
         assert_eq!(
-            view.classified_sweep_progress()
+            view.classified_sweep_progress(question_id)
+                .expect("read classified sweep progress")
                 .expect("partition owns classified progress")
                 .next_chunk_ordinal(),
             1
         );
         let projection = derive_relational_case_support_projection(
             &verified_partition,
-            view.classified_support_fragments(),
+            classified_support_fragments,
             |_| None,
             None,
             None,
@@ -3072,14 +3107,14 @@ mod tests {
 
         let entries = journal.entries().to_vec();
         assert!(matches!(
-            RelationalJournal::replay(contract, entries.clone()),
+            RelationalJournal::replay(contract.clone(), entries.clone()),
             Err(RelationalJournalError::RegionProofReplayAuthorityMissing)
         ));
         let mut wrong_authority = (*authority).clone();
         wrong_authority.id[0] ^= 0xff;
         assert!(matches!(
             RelationalJournal::replay_with_region_replay_authority(
-                contract,
+                contract.clone(),
                 entries.clone(),
                 Arc::new(wrong_authority),
             ),
@@ -3093,7 +3128,7 @@ mod tests {
                 let bytes = encode_relational_journal_entry(entry, limits)
                     .expect("encode canonical journal entry");
                 decode_relational_journal_entry(
-                    contract,
+                    contract.clone(),
                     entry.sequence(),
                     entry.previous(),
                     &bytes,
@@ -3104,7 +3139,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(decoded, entries);
         let replayed = RelationalJournal::replay_with_region_replay_authority(
-            contract,
+            contract.clone(),
             decoded,
             Arc::clone(&authority),
         )
@@ -3131,9 +3166,13 @@ mod tests {
         let view = tampered_journal
             .scheduler_view()
             .expect("inspect failed append state");
-        assert!(view.classified_support_fragments().is_empty());
+        assert!(view
+            .classified_support_fragments(question_id)
+            .expect("read classified support fragments")
+            .is_empty());
         assert_eq!(
-            view.classified_sweep_progress()
+            view.classified_sweep_progress(question_id)
+                .expect("read classified sweep progress")
                 .expect("partition progress remains installed")
                 .next_chunk_ordinal(),
             0

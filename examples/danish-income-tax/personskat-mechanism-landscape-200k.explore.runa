@@ -14,10 +14,10 @@ concrete edges support them, and how are they distributed over income and
 modeled net-change bins?
 
 This is deliberately a different question from the imported cliff query.
-`find all` makes this query's selected population exactly its admitted
-population, so mechanism replay covers harmless and harmful coarse edges alike.
-It does not relabel those edges as cliffs. Rejected edges remain explicit in
-the stream's admission accounting and are not replayed.
+`find admitted_cases = all` makes positive membership exactly the admitted
+population, so its explicit mechanism request covers harmless and harmful
+coarse edges alike. It does not relabel those edges as cliffs. Rejected edges
+remain explicit in the stream's admission accounting and are not replayed.
 
 Income histograms use half-open 1,000-DKK bins assigned by gross salary before
 the raise. Net-change histograms use mathematically floored half-open 50-DKK
@@ -120,9 +120,9 @@ first fixed-profile system audit.
         context
     ).input_gyldigt
 
-    find all
+    find admitted_cases = all
 
-    results admitted_edges from selected {
+    results admitted_edges from find admitted_cases {
         each case
         select [
             case_id,
@@ -142,7 +142,7 @@ first fixed-profile system audit.
         ]
     }
 
-    mechanisms landscape_paths for selected from personskat_200k_audit_vurder_100_kroner_trin
+    mechanisms landscape_paths from find admitted_cases using personskat_200k_audit_vurder_100_kroner_trin
 
     results differential_mechanism_incidences from mechanisms landscape_paths {
         each incidence

@@ -146,7 +146,9 @@ impl RelationalResultStepBatch {
 /// here rather than silently interpreted as selected cases.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalResultStepQuiescence {
-    AwaitingSelectedQuestion,
+    AwaitingSelectedQuestion {
+        question_id: QuestionId,
+    },
     AwaitingSourceMaterialization {
         view_id: ViewId,
     },
@@ -166,6 +168,7 @@ pub(crate) enum RelationalResultStepOutcome {
 
 struct SelectedResultLayer<'ir> {
     input: RelationalResolvedResultInput,
+    question_id: QuestionId,
     executor: RelationalResultExecutor<'ir>,
 }
 
@@ -186,7 +189,7 @@ pub(crate) struct RelationalResultStepDriver<'query> {
     checked: CheckedExploreQueryView<'query>,
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     sources: BTreeMap<ViewId, SourceResultLayer<'query>>,
     selected: BTreeMap<ViewId, SelectedResultLayer<'query>>,
@@ -264,14 +267,15 @@ impl<'query> RelationalResultStepDriver<'query> {
                     }
                 }
                 (
-                    ExploreResultInputIr::Selected,
+                    ExploreResultInputIr::Find { find_index },
                     input @ RelationalResolvedResultInput::Selected(question_id),
                 ) => {
-                    if question_id != checked.question_id() {
+                    if checked.find_question_ids().get(*find_index) != Some(&question_id) {
                         return Err(RelationalResultStepDriverError::JournalScopeMismatch);
                     }
                     let layer = SelectedResultLayer {
                         input,
+                        question_id,
                         executor: RelationalResultExecutor::lower(*view_id, result)?,
                     };
                     if selected.insert(*view_id, layer).is_some() {
@@ -298,7 +302,7 @@ impl<'query> RelationalResultStepDriver<'query> {
             checked: *checked,
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
-            question_id: checked.question_id(),
+            question_ids: plan.question_ids().to_vec().into_boxed_slice(),
             analysis_plan_root: plan.root(),
             sources,
             selected,
@@ -394,10 +398,6 @@ impl<'query> RelationalResultStepDriver<'query> {
                 RelationalResultStepQuiescence::AnalysisAlreadyClosed,
             ));
         }
-        let question_seal = analysis.selected_question();
-        if question_seal.is_some_and(|seal| seal.question_id() != self.question_id) {
-            return Err(RelationalResultStepDriverError::SelectedQuestionScopeMismatch);
-        }
         let catalog = analysis
             .open_catalog()
             .ok_or(RelationalResultStepDriverError::AnalysisCatalogMissing)?;
@@ -462,7 +462,9 @@ impl<'query> RelationalResultStepDriver<'query> {
             }
         }
 
+        let mut first_awaiting_selected_question = None;
         for (view_id, layer) in &self.selected {
+            let question_seal = analysis.selected_question(layer.question_id);
             let layer_id = RelationalAnalysisLayerId::Result(*view_id);
             let status = catalog.layer_status(layer_id).ok_or(
                 RelationalResultStepDriverError::AnalysisLayerMissing(layer_id),
@@ -492,6 +494,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                     )? {
                         return Ok(outcome);
                     }
+                    first_awaiting_selected_question.get_or_insert(layer.question_id);
                 }
                 RelationalAnalysisLayerStatus::ResultAwaitingPublication => {
                     self.require_registered_spec(catalog, *view_id, layer)?;
@@ -522,9 +525,9 @@ impl<'query> RelationalResultStepDriver<'query> {
             }
         }
 
-        if question_seal.is_none() {
+        if let Some(question_id) = first_awaiting_selected_question {
             return Ok(RelationalResultStepOutcome::Quiescent(
-                RelationalResultStepQuiescence::AwaitingSelectedQuestion,
+                RelationalResultStepQuiescence::AwaitingSelectedQuestion { question_id },
             ));
         }
         if let Some(view_id) = first_awaiting_source_materialization {
@@ -728,7 +731,7 @@ impl<'query> RelationalResultStepDriver<'query> {
         }
         let expected_rows =
             question_seal.map(|seal| seal.result_input_seal().coverage().row_count());
-        let mut cases = self.missing_selected_chunk(view, view_id, evidence);
+        let mut cases = self.missing_selected_chunk(view, view_id, layer.question_id, evidence)?;
 
         // A driver is normally bound to one monotonically advancing journal.
         // If it is reused with an unusual restored/forked prefix, exact count
@@ -741,7 +744,7 @@ impl<'query> RelationalResultStepDriver<'query> {
             self.selected_discovery_cursors
                 .borrow_mut()
                 .insert(view_id, 0);
-            cases = self.missing_selected_chunk(view, view_id, evidence);
+            cases = self.missing_selected_chunk(view, view_id, layer.question_id, evidence)?;
         }
 
         if cases.is_empty() {
@@ -749,7 +752,13 @@ impl<'query> RelationalResultStepDriver<'query> {
                 return Ok(None);
             };
             let expected_rows = expected_rows.expect("a selected-question seal has an exact count");
-            self.validate_terminal_selected_coverage(view, evidence, expected_rows, 0)?;
+            self.validate_terminal_selected_coverage(
+                view,
+                layer.question_id,
+                evidence,
+                expected_rows,
+                0,
+            )?;
             return Ok(Some(self.batch(
                 view,
                 RelationalResultStepQuantum::SealSelectedInput { view_id },
@@ -805,6 +814,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                 .expect("only an exact selected-question population can seal result input");
             self.validate_terminal_selected_coverage(
                 view,
+                layer.question_id,
                 evidence,
                 projected_rows,
                 u128::from(row_count.get()),
@@ -833,9 +843,10 @@ impl<'query> RelationalResultStepDriver<'query> {
         &self,
         view: RelationalSchedulerView<'_>,
         view_id: ViewId,
+        question_id: QuestionId,
         evidence: &RelationalResultEvidenceCatalogBuilder,
-    ) -> Vec<RelationalCaseId> {
-        let selected_count = view.selected_count();
+    ) -> Result<Vec<RelationalCaseId>, RelationalResultStepDriverError> {
+        let selected_count = view.selected_count(question_id)?;
         let mut cursors = self.selected_discovery_cursors.borrow_mut();
         let cursor = cursors.entry(view_id).or_default();
         if *cursor > selected_count || evidence.len() < *cursor {
@@ -844,7 +855,11 @@ impl<'query> RelationalResultStepDriver<'query> {
 
         let mut durable_prefix = 0usize;
         let mut cases = Vec::with_capacity(usize::from(self.max_rows_per_quantum.get()));
-        for case_id in view.selected_discovery_suffix(*cursor).iter().copied() {
+        for case_id in view
+            .selected_discovery_suffix(question_id, *cursor)?
+            .iter()
+            .copied()
+        {
             if evidence
                 .record(ResultViewInputRowId::Case(case_id))
                 .is_some()
@@ -863,7 +878,7 @@ impl<'query> RelationalResultStepDriver<'query> {
         // rows planned in this batch stay at the cursor until append succeeds,
         // so stale-head/resource rejection is retry-safe.
         *cursor += durable_prefix;
-        cases
+        Ok(cases)
     }
 
     fn publish_selected_result<R: RelationalResultExpressionRuntime>(
@@ -907,7 +922,9 @@ impl<'query> RelationalResultStepDriver<'query> {
                         view_id,
                     ));
                 };
-                if view.question_decision(case_id) != Some(SelectionDecision::Selected) {
+                if view.question_decision(layer.question_id, case_id)?
+                    != Some(SelectionDecision::Selected)
+                {
                     return Err(
                         RelationalResultStepDriverError::ResultEvidenceOutsideSelectedPopulation {
                             view_id,
@@ -1324,6 +1341,7 @@ impl<'query> RelationalResultStepDriver<'query> {
     fn validate_terminal_selected_coverage(
         &self,
         view: RelationalSchedulerView<'_>,
+        question_id: QuestionId,
         evidence: &RelationalResultEvidenceCatalogBuilder,
         expected_rows: u128,
         pending_rows: u128,
@@ -1346,7 +1364,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                     evidence.view_id(),
                 ));
             };
-            if view.question_decision(case_id) != Some(SelectionDecision::Selected) {
+            if view.question_decision(question_id, case_id)? != Some(SelectionDecision::Selected) {
                 return Err(
                     RelationalResultStepDriverError::ResultEvidenceOutsideSelectedPopulation {
                         view_id: evidence.view_id(),
@@ -1393,7 +1411,7 @@ impl<'query> RelationalResultStepDriver<'query> {
         let contract = view.contract();
         if contract.relation_id() != self.relation_id
             || contract.admission_id() != self.admission_id
-            || contract.question_id() != self.question_id
+            || contract.question_ids() != self.question_ids.as_ref()
         {
             return Err(RelationalResultStepDriverError::JournalScopeMismatch);
         }
@@ -1443,7 +1461,6 @@ pub(crate) enum RelationalResultStepDriverError {
     AnalysisLayerMissing(RelationalAnalysisLayerId),
     AnalysisLayerKindMismatch(RelationalAnalysisLayerId),
     DuplicateResultView(ViewId),
-    SelectedQuestionScopeMismatch,
     RegisteredSpecMismatch(ViewId),
     ResultLayerStateMismatch(ViewId),
     ResultInputSealMismatch(ViewId),
@@ -1535,9 +1552,6 @@ impl fmt::Display for RelationalResultStepDriverError {
             Self::DuplicateResultView(_) => {
                 formatter.write_str("checked query repeats a semantic result ViewId")
             }
-            Self::SelectedQuestionScopeMismatch => {
-                formatter.write_str("selected-question seal belongs to another FIND question")
-            }
             Self::RegisteredSpecMismatch(_) => formatter
                 .write_str("journaled result spec differs from the checked lowered result spec"),
             Self::ResultLayerStateMismatch(_) => {
@@ -1628,7 +1642,6 @@ impl Error for RelationalResultStepDriverError {
             | Self::AnalysisLayerMissing(_)
             | Self::AnalysisLayerKindMismatch(_)
             | Self::DuplicateResultView(_)
-            | Self::SelectedQuestionScopeMismatch
             | Self::RegisteredSpecMismatch(_)
             | Self::ResultLayerStateMismatch(_)
             | Self::ResultInputSealMismatch(_)

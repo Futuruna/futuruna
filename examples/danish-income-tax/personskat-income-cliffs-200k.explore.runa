@@ -34,7 +34,7 @@ It is not evidence for all communes, all encoded person profiles, or every
 The query screens 100-DKK endpoint cliffs cheaply while exercising the same
 FROM/TO/FIND, result, mechanism, durable pause and exact-closure path that later
 adaptive refinement and multidimensional audits will use. Its mechanism request
-targets selected cliff edges only. A nonselected edge is not replayed and may
+explicitly targets `cliff_cases` only. An edge outside that find is not replayed and may
 still contain a narrower mechanism boundary or 1-DKK cliff hidden by endpoint
 cancellation.
 
@@ -42,7 +42,7 @@ Both endpoint calculations must pass the model's validity and reconciliation
 checks before the transition is admitted. Rejected transitions remain visible
 in the stream's admission accounting; they cannot silently become cliff cases.
 
-An exact empty selected population together with zero rejected transitions
+An exact-empty `cliff_cases` population together with zero rejected transitions
 means exactly that no transition on this 100-DKK grid is harmful. If any
 transition is rejected, the no-cliff claim covers only the admitted relation
 and the exclusions remain explicit output. It does not prove the absence of a
@@ -311,13 +311,13 @@ retained case count and need not sum to the global mechanism count.
         context
     ).input_gyldigt
 
-    find violations of personskat_200k_audit_ressourcer_falder_ikke(
+    find cliff_cases = violations of personskat_200k_audit_ressourcer_falder_ikke(
         personskat_200k_audit_løntrin_til_bruttoløn_kroner(before, context),
         personskat_200k_audit_løntrin_til_bruttoløn_kroner(after, context),
         context
     )
 
-    results cliffs from selected {
+    results cliffs from find cliff_cases {
         each case
         measure [
             loss_ore = personskat_200k_audit_tab_øre(
@@ -345,7 +345,7 @@ retained case count and need not sum to the global mechanism count.
         ]
     }
 
-    results case_summary from selected {
+    results case_summary from find cliff_cases {
         group all
         aggregate [
             cases = count_distinct(case_id)
@@ -374,7 +374,7 @@ retained case count and need not sum to the global mechanism count.
         ]
     }
 
-    mechanisms cliff_paths for selected from personskat_200k_audit_vurder_100_kroner_trin
+    mechanisms cliff_paths from find cliff_cases using personskat_200k_audit_vurder_100_kroner_trin
 
     results mechanism_summary from mechanisms cliff_paths {
         group all
@@ -402,4 +402,6 @@ retained case count and need not sum to the global mechanism count.
         ]
         select [bin_start_ore, mechanisms, raw_signatures, cases]
     }
+
+    transitions case_graph from all cases
 }

@@ -129,6 +129,7 @@ use super::relational_public::{
     ExploreStreamCoverageLiteralKind, ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject,
     ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
     ExploreStreamMechanismTarget, ExploreStreamPauseReason, ExploreStreamSliceReport,
+    EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
 };
 use super::relational_semantic_transition_graph_projection::{
     RelationalSemanticTransitionGraphProjection, RelationalSemanticTransitionGraphProjectionId,
@@ -145,17 +146,20 @@ use super::structural_mechanism::{
     STRUCTURAL_DEFINITION_CATALOG_VERSION, STRUCTURAL_MECHANISM_QUOTIENT_VERSION,
 };
 use super::{
-    ExploreValue, MechanismRequestId, MechanismTargetId, RelationalCaseId,
+    ExploreValue, MechanismRequestId, MechanismTargetId, QuestionId, RelationalCaseId,
     RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 13;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 15;
 
-const CURSOR_FILE: &str = ".publication-cursor-v13.json";
+const CURSOR_FILE: &str = ".publication-cursor-v15.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
-const RESULT_PREFIX_ROOT_V13: &[u8] = b"futuruna.explore.publication-prefix.v13";
-const RESULT_PREFIX_EXTEND_V13: &[u8] = b"futuruna.explore.publication-prefix-extend.v13";
+const PRESENTATION_PLAN_DIGEST_V1: &[u8] = b"futuruna.explore.publication-presentation-plan.v1";
+const ARTIFACT_PRESENTATION_DIGEST_V1: &[u8] =
+    b"futuruna.explore.publication-artifact-presentation.v1";
+const RESULT_PREFIX_ROOT_V15: &[u8] = b"futuruna.explore.publication-prefix.v15";
+const RESULT_PREFIX_EXTEND_V15: &[u8] = b"futuruna.explore.publication-prefix-extend.v15";
 const CASE_SUPPORT_ARTIFACT_KEY: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH: &str = "graphs/case-support.ndjson";
@@ -312,16 +316,40 @@ enum ResultPublicationSource {
 /// target cases from its public certainty.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ResultPublicationInput {
-    SourceOrSelected,
+    Sources,
+    Find { question_id: QuestionId },
     MechanismIncidence { request_id: MechanismRequestId },
 }
 
 impl ResultPublicationInput {
     const fn mechanism_request_id(self) -> Option<MechanismRequestId> {
         match self {
-            Self::SourceOrSelected => None,
+            Self::Sources | Self::Find { .. } => None,
             Self::MechanismIncidence { request_id } => Some(request_id),
         }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PublicationFindPlan {
+    name: Box<str>,
+    question_id: QuestionId,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PublicationMechanismTarget {
+    target: MechanismTargetId,
+    question_id: QuestionId,
+    authored_name: Box<str>,
+}
+
+impl PublicationMechanismTarget {
+    const fn semantic_target(&self) -> MechanismTargetId {
+        self.target
+    }
+
+    const fn question_id(&self) -> QuestionId {
+        self.question_id
     }
 }
 
@@ -338,19 +366,19 @@ struct SupportObservationDemandAlias {
 /// Checked producer lineage shared by one mechanism request's public support
 /// artifacts. Subject and route remain record-local because the observation
 /// stream contains several independently addressed support slices.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct PublicationAuditLineage {
     contract: RelationalJournalContract,
     mechanism_request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: PublicationMechanismTarget,
     source_coverage_manifest_digest: [u8; 32],
 }
 
 impl PublicationAuditLineage {
-    const fn new(
+    fn new(
         contract: RelationalJournalContract,
         mechanism_request_id: MechanismRequestId,
-        target: MechanismTargetId,
+        target: PublicationMechanismTarget,
         source_coverage_manifest_digest: [u8; 32],
     ) -> Self {
         Self {
@@ -378,6 +406,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+        target: PublicationMechanismTarget,
         definitions_artifact_key: Box<str>,
         definitions_artifact_path: Box<str>,
     },
@@ -386,6 +415,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+        target: PublicationMechanismTarget,
         discovery_artifact_key: Box<str>,
     },
     MechanismSupportObservations {
@@ -400,6 +430,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+        target: PublicationMechanismTarget,
         demand_set_id: [u8; 32],
         aliases: Box<[SupportObservationDemandAlias]>,
         observations_artifact_key: Box<str>,
@@ -410,6 +441,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+        target: PublicationMechanismTarget,
         definitions_artifact_key: Box<str>,
         definitions_artifact_path: Box<str>,
         observations_artifact_key: Box<str>,
@@ -420,7 +452,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
-        target: MechanismTargetId,
+        target: PublicationMechanismTarget,
         structural_artifact_key: Box<str>,
         structural_artifact_path: Box<str>,
         observations_artifact_key: Box<str>,
@@ -432,7 +464,7 @@ enum PublicationArtifactPlan {
         path: PathBuf,
         consumer_id: [u8; 32],
         request_id: MechanismRequestId,
-        target: MechanismTargetId,
+        target: PublicationMechanismTarget,
         subject: MechanismSupportSubject,
         within_mechanism: Option<StructuralMechanismId>,
         authorization: RelationalMechanismStarterValueAuthorization,
@@ -442,9 +474,11 @@ enum PublicationArtifactPlan {
         audit_lineage: PublicationAuditLineage,
     },
     CaseSupport {
+        question_id: QuestionId,
         authorization: Option<RelationalCaseIdPublicationAuthorization>,
     },
     CaseTransitions {
+        question_id: QuestionId,
         authorization: RelationalMechanismStarterValueAuthorization,
         transition_schemas: TransitionSchemaIdentities,
     },
@@ -522,6 +556,22 @@ impl PublicationArtifactPlan {
             Self::SemanticTransitionGraph { .. } => "semantic_transition_graph",
         }
     }
+
+    fn mechanism_target(&self) -> Option<&PublicationMechanismTarget> {
+        match self {
+            Self::Mechanism { target, .. }
+            | Self::MechanismDefinitions { target, .. }
+            | Self::MechanismSupportObservationDemands { target, .. }
+            | Self::MechanismStructural { target, .. }
+            | Self::MechanismStructuralDefinitions { target, .. }
+            | Self::SubjectStarters { target, .. } => Some(target),
+            Self::MechanismSupportObservations { audit_lineage, .. } => Some(&audit_lineage.target),
+            Self::Result { .. }
+            | Self::CaseSupport { .. }
+            | Self::CaseTransitions { .. }
+            | Self::SemanticTransitionGraph { .. } => None,
+        }
+    }
 }
 
 /// Name/identity/SELECT contract for one checked query's public files.
@@ -529,12 +579,21 @@ impl PublicationArtifactPlan {
 pub(crate) struct RelationalPublicationPlan {
     query_name: Box<str>,
     checked_program: Box<str>,
+    /// Canonical identity of the immutable public presentation contract.
+    ///
+    /// Publication-only consumers which the cursor protocol explicitly
+    /// admits as additive extensions are intentionally excluded. Every
+    /// installed artifact carries its own presentation digest instead, so a
+    /// later additive consumer does not invalidate already materialized
+    /// files while a rename of any existing address still fails closed.
+    presentation_plan_digest: [u8; 32],
     contract: RelationalJournalContract,
     journal_id: [u8; 32],
     source_coverage_manifest_digest: [u8; 32],
     support_observation_demand_set_id: [u8; 32],
     starter_consumer_set_id: [u8; 32],
     transition_graph_consumer_set_id: [u8; 32],
+    finds: Box<[PublicationFindPlan]>,
     artifacts: Box<[PublicationArtifactPlan]>,
 }
 
@@ -545,7 +604,7 @@ impl RelationalPublicationPlan {
     ) -> Result<Self, RelationalPublicationError> {
         if contract.relation_id() != checked.relation_id()
             || contract.admission_id() != checked.admission_id()
-            || contract.question_id() != checked.question_id()
+            || contract.question_ids() != checked.question_ids()
             || contract.state_schema_id() != checked.transition_schemas().state_schema_id()
             || contract.context_schema_id() != checked.transition_schemas().context_schema_id()
             || contract.transition_type_id() != checked.transition_schemas().transition_type_id()
@@ -561,6 +620,24 @@ impl RelationalPublicationPlan {
         }
         let source_coverage_manifest_digest =
             decode_hex_digest(source_coverage.manifest_digest.as_ref())?;
+        if checked.closed_query.finds.len() != checked.find_question_ids().len() {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
+        let finds = checked
+            .closed_query
+            .finds
+            .iter()
+            .zip(checked.find_question_ids().iter().copied())
+            .map(|(find, question_id)| PublicationFindPlan {
+                name: find.name.as_str().into(),
+                question_id,
+            })
+            .collect::<Vec<_>>()
+            .into_boxed_slice();
+        let singleton_question_id = match contract.question_ids() {
+            [question_id] => Some(*question_id),
+            _ => None,
+        };
 
         let support_observation_demand_set_id = checked.support_observation_demand_set_id().bytes();
         let mut support_observation_aliases =
@@ -578,7 +655,7 @@ impl RelationalPublicationPlan {
             )?;
             let key = MechanismSupportKey::from_journal_codec_parts(
                 identity.request_id,
-                target,
+                target.semantic_target(),
                 mechanism_support_subject(identity.subject),
             );
             let slice = identity.within_mechanism.map_or_else(
@@ -621,9 +698,12 @@ impl RelationalPublicationPlan {
                     CheckedExploreAnalysisIdentity::View { view_id },
                 ) => {
                     let input = match &view.input {
-                        super::relational_ir::ExploreResultInputIr::Sources
-                        | super::relational_ir::ExploreResultInputIr::Selected => {
-                            ResultPublicationInput::SourceOrSelected
+                        ExploreResultInputIr::Sources => ResultPublicationInput::Sources,
+                        ExploreResultInputIr::Find { find_index } => {
+                            let question_id = checked
+                                .find_question_id(*find_index)
+                                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                            ResultPublicationInput::Find { question_id }
                         }
                         super::relational_ir::ExploreResultInputIr::MechanismIncidence {
                             request_node_index,
@@ -647,7 +727,7 @@ impl RelationalPublicationPlan {
                     // declared, publication conservatively waits for the
                     // durable projection instead of rediscovering staging or
                     // switching source order after emitting an open prefix.
-                    let source = if matches!(input, ResultPublicationInput::SourceOrSelected)
+                    let source = if matches!(input, ResultPublicationInput::Find { .. })
                         && matches!(view.grain, ExploreResultGrainIr::EachCase { .. })
                         && view.choose.is_none()
                         && view.aggregates.is_empty()
@@ -677,9 +757,9 @@ impl RelationalPublicationPlan {
                 ) => {
                     let target = checked_mechanism_target_at(checked, node_index, *request_id)?;
                     let audit_lineage = PublicationAuditLineage::new(
-                        contract,
+                        contract.clone(),
                         *request_id,
-                        target,
+                        target.clone(),
                         source_coverage_manifest_digest,
                     );
                     let request_id_hex = hex(request_id.bytes());
@@ -706,6 +786,7 @@ impl RelationalPublicationPlan {
                         name: format!("{}_definitions", request.name).into_boxed_str(),
                         path: definitions_path,
                         request_id: *request_id,
+                        target: target.clone(),
                         discovery_artifact_key: discovery_artifact_key.clone(),
                     };
                     if !paths.insert(definitions.path().to_path_buf()) {
@@ -740,6 +821,7 @@ impl RelationalPublicationPlan {
                                 .into_boxed_str(),
                             path: observation_demands_path,
                             request_id: *request_id,
+                            target: target.clone(),
                             demand_set_id: support_observation_demand_set_id,
                             aliases: support_observation_aliases
                                 .remove(request_id)
@@ -762,7 +844,7 @@ impl RelationalPublicationPlan {
                         .insert(
                             *request_id,
                             (
-                                target,
+                                target.clone(),
                                 structural_artifact_key.clone(),
                                 structural_artifact_path.clone(),
                                 observations_artifact_key.clone(),
@@ -782,6 +864,7 @@ impl RelationalPublicationPlan {
                         name: format!("{}_structural", request.name).into_boxed_str(),
                         path: structural_path,
                         request_id: *request_id,
+                        target: target.clone(),
                         definitions_artifact_key: structural_definitions_artifact_key.clone(),
                         definitions_artifact_path: structural_definitions_artifact_path,
                         observations_artifact_key: observations_artifact_key.clone(),
@@ -800,7 +883,7 @@ impl RelationalPublicationPlan {
                                 .into_boxed_str(),
                             path: structural_definitions_path,
                             request_id: *request_id,
-                            target,
+                            target: target.clone(),
                             structural_artifact_key,
                             structural_artifact_path,
                             observations_artifact_key,
@@ -817,6 +900,7 @@ impl RelationalPublicationPlan {
                         name: request.name.clone().into_boxed_str(),
                         path: PathBuf::from("mechanisms").join(format!("{safe_name}.ndjson")),
                         request_id: *request_id,
+                        target,
                         definitions_artifact_key,
                         definitions_artifact_path,
                     }
@@ -853,11 +937,12 @@ impl RelationalPublicationPlan {
             else {
                 return Err(RelationalPublicationError::PlanIdentityMismatch);
             };
-            if checked_mechanism_target_at(
+            let resolved_target = checked_mechanism_target_at(
                 checked,
                 projection.request_node_index,
                 identity.request_id,
-            )? != *target
+            )?;
+            if &resolved_target != target
                 || !matches!(
                     checked.artifact.analysis.get(projection.value_view_node_index),
                     Some(CheckedExploreAnalysisIdentity::View { view_id })
@@ -871,6 +956,9 @@ impl RelationalPublicationPlan {
                 identity.authorizing_view_id,
             )
             .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+            if authorization.question_id() != resolved_target.question_id() {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
             let safe_name = safe_artifact_name(&projection.name)?;
             let path = PathBuf::from("starters").join(format!("{safe_name}.ndjson"));
             let artifact = PublicationArtifactPlan::SubjectStarters {
@@ -879,7 +967,7 @@ impl RelationalPublicationPlan {
                 path,
                 consumer_id: identity.id.bytes(),
                 request_id: identity.request_id,
-                target: *target,
+                target: target.clone(),
                 subject: mechanism_support_subject(identity.subject),
                 within_mechanism: identity.within_mechanism,
                 authorization,
@@ -887,9 +975,9 @@ impl RelationalPublicationPlan {
                 structural_artifact_key: structural_artifact_key.clone(),
                 structural_artifact_path: structural_artifact_path.clone(),
                 audit_lineage: PublicationAuditLineage::new(
-                    contract,
+                    contract.clone(),
                     identity.request_id,
-                    *target,
+                    target.clone(),
                     source_coverage_manifest_digest,
                 ),
             };
@@ -901,7 +989,7 @@ impl RelationalPublicationPlan {
             artifacts.push(artifact);
         }
         for (graph, identity) in checked.transition_graph_consumers() {
-            if identity.question_id != checked.question_id()
+            if identity.relation_id != checked.relation_id()
                 || identity.state_schema_id != checked.transition_schemas().state_schema_id()
                 || identity.context_schema_id != checked.transition_schemas().context_schema_id()
                 || identity.transition_type_id != checked.transition_schemas().transition_type_id()
@@ -923,36 +1011,43 @@ impl RelationalPublicationPlan {
             }
             artifacts.push(artifact);
         }
-        let case_support = PublicationArtifactPlan::CaseSupport {
-            authorization: checked_case_id_publication_authorization(checked),
-        };
-        if !paths.insert(case_support.path().to_path_buf()) {
-            return Err(RelationalPublicationError::ArtifactPathCollision(
-                case_support.path().to_path_buf(),
-            ));
-        }
-        artifacts.push(case_support);
-        let case_transition_authorization =
-            match find_relational_mechanism_starter_value_authorization(*checked) {
-                Ok(authorization) => Some(authorization),
-                Err(RelationalMechanismStarterAuthorizationError::NoCompatibleSelectedCaseView) => {
-                    None
-                }
-                Err(error) => {
-                    return Err(RelationalPublicationError::Analysis(error.to_string()));
-                }
+        if let Some(question_id) = singleton_question_id {
+            let case_support = PublicationArtifactPlan::CaseSupport {
+                question_id,
+                authorization: checked_case_id_publication_authorization(checked, question_id),
             };
-        if let Some(authorization) = case_transition_authorization {
-            let case_transitions = PublicationArtifactPlan::CaseTransitions {
-                authorization,
-                transition_schemas: checked.transition_schemas().clone(),
-            };
-            if !paths.insert(case_transitions.path().to_path_buf()) {
+            if !paths.insert(case_support.path().to_path_buf()) {
                 return Err(RelationalPublicationError::ArtifactPathCollision(
-                    case_transitions.path().to_path_buf(),
+                    case_support.path().to_path_buf(),
                 ));
             }
-            artifacts.push(case_transitions);
+            artifacts.push(case_support);
+            let case_transition_authorization =
+                match find_relational_mechanism_starter_value_authorization(*checked) {
+                    Ok(authorization) if authorization.question_id() == question_id => {
+                        Some(authorization)
+                    }
+                    Ok(_) => return Err(RelationalPublicationError::PlanIdentityMismatch),
+                    Err(
+                        RelationalMechanismStarterAuthorizationError::NoCompatibleSelectedCaseView,
+                    ) => None,
+                    Err(error) => {
+                        return Err(RelationalPublicationError::Analysis(error.to_string()));
+                    }
+                };
+            if let Some(authorization) = case_transition_authorization {
+                let case_transitions = PublicationArtifactPlan::CaseTransitions {
+                    question_id,
+                    authorization,
+                    transition_schemas: checked.transition_schemas().clone(),
+                };
+                if !paths.insert(case_transitions.path().to_path_buf()) {
+                    return Err(RelationalPublicationError::ArtifactPathCollision(
+                        case_transitions.path().to_path_buf(),
+                    ));
+                }
+                artifacts.push(case_transitions);
+            }
         }
         // Normalized structural definitions become independently readable at
         // quotient closure. They remain behind compact answers in servicing
@@ -963,16 +1058,24 @@ impl RelationalPublicationPlan {
         // may lag without delaying interesting semantic output.
         artifacts.extend(definition_artifacts);
 
+        let journal_id = contract.id().bytes();
+        let query_name = checked.closed_query.name.clone().into_boxed_str();
+        let checked_program = checked.program_hash().to_string().into_boxed_str();
+        let artifacts = artifacts.into_boxed_slice();
+        let presentation_plan_digest =
+            derive_publication_presentation_plan_digest(&query_name, &finds, &artifacts)?;
         Ok(Self {
-            query_name: checked.closed_query.name.clone().into_boxed_str(),
-            checked_program: checked.program_hash().to_string().into_boxed_str(),
+            query_name,
+            checked_program,
+            presentation_plan_digest,
             contract,
-            journal_id: contract.id().bytes(),
+            journal_id,
             source_coverage_manifest_digest,
             support_observation_demand_set_id,
             starter_consumer_set_id: checked.starter_consumer_set_id().bytes(),
             transition_graph_consumer_set_id: checked.transition_graph_consumer_set_id().bytes(),
-            artifacts: artifacts.into_boxed_slice(),
+            finds,
+            artifacts,
         })
     }
 
@@ -983,13 +1086,180 @@ impl RelationalPublicationPlan {
     pub(crate) const fn journal_id(&self) -> [u8; 32] {
         self.journal_id
     }
+
+    pub(crate) const fn presentation_plan_digest(&self) -> [u8; 32] {
+        self.presentation_plan_digest
+    }
+}
+
+/// Hash only the immutable portion of the authored public plan. Ordered FIND
+/// aliases belong here because they are repeated in reports/manifests and may
+/// address name-independent questions. The whole checked-program digest is
+/// deliberately absent: adding a publication-only consumer may change that
+/// source identity without changing any installed artifact. Artifacts accepted
+/// by the cursor as additive extensions are omitted from this root and are
+/// instead bound by the digest stored in their own [`ArtifactCursor`].
+fn derive_publication_presentation_plan_digest(
+    query_name: &str,
+    finds: &[PublicationFindPlan],
+    artifacts: &[PublicationArtifactPlan],
+) -> Result<[u8; 32], RelationalPublicationError> {
+    let mut digest = CanonicalPresentationDigest::new(PRESENTATION_PLAN_DIGEST_V1);
+    digest.text(b"query-name", query_name);
+    digest.count(b"find-count", finds.len());
+    for (ordinal, find) in finds.iter().enumerate() {
+        digest.count(b"find-ordinal", ordinal);
+        digest.text(b"find-name", &find.name);
+        digest.bytes(b"find-question-id", &find.question_id.bytes());
+    }
+    digest.count(
+        b"immutable-artifact-count",
+        artifacts
+            .iter()
+            .filter(|artifact| !is_additive_cursor_extension(artifact))
+            .count(),
+    );
+    for artifact in artifacts
+        .iter()
+        .filter(|artifact| !is_additive_cursor_extension(artifact))
+    {
+        digest.bytes(
+            b"immutable-artifact-presentation",
+            &artifact_presentation_digest(artifact)?,
+        );
+    }
+    Ok(digest.finish())
+}
+
+/// Bind every authored string which can enter this artifact's envelope or
+/// records. Semantic producer coordinates remain independently authenticated
+/// by the journal, checked analysis IDs, and source cursor.
+fn artifact_presentation_digest(
+    artifact: &PublicationArtifactPlan,
+) -> Result<[u8; 32], RelationalPublicationError> {
+    let mut digest = CanonicalPresentationDigest::new(ARTIFACT_PRESENTATION_DIGEST_V1);
+    digest.text(b"key", artifact.key());
+    digest.text(b"kind", artifact.kind());
+    digest.text(b"name", artifact.name());
+    digest.text(b"path", &path_to_manifest_string(artifact.path())?);
+    if let Some(target) = artifact.mechanism_target() {
+        digest.text(b"target-name", &target.authored_name);
+        digest.bytes(b"target-question-id", &target.question_id().bytes());
+        match target.semantic_target() {
+            MechanismTargetId::Selected => digest.text(b"target-kind", "find"),
+            MechanismTargetId::ChosenView(view_id) => {
+                digest.text(b"target-kind", "chosen-view");
+                digest.bytes(b"target-view-id", &view_id.bytes());
+            }
+        }
+    } else {
+        digest.text(b"target-kind", "none");
+    }
+    match artifact {
+        PublicationArtifactPlan::Result { select_names, .. } => {
+            digest.count(b"select-name-count", select_names.len());
+            for (ordinal, name) in select_names.iter().enumerate() {
+                digest.count(b"select-name-ordinal", ordinal);
+                digest.text(b"select-name", name);
+            }
+        }
+        PublicationArtifactPlan::MechanismSupportObservationDemands { aliases, .. } => {
+            digest.count(b"demand-alias-count", aliases.len());
+            for (ordinal, alias) in aliases.iter().enumerate() {
+                digest.count(b"demand-alias-ordinal", ordinal);
+                digest.text(b"demand-alias-name", &alias.name);
+                digest.bytes(b"demand-alias-id", &alias.demand_id);
+                digest.bytes(b"demand-slice-id", &alias.slice.id().bytes());
+            }
+        }
+        PublicationArtifactPlan::SubjectStarters { authorization, .. }
+        | PublicationArtifactPlan::CaseTransitions { authorization, .. } => {
+            hash_authorization_presentation(&mut digest, authorization);
+        }
+        PublicationArtifactPlan::CaseSupport {
+            authorization: Some(authorization),
+            ..
+        } => match authorization.authority() {
+            RelationalCaseIdPublicationAuthority::ResultView(view_id) => {
+                digest.bytes(b"case-id-authorizing-view", &view_id.bytes());
+            }
+        },
+        PublicationArtifactPlan::Mechanism { .. }
+        | PublicationArtifactPlan::MechanismDefinitions { .. }
+        | PublicationArtifactPlan::MechanismSupportObservations { .. }
+        | PublicationArtifactPlan::MechanismStructural { .. }
+        | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
+        | PublicationArtifactPlan::CaseSupport {
+            authorization: None,
+            ..
+        }
+        | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {}
+    }
+    Ok(digest.finish())
+}
+
+fn hash_authorization_presentation(
+    digest: &mut CanonicalPresentationDigest,
+    authorization: &RelationalMechanismStarterValueAuthorization,
+) {
+    digest.text(
+        b"authorizing-view-name",
+        authorization.authorizing_view_name(),
+    );
+    digest.count(
+        b"authorized-projection-count",
+        authorization.projections().len(),
+    );
+    for (ordinal, projection) in authorization.projections().iter().enumerate() {
+        digest.count(b"authorized-projection-ordinal", ordinal);
+        digest.text(b"authorized-projection-name", projection.output_name());
+    }
+}
+
+fn is_additive_cursor_extension(artifact: &PublicationArtifactPlan) -> bool {
+    matches!(
+        artifact,
+        PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. }
+    )
+}
+
+struct CanonicalPresentationDigest(Sha256);
+
+impl CanonicalPresentationDigest {
+    fn new(domain: &[u8]) -> Self {
+        let mut hasher = Sha256::new();
+        hasher.update((domain.len() as u128).to_be_bytes());
+        hasher.update(domain);
+        Self(hasher)
+    }
+
+    fn bytes(&mut self, label: &[u8], value: &[u8]) {
+        self.0.update((label.len() as u128).to_be_bytes());
+        self.0.update(label);
+        self.0.update((value.len() as u128).to_be_bytes());
+        self.0.update(value);
+    }
+
+    fn text(&mut self, label: &[u8], value: &str) {
+        self.bytes(label, value.as_bytes());
+    }
+
+    fn count(&mut self, label: &[u8], value: usize) {
+        self.bytes(label, &(value as u128).to_be_bytes());
+    }
+
+    fn finish(self) -> [u8; 32] {
+        self.0.finalize().into()
+    }
 }
 
 fn checked_mechanism_target_at(
     checked: &CheckedExploreQueryView<'_>,
     request_node_index: usize,
     expected_request_id: MechanismRequestId,
-) -> Result<MechanismTargetId, RelationalPublicationError> {
+) -> Result<PublicationMechanismTarget, RelationalPublicationError> {
     let (
         Some(ExploreAnalysisNodeIr::Mechanisms(request)),
         Some(CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. }),
@@ -1004,14 +1274,46 @@ fn checked_mechanism_target_at(
         return Err(RelationalPublicationError::PlanIdentityMismatch);
     }
     match &request.target {
-        ExploreMechanismTargetIr::SelectedCases => Ok(MechanismTargetId::Selected),
+        ExploreMechanismTargetIr::Find { find_index } => {
+            let find = checked
+                .closed_query
+                .finds
+                .get(*find_index)
+                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+            let question_id = checked
+                .find_question_id(*find_index)
+                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+            Ok(PublicationMechanismTarget {
+                target: MechanismTargetId::Selected,
+                question_id,
+                authored_name: find.name.as_str().into(),
+            })
+        }
         ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
-            let Some(CheckedExploreAnalysisIdentity::View { view_id }) =
-                checked.artifact.analysis.get(*view_node_index)
+            if *view_node_index >= request_node_index {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+            let (
+                Some(ExploreAnalysisNodeIr::Result(view)),
+                Some(CheckedExploreAnalysisIdentity::View { view_id }),
+            ) = (
+                checked.closed_query.analysis.get(*view_node_index),
+                checked.artifact.analysis.get(*view_node_index),
+            )
             else {
                 return Err(RelationalPublicationError::PlanIdentityMismatch);
             };
-            Ok(MechanismTargetId::ChosenView(*view_id))
+            let ExploreResultInputIr::Find { find_index } = &view.input else {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            };
+            let question_id = checked
+                .find_question_id(*find_index)
+                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+            Ok(PublicationMechanismTarget {
+                target: MechanismTargetId::ChosenView(*view_id),
+                question_id,
+                authored_name: view.name.as_str().into(),
+            })
         }
     }
 }
@@ -1049,6 +1351,7 @@ const fn mechanism_support_facet(facet: ExploreMechanismSupportFacetIr) -> Mecha
 
 fn checked_case_id_publication_authorization(
     checked: &CheckedExploreQueryView<'_>,
+    question_id: QuestionId,
 ) -> Option<RelationalCaseIdPublicationAuthorization> {
     checked
         .analysis_nodes()
@@ -1060,8 +1363,11 @@ fn checked_case_id_publication_authorization(
             else {
                 return None;
             };
-            (matches!(&view.input, ExploreResultInputIr::Selected)
-                && matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
+            (matches!(
+                &view.input,
+                ExploreResultInputIr::Find { find_index }
+                    if checked.find_question_id(*find_index) == Some(question_id)
+            ) && matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
                 && view.aggregates.is_empty()
                 && view.having.is_none()
                 && view.choose.is_none()
@@ -1569,6 +1875,7 @@ impl PublicationSourceCoordinate {
 struct ArtifactCursor {
     kind: String,
     path: String,
+    presentation_digest: String,
     source: ArtifactSourceCursor,
     #[serde(with = "decimal_u128_wire")]
     line_count: u128,
@@ -1655,7 +1962,7 @@ fn source_cursor_matches_artifact(
                 == SubjectStarterCursorIdentity::new(
                     *consumer_id,
                     *request_id,
-                    *target,
+                    target.semantic_target(),
                     *subject,
                     *within_mechanism,
                 )
@@ -1730,7 +2037,7 @@ fn pending_source_end_matches_artifact(
                 == SubjectStarterCursorIdentity::new(
                     *consumer_id,
                     *request_id,
-                    *target,
+                    target.semantic_target(),
                     *subject,
                     *within_mechanism,
                 )
@@ -1770,6 +2077,7 @@ struct PublicationCursor {
     schema_version: u32,
     journal_id: String,
     query_name: String,
+    presentation_plan_digest: String,
     source_coverage_manifest_digest: String,
     checkpoint: CursorCheckpoint,
     artifacts: BTreeMap<String, ArtifactCursor>,
@@ -1977,6 +2285,7 @@ enum RelationalPublishedSelectedPopulationAuthority {
 enum RelationalClassificationSummaryProjectionRecord {
     Root {
         contract: RelationalJournalContract,
+        question_id: QuestionId,
         support_plan_root: [u8; 32],
         classification_authority: RelationalPublishedClassificationAuthority,
         exact_logical_case_count: u128,
@@ -2001,6 +2310,7 @@ enum RelationalClassificationSummaryProjectionRecord {
 
 struct RelationalClassificationSummaryProjection<'journal> {
     contract: RelationalJournalContract,
+    question_id: QuestionId,
     support_plan_root: [u8; 32],
     selected_case_ids: &'journal [RelationalCaseId],
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
@@ -2073,7 +2383,8 @@ impl RelationalClassificationSummaryProjection<'_> {
         if source_ordinal == 0 {
             return Ok(Some(
                 RelationalClassificationSummaryProjectionRecord::Root {
-                    contract: self.contract,
+                    contract: self.contract.clone(),
+                    question_id: self.question_id,
                     support_plan_root: self.support_plan_root,
                     classification_authority: self.closure.classification_authority,
                     exact_logical_case_count: self.closure.exact_logical_case_count,
@@ -2103,7 +2414,7 @@ impl RelationalClassificationSummaryProjection<'_> {
             };
             return Ok(Some(
                 RelationalClassificationSummaryProjectionRecord::Region {
-                    question_id: self.contract.question_id(),
+                    question_id: self.question_id,
                     region_ordinal: u8::try_from(source_ordinal - 1)
                         .map_err(|_| RelationalPublicationError::ArithmeticOverflow)?,
                     exact_case_count,
@@ -2134,7 +2445,7 @@ impl RelationalClassificationSummaryProjection<'_> {
             })?;
             return Ok(Some(
                 RelationalClassificationSummaryProjectionRecord::AuthorizedCase {
-                    question_id: self.contract.question_id(),
+                    question_id: self.question_id,
                     selected_region_ordinal: Self::SELECTED_REGION_ORDINAL,
                     case_id,
                     authority,
@@ -2182,8 +2493,11 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
         journal: &'journal RelationalJournal,
         plan: &RelationalPublicationPlan,
     ) -> Result<Self, RelationalPublicationError> {
-        let Some(authorization) = plan.artifacts.iter().find_map(|artifact| match artifact {
-            PublicationArtifactPlan::CaseSupport { authorization } => Some(*authorization),
+        let case_support = plan.artifacts.iter().find_map(|artifact| match artifact {
+            PublicationArtifactPlan::CaseSupport {
+                question_id,
+                authorization,
+            } => Some((*question_id, *authorization)),
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::Mechanism { .. }
             | PublicationArtifactPlan::MechanismDefinitions { .. }
@@ -2194,17 +2508,26 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             | PublicationArtifactPlan::SubjectStarters { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. } => None,
-        }) else {
-            return Err(RelationalPublicationError::PlanIdentityMismatch);
-        };
+        });
+        let case_support = case_support
+            .map(|(question_id, authorization)| {
+                derive_case_support_for_publication(journal, question_id, authorization)
+            })
+            .transpose()?
+            .flatten();
         let case_transitions = plan
             .artifacts
             .iter()
             .find_map(|artifact| match artifact {
                 PublicationArtifactPlan::CaseTransitions {
+                    question_id,
                     authorization,
                     transition_schemas,
-                } => Some((authorization.clone(), transition_schemas.clone())),
+                } => Some((
+                    *question_id,
+                    authorization.clone(),
+                    transition_schemas.clone(),
+                )),
                 PublicationArtifactPlan::Result { .. }
                 | PublicationArtifactPlan::Mechanism { .. }
                 | PublicationArtifactPlan::MechanismDefinitions { .. }
@@ -2216,13 +2539,13 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
                 | PublicationArtifactPlan::CaseSupport { .. }
                 | PublicationArtifactPlan::SemanticTransitionGraph { .. } => None,
             })
-            .map(|(authorization, transition_schemas)| {
+            .map(|(question_id, authorization, transition_schemas)| {
                 let scheduler = journal
                     .scheduler_view()
                     .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
                 let selected_question = journal
                     .analysis_state()
-                    .and_then(|analysis| analysis.selected_question());
+                    .and_then(|analysis| analysis.selected_question(question_id));
                 derive_relational_case_transition_projection(
                     scheduler,
                     transition_schemas,
@@ -2256,7 +2579,7 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             }
         }
         Ok(Self {
-            case_support: derive_case_support_for_publication(journal, authorization)?,
+            case_support,
             case_transitions,
             semantic_transition_graphs,
             mechanisms: BTreeMap::new(),
@@ -2332,26 +2655,38 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
 
 fn derive_case_support_for_publication<'journal>(
     journal: &'journal RelationalJournal,
+    question_id: QuestionId,
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
 ) -> Result<Option<PublicationCaseSupportProjection<'journal>>, RelationalPublicationError> {
     let scheduler = journal
         .scheduler_view()
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
-    let Some(partition) = scheduler.verified_case_chunk_partition() else {
-        return derive_classification_summary_for_publication(journal, authorization).map(
-            |projection| projection.map(PublicationCaseSupportProjection::ClassificationSummary),
-        );
+    if scheduler.contract().question_ids() != [question_id] {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let Some(partition) = scheduler
+        .verified_case_chunk_partition(question_id)
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
+    else {
+        return derive_classification_summary_for_publication(journal, question_id, authorization)
+            .map(|projection| {
+                projection.map(PublicationCaseSupportProjection::ClassificationSummary)
+            });
     };
-    let classified_fragments = scheduler.classified_support_fragments();
+    let classified_fragments = scheduler
+        .classified_support_fragments(question_id)
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let closure_ready = scheduler.support_catalog_is_sealed()
         && classified_fragments.len() == partition.artifact().chunks().len()
-        && scheduler.selected_run_materializations_cover_classified_prefix();
+        && scheduler
+            .selected_run_materializations_cover_classified_prefix(question_id)
+            .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let closure_authority = if closure_ready {
         match (
             scheduler.certified_root_case_cardinality(),
             journal
                 .analysis_state()
-                .and_then(|analysis| analysis.selected_question()),
+                .and_then(|analysis| analysis.selected_question(question_id)),
         ) {
             (Some(case_count), Some(selected_question))
                 if matches!(
@@ -2380,7 +2715,11 @@ fn derive_case_support_for_publication<'journal>(
     derive_relational_case_support_projection(
         partition,
         classified_fragments,
-        |cell_id| scheduler.selected_run_materialization(cell_id),
+        |cell_id| {
+            scheduler
+                .selected_run_materialization(question_id, cell_id)
+                .expect("the publication plan validated its single semantic question")
+        },
         authorization,
         closure_authority,
     )
@@ -2391,6 +2730,7 @@ fn derive_case_support_for_publication<'journal>(
 
 fn derive_classification_summary_for_publication<'journal>(
     journal: &'journal RelationalJournal,
+    question_id: QuestionId,
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
 ) -> Result<Option<RelationalClassificationSummaryProjection<'journal>>, RelationalPublicationError>
 {
@@ -2399,7 +2739,7 @@ fn derive_classification_summary_for_publication<'journal>(
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let Some(selected_question) = journal
         .analysis_state()
-        .and_then(|analysis| analysis.selected_question())
+        .and_then(|analysis| analysis.selected_question(question_id))
     else {
         return Ok(None);
     };
@@ -2419,7 +2759,7 @@ fn derive_classification_summary_for_publication<'journal>(
         },
     };
     let contract = scheduler.contract();
-    if selected_question.question_id() != contract.question_id() {
+    if selected_question.question_id() != question_id || contract.question_ids() != [question_id] {
         return Err(RelationalPublicationError::CaseSupport(
             "classification-summary selected-question seal names another question".into(),
         ));
@@ -2429,7 +2769,9 @@ fn derive_classification_summary_for_publication<'journal>(
             "classification-summary case-support closure has no support-plan root".into(),
         )
     })?;
-    let selected_case_ids = scheduler.selected_discovery_suffix(0);
+    let selected_case_ids = scheduler
+        .selected_discovery_suffix(question_id, 0)
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let sealed_selected_case_count = selected_question.result_input_seal().coverage().row_count();
     let relation_closed = scheduler.relation_enumeration_is_complete();
     let observed_logical_case_count = scheduler.case_count() as u128;
@@ -2444,7 +2786,7 @@ fn derive_classification_summary_for_publication<'journal>(
         None => return Ok(None),
     };
     let classification_progress = scheduler
-        .classification_progress_counts()
+        .classification_progress_counts(question_id)
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let certified_classification = classification_progress.filter(|progress| {
         progress.is_complete()
@@ -2465,7 +2807,10 @@ fn derive_classification_summary_for_publication<'journal>(
     let exact_selected_case_count = sealed_selected_case_count;
     let classification_authority = if certified_classification.is_some() {
         RelationalPublishedClassificationAuthority::CertifiedSupport
-    } else if scheduler.concrete_base_is_classified() {
+    } else if scheduler
+        .concrete_base_is_classified(question_id)
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
+    {
         RelationalPublishedClassificationAuthority::ExtensionalCatalog
     } else {
         RelationalPublishedClassificationAuthority::ComposedExactEvidence
@@ -2510,7 +2855,8 @@ fn derive_classification_summary_for_publication<'journal>(
         data_record_count,
     };
     Ok(Some(RelationalClassificationSummaryProjection {
-        contract,
+        contract: contract.clone(),
+        question_id,
         support_plan_root: support_plan_root.bytes(),
         selected_case_ids,
         authorization,
@@ -2553,7 +2899,7 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     let current = authority
         .durable_checkpoint()
         .map_err(RelationalPublicationError::Authority)?;
-    if journal.contract() != plan.contract
+    if journal.contract() != &plan.contract
         || journal.next_sequence() != current.next_sequence
         || journal.head().bytes() != current.head
         || report.checkpoint.next_sequence != current.next_sequence
@@ -2896,14 +3242,31 @@ fn validate_report(
     plan: &RelationalPublicationPlan,
     report: &ExploreStreamSliceReport,
 ) -> Result<(), RelationalPublicationError> {
-    if report.query_name != plan.query_name.as_ref()
+    let expected_question_ids = plan
+        .contract
+        .question_ids()
+        .iter()
+        .map(|question_id| hex(question_id.bytes()))
+        .collect::<Vec<_>>();
+    let finds_match = report.finds.len() == plan.finds.len()
+        && report
+            .finds
+            .iter()
+            .zip(plan.finds.iter())
+            .all(|(actual, expected)| {
+                actual.name == expected.name.as_ref()
+                    && actual.question_id == hex(expected.question_id.bytes())
+            });
+    if report.schema_version != EXPLORE_RELATIONAL_STREAM_REPORT_VERSION
+        || report.query_name != plan.query_name.as_ref()
         || report.identity.checked_program != plan.checked_program.as_ref()
         || report.identity.relation_id != hex(plan.contract.relation_id().bytes())
         || report.identity.admission_id != hex(plan.contract.admission_id().bytes())
-        || report.identity.question_id != hex(plan.contract.question_id().bytes())
+        || report.identity.question_ids != expected_question_ids
         || report.identity.analysis_graph_digest != hex(plan.contract.analysis_graph_digest())
         || report.identity.journal_id != hex(plan.journal_id)
         || report.source_coverage.manifest_digest != hex(plan.source_coverage_manifest_digest)
+        || !finds_match
     {
         return Err(RelationalPublicationError::ReportIdentityMismatch);
     }
@@ -2928,6 +3291,7 @@ fn load_or_create_cursor(
         }
         if cursor.journal_id != hex(plan.journal_id)
             || cursor.query_name != plan.query_name.as_ref()
+            || cursor.presentation_plan_digest != hex(plan.presentation_plan_digest)
             || cursor.source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
         {
             return Err(RelationalPublicationError::CursorIdentityMismatch);
@@ -2937,12 +3301,7 @@ fn load_or_create_cursor(
             plan.artifacts.iter().map(|artifact| {
                 (
                     artifact.key().to_string(),
-                    matches!(
-                        artifact,
-                        PublicationArtifactPlan::SubjectStarters { .. }
-                            | PublicationArtifactPlan::CaseTransitions { .. }
-                            | PublicationArtifactPlan::SemanticTransitionGraph { .. }
-                    ),
+                    is_additive_cursor_extension(artifact),
                 )
             }),
         )?;
@@ -2987,6 +3346,7 @@ fn load_or_create_cursor(
         schema_version: RELATIONAL_PUBLICATION_SCHEMA_VERSION,
         journal_id: hex(plan.journal_id),
         query_name: plan.query_name.to_string(),
+        presentation_plan_digest: hex(plan.presentation_plan_digest),
         source_coverage_manifest_digest: hex(plan.source_coverage_manifest_digest),
         checkpoint: CursorCheckpoint::from_checkpoint(current),
         artifacts,
@@ -3032,6 +3392,7 @@ fn initial_artifact_cursor(
     Ok(ArtifactCursor {
         kind: artifact.kind().into(),
         path: path_to_manifest_string(artifact.path())?,
+        presentation_digest: hex(artifact_presentation_digest(artifact)?),
         source: match artifact {
             PublicationArtifactPlan::Result { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
@@ -3074,7 +3435,7 @@ fn initial_artifact_cursor(
                 identity: SubjectStarterCursorIdentity::new(
                     *consumer_id,
                     *request_id,
-                    *target,
+                    target.semantic_target(),
                     *subject,
                     *within_mechanism,
                 ),
@@ -3085,7 +3446,10 @@ fn initial_artifact_cursor(
         },
         line_count: 0,
         byte_len: 0,
-        prefix_digest: hex(publication_prefix_genesis(key)),
+        prefix_digest: hex(publication_prefix_genesis(
+            key,
+            artifact_presentation_digest(artifact)?,
+        )),
         last_line: None,
     })
 }
@@ -3102,6 +3466,7 @@ fn validate_cursor_plan(
     }
     if cursor.journal_id != hex(plan.journal_id)
         || cursor.query_name != plan.query_name.as_ref()
+        || cursor.presentation_plan_digest != hex(plan.presentation_plan_digest)
         || cursor.source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
     {
         return Err(RelationalPublicationError::CursorIdentityMismatch);
@@ -3116,6 +3481,7 @@ fn validate_cursor_plan(
             .ok_or(RelationalPublicationError::CursorArtifactSetMismatch)?;
         if stored.kind != artifact.kind()
             || stored.path != path_to_manifest_string(artifact.path())?
+            || stored.presentation_digest != hex(artifact_presentation_digest(artifact)?)
             || decode_hex_digest(&stored.prefix_digest).is_err()
             || !source_cursor_matches_artifact(stored.source, artifact)
         {
@@ -3813,6 +4179,7 @@ fn record_at(
                 view_id,
                 select_names,
                 source: ResultPublicationSource::EarlyEachCase,
+                input: ResultPublicationInput::Find { question_id },
                 ..
             },
             ArtifactSourceCursor::Flat {
@@ -3821,7 +4188,13 @@ fn record_at(
         ) => address_flat_record(
             artifact,
             next_source_ordinal,
-            early_each_case_record(journal, *view_id, select_names, next_source_ordinal)?,
+            early_each_case_record(
+                journal,
+                *question_id,
+                *view_id,
+                select_names,
+                next_source_ordinal,
+            )?,
         ),
         (
             PublicationArtifactPlan::Result {
@@ -3853,19 +4226,26 @@ fn record_at(
             mechanism_support_observation_record(
                 journal,
                 *request_id,
-                *audit_lineage,
+                audit_lineage,
                 next_source_ordinal,
             )?,
         ),
         (
-            PublicationArtifactPlan::MechanismSupportObservationDemands { request_id, .. },
+            PublicationArtifactPlan::MechanismSupportObservationDemands {
+                request_id, target, ..
+            },
             ArtifactSourceCursor::Flat {
                 next_source_ordinal,
             },
         ) => address_flat_record(
             artifact,
             next_source_ordinal,
-            mechanism_support_observation_demand_record(journal, *request_id, next_source_ordinal)?,
+            mechanism_support_observation_demand_record(
+                journal,
+                *request_id,
+                target,
+                next_source_ordinal,
+            )?,
         ),
         (
             PublicationArtifactPlan::MechanismStructural { request_id, .. },
@@ -3996,14 +4376,14 @@ fn record_at(
             journal,
             *consumer_id,
             *request_id,
-            *target,
+            target,
             *subject,
             *within_mechanism,
             authorization,
             transition_schemas,
             structural_artifact_key,
             structural_artifact_path,
-            *audit_lineage,
+            audit_lineage,
             identity,
             header_emitted,
             accumulator,
@@ -4053,7 +4433,7 @@ fn next_flat_source(
 fn mechanism_support_observation_record(
     journal: &RelationalJournal,
     request_id: MechanismRequestId,
-    audit_lineage: PublicationAuditLineage,
+    audit_lineage: &PublicationAuditLineage,
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let available = journal.mechanism_support_observation_count(request_id);
@@ -4092,7 +4472,7 @@ fn mechanism_support_observation_record(
     }
     let cursor = claim.cursor();
     let residual = summary.residual_summary();
-    let audit_lineage =
+    let public_audit_lineage =
         public_mechanism_support_audit_lineage(journal, audit_lineage, summary.slice())?;
     let mut record = json!({
         "kind": "mechanism_support_observation",
@@ -4103,8 +4483,8 @@ fn mechanism_support_observation_record(
         "point_id": hex(point.point_id().bytes()),
         "supersedes_point_id": claim.supersedes().map(|point_id| hex(point_id.bytes())),
         "status": public_mechanism_support_observation_status(point.status()),
-        "slice": public_mechanism_support_slice_coordinate(slice),
-        "audit_lineage": audit_lineage,
+        "slice": public_mechanism_support_slice_coordinate(slice, &audit_lineage.target),
+        "audit_lineage": public_audit_lineage,
         "checkpoint_cursor": {
             "target_discovery": cursor.target_discovery().to_string(),
             "terminal_discovery": cursor.terminal_discovery().to_string(),
@@ -4143,6 +4523,7 @@ fn mechanism_support_observation_record(
 fn mechanism_support_observation_demand_record(
     journal: &RelationalJournal,
     request_id: MechanismRequestId,
+    target: &PublicationMechanismTarget,
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let available = journal.mechanism_support_observation_demand_count(request_id);
@@ -4164,7 +4545,9 @@ fn mechanism_support_observation_demand_record(
     let claim = *journal
         .mechanism_support_observation_demand_at(request_id, ordinal)
         .ok_or(RelationalPublicationError::MechanismOrdinalIndexMismatch)?;
-    if claim.slice().key().request_id() != request_id {
+    if claim.slice().key().request_id() != request_id
+        || claim.slice().key().target() != target.semantic_target()
+    {
         return Err(RelationalPublicationError::MechanismOrdinalIndexMismatch);
     }
     Ok(PublicationRecord::Emit(json!({
@@ -4172,7 +4555,7 @@ fn mechanism_support_observation_demand_record(
         "registration_version": claim.version(),
         "registration_ordinal": source_ordinal.to_string(),
         "request_id": hex(request_id.bytes()),
-        "slice": public_mechanism_support_slice_coordinate(claim.slice()),
+        "slice": public_mechanism_support_slice_coordinate(claim.slice(), target),
         "checkpoint_cursor": public_mechanism_support_checkpoint_cursor(claim.cursor()),
         "frontier_root": hex(claim.frontier_root().bytes()),
         "disposition": public_mechanism_support_observation_registration_disposition(
@@ -4317,6 +4700,7 @@ fn mechanism_support_observation_demand_registrations(
 
 fn public_support_observation_demand_alias(
     alias: &SupportObservationDemandAlias,
+    target: &PublicationMechanismTarget,
     registration: Option<(u128, MechanismSupportObservationDemandRegistrationClaim)>,
     latest: Option<&MechanismSupportObservationPoint>,
     observations_artifact_key: &str,
@@ -4332,7 +4716,7 @@ fn public_support_observation_demand_alias(
         "name": alias.name,
         "demand_id": hex(alias.demand_id),
         "slice_id": hex(alias.slice.id().bytes()),
-        "slice": public_mechanism_support_slice_coordinate(alias.slice),
+        "slice": public_mechanism_support_slice_coordinate(alias.slice, target),
         "status": status,
         "registration": registration.map(|(ordinal, claim)| json!({
             "ordinal": ordinal.to_string(),
@@ -4371,11 +4755,15 @@ fn public_mechanism_support_observation_status(
     }
 }
 
-fn public_mechanism_support_slice_coordinate(slice: MechanismSupportSlice) -> JsonValue {
+fn public_mechanism_support_slice_coordinate(
+    slice: MechanismSupportSlice,
+    target: &PublicationMechanismTarget,
+) -> JsonValue {
+    debug_assert_eq!(slice.key().target(), target.semantic_target());
     json!({
         "slice_id": hex(slice.id().bytes()),
         "request_id": hex(slice.key().request_id().bytes()),
-        "target": public_mechanism_target_id(slice.key().target()),
+        "target": public_mechanism_target_id(target),
         "subject": public_mechanism_support_subject(slice.subject()),
         "selection": match slice.enclosing_mechanism() {
             Some(mechanism_id) => json!({
@@ -4389,12 +4777,15 @@ fn public_mechanism_support_slice_coordinate(slice: MechanismSupportSlice) -> Js
 
 fn public_mechanism_support_audit_lineage(
     journal: &RelationalJournal,
-    lineage: PublicationAuditLineage,
+    lineage: &PublicationAuditLineage,
     slice: MechanismSupportSlice,
 ) -> Result<JsonValue, RelationalPublicationError> {
-    if lineage.contract != journal.contract()
+    if &lineage.contract != journal.contract()
         || lineage.mechanism_request_id != slice.key().request_id()
-        || lineage.target != slice.key().target()
+        || !lineage
+            .contract
+            .contains_question(lineage.target.question_id())
+        || lineage.target.semantic_target() != slice.key().target()
     {
         return Err(RelationalPublicationError::PlanIdentityMismatch);
     }
@@ -4410,8 +4801,8 @@ fn public_mechanism_support_audit_lineage(
         "mechanism_request_id": hex(lineage.mechanism_request_id.bytes()),
         "relation_id": hex(lineage.contract.relation_id().bytes()),
         "admission_id": hex(lineage.contract.admission_id().bytes()),
-        "question_id": hex(lineage.contract.question_id().bytes()),
-        "target_id": public_mechanism_target_id(lineage.target),
+        "question_id": hex(lineage.target.question_id().bytes()),
+        "target_id": public_mechanism_target_id(&lineage.target),
         "subject": public_mechanism_support_subject(slice.subject()),
         "facet": slice.key().facet().map(mechanism_support_facet_name),
         "route": route,
@@ -4424,16 +4815,18 @@ fn public_mechanism_support_audit_lineage(
 
 fn public_structural_support_slice_descriptor(
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     subject: MechanismSupportSubject,
     observations_artifact_key: &str,
     observations_artifact_path: &str,
 ) -> JsonValue {
     let slice = MechanismSupportSlice::total(MechanismSupportKey::from_journal_codec_parts(
-        request_id, target, subject,
+        request_id,
+        target.semantic_target(),
+        subject,
     ));
     json!({
-        "slice": public_mechanism_support_slice_coordinate(slice),
+        "slice": public_mechanism_support_slice_coordinate(slice, target),
         "observations": {
             "artifact_key": observations_artifact_key,
             "path": observations_artifact_path,
@@ -4784,6 +5177,7 @@ fn structural_sidecar_record(
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let PublicationArtifactPlan::MechanismStructural {
+        target,
         definitions_artifact_key,
         definitions_artifact_path,
         observations_artifact_key,
@@ -4862,8 +5256,16 @@ fn structural_sidecar_record(
         let support = authority
             .sealed_support_receipt
             .ok_or(RelationalPublicationError::MissingAnalysisLayer)?;
+        if support.closure.target() != target.semantic_target()
+            || authority
+                .support
+                .is_none_or(|(catalog, _)| catalog.scope().question_id() != target.question_id())
+        {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
         return Ok(PublicationRecord::Emit(public_mechanism_support_closure(
             support,
+            target,
             definition_catalog_root,
             definitions_artifact_key,
             definitions_artifact_path,
@@ -5145,14 +5547,14 @@ fn subject_starter_record(
     journal: &RelationalJournal,
     consumer_id: [u8; 32],
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     subject: MechanismSupportSubject,
     within_mechanism: Option<StructuralMechanismId>,
     authorization: &RelationalMechanismStarterValueAuthorization,
     transition_schemas: &TransitionSchemaIdentities,
     structural_artifact_key: &str,
     structural_artifact_path: &str,
-    audit_lineage: PublicationAuditLineage,
+    audit_lineage: &PublicationAuditLineage,
     identity: SubjectStarterCursorIdentity,
     header_emitted: bool,
     accumulator_cursor: Option<MechanismStarterAccumulatorCursor>,
@@ -5163,12 +5565,16 @@ fn subject_starter_record(
     let expected_identity = SubjectStarterCursorIdentity::new(
         consumer_id,
         request_id,
-        target,
+        target.semantic_target(),
         subject,
         within_mechanism,
     );
     if !authorization.validate_identity()
-        || authorization.question_id() != journal.contract().question_id()
+        || !journal
+            .contract()
+            .contains_question(authorization.question_id())
+        || authorization.question_id() != audit_lineage.target.question_id()
+        || target != &audit_lineage.target
         || identity != expected_identity
         || (!header_emitted && (accumulator_cursor.is_some() || closure_emitted))
     {
@@ -5178,7 +5584,7 @@ fn subject_starter_record(
         journal,
         identity,
         request_id,
-        target,
+        target.semantic_target(),
         subject,
         within_mechanism,
         transition_schemas,
@@ -5358,7 +5764,7 @@ fn public_mechanism_starter_authorization(
 fn public_subject_starter_header(
     consumer_id: [u8; 32],
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     subject: MechanismSupportSubject,
     within_mechanism: Option<StructuralMechanismId>,
     authority: MechanismClosedSubjectStarterProjectionAuthority,
@@ -5406,7 +5812,7 @@ fn public_subject_starter_header(
 fn public_subject_starter_page(
     consumer_id: [u8; 32],
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     subject: MechanismSupportSubject,
     within_mechanism: Option<StructuralMechanismId>,
     job: RelationalMechanismStarterProjectionJob,
@@ -5461,7 +5867,7 @@ fn public_mechanism_starter_key_cursor(cursor: Option<MechanismSupportStarterCur
 fn public_subject_starter_closure(
     consumer_id: [u8; 32],
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     subject: MechanismSupportSubject,
     within_mechanism: Option<StructuralMechanismId>,
     job: RelationalMechanismStarterProjectionJob,
@@ -5552,6 +5958,7 @@ const fn mechanism_support_facet_name(facet: MechanismSupportFacet) -> &'static 
 
 fn public_mechanism_support_closure(
     authority: SealedSupportObservationAuthority,
+    target: &PublicationMechanismTarget,
     definition_catalog_root: StructuralDefinitionCatalogRoot,
     definitions_artifact_key: &str,
     definitions_artifact_path: &str,
@@ -5562,7 +5969,7 @@ fn public_mechanism_support_closure(
     json!({
         "kind": "mechanism_support_closure",
         "request_id": hex(closure.request_id().bytes()),
-        "target": public_mechanism_target_id(closure.target()),
+        "target": public_mechanism_target_id(target),
         "automatic_schedule": "every_discovered_structural_mechanism_total_slice",
         "target_seal_id": hex(closure.target_seal_id().bytes()),
         "raw_incidence_root": hex(closure.incidence_root().bytes()),
@@ -5740,13 +6147,17 @@ fn public_factorized_starter_bound_basis(basis: MechanismFactorizedStarterBoundB
     }
 }
 
-fn public_mechanism_target_id(target: MechanismTargetId) -> JsonValue {
-    match target {
+fn public_mechanism_target_id(target: &PublicationMechanismTarget) -> JsonValue {
+    match target.semantic_target() {
         MechanismTargetId::Selected => json!({
-            "kind": "selected",
+            "kind": "find",
+            "name": target.authored_name,
+            "question_id": hex(target.question_id().bytes()),
         }),
         MechanismTargetId::ChosenView(view_id) => json!({
             "kind": "chosen_view",
+            "name": target.authored_name,
+            "question_id": hex(target.question_id().bytes()),
             "view_id": hex(view_id.bytes()),
         }),
     }
@@ -5857,11 +6268,15 @@ fn public_semantic_transition_graph_record(
                 "projection_id": hex(projection_id.bytes()),
                 "relation_id": hex(contract.relation_id().bytes()),
                 "admission_id": hex(contract.admission_id().bytes()),
-                "question_id": hex(contract.question_id().bytes()),
+                "question_ids": contract
+                    .question_ids()
+                    .iter()
+                    .map(|question_id| hex(question_id.bytes()))
+                    .collect::<Vec<_>>(),
                 "state_schema_id": hex(contract.state_schema_id().bytes()),
                 "context_schema_id": hex(contract.context_schema_id().bytes()),
                 "transition_type_id": hex(contract.transition_type_id().bytes()),
-                "source_order": ["state_id", "transition_id", "layer", "transition_id", "case_id"],
+                "source_order": ["state_id", "transition_id", "layer", "question_id", "transition_id", "case_id"],
                 "identity_only": true,
                 "contains_typed_values": false,
             })
@@ -5876,18 +6291,24 @@ fn public_semantic_transition_graph_record(
             "before_state_id": hex(transition.before_state_id().bytes()),
             "after_state_id": hex(transition.after_state_id().bytes()),
         }),
-        RelationalSemanticTransitionGraphRecord::CaseSupport(support) => json!({
-            "kind": "case_support",
-            "layer": match support.layer() {
-                super::RelationalTransitionLayer::Universe => "U",
-                super::RelationalTransitionLayer::Admitted => "D",
-                super::RelationalTransitionLayer::Matched => "M",
-            },
-            "transition_id": hex(support.transition_id().bytes()),
-            "case_id": hex(support.case_id().bytes()),
-            "source_key": hex(support.source_key().bytes()),
-            "successor_key": hex(support.successor_key().bytes()),
-        }),
+        RelationalSemanticTransitionGraphRecord::CaseSupport(support) => {
+            let (layer, question_id) = match support.layer() {
+                super::RelationalTransitionLayer::Universe => ("U", None),
+                super::RelationalTransitionLayer::Admitted => ("D", None),
+                super::RelationalTransitionLayer::Matched(question_id) => {
+                    ("M", Some(hex(question_id.bytes())))
+                }
+            };
+            json!({
+                "kind": "case_support",
+                "layer": layer,
+                "question_id": question_id,
+                "transition_id": hex(support.transition_id().bytes()),
+                "case_id": hex(support.case_id().bytes()),
+                "source_key": hex(support.source_key().bytes()),
+                "successor_key": hex(support.successor_key().bytes()),
+            })
+        }
         RelationalSemanticTransitionGraphRecord::Closure(closure) => {
             let counts = closure.counts();
             json!({
@@ -5895,7 +6316,7 @@ fn public_semantic_transition_graph_record(
                 "frontier": "exact",
                 "content_root": hex(closure.root().bytes()),
                 "data_record_count": closure.data_record_count().to_string(),
-                "counts": public_semantic_transition_graph_counts(counts),
+                "counts": public_semantic_transition_graph_counts(&counts),
             })
         }
         RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity) => {
@@ -5907,7 +6328,7 @@ fn public_semantic_transition_graph_record(
                 "content_root": hex(capacity.root().bytes()),
                 "maximum_data_records": capacity.maximum_data_records().to_string(),
                 "required_data_records": capacity.required_data_records().to_string(),
-                "counts": public_semantic_transition_graph_counts(counts),
+                "counts": public_semantic_transition_graph_counts(&counts),
                 "reason": "identity_graph_publication_capacity",
             })
         }
@@ -5917,6 +6338,7 @@ fn public_semantic_transition_graph_record(
                 status
                     .counts()
                     .cases(super::RelationalTransitionLayer::Universe)
+                    .expect("the universe transition layer is always registered")
             );
             json!({
                 "kind": "unmaterialized",
@@ -5925,7 +6347,7 @@ fn public_semantic_transition_graph_record(
                 "logical_universe_cases": status.logical_universe_cases().to_string(),
                 "materialized_universe_cases": status.materialized_universe_cases().to_string(),
                 "materialized_content_root": hex(status.materialized_root().bytes()),
-                "counts": public_semantic_transition_graph_counts(status.counts()),
+                "counts": public_semantic_transition_graph_counts(&status.counts()),
                 "reason": "proof_closed_relation_requires_authenticated_extensional_materializer",
                 "answer_identity_changed": false,
             })
@@ -5933,15 +6355,26 @@ fn public_semantic_transition_graph_record(
     })
 }
 
-fn public_semantic_transition_graph_counts(counts: RelationalTransitionSupportCounts) -> JsonValue {
+fn public_semantic_transition_graph_counts(
+    counts: &RelationalTransitionSupportCounts,
+) -> JsonValue {
     json!({
         "state_nodes": counts.states().to_string(),
-        "U_C_cases": counts.cases(super::RelationalTransitionLayer::Universe).to_string(),
-        "U_T_transitions": counts.transitions(super::RelationalTransitionLayer::Universe).to_string(),
-        "D_C_cases": counts.cases(super::RelationalTransitionLayer::Admitted).to_string(),
-        "D_T_transitions": counts.transitions(super::RelationalTransitionLayer::Admitted).to_string(),
-        "M_C_cases": counts.cases(super::RelationalTransitionLayer::Matched).to_string(),
-        "M_T_transitions": counts.transitions(super::RelationalTransitionLayer::Matched).to_string(),
+        "U_C_cases": counts.cases(super::RelationalTransitionLayer::Universe)
+            .expect("the universe transition layer is always registered").to_string(),
+        "U_T_transitions": counts.transitions(super::RelationalTransitionLayer::Universe)
+            .expect("the universe transition layer is always registered").to_string(),
+        "D_C_cases": counts.cases(super::RelationalTransitionLayer::Admitted)
+            .expect("the admitted transition layer is always registered").to_string(),
+        "D_T_transitions": counts.transitions(super::RelationalTransitionLayer::Admitted)
+            .expect("the admitted transition layer is always registered").to_string(),
+        "M_by_question": counts.matched().map(|(question_id, _)| json!({
+            "question_id": hex(question_id.bytes()),
+            "M_C_cases": counts.cases(super::RelationalTransitionLayer::Matched(question_id))
+                .expect("matched iterator yields registered questions").to_string(),
+            "M_T_transitions": counts.transitions(super::RelationalTransitionLayer::Matched(question_id))
+                .expect("matched iterator yields registered questions").to_string(),
+        })).collect::<Vec<_>>(),
     })
 }
 
@@ -5993,6 +6426,7 @@ fn public_case_transition_record(
     record: RelationalCaseTransitionProjectionRecord,
 ) -> Result<JsonValue, RelationalPublicationError> {
     let PublicationArtifactPlan::CaseTransitions {
+        question_id,
         authorization,
         transition_schemas,
     } = artifact
@@ -6014,6 +6448,8 @@ fn public_case_transition_record(
                 || transition_type_id != transition_schemas.transition_type_id()
                 || authorization_id != authorization.authorization_id()
                 || authorizing_view_id != authorization.view_id()
+                || authorization.question_id() != *question_id
+                || contract.question_ids() != [*question_id]
             {
                 return Err(RelationalPublicationError::CaseTransitions(
                     "selected case-transition header disagrees with its checked publication plan"
@@ -6027,7 +6463,7 @@ fn public_case_transition_record(
                 "projection_id": hex(projection_id.bytes()),
                 "relation_id": hex(contract.relation_id().bytes()),
                 "admission_id": hex(contract.admission_id().bytes()),
-                "question_id": hex(contract.question_id().bytes()),
+                "question_id": hex(question_id.bytes()),
                 "state_schema_id": hex(state_schema_id.bytes()),
                 "context_schema_id": hex(context_schema_id.bytes()),
                 "transition_type_id": hex(transition_type_id.bytes()),
@@ -6231,6 +6667,7 @@ fn public_classification_summary_record(
     match record {
         RelationalClassificationSummaryProjectionRecord::Root {
             contract,
+            question_id,
             support_plan_root,
             classification_authority,
             exact_logical_case_count,
@@ -6247,7 +6684,7 @@ fn public_classification_summary_record(
             "projection_version": RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
             "relation_id": hex(contract.relation_id().bytes()),
             "admission_id": hex(contract.admission_id().bytes()),
-            "question_id": hex(contract.question_id().bytes()),
+            "question_id": hex(question_id.bytes()),
             "support_plan_root": hex(support_plan_root),
             "exact_logical_case_count": exact_logical_case_count.to_string(),
             "exact_admitted_case_count": exact_admitted_case_count.to_string(),
@@ -6523,21 +6960,21 @@ fn public_semantic_transition_graph_projection_metadata(
             "status": "exact",
             "content_root": hex(closure.root().bytes()),
             "data_record_count": closure.data_record_count().to_string(),
-            "counts": public_semantic_transition_graph_counts(closure.counts()),
+            "counts": public_semantic_transition_graph_counts(&closure.counts()),
         }),
         Some(RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity)) => json!({
             "status": "capacity_limited",
             "content_root": hex(capacity.root().bytes()),
             "maximum_data_records": capacity.maximum_data_records().to_string(),
             "required_data_records": capacity.required_data_records().to_string(),
-            "counts": public_semantic_transition_graph_counts(capacity.counts()),
+            "counts": public_semantic_transition_graph_counts(&capacity.counts()),
         }),
         Some(RelationalSemanticTransitionGraphRecord::Unmaterialized(status)) => json!({
             "status": "unmaterialized",
             "logical_universe_cases": status.logical_universe_cases().to_string(),
             "materialized_universe_cases": status.materialized_universe_cases().to_string(),
             "materialized_content_root": hex(status.materialized_root().bytes()),
-            "counts": public_semantic_transition_graph_counts(status.counts()),
+            "counts": public_semantic_transition_graph_counts(&status.counts()),
         }),
         Some(
             RelationalSemanticTransitionGraphRecord::Header { .. }
@@ -6655,6 +7092,7 @@ fn mechanism_result_input_coverage(
 
 fn early_each_case_record(
     journal: &RelationalJournal,
+    question_id: QuestionId,
     view_id: ViewId,
     select_names: &[Box<str>],
     source_ordinal: u128,
@@ -6671,7 +7109,8 @@ fn early_each_case_record(
     // Deliberately use the replay-built append order. Result evidence itself
     // is CaseId-sorted, and a later hash may sort before every prior record.
     let Some(case_id) = scheduler
-        .selected_discovery_suffix(ordinal)
+        .selected_discovery_suffix(question_id, ordinal)
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
         .first()
         .copied()
     else {
@@ -7036,14 +7475,14 @@ fn pending_source_end(
             let identity = SubjectStarterCursorIdentity::new(
                 *consumer_id,
                 *request_id,
-                *target,
+                target.semantic_target(),
                 *subject,
                 *within_mechanism,
             );
             let Some(authority) = subject_starter_publication_authority(
                 journal,
                 *request_id,
-                *target,
+                target.semantic_target(),
                 *subject,
                 *within_mechanism,
             )?
@@ -7584,7 +8023,7 @@ fn structural_definition_record(
             definition_ordinal,
             definition,
             request_id,
-            *target,
+            target,
             observations_artifact_key,
             observations_artifact_path,
         )?
@@ -7787,7 +8226,7 @@ fn public_structural_definition_header(
     definition_ordinal: u128,
     definition: StructuralDefinitionRef<'_>,
     request_id: MechanismRequestId,
-    target: MechanismTargetId,
+    target: &PublicationMechanismTarget,
     observations_artifact_key: &str,
     observations_artifact_path: &str,
 ) -> Result<JsonValue, RelationalPublicationError> {
@@ -8741,12 +9180,16 @@ fn build_manifest(
                 "published_lines": state.line_count.to_string(),
                 "published_bytes": state.byte_len,
                 "caught_up_to_journal_prefix": caught_up_to_journal_prefix,
+                "presentation_digest": state.presentation_digest,
                 "prefix_digest": state.prefix_digest,
                 "layer_roots": &layer_roots,
             });
             let object = descriptor
                 .as_object_mut()
                 .expect("artifact descriptors are JSON objects");
+            if let Some(target) = artifact.mechanism_target() {
+                object.insert("target".into(), public_mechanism_target_id(target));
+            }
             match state.source {
                 ArtifactSourceCursor::Flat {
                     next_source_ordinal,
@@ -8867,13 +9310,16 @@ fn build_manifest(
                     accumulator,
                     closure_emitted,
                 } => {
+                    let public_target = artifact
+                        .mechanism_target()
+                        .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
                     object.insert(
                         "next_source_coordinate".into(),
                         json!({
                             "kind": "subject_starters",
                             "consumer_id": hex(identity.consumer_id.bytes()),
                             "request_id": hex(identity.request_id.bytes()),
-                            "target": identity.target,
+                            "target": public_mechanism_target_id(public_target),
                             "subject": identity.subject,
                             "header_emitted": header_emitted,
                             "next_page_ordinal": accumulator.map(|value| value.next_page_ordinal.to_string()),
@@ -8901,7 +9347,7 @@ fn build_manifest(
                         json!({
                             "consumer_id": hex(available_identity.consumer_id.bytes()),
                             "request_id": hex(available_identity.request_id.bytes()),
-                            "target": available_identity.target,
+                            "target": public_mechanism_target_id(public_target),
                             "subject": available_identity.subject,
                             "closure_available": structural_quotient_root.is_some()
                                 && mechanism_support_root.is_some()
@@ -8916,6 +9362,23 @@ fn build_manifest(
                 }
             }
             if let PublicationArtifactPlan::Result { input, .. } = artifact {
+                object.insert(
+                    "input".into(),
+                    match input {
+                        ResultPublicationInput::Sources => json!({
+                            "kind": "sources",
+                            "relation_id": hex(plan.contract.relation_id().bytes()),
+                        }),
+                        ResultPublicationInput::Find { question_id } => json!({
+                            "kind": "find",
+                            "question_id": hex(question_id.bytes()),
+                        }),
+                        ResultPublicationInput::MechanismIncidence { request_id } => json!({
+                            "kind": "mechanism_incidence",
+                            "request_id": hex(request_id.bytes()),
+                        }),
+                    },
+                );
                 if let Some(coverage) = mechanism_result_input_coverage(journal, *input)? {
                     object.insert(
                         "input_frontier".into(),
@@ -9001,6 +9464,7 @@ fn build_manifest(
             }
             if let PublicationArtifactPlan::MechanismSupportObservationDemands {
                 request_id,
+                target,
                 demand_set_id,
                 aliases,
                 observations_artifact_key,
@@ -9018,7 +9482,12 @@ fn build_manifest(
                     .iter()
                     .map(|alias| alias.slice)
                     .collect::<BTreeSet<_>>();
-                if unique_demand_ids.len() != unique_slices.len() {
+                if unique_demand_ids.len() != unique_slices.len()
+                    || aliases.iter().any(|alias| {
+                        alias.slice.key().target() != target.semantic_target()
+                            || alias.slice.key().request_id() != *request_id
+                    })
+                {
                     return Err(RelationalPublicationError::PlanIdentityMismatch);
                 }
                 let authored_declaration_count = aliases.len();
@@ -9027,6 +9496,7 @@ fn build_manifest(
                     .map(|alias| {
                         public_support_observation_demand_alias(
                             alias,
+                            target,
                             registrations.get(&alias.slice).copied(),
                             journal.mechanism_support_observation_latest(alias.slice),
                             observations_artifact_key,
@@ -9201,7 +9671,7 @@ fn build_manifest(
                     "request_id".into(),
                     JsonValue::String(hex(request_id.bytes())),
                 );
-                object.insert("target".into(), public_mechanism_target_id(*target));
+                object.insert("target".into(), public_mechanism_target_id(target));
                 object.insert("subject".into(), public_mechanism_support_subject(*subject));
                 if let Some(mechanism_id) = within_mechanism {
                     object.insert(
@@ -9221,7 +9691,7 @@ fn build_manifest(
                     None if subject_starter_publication_authority(
                         journal,
                         *request_id,
-                        *target,
+                        target.semantic_target(),
                         *subject,
                         *within_mechanism,
                     )?
@@ -9357,7 +9827,11 @@ fn build_manifest(
                 object.insert("contains_cases".into(), JsonValue::Bool(false));
                 object.insert("contains_starter_values".into(), JsonValue::Bool(false));
             }
-            if let PublicationArtifactPlan::CaseSupport { authorization } = artifact {
+            if let PublicationArtifactPlan::CaseSupport {
+                question_id,
+                authorization,
+            } = artifact
+            {
                 object.insert(
                     "record_schema".into(),
                     JsonValue::String(RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA.into()),
@@ -9371,6 +9845,10 @@ fn build_manifest(
                     (*authorization)
                         .map(|authorization| public_case_id_authority(authorization.authority()))
                         .unwrap_or(JsonValue::Null),
+                );
+                object.insert(
+                    "question_id".into(),
+                    JsonValue::String(hex(question_id.bytes())),
                 );
                 object.insert(
                     "graph_projection".into(),
@@ -9391,6 +9869,7 @@ fn build_manifest(
                 );
             }
             if let PublicationArtifactPlan::CaseTransitions {
+                question_id,
                 authorization,
                 transition_schemas,
             } = artifact
@@ -9410,6 +9889,10 @@ fn build_manifest(
                         "authorizing_view_id": hex(authorization.view_id().bytes()),
                         "authorizing_view_name": authorization.authorizing_view_name(),
                     }),
+                );
+                object.insert(
+                    "question_id".into(),
+                    JsonValue::String(hex(question_id.bytes())),
                 );
                 object.insert(
                     "transition_schemas".into(),
@@ -9471,7 +9954,7 @@ fn build_manifest(
                 );
                 object.insert(
                     "source_order".into(),
-                    json!(["state_id", "transition_id", "layer", "transition_id", "case_id"]),
+                    json!(["state_id", "transition_id", "layer", "question_id", "transition_id", "case_id"]),
                 );
             }
             Ok((
@@ -9500,9 +9983,10 @@ fn build_manifest(
             "query": report.query_name,
             "identity": {
                 "checked_program": report.identity.checked_program,
+                "presentation_plan_digest": hex(plan.presentation_plan_digest),
                 "relation_id": report.identity.relation_id,
                 "admission_id": report.identity.admission_id,
-                "question_id": report.identity.question_id,
+                "question_ids": report.identity.question_ids,
                 "analysis_graph_digest": report.identity.analysis_graph_digest,
                 "source_coverage_manifest_digest": hex(
                     plan.source_coverage_manifest_digest,
@@ -9524,7 +10008,6 @@ fn build_manifest(
             "pause_reason": report.pause_reason.as_ref().map(public_pause_reason_json),
             "closure": {
                 "relation": if report.relation_closed { "exact" } else { "open" },
-                "find": if report.find_closed { "exact" } else { "open" },
                 "analysis": if report.analysis_closed { "exact" } else { "open" },
             },
             "counts": {
@@ -9533,12 +10016,20 @@ fn build_manifest(
                 "admission_classified": public_count_json(report.counts.admission_classified),
                 "D_C_admitted": public_count_json(report.counts.admitted),
                 "rejected": public_count_json(report.counts.rejected),
-                "find_classified": public_count_json(report.counts.find_classified),
-                "S_C_selected": public_count_json(report.counts.selected),
-                "not_selected": public_count_json(report.counts.not_selected),
             },
+            "finds": report.finds.iter().map(|find| json!({
+                "name": find.name,
+                "question_id": find.question_id,
+                "closure": if find.closed { "exact" } else { "open" },
+                "counts": {
+                    "find_classified": public_count_json(find.find_classified),
+                    "S_C_selected": public_count_json(find.selected),
+                    "not_selected": public_count_json(find.not_selected),
+                },
+            })).collect::<Vec<_>>(),
             "analysis_scope_root": report.analysis_scope_root,
             "analysis_terminal_root": report.analysis_terminal_root,
+            "analysis_closure_set_root": report.analysis_closure_set_root,
             "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
             "artifacts": artifacts,
             "publication_cursor": {
@@ -9572,12 +10063,14 @@ fn available_source_record_count(
     match artifact {
         PublicationArtifactPlan::Result {
             source: ResultPublicationSource::EarlyEachCase,
+            input: ResultPublicationInput::Find { question_id },
             ..
         } => Ok(Some(
             journal
                 .scheduler_view()
                 .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
-                .selected_discovery_suffix(0)
+                .selected_discovery_suffix(*question_id, 0)
+                .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
                 .len() as u128,
         )),
         PublicationArtifactPlan::Result {
@@ -9585,6 +10078,10 @@ fn available_source_record_count(
             source: ResultPublicationSource::DurableProjection,
             ..
         } => durable_projection_len(journal, *view_id),
+        PublicationArtifactPlan::Result {
+            source: ResultPublicationSource::EarlyEachCase,
+            ..
+        } => Err(RelationalPublicationError::PlanIdentityMismatch),
         PublicationArtifactPlan::CaseSupport { .. } => Ok(Some(
             ordinal_index
                 .case_support
@@ -9933,19 +10430,19 @@ fn artifact_layer_roots(
             Some(RelationalSemanticTransitionGraphRecord::Closure(closure)) => json!({
                 "projection_id": hex(*consumer_id),
                 "transition_support_root": hex(closure.root().bytes()),
-                "counts": public_semantic_transition_graph_counts(closure.counts()),
+                "counts": public_semantic_transition_graph_counts(&closure.counts()),
                 "frontier": "exact",
             }),
             Some(RelationalSemanticTransitionGraphRecord::Unmaterialized(status)) => json!({
                 "projection_id": hex(*consumer_id),
                 "transition_support_root": hex(status.materialized_root().bytes()),
-                "counts": public_semantic_transition_graph_counts(status.counts()),
+                "counts": public_semantic_transition_graph_counts(&status.counts()),
                 "frontier": "unmaterialized",
             }),
             Some(RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity)) => json!({
                 "projection_id": hex(*consumer_id),
                 "transition_support_root": hex(capacity.root().bytes()),
-                "counts": public_semantic_transition_graph_counts(capacity.counts()),
+                "counts": public_semantic_transition_graph_counts(&capacity.counts()),
                 "frontier": "capacity_limited",
             }),
             None => json!({
@@ -10166,7 +10663,9 @@ fn artifact_layer_roots(
         | PublicationArtifactPlan::MechanismSupportObservationDemands { .. } => {
             unreachable!("support-observation roots return before consulting analysis")
         }
-        PublicationArtifactPlan::MechanismStructural { request_id, .. } => {
+        PublicationArtifactPlan::MechanismStructural {
+            request_id, target, ..
+        } => {
             let authority = structural_sidecar_authority(journal, *request_id)?;
             let Some(structural) = authority.structural else {
                 return Ok(JsonValue::Null);
@@ -10190,12 +10689,15 @@ fn artifact_layer_roots(
             let support_residual_root = authority
                 .sealed_support_receipt
                 .map(|support| hex(support.closure.residual_root().bytes()));
-            let target = authority
+            if authority
                 .sealed_support_receipt
-                .map(|support| public_mechanism_target_id(support.closure.target()));
+                .is_some_and(|support| support.closure.target() != target.semantic_target())
+            {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
             Ok(json!({
                 "request_id": hex(request_id.bytes()),
-                "target": target,
+                "target": public_mechanism_target_id(target),
                 "assignment_discovery_count": authority.assignment_count.to_string(),
                 "structural_subject_counts": {
                     "mechanisms": structural.structural_mechanism_count().to_string(),
@@ -10260,7 +10762,7 @@ fn artifact_layer_roots(
             let Some(authority) = subject_starter_publication_authority(
                 journal,
                 *request_id,
-                *target,
+                target.semantic_target(),
                 *subject,
                 *within_mechanism,
             )?
@@ -10276,7 +10778,7 @@ fn artifact_layer_roots(
             let mut roots = json!({
                 "consumer_id": hex(*consumer_id),
                 "request_id": hex(request_id.bytes()),
-                "target": public_mechanism_target_id(*target),
+                "target": public_mechanism_target_id(target),
                 "subject": public_mechanism_support_subject(*subject),
                 "projection_plan_id": hex(authority.key_authority.projection_plan_id().bytes()),
                 "projection_job_id": hex(job.id().bytes()),
@@ -10420,11 +10922,19 @@ fn public_layer_json(layer: &ExploreStreamLayer) -> JsonValue {
 
 fn public_mechanism_target_json(target: &ExploreStreamMechanismTarget) -> JsonValue {
     match target {
-        ExploreStreamMechanismTarget::Selected => json!({
-            "kind": "selected",
+        ExploreStreamMechanismTarget::Find { name, question_id } => json!({
+            "kind": "find",
+            "name": name,
+            "question_id": question_id,
         }),
-        ExploreStreamMechanismTarget::ChosenView { view_id } => json!({
+        ExploreStreamMechanismTarget::ChosenView {
+            name,
+            question_id,
+            view_id,
+        } => json!({
             "kind": "chosen_view",
+            "name": name,
+            "question_id": question_id,
             "view_id": view_id,
         }),
     }
@@ -10627,6 +11137,10 @@ fn validate_existing_manifest<A: RelationalPublicationAuthority>(
         .pointer("/identity/source_coverage_manifest_digest")
         .and_then(JsonValue::as_str)
         .ok_or_else(|| RelationalPublicationError::InvalidManifest(path.to_path_buf()))?;
+    let presentation_plan_digest = manifest
+        .pointer("/identity/presentation_plan_digest")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| RelationalPublicationError::InvalidManifest(path.to_path_buf()))?;
     let sequence = manifest
         .pointer("/journal/next_sequence")
         .and_then(JsonValue::as_u64)
@@ -10638,6 +11152,7 @@ fn validate_existing_manifest<A: RelationalPublicationAuthority>(
     if version != RELATIONAL_PUBLICATION_SCHEMA_VERSION as u64
         || journal_id != hex(plan.journal_id)
         || query != plan.query_name.as_ref()
+        || presentation_plan_digest != hex(plan.presentation_plan_digest)
         || source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
     {
         return Err(RelationalPublicationError::ManifestIdentityMismatch);
@@ -10807,17 +11322,18 @@ fn path_to_manifest_string(path: &Path) -> Result<String, RelationalPublicationE
     Ok(components.join("/"))
 }
 
-fn publication_prefix_genesis(artifact_key: &str) -> [u8; 32] {
+fn publication_prefix_genesis(artifact_key: &str, presentation_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_ROOT_V13);
+    hasher.update(RESULT_PREFIX_ROOT_V15);
     hasher.update((artifact_key.len() as u64).to_be_bytes());
     hasher.update(artifact_key.as_bytes());
+    hasher.update(presentation_digest);
     hasher.finalize().into()
 }
 
 fn extend_publication_prefix(prior: [u8; 32], line_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_EXTEND_V13);
+    hasher.update(RESULT_PREFIX_EXTEND_V15);
     hasher.update(prior);
     hasher.update(line_digest);
     hasher.finalize().into()
@@ -11039,7 +11555,9 @@ impl fmt::Display for RelationalPublicationError {
                 "public report, durable checkpoint, and folded journal are not the same prefix",
             ),
             Self::CursorIdentityMismatch => {
-                formatter.write_str("publication cursor belongs to another query or journal")
+                formatter.write_str(
+                    "publication cursor belongs to another query, journal, or presentation plan",
+                )
             }
             Self::CursorArtifactSetMismatch => formatter
                 .write_str("publication cursor does not name the checked analysis artifact set"),
@@ -11120,8 +11638,9 @@ impl fmt::Display for RelationalPublicationError {
                     path.display()
                 )
             }
-            Self::ManifestIdentityMismatch => formatter
-                .write_str("existing publication manifest belongs to another query or journal"),
+            Self::ManifestIdentityMismatch => formatter.write_str(
+                "existing publication manifest belongs to another query, journal, or presentation plan",
+            ),
             Self::MissingAnalysisLayer => {
                 formatter.write_str("journal analysis catalog omitted a declared layer")
             }
@@ -11250,6 +11769,168 @@ impl Error for RelationalPublicationError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn public_mechanism_targets_preserve_authored_addresses_and_question_identity() {
+        let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
+        let find_target = PublicationMechanismTarget {
+            target: MechanismTargetId::Selected,
+            question_id,
+            authored_name: "interesting".into(),
+        };
+        assert_eq!(
+            public_mechanism_target_id(&find_target),
+            json!({
+                "kind": "find",
+                "name": "interesting",
+                "question_id": "21".repeat(32),
+            })
+        );
+
+        let chosen_target = PublicationMechanismTarget {
+            target: MechanismTargetId::ChosenView(ViewId::from_journal_codec_bytes([0x31; 32])),
+            question_id,
+            authored_name: "worst_case".into(),
+        };
+        assert_eq!(
+            public_mechanism_target_id(&chosen_target),
+            json!({
+                "kind": "chosen_view",
+                "name": "worst_case",
+                "question_id": "21".repeat(32),
+                "view_id": "31".repeat(32),
+            })
+        );
+    }
+
+    fn presentation_cursor_test_plan(
+        find_name: &str,
+        checked_program: &str,
+    ) -> RelationalPublicationPlan {
+        let relation_id = super::super::RelationId::from_canonical_semantic_preimage(b"relation");
+        let admission_id =
+            super::super::AdmissionId::from_canonical_admission_preimage(relation_id, b"admission");
+        let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
+        let schemas = TransitionSchemaIdentities::derive_checked_relational(
+            &Ty::Unit,
+            &Ty::Unit,
+            &BTreeMap::new(),
+        )
+        .expect("derive test schemas");
+        let contract = RelationalJournalContract::new(
+            relation_id,
+            admission_id,
+            [question_id],
+            schemas.state_schema_id(),
+            schemas.context_schema_id(),
+            schemas.transition_type_id(),
+            [0x31; 32],
+        );
+        let request_id = MechanismRequestId::from_journal_codec_bytes([0x41; 32]);
+        let finds = vec![PublicationFindPlan {
+            name: find_name.into(),
+            question_id,
+        }]
+        .into_boxed_slice();
+        let artifacts = vec![PublicationArtifactPlan::Mechanism {
+            key: format!("mechanism:{}", hex(request_id.bytes())).into_boxed_str(),
+            name: "paths".into(),
+            path: PathBuf::from("mechanisms/paths.ndjson"),
+            request_id,
+            target: PublicationMechanismTarget {
+                target: MechanismTargetId::Selected,
+                question_id,
+                authored_name: find_name.into(),
+            },
+            definitions_artifact_key: "mechanism-definitions:paths".into(),
+            definitions_artifact_path: "mechanisms/paths.definitions.ndjson".into(),
+        }]
+        .into_boxed_slice();
+        let query_name: Box<str> = "presentation_cursor".into();
+        let presentation_plan_digest =
+            derive_publication_presentation_plan_digest(&query_name, &finds, &artifacts)
+                .expect("derive presentation plan digest");
+        RelationalPublicationPlan {
+            query_name,
+            checked_program: checked_program.into(),
+            presentation_plan_digest,
+            journal_id: contract.id().bytes(),
+            contract,
+            source_coverage_manifest_digest: [0x51; 32],
+            support_observation_demand_set_id: [0x61; 32],
+            starter_consumer_set_id: [0x71; 32],
+            transition_graph_consumer_set_id: [0x81; 32],
+            finds,
+            artifacts,
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn publication_cursor_binds_find_and_mechanism_target_addresses_but_allows_fresh_output() {
+        let installed = presentation_cursor_test_plan("interesting", &"a1".repeat(32));
+        let source_extended = presentation_cursor_test_plan("interesting", &"b2".repeat(32));
+        let renamed = presentation_cursor_test_plan("renamed", &"c3".repeat(32));
+        assert_eq!(installed.journal_id(), renamed.journal_id());
+        assert_eq!(
+            installed.presentation_plan_digest(),
+            source_extended.presentation_plan_digest(),
+            "whole-program source identity is not a cursor barrier for additive publication-only edits"
+        );
+        assert_ne!(
+            installed.presentation_plan_digest(),
+            renamed.presentation_plan_digest(),
+            "ordered FIND aliases and explicit target names are public presentation identity"
+        );
+        assert_ne!(
+            artifact_presentation_digest(&installed.artifacts[0])
+                .expect("installed artifact presentation"),
+            artifact_presentation_digest(&renamed.artifacts[0])
+                .expect("renamed artifact presentation"),
+            "a mechanism target's authored FIND address is bound per artifact"
+        );
+
+        let current = RelationalPublicationCheckpoint::new(0, [0x91; 32]);
+        let output = PermissionTestDirectory::new();
+        let cursor_path = output.path().join(CURSOR_FILE);
+        let cursor = load_or_create_cursor(
+            &cursor_path,
+            output.path(),
+            &installed,
+            current,
+            RelationalPublicationLimits::default(),
+        )
+        .expect("install initial publication cursor");
+        assert_eq!(
+            cursor.artifacts[installed.artifacts[0].key()].presentation_digest,
+            hex(artifact_presentation_digest(&installed.artifacts[0])
+                .expect("installed artifact presentation"))
+        );
+        validate_cursor_plan(&cursor, &source_extended)
+            .expect("source-only extension preserves installed presentation");
+
+        assert!(matches!(
+            load_or_create_cursor(
+                &cursor_path,
+                output.path(),
+                &renamed,
+                current,
+                RelationalPublicationLimits::default(),
+            ),
+            Err(RelationalPublicationError::CursorIdentityMismatch)
+        ));
+
+        let fresh_output = PermissionTestDirectory::new();
+        let fresh_cursor = load_or_create_cursor(
+            &fresh_output.path().join(CURSOR_FILE),
+            fresh_output.path(),
+            &renamed,
+            current,
+            RelationalPublicationLimits::default(),
+        )
+        .expect("renamed presentation is valid in fresh output");
+        validate_cursor_plan(&fresh_cursor, &renamed).expect("validate fresh renamed cursor");
+    }
 
     #[test]
     fn source_coverage_publication_json_preserves_v2_identity_preimages() {

@@ -26,6 +26,7 @@ use super::relational_bounded_chunk_partition::{
 };
 use super::relational_case_executor::{
     RelationalCaseExecutor, RelationalCaseExecutorError, RelationalConcreteCase,
+    RelationalQuestionEvaluationPlan,
 };
 use super::relational_executor::{
     RelationalCompletedSource, RelationalExpressionRuntime, RelationalSourceEnumerator,
@@ -127,30 +128,53 @@ pub(crate) trait RelationalOrderedClassificationBackend {
 /// observe the canonical identities used by the transcript or artifacts.
 pub(crate) struct RelationalCheckedClassificationContext<'executor, 'query, 'runtime, R> {
     executor: &'executor RelationalCaseExecutor<'query>,
+    questions: &'executor RelationalQuestionEvaluationPlan,
+    question_id: QuestionId,
     runtime: &'runtime mut R,
 }
 
 impl<R: RelationalExpressionRuntime> RelationalCheckedClassificationContext<'_, '_, '_, R> {
     pub(crate) fn new<'executor, 'query, 'runtime>(
         executor: &'executor RelationalCaseExecutor<'query>,
+        questions: &'executor RelationalQuestionEvaluationPlan,
         runtime: &'runtime mut R,
-    ) -> RelationalCheckedClassificationContext<'executor, 'query, 'runtime, R> {
-        RelationalCheckedClassificationContext { executor, runtime }
+    ) -> Result<
+        RelationalCheckedClassificationContext<'executor, 'query, 'runtime, R>,
+        RelationalClassifiedSweepError,
+    > {
+        let question_ids = questions.question_ids().collect::<Vec<_>>();
+        let question_id = require_single_question(&question_ids)?;
+        Ok(RelationalCheckedClassificationContext {
+            executor,
+            questions,
+            question_id,
+            runtime,
+        })
     }
 
     pub(crate) fn classify(
         &mut self,
         subject: RelationalOrderedClassificationSubject<'_>,
     ) -> Result<RelationalClassifiedCaseOutcome, RelationalClassifiedSweepError> {
-        let classification =
-            self.executor
-                .classify(subject.source.row(), subject.case, &mut *self.runtime)?;
-        match (classification.admission(), classification.selection()) {
-            (AdmissionDecision::Rejected, None) => Ok(RelationalClassifiedCaseOutcome::Rejected),
-            (AdmissionDecision::Admitted, Some(SelectionDecision::NotSelected)) => {
+        let classification = self.executor.classify(
+            subject.source.row(),
+            subject.case,
+            self.questions,
+            &mut *self.runtime,
+        )?;
+        let questions = classification.question_evidence();
+        match (classification.admission(), questions) {
+            (AdmissionDecision::Rejected, []) => Ok(RelationalClassifiedCaseOutcome::Rejected),
+            (AdmissionDecision::Admitted, [question])
+                if question.question_id() == self.question_id
+                    && question.decision() == SelectionDecision::NotSelected =>
+            {
                 Ok(RelationalClassifiedCaseOutcome::AdmittedNotSelected)
             }
-            (AdmissionDecision::Admitted, Some(SelectionDecision::Selected)) => {
+            (AdmissionDecision::Admitted, [question])
+                if question.question_id() == self.question_id
+                    && question.decision() == SelectionDecision::Selected =>
+            {
                 Ok(RelationalClassifiedCaseOutcome::AdmittedSelected)
             }
             _ => Err(
@@ -1246,14 +1270,14 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
     if &expected_injectivity != chunk_injectivity {
         return Err(RelationalClassifiedSweepError::ScopeMismatch);
     }
-    validate_scope(checked, plan, chunk_partition, chunk, chunk_injectivity)?;
+    let question_id = validate_scope(checked, plan, chunk_partition, chunk, chunk_injectivity)?;
 
     let accumulator = match prior {
         Some(prior) => {
             validate_accumulator_scope(prior, plan, chunk_partition, chunk)?;
             prior.clone()
         }
-        None => initial_chunk_accumulator(plan, chunk_partition, chunk),
+        None => initial_chunk_accumulator(plan, chunk_partition, chunk)?,
     };
     if accumulator.is_complete() {
         return Err(RelationalClassifiedSweepError::ClassifiedChunkAlreadyComplete);
@@ -1262,6 +1286,11 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
     let source =
         RelationalSourceEnumerator::new(checked.relation_id(), &checked.closed_query.source)?;
     let cases = RelationalCaseExecutor::new(checked.relation_id(), checked.closed_query)?;
+    let questions = cases.checked_question_evaluation_plan(checked)?;
+    let planned_question_ids = questions.question_ids().collect::<Vec<_>>();
+    if require_single_question(&planned_question_ids)? != question_id {
+        return Err(RelationalClassifiedSweepError::ScopeMismatch);
+    }
     let finite_factor_count = plan
         .stages()
         .iter()
@@ -1312,10 +1341,8 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
             RelationalOrderedClassificationSubject::new(&materialized.source, &materialized.case)
         })
         .collect::<Vec<_>>();
-    let mut checked_classifier = RelationalCheckedClassificationContext {
-        executor: &cases,
-        runtime,
-    };
+    let mut checked_classifier =
+        RelationalCheckedClassificationContext::new(&cases, &questions, runtime)?;
     let outcomes = backend.classify_ordered_batch(&subjects, &mut checked_classifier)?;
     if outcomes.len() != materialized.len() {
         return Err(
@@ -1363,7 +1390,7 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
         plan_root: plan.root(),
         relation_id: checked.relation_id(),
         admission_id: checked.admission_id(),
-        question_id: checked.question_id(),
+        question_id,
         chunk_partition_id: chunk_partition.artifact().id(),
         chunk_id: descriptor.id(),
         chunk_ordinal: descriptor.ordinal(),
@@ -1407,6 +1434,7 @@ pub(crate) fn reverify_relational_classified_chunk_slice_artifact(
     prior: Option<&RelationalClassifiedChunkAccumulator>,
 ) -> Result<RelationalClassifiedChunkAccumulator, RelationalClassifiedSweepError> {
     artifact.validate_identity()?;
+    let question_id = require_single_question(plan.question_ids())?;
     let chunk_ordinal = usize::try_from(artifact.chunk_ordinal)
         .map_err(|_| RelationalClassifiedSweepError::ChunkOrdinalOutOfBounds)?;
     let chunk_partition = verified_chunk_partition.partition();
@@ -1426,7 +1454,7 @@ pub(crate) fn reverify_relational_classified_chunk_slice_artifact(
         || artifact.plan_root != plan.root()
         || artifact.relation_id != plan.relation_id()
         || artifact.admission_id != plan.admission_id()
-        || artifact.question_id != plan.question_id()
+        || artifact.question_id != question_id
         || artifact.chunk_partition_id != chunk_partition.artifact().id()
         || artifact.chunk_id != chunk.descriptor().id()
         || artifact.chunk_ordinal != chunk.descriptor().ordinal()
@@ -1443,7 +1471,7 @@ pub(crate) fn reverify_relational_classified_chunk_slice_artifact(
             validate_accumulator_scope(prior, plan, chunk_partition, chunk)?;
             prior.clone()
         }
-        None => initial_chunk_accumulator(plan, chunk_partition, chunk),
+        None => initial_chunk_accumulator(plan, chunk_partition, chunk)?,
     };
     if accumulator.is_complete() {
         return Err(RelationalClassifiedSweepError::ClassifiedChunkAlreadyComplete);
@@ -1534,13 +1562,14 @@ fn initial_chunk_accumulator(
     plan: &RelationalSupportPlan,
     chunk_partition: &RelationalCaseChunkPartition,
     chunk: &RelationalCaseChunk,
-) -> RelationalClassifiedChunkAccumulator {
+) -> Result<RelationalClassifiedChunkAccumulator, RelationalClassifiedSweepError> {
     let descriptor = chunk.descriptor();
-    RelationalClassifiedChunkAccumulator {
+    let question_id = require_single_question(plan.question_ids())?;
+    Ok(RelationalClassifiedChunkAccumulator {
         plan_root: plan.root(),
         relation_id: plan.relation_id(),
         admission_id: plan.admission_id(),
-        question_id: plan.question_id(),
+        question_id,
         chunk_partition_id: chunk_partition.artifact().id(),
         chunk_id: descriptor.id(),
         chunk_ordinal: descriptor.ordinal(),
@@ -1549,13 +1578,13 @@ fn initial_chunk_accumulator(
         interval_start: descriptor.interval_start(),
         interval_end_exclusive: descriptor.interval_end_exclusive(),
         next_coordinate: descriptor.interval_start(),
-        transcript_root: classified_transcript_genesis(plan, chunk_partition, chunk),
+        transcript_root: classified_transcript_genesis(plan, chunk_partition, chunk)?,
         last_slice_id: None,
         rejected_count: 0,
         admitted_not_selected_count: 0,
         admitted_selected_count: 0,
         runs: Vec::new(),
-    }
+    })
 }
 
 fn validate_accumulator_scope(
@@ -1565,11 +1594,12 @@ fn validate_accumulator_scope(
     chunk: &RelationalCaseChunk,
 ) -> Result<(), RelationalClassifiedSweepError> {
     let descriptor = chunk.descriptor();
+    let question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root()
         || accumulator.plan_root != plan.root()
         || accumulator.relation_id != plan.relation_id()
         || accumulator.admission_id != plan.admission_id()
-        || accumulator.question_id != plan.question_id()
+        || accumulator.question_id != question_id
         || accumulator.chunk_partition_id != chunk_partition.artifact().id()
         || accumulator.chunk_id != descriptor.id()
         || accumulator.chunk_ordinal != descriptor.ordinal()
@@ -1586,7 +1616,7 @@ fn validate_accumulator_scope(
         return Err(RelationalClassifiedSweepError::ClassifiedAccumulatorScopeMismatch);
     }
 
-    let expected_genesis = classified_transcript_genesis(plan, chunk_partition, chunk);
+    let expected_genesis = classified_transcript_genesis(plan, chunk_partition, chunk)?;
     if accumulator.next_coordinate == accumulator.interval_start {
         if accumulator.last_slice_id.is_some()
             || accumulator.transcript_root != expected_genesis
@@ -1648,14 +1678,15 @@ fn classified_transcript_genesis(
     plan: &RelationalSupportPlan,
     chunk_partition: &RelationalCaseChunkPartition,
     chunk: &RelationalCaseChunk,
-) -> RelationalClassifiedChunkTranscriptRoot {
+) -> Result<RelationalClassifiedChunkTranscriptRoot, RelationalClassifiedSweepError> {
     let descriptor = chunk.descriptor();
+    let question_id = require_single_question(plan.question_ids())?;
     let mut hasher = ClassifiedHasher::new(CLASSIFIED_CHUNK_TRANSCRIPT_GENESIS_V2);
     hasher.u32(RELATIONAL_CLASSIFIED_CHUNK_VERSION);
     hasher.digest(plan.root().bytes());
     hasher.digest(plan.relation_id().bytes());
     hasher.digest(plan.admission_id().bytes());
-    hasher.digest(plan.question_id().bytes());
+    hasher.digest(question_id.bytes());
     hasher.digest(chunk_partition.artifact().id().bytes());
     hasher.digest(descriptor.id().bytes());
     hasher.u128(descriptor.ordinal());
@@ -1663,7 +1694,7 @@ fn classified_transcript_genesis(
     hasher.digest(chunk.cell().materializer_id().bytes());
     hasher.u128(descriptor.interval_start());
     hasher.u128(descriptor.interval_end_exclusive());
-    RelationalClassifiedChunkTranscriptRoot(hasher.finish())
+    Ok(RelationalClassifiedChunkTranscriptRoot(hasher.finish()))
 }
 
 fn advance_classified_transcript(
@@ -1741,6 +1772,7 @@ fn issue_verified_chunk(
     evaluated_cases_root: [u8; 32],
     raw_runs: Vec<(u128, u128, RelationalClassifiedCaseOutcome)>,
 ) -> Result<VerifiedRelationalClassifiedChunk, RelationalClassifiedSweepError> {
+    let question_id = require_single_question(plan.question_ids())?;
     let run_cells = build_run_cells(chunk_partition, chunk, chunk_injectivity, &raw_runs)?;
     let mut descriptors = Vec::with_capacity(run_cells.len());
     for (index, ((start, end_exclusive, outcome), cell)) in
@@ -1782,7 +1814,7 @@ fn issue_verified_chunk(
         plan_root: plan.root(),
         relation_id: plan.relation_id(),
         admission_id: plan.admission_id(),
-        question_id: plan.question_id(),
+        question_id,
         chunk_partition_id: chunk_partition.artifact().id(),
         chunk_id: descriptor.id(),
         chunk_ordinal: descriptor.ordinal(),
@@ -1918,20 +1950,23 @@ fn validate_scope(
     chunk_partition: &RelationalCaseChunkPartition,
     chunk: &RelationalCaseChunk,
     chunk_injectivity: &SupportCellEvidence<InjectiveMappingClaim>,
-) -> Result<(), RelationalClassifiedSweepError> {
+) -> Result<QuestionId, RelationalClassifiedSweepError> {
     checked
         .closed_query
         .validate()
         .map_err(RelationalClassifiedSweepError::InvalidQuery)?;
+    let checked_question_id = require_single_question(checked.question_ids())?;
+    let plan_question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root()
         || plan.relation_id() != checked.relation_id()
         || plan.admission_id() != checked.admission_id()
-        || plan.question_id() != checked.question_id()
+        || plan_question_id != checked_question_id
         || chunk_partition.artifact().plan_root() != plan.root()
     {
         return Err(RelationalClassifiedSweepError::ScopeMismatch);
     }
-    validate_chunk_injectivity(chunk, chunk_injectivity)
+    validate_chunk_injectivity(chunk, chunk_injectivity)?;
+    Ok(checked_question_id)
 }
 
 fn validate_retained_scope(
@@ -1942,11 +1977,12 @@ fn validate_retained_scope(
     chunk_injectivity: &SupportCellEvidence<InjectiveMappingClaim>,
 ) -> Result<(), RelationalClassifiedSweepError> {
     let descriptor = chunk.descriptor();
+    let question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root()
         || artifact.plan_root != plan.root()
         || artifact.relation_id != plan.relation_id()
         || artifact.admission_id != plan.admission_id()
-        || artifact.question_id != plan.question_id()
+        || artifact.question_id != question_id
         || artifact.chunk_partition_id != chunk_partition.artifact().id()
         || artifact.chunk_id != descriptor.id()
         || artifact.chunk_ordinal != descriptor.ordinal()
@@ -1958,6 +1994,17 @@ fn validate_retained_scope(
         return Err(RelationalClassifiedSweepError::ScopeMismatch);
     }
     validate_chunk_injectivity(chunk, chunk_injectivity)
+}
+
+fn require_single_question(
+    question_ids: &[QuestionId],
+) -> Result<QuestionId, RelationalClassifiedSweepError> {
+    let [question_id] = question_ids else {
+        return Err(RelationalClassifiedSweepError::QuestionArityMismatch {
+            actual: question_ids.len(),
+        });
+    };
+    Ok(*question_id)
 }
 
 fn validate_chunk_injectivity(
@@ -2249,6 +2296,9 @@ pub(crate) enum RelationalClassifiedSweepError {
     SliceArtifactScopeMismatch,
     SliceArtifactPredecessorMismatch,
     ClassifiedAccumulatorScopeMismatch,
+    QuestionArityMismatch {
+        actual: usize,
+    },
     UnsupportedMaterializerShape(&'static str),
     ProductFactorOutOfBounds {
         factor_index: usize,
@@ -2353,6 +2403,10 @@ impl fmt::Display for RelationalClassifiedSweepError {
             ),
             Self::ClassifiedAccumulatorScopeMismatch => formatter
                 .write_str("classified-chunk accumulator and canonical chunk scopes disagree"),
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "classified-sweep optimization requires exactly one semantic question, found {actual}"
+            ),
             Self::UnsupportedMaterializerShape(message) => {
                 write!(
                     formatter,

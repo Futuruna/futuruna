@@ -33,7 +33,8 @@ use super::relational_analysis_plan::{
     RelationalAnalysisLayerId, RelationalAnalysisPlan, RelationalAnalysisPlanRoot,
 };
 use super::relational_classification_capsule::{
-    ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
+    ClassificationProvenanceRoot, ClassificationSpecializationRoot,
+    FrozenClassificationQuestionSet, RelationalClassificationCapsule,
 };
 use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_durable_journal::{RelationalDurableJournal, RelationalDurableJournalLimits};
@@ -62,11 +63,11 @@ use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewCount, R
 use super::stream_resource::ExactStreamOneWorkerEnvelope;
 use super::{
     ExploreAnalysisNodeIr, ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismTargetIr,
-    ExploreSourceBindingKindIr, ExploreSuccessorKindIr, RelationalInterpreterExpressionRuntime,
-    RelationalSupportPlan, RelationalSupportPlanner,
+    ExploreResultInputIr, ExploreSourceBindingKindIr, ExploreSuccessorKindIr,
+    RelationalInterpreterExpressionRuntime, RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 7;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 8;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -134,7 +135,7 @@ pub struct ExploreStreamEpochOptions {
 pub struct PreparedRelationalExplore {
     checked: Arc<OwnedCheckedExploreQuery>,
     support_plan: RelationalSupportPlan,
-    region_replay_authority: Arc<RelationalRegionReplayAuthority>,
+    region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
     contract: RelationalJournalContract,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     publication_plan: RelationalPublicationPlan,
@@ -299,13 +300,23 @@ impl PreparedRelationalExplore {
                     reason.code()
                 ))
             })?;
-        let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
-            &options.run_state,
-            self.contract,
-            self.analysis_plan_root,
-            RelationalDurableJournalLimits::default(),
-            Arc::clone(&self.region_replay_authority),
-        )
+        let durable = match &self.region_replay_authority {
+            Some(authority) => {
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &options.run_state,
+                    self.contract.clone(),
+                    self.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    Arc::clone(authority),
+                )
+            }
+            None => RelationalDurableJournal::open_or_create(
+                &options.run_state,
+                self.contract.clone(),
+                self.analysis_plan_root,
+                RelationalDurableJournalLimits::default(),
+            ),
+        }
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
         Ok(RelationalExploreEpoch {
             prepared: self,
@@ -380,7 +391,17 @@ fn native_classifier_plan_v2_from_checked(
         return None;
     };
 
-    let find = match &query.find {
+    // Wire protocol V2 carries one QuestionId, one predicate program, and one
+    // outcome. Require exactly one authored FIND; aliases use the checked
+    // interpreter until the wire format can address them without nominating a
+    // primary alias.
+    let [question_id] = checked.find_question_ids() else {
+        return None;
+    };
+    let [named_find] = query.finds.as_ref() else {
+        return None;
+    };
+    let find = match &named_find.find {
         ExploreFindIr::All { .. } => ExploreNativeClassifierFindV2::All,
         ExploreFindIr::Matches { predicate, .. } => ExploreNativeClassifierFindV2::Matches {
             predicate: predicate.clone(),
@@ -396,7 +417,7 @@ fn native_classifier_plan_v2_from_checked(
             checked_program,
             relation_id: checked.relation_id().bytes(),
             admission_id: checked.admission_id().bytes(),
-            question_id: checked.question_id().bytes(),
+            question_id: question_id.bytes(),
         },
         source_bindings: source_bindings.into_boxed_slice(),
         finite_input_binding_indices: finite_input_binding_indices.into_boxed_slice(),
@@ -512,7 +533,13 @@ fn bind_relational_classification_capsule(
         checked_program,
         checked.relation_id(),
         checked.admission_id(),
-        checked.question_id(),
+        FrozenClassificationQuestionSet::freeze(checked.question_ids().iter().copied()).map_err(
+            |error| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "checked Explore question set is incoherent: {error}"
+                ))
+            },
+        )?,
         support_plan.root(),
         support_plan.root_cell_id(),
         ClassificationSpecializationRoot::none(),
@@ -570,8 +597,15 @@ impl ExploreStreamCount {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExploreStreamMechanismTarget {
-    Selected,
-    ChosenView { view_id: String },
+    Find {
+        name: String,
+        question_id: String,
+    },
+    ChosenView {
+        name: String,
+        question_id: String,
+        view_id: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -590,7 +624,9 @@ pub struct ExploreStreamIdentity {
     pub checked_program: String,
     pub relation_id: String,
     pub admission_id: String,
-    pub question_id: String,
+    /// Sorted, duplicate-free semantic question identities. Authored FIND
+    /// names and order intentionally remain outside resumable identity.
+    pub question_ids: Vec<String>,
     pub analysis_graph_digest: String,
     pub journal_id: String,
 }
@@ -760,6 +796,15 @@ pub struct ExploreStreamPopulationCounts {
     pub admission_classified: ExploreStreamCount,
     pub admitted: ExploreStreamCount,
     pub rejected: ExploreStreamCount,
+}
+
+/// Progress for one authored FIND address. Equivalent aliases have distinct
+/// names but the same QuestionId and therefore the same durable counts.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamFind {
+    pub name: String,
+    pub question_id: String,
+    pub closed: bool,
     pub find_classified: ExploreStreamCount,
     pub selected: ExploreStreamCount,
     pub not_selected: ExploreStreamCount,
@@ -974,9 +1019,9 @@ pub struct ExploreStreamSliceReport {
     pub semantic_events_appended: u64,
     pub observer_memo: ExploreStreamObserverMemoStats,
     pub relation_closed: bool,
-    pub find_closed: bool,
     pub analysis_closed: bool,
     pub counts: ExploreStreamPopulationCounts,
+    pub finds: Vec<ExploreStreamFind>,
     pub analysis_scope_root: Option<String>,
     pub analysis_terminal_root: Option<String>,
     pub analysis_closure_set_root: Option<String>,
@@ -1111,14 +1156,18 @@ pub fn prepare_checked_relational_stream(
             "classification call-cache capacity must be positive".into(),
         )
     })?;
-    let region_replay_authority = Arc::new(
-        RelationalRegionReplayAuthority::new(
-            Arc::clone(&owned_checked),
-            support_plan.clone(),
-            Arc::clone(&classification_capsule),
-        )
-        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
-    );
+    let region_replay_authority = if checked.question_ids().len() == 1 {
+        Some(Arc::new(
+            RelationalRegionReplayAuthority::new(
+                Arc::clone(&owned_checked),
+                support_plan.clone(),
+                Arc::clone(&classification_capsule),
+            )
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
+        ))
+    } else {
+        None
+    };
     let classification_evaluator = RefCell::new(RelationalClassificationEvaluatorBackend::new(
         classification_capsule,
         classification_call_cache_capacity,
@@ -1138,13 +1187,13 @@ pub fn prepare_checked_relational_stream(
     let contract = RelationalJournalContract::new(
         checked.relation_id(),
         checked.admission_id(),
-        checked.question_id(),
+        checked.question_ids().iter().copied(),
         checked.transition_schemas().state_schema_id(),
         checked.transition_schemas().context_schema_id(),
         checked.transition_schemas().transition_type_id(),
         analysis_plan.producer_graph_digest().bytes(),
     );
-    let publication_plan = RelationalPublicationPlan::from_checked(&checked, contract)
+    let publication_plan = RelationalPublicationPlan::from_checked(&checked, contract.clone())
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
     trace_preparation_phase(started, "prepared publication");
     Ok(PreparedRelationalExplore {
@@ -1538,9 +1587,15 @@ fn build_report(
         Some(certified) => ExploreStreamCount::Exact(certified),
         None => relation_count(case_count, relation_enumeration_closed),
     };
-    let classification_progress = scheduler
-        .classification_progress_counts()
-        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+    // The current classified-support accelerator proves one semantic question
+    // at a time. Use it only when the checked set is exactly singular; plural
+    // queries share the concrete traversal and never nominate a primary FIND.
+    let classification_progress = match checked.question_ids() {
+        [question_id] => scheduler
+            .classification_progress_counts(*question_id)
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
+        _ => None,
+    };
     if let (Some(certified), Some(classified)) =
         (certified_case_cardinality, classification_progress)
     {
@@ -1584,24 +1639,8 @@ fn build_report(
     };
     let admission_closed_extensional =
         relation_enumeration_closed && admission_classified == case_count;
-    let find_classified = scheduler.question_decision_count() as u128;
-    let selected_observed = scheduler.selected_count() as u128;
-    let not_selected_observed =
-        find_classified
-            .checked_sub(selected_observed)
-            .ok_or_else(|| {
-                ExploreStreamPreparationError::Execution(
-                    "selected case count exceeds the classified FIND population".into(),
-                )
-            })?;
-    let find_closed_extensional = admission_closed_extensional && find_classified == admitted;
-    let selected_seal = journal
-        .analysis_state()
-        .and_then(|analysis| analysis.selected_question());
-    let certified_selected_count = selected_seal.map(|seal| seal.mechanism_target().count());
     let support_complete = classification_progress.is_some_and(|counts| counts.is_complete());
     let relation_closed = relation_enumeration_closed || support_complete;
-    let find_closed = selected_seal.is_some() || find_closed_extensional || support_complete;
     let sources_observed = scheduler.source_count() as u128;
     let source_enumeration_closed = scheduler.source_enumeration_is_closed();
     let certified_source_cardinality = scheduler
@@ -1637,28 +1676,71 @@ fn build_report(
         admission_closed_extensional,
         certified_admission_counts.map(|(_, _, rejected)| rejected),
     )?;
-    let find_classified_count = merge_population_count(
-        "FIND-classified cases",
-        classification_progress.map(|counts| (counts.admitted(), counts.is_complete())),
-        find_classified,
-        find_closed_extensional,
-        None,
-    )?;
-    let selected_count = merge_population_count(
-        "selected cases",
-        classification_progress.map(|counts| (counts.admitted_selected(), counts.is_complete())),
-        selected_observed,
-        find_closed_extensional,
-        certified_selected_count,
-    )?;
-    let not_selected_count = merge_population_count(
-        "not-selected cases",
-        classification_progress
-            .map(|counts| (counts.admitted_not_selected(), counts.is_complete())),
-        not_selected_observed,
-        find_closed_extensional,
-        None,
-    )?;
+    let mut finds = Vec::with_capacity(checked.closed_query.finds.len());
+    for (find_index, named_find) in checked.closed_query.finds.iter().enumerate() {
+        let question_id = checked.find_question_id(find_index).ok_or_else(|| {
+            ExploreStreamPreparationError::Execution(format!(
+                "checked FIND {find_index} has no aligned QuestionId"
+            ))
+        })?;
+        let find_classified = scheduler
+            .question_decision_count(question_id)
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?
+            as u128;
+        let selected_observed = scheduler
+            .selected_count(question_id)
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?
+            as u128;
+        let not_selected_observed =
+            find_classified
+                .checked_sub(selected_observed)
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(format!(
+                        "selected case count exceeds the classified FIND population for {}",
+                        named_find.name
+                    ))
+                })?;
+        let find_closed_extensional = admission_closed_extensional && find_classified == admitted;
+        let selected_seal = journal
+            .analysis_state()
+            .and_then(|analysis| analysis.selected_question(question_id));
+        let certified_selected_count = selected_seal.map(|seal| seal.mechanism_target().count());
+        let question_progress =
+            classification_progress.filter(|_| checked.question_ids() == [question_id]);
+        let question_support_complete =
+            question_progress.is_some_and(|counts| counts.is_complete());
+        let closed =
+            selected_seal.is_some() || find_closed_extensional || question_support_complete;
+        let find_classified_count = merge_population_count(
+            &format!("FIND-classified cases for {}", named_find.name),
+            question_progress.map(|counts| (counts.admitted(), counts.is_complete())),
+            find_classified,
+            find_closed_extensional,
+            None,
+        )?;
+        let selected_count = merge_population_count(
+            &format!("selected cases for {}", named_find.name),
+            question_progress.map(|counts| (counts.admitted_selected(), counts.is_complete())),
+            selected_observed,
+            find_closed_extensional,
+            certified_selected_count,
+        )?;
+        let not_selected_count = merge_population_count(
+            &format!("not-selected cases for {}", named_find.name),
+            question_progress.map(|counts| (counts.admitted_not_selected(), counts.is_complete())),
+            not_selected_observed,
+            find_closed_extensional,
+            None,
+        )?;
+        finds.push(ExploreStreamFind {
+            name: named_find.name.clone(),
+            question_id: hex(question_id.bytes()),
+            closed,
+            find_classified: find_classified_count,
+            selected: selected_count,
+            not_selected: not_selected_count,
+        });
+    }
 
     let analysis_scope_root = scheduler
         .analysis_scope_root()
@@ -1684,7 +1766,12 @@ fn build_report(
             checked_program: checked.program_hash().to_string(),
             relation_id: hex(checked.relation_id().bytes()),
             admission_id: hex(checked.admission_id().bytes()),
-            question_id: hex(checked.question_id().bytes()),
+            question_ids: journal
+                .contract()
+                .question_ids()
+                .iter()
+                .map(|question_id| hex(question_id.bytes()))
+                .collect(),
             analysis_graph_digest: checked.analysis_graph_hash().to_string(),
             journal_id: hex(journal.contract().id().bytes()),
         },
@@ -1700,7 +1787,6 @@ fn build_report(
         semantic_events_appended: progress.semantic_events_appended(),
         observer_memo,
         relation_closed,
-        find_closed,
         analysis_closed: scheduler.analysis_is_closed(),
         counts: ExploreStreamPopulationCounts {
             sources,
@@ -1708,10 +1794,8 @@ fn build_report(
             admission_classified: admission_classified_count,
             admitted: admitted_count,
             rejected: rejected_count,
-            find_classified: find_classified_count,
-            selected: selected_count,
-            not_selected: not_selected_count,
         },
+        finds,
         analysis_scope_root,
         analysis_terminal_root,
         analysis_closure_set_root,
@@ -1944,9 +2028,24 @@ fn public_mechanism_target(
     target: &ExploreMechanismTargetIr,
 ) -> Result<ExploreStreamMechanismTarget, ExploreStreamPreparationError> {
     match target {
-        ExploreMechanismTargetIr::SelectedCases => Ok(ExploreStreamMechanismTarget::Selected),
+        ExploreMechanismTargetIr::Find { find_index } => {
+            let named_find = checked.closed_query.finds.get(*find_index).ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target names missing FIND {find_index}"
+                ))
+            })?;
+            let question_id = checked.find_question_id(*find_index).ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target FIND {find_index} has no aligned QuestionId"
+                ))
+            })?;
+            Ok(ExploreStreamMechanismTarget::Find {
+                name: named_find.name.clone(),
+                question_id: hex(question_id.bytes()),
+            })
+        }
         ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
-            let (_, identity) =
+            let (node, identity) =
                 checked
                     .analysis_nodes()
                     .nth(*view_node_index)
@@ -1955,12 +2054,29 @@ fn public_mechanism_target(
                             "mechanism target names missing analysis node {view_node_index}"
                         ))
                     })?;
+            let ExploreAnalysisNodeIr::Result(view) = node else {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target analysis node {view_node_index} is not a result view"
+                )));
+            };
             let CheckedExploreAnalysisIdentity::View { view_id } = identity else {
                 return Err(ExploreStreamPreparationError::Execution(format!(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
             };
+            let ExploreResultInputIr::Find { find_index } = &view.input else {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target analysis node {view_node_index} is not FIND-backed"
+                )));
+            };
+            let question_id = checked.find_question_id(*find_index).ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target view {view_node_index} has no aligned QuestionId"
+                ))
+            })?;
             Ok(ExploreStreamMechanismTarget::ChosenView {
+                name: view.name.clone(),
+                question_id: hex(question_id.bytes()),
                 view_id: hex(view_id.bytes()),
             })
         }
@@ -2767,12 +2883,14 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_durable_journal::{
         RelationalDurableJournal, RelationalDurableJournalLimits,
     };
+    use super::super::relational_frontier::{WorkCompletionRef, WorkNodeSpec};
     use super::super::relational_journal::{
         RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
         RelationalJournal, RelationalJournalEvent,
     };
     use super::super::relational_step_driver::{
-        RelationalStepDriver, RelationalStepOutcome, RelationalStepQuantum,
+        RelationalConcreteQuiescence, RelationalStepDriver, RelationalStepOutcome,
+        RelationalStepQuantum,
     };
     use super::super::relational_stream_driver::{
         RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuantum,
@@ -2792,7 +2910,7 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find matches of after < before
+    find cases = matches of after < before
 }
 "#;
 
@@ -2804,7 +2922,7 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find matches of after > before
+    find cases = matches of after > before
 }
 "#;
 
@@ -2816,7 +2934,7 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find matches of before >= 128
+    find cases = matches of before >= 128
 }
 "#;
 
@@ -2828,7 +2946,7 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find matches of before * before < 0
+    find cases = matches of before * before < 0
 }
 "#;
 
@@ -2840,7 +2958,45 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find matches of before >= 280
+    find cases = matches of before >= 280
+}
+"#;
+
+    const PLURAL_PUBLICATION: &str = r#"
+? explore plural_publication {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find all_cases = all
+    find upper_case = matches of before >= 1
+}
+"#;
+
+    const PLURAL_FIND_COMPLETION_PREFIX: &str = r#"
+? explore plural_find_completion_prefix {
+    from {
+        vary before in [0]
+        given context = ()
+    }
+
+    transition after in [before + 1]
+    find all_cases = all
+    find increasing = matches of after > before
+}
+"#;
+
+    const ZERO_QUESTION_PUBLICATION: &str = r#"
+? explore zero_question_publication {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+
+    transition after = before + 1
+    transitions case_graph from all cases
 }
 "#;
 
@@ -2855,6 +3011,22 @@ mod regional_stream_acceptance_tests {
         let statements = parse(source);
         prepare_checked_relational_stream(&statements, None, source, None)
             .expect("prepare regional stream fixture")
+    }
+
+    fn exact_one_region_replay_authority(
+        prepared: &PreparedRelationalExplore,
+    ) -> Arc<RelationalRegionReplayAuthority> {
+        assert_eq!(
+            prepared.checked.view().question_ids().len(),
+            1,
+            "regional replay authority is an exact-one-FIND accelerator"
+        );
+        Arc::clone(
+            prepared
+                .region_replay_authority
+                .as_ref()
+                .expect("exact-one fixture must prepare regional replay authority"),
+        )
     }
 
     fn append_base_batch(
@@ -2874,8 +3046,8 @@ mod regional_stream_acceptance_tests {
         let analysis_plan =
             RelationalAnalysisPlan::from_checked(&checked).expect("plan fixture analysis");
         let mut journal = RelationalJournal::new_with_region_replay_authority(
-            prepared.contract,
-            Arc::clone(&prepared.region_replay_authority),
+            prepared.contract.clone(),
+            exact_one_region_replay_authority(&prepared),
         );
         journal
             .append(RelationalJournalEvent::analysis_plan_registered(
@@ -2934,11 +3106,12 @@ mod regional_stream_acceptance_tests {
 
         let mut prepared = prepare(EXACT_EMPTY);
         let checked = prepared.checked.view();
+        let question_id = checked.question_ids()[0];
         let analysis_plan =
             RelationalAnalysisPlan::from_checked(&checked).expect("plan partial fixture analysis");
         let mut journal = RelationalJournal::new_with_region_replay_authority(
-            prepared.contract,
-            Arc::clone(&prepared.region_replay_authority),
+            prepared.contract.clone(),
+            exact_one_region_replay_authority(&prepared),
         );
         journal
             .append(RelationalJournalEvent::analysis_plan_registered(
@@ -3004,7 +3177,8 @@ mod regional_stream_acceptance_tests {
         assert!(journal
             .scheduler_view()
             .expect("inspect partial fixture")
-            .classified_chunk_accumulator()
+            .classified_chunk_accumulator(question_id)
+            .unwrap()
             .is_some());
 
         let RelationalStepOutcome::Emitted(resumed) = base
@@ -3021,6 +3195,151 @@ mod regional_stream_acceptance_tests {
             resumed.quantum(),
             RelationalStepQuantum::ClassifiedSweep(_)
         ));
+    }
+
+    #[test]
+    fn plural_find_completion_prefix_keeps_the_next_question_runnable() {
+        let mut prepared = prepare(PLURAL_FIND_COMPLETION_PREFIX);
+        let checked = prepared.checked.view();
+        let question_ids = checked.question_ids().to_vec();
+        assert_eq!(question_ids.len(), 2);
+        let analysis_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("plan plural prefix fixture");
+        let mut journal = RelationalJournal::new(prepared.contract.clone());
+        journal
+            .append(RelationalJournalEvent::analysis_plan_registered(
+                analysis_plan,
+            ))
+            .expect("register plural prefix analysis plan");
+        let driver = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            NonZeroU16::new(1).unwrap(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build plural prefix base scheduler");
+
+        let mut resumed_after_find_completion = false;
+        let mut reached_concrete_close = false;
+        for _ in 0..128 {
+            match driver
+                .step_with_max_members_per_quantum(
+                    &journal,
+                    &mut prepared.expression_runtime,
+                    NonZeroU16::new(1).unwrap(),
+                )
+                .expect("advance plural prefix base scheduler")
+            {
+                RelationalStepOutcome::Emitted(batch) => {
+                    let quantum = batch.quantum();
+                    if !resumed_after_find_completion {
+                        if let RelationalStepQuantum::Find {
+                            question_id,
+                            case_id,
+                            ..
+                        } = quantum
+                        {
+                            let events = batch.into_events().into_vec();
+                            let completion_index = events
+                                .iter()
+                                .position(|event| {
+                                    matches!(
+                                        event,
+                                        RelationalJournalEvent::Checkpoint(
+                                            RelationalCheckpointEvent::WorkNodeCompleted {
+                                                completion:
+                                                    WorkCompletionRef::FindDecided {
+                                                        question_id: completed_question_id,
+                                                        case_id: completed_case_id,
+                                                        ..
+                                                    },
+                                                    ..
+                                            }
+                                        ) if *completed_question_id == question_id
+                                            && *completed_case_id == case_id
+                                    )
+                                })
+                                .expect("FIND batch completion event");
+                            let next_question_insertion_index = events
+                                .iter()
+                                .position(|event| {
+                                    matches!(
+                                        event,
+                                        RelationalJournalEvent::Checkpoint(
+                                            RelationalCheckpointEvent::WorkNodeInserted {
+                                                spec:
+                                                    WorkNodeSpec::EvaluateFind {
+                                                        question_id: pending_question_id,
+                                                        case_id: pending_case_id,
+                                                    },
+                                                ..
+                                            }
+                                        ) if *pending_question_id != question_id
+                                            && *pending_case_id == case_id
+                                    )
+                                })
+                                .expect("next plural FIND work insertion");
+                            assert!(
+                                next_question_insertion_index < completion_index,
+                                "the next FIND must be durable before the current FIND disappears"
+                            );
+
+                            for event in events.into_iter().take(completion_index + 1) {
+                                journal
+                                    .append(event)
+                                    .expect("append crash prefix through FIND completion");
+                            }
+                            let retained_prefix = journal.entries().to_vec();
+                            journal = RelationalJournal::replay(
+                                prepared.contract.clone(),
+                                retained_prefix,
+                            )
+                            .expect("cold-replay plural FIND completion prefix");
+                            resumed_after_find_completion = true;
+                            continue;
+                        }
+                    }
+                    append_base_batch(&mut journal, batch);
+                }
+                RelationalStepOutcome::Quiescent(
+                    RelationalConcreteQuiescence::ConcreteBaseClassified {
+                        cases,
+                        admitted,
+                        question_counts,
+                    },
+                ) => {
+                    assert!(resumed_after_find_completion);
+                    assert_eq!(cases, 1);
+                    assert_eq!(admitted, 1);
+                    assert_eq!(question_counts.len(), 2);
+                    for question_id in question_ids.iter().copied() {
+                        let count = question_counts
+                            .iter()
+                            .find(|count| count.question_id == question_id)
+                            .expect("classified count for each plural question");
+                        assert_eq!(count.classified_cases, 1);
+                        assert_eq!(
+                            journal
+                                .scheduler_view()
+                                .expect("inspect plural completion prefix replay")
+                                .question_decision_count(question_id)
+                                .expect("known plural question"),
+                            1
+                        );
+                    }
+                    reached_concrete_close = true;
+                    break;
+                }
+                RelationalStepOutcome::Quiescent(
+                    RelationalConcreteQuiescence::SupportEvidenceClosed { .. },
+                ) => panic!("plural concrete fixture must not use exact-one support closure"),
+            }
+        }
+        assert!(
+            reached_concrete_close,
+            "plural prefix fixture did not reach concrete base closure"
+        );
     }
 
     static TEMP_NONCE: AtomicU64 = AtomicU64::new(0);
@@ -3054,6 +3373,113 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn plural_find_report_and_publication_keep_each_named_question_explicit() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let output = temp.path().join("output");
+        let prepared = prepare(PLURAL_PUBLICATION);
+        assert_eq!(prepared.checked.view().question_ids().len(), 2);
+        assert!(
+            prepared.region_replay_authority.is_none(),
+            "plural FIND execution must not choose one question for regional replay"
+        );
+
+        let mut epoch = prepared
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: Some(output.clone()),
+                outer_containment: None,
+            })
+            .expect("open plural publication epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic plural publication resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("complete tiny plural publication fixture");
+
+        assert_eq!(report.schema_version, 8);
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert_eq!(report.counts.cases, ExploreStreamCount::Exact(2));
+        assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(2));
+        assert_eq!(report.identity.question_ids.len(), 2);
+        assert_eq!(report.finds.len(), 2);
+        assert_eq!(report.finds[0].name, "all_cases");
+        assert_eq!(report.finds[0].selected, ExploreStreamCount::Exact(2));
+        assert_eq!(report.finds[1].name, "upper_case");
+        assert_eq!(report.finds[1].selected, ExploreStreamCount::Exact(1));
+        assert_ne!(report.finds[0].question_id, report.finds[1].question_id);
+        assert!(report
+            .finds
+            .iter()
+            .all(|find| report.identity.question_ids.contains(&find.question_id)));
+
+        let publication = report
+            .publication
+            .as_ref()
+            .expect("plural run must refresh its publication manifest");
+        assert!(publication.artifacts.iter().all(|artifact| {
+            artifact.key != "graph:case-support" && artifact.key != "graph:case-transitions"
+        }));
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&publication.manifest_path)
+                .expect("read plural publication manifest"),
+        )
+        .expect("parse plural publication manifest");
+        assert_eq!(manifest["schema_version"].as_u64(), Some(15));
+        assert_eq!(
+            manifest["identity"]["question_ids"]
+                .as_array()
+                .expect("manifest question IDs")
+                .len(),
+            2
+        );
+        assert_eq!(
+            manifest["finds"]
+                .as_array()
+                .expect("manifest named FIND entries")
+                .iter()
+                .map(|find| find["name"].as_str().expect("manifest FIND name"))
+                .collect::<Vec<_>>(),
+            vec!["all_cases", "upper_case"]
+        );
+    }
+
+    #[test]
+    fn zero_question_stream_closes_with_the_canonical_empty_scope() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let output = temp.path().join("output");
+        let prepared = prepare(ZERO_QUESTION_PUBLICATION);
+        assert!(prepared.checked.view().question_ids().is_empty());
+        assert!(prepared.region_replay_authority.is_none());
+
+        let mut epoch = prepared
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: Some(output),
+                outer_containment: None,
+            })
+            .expect("open zero-question publication epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic zero-question resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("complete tiny zero-question publication fixture");
+
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert_eq!(report.counts.cases, ExploreStreamCount::Exact(2));
+        assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(2));
+        assert!(report.identity.question_ids.is_empty());
+        assert!(report.finds.is_empty());
+        assert!(report.analysis_scope_root.is_some());
+        let publication = report.publication.expect("publish zero-question graph");
+        assert!(publication
+            .artifacts
+            .iter()
+            .any(|artifact| artifact.key.starts_with("semantic-transition-graph:")));
+    }
+
+    #[test]
     fn pre_step_pause_rejects_a_mismatched_registered_analysis_plan_before_publication() {
         let source = r#"
 > pause_guard_observer(state: Int, context: Unit) -> Int { state }
@@ -3064,8 +3490,8 @@ mod regional_stream_acceptance_tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from pause_guard_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using pause_guard_observer
 }
 "#;
         let prepared = prepare(source);
@@ -3099,7 +3525,7 @@ mod regional_stream_acceptance_tests {
             .collect::<Vec<_>>();
         assert!(changed_observation, "fixture must have one mechanism layer");
         let alternate_plan = RelationalAnalysisPlan::restore_from_journal_codec(
-            fresh_plan.question_id(),
+            fresh_plan.question_ids().to_vec().into_boxed_slice(),
             fresh_plan.producer_graph_digest(),
             registrations,
         )
@@ -3119,10 +3545,10 @@ mod regional_stream_acceptance_tests {
             let mut durable =
                 RelationalDurableJournal::open_or_create_with_region_replay_authority(
                     &run_state,
-                    prepared.contract,
+                    prepared.contract.clone(),
                     alternate_root,
                     RelationalDurableJournalLimits::default(),
-                    Arc::clone(&prepared.region_replay_authority),
+                    exact_one_region_replay_authority(&prepared),
                 )
                 .expect("open alternate-plan seed journal under its own authority");
             let (sequence, head) = {
@@ -3166,6 +3592,7 @@ mod regional_stream_acceptance_tests {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
         let mut prepared = prepare(HYBRID);
+        let question_id = prepared.checked.view().question_ids()[0];
         let paused_checkpoint;
 
         {
@@ -3182,10 +3609,10 @@ mod regional_stream_acceptance_tests {
             let mut durable =
                 RelationalDurableJournal::open_or_create_with_region_replay_authority(
                     &run_state,
-                    prepared.contract,
+                    prepared.contract.clone(),
                     prepared.analysis_plan_root,
                     RelationalDurableJournalLimits::default(),
-                    Arc::clone(&prepared.region_replay_authority),
+                    exact_one_region_replay_authority(&prepared),
                 )
                 .expect("open hybrid durable journal");
             let mut preceding_base_classifications = 0usize;
@@ -3235,7 +3662,7 @@ mod regional_stream_acceptance_tests {
                 .scheduler_view()
                 .expect("inspect hybrid prefix");
             assert!(matches!(
-                view.classified_support_fragments(),
+                view.classified_support_fragments(question_id).unwrap(),
                 [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
                     _
                 )]
@@ -3256,10 +3683,10 @@ mod regional_stream_acceptance_tests {
         .expect("rebuild hybrid stream scheduler after pause");
         let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
             &run_state,
-            prepared.contract,
+            prepared.contract.clone(),
             prepared.analysis_plan_root,
             RelationalDurableJournalLimits::default(),
-            Arc::clone(&prepared.region_replay_authority),
+            exact_one_region_replay_authority(&prepared),
         )
         .expect("reopen hybrid durable journal");
         let reopened = durable.journal().expect("inspect reopened hybrid journal");
@@ -3269,7 +3696,8 @@ mod regional_stream_acceptance_tests {
             reopened
                 .scheduler_view()
                 .expect("inspect replayed hybrid prefix")
-                .classified_support_fragments(),
+                .classified_support_fragments(question_id)
+                .unwrap(),
             [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
                 _
             )]
@@ -3318,7 +3746,7 @@ mod regional_stream_acceptance_tests {
         let view = journal
             .scheduler_view()
             .expect("inspect completed hybrid view");
-        let fragments = view.classified_support_fragments();
+        let fragments = view.classified_support_fragments(question_id).unwrap();
         assert!(matches!(
             fragments,
             [
@@ -3340,8 +3768,15 @@ mod regional_stream_acceptance_tests {
                 .sum::<u128>(),
             20
         );
-        assert_eq!(view.selected_run_materializations().count(), 1);
-        assert!(view.selected_run_materializations_cover_classified_prefix());
+        assert_eq!(
+            view.selected_run_materializations(question_id)
+                .unwrap()
+                .count(),
+            1
+        );
+        assert!(view
+            .selected_run_materializations_cover_classified_prefix(question_id)
+            .unwrap());
         assert!(view.support_catalog_is_sealed());
         assert!(journal
             .analysis_state()
@@ -3349,7 +3784,7 @@ mod regional_stream_acceptance_tests {
 
         let selected_question = journal
             .analysis_state()
-            .and_then(|analysis| analysis.selected_question())
+            .and_then(|analysis| analysis.selected_question(question_id))
             .expect("hybrid selected-question seal");
         let closure_authority =
             RelationalCaseSupportClosureAuthority::from_authenticated_certified_support(
@@ -3362,12 +3797,16 @@ mod regional_stream_acceptance_tests {
             )
             .expect("authorize exact public hybrid closure");
         let partition = view
-            .verified_case_chunk_partition()
+            .verified_case_chunk_partition(question_id)
+            .unwrap()
             .expect("hybrid canonical partition");
         let projection = derive_relational_case_support_projection(
             partition,
             fragments,
-            |cell_id| view.selected_run_materialization(cell_id),
+            |cell_id| {
+                view.selected_run_materialization(question_id, cell_id)
+                    .unwrap()
+            },
             None,
             Some(closure_authority),
         )
@@ -3483,6 +3922,7 @@ mod regional_stream_acceptance_tests {
                 ..
             } = &mut epoch;
             let checked = prepared.checked.view();
+            let question_id = checked.question_ids()[0];
             let driver =
                 RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
                     &checked,
@@ -3625,7 +4065,7 @@ mod regional_stream_acceptance_tests {
             assert_eq!(scheduler.source_count(), 1);
             assert_eq!(scheduler.case_count(), 1);
             assert_eq!(scheduler.admission_decision_count(), 0);
-            assert_eq!(scheduler.question_decision_count(), 0);
+            assert_eq!(scheduler.question_decision_count(question_id).unwrap(), 0);
             assert_eq!(
                 scheduler
                     .case(crash_case_id)
@@ -3653,7 +4093,8 @@ mod regional_stream_acceptance_tests {
         assert_eq!(report.counts.sources, ExploreStreamCount::Exact(1));
         assert_eq!(report.counts.cases, ExploreStreamCount::Exact(1));
         assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(1));
-        assert_eq!(report.counts.selected, ExploreStreamCount::Exact(1));
+        assert_eq!(report.finds.len(), 1);
+        assert_eq!(report.finds[0].selected, ExploreStreamCount::Exact(1));
 
         let checked = epoch.prepared.checked.view();
         let journal = epoch
@@ -3663,15 +4104,16 @@ mod regional_stream_acceptance_tests {
         let scheduler = journal
             .scheduler_view()
             .expect("inspect completed shared namespace scheduler");
+        let question_id = checked.question_ids()[0];
         assert_eq!(scheduler.case_count(), 1);
-        assert_eq!(scheduler.selected_count(), 1);
+        assert_eq!(scheduler.selected_count(question_id).unwrap(), 1);
         let analysis = journal
             .analysis_state()
             .expect("completed shared namespace analysis");
         assert!(analysis.is_closed());
         assert_eq!(
             analysis
-                .selected_question()
+                .selected_question(question_id)
                 .expect("exact shared namespace selected-question seal")
                 .mechanism_target()
                 .count(),

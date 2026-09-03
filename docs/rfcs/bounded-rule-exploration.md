@@ -4,18 +4,18 @@ Status: accepted architectural direction; Experimental breaking replacement
 
 This RFC defines Futuruna Explore as a finite, provenance-aware relational
 language over typed state transitions. `? explore` declares the bounded world,
-its admission rule and one or more named questions. Query-local `derive`
+its admission rule and zero or more named questions. Query-local `derive`
 declarations name pure computed values and endpoint observations. A separate
 `? analyze` declaration builds an order-independent typed DAG of views, choices
 and replay-derived explanations over those questions. `? publish` attaches
 authorized materializations without becoming part of that semantic DAG.
 
 The contract in this opening section is normative for new implementation. It
-replaces both the earlier Cartesian
-`over`/`bounds`/`boundaries`/`probes`/`output` design and the transitional
-single-question FROM/TO/WHERE/FIND plus nested `results`/`mechanisms` surface.
-Neither historical syntax has a compatibility claim and neither may remain as
-a second public Explore language after the target frontend lands.
+replaces the earlier Cartesian
+`over`/`bounds`/`boundaries`/`probes`/`output` design. The current nested
+FROM/TO/WHERE/named-FIND plus `results`/`mechanisms` surface is the executable
+lowering checkpoint toward the separated Analyze/Publish syntax, not a second
+semantic language. Neither Experimental spelling has a compatibility claim.
 
 Normative here means “the implementation target,” not “already executable.”
 The frontend, closed relational IR, executor, journal and result DAG are moving
@@ -32,7 +32,7 @@ shape.
 ## Normative relation contract
 
 Ordinary execution evaluates one state. Explore asks which explicitly bounded
-before-to-after state transitions satisfy one or more questions, which
+before-to-after state transitions satisfy zero or more questions, which
 coherent model profiles support them, and—when requested by an analysis—which
 replay-derived mechanisms those transitions share.
 
@@ -337,16 +337,18 @@ semantic node IDs.
 
 ### Current Experimental executable boundary
 
-The target syntax above is not yet an implementation claim. Publication v13
-still executes the transitional single-question form with ordered `from`
-bindings, `to after`, scoped `where`, one `find`, nested `results`, nested
-`mechanisms ... from OBSERVER`, `observations`, `starters` and `transitions`.
+The separated target syntax above is not yet a complete implementation claim.
+Publication v15 and report v8 execute the nested checkpoint with ordered
+`from` bindings, `transition after`, scoped `where`, zero or more
+`find NAME = all|matches|violations` declarations, explicit
+`results ... from find NAME` / `mechanisms ... from find NAME using OBSERVER`
+consumers, `observations`, `starters` and `transitions`.
 The existing engine's `results` maps toward target `view`; embedded `choose`
 maps toward target `choice`; and `mechanisms` maps toward target `explain ...
 using`. Its placement-order dependency rule is implementation history, not the
 target order-independent analysis semantics.
 
-Most importantly, the v13 executable `starters NAME ... using values from VIEW`
+Most importantly, the v14 executable `starters NAME ... using values from VIEW`
 consumer publishes correlated `S` case-support members, not deduplicated `P`
 starters. That spelling and the `starters/` artifact path are explicitly
 transitional historical names. They remain documented below so current bytes
@@ -354,14 +356,17 @@ are interpreted honestly; the target frontend replaces them with `support
 cases`. A future true `support starters` consumer publishes one SourceKey per
 member and cannot alias the case-support artifact.
 
-The current first execution path supports one selected-question target. A
+The current concrete execution path evaluates every unique named question over
+one shared relation and admission, while identical normalized aliases reuse one
+QuestionId and predicate evaluation. Certified sweep and regional-proof
+accelerators are still exact-one and fall back to that concrete stream for
+zero/plural question sets without choosing a primary. A
 view-chosen target already has checked syntax, lowering, sealed-ViewId
 mechanism-request identity and a durable plan representation, but its
-replay/incidence scheduler remains deferred. Until several named-find targets
-share one executable relation, a separate `find all` exploration is
-the current exact executable spelling for a complete admitted mechanism
-landscape. These are staged implementation limits, not competing semantic
-definitions and not evidence that the target syntax is executable.
+replay/incidence scheduler remains deferred. A complete admitted mechanism
+landscape can now be another named `find NAME = all` in the same relation as a
+cliff question. These are staged implementation limits, not competing semantic
+definitions.
 
 In the target language an `observe support` declaration addresses exactly one
 request-relative compact
@@ -411,7 +416,7 @@ implementation target.
 The target grammar is intentionally one language, not a compatibility adapter:
 
 - every Explore and Analyze declaration is named;
-- `from`, `transition`, one total `admit` and one or more named `find` clauses
+- `from`, `transition`, one total `admit` and zero or more named `find` clauses
   define an Explore relation and its questions;
 - `given`, `vary` and `let` make source-conditioning, finite variation and
   derived construction distinguishable in syntax and coverage;
@@ -543,7 +548,7 @@ view, choice or explanation binds exactly the coverage components reachable
 from its typed input edges plus its own AnalysisNodeCoverageId; unrelated
 questions or analysis nodes do not contaminate its bundle.
 
-This composed bundle is the normative target. Publication v13 currently emits
+This composed bundle is the normative target. Publication v15 currently emits
 the RelationId-scoped source manifest and carries admission/question/request
 identities, but does not yet emit every sibling coverage artifact or the
 composed bundle. Current artifacts MUST describe that boundary rather than
@@ -1160,7 +1165,7 @@ projects only `P` from that exact correlated source. They have different member
 schemas, counts, roots, cursors and materialization statuses even when every
 starter happens to have one successor.
 
-Publication v13 does not implement that target split. It retains the explicit
+Publication v15 does not implement that target split. It retains the explicit
 single-subject `starters` consumer introduced in publication v9 as transitional
 historical executable syntax:
 
@@ -1198,7 +1203,7 @@ source/successor pair; it is the implementation precursor of target `support
 cases`. A genuine target `support starters` member contains only the
 deduplicated `SourceKey`. The optional cursor field is omitted for an
 unqualified consumer. Publication v9 first established the additive consumer
-model; under the current Experimental v13 plan, either historical form still
+model; under the current Experimental v15 plan, either historical form still
 attaches without renaming or reopening the core analysis, but neither v9 bytes
 nor the misleading `starters` spelling are a compatibility target.
 
@@ -1781,7 +1786,7 @@ NDJSON); a renderer MUST NOT require one in-memory JSON array merely to save an
 otherwise durable exact answer. Only fields authorized by a view's
 `select` schema may enter its public configuration export.
 
-Publication v13 gives every mechanism request two support-observation
+Publication v15 gives every mechanism request two support-observation
 artifacts. `mechanisms/<request>.support-observations.ndjson` is the one shared
 append-only point stream for automatic and explicit slices.
 `mechanisms/<request>.support-observation-demands.ndjson` is the durable demand
@@ -1793,7 +1798,7 @@ sidecar publishes assignments, structural closure and at most one automatic
 support receipt; it MUST NOT duplicate those point records or emit one support
 row for every structural node and edge at closure.
 
-Publication v13 implements independently domain-separated inner/outer
+Publication v15 implements independently domain-separated inner/outer
 expression bounds for correlated case support `S` and distinct-starter
 projection `P = distinct_sources(S)`, plus explicit `starter_set_status` and
 `correlated_support_status`. Publication v12 is implementation history, not a
@@ -1813,7 +1818,7 @@ containing those links). Discoverability fields are references only: they
 neither inline values nor enter `StructuralMechanismId`, `StructuralNodeId` or
 `StructuralEdgeId`.
 
-Report v7 MUST expose the same partitions rather than one ambiguous total. It
+Report v8 MUST expose the same partitions rather than one ambiguous total. It
 reports the total shared point count/root; automatic point, registered, dirty,
 observed and sealed counts plus the automatic chain root; and explicit demand
 registrations, point count, registered, ready, pending-backfill, dirty,

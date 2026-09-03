@@ -26,6 +26,7 @@ use crate::explore::relational_classification_capsule::{
 };
 use crate::explore::{
     ExploreFindIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSuccessorKindIr,
+    FindPolarity,
 };
 use crate::{
     checked_explore_projection_binder_digest, checked_explore_projection_constructor_digest,
@@ -85,8 +86,9 @@ impl From<RelationalClassificationCapsuleError> for CheckedExploreClassification
 /// V1 classification subset.
 ///
 /// The caller must supply the exact analysis program, resolution artifact,
-/// closed query, semantic sites, and question identity that are being joined
-/// into one checked artifact. Structural divergence is a producer error. An
+/// closed query, semantic sites, and positionally aligned question identities
+/// that are being joined into one checked artifact. Structural divergence is
+/// a producer error. Equivalent aliases share one QuestionId lane; an
 /// unsupported checked expression is represented by exactly one residual for
 /// its semantic lane.
 pub(crate) fn checked_explore_classification_program(
@@ -94,7 +96,7 @@ pub(crate) fn checked_explore_classification_program(
     resolutions: &CheckedResolutionArtifacts,
     closed_query: &crate::explore::ExploreQueryIr,
     sites: &CheckedExploreQuerySites,
-    question_id: crate::explore::QuestionId,
+    find_question_ids: &[crate::explore::QuestionId],
 ) -> Result<CheckedExploreClassification, CheckedExploreClassificationError> {
     if program.id != resolutions.analysis_program {
         return Err(CheckedExploreClassificationError::CheckedBoundary(
@@ -104,7 +106,7 @@ pub(crate) fn checked_explore_classification_program(
     closed_query
         .validate()
         .map_err(|message| CheckedExploreClassificationError::CheckedBoundary(message.into()))?;
-    validate_query_site_shape(program, closed_query, sites)?;
+    validate_query_site_shape(program, closed_query, sites, find_question_ids)?;
 
     let semantic_binders =
         checked_explore_semantic_binders(closed_query, sites).map_err(|issue| {
@@ -117,7 +119,7 @@ pub(crate) fn checked_explore_classification_program(
     CheckedClassificationProducer {
         query: closed_query,
         sites,
-        question_id,
+        find_question_ids,
         index: CheckedExploreSemanticIndex::build(program),
         resolutions,
         semantic_binders,
@@ -137,10 +139,17 @@ fn validate_query_site_shape(
     program: &crate::CheckedAnalysisProgram,
     query: &crate::explore::ExploreQueryIr,
     sites: &CheckedExploreQuerySites,
+    find_question_ids: &[crate::explore::QuestionId],
 ) -> Result<(), CheckedExploreClassificationError> {
     if query.source.bindings.len() != sites.source_bindings.len()
         || query.admissions.len() != sites.admissions.len()
-        || query.find.predicate().is_some() != sites.selection.is_some()
+        || query.finds.len() != sites.find_predicates.len()
+        || query.finds.len() != find_question_ids.len()
+        || query
+            .finds
+            .iter()
+            .zip(sites.find_predicates.iter())
+            .any(|(find, site)| find.find.predicate().is_some() != site.is_some())
     {
         return Err(CheckedExploreClassificationError::CheckedBoundary(
             "checked classification query and semantic sites diverged".into(),
@@ -152,7 +161,7 @@ fn validate_query_site_shape(
         .map(|binding| &binding.expression)
         .chain(std::iter::once(&sites.successor))
         .chain(sites.admissions.iter())
-        .chain(sites.selection.iter())
+        .chain(sites.find_predicates.iter().filter_map(Option::as_ref))
         .all(|site| site.analysis_program == program.id);
     if !sites_belong_to_program {
         return Err(CheckedExploreClassificationError::CheckedBoundary(
@@ -273,10 +282,16 @@ struct RegisteredRuntimeShape {
     constructor_id: [u8; 32],
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct ClassificationFindSeal {
+    polarity: FindPolarity,
+    predicate_digest: Option<[u8; 32]>,
+}
+
 struct CheckedClassificationProducer<'program, 'query> {
     query: &'query crate::explore::ExploreQueryIr,
     sites: &'query CheckedExploreQuerySites,
-    question_id: crate::explore::QuestionId,
+    find_question_ids: &'query [crate::explore::QuestionId],
     index: CheckedExploreSemanticIndex<'program>,
     resolutions: &'program CheckedResolutionArtifacts,
     semantic_binders: BTreeMap<CheckedBinderSiteId, Box<str>>,
@@ -403,72 +418,92 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
         }
 
         let find_environment = self.endpoint_environment(true, true)?;
-        let find_kind = self.query.find.clone();
-        let selection_site = self.sites.selection.clone();
-        let find_residual_identity = match &find_kind {
-            ExploreFindIr::All { .. } => {
-                ResidualIdentityRoot::Synthetic(self.synthetic_find_site_digest())
+        let mut question_seals = BTreeMap::new();
+        for find_index in 0..self.query.finds.len() {
+            let question_id = self.find_question_ids[find_index];
+            let find_kind = self.query.finds[find_index].find.clone();
+            let predicate_site = self.sites.find_predicates[find_index].clone();
+            let seal = self.find_seal(&find_kind, predicate_site.as_ref())?;
+            match question_seals.entry(question_id) {
+                std::collections::btree_map::Entry::Occupied(entry) if *entry.get() == seal => {
+                    // Equivalent authored aliases address one semantic lane.
+                    continue;
+                }
+                std::collections::btree_map::Entry::Occupied(_) => {
+                    return Err(CheckedExploreClassificationError::CheckedBoundary(
+                        "one question identity addresses divergent checked FIND semantics".into(),
+                    ));
+                }
+                std::collections::btree_map::Entry::Vacant(entry) => {
+                    entry.insert(seal);
+                }
             }
-            ExploreFindIr::Matches { .. } | ExploreFindIr::Violations { .. } => {
-                ResidualIdentityRoot::Expression(
-                    selection_site
-                        .as_ref()
-                        .expect("validated checked FIND predicate site")
-                        .clone(),
-                )
-            }
-        };
-        let find = match find_kind {
-            ExploreFindIr::All { .. } => self.lower_find_all(),
-            ExploreFindIr::Matches { .. } => self
-                .lower_expression(
-                    selection_site
-                        .as_ref()
-                        .expect("validated checked FIND predicate site"),
-                    &find_environment,
-                )
-                .and_then(|value| {
-                    if value.scalar == Some(ScalarKind::Boolean) {
-                        Ok(value)
-                    } else {
-                        Err(self.residual_error(
-                            selection_site
-                                .as_ref()
-                                .expect("validated checked FIND predicate site"),
-                            ClassificationResidualReason::UnsupportedType,
-                            [],
-                        ))
-                    }
-                }),
-            ExploreFindIr::Violations { .. } => {
-                let selection_site = selection_site
-                    .as_ref()
-                    .expect("validated checked FIND predicate site");
-                self.lower_expression(selection_site, &find_environment)
-                    .and_then(|predicate| {
-                        if predicate.scalar != Some(ScalarKind::Boolean) {
-                            return Err(self.residual_error(
-                                selection_site,
+
+            let find_residual_identity = match &find_kind {
+                ExploreFindIr::All { .. } => {
+                    ResidualIdentityRoot::Synthetic(self.synthetic_find_site_digest(question_id))
+                }
+                ExploreFindIr::Matches { .. } | ExploreFindIr::Violations { .. } => {
+                    ResidualIdentityRoot::Expression(
+                        predicate_site
+                            .as_ref()
+                            .expect("validated checked FIND predicate site")
+                            .clone(),
+                    )
+                }
+            };
+            let find = match find_kind {
+                ExploreFindIr::All { .. } => self.lower_find_all(),
+                ExploreFindIr::Matches { .. } => self
+                    .lower_expression(
+                        predicate_site
+                            .as_ref()
+                            .expect("validated checked FIND predicate site"),
+                        &find_environment,
+                    )
+                    .and_then(|value| {
+                        if value.scalar == Some(ScalarKind::Boolean) {
+                            Ok(value)
+                        } else {
+                            Err(self.residual_error(
+                                predicate_site
+                                    .as_ref()
+                                    .expect("validated checked FIND predicate site"),
                                 ClassificationResidualReason::UnsupportedType,
                                 [],
-                            ));
+                            ))
                         }
-                        self.intern(
-                            predicate.ty,
-                            Some(ScalarKind::Boolean),
-                            ClassificationNodeKind::Unary {
-                                op: ClassificationUnaryOp::BooleanNot,
-                                operand: predicate.node,
-                            },
-                        )
-                    })
-            }
-        };
-        self.record_lane(
-            ClassificationSemanticLane::Find,
-            find_residual_identity,
-            find,
-        )?;
+                    }),
+                ExploreFindIr::Violations { .. } => {
+                    let predicate_site = predicate_site
+                        .as_ref()
+                        .expect("validated checked FIND predicate site");
+                    self.lower_expression(predicate_site, &find_environment)
+                        .and_then(|predicate| {
+                            if predicate.scalar != Some(ScalarKind::Boolean) {
+                                return Err(self.residual_error(
+                                    predicate_site,
+                                    ClassificationResidualReason::UnsupportedType,
+                                    [],
+                                ));
+                            }
+                            self.intern(
+                                predicate.ty,
+                                Some(ScalarKind::Boolean),
+                                ClassificationNodeKind::Unary {
+                                    op: ClassificationUnaryOp::BooleanNot,
+                                    operand: predicate.node,
+                                },
+                            )
+                        })
+                }
+            };
+            self.record_lane(
+                ClassificationSemanticLane::Find(question_id),
+                find_residual_identity,
+                find,
+            )?;
+        }
 
         let program = FrozenClassificationProgram::freeze_with_callables(
             std::mem::take(&mut self.interner),
@@ -2491,10 +2526,41 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
         })
     }
 
-    fn synthetic_find_site_digest(&self) -> [u8; 32] {
+    fn find_seal(
+        &self,
+        find: &ExploreFindIr,
+        predicate_site: Option<&ExprSiteId>,
+    ) -> Result<ClassificationFindSeal, CheckedExploreClassificationError> {
+        let predicate_digest = predicate_site
+            .map(|site| {
+                checked_explore_semantic_dependency_digest(
+                    &self.index,
+                    self.resolutions,
+                    &self.semantic_binders,
+                    "classification FIND alias",
+                    std::slice::from_ref(site),
+                    &[],
+                )
+                .map_err(|issue| {
+                    CheckedExploreClassificationError::CheckedBoundary(
+                        format!(
+                            "classification FIND alias has no sealed semantic identity: {issue:?}"
+                        )
+                        .into_boxed_str(),
+                    )
+                })
+            })
+            .transpose()?;
+        Ok(ClassificationFindSeal {
+            polarity: find.polarity(),
+            predicate_digest,
+        })
+    }
+
+    fn synthetic_find_site_digest(&self, question_id: crate::explore::QuestionId) -> [u8; 32] {
         let mut hasher = Sha256::new();
         hasher.update(CLASSIFICATION_SYNTHETIC_FIND_SITE_V1);
-        hasher.update(self.question_id.bytes());
+        hasher.update(question_id.bytes());
         hasher.finalize().into()
     }
 

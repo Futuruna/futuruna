@@ -263,7 +263,7 @@ impl RelationalDurableJournal {
         expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         limits: RelationalDurableJournalLimits,
     ) -> Result<Self, RelationalDurableJournalError> {
-        let anchor = journal_store_anchor(contract);
+        let anchor = journal_store_anchor(&contract);
         let store = RelationalJournalSegmentStore::open_or_create(
             directory,
             limits.run_store(),
@@ -286,7 +286,7 @@ impl RelationalDurableJournal {
         limits: RelationalDurableJournalLimits,
         authority: Arc<RelationalRegionReplayAuthority>,
     ) -> Result<Self, RelationalDurableJournalError> {
-        let anchor = journal_store_anchor(contract);
+        let anchor = journal_store_anchor(&contract);
         let store = RelationalJournalSegmentStore::open_or_create(
             directory,
             limits.run_store(),
@@ -308,7 +308,7 @@ impl RelationalDurableJournal {
         expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         limits: RelationalDurableJournalLimits,
     ) -> Result<Self, RelationalDurableJournalError> {
-        let anchor = journal_store_anchor(contract);
+        let anchor = journal_store_anchor(&contract);
         let store = RelationalJournalSegmentStore::open(
             directory,
             limits.run_store(),
@@ -332,10 +332,11 @@ impl RelationalDurableJournal {
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
     ) -> Result<Self, RelationalDurableJournalError> {
         let mut journal = match region_replay_authority {
-            Some(authority) => {
-                RelationalJournal::new_streaming_with_region_replay_authority(contract, authority)
-            }
-            None => RelationalJournal::new_streaming(contract),
+            Some(authority) => RelationalJournal::new_streaming_with_region_replay_authority(
+                contract.clone(),
+                authority,
+            ),
+            None => RelationalJournal::new_streaming(contract.clone()),
         };
         {
             let segments = store.replay_segments()?;
@@ -364,7 +365,7 @@ impl RelationalDurableJournal {
                     let mut replayed = 0_u64;
                     while let Some(bytes) = entries.next_entry()? {
                         let entry = decode_relational_journal_entry(
-                            contract,
+                            contract.clone(),
                             journal.next_sequence(),
                             journal.head(),
                             bytes,
@@ -411,8 +412,8 @@ impl RelationalDurableJournal {
         })
     }
 
-    pub(crate) const fn contract(&self) -> RelationalJournalContract {
-        self.contract
+    pub(crate) const fn contract(&self) -> &RelationalJournalContract {
+        &self.contract
     }
 
     pub(crate) fn journal(&self) -> Result<&RelationalJournal, RelationalDurableJournalError> {
@@ -826,8 +827,8 @@ impl RelationalPublicationAuthority for RelationalDurableJournal {
     }
 }
 
-fn journal_store_anchor(contract: RelationalJournalContract) -> RelationalJournalStoreAnchor {
-    let genesis = RelationalJournal::new_streaming(contract);
+fn journal_store_anchor(contract: &RelationalJournalContract) -> RelationalJournalStoreAnchor {
+    let genesis = RelationalJournal::new_streaming(contract.clone());
     RelationalJournalStoreAnchor::new(genesis.next_sequence(), genesis.head().bytes())
 }
 

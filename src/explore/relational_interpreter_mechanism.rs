@@ -951,8 +951,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from observe_cascade
+    find all_cases = all
+    mechanisms paths from find all_cases using observe_cascade
 }
 "#,
             7,
@@ -1059,8 +1059,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from observe_miss
+    find all_cases = all
+    mechanisms paths from find all_cases using observe_miss
 }
 "#,
             7,
@@ -1116,8 +1116,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from observe_miss
+    find all_cases = all
+    mechanisms paths from find all_cases using observe_miss
 }
 "#;
         let artifacts = checked_mechanism_trace_artifacts(source, |_| {});
@@ -1186,8 +1186,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from observe_scope
+    find all_cases = all
+    mechanisms paths from find all_cases using observe_scope
 }
 "#,
             7,
@@ -1275,8 +1275,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from observe_rule
+    find all_cases = all
+    mechanisms paths from find all_cases using observe_rule
 }
 "#;
         let mut artifacts = checked_mechanism_trace_artifacts(source, |_| {});

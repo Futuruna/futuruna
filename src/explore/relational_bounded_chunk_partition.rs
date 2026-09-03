@@ -596,6 +596,7 @@ pub(crate) fn plan_relational_bounded_case_chunks(
     plan: &RelationalSupportPlan,
     case_image_proof: &RelationalCaseImageInjectivityProof,
 ) -> Result<RelationalCaseChunkPlanningOutcome, RelationalCaseChunkPartitionError> {
+    let question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root() {
         return Err(RelationalCaseChunkPartitionError::InvalidPlanRoot);
     }
@@ -785,7 +786,7 @@ pub(crate) fn plan_relational_bounded_case_chunks(
         plan_root: plan.root(),
         relation_id: plan.relation_id(),
         admission_id: plan.admission_id(),
-        question_id: plan.question_id(),
+        question_id,
         case_image_certificate_id: proof_artifact.certificate_id(),
         injectivity_evidence_id: case_image_proof.injectivity().id(),
         root_cell_id: root.id(),
@@ -821,6 +822,17 @@ pub(crate) fn plan_relational_bounded_case_chunks(
             certificate,
         },
     ))
+}
+
+fn require_single_question(
+    question_ids: &[QuestionId],
+) -> Result<QuestionId, RelationalCaseChunkPartitionError> {
+    let [question_id] = question_ids else {
+        return Err(RelationalCaseChunkPartitionError::QuestionArityMismatch {
+            actual: question_ids.len(),
+        });
+    };
+    Ok(*question_id)
 }
 
 /// Rebuild a retained partition artifact from the installed support plan and
@@ -1430,6 +1442,9 @@ pub(crate) enum RelationalCaseChunkPartitionError {
         factor_index: usize,
     },
     InvalidPlanRoot,
+    QuestionArityMismatch {
+        actual: usize,
+    },
     MissingCaseRoot,
     RootCellMismatch,
     CaseImageProofScopeMismatch,
@@ -1530,6 +1545,10 @@ impl fmt::Display for RelationalCaseChunkPartitionError {
             Self::InvalidPlanRoot => {
                 formatter.write_str("case-chunk support-plan root is not canonical")
             }
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "case-chunk optimization requires exactly one semantic question, found {actual}"
+            ),
             Self::MissingCaseRoot => {
                 formatter.write_str("case-chunk planner requires a positive case root")
             }

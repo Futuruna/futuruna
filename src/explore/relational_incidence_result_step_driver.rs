@@ -180,7 +180,7 @@ struct AvailableIncidenceRow {
 pub(crate) struct RelationalIncidenceResultStepDriver<'query> {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     layers: BTreeMap<ViewId, IncidenceResultLayer<'query>>,
     /// Purely operational CPU/frame bound. It is absent from all result specs,
@@ -262,7 +262,7 @@ impl<'query> RelationalIncidenceResultStepDriver<'query> {
         Ok(Self {
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
-            question_id: checked.question_id(),
+            question_ids: plan.question_ids().to_vec().into_boxed_slice(),
             analysis_plan_root: plan.root(),
             layers,
             max_rows_per_quantum,
@@ -965,7 +965,7 @@ impl<'query> RelationalIncidenceResultStepDriver<'query> {
         let contract = view.contract();
         if contract.relation_id() != self.relation_id
             || contract.admission_id() != self.admission_id
-            || contract.question_id() != self.question_id
+            || contract.question_ids() != self.question_ids.as_ref()
         {
             return Err(RelationalIncidenceResultStepDriverError::JournalScopeMismatch);
         }
@@ -1444,8 +1444,8 @@ mod tests {
         given context = 0
     }
     transition after = 2
-    find all
-    mechanisms paths for selected from structural_gate_observe
+    find all_cases = all
+    mechanisms paths from find all_cases using structural_gate_observe
     results incidences from mechanisms paths {
         each incidence
         select [structural_mechanism_id, execution_profile_id]
@@ -1466,6 +1466,7 @@ mod tests {
         let checked = artifacts
             .checked_exploration_query(0)
             .expect("joined checked Explore fixture");
+        let question_id = checked.question_ids()[0];
         let analysis_plan = RelationalAnalysisPlan::from_checked(&checked).expect("analysis plan");
         let support_plan = RelationalSupportPlanner::from_checked(&checked)
             .and_then(|planner| planner.plan())
@@ -1473,7 +1474,7 @@ mod tests {
         let contract = RelationalJournalContract::new(
             checked.relation_id(),
             checked.admission_id(),
-            checked.question_id(),
+            checked.question_ids().iter().copied(),
             checked.transition_schemas().state_schema_id(),
             checked.transition_schemas().context_schema_id(),
             checked.transition_schemas().transition_type_id(),
@@ -1577,6 +1578,7 @@ mod tests {
             .expect("classify admission");
         journal
             .append(RelationalJournalEvent::question_classified(
+                question_id,
                 case_id,
                 super::super::relation::SelectionDecision::Selected,
             ))
@@ -1584,7 +1586,7 @@ mod tests {
         journal
             .append(
                 journal
-                    .selected_question_extensional_event()
+                    .selected_question_extensional_event(question_id)
                     .expect("selected-question closure"),
             )
             .expect("bind selected question");
@@ -1637,7 +1639,7 @@ mod tests {
 
         let question_seal = journal
             .analysis_state()
-            .and_then(|analysis| analysis.selected_question())
+            .and_then(|analysis| analysis.selected_question(checked.question_ids()[0]))
             .expect("selected-question seal");
         journal
             .append(RelationalJournalEvent::analysis(

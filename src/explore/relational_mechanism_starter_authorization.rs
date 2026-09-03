@@ -330,8 +330,10 @@ fn compatible_authorization(
     view: &ExploreResultViewIr,
     view_id: ViewId,
 ) -> Option<RelationalMechanismStarterValueAuthorization> {
-    if !matches!(&view.input, ExploreResultInputIr::Selected)
-        || !matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
+    let ExploreResultInputIr::Find { find_index } = &view.input else {
+        return None;
+    };
+    if !matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
         || !view.aggregates.is_empty()
         || view.having.is_some()
         || view.choose.is_some()
@@ -366,7 +368,7 @@ fn compatible_authorization(
         return None;
     }
     let role_schema_digest = derive_role_schema_digest(&projections);
-    let question_id = checked.question_id();
+    let question_id = checked.find_question_id(*find_index)?;
     let authorization_id = derive_authorization_id(
         RELATIONAL_MECHANISM_STARTER_VALUE_AUTHORIZATION_VERSION,
         question_id,
@@ -585,8 +587,8 @@ mod tests {
         given context = ()
     }}
     transition after = before + 1
-    find all
-    results candidate from selected {{
+    find all_cases = all
+    results candidate from find all_cases {{
 {result_body}
     }}
 }}

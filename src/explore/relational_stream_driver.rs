@@ -4,8 +4,8 @@
 //! testable. This coordinator supplies the missing ordering contract between
 //! them: register the checked analysis plan, let ready result and mechanism
 //! work catch up with each authenticated base prefix, advance the base once,
-//! bind its exact terminal population when closed, and only then seal every
-//! dependent layer and emit the terminal analysis event.
+//! bind each exact terminal question population when closed, and only then
+//! seal every dependent layer and emit the terminal analysis event.
 //!
 //! It is still not an I/O or resource loop. Every emitted batch is bound to
 //! the journal head from which it was planned; the durable owner installs the
@@ -24,7 +24,7 @@ use super::mechanism_support::{
     MechanismSupportFacet, MechanismSupportFrontierRoot, MechanismSupportKey,
     MechanismSupportSlice, MechanismSupportSliceId, MechanismSupportSubject,
 };
-use super::relation::{MechanismRequestId, RelationalCaseId, ViewId};
+use super::relation::{MechanismRequestId, QuestionId, RelationalCaseId, ViewId};
 use super::relational_analysis_journal::RelationalAnalysisJournalError;
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanError,
@@ -130,8 +130,12 @@ impl Default for RelationalStreamDriverLimits {
 pub(crate) enum RelationalStreamQuantum {
     RegisterAnalysisPlan,
     Base(RelationalStepQuantum),
-    BindExtensionalSelectedQuestion,
-    BindCertifiedSelectedQuestion,
+    BindExtensionalSelectedQuestion {
+        question_id: QuestionId,
+    },
+    BindCertifiedSelectedQuestion {
+        question_id: QuestionId,
+    },
     Result(RelationalResultStepQuantum),
     IncidenceResult(RelationalIncidenceResultStepQuantum),
     Mechanism(RelationalMechanismStepQuantum),
@@ -909,25 +913,29 @@ impl<'query> RelationalStreamDriver<'query> {
         let analysis = journal
             .analysis_state()
             .ok_or(RelationalStreamDriverError::AnalysisStateMissing)?;
-        if analysis.selected_question().is_none() {
-            let (quantum, event) = match base {
+        for question_id in journal.contract().question_ids().iter().copied() {
+            if analysis.selected_question(question_id).is_some() {
+                continue;
+            }
+            let (quantum, event) = match &base {
                 RelationalConcreteQuiescence::ConcreteBaseClassified { .. } => (
-                    RelationalStreamQuantum::BindExtensionalSelectedQuestion,
-                    journal.selected_question_extensional_event()?,
+                    RelationalStreamQuantum::BindExtensionalSelectedQuestion { question_id },
+                    journal.selected_question_extensional_event(question_id)?,
                 ),
                 RelationalConcreteQuiescence::SupportEvidenceClosed { .. } => (
-                    RelationalStreamQuantum::BindCertifiedSelectedQuestion,
-                    journal.selected_question_certified_event()?,
+                    RelationalStreamQuantum::BindCertifiedSelectedQuestion { question_id },
+                    journal.selected_question_certified_event(question_id)?,
                 ),
             };
             return Ok(self.batch(journal, quantum, vec![event]));
         }
 
-        if matches!(
-            result_quiescence,
-            RelationalResultStepQuiescence::AwaitingSelectedQuestion
-        ) {
-            return Err(RelationalStreamDriverError::SelectedQuestionBridgeMissing.into());
+        if let RelationalResultStepQuiescence::AwaitingSelectedQuestion { question_id } =
+            result_quiescence
+        {
+            return Err(
+                RelationalStreamDriverError::SelectedQuestionBridgeMissing { question_id }.into(),
+            );
         }
         match mechanism_quiescence {
             RelationalMechanismStepQuiescence::ReplayPaused {
@@ -956,8 +964,11 @@ impl<'query> RelationalStreamDriver<'query> {
                     },
                 ));
             }
-            RelationalMechanismStepQuiescence::AwaitingSelectedQuestion => {
-                return Err(RelationalStreamDriverError::SelectedQuestionBridgeMissing.into());
+            RelationalMechanismStepQuiescence::AwaitingSelectedQuestion { question_id } => {
+                return Err(RelationalStreamDriverError::SelectedQuestionBridgeMissing {
+                    question_id,
+                }
+                .into());
             }
             RelationalMechanismStepQuiescence::AnalysisAlreadyClosed => {
                 return Ok(RelationalStreamStepOutcome::Complete);
@@ -1099,7 +1110,9 @@ pub(crate) enum RelationalStreamDriverError {
     Journal(RelationalJournalError),
     AnalysisPlanRootMismatch,
     AnalysisStateMissing,
-    SelectedQuestionBridgeMissing,
+    SelectedQuestionBridgeMissing {
+        question_id: QuestionId,
+    },
     ResultDriverQuiescenceMismatch,
     PendingArtifactNotResumed,
     ObservationDemandUnresolved {
@@ -1123,8 +1136,9 @@ impl fmt::Display for RelationalStreamDriverError {
             Self::AnalysisStateMissing => {
                 formatter.write_str("registered relational analysis plan has no journal state")
             }
-            Self::SelectedQuestionBridgeMissing => formatter.write_str(
-                "post-FIND driver is waiting after the base scheduler reported exact closure",
+            Self::SelectedQuestionBridgeMissing { question_id } => write!(
+                formatter,
+                "post-FIND driver for question {question_id:?} is waiting after the base scheduler reported exact closure"
             ),
             Self::ResultDriverQuiescenceMismatch => formatter.write_str(
                 "selected result driver stopped without completing or naming a deferred input",
@@ -1150,7 +1164,7 @@ impl Error for RelationalStreamDriverError {
             Self::Journal(error) => Some(error),
             Self::AnalysisPlanRootMismatch
             | Self::AnalysisStateMissing
-            | Self::SelectedQuestionBridgeMissing
+            | Self::SelectedQuestionBridgeMissing { .. }
             | Self::ResultDriverQuiescenceMismatch
             | Self::PendingArtifactNotResumed
             | Self::ObservationDemandUnresolved { .. } => None,

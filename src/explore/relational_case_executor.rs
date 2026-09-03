@@ -12,15 +12,16 @@
 //! into correlated or weighted full producer paths belongs to the factorized
 //! `SupportExpr` layer rather than to this flat concrete-row fallback.
 
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
 use sha2::{Digest, Sha256};
 
 use super::relation::{
-    AdmissionDecision, RelationId, RelationLineageId, RelationProvenance, RelationSupportId,
-    RelationalCaseId, RelationalCaseRef, SelectionDecision, SourceKey, SourceRow, SuccessorKey,
-    SuccessorRow,
+    AdmissionDecision, FindPolarity, QuestionId, RelationId, RelationLineageId, RelationProvenance,
+    RelationSupportId, RelationalCaseId, RelationalCaseRef, SelectionDecision, SourceKey,
+    SourceRow, SuccessorKey, SuccessorRow,
 };
 use super::relational_executor::{
     RelationalBoundValue, RelationalExpressionRuntime, RelationalFiberMember,
@@ -33,7 +34,9 @@ use super::relational_ir::{
 use super::relational_journal::RelationalJournalEvent;
 use super::transition::canonical_explore_value_digest;
 use super::ExploreValue;
-use crate::{ExploreAdmissionScope, ExploreRelationMultiplicity, Expr, Ty};
+use crate::{
+    CheckedExploreQueryView, ExploreAdmissionScope, ExploreRelationMultiplicity, Expr, Ty,
+};
 
 pub(crate) const RELATIONAL_SUCCESSOR_CURSOR_VERSION: u32 = 1;
 pub(crate) const SUCCESSOR_FIBER_EXHAUSTION_RECEIPT_VERSION: u32 = 1;
@@ -373,14 +376,60 @@ impl RelationalAdmissionClassification {
     }
 }
 
+/// One canonical semantic question and the authored FIND index that evaluates
+/// it. Equivalent authored aliases collapse to one entry keyed by QuestionId.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RelationalQuestionEvaluation {
+    question_id: QuestionId,
+    find_index: usize,
+}
+
+/// Closed mapping from the query's authored FIND addresses to its unique
+/// semantic questions. Entries are sorted by QuestionId, never source name.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalQuestionEvaluationPlan {
+    relation_id: RelationId,
+    query_address: usize,
+    authored_find_count: usize,
+    questions: Box<[RelationalQuestionEvaluation]>,
+}
+
+impl RelationalQuestionEvaluationPlan {
+    pub(crate) fn question_ids(&self) -> impl ExactSizeIterator<Item = QuestionId> + '_ {
+        self.questions.iter().map(|question| question.question_id)
+    }
+
+    pub(crate) const fn unique_question_count(&self) -> usize {
+        self.questions.len()
+    }
+
+    fn question(&self, question_id: QuestionId) -> Option<RelationalQuestionEvaluation> {
+        self.questions
+            .binary_search_by_key(&question_id, |question| question.question_id)
+            .ok()
+            .map(|index| self.questions[index])
+    }
+
+    fn matches_executor(&self, executor: &RelationalCaseExecutor<'_>) -> bool {
+        self.relation_id == executor.relation_id
+            && self.query_address == std::ptr::from_ref(executor.query).addr()
+            && self.authored_find_count == executor.query.finds.len()
+    }
+}
+
 /// FIND evidence produced only for one already admitted concrete case.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) struct RelationalSelectionClassification {
+pub(crate) struct RelationalQuestionClassification {
+    question_id: QuestionId,
     case_id: RelationalCaseId,
     decision: SelectionDecision,
 }
 
-impl RelationalSelectionClassification {
+impl RelationalQuestionClassification {
+    pub(crate) const fn question_id(&self) -> QuestionId {
+        self.question_id
+    }
+
     pub(crate) const fn case_id(&self) -> RelationalCaseId {
         self.case_id
     }
@@ -390,16 +439,16 @@ impl RelationalSelectionClassification {
     }
 
     pub(crate) fn event(&self) -> RelationalJournalEvent {
-        RelationalJournalEvent::question_classified(self.case_id, self.decision)
+        RelationalJournalEvent::question_classified(self.question_id, self.case_id, self.decision)
     }
 }
 
-/// Paired convenience result for callers executing both leaves immediately.
-/// A rejected case deliberately has no selection evidence.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// Paired convenience result for callers executing admission and every unique
+/// semantic question immediately. A rejected case has no question evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalCaseClassification {
     admission: RelationalAdmissionClassification,
-    selection: Option<RelationalSelectionClassification>,
+    questions: Box<[RelationalQuestionClassification]>,
 }
 
 impl RelationalCaseClassification {
@@ -411,27 +460,31 @@ impl RelationalCaseClassification {
         self.admission.decision
     }
 
-    pub(crate) const fn selection(&self) -> Option<SelectionDecision> {
-        match self.selection {
-            Some(selection) => Some(selection.decision),
-            None => None,
-        }
+    pub(crate) fn question_decision(&self, question_id: QuestionId) -> Option<SelectionDecision> {
+        self.questions
+            .binary_search_by_key(&question_id, |question| question.question_id)
+            .ok()
+            .map(|index| self.questions[index].decision)
     }
 
     pub(crate) const fn admission_evidence(&self) -> RelationalAdmissionClassification {
         self.admission
     }
 
-    pub(crate) const fn selection_evidence(&self) -> Option<RelationalSelectionClassification> {
-        self.selection
+    pub(crate) fn question_evidence(&self) -> &[RelationalQuestionClassification] {
+        &self.questions
     }
 
     pub(crate) fn admission_event(&self) -> RelationalJournalEvent {
         self.admission.event()
     }
 
-    pub(crate) fn selection_event(&self) -> Option<RelationalJournalEvent> {
-        self.selection.map(|selection| selection.event())
+    pub(crate) fn question_events(
+        &self,
+    ) -> impl ExactSizeIterator<Item = RelationalJournalEvent> + '_ {
+        self.questions
+            .iter()
+            .map(RelationalQuestionClassification::event)
     }
 }
 
@@ -462,6 +515,76 @@ impl<'a> RelationalCaseExecutor<'a> {
 
     pub(crate) const fn relation_id(&self) -> RelationId {
         self.relation_id
+    }
+
+    /// Bind checked QuestionIds to authored FIND indices and collapse aliases.
+    /// The caller supplies one ID per authored find in declaration order.
+    pub(crate) fn checked_question_evaluation_plan(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+    ) -> Result<RelationalQuestionEvaluationPlan, RelationalCaseExecutorError> {
+        if checked.relation_id() != self.relation_id
+            || !std::ptr::eq(checked.closed_query, self.query)
+        {
+            return Err(RelationalCaseExecutorError::QuestionPlanMismatch);
+        }
+        self.build_question_evaluation_plan(checked.find_question_ids())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn question_evaluation_plan(
+        &self,
+        find_question_ids: &[QuestionId],
+    ) -> Result<RelationalQuestionEvaluationPlan, RelationalCaseExecutorError> {
+        self.build_question_evaluation_plan(find_question_ids)
+    }
+
+    fn build_question_evaluation_plan(
+        &self,
+        find_question_ids: &[QuestionId],
+    ) -> Result<RelationalQuestionEvaluationPlan, RelationalCaseExecutorError> {
+        if find_question_ids.len() != self.query.finds.len() {
+            return Err(RelationalCaseExecutorError::QuestionCountMismatch {
+                finds: self.query.finds.len(),
+                question_ids: find_question_ids.len(),
+            });
+        }
+        let mut unique = BTreeMap::<QuestionId, (usize, FindPolarity)>::new();
+        for (find_index, (named_find, question_id)) in self
+            .query
+            .finds
+            .iter()
+            .zip(find_question_ids.iter().copied())
+            .enumerate()
+        {
+            let polarity = named_find.find.polarity();
+            match unique.entry(question_id) {
+                std::collections::btree_map::Entry::Vacant(slot) => {
+                    slot.insert((find_index, polarity));
+                }
+                std::collections::btree_map::Entry::Occupied(slot) if slot.get().1 == polarity => {}
+                std::collections::btree_map::Entry::Occupied(_) => {
+                    return Err(RelationalCaseExecutorError::QuestionAliasPolarityMismatch {
+                        question_id,
+                    });
+                }
+            }
+        }
+        Ok(RelationalQuestionEvaluationPlan {
+            relation_id: self.relation_id,
+            query_address: std::ptr::from_ref(self.query).addr(),
+            authored_find_count: self.query.finds.len(),
+            questions: unique
+                .into_iter()
+                .map(
+                    |(question_id, (find_index, _))| RelationalQuestionEvaluation {
+                        question_id,
+                        find_index,
+                    },
+                )
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        })
     }
 
     pub(crate) fn root_cursor(
@@ -771,15 +894,17 @@ impl<'a> RelationalCaseExecutor<'a> {
         })
     }
 
-    /// Evaluate FIND only after the caller has durable admission evidence for
-    /// the same case. Rejection returns `None` without invoking the runtime.
-    pub(crate) fn evaluate_find<R: RelationalExpressionRuntime>(
+    /// Evaluate every unique semantic question only after the caller has
+    /// durable admission evidence for the same case. Rejection returns an
+    /// empty slice without invoking any FIND predicate.
+    pub(crate) fn evaluate_questions<R: RelationalExpressionRuntime>(
         &self,
         source: &SourceRow,
         case: &RelationalConcreteCase,
         admission: &RelationalAdmissionClassification,
+        questions: &RelationalQuestionEvaluationPlan,
         runtime: &mut R,
-    ) -> Result<Option<RelationalSelectionClassification>, RelationalCaseExecutorError> {
+    ) -> Result<Box<[RelationalQuestionClassification]>, RelationalCaseExecutorError> {
         self.validate_case(source, case)?;
         if admission.case_id != case.case_id {
             return Err(RelationalCaseExecutorError::AdmissionCaseMismatch {
@@ -787,42 +912,43 @@ impl<'a> RelationalCaseExecutor<'a> {
                 case_id: case.case_id,
             });
         }
-        self.evaluate_find_values(
+        self.evaluate_question_values(
             case.case_id,
             source.context(),
             source.before(),
             case.successor.after(),
             admission,
+            questions,
             runtime,
         )
     }
 
-    /// Evaluate FIND for a freshly yielded case after the scheduler recovered
-    /// (or just emitted) its durable admission decision. This is the fused
-    /// equivalent of reconstructing `RelationalAdmissionClassification` in a
-    /// later work quantum.
-    pub(crate) fn evaluate_find_for_admission_decision<R: RelationalExpressionRuntime>(
+    /// Evaluate all questions for a freshly yielded case after the scheduler
+    /// recovered (or just emitted) its durable admission decision.
+    pub(crate) fn evaluate_questions_for_admission_decision<R: RelationalExpressionRuntime>(
         &self,
         source: &SourceRow,
         case: &RelationalConcreteCase,
         admission: AdmissionDecision,
+        questions: &RelationalQuestionEvaluationPlan,
         runtime: &mut R,
-    ) -> Result<Option<RelationalSelectionClassification>, RelationalCaseExecutorError> {
+    ) -> Result<Box<[RelationalQuestionClassification]>, RelationalCaseExecutorError> {
         let admission = RelationalAdmissionClassification {
             case_id: case.case_id,
             decision: admission,
         };
-        self.evaluate_find(source, case, &admission, runtime)
+        self.evaluate_questions(source, case, &admission, questions, runtime)
     }
 
-    /// Evaluate FIND for a durable catalog case after replay has recovered its
-    /// exact admission decision.
-    pub(crate) fn evaluate_catalog_find<R: RelationalExpressionRuntime>(
+    /// Evaluate all questions for a durable catalog case after replay has
+    /// recovered its exact admission decision.
+    pub(crate) fn evaluate_catalog_questions<R: RelationalExpressionRuntime>(
         &self,
         case: RelationalCaseRef<'_>,
         admission: AdmissionDecision,
+        questions: &RelationalQuestionEvaluationPlan,
         runtime: &mut R,
-    ) -> Result<Option<RelationalSelectionClassification>, RelationalCaseExecutorError> {
+    ) -> Result<Box<[RelationalQuestionClassification]>, RelationalCaseExecutorError> {
         if case.relation_id() != self.relation_id {
             return Err(RelationalCaseExecutorError::CaseRelationMismatch);
         }
@@ -830,27 +956,70 @@ impl<'a> RelationalCaseExecutor<'a> {
             case_id: case.case_id(),
             decision: admission,
         };
-        self.evaluate_find_values(
+        self.evaluate_question_values(
             case.case_id(),
             case.context(),
             case.before(),
             case.after(),
             &admission,
+            questions,
             runtime,
         )
     }
 
-    fn evaluate_find_values<R: RelationalExpressionRuntime>(
+    /// Evaluate exactly one explicitly addressed semantic question. This is
+    /// the unfused work-node path: across Q questions it performs Q predicate
+    /// evaluations, not Q complete passes over the question set.
+    pub(crate) fn evaluate_catalog_question<R: RelationalExpressionRuntime>(
+        &self,
+        case: RelationalCaseRef<'_>,
+        admission: AdmissionDecision,
+        questions: &RelationalQuestionEvaluationPlan,
+        question_id: QuestionId,
+        runtime: &mut R,
+    ) -> Result<Option<RelationalQuestionClassification>, RelationalCaseExecutorError> {
+        if case.relation_id() != self.relation_id || !questions.matches_executor(self) {
+            return Err(RelationalCaseExecutorError::QuestionPlanMismatch);
+        }
+        let question = questions
+            .question(question_id)
+            .ok_or(RelationalCaseExecutorError::QuestionPlanMismatch)?;
+        if admission == AdmissionDecision::Rejected {
+            return Ok(None);
+        }
+        let transition_bindings = [
+            RelationalBoundValue {
+                name: "context",
+                value: case.context(),
+            },
+            RelationalBoundValue {
+                name: "before",
+                value: case.before(),
+            },
+            RelationalBoundValue {
+                name: "after",
+                value: case.after(),
+            },
+        ];
+        self.evaluate_question_value(case.case_id(), question, &transition_bindings, runtime)
+            .map(Some)
+    }
+
+    fn evaluate_question_values<R: RelationalExpressionRuntime>(
         &self,
         case_id: RelationalCaseId,
         context_value: &ExploreValue,
         before_value: &ExploreValue,
         after_value: &ExploreValue,
         admission: &RelationalAdmissionClassification,
+        questions: &RelationalQuestionEvaluationPlan,
         runtime: &mut R,
-    ) -> Result<Option<RelationalSelectionClassification>, RelationalCaseExecutorError> {
+    ) -> Result<Box<[RelationalQuestionClassification]>, RelationalCaseExecutorError> {
+        if !questions.matches_executor(self) {
+            return Err(RelationalCaseExecutorError::QuestionPlanMismatch);
+        }
         if matches!(admission.decision, AdmissionDecision::Rejected) {
-            return Ok(None);
+            return Ok(Box::new([]));
         }
         let transition_bindings = [
             RelationalBoundValue {
@@ -866,15 +1035,38 @@ impl<'a> RelationalCaseExecutor<'a> {
                 value: after_value,
             },
         ];
+        let mut classifications = Vec::with_capacity(questions.questions.len());
+        for question in questions.questions.iter().copied() {
+            classifications.push(self.evaluate_question_value(
+                case_id,
+                question,
+                &transition_bindings,
+                runtime,
+            )?);
+        }
+        Ok(classifications.into_boxed_slice())
+    }
 
-        let selection = match &self.query.find {
+    fn evaluate_question_value<R: RelationalExpressionRuntime>(
+        &self,
+        case_id: RelationalCaseId,
+        question: RelationalQuestionEvaluation,
+        transition_bindings: &[RelationalBoundValue<'_>],
+        runtime: &mut R,
+    ) -> Result<RelationalQuestionClassification, RelationalCaseExecutorError> {
+        let named_find = self
+            .query
+            .finds
+            .get(question.find_index)
+            .ok_or(RelationalCaseExecutorError::QuestionPlanMismatch)?;
+        let decision = match &named_find.find {
             ExploreFindIr::All { .. } => SelectionDecision::Selected,
             ExploreFindIr::Matches { predicate, .. } => {
                 if evaluate_boolean(
                     predicate,
-                    &transition_bindings,
+                    transition_bindings,
                     runtime,
-                    "find matches".to_string(),
+                    format!("find {} matches", question.find_index),
                 )? {
                     SelectionDecision::Selected
                 } else {
@@ -884,9 +1076,9 @@ impl<'a> RelationalCaseExecutor<'a> {
             ExploreFindIr::Violations { predicate, .. } => {
                 if evaluate_boolean(
                     predicate,
-                    &transition_bindings,
+                    transition_bindings,
                     runtime,
-                    "find violations".to_string(),
+                    format!("find {} violations", question.find_index),
                 )? {
                     SelectionDecision::NotSelected
                 } else {
@@ -894,26 +1086,28 @@ impl<'a> RelationalCaseExecutor<'a> {
                 }
             }
         };
-        Ok(Some(RelationalSelectionClassification {
+        Ok(RelationalQuestionClassification {
+            question_id: question.question_id,
             case_id,
-            decision: selection,
-        }))
+            decision,
+        })
     }
 
-    /// Convenience for a local worker that executes both leaves in sequence.
-    /// Schedulers with independently journaled work should call
-    /// [`Self::evaluate_admission`] and [`Self::evaluate_find`] separately.
+    /// Convenience for a local worker that evaluates admission once and then
+    /// every unique semantic question against the same materialized case.
     pub(crate) fn classify<R: RelationalExpressionRuntime>(
         &self,
         source: &SourceRow,
         case: &RelationalConcreteCase,
+        questions: &RelationalQuestionEvaluationPlan,
         runtime: &mut R,
     ) -> Result<RelationalCaseClassification, RelationalCaseExecutorError> {
         let admission = self.evaluate_admission(source, case, runtime)?;
-        let selection = self.evaluate_find(source, case, &admission, runtime)?;
+        let question_classifications =
+            self.evaluate_questions(source, case, &admission, questions, runtime)?;
         Ok(RelationalCaseClassification {
             admission,
-            selection,
+            questions: question_classifications,
         })
     }
 
@@ -1251,6 +1445,14 @@ pub(crate) enum RelationalCaseExecutorError {
         admission_case_id: RelationalCaseId,
         case_id: RelationalCaseId,
     },
+    QuestionCountMismatch {
+        finds: usize,
+        question_ids: usize,
+    },
+    QuestionAliasPolarityMismatch {
+        question_id: QuestionId,
+    },
+    QuestionPlanMismatch,
     DurableCaseMismatch {
         case_id: RelationalCaseId,
     },
@@ -1316,6 +1518,19 @@ impl fmt::Display for RelationalCaseExecutorError {
             Self::AdmissionCaseMismatch { .. } => {
                 formatter.write_str("admission evidence belongs to a different case")
             }
+            Self::QuestionCountMismatch {
+                finds,
+                question_ids,
+            } => write!(
+                formatter,
+                "question identity count {question_ids} does not match authored FIND count {finds}"
+            ),
+            Self::QuestionAliasPolarityMismatch { question_id } => write!(
+                formatter,
+                "equivalent FIND aliases for question {question_id:?} disagree on polarity"
+            ),
+            Self::QuestionPlanMismatch => formatter
+                .write_str("question evaluation plan does not belong to this checked query"),
             Self::DurableCaseMismatch { .. } => formatter
                 .write_str("durable case does not match the re-evaluated singleton transition"),
             Self::CaseRelationMismatch => {
@@ -1385,8 +1600,9 @@ impl Error for RelationalCaseExecutorError {
 
 #[cfg(test)]
 mod tests {
+    use super::super::relation::RelationCatalogBuilder;
     use super::super::relational_ir::{
-        ExploreAdmissionIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
+        ExploreAdmissionIr, ExploreNamedFindIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
         ExploreSourceBindingRoleIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
         ExploreSuccessorRelationIr,
     };
@@ -1517,13 +1733,25 @@ mod tests {
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),
-            find,
+            finds: vec![ExploreNamedFindIr {
+                name: "cases".to_string(),
+                find,
+            }]
+            .into_boxed_slice(),
             analysis: Box::new([]),
             observation_demands: Box::new([]),
             starter_projections: Box::new([]),
             transition_graphs: Box::new([]),
             span: Span::dummy(),
         }
+    }
+
+    fn question_id(relation_id: RelationId, tag: u8, polarity: FindPolarity) -> QuestionId {
+        let admission_id = super::super::relation::AdmissionId::from_canonical_admission_digest(
+            relation_id,
+            [0xA5; 32],
+        );
+        QuestionId::from_canonical_find_digest(admission_id, [tag; 32], polarity)
     }
 
     fn admission(
@@ -1757,15 +1985,19 @@ mod tests {
         );
         let (source, case) = first_case(relation_id, &rejected_query);
         let executor = RelationalCaseExecutor::new(relation_id, &rejected_query).unwrap();
+        let rejected_question_id = question_id(relation_id, 1, FindPolarity::Matches);
+        let rejected_questions = executor
+            .question_evaluation_plan(&[rejected_question_id])
+            .unwrap();
         let mut runtime = TestRuntime::default();
         let rejected = executor
             .evaluate_admission(&source, &case, &mut runtime)
             .unwrap();
         assert_eq!(rejected.decision(), AdmissionDecision::Rejected);
         assert!(executor
-            .evaluate_find(&source, &case, &rejected, &mut runtime)
+            .evaluate_questions(&source, &case, &rejected, &rejected_questions, &mut runtime,)
             .unwrap()
-            .is_none());
+            .is_empty());
         assert!(matches!(
             rejected.event(),
             RelationalJournalEvent::Evidence(
@@ -1806,19 +2038,164 @@ mod tests {
                 SelectionDecision::NotSelected,
             ),
         ];
-        for (find, expected) in cases {
+        for (tag, (find, expected)) in cases.into_iter().enumerate() {
+            let polarity = find.polarity();
             let query = query(
                 ExploreSuccessorKindIr::Singleton { value: int(11) },
                 vec![],
                 find,
             );
             let executor = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+            let question_id = question_id(relation_id, tag as u8 + 2, polarity);
+            let questions = executor.question_evaluation_plan(&[question_id]).unwrap();
             let mut runtime = TestRuntime::default();
-            let classified = executor.classify(&source, &case, &mut runtime).unwrap();
+            let classified = executor
+                .classify(&source, &case, &questions, &mut runtime)
+                .unwrap();
             assert_eq!(classified.admission(), AdmissionDecision::Admitted);
-            assert_eq!(classified.selection(), Some(expected));
-            assert!(classified.selection_event().is_some());
+            assert_eq!(classified.question_decision(question_id), Some(expected));
+            assert_eq!(classified.question_events().len(), 1);
         }
+    }
+
+    #[test]
+    fn plural_questions_share_one_case_and_collapse_semantic_aliases() {
+        let relation_id = RelationId::from_canonical_semantic_preimage(b"plural-questions");
+        let mut query = query(
+            ExploreSuccessorKindIr::Singleton { value: int(11) },
+            vec![],
+            ExploreFindIr::Matches {
+                predicate: boolean(true),
+                span: Span::dummy(),
+            },
+        );
+        query.finds = vec![
+            ExploreNamedFindIr {
+                name: "positive".to_string(),
+                find: ExploreFindIr::Matches {
+                    predicate: boolean(true),
+                    span: Span::dummy(),
+                },
+            },
+            ExploreNamedFindIr {
+                name: "positive_alias".to_string(),
+                find: ExploreFindIr::Matches {
+                    predicate: boolean(true),
+                    span: Span::dummy(),
+                },
+            },
+            ExploreNamedFindIr {
+                name: "violations".to_string(),
+                find: ExploreFindIr::Violations {
+                    predicate: boolean(true),
+                    span: Span::dummy(),
+                },
+            },
+        ]
+        .into_boxed_slice();
+        let positive = question_id(relation_id, 21, FindPolarity::Matches);
+        let violations = question_id(relation_id, 22, FindPolarity::Violations);
+        let executor = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+        let questions = executor
+            .question_evaluation_plan(&[positive, positive, violations])
+            .unwrap();
+        assert_eq!(questions.unique_question_count(), 2);
+        let planned_question_ids = questions.question_ids().collect::<Vec<_>>();
+        assert!(planned_question_ids
+            .windows(2)
+            .all(|pair| pair[0] < pair[1]));
+
+        let (source, case) = first_case(relation_id, &query);
+        let mut runtime = TestRuntime::default();
+        let classified = executor
+            .classify(&source, &case, &questions, &mut runtime)
+            .unwrap();
+
+        assert_eq!(classified.admission(), AdmissionDecision::Admitted);
+        assert_eq!(
+            classified.question_decision(positive),
+            Some(SelectionDecision::Selected)
+        );
+        assert_eq!(
+            classified.question_decision(violations),
+            Some(SelectionDecision::NotSelected)
+        );
+        assert_eq!(classified.question_evidence().len(), 2);
+        assert_eq!(runtime.evaluations, 2);
+    }
+
+    #[test]
+    fn zero_questions_classify_accepted_and_rejected_cases_without_find_evidence() {
+        let relation_id = RelationId::from_canonical_semantic_preimage(b"zero-questions");
+        let fixtures = [
+            (Vec::new(), AdmissionDecision::Admitted, 0),
+            (vec![false], AdmissionDecision::Rejected, 1),
+        ];
+
+        for (admissions, expected_admission, expected_evaluations) in fixtures {
+            let mut query = query(
+                ExploreSuccessorKindIr::Singleton { value: int(11) },
+                admissions,
+                ExploreFindIr::All {
+                    span: Span::dummy(),
+                },
+            );
+            query.finds = Box::new([]);
+            let (source, case) = first_case(relation_id, &query);
+            let executor = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+            let questions = executor.question_evaluation_plan(&[]).unwrap();
+            assert_eq!(questions.unique_question_count(), 0);
+            assert_eq!(questions.question_ids().len(), 0);
+
+            let mut runtime = TestRuntime::default();
+            let classified = executor
+                .classify(&source, &case, &questions, &mut runtime)
+                .unwrap();
+            assert_eq!(classified.admission(), expected_admission);
+            assert!(classified.question_evidence().is_empty());
+            assert_eq!(classified.question_events().len(), 0);
+            assert_eq!(runtime.evaluations, expected_evaluations);
+        }
+    }
+
+    #[test]
+    fn foreign_addressed_question_fails_before_rejected_case_short_circuit() {
+        let relation_id =
+            RelationId::from_canonical_semantic_preimage(b"foreign-addressed-question");
+        let query = query(
+            ExploreSuccessorKindIr::Singleton { value: int(11) },
+            vec![],
+            ExploreFindIr::Matches {
+                predicate: boolean(true),
+                span: Span::dummy(),
+            },
+        );
+        let (source, case) = first_case(relation_id, &query);
+        let executor = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+        let local = question_id(relation_id, 31, FindPolarity::Matches);
+        let foreign = question_id(relation_id, 32, FindPolarity::Matches);
+        let questions = executor.question_evaluation_plan(&[local]).unwrap();
+
+        let mut catalog = RelationCatalogBuilder::new(relation_id);
+        let source_key = catalog.insert_source(source).unwrap();
+        let (_, catalog_case_id) = catalog
+            .insert_successor(source_key, case.successor().clone())
+            .unwrap();
+        assert_eq!(catalog_case_id, case.case_id());
+        let catalog_case = catalog.case(catalog_case_id).unwrap();
+
+        let mut runtime = TestRuntime::default();
+        assert_eq!(
+            executor.evaluate_catalog_question(
+                catalog_case,
+                AdmissionDecision::Rejected,
+                &questions,
+                foreign,
+                &mut runtime,
+            ),
+            Err(RelationalCaseExecutorError::QuestionPlanMismatch)
+        );
+        assert_eq!(runtime.evaluations, 0);
     }
 
     #[test]
@@ -1840,10 +2217,17 @@ mod tests {
         .into_boxed_slice();
         let (source, case) = first_case(relation_id, &query);
         let executor = RelationalCaseExecutor::new(relation_id, &query).unwrap();
+        let question_id = question_id(relation_id, 9, FindPolarity::Matches);
+        let questions = executor.question_evaluation_plan(&[question_id]).unwrap();
         let mut runtime = TestRuntime::default();
 
-        let classified = executor.classify(&source, &case, &mut runtime).unwrap();
-        assert_eq!(classified.selection(), Some(SelectionDecision::Selected));
+        let classified = executor
+            .classify(&source, &case, &questions, &mut runtime)
+            .unwrap();
+        assert_eq!(
+            classified.question_decision(question_id),
+            Some(SelectionDecision::Selected)
+        );
         assert_eq!(
             runtime.seen_bindings,
             vec![

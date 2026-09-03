@@ -30,11 +30,12 @@ use super::relation::{
     SourceKey,
 };
 use super::relational_case_executor::{
-    RelationalCaseExecutor, RelationalCaseExecutorError, RelationalSingletonTransition,
-    RelationalSuccessorAdvance, SuccessorFiberExhaustionReceiptId,
+    RelationalCaseExecutor, RelationalCaseExecutorError, RelationalQuestionEvaluationPlan,
+    RelationalSingletonTransition, RelationalSuccessorAdvance, SuccessorFiberExhaustionReceiptId,
 };
 use super::relational_classification_capsule::{
-    ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
+    ClassificationProvenanceRoot, ClassificationSpecializationRoot,
+    FrozenClassificationQuestionSet, RelationalClassificationCapsule,
 };
 use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_classified_sweep::{
@@ -81,6 +82,11 @@ const DEFAULT_COMPLETED_WORK_COMPACTION_TRIGGER: NonZeroU32 =
     NonZeroU32::new(8_192).expect("the default work compaction trigger is nonzero");
 const DEFAULT_MAX_COMPACTION_NODES: NonZeroU32 =
     NonZeroU32::new(4_096).expect("the default work compaction batch is nonzero");
+// Fused singleton-source work is an optimization, not permission to build an
+// unbounded event vector. The estimate charges every semantic question plus
+// the fixed case/admission/successor bookkeeping emitted for one member.
+const MAX_FUSED_EVENTS_PER_QUANTUM: usize = 4_096;
+const FUSED_EVENTS_PER_MEMBER_OVERHEAD: usize = 8;
 
 /// What one invocation accomplished. This is presentation metadata only; it
 /// is not hashed into the journal or any answer identity.
@@ -114,6 +120,7 @@ pub(crate) enum RelationalStepQuantum {
         first_member_ordinal: u128,
         member_count: NonZeroU16,
         fused_singleton_member_count: u16,
+        fused_question_event_count: u128,
     },
     SourceMembersAndBindingExhaustion {
         node_id: WorkNodeId,
@@ -121,6 +128,7 @@ pub(crate) enum RelationalStepQuantum {
         first_member_ordinal: u128,
         member_count: NonZeroU16,
         fused_singleton_member_count: u16,
+        fused_question_event_count: u128,
         receipt_id: SourceBindingExhaustionReceiptId,
     },
     SourceBindingExhaustion {
@@ -155,6 +163,7 @@ pub(crate) enum RelationalStepQuantum {
     },
     Find {
         node_id: WorkNodeId,
+        question_id: QuestionId,
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     },
@@ -198,6 +207,13 @@ impl RelationalStepBatch {
 /// A non-progress result deliberately stops short of claiming a result view,
 /// mechanism target, or extensional relation root.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct RelationalConcreteQuestionCount {
+    pub(crate) question_id: QuestionId,
+    pub(crate) classified_cases: u128,
+    pub(crate) selected_cases: u128,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalConcreteQuiescence {
     /// Exact support already closes the requested logical population. The
     /// analysis layer may turn these typed roots into its own upstream receipt;
@@ -213,7 +229,7 @@ pub(crate) enum RelationalConcreteQuiescence {
     ConcreteBaseClassified {
         cases: u128,
         admitted: u128,
-        selected: u128,
+        question_counts: Box<[RelationalConcreteQuestionCount]>,
     },
 }
 
@@ -232,7 +248,8 @@ pub(crate) enum RelationalStepOutcome {
 pub(crate) struct RelationalStepDriver<'query> {
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
+    question_evaluation_plan: RelationalQuestionEvaluationPlan,
     state_schema_id: StateSchemaId,
     context_schema_id: ContextSchemaId,
     transition_type_id: TransitionTypeId,
@@ -358,10 +375,19 @@ impl<'query> RelationalStepDriver<'query> {
             .closed_query
             .validate()
             .map_err(RelationalStepDriverError::InvalidQuery)?;
+        let cases = RelationalCaseExecutor::new(checked.relation_id(), checked.closed_query)?;
+        let question_evaluation_plan = cases.checked_question_evaluation_plan(checked)?;
+        let question_ids = checked.question_ids().to_vec().into_boxed_slice();
+        if !question_evaluation_plan
+            .question_ids()
+            .eq(question_ids.iter().copied())
+        {
+            return Err(RelationalStepDriverError::SupportPlanScopeMismatch);
+        }
         if !support_plan.validate_root()
             || support_plan.relation_id() != checked.relation_id()
             || support_plan.admission_id() != checked.admission_id()
-            || support_plan.question_id() != checked.question_id()
+            || support_plan.question_ids() != question_ids.as_ref()
         {
             return Err(RelationalStepDriverError::SupportPlanScopeMismatch);
         }
@@ -383,19 +409,27 @@ impl<'query> RelationalStepDriver<'query> {
                     count != 0
                         && count <= RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1 / 6
                 });
-        let classified_sweep =
-            if support.has_case_chunk_partition() && !full_transition_materialization_requested {
-                Some(
-                    RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
-                        checked,
-                        support_plan,
-                        native_classifier.clone(),
-                        classification_evaluator,
-                    )?,
-                )
-            } else {
-                None
-            };
+        let singleton_question = question_ids.len() == 1;
+        let native_classifier = if singleton_question {
+            native_classifier
+        } else {
+            None
+        };
+        let classified_sweep = if singleton_question
+            && support.has_case_chunk_partition()
+            && !full_transition_materialization_requested
+        {
+            Some(
+                RelationalClassifiedSweepStepDriver::from_checked_with_classification_backends(
+                    checked,
+                    support_plan,
+                    native_classifier.clone(),
+                    classification_evaluator,
+                )?,
+            )
+        } else {
+            None
+        };
         let selected_runs = if classified_sweep.is_some() {
             Some(RelationalSelectedRunStepDriver::from_checked(
                 checked,
@@ -404,10 +438,19 @@ impl<'query> RelationalStepDriver<'query> {
         } else {
             None
         };
+        let fused_events_per_member = question_ids
+            .len()
+            .saturating_add(FUSED_EVENTS_PER_MEMBER_OVERHEAD);
+        let fuses_singleton_source_members = matches!(
+            &checked.closed_query.successor.kind,
+            ExploreSuccessorKindIr::Singleton { .. }
+        ) && fused_events_per_member
+            <= MAX_FUSED_EVENTS_PER_QUANTUM;
         Ok(Self {
             relation_id: checked.relation_id(),
             admission_id: checked.admission_id(),
-            question_id: checked.question_id(),
+            question_ids,
+            question_evaluation_plan,
             state_schema_id: checked.transition_schemas().state_schema_id(),
             context_schema_id: checked.transition_schemas().context_schema_id(),
             transition_type_id: checked.transition_schemas().transition_type_id(),
@@ -419,11 +462,8 @@ impl<'query> RelationalStepDriver<'query> {
                 checked.relation_id(),
                 &checked.closed_query.source,
             )?,
-            cases: RelationalCaseExecutor::new(checked.relation_id(), checked.closed_query)?,
-            fuses_singleton_source_members: matches!(
-                &checked.closed_query.successor.kind,
-                ExploreSuccessorKindIr::Singleton { .. }
-            ),
+            cases,
+            fuses_singleton_source_members,
             native_classifier,
             classification_evaluator,
             full_transition_materialization_requested,
@@ -501,10 +541,16 @@ impl<'query> RelationalStepDriver<'query> {
             }
         }
 
+        // Certified support artifacts currently close exactly one semantic
+        // question. Zero- and plural-question explores use the shared concrete
+        // relation/admission path until the support protocol itself becomes
+        // question-indexed; they must never reinterpret one question as the
+        // primary population for the whole run.
+        let certified_support_is_applicable = self.question_ids.len() == 1;
         let defer_symbolic_support = self.full_transition_materialization_requested
             && !view.support_catalog_is_sealed()
-            && !view.concrete_base_is_classified();
-        if !defer_symbolic_support {
+            && !self.concrete_base_is_classified(view)?;
+        if certified_support_is_applicable && !defer_symbolic_support {
             match self.support.step(view)? {
                 RelationalSupportStepOutcome::Emitted(batch) => {
                     debug_assert_eq!(batch.expected_sequence(), view.sequence());
@@ -527,7 +573,8 @@ impl<'query> RelationalStepDriver<'query> {
         // particular, a statically exact-empty case population reaches this
         // branch immediately after support-plan registration and never mints
         // a synthetic CaseId or an extensional relation claim.
-        if view.support_catalog_is_sealed()
+        if certified_support_is_applicable
+            && view.support_catalog_is_sealed()
             && !(self.full_transition_materialization_requested
                 && view.source_traversal_is_started())
         {
@@ -545,15 +592,18 @@ impl<'query> RelationalStepDriver<'query> {
         // in caller-bounded slices; support advances only when those slices
         // deterministically close one canonical chunk transcript.
         if let Some(classified_sweep) = &self.classified_sweep {
+            let [question_id] = self.question_ids.as_ref() else {
+                return Err(RelationalStepDriverError::InvalidOrderedClassification);
+            };
             // A concrete slice checkpoint owns its child until completion.
             // Otherwise the producer-owned capsule prover gets exactly one
             // chance to close the next whole canonical child before any case
             // in that child is evaluated.
-            if view.classified_chunk_accumulator().is_none() {
+            if view.classified_chunk_accumulator(*question_id)?.is_none() {
                 if let (Some(authority), Some(partition), Some(progress)) = (
                     journal.region_replay_authority(),
-                    view.verified_case_chunk_partition(),
-                    view.classified_sweep_progress(),
+                    view.verified_case_chunk_partition(*question_id)?,
+                    view.classified_sweep_progress(*question_id)?,
                 ) {
                     let chunk_ordinal = usize::try_from(progress.next_chunk_ordinal())
                         .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
@@ -639,7 +689,7 @@ impl<'query> RelationalStepDriver<'query> {
                     &node,
                     runtime,
                     if self.fuses_singleton_source_members {
-                        max_members_per_quantum
+                        self.fused_source_member_limit(max_members_per_quantum)
                     } else {
                         self.max_members_per_quantum
                     },
@@ -656,7 +706,7 @@ impl<'query> RelationalStepDriver<'query> {
             return Ok(RelationalStepOutcome::Emitted(outcome));
         }
 
-        if view.concrete_base_is_classified() {
+        if self.concrete_base_is_classified(view)? {
             // Peel every remaining completed DAG layer before presenting base
             // quiescence. The final checkpoint therefore scales with live
             // resumable work, not with the number of cases already classified.
@@ -667,7 +717,7 @@ impl<'query> RelationalStepDriver<'query> {
                 RelationalConcreteQuiescence::ConcreteBaseClassified {
                     cases: view.case_count() as u128,
                     admitted: view.admitted_count() as u128,
-                    selected: view.selected_count() as u128,
+                    question_counts: self.concrete_question_counts(view)?,
                 },
             ));
         }
@@ -773,7 +823,7 @@ impl<'query> RelationalStepDriver<'query> {
         let contract = view.contract();
         if contract.relation_id() != self.relation_id
             || contract.admission_id() != self.admission_id
-            || contract.question_id() != self.question_id
+            || contract.question_ids() != self.question_ids.as_ref()
             || contract.state_schema_id() != self.state_schema_id
             || contract.context_schema_id() != self.context_schema_id
             || contract.transition_type_id() != self.transition_type_id
@@ -781,6 +831,59 @@ impl<'query> RelationalStepDriver<'query> {
             return Err(RelationalStepDriverError::JournalScopeMismatch);
         }
         Ok(())
+    }
+
+    fn concrete_base_is_classified(
+        &self,
+        view: RelationalSchedulerView<'_>,
+    ) -> Result<bool, RelationalStepDriverError> {
+        if !view.relation_enumeration_is_complete()
+            || view.admission_decision_count() != view.case_count()
+        {
+            return Ok(false);
+        }
+        for question_id in self.question_ids.iter().copied() {
+            if view.question_decision_count(question_id)? != view.admitted_count() {
+                return Ok(false);
+            }
+        }
+        Ok(true)
+    }
+
+    fn concrete_question_counts(
+        &self,
+        view: RelationalSchedulerView<'_>,
+    ) -> Result<Box<[RelationalConcreteQuestionCount]>, RelationalStepDriverError> {
+        self.question_ids
+            .iter()
+            .copied()
+            .map(|question_id| {
+                Ok(RelationalConcreteQuestionCount {
+                    question_id,
+                    classified_cases: view.question_decision_count(question_id)? as u128,
+                    selected_cases: view.selected_count(question_id)? as u128,
+                })
+            })
+            .collect::<Result<Vec<_>, RelationalStepDriverError>>()
+            .map(Vec::into_boxed_slice)
+    }
+
+    fn fused_source_member_limit(&self, requested: NonZeroU16) -> NonZeroU16 {
+        let estimated_events_per_member = self
+            .question_ids
+            .len()
+            .saturating_add(FUSED_EVENTS_PER_MEMBER_OVERHEAD);
+        let event_bounded_members = MAX_FUSED_EVENTS_PER_QUANTUM
+            .checked_div(estimated_events_per_member)
+            .unwrap_or(0)
+            .max(1)
+            .min(usize::from(u16::MAX));
+        NonZeroU16::new(
+            requested
+                .get()
+                .min(u16::try_from(event_bounded_members).expect("member limit fits u16")),
+        )
+        .expect("requested and event-bounded member limits are nonzero")
     }
 
     fn seed_root_if_absent(
@@ -842,6 +945,7 @@ impl<'query> RelationalStepDriver<'query> {
         let first_member_ordinal = cursor.next_member_ordinal();
         let mut member_count = 0u16;
         let mut fused_singleton_member_count = 0u16;
+        let mut fused_question_event_count = 0u128;
         let mut events = Vec::new();
         let mut pending_work_ids = BTreeSet::new();
         let mut fused_source_keys = BTreeSet::new();
@@ -897,16 +1001,23 @@ impl<'query> RelationalStepDriver<'query> {
                                         view,
                                         &pending_work_ids,
                                         self.admission_id,
-                                        self.question_id,
+                                        &self.question_ids,
                                         transition.case_id(),
                                     )? {
-                                        self.append_fused_singleton_transition(
-                                            view,
-                                            &mut events,
-                                            &source,
-                                            transition,
-                                            runtime,
-                                        )?;
+                                        let question_classification_count = self
+                                            .append_fused_singleton_transition(
+                                                view,
+                                                &mut events,
+                                                &source,
+                                                transition,
+                                                runtime,
+                                            )?;
+                                        fused_question_event_count =
+                                            fused_question_event_count
+                                                .checked_add(question_classification_count)
+                                                .ok_or(
+                                                    RelationalStepDriverError::ClassificationCountOverflow,
+                                                )?;
                                         fused_source_keys.insert(source_key);
                                         fused = true;
                                     }
@@ -1013,6 +1124,7 @@ impl<'query> RelationalStepDriver<'query> {
                     first_member_ordinal,
                     member_count,
                     fused_singleton_member_count,
+                    fused_question_event_count,
                     receipt_id,
                 },
                 events,
@@ -1034,6 +1146,7 @@ impl<'query> RelationalStepDriver<'query> {
                 first_member_ordinal,
                 member_count,
                 fused_singleton_member_count,
+                fused_question_event_count,
             },
             events,
         ))
@@ -1046,8 +1159,9 @@ impl<'query> RelationalStepDriver<'query> {
         source: &super::relational_executor::RelationalCompletedSource,
         transition: RelationalSingletonTransition,
         runtime: &mut R,
-    ) -> Result<(), RelationalStepDriverError> {
+    ) -> Result<u128, RelationalStepDriverError> {
         let (case, receipt) = transition.into_parts();
+        let case_id = case.case_id();
         match view.case(case.case_id()) {
             Some(durable) => self
                 .cases
@@ -1055,54 +1169,52 @@ impl<'query> RelationalStepDriver<'query> {
             None => events.push(case.discovered_event()),
         }
 
+        let mut every_question_is_unclassified = true;
+        for question_id in self.question_ids.iter().copied() {
+            every_question_is_unclassified &=
+                view.question_decision(question_id, case_id)?.is_none();
+        }
+
         // Accelerators are used only for a completely unclassified concrete
         // case. If a crash prefix already contains either decision, the
         // ordinary checked leaf path below resumes it instead of risking a
         // conflict between durable and accelerator-produced outcomes.
-        if view.admission_decision(case.case_id()).is_none()
-            && view.question_decision(case.case_id()).is_none()
-        {
+        if view.admission_decision(case_id).is_none() && every_question_is_unclassified {
             let native = self
                 .native_classifier
                 .as_ref()
                 .filter(|native| native.is_enabled());
-            if native.is_some() || self.classification_evaluator.is_some() {
+            if let Some(native) = native {
+                let [question_id] = self.question_ids.as_ref() else {
+                    return Err(RelationalStepDriverError::InvalidOrderedClassification);
+                };
                 let subject = RelationalOrderedClassificationSubject::new(source, &case);
                 let subjects = [subject];
-                let mut checked = RelationalCheckedClassificationContext::new(&self.cases, runtime);
-                let outcomes = if let Some(native) = native {
-                    // Native owns the first-batch parity canary and falls the
-                    // whole case back to this checked context if it becomes
-                    // unavailable. Its sticky disable then lets later cases
-                    // proceed directly to the capsule below.
-                    let mut backend =
-                        RelationalNativeClassifierFallbackBackendV2::new(native.clone());
-                    backend.classify_ordered_batch(&subjects, &mut checked)?
-                } else if let Some(classification_evaluator) = self.classification_evaluator {
-                    match classification_evaluator.try_borrow_mut() {
-                        Ok(mut backend) => {
-                            backend.classify_ordered_batch(&subjects, &mut checked)?
-                        }
-                        // A borrow conflict is operational only. Reclassify
-                        // the entire singleton through the checked host before
-                        // producing either decision event.
-                        Err(_) => vec![checked.classify(subject)?].into_boxed_slice(),
-                    }
-                } else {
-                    unreachable!("an enabled accelerator was required above")
-                };
+                let mut checked = RelationalCheckedClassificationContext::new(
+                    &self.cases,
+                    &self.question_evaluation_plan,
+                    runtime,
+                )?;
+                // Native classification remains a deliberately singleton-only
+                // accelerator. It may fall back only to the same one semantic
+                // question; plural queries never enter this branch.
+                let mut backend = RelationalNativeClassifierFallbackBackendV2::new(native.clone());
+                let outcomes = backend.classify_ordered_batch(&subjects, &mut checked)?;
                 let [outcome] = outcomes.as_ref() else {
                     return Err(RelationalStepDriverError::InvalidOrderedClassification);
                 };
                 events.push(RelationalJournalEvent::admission_classified(
-                    case.case_id(),
+                    case_id,
                     outcome.admission(),
                 ));
+                let mut question_classification_count = 0u128;
                 if let Some(selection) = outcome.selection() {
                     events.push(RelationalJournalEvent::question_classified(
-                        case.case_id(),
+                        *question_id,
+                        case_id,
                         selection,
                     ));
+                    question_classification_count = 1;
                 }
                 events.push(RelationalJournalEvent::successor_fiber_exhaustion_accepted(
                     receipt.clone(),
@@ -1110,11 +1222,58 @@ impl<'query> RelationalStepDriver<'query> {
                 events.push(RelationalJournalEvent::successor_enumeration_sealed(
                     &receipt,
                 ));
-                return Ok(());
+                return Ok(question_classification_count);
+            }
+
+            if let Some(classification_evaluator) = self.classification_evaluator {
+                let subject = RelationalOrderedClassificationSubject::new(source, &case);
+                let subjects = [subject];
+                let outcomes =
+                    classification_evaluator
+                        .try_borrow_mut()
+                        .ok()
+                        .and_then(|mut backend| {
+                            backend.classify_ordered_question_batch(&subjects).ok()
+                        });
+                if let Some(outcomes) = outcomes {
+                    let [outcome] = outcomes.as_ref() else {
+                        return Err(RelationalStepDriverError::InvalidOrderedClassification);
+                    };
+                    let valid_questions = match outcome.admission() {
+                        AdmissionDecision::Rejected => outcome.questions().is_empty(),
+                        AdmissionDecision::Admitted => outcome
+                            .questions()
+                            .iter()
+                            .map(|question| question.question_id())
+                            .eq(self.question_ids.iter().copied()),
+                    };
+                    if !valid_questions {
+                        return Err(RelationalStepDriverError::InvalidOrderedClassification);
+                    }
+                    events.push(RelationalJournalEvent::admission_classified(
+                        case_id,
+                        outcome.admission(),
+                    ));
+                    for question in outcome.questions() {
+                        events.push(RelationalJournalEvent::question_classified(
+                            question.question_id(),
+                            case_id,
+                            question.decision(),
+                        ));
+                    }
+                    let question_classification_count = outcome.questions().len() as u128;
+                    events.push(RelationalJournalEvent::successor_fiber_exhaustion_accepted(
+                        receipt.clone(),
+                    ));
+                    events.push(RelationalJournalEvent::successor_enumeration_sealed(
+                        &receipt,
+                    ));
+                    return Ok(question_classification_count);
+                }
             }
         }
 
-        let admission = match view.admission_decision(case.case_id()) {
+        let admission = match view.admission_decision(case_id) {
             Some(decision) => decision,
             None => {
                 let classification = self
@@ -1125,28 +1284,52 @@ impl<'query> RelationalStepDriver<'query> {
                 decision
             }
         };
+        let mut question_classification_count = 0u128;
         match admission {
             AdmissionDecision::Admitted => {
-                if view.question_decision(case.case_id()).is_none() {
-                    let classification = self
-                        .cases
-                        .evaluate_find_for_admission_decision(
-                            source.row(),
-                            &case,
-                            admission,
-                            runtime,
-                        )?
-                        .ok_or(RelationalStepDriverError::FindClassificationMissing(
-                            case.case_id(),
-                        ))?;
-                    events.push(classification.event());
+                let mut has_missing_question = false;
+                for question_id in self.question_ids.iter().copied() {
+                    has_missing_question |= view.question_decision(question_id, case_id)?.is_none();
+                }
+                if has_missing_question {
+                    let classifications = self.cases.evaluate_questions_for_admission_decision(
+                        source.row(),
+                        &case,
+                        admission,
+                        &self.question_evaluation_plan,
+                        runtime,
+                    )?;
+                    if classifications
+                        .iter()
+                        .map(|classification| classification.question_id())
+                        .ne(self.question_ids.iter().copied())
+                    {
+                        return Err(RelationalStepDriverError::InvalidOrderedClassification);
+                    }
+                    for classification in classifications.iter() {
+                        match view.question_decision(classification.question_id(), case_id)? {
+                            Some(decision) if decision != classification.decision() => {
+                                return Err(
+                                    RelationalStepDriverError::InvalidOrderedClassification,
+                                );
+                            }
+                            Some(_) => {}
+                            None => {
+                                events.push(classification.event());
+                                question_classification_count =
+                                    question_classification_count.checked_add(1).ok_or(
+                                        RelationalStepDriverError::ClassificationCountOverflow,
+                                    )?;
+                            }
+                        }
+                    }
                 }
             }
             AdmissionDecision::Rejected => {
-                if view.question_decision(case.case_id()).is_some() {
-                    return Err(RelationalStepDriverError::QuestionForRejectedCase(
-                        case.case_id(),
-                    ));
+                for question_id in self.question_ids.iter().copied() {
+                    if view.question_decision(question_id, case_id)?.is_some() {
+                        return Err(RelationalStepDriverError::QuestionForRejectedCase(case_id));
+                    }
                 }
             }
         }
@@ -1157,7 +1340,7 @@ impl<'query> RelationalStepDriver<'query> {
         events.push(RelationalJournalEvent::successor_enumeration_sealed(
             &receipt,
         ));
-        Ok(())
+        Ok(question_classification_count)
     }
 
     fn step_successor<R: RelationalExpressionRuntime>(
@@ -1356,18 +1539,14 @@ impl<'query> RelationalStepDriver<'query> {
         }
         if decision == AdmissionDecision::Admitted {
             let readiness_id = case_readiness_id(*case_id)?;
-            let find_spec = WorkNodeSpec::EvaluateFind {
-                question_id: self.question_id,
-                case_id: *case_id,
-            };
-            let find_id =
-                RelationalWorkFrontier::derive_node_id(&find_spec, [readiness_id, node.id])?;
-            if view.work_node(find_id).is_none() {
-                events.push(RelationalJournalEvent::work_node_inserted(
-                    find_spec,
-                    [readiness_id, node.id],
-                )?);
-            }
+            self.append_one_missing_question_work(
+                view,
+                &mut events,
+                *case_id,
+                readiness_id,
+                node.id,
+                None,
+            )?;
         }
         // The dependent FIND node may be declared while this node is open;
         // only its execution waits for the completion below.
@@ -1403,7 +1582,7 @@ impl<'query> RelationalStepDriver<'query> {
         else {
             return Err(RelationalStepDriverError::UnexpectedWorkKind);
         };
-        if *question_id != self.question_id {
+        if self.question_ids.binary_search(question_id).is_err() {
             return Err(RelationalStepDriverError::JournalScopeMismatch);
         }
         let admission = view.admission_decision(*case_id);
@@ -1415,13 +1594,19 @@ impl<'query> RelationalStepDriver<'query> {
         let case = view
             .case(*case_id)
             .ok_or(RelationalStepDriverError::UnknownCase(*case_id))?;
-        let durable = view.question_decision(*case_id);
+        let durable = view.question_decision(*question_id, *case_id)?;
         let (decision, evidence_event) = match durable {
             Some(decision) => (decision, None),
             None => {
                 let classification = self
                     .cases
-                    .evaluate_catalog_find(case, AdmissionDecision::Admitted, runtime)?
+                    .evaluate_catalog_question(
+                        case,
+                        AdmissionDecision::Admitted,
+                        &self.question_evaluation_plan,
+                        *question_id,
+                        runtime,
+                    )?
                     .ok_or(RelationalStepDriverError::FindClassificationMissing(
                         *case_id,
                     ))?;
@@ -1429,14 +1614,32 @@ impl<'query> RelationalStepDriver<'query> {
             }
         };
 
-        let mut events = Vec::with_capacity(2);
+        let mut events = Vec::with_capacity(3);
         if let Some(event) = evidence_event {
             events.push(event);
         }
+        let readiness_id = case_readiness_id(*case_id)?;
+        let admission_spec = WorkNodeSpec::EvaluateAdmission {
+            admission_id: self.admission_id,
+            case_id: *case_id,
+        };
+        let admission_id = RelationalWorkFrontier::derive_node_id(&admission_spec, [readiness_id])?;
+        self.append_one_missing_question_work(
+            view,
+            &mut events,
+            *case_id,
+            readiness_id,
+            admission_id,
+            Some(*question_id),
+        )?;
+        // The next missing question must be durable before this work node can
+        // disappear. Journal batches may recover from any accepted proper
+        // prefix; completing first could otherwise strand a plural case with
+        // no runnable leaf after a crash.
         events.push(RelationalJournalEvent::work_node_completed(
             node.id,
             WorkCompletionRef::FindDecided {
-                question_id: self.question_id,
+                question_id: *question_id,
                 case_id: *case_id,
                 decision,
             },
@@ -1445,11 +1648,48 @@ impl<'query> RelationalStepDriver<'query> {
             view,
             RelationalStepQuantum::Find {
                 node_id: node.id,
+                question_id: *question_id,
                 case_id: *case_id,
                 decision,
             },
             events,
         ))
+    }
+
+    fn append_one_missing_question_work(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        events: &mut Vec<RelationalJournalEvent>,
+        case_id: RelationalCaseId,
+        readiness_id: WorkNodeId,
+        admission_work_id: WorkNodeId,
+        exclude: Option<QuestionId>,
+    ) -> Result<(), RelationalStepDriverError> {
+        for question_id in self.question_ids.iter().copied() {
+            if Some(question_id) == exclude
+                || view.question_decision(question_id, case_id)?.is_some()
+            {
+                continue;
+            }
+            let find_spec = WorkNodeSpec::EvaluateFind {
+                question_id,
+                case_id,
+            };
+            let find_id = RelationalWorkFrontier::derive_node_id(
+                &find_spec,
+                [readiness_id, admission_work_id],
+            )?;
+            if view.work_node(find_id).is_none() {
+                events.push(RelationalJournalEvent::work_node_inserted(
+                    find_spec,
+                    [readiness_id, admission_work_id],
+                )?);
+            }
+            // An existing node already owns this missing decision. Do not fan
+            // out later siblings in the same quantum.
+            break;
+        }
+        Ok(())
     }
 
     fn batch(
@@ -1542,7 +1782,7 @@ fn legacy_case_path_is_open(
     view: RelationalSchedulerView<'_>,
     pending_work_ids: &BTreeSet<WorkNodeId>,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_ids: &[QuestionId],
     case_id: RelationalCaseId,
 ) -> Result<bool, RelationalStepDriverError> {
     let readiness_id = case_readiness_id(case_id)?;
@@ -1552,17 +1792,23 @@ fn legacy_case_path_is_open(
     };
     let admission_work_id =
         RelationalWorkFrontier::derive_node_id(&admission_spec, [readiness_id])?;
-    let find_spec = WorkNodeSpec::EvaluateFind {
-        question_id,
-        case_id,
-    };
-    let find_work_id =
-        RelationalWorkFrontier::derive_node_id(&find_spec, [readiness_id, admission_work_id])?;
-    Ok(
-        work_is_pending_or_open(view, pending_work_ids, readiness_id)
-            || work_is_pending_or_open(view, pending_work_ids, admission_work_id)
-            || work_is_pending_or_open(view, pending_work_ids, find_work_id),
-    )
+    if work_is_pending_or_open(view, pending_work_ids, readiness_id)
+        || work_is_pending_or_open(view, pending_work_ids, admission_work_id)
+    {
+        return Ok(true);
+    }
+    for question_id in question_ids.iter().copied() {
+        let find_spec = WorkNodeSpec::EvaluateFind {
+            question_id,
+            case_id,
+        };
+        let find_work_id =
+            RelationalWorkFrontier::derive_node_id(&find_spec, [readiness_id, admission_work_id])?;
+        if work_is_pending_or_open(view, pending_work_ids, find_work_id) {
+            return Ok(true);
+        }
+    }
+    Ok(false)
 }
 
 fn work_is_pending_or_open(
@@ -1635,13 +1881,15 @@ fn validate_classification_evaluator_scope(
     let provenance_digest =
         decode_canonical_sha256(checked.source_coverage().manifest_digest.as_ref())
             .ok_or(RelationalStepDriverError::ClassificationEvaluatorScopeMismatch)?;
+    let questions = FrozenClassificationQuestionSet::freeze(checked.question_ids().iter().copied())
+        .map_err(|_| RelationalStepDriverError::ClassificationEvaluatorScopeMismatch)?;
     let expected_capsule = RelationalClassificationCapsule::bind(
         checked.classification_program(),
         checked.classification_runtime_shapes(),
         checked_program,
         checked.relation_id(),
         checked.admission_id(),
-        checked.question_id(),
+        questions,
         support_plan.root(),
         support_plan.root_cell_id(),
         ClassificationSpecializationRoot::none(),
@@ -1694,6 +1942,7 @@ pub(crate) enum RelationalStepDriverError {
     CursorShapeMismatch(WorkNodeId),
     ChunkMadeNoProgress(WorkNodeId),
     ChunkMemberCountOverflow,
+    ClassificationCountOverflow,
     InvalidCompactionLimit {
         actual: u32,
         maximum: u32,
@@ -1761,6 +2010,8 @@ impl fmt::Display for RelationalStepDriverError {
             Self::ChunkMemberCountOverflow => {
                 formatter.write_str("bounded concrete quantum exceeded its member count type")
             }
+            Self::ClassificationCountOverflow => formatter
+                .write_str("bounded concrete quantum exceeded its classification count type"),
             Self::InvalidCompactionLimit { actual, maximum } => write!(
                 formatter,
                 "work compaction limit {actual} exceeds the hard maximum {maximum}"
@@ -1836,6 +2087,7 @@ impl Error for RelationalStepDriverError {
             | Self::CursorShapeMismatch(_)
             | Self::ChunkMadeNoProgress(_)
             | Self::ChunkMemberCountOverflow
+            | Self::ClassificationCountOverflow
             | Self::InvalidCompactionLimit { .. }
             | Self::ExpectedFiberExhaustion(_)
             | Self::ExhaustionAfterChunkMembers(_)

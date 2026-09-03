@@ -193,6 +193,7 @@ impl ClosedCertifiedSelectedPopulation {
     pub(crate) fn derive(
         plan: &RelationalSupportPlan,
         support: &SupportEvidenceSnapshot,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedSelectedPopulationError> {
         Self::derive_from_closed_support(
             plan,
@@ -204,6 +205,7 @@ impl ClosedCertifiedSelectedPopulation {
             },
             support.classification_view(),
             support.active_leaf_ids(),
+            question_id,
         )
     }
 
@@ -212,6 +214,7 @@ impl ClosedCertifiedSelectedPopulation {
     pub(crate) fn derive_from_validated_support(
         plan: &RelationalSupportPlan,
         support: &ValidatedSupportEvidenceClosure<'_>,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedSelectedPopulationError> {
         Self::derive_from_closed_support(
             plan,
@@ -223,6 +226,7 @@ impl ClosedCertifiedSelectedPopulation {
             },
             support.classification_view(),
             support.active_leaf_ids(),
+            question_id,
         )
     }
 
@@ -231,6 +235,7 @@ impl ClosedCertifiedSelectedPopulation {
         authority: CertifiedSelectedSupportAuthority,
         support: SupportEvidenceClassificationView<'_>,
         active_leaf_ids: impl IntoIterator<Item = SupportCellId>,
+        question_id: QuestionId,
     ) -> Result<Self, CertifiedSelectedPopulationError> {
         if !plan.validate_root() {
             return Err(CertifiedSelectedPopulationError::InvalidSupportPlanRoot);
@@ -242,9 +247,14 @@ impl ClosedCertifiedSelectedPopulation {
             return Err(CertifiedSelectedPopulationError::SupportEvidenceOpen);
         }
 
+        let [registered_question_id] = plan.question_ids() else {
+            return Err(CertifiedSelectedPopulationError::UnsupportedQuestionSet);
+        };
+        if *registered_question_id != question_id {
+            return Err(CertifiedSelectedPopulationError::UnknownQuestion { question_id });
+        }
         let relation_id = plan.relation_id();
         let admission_id = plan.admission_id();
-        let question_id = plan.question_id();
         let support_plan_root = plan.root();
         let support_evidence_root = authority.root;
 
@@ -325,7 +335,7 @@ impl ClosedCertifiedSelectedPopulation {
                 },
             );
         }
-        let derived = Self::derive(plan, support)?;
+        let derived = Self::derive(plan, support, snapshot.question_id)?;
         if derived.snapshot != snapshot {
             return Err(CertifiedSelectedPopulationError::SnapshotMismatch);
         }
@@ -834,6 +844,10 @@ fn derive_fragment_coverage(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CertifiedSelectedPopulationError {
     InvalidSupportPlanRoot,
+    UnsupportedQuestionSet,
+    UnknownQuestion {
+        question_id: QuestionId,
+    },
     SupportEvidenceOpen,
     SupportPlanScopeMismatch,
     AmbiguousPartitionTree {
@@ -884,6 +898,13 @@ impl fmt::Display for CertifiedSelectedPopulationError {
             Self::InvalidSupportPlanRoot => {
                 formatter.write_str("certified population received an invalid support-plan root")
             }
+            Self::UnsupportedQuestionSet => formatter.write_str(
+                "certified selected-population acceleration requires exactly one semantic question",
+            ),
+            Self::UnknownQuestion { question_id } => write!(
+                formatter,
+                "certified population requested unregistered question {question_id:?}"
+            ),
             Self::SupportEvidenceOpen => formatter.write_str(
                 "certified population requires sealed support, partition, and proof frontiers",
             ),

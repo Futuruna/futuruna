@@ -31,7 +31,9 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkUnsupported, VerifiedRelationalCaseChunkPartition,
     RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1,
 };
-use super::relational_case_executor::{RelationalCaseExecutor, RelationalCaseExecutorError};
+use super::relational_case_executor::{
+    RelationalCaseExecutor, RelationalCaseExecutorError, RelationalQuestionEvaluationPlan,
+};
 use super::relational_classified_sweep::{
     RelationalClassifiedCaseOutcome, RelationalClassifiedChunkArtifactId,
     RelationalClassifiedRunId, VerifiedRelationalClassifiedChunk,
@@ -412,6 +414,10 @@ pub(crate) fn materialize_relational_selected_run<R: RelationalExpressionRuntime
     let source =
         RelationalSourceEnumerator::new(checked.relation_id(), &checked.closed_query.source)?;
     let cases = RelationalCaseExecutor::new(checked.relation_id(), checked.closed_query)?;
+    let questions = cases.checked_question_evaluation_plan(checked)?;
+    if exact_one_planned_question(&questions)? != scope.question_id {
+        return Err(RelationalSelectedRunMaterializationError::ScopeMismatch);
+    }
     let capacity = usize::try_from(scope.cardinality())
         .map_err(|_| RelationalSelectedRunMaterializationError::CardinalityOverflow)?;
     let mut records = Vec::with_capacity(capacity);
@@ -433,10 +439,19 @@ pub(crate) fn materialize_relational_selected_run<R: RelationalExpressionRuntime
                 ),
             )?;
         let (case, _) = transition.into_parts();
-        let classification = cases.classify(completed.row(), &case, runtime)?;
+        let classification = cases.classify(completed.row(), &case, &questions, runtime)?;
+        let [question] = classification.question_evidence() else {
+            return Err(
+                RelationalSelectedRunMaterializationError::SelectedClassificationMismatch {
+                    coordinate,
+                    case_id: case.case_id(),
+                },
+            );
+        };
         if classification.case_id() != case.case_id()
             || classification.admission() != AdmissionDecision::Admitted
-            || classification.selection() != Some(SelectionDecision::Selected)
+            || question.question_id() != scope.question_id
+            || question.decision() != SelectionDecision::Selected
         {
             return Err(
                 RelationalSelectedRunMaterializationError::SelectedClassificationMismatch {
@@ -576,10 +591,12 @@ fn validate_selected_run_scope(
         .closed_query
         .validate()
         .map_err(RelationalSelectedRunMaterializationError::InvalidQuery)?;
+    let question_id = require_single_question(checked.question_ids())?;
+    let plan_question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root()
         || plan.relation_id() != checked.relation_id()
         || plan.admission_id() != checked.admission_id()
-        || plan.question_id() != checked.question_id()
+        || plan_question_id != question_id
     {
         return Err(RelationalSelectedRunMaterializationError::ScopeMismatch);
     }
@@ -603,12 +620,13 @@ fn validate_selected_run_scope_from_plan(
     classified_chunk: &VerifiedRelationalClassifiedChunk,
     selected_run_ordinal: u16,
 ) -> Result<SelectedRunScope, RelationalSelectedRunMaterializationError> {
+    let question_id = require_single_question(plan.question_ids())?;
     let classified_artifact = classified_chunk.artifact();
     if !plan.validate_root()
         || classified_artifact.plan_root() != plan.root()
         || classified_artifact.relation_id() != plan.relation_id()
         || classified_artifact.admission_id() != plan.admission_id()
-        || classified_artifact.question_id() != plan.question_id()
+        || classified_artifact.question_id() != question_id
     {
         return Err(RelationalSelectedRunMaterializationError::ScopeMismatch);
     }
@@ -617,7 +635,7 @@ fn validate_selected_run_scope_from_plan(
     if verified_partition.artifact().plan_root() != plan.root()
         || verified_partition.artifact().relation_id() != plan.relation_id()
         || verified_partition.artifact().admission_id() != plan.admission_id()
-        || verified_partition.artifact().question_id() != plan.question_id()
+        || verified_partition.artifact().question_id() != question_id
         || verified_partition.artifact().id() != classified_artifact.chunk_partition_id()
     {
         return Err(RelationalSelectedRunMaterializationError::ScopeMismatch);
@@ -695,7 +713,7 @@ fn validate_selected_run_scope_from_plan(
         plan_root: plan.root(),
         relation_id: plan.relation_id(),
         admission_id: plan.admission_id(),
-        question_id: plan.question_id(),
+        question_id,
         classified_chunk_artifact_id: classified_artifact.id(),
         chunk_partition_id: partition.artifact().id(),
         chunk_id: chunk.descriptor().id(),
@@ -741,6 +759,26 @@ fn validate_case_record(
         });
     }
     Ok(())
+}
+
+fn require_single_question(
+    question_ids: &[QuestionId],
+) -> Result<QuestionId, RelationalSelectedRunMaterializationError> {
+    let [question_id] = question_ids else {
+        return Err(
+            RelationalSelectedRunMaterializationError::QuestionArityMismatch {
+                actual: question_ids.len(),
+            },
+        );
+    };
+    Ok(*question_id)
+}
+
+fn exact_one_planned_question(
+    questions: &RelationalQuestionEvaluationPlan,
+) -> Result<QuestionId, RelationalSelectedRunMaterializationError> {
+    let question_ids = questions.question_ids().collect::<Vec<_>>();
+    require_single_question(&question_ids)
 }
 
 fn derive_materialized_cases_root(
@@ -854,6 +892,9 @@ pub(crate) enum RelationalSelectedRunMaterializationError {
     CasesRootMismatch,
     ArtifactSemanticMismatch,
     ScopeMismatch,
+    QuestionArityMismatch {
+        actual: usize,
+    },
     AlreadyBounded,
     UnsupportedPartition(RelationalCaseChunkUnsupported),
     UnsupportedMaterializerShape(&'static str),
@@ -936,6 +977,10 @@ impl fmt::Display for RelationalSelectedRunMaterializationError {
             ),
             Self::ScopeMismatch => formatter.write_str(
                 "selected-run query, support plan, partition, chunk, or classified scope disagrees",
+            ),
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "selected-run optimization requires exactly one semantic question, found {actual}"
             ),
             Self::AlreadyBounded => formatter.write_str(
                 "selected-run V1 requires a classified partition child, but the case root is already bounded",

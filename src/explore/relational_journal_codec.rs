@@ -172,7 +172,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 15;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 16;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -523,7 +523,7 @@ pub(crate) fn decode_relational_journal_entry(
     reader.finish()?;
 
     let mut payload = Reader::new(payload_bytes, limits);
-    let event = decode_journal_event(&mut payload, contract)?;
+    let event = decode_journal_event(&mut payload, &contract)?;
     payload.finish()?;
     let entry = RelationalJournalEntry::restore_from_journal_codec(
         contract,
@@ -1602,11 +1602,37 @@ fn decode_analysis_dependencies(
     Ok(dependencies.into_boxed_slice())
 }
 
+fn encode_question_ids(
+    encoder: &mut Encoder,
+    question_ids: &[QuestionId],
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.collection_len(question_ids.len())?;
+    for question_id in question_ids {
+        encoder.digest(question_id.bytes())?;
+    }
+    Ok(())
+}
+
+fn decode_question_ids(
+    reader: &mut Reader<'_>,
+    component: &'static str,
+) -> Result<Box<[QuestionId]>, RelationalJournalCodecError> {
+    let count = reader.collection_len(component)?;
+    let mut question_ids = Vec::new();
+    question_ids
+        .try_reserve_exact(count)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed { requested: count })?;
+    for _ in 0..count {
+        question_ids.push(QuestionId::from_journal_codec_bytes(reader.digest()?));
+    }
+    Ok(question_ids.into_boxed_slice())
+}
+
 fn encode_analysis_plan(
     encoder: &mut Encoder,
     plan: &RelationalAnalysisPlan,
 ) -> Result<(), RelationalJournalCodecError> {
-    encoder.digest(plan.question_id().bytes())?;
+    encode_question_ids(encoder, plan.question_ids())?;
     encoder.digest(plan.producer_graph_digest().bytes())?;
     encoder.collection_len(plan.layer_registrations().len())?;
     for registration in plan.layer_registrations() {
@@ -1657,7 +1683,7 @@ fn encode_analysis_plan(
 fn decode_analysis_plan(
     reader: &mut Reader<'_>,
 ) -> Result<RelationalAnalysisPlan, RelationalJournalCodecError> {
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let question_ids = decode_question_ids(reader, "analysis-plan questions")?;
     let graph_digest =
         RelationalCheckedAnalysisGraphDigest::from_journal_codec_bytes(reader.digest()?);
     let count = reader.collection_len("analysis registrations")?;
@@ -1750,7 +1776,7 @@ fn decode_analysis_plan(
         registrations.push(registration);
     }
     Ok(RelationalAnalysisPlan::restore_from_journal_codec(
-        question_id,
+        question_ids,
         graph_digest,
         registrations,
     )?)
@@ -2509,7 +2535,7 @@ fn encode_support_plan(
 ) -> Result<(), RelationalJournalCodecError> {
     encoder.digest(plan.relation_id().bytes())?;
     encoder.digest(plan.admission_id().bytes())?;
-    encoder.digest(plan.question_id().bytes())?;
+    encode_question_ids(encoder, plan.question_ids())?;
     encode_uniform_admission_proof_recipe(encoder, plan.uniform_admission_proof())?;
     encode_source_image_projection_certificate(encoder, plan.source_image_projection())?;
     encoder.collection_len(plan.stages().len())?;
@@ -2529,7 +2555,7 @@ fn decode_support_plan(
 ) -> Result<RelationalSupportPlan, RelationalJournalCodecError> {
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let question_ids = decode_question_ids(reader, "support-plan questions")?;
     let uniform_admission_proof = decode_uniform_admission_proof_recipe(reader)?;
     let source_image_projection = decode_source_image_projection_certificate(reader)?;
     let count = reader.collection_len("support binding stages")?;
@@ -2543,7 +2569,7 @@ fn decode_support_plan(
     Ok(RelationalSupportPlan::restore_from_journal_codec(
         relation_id,
         admission_id,
-        question_id,
+        question_ids,
         uniform_admission_proof,
         stages.into_boxed_slice(),
         decode_planned_population(reader)?,
@@ -6288,8 +6314,13 @@ fn encode_evidence_event(
             encoder.digest(case_id.bytes())?;
             encode_admission_decision(encoder, *decision)
         }
-        RelationalEvidenceEvent::QuestionClassified { case_id, decision } => {
+        RelationalEvidenceEvent::QuestionClassified {
+            question_id,
+            case_id,
+            decision,
+        } => {
             encoder.tag(0x09)?;
+            encoder.digest(question_id.bytes())?;
             encoder.digest(case_id.bytes())?;
             encode_selection_decision(encoder, *decision)
         }
@@ -6306,7 +6337,7 @@ fn encode_evidence_event(
 
 fn decode_evidence_event(
     reader: &mut Reader<'_>,
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
 ) -> Result<RelationalEvidenceEvent, RelationalJournalCodecError> {
     match reader.tag()? {
         0x01 => {
@@ -6364,6 +6395,7 @@ fn decode_evidence_event(
             decision: decode_admission_decision(reader)?,
         }),
         0x09 => Ok(RelationalEvidenceEvent::QuestionClassified {
+            question_id: QuestionId::from_journal_codec_bytes(reader.digest()?),
             case_id: RelationalCaseId::from_journal_codec_bytes(reader.digest()?),
             decision: decode_selection_decision(reader)?,
         }),
@@ -6960,7 +6992,7 @@ fn encode_journal_event(
 
 fn decode_journal_event(
     reader: &mut Reader<'_>,
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
 ) -> Result<RelationalJournalEvent, RelationalJournalCodecError> {
     match reader.tag()? {
         0x01 => Ok(RelationalJournalEvent::Evidence(decode_evidence_event(
@@ -7357,7 +7389,7 @@ mod tests {
             ),
         );
 
-        // Mirror the producer-owned V2 graph recipe independently so this
+        // Mirror the producer-owned V3 graph recipe independently so this
         // codec fixture proves the restored registration retains authorization.
         let mut mechanism_node_hasher = Sha256::new();
         mechanism_node_hasher.update(b"futuruna.checked-explore-analysis-mechanism-node.v2\0");
@@ -7366,8 +7398,7 @@ mod tests {
         let mechanism_node_digest: [u8; 32] = mechanism_node_hasher.finalize().into();
 
         let mut graph_hasher = Sha256::new();
-        graph_hasher.update(b"futuruna.checked-explore-analysis-graph.v2\0");
-        graph_hasher.update(question_id.bytes());
+        graph_hasher.update(b"futuruna.checked-explore-analysis-graph.v3\0");
         let label = b"semantic-node-count";
         let value = b"1";
         graph_hasher.update((label.len() as u64).to_le_bytes());
@@ -7380,7 +7411,7 @@ mod tests {
             graph_hasher.finalize().into(),
         );
         RelationalAnalysisPlan::restore_from_journal_codec(
-            question_id,
+            vec![question_id].into_boxed_slice(),
             graph_digest,
             vec![registration],
         )
@@ -7583,13 +7614,13 @@ mod tests {
         let contract = RelationalJournalContract::new(
             relation,
             admission,
-            question,
+            [question],
             super::super::StateSchemaId::from_bytes([1; 32]),
             super::super::ContextSchemaId::from_bytes([2; 32]),
             super::super::TransitionTypeId::from_bytes([3; 32]),
             [0; 32],
         );
-        let journal = RelationalJournal::new(contract);
+        let journal = RelationalJournal::new(contract.clone());
 
         let mut bytes = Vec::new();
         bytes.extend_from_slice(ENTRY_MAGIC);
@@ -7607,8 +7638,8 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 21,
-                expected: 22
+                actual: 22,
+                expected: 23
             }
         ));
     }

@@ -27,13 +27,13 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 3;
 
-const ANALYSIS_PLAN_ROOT_V2: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v2";
+const ANALYSIS_PLAN_ROOT_V3: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v3";
 const RESULT_SPEC_DIGEST_V1: &[u8] = b"futuruna.explore.relational-analysis.result-spec.v1";
 const OBSERVATION_ID_V1: &[u8] = b"futuruna.explore.relational-analysis.observation-id.v1";
 const OBSERVATION_DIGEST_V2: &[u8] = b"futuruna.explore.relational-analysis.observation-digest.v2";
-const CHECKED_ANALYSIS_GRAPH_V2: &[u8] = b"futuruna.checked-explore-analysis-graph.v2\0";
+const CHECKED_ANALYSIS_GRAPH_V3: &[u8] = b"futuruna.checked-explore-analysis-graph.v3\0";
 const CHECKED_ANALYSIS_MECHANISM_NODE_V2: &[u8] =
     b"futuruna.checked-explore-analysis-mechanism-node.v2\0";
 
@@ -284,7 +284,7 @@ pub(crate) struct RelationalAnalysisPlan {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct RelationalAnalysisPlanPayload {
-    question_id: QuestionId,
+    question_ids: Box<[QuestionId]>,
     producer_graph_digest: RelationalCheckedAnalysisGraphDigest,
     registrations: Box<[RelationalAnalysisLayerRegistration]>,
 }
@@ -308,7 +308,8 @@ impl RelationalAnalysisPlan {
             });
         }
 
-        let question_id = checked.question_id();
+        let question_ids = checked.question_ids();
+        let find_question_ids = checked.find_question_ids();
         let relation_id = checked.relation_id();
         let mut resolved_by_position =
             Vec::<RelationalAnalysisLayerId>::with_capacity(checked.closed_query.analysis.len());
@@ -331,7 +332,7 @@ impl RelationalAnalysisPlan {
                     view,
                     *view_id,
                     relation_id,
-                    question_id,
+                    find_question_ids,
                     &resolved_by_position,
                 )?,
                 (
@@ -348,7 +349,7 @@ impl RelationalAnalysisPlan {
                     observation,
                     endpoint_totality,
                     relation_id,
-                    question_id,
+                    find_question_ids,
                     &checked.closed_query.analysis,
                     &resolved_by_position,
                 )?,
@@ -372,7 +373,7 @@ impl RelationalAnalysisPlan {
         }
 
         let registrations = registrations.into_values().collect::<Vec<_>>();
-        assemble_plan(question_id, checked.analysis_graph_hash(), registrations)
+        assemble_plan(question_ids, checked.analysis_graph_hash(), registrations)
     }
 
     fn from_payload(payload: RelationalAnalysisPlanPayload) -> Self {
@@ -381,14 +382,15 @@ impl RelationalAnalysisPlan {
     }
 
     pub(super) fn restore_from_journal_codec(
-        question_id: QuestionId,
+        question_ids: Box<[QuestionId]>,
         producer_graph_digest: RelationalCheckedAnalysisGraphDigest,
         registrations: Vec<RelationalAnalysisLayerRegistration>,
     ) -> Result<Self, RelationalAnalysisPlanError> {
         let registrations = canonicalize_registrations(registrations)?;
-        validate_registration_dependencies(question_id, &registrations)?;
+        validate_question_ids(&question_ids)?;
+        validate_registration_dependencies(&question_ids, &registrations)?;
         let derived_graph_digest = RelationalCheckedAnalysisGraphDigest(
-            derive_checked_analysis_graph_digest(question_id, &registrations),
+            derive_checked_analysis_graph_digest(&registrations),
         );
         if producer_graph_digest != derived_graph_digest {
             return Err(RelationalAnalysisPlanError::AnalysisGraphDigestMismatch {
@@ -397,7 +399,7 @@ impl RelationalAnalysisPlan {
             });
         }
         Ok(Self::from_payload(RelationalAnalysisPlanPayload {
-            question_id,
+            question_ids,
             producer_graph_digest,
             registrations,
         }))
@@ -411,8 +413,8 @@ impl RelationalAnalysisPlan {
         self.root == derive_analysis_plan_root(&self.payload)
     }
 
-    pub(crate) const fn question_id(&self) -> QuestionId {
-        self.payload.question_id
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        &self.payload.question_ids
     }
 
     pub(crate) const fn producer_graph_digest(&self) -> RelationalCheckedAnalysisGraphDigest {
@@ -440,12 +442,19 @@ fn build_result_registration(
     view: &ExploreResultViewIr,
     view_id: ViewId,
     relation_id: RelationId,
-    question_id: QuestionId,
+    find_question_ids: &[QuestionId],
     resolved_by_position: &[RelationalAnalysisLayerId],
 ) -> Result<RelationalAnalysisLayerRegistration, RelationalAnalysisPlanError> {
     let input = match &view.input {
         ExploreResultInputIr::Sources => RelationalResolvedResultInput::Sources(relation_id),
-        ExploreResultInputIr::Selected => RelationalResolvedResultInput::Selected(question_id),
+        ExploreResultInputIr::Find { find_index } => RelationalResolvedResultInput::Selected(
+            find_question_ids.get(*find_index).copied().ok_or(
+                RelationalAnalysisPlanError::UnknownFindIndex {
+                    node_index,
+                    find_index: *find_index,
+                },
+            )?,
+        ),
         ExploreResultInputIr::MechanismIncidence { request_node_index } => {
             let request_node_index = *request_node_index;
             require_prior_reference(node_index, request_node_index)?;
@@ -498,7 +507,7 @@ fn build_mechanism_registration(
     observation: &MechanismObservationIr,
     endpoint_totality: &RelationalEndpointTotalityCertificate,
     relation_id: RelationId,
-    question_id: QuestionId,
+    find_question_ids: &[QuestionId],
     analysis: &[ExploreAnalysisNodeIr],
     resolved_by_position: &[RelationalAnalysisLayerId],
 ) -> Result<RelationalAnalysisLayerRegistration, RelationalAnalysisPlanError> {
@@ -528,8 +537,15 @@ fn build_mechanism_registration(
     }
     let endpoint_totality_certificate_id = endpoint_totality.certificate_id();
     let target = match target {
-        ExploreMechanismTargetIr::SelectedCases => {
-            RelationalResolvedMechanismTarget::Selected(question_id)
+        ExploreMechanismTargetIr::Find { find_index } => {
+            RelationalResolvedMechanismTarget::Selected(
+                find_question_ids.get(find_index).copied().ok_or(
+                    RelationalAnalysisPlanError::UnknownFindIndex {
+                        node_index,
+                        find_index,
+                    },
+                )?,
+            )
         }
         ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
             require_prior_reference(node_index, view_node_index)?;
@@ -540,7 +556,7 @@ fn build_mechanism_registration(
                     expected: "chosen selected-case result",
                 });
             };
-            if !matches!(&view.input, ExploreResultInputIr::Selected) || view.choose.is_none() {
+            if !matches!(&view.input, ExploreResultInputIr::Find { .. }) || view.choose.is_none() {
                 return Err(
                     RelationalAnalysisPlanError::TargetViewNotChosenSelectedCases {
                         node_index,
@@ -728,17 +744,17 @@ fn derive_observation_digest(
 }
 
 fn assemble_plan(
-    question_id: QuestionId,
+    question_ids: &[QuestionId],
     producer_graph_hash: &str,
     registrations: Vec<RelationalAnalysisLayerRegistration>,
 ) -> Result<RelationalAnalysisPlan, RelationalAnalysisPlanError> {
     let registrations = canonicalize_registrations(registrations)?;
-    validate_registration_dependencies(question_id, &registrations)?;
+    validate_question_ids(question_ids)?;
+    validate_registration_dependencies(question_ids, &registrations)?;
     let producer_graph_digest =
         RelationalCheckedAnalysisGraphDigest(parse_lowercase_sha256(producer_graph_hash)?);
-    let derived_graph_digest = RelationalCheckedAnalysisGraphDigest(
-        derive_checked_analysis_graph_digest(question_id, &registrations),
-    );
+    let derived_graph_digest =
+        RelationalCheckedAnalysisGraphDigest(derive_checked_analysis_graph_digest(&registrations));
     if producer_graph_digest != derived_graph_digest {
         return Err(RelationalAnalysisPlanError::AnalysisGraphDigestMismatch {
             producer: producer_graph_digest,
@@ -747,7 +763,7 @@ fn assemble_plan(
     }
     Ok(RelationalAnalysisPlan::from_payload(
         RelationalAnalysisPlanPayload {
-            question_id,
+            question_ids: question_ids.to_vec().into_boxed_slice(),
             producer_graph_digest,
             registrations,
         },
@@ -796,7 +812,7 @@ fn canonicalize_registrations(
 }
 
 fn validate_registration_dependencies(
-    question_id: QuestionId,
+    question_ids: &[QuestionId],
     registrations: &[RelationalAnalysisLayerRegistration],
 ) -> Result<(), RelationalAnalysisPlanError> {
     let layers = registrations
@@ -832,10 +848,11 @@ fn validate_registration_dependencies(
         }
         match expected {
             RelationalAnalysisDependencyId::Relation(_) => {}
-            RelationalAnalysisDependencyId::Question(actual) if actual != question_id => {
+            RelationalAnalysisDependencyId::Question(actual)
+                if question_ids.binary_search(&actual).is_err() =>
+            {
                 return Err(RelationalAnalysisPlanError::ForeignQuestionDependency {
                     layer_id: registration.layer_id(),
-                    expected: question_id,
                     actual,
                 });
             }
@@ -863,8 +880,14 @@ fn validate_registration_dependencies(
     Ok(())
 }
 
+fn validate_question_ids(question_ids: &[QuestionId]) -> Result<(), RelationalAnalysisPlanError> {
+    if question_ids.windows(2).any(|pair| pair[0] >= pair[1]) {
+        return Err(RelationalAnalysisPlanError::NonCanonicalQuestionSet);
+    }
+    Ok(())
+}
+
 fn derive_checked_analysis_graph_digest(
-    question_id: QuestionId,
     registrations: &[RelationalAnalysisLayerRegistration],
 ) -> [u8; 32] {
     let semantic_nodes = registrations
@@ -877,8 +900,7 @@ fn derive_checked_analysis_graph_digest(
         })
         .collect::<BTreeSet<_>>();
     let mut hasher = Sha256::new();
-    hasher.update(CHECKED_ANALYSIS_GRAPH_V2);
-    hasher.update(question_id.bytes());
+    hasher.update(CHECKED_ANALYSIS_GRAPH_V3);
     checked_hash_component(
         &mut hasher,
         "semantic-node-count",
@@ -937,9 +959,12 @@ fn hex_nibble(byte: u8) -> u8 {
 fn derive_analysis_plan_root(
     payload: &RelationalAnalysisPlanPayload,
 ) -> RelationalAnalysisPlanRoot {
-    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V2);
+    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V3);
     hasher.u32(RELATIONAL_ANALYSIS_PLAN_VERSION);
-    hasher.digest(payload.question_id.bytes());
+    hasher.u128(payload.question_ids.len() as u128);
+    for question_id in &payload.question_ids {
+        hasher.digest(question_id.bytes());
+    }
     hasher.digest(payload.producer_graph_digest.bytes());
     hasher.u128(payload.registrations.len() as u128);
     for registration in &payload.registrations {
@@ -1085,6 +1110,10 @@ pub(crate) enum RelationalAnalysisPlanError {
     IdentityKindMismatch {
         node_index: usize,
     },
+    UnknownFindIndex {
+        node_index: usize,
+        find_index: usize,
+    },
     ReferenceNotPrior {
         node_index: usize,
         referenced_index: usize,
@@ -1126,9 +1155,9 @@ pub(crate) enum RelationalAnalysisPlanError {
     DependencyRecipeMismatch(RelationalAnalysisLayerId),
     ForeignQuestionDependency {
         layer_id: RelationalAnalysisLayerId,
-        expected: QuestionId,
         actual: QuestionId,
     },
+    NonCanonicalQuestionSet,
     DanglingDependency {
         layer_id: RelationalAnalysisLayerId,
         dependency: RelationalAnalysisLayerId,
@@ -1157,6 +1186,13 @@ impl fmt::Display for RelationalAnalysisPlanError {
             Self::IdentityKindMismatch { node_index } => write!(
                 formatter,
                 "analysis node {node_index} and producer identity have different kinds"
+            ),
+            Self::UnknownFindIndex {
+                node_index,
+                find_index,
+            } => write!(
+                formatter,
+                "analysis node {node_index} references absent FIND index {find_index}"
             ),
             Self::ReferenceNotPrior {
                 node_index,
@@ -1234,11 +1270,13 @@ impl fmt::Display for RelationalAnalysisPlanError {
             ),
             Self::ForeignQuestionDependency {
                 layer_id,
-                expected,
                 actual,
             } => write!(
                 formatter,
-                "analysis layer {layer_id:?} depends on question {actual:?}, expected {expected:?}"
+                "analysis layer {layer_id:?} depends on foreign question {actual:?}"
+            ),
+            Self::NonCanonicalQuestionSet => formatter.write_str(
+                "analysis plan question IDs must be strictly sorted and unique",
             ),
             Self::DanglingDependency {
                 layer_id,
@@ -1322,12 +1360,9 @@ mod tests {
         (result, mechanisms)
     }
 
-    fn producer_hash(
-        question_id: QuestionId,
-        registrations: Vec<RelationalAnalysisLayerRegistration>,
-    ) -> String {
+    fn producer_hash(registrations: Vec<RelationalAnalysisLayerRegistration>) -> String {
         let canonical = canonicalize_registrations(registrations).unwrap();
-        let digest = derive_checked_analysis_graph_digest(question_id, &canonical);
+        let digest = derive_checked_analysis_graph_digest(&canonical);
         digest.iter().map(|byte| format!("{byte:02x}")).collect()
     }
 
@@ -1335,14 +1370,14 @@ mod tests {
     fn canonical_registration_order_does_not_rename_plan() {
         let question_id = question();
         let (result, mechanisms) = registrations(question_id);
-        let graph_hash = producer_hash(question_id, vec![result.clone(), mechanisms.clone()]);
+        let graph_hash = producer_hash(vec![result.clone(), mechanisms.clone()]);
         let forward = assemble_plan(
-            question_id,
+            &[question_id],
             &graph_hash,
             vec![result.clone(), mechanisms.clone()],
         )
         .unwrap();
-        let reverse = assemble_plan(question_id, &graph_hash, vec![mechanisms, result]).unwrap();
+        let reverse = assemble_plan(&[question_id], &graph_hash, vec![mechanisms, result]).unwrap();
 
         assert!(forward.validate_root());
         assert_eq!(forward.root(), reverse.root());
@@ -1353,9 +1388,9 @@ mod tests {
     fn plan_root_commits_spec_content_beyond_producer_layer_ids() {
         let question_id = question();
         let (result, mechanisms) = registrations(question_id);
-        let graph_hash = producer_hash(question_id, vec![result.clone(), mechanisms.clone()]);
+        let graph_hash = producer_hash(vec![result.clone(), mechanisms.clone()]);
         let original = assemble_plan(
-            question_id,
+            &[question_id],
             &graph_hash,
             vec![result.clone(), mechanisms.clone()],
         )
@@ -1365,8 +1400,12 @@ mod tests {
             unreachable!()
         };
         result.semantic_spec_digest = RelationalResultSpecDigest([0x44; 32]);
-        let changed =
-            assemble_plan(question_id, &graph_hash, vec![changed_result, mechanisms]).unwrap();
+        let changed = assemble_plan(
+            &[question_id],
+            &graph_hash,
+            vec![changed_result, mechanisms],
+        )
+        .unwrap();
 
         assert_ne!(original.root(), changed.root());
     }
@@ -1375,9 +1414,9 @@ mod tests {
     fn endpoint_totality_authorization_commits_observation_digest_and_plan_root() {
         let question_id = question();
         let (result, mechanisms) = registrations(question_id);
-        let graph_hash = producer_hash(question_id, vec![result.clone(), mechanisms.clone()]);
+        let graph_hash = producer_hash(vec![result.clone(), mechanisms.clone()]);
         let original = assemble_plan(
-            question_id,
+            &[question_id],
             &graph_hash,
             vec![result.clone(), mechanisms.clone()],
         )
@@ -1409,13 +1448,10 @@ mod tests {
         changed_request.endpoint_totality_certificate_id = second_certificate;
         changed_request.observation_digest = second_observation_digest;
         let changed_registration = RelationalAnalysisLayerRegistration::Mechanisms(changed_request);
-        let changed_graph_hash = producer_hash(
-            question_id,
-            vec![result.clone(), changed_registration.clone()],
-        );
+        let changed_graph_hash = producer_hash(vec![result.clone(), changed_registration.clone()]);
         assert_ne!(graph_hash, changed_graph_hash);
         let changed = assemble_plan(
-            question_id,
+            &[question_id],
             &changed_graph_hash,
             vec![result, changed_registration],
         )
@@ -1445,7 +1481,7 @@ mod tests {
     fn dangling_dependency_and_graph_digest_mismatch_fail_closed() {
         let question_id = question();
         let (result, mechanisms) = registrations(question_id);
-        let graph_hash = producer_hash(question_id, vec![result.clone(), mechanisms.clone()]);
+        let graph_hash = producer_hash(vec![result.clone(), mechanisms.clone()]);
         let RelationalAnalysisLayerRegistration::Mechanisms(mut request) = mechanisms else {
             unreachable!()
         };
@@ -1458,7 +1494,7 @@ mod tests {
             vec![RelationalAnalysisDependencyId::Result(unrelated_view)].into_boxed_slice();
         assert!(matches!(
             assemble_plan(
-                question_id,
+                &[question_id],
                 &graph_hash,
                 vec![
                     result.clone(),
@@ -1469,7 +1505,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            assemble_plan(question_id, &"00".repeat(32), vec![result]),
+            assemble_plan(&[question_id], &"00".repeat(32), vec![result]),
             Err(RelationalAnalysisPlanError::AnalysisGraphDigestMismatch { .. })
         ));
     }

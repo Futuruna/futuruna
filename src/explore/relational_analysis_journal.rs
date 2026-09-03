@@ -51,7 +51,8 @@ use super::relational_analysis_catalog::{
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
     RelationalAnalysisPlanRoot, RelationalMechanismObservationDigest,
-    RelationalMechanismObservationId, RelationalResolvedResultInput,
+    RelationalMechanismObservationId, RelationalResolvedMechanismTarget,
+    RelationalResolvedResultInput,
 };
 use super::relational_certified_source_summary::{
     RelationalCertifiedSourceSummaryArtifact, RelationalCertifiedSourceSummaryArtifactId,
@@ -93,7 +94,7 @@ pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNKS: usize = 65_536;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_BYTES: usize = 512 << 20;
 
 const ANALYSIS_EVENT_HASH_V8: &[u8] = b"futuruna.explore.relational-analysis-event.v8";
-const ANALYSIS_SCOPE_ROOT_HASH_V1: &[u8] = b"futuruna.explore.relational-analysis-journal-scope.v1";
+const ANALYSIS_SCOPE_ROOT_HASH_V2: &[u8] = b"futuruna.explore.relational-analysis-journal-scope.v2";
 const ANALYSIS_CLOSURE_SET_ROOT_HASH_V1: &[u8] =
     b"futuruna.explore.relational-analysis-closure-set-root.v1";
 const SELECTED_QUESTION_SEAL_ID_HASH_V2: &[u8] =
@@ -373,19 +374,25 @@ impl RelationalSelectedQuestionSeal {
     }
 }
 
-/// Semantic scope an outer journal must bind once when analysis replay starts.
+/// Semantic scope of the currently bound, canonically ordered question-seal
+/// prefix. Each additional independently closed question advances this root;
+/// aliases never add a second entry for the same [`QuestionId`].
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalAnalysisJournalScopeRoot([u8; 32]);
 
 impl RelationalAnalysisJournalScopeRoot {
     fn derive(
         plan_root: RelationalAnalysisPlanRoot,
-        question_seal_id: RelationalSelectedQuestionSealId,
+        questions: &BTreeMap<QuestionId, RelationalSelectedQuestionSeal>,
     ) -> Self {
-        let mut hasher = AnalysisEventHasher::new(ANALYSIS_SCOPE_ROOT_HASH_V1);
+        let mut hasher = AnalysisEventHasher::new(ANALYSIS_SCOPE_ROOT_HASH_V2);
         hasher.u32(RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION);
         hasher.digest(plan_root.bytes());
-        hasher.digest(question_seal_id.bytes());
+        hasher.u128(questions.len() as u128);
+        for (question_id, seal) in questions {
+            hasher.digest(question_id.bytes());
+            hasher.digest(seal.id().bytes());
+        }
         Self(hasher.finish())
     }
 
@@ -1431,7 +1438,7 @@ impl RelationalAnalysisEvidenceEvent {
     }
 }
 
-/// Causal replay state for one plan and one exact selected-question closure.
+/// Causal replay state for one plan and independently closing FIND questions.
 ///
 /// Bounded projection records remain in their plan-bound catalog so a later
 /// chosen-view target and final report are reconstructed from exact durable
@@ -1456,7 +1463,7 @@ struct PendingMechanismArtifact {
 pub(crate) struct RelationalAnalysisJournalState {
     plan_root: RelationalAnalysisPlanRoot,
     scope_root: Option<RelationalAnalysisJournalScopeRoot>,
-    selected_question: Option<RelationalSelectedQuestionSeal>,
+    selected_questions: BTreeMap<QuestionId, RelationalSelectedQuestionSeal>,
     open: Option<RelationalAnalysisCatalogBuilder>,
     /// Replay-derived exact result closures retained across final analysis
     /// closure for bounded reporting. The durable event is the authority; this
@@ -1505,10 +1512,19 @@ impl RelationalAnalysisJournalState {
         plan: &RelationalAnalysisPlan,
     ) -> Result<Self, RelationalAnalysisJournalError> {
         let open = RelationalAnalysisCatalogBuilder::new(plan)?;
+        let selected_questions = BTreeMap::new();
+        // The empty question set is already completely sealed. Give it the
+        // same canonical scope identity that a nonempty set acquires after
+        // its final question seal, rather than waiting for an impossible
+        // binding event.
+        let scope_root = plan
+            .question_ids()
+            .is_empty()
+            .then(|| RelationalAnalysisJournalScopeRoot::derive(plan.root(), &selected_questions));
         Ok(Self {
             plan_root: plan.root(),
-            scope_root: None,
-            selected_question: None,
+            scope_root,
+            selected_questions,
             open: Some(open),
             result_projection_closures: BTreeMap::new(),
             mechanism_closures: BTreeMap::new(),
@@ -1526,8 +1542,11 @@ impl RelationalAnalysisJournalState {
         self.scope_root
     }
 
-    pub(crate) const fn selected_question(&self) -> Option<RelationalSelectedQuestionSeal> {
-        self.selected_question
+    pub(crate) fn selected_question(
+        &self,
+        question_id: QuestionId,
+    ) -> Option<RelationalSelectedQuestionSeal> {
+        self.selected_questions.get(&question_id).copied()
     }
 
     pub(crate) fn certified_source_summary(
@@ -2816,8 +2835,7 @@ impl RelationalAnalysisJournalState {
         if self.pending_mechanism_artifact.is_some() {
             return Err(RelationalAnalysisJournalError::MechanismArtifactPending);
         }
-        self.selected_question
-            .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)?;
+        self.require_all_question_seals()?;
         let catalog = self.open_catalog_or_error()?;
         let closure_set_root = self.validate_and_derive_closure_set_root(catalog)?;
         catalog.validate_complete()?;
@@ -2898,9 +2916,7 @@ impl RelationalAnalysisJournalState {
                 view_id,
                 question_seal_id,
             } => {
-                let selected_question = self
-                    .selected_question
-                    .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)?;
+                let selected_question = self.selected_question_for_result(*view_id)?;
                 if *question_seal_id != selected_question.id() {
                     return Err(RelationalAnalysisJournalError::SelectedQuestionSealMismatch);
                 }
@@ -3004,9 +3020,7 @@ impl RelationalAnalysisJournalState {
                 request_id,
                 question_seal_id,
             } => {
-                let selected_question = self
-                    .selected_question
-                    .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)?;
+                let selected_question = self.selected_question_for_mechanism(*request_id)?;
                 if *question_seal_id != selected_question.id() {
                     return Err(RelationalAnalysisJournalError::SelectedQuestionSealMismatch);
                 }
@@ -3798,32 +3812,106 @@ impl RelationalAnalysisJournalState {
         Ok(())
     }
 
+    fn selected_question_for_result(
+        &self,
+        view_id: ViewId,
+    ) -> Result<RelationalSelectedQuestionSeal, RelationalAnalysisJournalError> {
+        let question_id = match self
+            .open_catalog_or_error()?
+            .plan()
+            .registration(RelationalAnalysisLayerId::Result(view_id))
+        {
+            Some(RelationalAnalysisLayerRegistration::Result(registration)) => {
+                match registration.input() {
+                    RelationalResolvedResultInput::Selected(question_id) => question_id,
+                    RelationalResolvedResultInput::Sources(_)
+                    | RelationalResolvedResultInput::MechanismIncidence(_) => {
+                        return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                            "selected result question dependency",
+                        ));
+                    }
+                }
+            }
+            Some(RelationalAnalysisLayerRegistration::Mechanisms(_)) | None => {
+                return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                    "selected result question dependency",
+                ));
+            }
+        };
+        self.selected_question(question_id)
+            .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)
+    }
+
+    fn selected_question_for_mechanism(
+        &self,
+        request_id: MechanismRequestId,
+    ) -> Result<RelationalSelectedQuestionSeal, RelationalAnalysisJournalError> {
+        let question_id = match self
+            .open_catalog_or_error()?
+            .plan()
+            .registration(RelationalAnalysisLayerId::Mechanisms(request_id))
+        {
+            Some(RelationalAnalysisLayerRegistration::Mechanisms(registration)) => {
+                match registration.target() {
+                    RelationalResolvedMechanismTarget::Selected(question_id) => question_id,
+                    RelationalResolvedMechanismTarget::ChosenView(_) => {
+                        return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                            "selected mechanism question dependency",
+                        ));
+                    }
+                }
+            }
+            Some(RelationalAnalysisLayerRegistration::Result(_)) | None => {
+                return Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                    "selected mechanism question dependency",
+                ));
+            }
+        };
+        self.selected_question(question_id)
+            .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)
+    }
+
+    fn require_all_question_seals(&self) -> Result<(), RelationalAnalysisJournalError> {
+        let question_ids = self.open_catalog_or_error()?.plan().question_ids();
+        if self.selected_questions.len() != question_ids.len()
+            || question_ids
+                .iter()
+                .any(|question_id| !self.selected_questions.contains_key(question_id))
+        {
+            return Err(RelationalAnalysisJournalError::SelectedQuestionSealMissing);
+        }
+        Ok(())
+    }
+
     fn bind_selected_question(
         &mut self,
         seal: RelationalSelectedQuestionSeal,
     ) -> Result<bool, RelationalAnalysisJournalError> {
         seal.validate_identity()?;
-        let expected_question_id = self.open_catalog_or_error()?.plan().question_id();
-        if seal.question_id() != expected_question_id {
+        if self
+            .open_catalog_or_error()?
+            .plan()
+            .question_ids()
+            .binary_search(&seal.question_id())
+            .is_err()
+        {
             return Err(
                 RelationalAnalysisJournalError::SelectedQuestionScopeMismatch {
-                    expected: expected_question_id,
                     actual: seal.question_id(),
                 },
             );
         }
-        match self.selected_question {
-            Some(existing) if existing == seal => Ok(false),
-            Some(_) => Err(RelationalAnalysisJournalError::SelectedQuestionSealReplacement),
-            None => {
-                self.scope_root = Some(RelationalAnalysisJournalScopeRoot::derive(
-                    self.plan_root,
-                    seal.id(),
-                ));
-                self.selected_question = Some(seal);
-                Ok(true)
-            }
+        match self.selected_questions.get(&seal.question_id()).copied() {
+            Some(existing) if existing == seal => return Ok(false),
+            Some(_) => return Err(RelationalAnalysisJournalError::SelectedQuestionSealReplacement),
+            None => {}
         }
+        self.selected_questions.insert(seal.question_id(), seal);
+        self.scope_root = Some(RelationalAnalysisJournalScopeRoot::derive(
+            self.plan_root,
+            &self.selected_questions,
+        ));
+        Ok(true)
     }
 
     fn apply_terminal(
@@ -3841,8 +3929,7 @@ impl RelationalAnalysisJournalState {
             };
         }
 
-        self.selected_question
-            .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)?;
+        self.require_all_question_seals()?;
 
         let open = self.open_catalog_or_error()?;
         let derived_closure_set_root = self.validate_and_derive_closure_set_root(open)?;
@@ -4011,7 +4098,6 @@ pub(crate) enum RelationalAnalysisJournalError {
         derived: RelationalSelectedQuestionSealId,
     },
     SelectedQuestionScopeMismatch {
-        expected: QuestionId,
         actual: QuestionId,
     },
     SelectedQuestionSealMissing,

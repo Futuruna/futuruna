@@ -17,9 +17,9 @@ use super::relational_transition_support::{
 };
 use super::StateId;
 
-pub(crate) const RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_VERSION: u32 = 2;
 pub(crate) const RELATIONAL_SEMANTIC_TRANSITION_GRAPH_PROJECTION_SCHEMA: &str =
-    "futuruna.relational-semantic-transition-graph.v1";
+    "futuruna.relational-semantic-transition-graph.v2";
 pub(crate) const RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1: u128 = 65_536;
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -35,7 +35,7 @@ impl RelationalSemanticTransitionGraphProjectionId {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalSemanticTransitionGraphClosure {
     root: RelationalTransitionSupportRoot,
     counts: RelationalTransitionSupportCounts,
@@ -43,20 +43,20 @@ pub(crate) struct RelationalSemanticTransitionGraphClosure {
 }
 
 impl RelationalSemanticTransitionGraphClosure {
-    pub(crate) const fn root(self) -> RelationalTransitionSupportRoot {
+    pub(crate) const fn root(&self) -> RelationalTransitionSupportRoot {
         self.root
     }
 
-    pub(crate) const fn counts(self) -> RelationalTransitionSupportCounts {
-        self.counts
+    pub(crate) const fn counts(&self) -> &RelationalTransitionSupportCounts {
+        &self.counts
     }
 
-    pub(crate) const fn data_record_count(self) -> u128 {
+    pub(crate) const fn data_record_count(&self) -> u128 {
         self.data_record_count
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalSemanticTransitionGraphCapacity {
     maximum_data_records: u128,
     required_data_records: u128,
@@ -70,7 +70,7 @@ impl RelationalSemanticTransitionGraphCapacity {
         support: &RelationalTransitionSupportIndex,
     ) -> Result<Option<Self>, RelationalSemanticTransitionGraphProjectionError> {
         let counts = support.counts();
-        let required_data_records = graph_data_record_count(counts)?;
+        let required_data_records = graph_data_record_count(&counts)?;
         Ok(
             (required_data_records > maximum_data_records).then_some(Self {
                 maximum_data_records,
@@ -81,24 +81,24 @@ impl RelationalSemanticTransitionGraphCapacity {
         )
     }
 
-    pub(crate) const fn maximum_data_records(self) -> u128 {
+    pub(crate) const fn maximum_data_records(&self) -> u128 {
         self.maximum_data_records
     }
 
-    pub(crate) const fn required_data_records(self) -> u128 {
+    pub(crate) const fn required_data_records(&self) -> u128 {
         self.required_data_records
     }
 
-    pub(crate) const fn root(self) -> RelationalTransitionSupportRoot {
+    pub(crate) const fn root(&self) -> RelationalTransitionSupportRoot {
         self.root
     }
 
-    pub(crate) const fn counts(self) -> RelationalTransitionSupportCounts {
-        self.counts
+    pub(crate) const fn counts(&self) -> &RelationalTransitionSupportCounts {
+        &self.counts
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalSemanticTransitionGraphUnmaterialized {
     logical_universe_cases: u128,
     materialized_universe_cases: u128,
@@ -114,30 +114,32 @@ impl RelationalSemanticTransitionGraphUnmaterialized {
         let counts = support.counts();
         Self {
             logical_universe_cases,
-            materialized_universe_cases: counts.cases(RelationalTransitionLayer::Universe),
+            materialized_universe_cases: counts
+                .cases(RelationalTransitionLayer::Universe)
+                .expect("the universe transition layer is always registered"),
             materialized_root: support.root(),
             counts,
         }
     }
 
-    pub(crate) const fn logical_universe_cases(self) -> u128 {
+    pub(crate) const fn logical_universe_cases(&self) -> u128 {
         self.logical_universe_cases
     }
 
-    pub(crate) const fn materialized_universe_cases(self) -> u128 {
+    pub(crate) const fn materialized_universe_cases(&self) -> u128 {
         self.materialized_universe_cases
     }
 
-    pub(crate) const fn materialized_root(self) -> RelationalTransitionSupportRoot {
+    pub(crate) const fn materialized_root(&self) -> RelationalTransitionSupportRoot {
         self.materialized_root
     }
 
-    pub(crate) const fn counts(self) -> RelationalTransitionSupportCounts {
-        self.counts
+    pub(crate) const fn counts(&self) -> &RelationalTransitionSupportCounts {
+        &self.counts
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalSemanticTransitionGraphRecord {
     Header {
         projection_id: RelationalSemanticTransitionGraphProjectionId,
@@ -151,7 +153,7 @@ pub(crate) enum RelationalSemanticTransitionGraphRecord {
     Unmaterialized(RelationalSemanticTransitionGraphUnmaterialized),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum ProjectionTerminal {
     Open,
     Exact(RelationalSemanticTransitionGraphClosure),
@@ -180,8 +182,25 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
             return Err(RelationalSemanticTransitionGraphProjectionError::SchemaMismatch);
         }
         let counts = support.counts();
-        let data_record_count = graph_data_record_count(counts)?;
-        let terminal = if scheduler.transition_support_is_extentionally_closed() {
+        if !counts
+            .matched()
+            .map(|(question_id, _)| question_id)
+            .eq(contract.question_ids().iter().copied())
+        {
+            return Err(RelationalSemanticTransitionGraphProjectionError::QuestionLayerSetMismatch);
+        }
+        let data_record_count = graph_data_record_count(&counts)?;
+        let base_is_extentionally_closed = scheduler.relation_enumeration_is_complete()
+            && scheduler.admission_decision_count() == scheduler.case_count();
+        let questions_are_extentionally_closed =
+            contract.question_ids().iter().copied().all(|question_id| {
+                scheduler
+                    .question_decision_count(question_id)
+                    .is_ok_and(|count| count == scheduler.admitted_count())
+            });
+        let transition_support_is_extentionally_closed =
+            base_is_extentionally_closed && questions_are_extentionally_closed;
+        let terminal = if transition_support_is_extentionally_closed {
             if data_record_count > RELATIONAL_SEMANTIC_TRANSITION_GRAPH_MAX_DATA_RECORDS_V1 {
                 ProjectionTerminal::Capacity(
                     RelationalSemanticTransitionGraphCapacity::from_retained_support(
@@ -200,9 +219,9 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
         } else if scheduler.analysis_is_closed() && scheduler.support_catalog_is_sealed() {
             match scheduler.certified_root_case_cardinality() {
                 Some(0)
-                    if counts.cases(RelationalTransitionLayer::Universe) == 0
-                        && counts.cases(RelationalTransitionLayer::Admitted) == 0
-                        && counts.cases(RelationalTransitionLayer::Matched) == 0 =>
+                    if counts.cases(RelationalTransitionLayer::Universe) == Some(0)
+                        && counts.cases(RelationalTransitionLayer::Admitted) == Some(0)
+                        && counts.matched().all(|(_, matched)| matched.cases() == 0) =>
                 {
                     ProjectionTerminal::Exact(RelationalSemanticTransitionGraphClosure {
                         root: support.root(),
@@ -223,33 +242,33 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
         };
         Ok(Self {
             projection_id,
-            contract,
+            contract: contract.clone(),
             scheduler,
             terminal,
         })
     }
 
     pub(crate) const fn is_open(&self) -> bool {
-        matches!(self.terminal, ProjectionTerminal::Open)
+        matches!(&self.terminal, ProjectionTerminal::Open)
     }
 
-    pub(crate) const fn terminal_record(&self) -> Option<RelationalSemanticTransitionGraphRecord> {
-        match self.terminal {
+    pub(crate) fn terminal_record(&self) -> Option<RelationalSemanticTransitionGraphRecord> {
+        match &self.terminal {
             ProjectionTerminal::Open => None,
-            ProjectionTerminal::Exact(closure) => {
-                Some(RelationalSemanticTransitionGraphRecord::Closure(closure))
-            }
+            ProjectionTerminal::Exact(closure) => Some(
+                RelationalSemanticTransitionGraphRecord::Closure(closure.clone()),
+            ),
             ProjectionTerminal::Capacity(capacity) => Some(
-                RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity),
+                RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity.clone()),
             ),
             ProjectionTerminal::Unmaterialized(status) => Some(
-                RelationalSemanticTransitionGraphRecord::Unmaterialized(status),
+                RelationalSemanticTransitionGraphRecord::Unmaterialized(status.clone()),
             ),
         }
     }
 
     pub(crate) fn available_source_record_count(&self) -> u128 {
-        match self.terminal {
+        match &self.terminal {
             ProjectionTerminal::Open => 1,
             ProjectionTerminal::Exact(closure) => 1_u128
                 .checked_add(closure.data_record_count())
@@ -269,22 +288,22 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
         if source_ordinal == 0 {
             return Ok(Some(RelationalSemanticTransitionGraphRecord::Header {
                 projection_id: self.projection_id,
-                contract: self.contract,
+                contract: self.contract.clone(),
             }));
         }
-        match self.terminal {
+        match &self.terminal {
             ProjectionTerminal::Open => Ok(None),
             ProjectionTerminal::Capacity(capacity) => Ok((source_ordinal == 1).then_some(
-                RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity),
+                RelationalSemanticTransitionGraphRecord::CapacityLimited(capacity.clone()),
             )),
             ProjectionTerminal::Unmaterialized(status) => Ok((source_ordinal == 1).then_some(
-                RelationalSemanticTransitionGraphRecord::Unmaterialized(status),
+                RelationalSemanticTransitionGraphRecord::Unmaterialized(status.clone()),
             )),
             ProjectionTerminal::Exact(closure) => {
                 let data_ordinal = source_ordinal - 1;
                 if data_ordinal == closure.data_record_count() {
                     return Ok(Some(RelationalSemanticTransitionGraphRecord::Closure(
-                        closure,
+                        closure.clone(),
                     )));
                 }
                 if data_ordinal > closure.data_record_count() {
@@ -311,7 +330,9 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
                 .map_err(Into::into);
         }
         ordinal -= counts.states();
-        let universe_transitions = counts.transitions(RelationalTransitionLayer::Universe);
+        let universe_transitions = counts
+            .transitions(RelationalTransitionLayer::Universe)
+            .ok_or(RelationalSemanticTransitionGraphProjectionError::UnknownLayer)?;
         if ordinal < universe_transitions {
             return support
                 .transition_at_ordinal(ordinal)
@@ -319,12 +340,20 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
                 .map_err(Into::into);
         }
         ordinal -= universe_transitions;
-        for layer in [
+        let layers = [
             RelationalTransitionLayer::Universe,
             RelationalTransitionLayer::Admitted,
-            RelationalTransitionLayer::Matched,
-        ] {
-            let layer_cases = counts.cases(layer);
+        ]
+        .into_iter()
+        .chain(
+            counts
+                .matched()
+                .map(|(question_id, _)| RelationalTransitionLayer::Matched(question_id)),
+        );
+        for layer in layers {
+            let layer_cases = counts
+                .cases(layer)
+                .ok_or(RelationalSemanticTransitionGraphProjectionError::UnknownLayer)?;
             if ordinal < layer_cases {
                 return support
                     .support_at_ordinal(layer, ordinal)
@@ -338,20 +367,36 @@ impl<'journal> RelationalSemanticTransitionGraphProjection<'journal> {
 }
 
 fn graph_data_record_count(
-    counts: RelationalTransitionSupportCounts,
+    counts: &RelationalTransitionSupportCounts,
 ) -> Result<u128, RelationalSemanticTransitionGraphProjectionError> {
-    counts
+    let universe_transitions = counts
+        .transitions(RelationalTransitionLayer::Universe)
+        .ok_or(RelationalSemanticTransitionGraphProjectionError::UnknownLayer)?;
+    let universe_cases = counts
+        .cases(RelationalTransitionLayer::Universe)
+        .ok_or(RelationalSemanticTransitionGraphProjectionError::UnknownLayer)?;
+    let admitted_cases = counts
+        .cases(RelationalTransitionLayer::Admitted)
+        .ok_or(RelationalSemanticTransitionGraphProjectionError::UnknownLayer)?;
+    let mut total = counts
         .states()
-        .checked_add(counts.transitions(RelationalTransitionLayer::Universe))
-        .and_then(|count| count.checked_add(counts.cases(RelationalTransitionLayer::Universe)))
-        .and_then(|count| count.checked_add(counts.cases(RelationalTransitionLayer::Admitted)))
-        .and_then(|count| count.checked_add(counts.cases(RelationalTransitionLayer::Matched)))
-        .ok_or(RelationalSemanticTransitionGraphProjectionError::ArithmeticOverflow)
+        .checked_add(universe_transitions)
+        .and_then(|count| count.checked_add(universe_cases))
+        .and_then(|count| count.checked_add(admitted_cases))
+        .ok_or(RelationalSemanticTransitionGraphProjectionError::ArithmeticOverflow)?;
+    for (_, matched) in counts.matched() {
+        total = total
+            .checked_add(matched.cases())
+            .ok_or(RelationalSemanticTransitionGraphProjectionError::ArithmeticOverflow)?;
+    }
+    Ok(total)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalSemanticTransitionGraphProjectionError {
     SchemaMismatch,
+    QuestionLayerSetMismatch,
+    UnknownLayer,
     ArithmeticOverflow,
     TransitionSupport(RelationalTransitionSupportError),
 }
@@ -361,6 +406,11 @@ impl fmt::Display for RelationalSemanticTransitionGraphProjectionError {
         match self {
             Self::SchemaMismatch => formatter
                 .write_str("semantic transition graph schema does not match its journal contract"),
+            Self::QuestionLayerSetMismatch => formatter.write_str(
+                "semantic transition graph question layers do not match its journal contract",
+            ),
+            Self::UnknownLayer => formatter
+                .write_str("semantic transition graph names an unregistered question layer"),
             Self::ArithmeticOverflow => {
                 formatter.write_str("semantic transition graph record count overflowed")
             }

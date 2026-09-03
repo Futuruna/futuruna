@@ -101,12 +101,15 @@ impl RelationalNativeClassifierIdentityV2 {
     fn from_checked(
         checked: &CheckedExploreQueryView<'_>,
     ) -> Result<Self, RelationalNativeClassifierUnavailable> {
+        let [question_id] = checked.find_question_ids() else {
+            return Err(RelationalNativeClassifierUnavailable::UnsupportedQuestionSet);
+        };
         Ok(Self {
             program_hash: decode_lowercase_sha256(checked.program_hash())
                 .ok_or(RelationalNativeClassifierUnavailable::InvalidCheckedProgramHash)?,
             relation_id: checked.relation_id().bytes(),
             admission_id: checked.admission_id().bytes(),
-            question_id: checked.question_id().bytes(),
+            question_id: question_id.bytes(),
         })
     }
 
@@ -308,6 +311,10 @@ pub(crate) enum RelationalNativeClassifierUnavailable {
     DisabledAfterUnavailable,
     ParityCanaryMismatch,
     InvalidCheckedProgramHash,
+    /// Wire protocol V2 carries exactly one authored FIND program and
+    /// QuestionId. Plural, empty, and aliased FIND sets use the checked
+    /// interpreter; no authored question is treated as primary.
+    UnsupportedQuestionSet,
     InvalidFiniteInputShape,
     BatchTooLarge {
         actual: usize,

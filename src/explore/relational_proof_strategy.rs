@@ -415,9 +415,11 @@ impl RelationalProofStrategyInventory {
         if !support_plan.validate_root() {
             return Err(RelationalProofStrategyError::SupportPlanRootMismatch);
         }
+        let question_id = require_single_question(checked.question_ids())?;
+        let plan_question_id = require_single_question(support_plan.question_ids())?;
         if checked.relation_id() != support_plan.relation_id()
             || checked.admission_id() != support_plan.admission_id()
-            || checked.question_id() != support_plan.question_id()
+            || question_id != plan_question_id
         {
             return Err(RelationalProofStrategyError::CheckedPlanScopeMismatch);
         }
@@ -623,18 +625,26 @@ impl RelationalProofStrategyInventory {
                 &mut residuals,
             )?;
         }
-        if let Some(predicate) = checked.closed_query.find.predicate() {
-            collect_direct_guard_atoms(
-                predicate,
-                RelationalGuardLayer::Selection {
-                    question_id: support_plan.question_id(),
-                },
-                &axis_by_name,
-                &axes_by_dimension,
-                &mut Vec::new(),
-                &mut guard_atoms,
-                &mut residuals,
-            )?;
+        if checked.closed_query.finds.len() != checked.find_question_ids().len()
+            || checked
+                .find_question_ids()
+                .iter()
+                .any(|candidate| *candidate != question_id)
+        {
+            return Err(RelationalProofStrategyError::CheckedPlanScopeMismatch);
+        }
+        for named_find in checked.closed_query.finds.iter() {
+            if let Some(predicate) = named_find.find.predicate() {
+                collect_direct_guard_atoms(
+                    predicate,
+                    RelationalGuardLayer::Selection { question_id },
+                    &axis_by_name,
+                    &axes_by_dimension,
+                    &mut Vec::new(),
+                    &mut guard_atoms,
+                    &mut residuals,
+                )?;
+            }
         }
         guard_atoms.sort_by(|left, right| {
             (
@@ -1868,6 +1878,7 @@ pub(crate) fn assess_relational_selected_support(
     if !support_plan.validate_root() {
         return Err(RelationalProofStrategyError::SupportPlanRootMismatch);
     }
+    let question_id = require_single_question(support_plan.question_ids())?;
     match support_plan.root_obligations() {
         RelationalRootObligationPlan::ResolvedExactEmpty { admission_id } => {
             return Ok(RelationalSelectedSupportAssessment::Exact(
@@ -1876,13 +1887,13 @@ pub(crate) fn assess_relational_selected_support(
                     basis: RelationalExactSelectedSupportBasis::StaticExactEmpty {
                         plan_root: support_plan.root(),
                         admission_id: *admission_id,
-                        question_id: support_plan.question_id(),
+                        question_id,
                     },
                 },
             ));
         }
         RelationalRootObligationPlan::CellBacked { root_cell_id, .. } => {
-            assess_cell_backed_selected_support(support_plan, snapshot, *root_cell_id)
+            assess_cell_backed_selected_support(support_plan, snapshot, *root_cell_id, question_id)
         }
     }
 }
@@ -1891,6 +1902,7 @@ fn assess_cell_backed_selected_support(
     support_plan: &RelationalSupportPlan,
     snapshot: &SupportEvidenceSnapshot,
     root_cell_id: SupportCellId,
+    question_id: QuestionId,
 ) -> Result<RelationalSelectedSupportAssessment, RelationalProofStrategyError> {
     let mut residuals = BTreeSet::new();
     if !snapshot.support_frontier_is_complete() {
@@ -1924,7 +1936,7 @@ fn assess_cell_backed_selected_support(
     let evidence_index = index_selected_leaf_evidence(
         snapshot,
         support_plan.admission_id(),
-        support_plan.question_id(),
+        question_id,
         &active_obligations,
     )?;
     let mut leaf_evidence = Vec::new();
@@ -2107,9 +2119,23 @@ fn index_selected_leaf_evidence(
     Ok(index)
 }
 
+fn require_single_question(
+    question_ids: &[QuestionId],
+) -> Result<QuestionId, RelationalProofStrategyError> {
+    let [question_id] = question_ids else {
+        return Err(RelationalProofStrategyError::QuestionArityMismatch {
+            actual: question_ids.len(),
+        });
+    };
+    Ok(*question_id)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalProofStrategyError {
     InvalidQuery(String),
+    QuestionArityMismatch {
+        actual: usize,
+    },
     SupportPlanner(RelationalSupportPlannerError),
     SupportPlanRootMismatch,
     CheckedPlanScopeMismatch,
@@ -2168,6 +2194,10 @@ impl fmt::Display for RelationalProofStrategyError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidQuery(message) => write!(formatter, "invalid relational query: {message}"),
+            Self::QuestionArityMismatch { actual } => write!(
+                formatter,
+                "relational proof optimization requires exactly one semantic question, found {actual}"
+            ),
             Self::SupportPlanner(error) => {
                 write!(formatter, "invalid relational support plan input: {error}")
             }

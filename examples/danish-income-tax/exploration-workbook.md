@@ -19,7 +19,7 @@ The **target language** now makes that architecture visible: `given` states
 conditioning, `vary` introduces a finite dimension, `let` constructs local
 values including Before, and `transition` declares the typed After relation.
 `derive` names pure computed facts and endpoint observations.
-A total `admit` decision classifies every constructed transition. One or more
+A total `admit` decision classifies every constructed transition. Zero or more
 named `find` relations then ask semantic questions without creating a
 privileged relation called `selected`. Views, partitioned choices and causal
 explanations live in separate `? analyze` declarations, while `? publish`
@@ -27,13 +27,26 @@ attaches authorized artifacts. Time limits, workers,
 memory limits, journal locations and publication paths remain invocation
 controls rather than query semantics.
 
-> **Syntax status.** The `? explore`, `? analyze`, and `? publish` blocks in section 9 are
-> accepted **target syntax**, not claims about the parser available today. The
-> current Experimental relational examples execute the earlier
-> `from`/`to`/`where`/`find`/`results`/`mechanisms` surface while the frontend is
-> migrated. The collection audit below is executable ordinary Futuruna. Neither
-> current surface is a compatibility promise, and the workbook does not present
-> target syntax as already runnable.
+> **Syntax status.** Named `find` declarations and explicit
+> `results ... from find NAME` / `mechanisms ... from find NAME` consumers are
+> now being carried through the Experimental frontend and durable runtime on
+> this branch. The separate `? analyze` and `? publish` blocks in section 9
+> remain accepted **target syntax**, not a claim that every sketched clause is
+> executable today. The collection audit below is executable ordinary
+> Futuruna. No Experimental surface here is yet a compatibility promise.
+
+The first closed plural stream is now concrete evidence rather than a design
+sketch. The four-case `relational-explore-stream-smoke.runa` run used one
+relation and admission for `find all_cases = all` and
+`find interesting = matches of ...`. After a deliberately short cold slice
+paused at sequence zero, the same journal resumed and closed with
+`all_cases = exact(4)`, `interesting = exact(2)`, one structural mechanism
+explaining both interesting cases, and twelve caught-up artifacts. Its saved
+`views/selected_cases.ndjson` contains the two typed cases;
+`views/mechanism_summary.ndjson` reports `mechanisms = 1` and
+`explained_cases = 2`; and `graphs/case_graph.ndjson` closes with five state
+nodes, four universe/admitted cases, and question-specific matched layers of
+four and two cases. This is a kernel audit, not a Personskat result.
 
 The existing executable calibration uses the same underlying discipline with
 ordinary collections:
@@ -56,8 +69,8 @@ Its current first-pass relation has 2,000 integer coordinates, each denoting
 input deductions. Its concrete edges are therefore `0 -> 100`, `100 -> 200`,
 ..., `199_900 -> 200_000` DKK. This is an exact coarse endpoint-cliff screen,
 not an exact answer about all 200,000 possible 1-DKK raises and not yet a full
-mechanism landscape. The present mechanism request replays selected coarse
-cliffs only. Interesting selected edges can seed finer subrelations without
+mechanism landscape. The present mechanism request explicitly replays the
+`cliff_cases` find only. Interesting matching edges can seed finer subrelations without
 forcing the first stream to pay for every krone; admission changes and
 mechanism boundaries need their own discovery signals. A finer successor step
 is a separately checked relation with a different identity; coarse evidence
@@ -103,14 +116,15 @@ support: starter conditions and conditional successor fibers remain distinct
 from raw case counts even when a scalar income axis makes their cardinalities
 equal in this narrow slice.
 
-The complementary all-admitted mechanism question is authored as
+The complementary all-admitted mechanism question is still authored as the
+focused fixture
 [personskat-mechanism-landscape-200k.explore.runa](personskat-mechanism-landscape-200k.explore.runa).
-It imports the completed audit helpers without making the imported cliff query
-selectable, repeats the same finite relation and admission contract, and uses
-`find all`. Consequently its selected population is exactly its admitted
-population, so the existing `mechanisms ... for selected` surface honestly
-replays every admitted coarse edge. It has its own question identity and fresh
-journal; it is not a reinterpretation of the zero-cliff result.
+It names `find admitted_cases = all` and explicitly targets that find for
+mechanism replay. This separate file remains useful as a narrow fixture, but it
+is no longer the desired broad-audit topology. The combined audit should name
+both `cliff_cases` and `admitted_cases` in one Explore declaration: relation,
+endpoint and admission evidence are then generated once, while each find keeps
+its own `QuestionId`, closure and downstream mechanism target.
 
 Read the workbook in two layers. Sections 1-8 build and check the executable
 calibration audit. Section 9 extracts the general Explore architecture from
@@ -181,19 +195,19 @@ There are therefore two different coarse-grid questions:
    a signature, admission status or rule-event boundary changes—even when the
    100-DKK net result is harmless.
 
-The current executable landscape uses a separate `find all` query. In that
-implementation `selected = admitted` by definition, which lets the existing
-target machinery do the right work without calling harmless edges cliffs. The
-target syntax instead lets one Explore declaration name both `find cliffs`
-and `find admitted_edges`, then lets separate analyses explain either
-relation. That generalization needs finding-scoped target seals and durable
-materialization, not merely another parser keyword, so the separate executable
-query remains an honest transition step.
+The focused executable landscape fixture still uses a separate
+`find admitted_cases = all` question, where positive membership equals
+admission by definition. That file remains useful as a narrow calibration,
+but separation is no longer an engine requirement: one Explore declaration
+can name both `find cliff_cases = ...` and `find admitted_cases = all`, then
+explicitly explain either relation. Each target receives its own question seal
+and durable materialization over the shared relation and admission journal.
 
 Calling the first query “mechanism discovery” without this qualification would
-be misleading. In the current `mechanisms ... for selected` implementation, an
-exact-empty cliff result also produces exactly zero requested mechanisms; it does not prove that the
-interval contains no legal mechanism change. The efficient next design reuses
+be misleading. A mechanism request explicitly targeting an exact-empty cliff
+find produces exactly zero requested mechanisms; it does not prove that the
+interval contains no legal mechanism change. A sibling all-admitted find can
+request that landscape in the same shared traversal. The efficient next design reuses
 each grid endpoint trace across its two neighboring edges and stores shared
 trace/DAG nodes content-addressably, rather than independently replaying both
 endpoints for every edge.
@@ -674,7 +688,7 @@ state transitions:
 given conditions + finite varied dimensions + derived Before
     -> typed transition -> finite dependent After states
     -> total admission decision
-    -> one or more named question relations
+    -> zero or more named question relations
     -> separate views, partitioned choices, and explanations
 ```
 
@@ -1367,12 +1381,31 @@ question classifications by `(QuestionId, CaseId)`. This is what lets one
 authenticated transition relation answer another authorized question without
 pretending that the underlying cases changed.
 
+Concrete execution constructs each case and evaluates its endpoint and
+admission once, then fans the admitted case out to the unique semantic
+questions. For `N` admitted cases and question-predicate costs `f_i`, this is
+`O(N * sum(f_i))` question work, not `q` repetitions of source construction,
+successor evaluation, endpoint observation and admission. Authored aliases of
+one normalized question add no evaluation work. Honest extensional evidence
+still requires up to `O(Nq)` keyed decisions; any smaller representation must
+be justified by a checked compression or proof, not by silently sampling.
+At the current implementation checkpoint, the certified scalar sweep is
+available only when the canonical question set has exactly one member. A
+zero- or plural-question query uses the same resumable concrete stream; it
+never nominates the first authored find as an optimization surrogate.
+The non-fused work DAG exposes at most one missing question leaf per case and
+quantum. Singleton-source fusion charges the number of question decisions to
+a fixed event budget, shrinks the member batch to fit, and disables itself when
+one member would be too wide. Adding questions therefore cannot silently turn
+one scheduler quantum into an unbounded event allocation.
+
 Explore, find, analysis, view, choice and explanation names are unique
 source addresses, not raw hash literals. Renaming an address and updating its
 references preserves semantic identity; changing its normalized relation,
 predicate, partition, observer or privacy contract does not. The transitional
-implementation calls a find population `selected`; that is an implementation
-checkpoint, not target-language vocabulary.
+runtime may call positive membership `selected`, but every source-level and
+public consumer addresses a named find. There is no ambient selected set and
+no primary or first-find fallback.
 
 This separation allows one durable body of evidence to support another
 authorized question or result view without pretending that a new predicate or
@@ -1981,7 +2014,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v13 projects those points into a resumable request-local sidecar;
+Publication v15 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -2053,7 +2086,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v13
+view is rebuilt from the same authenticated signature leaves. Publication v15
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -2108,7 +2141,7 @@ is needed. These frontend and scheduler semantics are integrated through the
 journal, stream driver and publication plan; focused executable verification
 is the next gate before a larger audit run.
 
-Those descriptors are authorization-neutral. Publication v13 retains the
+Those descriptors are authorization-neutral. Publication v15 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -2141,7 +2174,7 @@ carrying one source/successor pair; the deduplicated source-only population is
 `P`. An unqualified consumer omits the optional route coordinate and retains
 its v1 consumer-local identity and record shape. In the historical
 publication-v9 contract this allowed a qualified consumer to be appended
-without republishing the core exploration. Publication v13 preserves the
+without republishing the core exploration. Publication v15 preserves the
 semantic separation, but has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
@@ -2215,7 +2248,7 @@ extra people or cases. The primary populations are:
 - `D_C`: cases admitted by an `AdmissionId`; and
 - `S_C`: cases selected by that question's `find`.
 
-For `find all`, the selected relation is the admissible relation, so
+For a `find NAME = all` question, positive membership is the admissible relation, so
 `S_C = D_C`. The corresponding transition counts are conservation equalities
 `U_T = U_C`, `D_T = D_C` and `S_T = S_C` within one RelationId. If every
 relation exposes exact cardinality and order statically, `U_S` and `U_C` may be
@@ -2390,17 +2423,14 @@ identities, durable append-only journal, pause/resume scheduler, named selected
 views, fresh endpoint mechanism replay, incidence views and crash-safe NDJSON
 publication through the public `runa explore` command.
 
-The smallest nonempty oracle has closed through that complete path:
-`relational-explore-stream-smoke.runa` produced exactly four sources and cases,
-two selected transitions (`1 -> 2` and `3 -> 4`), one shared raw mechanism
-signature with both case incidences, and one structural mechanism/execution
-profile. Its target-conditioned support closed at two cases and two distinct
-starters. All eight publication-v7 artifacts caught up to journal sequence 107
-and head
-`fb37a53cac23fd1c4cee5da2508824f694ca11091d7696e60acf4fafbcba3d46`;
-an identical reopen appended zero semantic events and zero publication lines.
-This is executable evidence for the resumable stream and case/mechanism graph,
-not Personskat evidence.
+An earlier single-question checkpoint of
+`relational-explore-stream-smoke.runa` closed four sources and cases, two
+positive transitions, one shared raw mechanism signature, and one structural
+mechanism/execution profile. Its eight publication-v7 artifacts reached
+sequence 107. That snapshot remains implementation history; the current
+plural 4/2/1 execution and its twelve publication-v15 artifacts are recorded
+at the start of this workbook. Both are runtime evidence for the resumable
+stream and case/mechanism graph, not Personskat evidence.
 
 The conditioned
 `personskat_income_cliffs_conditioned_100_dkk_grid_200k_2026` query is now a
@@ -2689,7 +2719,7 @@ case-support fiber on demand while the other 8,052 nodes and 20,720 edges stayed
 factorized. Publication must never eagerly serialize all of those case-support
 fibers merely because the structural DAG is published.
 
-Publication v13 keeps that typed consumer but removes the eager closure-time
+Publication v15 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
@@ -2832,7 +2862,7 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v13 implements
+unions and honest unknown/interval/exact counts. Publication v15 implements
 independently domain-separated inner/outer expression bounds for `S`, the
 correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
 `P = distinct_sources(S)`. Its append-only observation points also carry
@@ -2932,7 +2962,7 @@ support-overlay coordinates and references; typed starter values stay
 authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
-Publication v13 emits one flat observation artifact per mechanism request at
+Publication v15 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -3000,7 +3030,7 @@ observations stay compact and value-free; adding or reading them does not
 implicitly publish private starter configurations.
 
 The compact public answer now exposes this distinction directly. Relational
-stream JSON v7 names the closure-aware selected before-to-after case count and,
+stream JSON v8 names every named question's closure-aware before-to-after case count and,
 for every mechanism request, the structural-mechanism, successful replay and
 unavailable-replay counts plus the exact sealed target's distinct starter
 count and evidence roots. Each request record must also directly link its
@@ -3020,9 +3050,10 @@ individual mechanism or node's starter count. Those correlated subject
 case-support fibers and starter projections remain in their own authenticated
 result layer.
 
-The next root query is now authored, but deliberately not launched:
+The focused landscape query is authored, but deliberately not launched:
 `personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026` uses the
-same 2,000-edge relation and admission predicates with `find all`. Its named
+same 2,000-edge relation and admission predicates with
+`find admitted_cases = all`. Its named
 views retain every admitted edge, every successful case/signature incidence,
 typed replay-unavailable terminals, closure-qualified structural support,
 distinct structural mechanisms, raw signatures and edges per 1,000-DKK income
@@ -3031,9 +3062,11 @@ net-change bin. The authored mechanism counts now group
 `structural_mechanism_id`; their neighboring `raw_signatures` fields retain the
 replay-sensitive count explicitly. These views are exact for the complete
 admitted target only if their frontier closes without
-replay-unavailable edges. A fresh journal is required
-because this is a different question. Compact signature/receipt journaling now
-exists, but this `find all` query remains deliberately deprioritized: it would
+replay-unavailable edges. As a separate fixture it has a separate journal; the
+intended combined audit instead places this question beside `cliff_cases` in
+one shared journal. Compact signature/receipt journaling now
+exists, but this all-admitted mechanism request remains deliberately
+deprioritized: it would
 request endpoint replay for all 2,000 admitted edges, whereas the selected-only
 multidimensional query can first validate positive mechanism and starter
 support with a sparse replay target.
@@ -3547,7 +3580,7 @@ target:
    result-view or case/support batch appends, so torn-tail recovery cannot
    validate later rows under the older pending checkpoint.
 
-   The focused current-source oracle has now executed this path. Its sealed
+   An earlier focused single-question oracle executed this path. Its sealed
    journal contains four exact cases, two selected cases, one shared mechanism
    signature and two mechanism incidences. Reopening the unchanged journal
    appended the previously missing seven-record classification-summary graph:
@@ -3555,7 +3588,8 @@ target:
    closure. A second reopen appended zero semantic events, graph lines or
    source ordinals and preserved both graph and mechanism-file digests. This is
    runtime evidence for the general stream and publication architecture, not a
-   Personskat finding.
+   Personskat finding. The plural 4/2/1 run recorded at the start of this
+   workbook supersedes it as the current-source oracle.
 
    The graph's deterministic artifact IDs and roots are audit commitments, not
    hiding commitments. This conditioned audit contains intentionally declared
@@ -3688,14 +3722,14 @@ only about that declared coarse endpoint relation; it is not an exact-empty
 certificate for every 1-DKK transition.
 
 The discovery policy follows from the case and mechanism graphs rather than
-becoming a second hand-authored audit. Selected coarse edges, admission changes
+becoming a second hand-authored audit. Matching coarse edges, admission changes
 and mechanism-signature changes nominate candidate neighborhoods for a finer
-query. The current query can supply the first two signals but, because mechanism
-replay targets `selected`, its exact-empty result supplies no signature-change
-signal. The authored `find all` mechanism-landscape query instead compares all
-admitted coarse endpoints and reuses each endpoint trace across neighboring
-edges. Its signature-incidence stream can nominate candidate bounds without
-changing the cliff query's meaning.
+query. The current cliff-only file can supply the first two signals but an
+exact-empty `cliff_cases` target supplies no signature-change signal. The
+all-admitted question instead compares every admitted coarse endpoint and
+reuses each endpoint trace across neighboring edges. In the intended combined
+query its signature-incidence stream can nominate candidate bounds without
+changing the cliff question's meaning or rebuilding the shared relation.
 
 A `+1 DKK` successor is nevertheless a separately declared and checked
 relation, not a child whose proof obligations are silently discharged by the

@@ -779,7 +779,7 @@ impl RelationalAnalysisCatalogBuilder {
 
         let mut layers = BTreeMap::new();
         for registration in plan.layer_registrations() {
-            validate_registration(plan.question_id(), registration)?;
+            validate_registration(plan.question_ids(), registration)?;
             let state = match registration {
                 RelationalAnalysisLayerRegistration::Result(result) => {
                     AnalysisLayerBuilder::Result(ResultLayerBuilder {
@@ -788,7 +788,7 @@ impl RelationalAnalysisCatalogBuilder {
                     })
                 }
                 RelationalAnalysisLayerRegistration::Mechanisms(mechanism) => {
-                    let scope = mechanism_scope(plan.question_id(), mechanism);
+                    let scope = mechanism_scope(plan, mechanism)?;
                     AnalysisLayerBuilder::Mechanisms(MechanismLayerBuilder {
                         registration: mechanism.clone(),
                         incidence: MechanismIncidenceCatalogBuilder::new(scope),
@@ -1480,7 +1480,7 @@ impl RelationalAnalysisCatalogBuilder {
     ) -> Result<RelationalMechanismEvidenceContract, RelationalAnalysisCatalogError> {
         let registration = self.mechanism_registration(request_id)?;
         Ok(RelationalMechanismEvidenceContract {
-            scope: mechanism_scope(self.plan.question_id(), registration),
+            scope: mechanism_scope(&self.plan, registration)?,
             observation_id: registration.observation_id(),
             observation_digest: registration.observation_digest(),
         })
@@ -2312,7 +2312,6 @@ pub(crate) enum RelationalAnalysisCatalogError {
     },
     ForeignQuestionDependency {
         layer_id: RelationalAnalysisLayerId,
-        expected: QuestionId,
         actual: QuestionId,
     },
     UnknownResultLayer {
@@ -2607,7 +2606,7 @@ fn reject_standalone_structural_result_snapshot(
 }
 
 fn validate_registration(
-    plan_question_id: QuestionId,
+    plan_question_ids: &[QuestionId],
     registration: &RelationalAnalysisLayerRegistration,
 ) -> Result<(), RelationalAnalysisCatalogError> {
     let (layer_id, expected_dependency) = match registration {
@@ -2641,10 +2640,11 @@ fn validate_registration(
         return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
     }
     match expected_dependency {
-        RelationalAnalysisDependencyId::Question(actual) if actual != plan_question_id => {
+        RelationalAnalysisDependencyId::Question(actual)
+            if plan_question_ids.binary_search(&actual).is_err() =>
+        {
             return Err(RelationalAnalysisCatalogError::ForeignQuestionDependency {
                 layer_id,
-                expected: plan_question_id,
                 actual,
             });
         }
@@ -2657,16 +2657,37 @@ fn validate_registration(
 }
 
 fn mechanism_scope(
-    question_id: QuestionId,
+    plan: &RelationalAnalysisPlan,
     registration: &RelationalMechanismLayerRegistration,
-) -> MechanismRequestScope {
-    let target = match registration.target() {
-        RelationalResolvedMechanismTarget::Selected(_) => MechanismTargetId::Selected,
+) -> Result<MechanismRequestScope, RelationalAnalysisCatalogError> {
+    let layer_id = RelationalAnalysisLayerId::Mechanisms(registration.request_id());
+    let (question_id, target) = match registration.target() {
+        RelationalResolvedMechanismTarget::Selected(question_id) => {
+            (question_id, MechanismTargetId::Selected)
+        }
         RelationalResolvedMechanismTarget::ChosenView(view_id) => {
-            MechanismTargetId::ChosenView(view_id)
+            let Some(RelationalAnalysisLayerRegistration::Result(result)) =
+                plan.registration(RelationalAnalysisLayerId::Result(view_id))
+            else {
+                return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
+            };
+            let RelationalResolvedResultInput::Selected(question_id) = result.input() else {
+                return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
+            };
+            (question_id, MechanismTargetId::ChosenView(view_id))
         }
     };
-    MechanismRequestScope::new(registration.request_id(), question_id, target)
+    if plan.question_ids().binary_search(&question_id).is_err() {
+        return Err(RelationalAnalysisCatalogError::ForeignQuestionDependency {
+            layer_id,
+            actual: question_id,
+        });
+    }
+    Ok(MechanismRequestScope::new(
+        registration.request_id(),
+        question_id,
+        target,
+    ))
 }
 
 const fn result_input_kind(input: RelationalResolvedResultInput) -> ResultViewInputKind {

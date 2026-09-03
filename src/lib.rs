@@ -4964,6 +4964,13 @@ impl ExploreSelection {
 }
 
 #[derive(Debug, Clone)]
+pub struct ExploreFind {
+    pub name: String,
+    pub selection: ExploreSelection,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
 pub struct ExploreResultField {
     pub name: String,
     pub value: Expr,
@@ -4973,7 +4980,7 @@ pub struct ExploreResultField {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreResultInput {
     Sources,
-    Selected,
+    Find { find_name: String },
     MechanismIncidence { request_name: String },
 }
 
@@ -5070,7 +5077,7 @@ pub struct ExploreResultView {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreMechanismTarget {
-    SelectedCases,
+    FindCases { find_name: String },
     ViewChosen { view_name: String },
 }
 
@@ -5178,7 +5185,7 @@ pub struct ExploreQuery {
     pub source: ExploreSourceRelation,
     pub successor: ExploreSuccessorRelation,
     pub admissions: Vec<ExploreAdmission>,
-    pub selection: ExploreSelection,
+    pub finds: Vec<ExploreFind>,
     /// Post-FIND analysis declarations in dependency order. References may
     /// resolve only to an earlier node, so the authored order is already a DAG
     /// topological order and cannot encode a cycle.
@@ -5287,6 +5294,13 @@ pub enum TypedExploreSelection {
 }
 
 #[derive(Debug, Clone)]
+pub struct TypedExploreFind {
+    pub name: String,
+    pub selection: TypedExploreSelection,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
 pub struct TypedExploreResultField {
     pub name: String,
     pub value: Expr,
@@ -5297,7 +5311,10 @@ pub struct TypedExploreResultField {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypedExploreResultInput {
     Sources,
-    Selected,
+    Find {
+        find_name: String,
+        find_index: usize,
+    },
     MechanismIncidence {
         request_name: String,
         request_node_index: usize,
@@ -5381,10 +5398,14 @@ pub struct TypedExploreResultView {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TypedExploreMechanismTarget {
-    SelectedCases,
+    FindCases {
+        find_name: String,
+        find_index: usize,
+    },
     ViewChosen {
         view_name: String,
         view_node_index: usize,
+        find_index: usize,
     },
 }
 
@@ -5478,7 +5499,7 @@ pub struct TypedExploreQuery {
     pub source: TypedExploreSourceRelation,
     pub successor: TypedExploreSuccessorRelation,
     pub admissions: Vec<TypedExploreAdmission>,
-    pub selection: TypedExploreSelection,
+    pub finds: Vec<TypedExploreFind>,
     pub analysis: Vec<TypedExploreAnalysisNode>,
     pub(crate) observation_demands: Vec<TypedExploreSupportObservationDemand>,
     pub(crate) starter_projections: Vec<TypedExploreStarterProjection>,
@@ -5504,7 +5525,7 @@ fn explore_result_input_row_bindings(
 ) -> &'static [(&'static str, &'static str)] {
     match input {
         ExploreResultInput::Sources => &[],
-        ExploreResultInput::Selected => EXPLORE_SELECTED_CASE_ROW_BINDINGS,
+        ExploreResultInput::Find { .. } => EXPLORE_SELECTED_CASE_ROW_BINDINGS,
         ExploreResultInput::MechanismIncidence { .. } => EXPLORE_MECHANISM_INCIDENCE_ROW_BINDINGS,
     }
 }
@@ -6308,13 +6329,15 @@ fn collect_true_free_symbol_uses_stmt(
                     &query_typed_receivers,
                 );
             }
-            if let Some(predicate) = query.selection.predicate() {
-                collect_true_free_symbol_uses(
-                    predicate,
-                    uses,
-                    &query_bound,
-                    &query_typed_receivers,
-                );
+            for find in &query.finds {
+                if let Some(predicate) = find.selection.predicate() {
+                    collect_true_free_symbol_uses(
+                        predicate,
+                        uses,
+                        &query_bound,
+                        &query_typed_receivers,
+                    );
+                }
             }
             for node in &query.analysis {
                 match node {
@@ -6692,9 +6715,9 @@ pub(crate) fn collect_scoped_runtime_calls(
 }
 
 /// One exact runtime dependency root for bounded exploration initialization.
-/// Calls keep their effective runtime arity; the selected Explore question is
-/// additionally identified as a rule so a same-named function or value cannot
-/// silently redirect its dependency slice.
+/// Calls keep their effective runtime arity; each Explore question predicate
+/// is additionally identified as a rule so a same-named function or value
+/// cannot silently redirect its dependency slice.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum ExploreRuntimeRoot {
     Value {
@@ -7764,8 +7787,10 @@ where
             for admission in &query.admissions {
                 visit(AstChild::Expr(&admission.predicate));
             }
-            if let Some(predicate) = query.selection.predicate() {
-                visit(AstChild::Expr(predicate));
+            for find in &query.finds {
+                if let Some(predicate) = find.selection.predicate() {
+                    visit(AstChild::Expr(predicate));
+                }
             }
             for node in &query.analysis {
                 match node {
@@ -8169,19 +8194,29 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
                 span: Span::dummy(),
             })
             .collect(),
-        selection: match &query.selection {
-            ExploreSelection::All { .. } => ExploreSelection::All {
+        finds: query
+            .finds
+            .iter()
+            .map(|find| ExploreFind {
+                name: find.name.clone(),
+                selection: match &find.selection {
+                    ExploreSelection::All { .. } => ExploreSelection::All {
+                        span: Span::dummy(),
+                    },
+                    ExploreSelection::Matches { predicate, .. } => ExploreSelection::Matches {
+                        predicate: strip_spans_expr(predicate),
+                        span: Span::dummy(),
+                    },
+                    ExploreSelection::Violations { predicate, .. } => {
+                        ExploreSelection::Violations {
+                            predicate: strip_spans_expr(predicate),
+                            span: Span::dummy(),
+                        }
+                    }
+                },
                 span: Span::dummy(),
-            },
-            ExploreSelection::Matches { predicate, .. } => ExploreSelection::Matches {
-                predicate: strip_spans_expr(predicate),
-                span: Span::dummy(),
-            },
-            ExploreSelection::Violations { predicate, .. } => ExploreSelection::Violations {
-                predicate: strip_spans_expr(predicate),
-                span: Span::dummy(),
-            },
-        },
+            })
+            .collect(),
         analysis: query
             .analysis
             .iter()
@@ -9245,7 +9280,7 @@ impl Parser {
                 format!("`{}`", token.source_text)
             };
             Err(format!(
-                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `from`, `transition`, zero or more `where`, `find`, then zero or more `results` and `mechanisms`",
+                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `from`, `transition`, zero or more `where`, zero or more named `find` clauses, then zero or more `results` and `mechanisms`",
                 token.line, token.col, word, found
             ))
         }
@@ -9601,28 +9636,38 @@ impl Parser {
     fn parse_explore_result(&mut self) -> Result<ExploreResultView, String> {
         let start = self.expect_explore_word("results")?;
         let (name, _) = self.expect_explore_binder("result view name")?;
-        let input = if self.peek_word("from") {
+        if !self.peek_word("from") {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration result input must be explicit: use `from find NAME`, `from sources`, or `from mechanisms NAME`",
+                token.line, token.col
+            ));
+        }
+        self.advance();
+        let input = if self.peek_word("find") {
             self.advance();
-            if self.peek_word("sources") {
-                self.advance();
-                ExploreResultInput::Sources
-            } else if self.peek_word("selected") {
-                self.advance();
-                ExploreResultInput::Selected
-            } else if self.peek_word("mechanisms") {
-                self.advance();
-                let (request_name, _) =
-                    self.expect_explore_binder("mechanism request used by result view")?;
-                ExploreResultInput::MechanismIncidence { request_name }
-            } else {
-                let token = self.peek();
-                return Err(format!(
-                    "{}:{}: exploration result input must be `sources`, `selected`, or `mechanisms NAME`",
-                    token.line, token.col
-                ));
-            }
+            let (find_name, _) = self.expect_explore_binder("find used by result view")?;
+            ExploreResultInput::Find { find_name }
+        } else if self.peek_word("sources") {
+            self.advance();
+            ExploreResultInput::Sources
+        } else if self.peek_word("selected") {
+            let token = self.advance();
+            return Err(format!(
+                "{}:{}: `from selected` is no longer supported; name the question explicitly with `from find NAME`",
+                token.line, token.col
+            ));
+        } else if self.peek_word("mechanisms") {
+            self.advance();
+            let (request_name, _) =
+                self.expect_explore_binder("mechanism request used by result view")?;
+            ExploreResultInput::MechanismIncidence { request_name }
         } else {
-            ExploreResultInput::Selected
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration result input must be `find NAME`, `sources`, or `mechanisms NAME`",
+                token.line, token.col
+            ));
         };
         self.expect(TokenKind::LBrace)?;
         self.skip_semis();
@@ -9747,14 +9792,14 @@ impl Parser {
                     "source results currently require `group all` or `group by [...]`".into(),
                 );
             }
-            (ExploreResultInput::Selected, ExploreResultGrain::EachIncidence { .. }) => {
+            (ExploreResultInput::Find { .. }, ExploreResultGrain::EachIncidence { .. }) => {
                 return Err("`each incidence` requires a mechanism-incidence result input".into());
             }
             (
                 ExploreResultInput::MechanismIncidence { .. },
                 ExploreResultGrain::EachCase { .. },
             ) => {
-                return Err("`each case` requires the selected-case result input".into());
+                return Err("`each case` requires a named-find result input".into());
             }
             _ => {}
         }
@@ -9782,10 +9827,25 @@ impl Parser {
     fn parse_explore_mechanism_request(&mut self) -> Result<ExploreMechanismRequest, String> {
         let start = self.expect_explore_word("mechanisms")?;
         let (name, _) = self.expect_explore_binder("mechanism request name")?;
-        self.expect_explore_word("for")?;
-        let target = if self.peek_word("selected") {
+        if self.peek_word("for") {
+            let token = self.advance();
+            return Err(format!(
+                "{}:{}: legacy `mechanisms NAME for ... from OBSERVER` is no longer supported; use `mechanisms NAME from find FIND using OBSERVER` or `mechanisms NAME from view VIEW chosen using OBSERVER`",
+                token.line, token.col
+            ));
+        }
+        self.expect_explore_word("from")?;
+        let target = if self.peek_word("find") {
             self.advance();
-            ExploreMechanismTarget::SelectedCases
+            let (find_name, _) =
+                self.expect_explore_binder("find targeted by mechanism request")?;
+            ExploreMechanismTarget::FindCases { find_name }
+        } else if self.peek_word("selected") {
+            let token = self.advance();
+            return Err(format!(
+                "{}:{}: `mechanisms ... from selected` is not supported; name the question explicitly with `from find NAME`",
+                token.line, token.col
+            ));
         } else if self.peek_word("view") {
             self.advance();
             let (view_name, _) = self.expect_explore_binder("mechanism result view")?;
@@ -9794,11 +9854,11 @@ impl Parser {
         } else {
             let token = self.peek();
             return Err(format!(
-                "{}:{}: exploration mechanism target must be `selected` or `view NAME chosen`",
+                "{}:{}: exploration mechanism target must be `from find NAME` or `from view NAME chosen`",
                 token.line, token.col
             ));
         };
-        self.expect_explore_word("from")?;
+        self.expect_explore_word("using")?;
         let callable_token = self.peek().clone();
         let callable_name = self.parse_qualified_name()?;
         let span = self.span_since(&start);
@@ -10010,95 +10070,142 @@ impl Parser {
             self.skip_semis();
         }
 
-        let find_start = self.expect_explore_word("find")?;
-        let selection = if self.peek_word("all") {
-            self.advance();
-            ExploreSelection::All {
-                span: self.span_since(&find_start),
+        let mut finds = Vec::new();
+        let mut find_names = BTreeSet::new();
+        while self.peek_word("find") {
+            let find_start = self.advance();
+            if self.peek_word("all") || self.peek_word("matches") || self.peek_word("violations") {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: exploration questions must be named; use `find NAME = all`, `find NAME = matches of BOOL`, or `find NAME = violations of BOOL`",
+                    token.line, token.col
+                ));
             }
-        } else if self.peek_word("matches") {
-            self.advance();
-            self.expect_explore_word("of")?;
-            ExploreSelection::Matches {
-                predicate: self.parse_expr()?,
-                span: self.span_since(&find_start),
+            let (find_name, _) = self.expect_explore_binder("find name")?;
+            if !self.consume_explore_equals() {
+                let found = self.peek();
+                return Err(format!(
+                    "{}:{}: exploration find `{find_name}` requires `=` before its question",
+                    found.line, found.col
+                ));
             }
-        } else if self.peek_word("violations") {
-            self.advance();
-            self.expect_explore_word("of")?;
-            ExploreSelection::Violations {
-                predicate: self.parse_expr()?,
-                span: self.span_since(&find_start),
+            let selection = if self.peek_word("all") {
+                self.advance();
+                ExploreSelection::All {
+                    span: self.span_since(&find_start),
+                }
+            } else if self.peek_word("matches") {
+                self.advance();
+                self.expect_explore_word("of")?;
+                ExploreSelection::Matches {
+                    predicate: self.parse_expr()?,
+                    span: self.span_since(&find_start),
+                }
+            } else if self.peek_word("violations") {
+                self.advance();
+                self.expect_explore_word("of")?;
+                ExploreSelection::Violations {
+                    predicate: self.parse_expr()?,
+                    span: self.span_since(&find_start),
+                }
+            } else {
+                let token = self.peek();
+                return Err(format!(
+                    "{}:{}: exploration `find NAME =` must be followed by `all`, `matches of BOOL`, or `violations of BOOL`",
+                    token.line, token.col
+                ));
+            };
+            if !find_names.insert(find_name.clone()) {
+                return Err(format!("duplicate exploration find `{find_name}`"));
             }
-        } else {
-            let token = self.peek();
-            return Err(format!(
-                "{}:{}: exploration `find` must be `find all`, `find matches of BOOL`, or `find violations of BOOL`",
-                token.line, token.col
-            ));
-        };
-        self.skip_semis();
+            finds.push(ExploreFind {
+                name: find_name,
+                selection,
+                span: self.span_since(&find_start),
+            });
+            self.skip_semis();
+        }
 
         let mut analysis = Vec::<ExploreAnalysisNode>::new();
-        let mut analysis_names = BTreeSet::new();
+        let mut analysis_names = find_names.clone();
         while self.peek_word("results") || self.peek_word("mechanisms") {
             let node = if self.peek_word("results") {
                 let result = self.parse_explore_result()?;
-                if let ExploreResultInput::MechanismIncidence { request_name } = &result.input {
-                    match analysis.iter().find(|node| node.name() == request_name) {
-                        Some(ExploreAnalysisNode::Mechanisms(_)) => {}
-                        Some(ExploreAnalysisNode::Result(_)) => {
-                            return Err(format!(
-                                "exploration result `{}` expects `{}` to name an earlier mechanism request",
-                                result.name, request_name
-                            ));
-                        }
-                        None => {
-                            return Err(format!(
-                                "exploration result `{}` may reference only an earlier mechanism request; `{}` is unresolved or declared later",
-                                result.name, request_name
-                            ));
+                match &result.input {
+                    ExploreResultInput::Find { find_name } if !find_names.contains(find_name) => {
+                        return Err(format!(
+                            "exploration result `{}` references unknown find `{}`",
+                            result.name, find_name
+                        ));
+                    }
+                    ExploreResultInput::MechanismIncidence { request_name } => {
+                        match analysis.iter().find(|node| node.name() == request_name) {
+                            Some(ExploreAnalysisNode::Mechanisms(_)) => {}
+                            Some(ExploreAnalysisNode::Result(_)) => {
+                                return Err(format!(
+                                    "exploration result `{}` expects `{}` to name an earlier mechanism request",
+                                    result.name, request_name
+                                ));
+                            }
+                            None => {
+                                return Err(format!(
+                                    "exploration result `{}` may reference only an earlier mechanism request; `{}` is unresolved or declared later",
+                                    result.name, request_name
+                                ));
+                            }
                         }
                     }
+                    ExploreResultInput::Sources | ExploreResultInput::Find { .. } => {}
                 }
                 ExploreAnalysisNode::Result(result)
             } else {
                 let request = self.parse_explore_mechanism_request()?;
-                if let ExploreMechanismTarget::ViewChosen { view_name } = &request.target {
-                    match analysis.iter().find(|node| node.name() == view_name) {
-                        Some(ExploreAnalysisNode::Result(view))
-                            if view.choose.is_some()
-                                && matches!(&view.input, ExploreResultInput::Selected) => {}
-                        Some(ExploreAnalysisNode::Result(view))
-                            if matches!(
-                                &view.input,
-                                ExploreResultInput::MechanismIncidence { .. }
-                            ) =>
-                        {
-                            return Err(format!(
-                                "exploration mechanism request `{}` cannot target post-mechanism view `{}`; `view NAME chosen` requires an earlier selected-case view",
-                                request.name, view_name
-                            ));
-                        }
-                        Some(ExploreAnalysisNode::Result(_)) => {
-                            return Err(format!(
-                                "exploration mechanism request `{}` requires earlier view `{}` to have a `choose` clause",
-                                request.name, view_name
-                            ));
-                        }
-                        Some(ExploreAnalysisNode::Mechanisms(_)) => {
-                            return Err(format!(
-                                "exploration mechanism request `{}` expects `{}` to name an earlier result view",
-                                request.name, view_name
-                            ));
-                        }
-                        None => {
-                            return Err(format!(
-                                "exploration mechanism request `{}` may reference only an earlier chosen result view; `{}` is unresolved or declared later",
-                                request.name, view_name
-                            ));
+                match &request.target {
+                    ExploreMechanismTarget::FindCases { find_name }
+                        if !find_names.contains(find_name) =>
+                    {
+                        return Err(format!(
+                            "exploration mechanism request `{}` references unknown find `{}`",
+                            request.name, find_name
+                        ));
+                    }
+                    ExploreMechanismTarget::ViewChosen { view_name } => {
+                        match analysis.iter().find(|node| node.name() == view_name) {
+                            Some(ExploreAnalysisNode::Result(view))
+                                if view.choose.is_some()
+                                    && matches!(&view.input, ExploreResultInput::Find { .. }) => {}
+                            Some(ExploreAnalysisNode::Result(view))
+                                if matches!(
+                                    &view.input,
+                                    ExploreResultInput::MechanismIncidence { .. }
+                                ) =>
+                            {
+                                return Err(format!(
+                                    "exploration mechanism request `{}` cannot target post-mechanism view `{}`; `view NAME chosen` requires an earlier named-find view",
+                                    request.name, view_name
+                                ));
+                            }
+                            Some(ExploreAnalysisNode::Result(_)) => {
+                                return Err(format!(
+                                    "exploration mechanism request `{}` requires earlier view `{}` to have a `choose` clause",
+                                    request.name, view_name
+                                ));
+                            }
+                            Some(ExploreAnalysisNode::Mechanisms(_)) => {
+                                return Err(format!(
+                                    "exploration mechanism request `{}` expects `{}` to name an earlier result view",
+                                    request.name, view_name
+                                ));
+                            }
+                            None => {
+                                return Err(format!(
+                                    "exploration mechanism request `{}` may reference only an earlier chosen result view; `{}` is unresolved or declared later",
+                                    request.name, view_name
+                                ));
+                            }
                         }
                     }
+                    ExploreMechanismTarget::FindCases { .. } => {}
                 }
                 ExploreAnalysisNode::Mechanisms(request)
             };
@@ -10221,7 +10328,7 @@ impl Parser {
             source,
             successor,
             admissions,
-            selection,
+            finds,
             analysis,
             observation_demands,
             starter_projections,
@@ -28426,7 +28533,7 @@ pub(crate) struct CheckedExploreQuerySites {
     pub(crate) source_bindings: Box<[CheckedExploreSourceBindingSites]>,
     pub(crate) successor: ExprSiteId,
     pub(crate) admissions: Box<[ExprSiteId]>,
-    pub(crate) selection: Option<ExprSiteId>,
+    pub(crate) find_predicates: Box<[Option<ExprSiteId>]>,
     pub(crate) analysis: Box<[CheckedExploreAnalysisNodeSites]>,
 }
 
@@ -28446,12 +28553,12 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
 }
 
 pub(crate) const CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_ID_VERSION: u32 = 1;
-pub(crate) const CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_SET_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_SET_ID_VERSION: u32 = 2;
 pub(crate) const CHECKED_EXPLORE_STARTER_PROJECTION_ID_VERSION: u32 = 1;
 pub(crate) const CHECKED_EXPLORE_ROUTED_STARTER_PROJECTION_ID_VERSION: u32 = 1;
-pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 1;
-pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION: u32 = 1;
-pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION: u32 = 2;
+pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION: u32 = 2;
+pub(crate) const CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION: u32 = 2;
 
 /// Stable identity of one compact support-observation demand.
 ///
@@ -28508,7 +28615,7 @@ impl CheckedExploreStarterConsumerSetId {
 }
 
 /// Durable identity of one explicitly named full semantic-transition graph
-/// consumer. The name addresses the independent artifact; the question and
+/// consumer. The name addresses the independent artifact; the relation and
 /// schema tuple bind which identity-only relation it is allowed to publish.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CheckedExploreTransitionGraphId([u8; 32]);
@@ -28531,7 +28638,7 @@ impl CheckedExploreTransitionGraphConsumerSetId {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CheckedExploreTransitionGraphIdentity {
     pub(crate) id: CheckedExploreTransitionGraphId,
-    pub(crate) question_id: explore::QuestionId,
+    pub(crate) relation_id: explore::RelationId,
     pub(crate) state_schema_id: explore::StateSchemaId,
     pub(crate) context_schema_id: explore::ContextSchemaId,
     pub(crate) transition_type_id: explore::TransitionTypeId,
@@ -28557,7 +28664,12 @@ pub(crate) struct CheckedExploreSupportObservationDemandIdentity {
 struct CheckedExploreIdentityLadder {
     relation_id: explore::RelationId,
     admission_id: explore::AdmissionId,
-    question_id: explore::QuestionId,
+    /// Question identities aligned with `ExploreQueryIr.finds`. Authored names
+    /// and positions resolve references only and never enter these IDs.
+    find_question_ids: Box<[explore::QuestionId]>,
+    /// Canonical sorted unique semantic questions executed by this contract.
+    /// Identical named finds intentionally collapse to one member.
+    question_ids: Box<[explore::QuestionId]>,
     /// Exact checked declaration occurrences needed to classify source
     /// transitions through FROM/TO, WHERE, and FIND. Analysis-only result and
     /// mechanism expressions are deliberately outside this execution slice.
@@ -29062,8 +29174,12 @@ pub(crate) struct CheckedExploreQueryArtifact {
     pub(crate) relation_id: explore::RelationId,
     /// Producer-minted identity of the normalized scoped-WHERE conjunction.
     pub(crate) admission_id: explore::AdmissionId,
-    /// Producer-minted identity of FIND layered over the admitted relation.
-    pub(crate) question_id: explore::QuestionId,
+    /// Producer-minted identities aligned with the authored FIND addresses.
+    /// Names and positions are excluded from QuestionId.
+    pub(crate) find_question_ids: Box<[explore::QuestionId]>,
+    /// Canonical sorted unique semantic question set used by execution and
+    /// durable recovery. It may be empty.
+    pub(crate) question_ids: Box<[explore::QuestionId]>,
     /// Closed executable/residual classification graph minted from this exact
     /// checked query boundary. It is an overlay on the identity ladder: the
     /// relation/admission/question IDs remain independently authoritative.
@@ -29222,8 +29338,17 @@ impl CheckedExploreQueryView<'_> {
         self.artifact.admission_id
     }
 
-    pub(crate) const fn question_id(&self) -> explore::QuestionId {
-        self.artifact.question_id
+    pub(crate) fn find_question_id(&self, find_index: usize) -> Option<explore::QuestionId> {
+        self.artifact.find_question_ids.get(find_index).copied()
+    }
+
+    pub(crate) fn find_question_ids(&self) -> &[explore::QuestionId] {
+        &self.artifact.find_question_ids
+    }
+
+    /// Canonical sorted unique semantic questions owned by this exploration.
+    pub(crate) fn question_ids(&self) -> &[explore::QuestionId] {
+        &self.artifact.question_ids
     }
 
     pub(crate) fn classification_program(
@@ -30319,7 +30444,8 @@ impl TypeCheckArtifacts {
             || !ladder.source_coverage.validate_identity()
             || ladder.relation_id != artifact.relation_id
             || ladder.admission_id != artifact.admission_id
-            || ladder.question_id != artifact.question_id
+            || ladder.find_question_ids.as_ref() != artifact.find_question_ids.as_ref()
+            || ladder.question_ids.as_ref() != artifact.question_ids.as_ref()
             || ladder.classifier_reachable_declarations.as_ref()
                 != artifact.classifier_reachable_declarations.as_ref()
             || ladder.classifier_reachable_dependencies.as_ref()
@@ -30346,7 +30472,7 @@ impl TypeCheckArtifacts {
                 &self.checked_resolutions,
                 public_closed_query,
                 &sites,
-                artifact.question_id,
+                &artifact.find_question_ids,
             )
             .map_err(|error| {
                 CheckedExploreQueryAccessError::ClassificationProgramInvalid(
@@ -30548,11 +30674,18 @@ fn checked_explore_query_sites(
         })
         .collect::<Vec<_>>()
         .into_boxed_slice();
-    let selection = query.selection.predicate().map(|_| {
-        let site = program.expression_site(declaration, vec![child]);
-        child += 1;
-        site
-    });
+    let find_predicates = query
+        .finds
+        .iter()
+        .map(|find| {
+            find.selection.predicate().map(|_| {
+                let site = program.expression_site(declaration, vec![child]);
+                child += 1;
+                site
+            })
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
     let analysis = query
         .analysis
         .iter()
@@ -30604,7 +30737,7 @@ fn checked_explore_query_sites(
         source_bindings,
         successor,
         admissions,
-        selection,
+        find_predicates,
         analysis,
     }
 }
@@ -30616,7 +30749,7 @@ fn checked_explore_site_roots(sites: &CheckedExploreQuerySites) -> Vec<&ExprSite
         .map(|binding| &binding.expression)
         .chain(std::iter::once(&sites.successor))
         .chain(sites.admissions.iter())
-        .chain(sites.selection.iter())
+        .chain(sites.find_predicates.iter().filter_map(Option::as_ref))
         .collect::<Vec<_>>();
     for node in &sites.analysis {
         match node {
@@ -30679,7 +30812,7 @@ fn checked_explore_semantic_binders(
             ) => {
                 let input_roles: &[&str] = match &view.input {
                     explore::ExploreResultInputIr::Sources => &[],
-                    explore::ExploreResultInputIr::Selected => &["selected-case"],
+                    explore::ExploreResultInputIr::Find { .. } => &["selected-case"],
                     explore::ExploreResultInputIr::MechanismIncidence { .. } => &[
                         "incidence-case",
                         "incidence-transition",
@@ -35885,24 +36018,45 @@ fn checked_exact_observer_memo_plan_from_checked_with_index(
         }
         return None;
     }
-    // V1 targets the repeated Before/After observation frontier feeding FIND.
-    // Result expressions can reuse those entries, but do not independently
-    // widen the eligible family set into the full downstream tax-rule graph.
-    let Some(selection) = checked.artifact.sites.selection.as_ref() else {
+    // V1 targets the repeated Before/After observation frontier feeding every
+    // named FIND. Result expressions can reuse those entries, but do not
+    // independently widen the eligible family set into the downstream graph.
+    let predicate_sites = checked
+        .artifact
+        .sites
+        .find_predicates
+        .iter()
+        .filter_map(Option::as_ref)
+        .collect::<Vec<_>>();
+    if predicate_sites.is_empty() {
         if trace {
-            eprintln!("[explore trace] observer memo disabled: FIND has no selection predicate");
+            eprintln!("[explore trace] observer memo disabled: no FIND has a predicate");
         }
         return None;
-    };
-    let Some(occurrences) = checked_exact_observer_call_occurrences(selection, index, resolutions)
-    else {
-        if trace {
-            eprintln!(
-                "[explore trace] observer memo disabled: static call-occurrence closure is unavailable"
-            );
+    }
+    let mut occurrences = BTreeMap::<RuleDispatchKey, CheckedExactObserverCallOccurrences>::new();
+    for predicate_site in predicate_sites {
+        let Some(find_occurrences) =
+            checked_exact_observer_call_occurrences(predicate_site, index, resolutions)
+        else {
+            if trace {
+                eprintln!(
+                    "[explore trace] observer memo disabled: static call-occurrence closure is unavailable"
+                );
+            }
+            return None;
+        };
+        for (family, record) in find_occurrences {
+            occurrences
+                .entry(family)
+                .and_modify(|merged| {
+                    merged.count = merged.count.saturating_add(record.count);
+                    merged.minimum_depth = merged.minimum_depth.min(record.minimum_depth);
+                    merged.first_order_result &= record.first_order_result;
+                })
+                .or_insert(record);
         }
-        return None;
-    };
+    }
     let mut eligible = Vec::<(
         usize,
         RuleDispatchKey,
@@ -39378,7 +39532,7 @@ fn checked_explore_analysis_identities(
     query: &explore::ExploreQueryIr,
     sites: &CheckedExploreQuerySites,
     relation_id: explore::RelationId,
-    question_id: explore::QuestionId,
+    find_question_ids: &[explore::QuestionId],
     sealed_analysis: Option<&[CheckedExploreAnalysisIdentity]>,
 ) -> Result<Box<[CheckedExploreAnalysisIdentity]>, CheckedExploreQueryArtifactIssue> {
     if query.analysis.len() != sites.analysis.len() {
@@ -39392,6 +39546,15 @@ fn checked_explore_analysis_identities(
         ));
     }
     let mut identities = Vec::<CheckedExploreAnalysisIdentity>::with_capacity(query.analysis.len());
+    // ViewId and MechanismRequestId are semantic execution identities: names,
+    // source positions, and FIND aliases deliberately do not distinguish
+    // them.  The durable drivers and journal therefore have exactly one layer
+    // per ID, while public result/mechanism files are currently one-to-one
+    // with authored analysis consumers.  Reject a second authored consumer at
+    // this checked boundary instead of letting it fail later as a duplicate
+    // driver registration (or ambiguously share one publication cursor).
+    let mut result_consumers = BTreeMap::<explore::ViewId, (usize, &str)>::new();
+    let mut mechanism_consumers = BTreeMap::<explore::MechanismRequestId, (usize, &str)>::new();
     for (node_index, (node, node_sites)) in
         query.analysis.iter().zip(sites.analysis.iter()).enumerate()
     {
@@ -39404,7 +39567,14 @@ fn checked_explore_analysis_identities(
                     explore::ExploreResultInputIr::Sources => {
                         explore::ViewInputId::Sources(relation_id)
                     }
-                    explore::ExploreResultInputIr::Selected => {
+                    explore::ExploreResultInputIr::Find { find_index } => {
+                        let question_id = find_question_ids.get(*find_index).copied().ok_or_else(
+                            || {
+                                CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                    "result node {node_index} references absent FIND index {find_index}"
+                                ))
+                            },
+                        )?;
                         explore::ViewInputId::Selected(question_id)
                     }
                     explore::ExploreResultInputIr::MechanismIncidence {
@@ -39472,16 +39642,23 @@ fn checked_explore_analysis_identities(
                 explore::ExploreAnalysisNodeIr::Mechanisms(request),
                 CheckedExploreAnalysisNodeSites::Mechanisms(template_site),
             ) => {
-                let target = match &request.target {
-                    explore::ExploreMechanismTargetIr::SelectedCases => {
-                        explore::MechanismTargetId::Selected
+                let (target, question_id) = match &request.target {
+                    explore::ExploreMechanismTargetIr::Find { find_index } => {
+                        let question_id = find_question_ids.get(*find_index).copied().ok_or_else(
+                            || {
+                                CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                    "mechanism node {node_index} references absent FIND index {find_index}"
+                                ))
+                            },
+                        )?;
+                        (explore::MechanismTargetId::Selected, question_id)
                     }
                     explore::ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
-                        match identities.get(*view_node_index) {
+                        let view_id = match identities.get(*view_node_index) {
                             Some(CheckedExploreAnalysisIdentity::View { view_id })
                                 if *view_node_index < node_index =>
                             {
-                                explore::MechanismTargetId::ChosenView(*view_id)
+                                *view_id
                             }
                             _ => {
                                 return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
@@ -39490,7 +39667,30 @@ fn checked_explore_analysis_identities(
                                     ),
                                 ));
                             }
-                        }
+                        };
+                        let find_index = match query.analysis.get(*view_node_index) {
+                            Some(explore::ExploreAnalysisNodeIr::Result(
+                                explore::ExploreResultViewIr {
+                                    input: explore::ExploreResultInputIr::Find { find_index },
+                                    ..
+                                },
+                            )) => *find_index,
+                            _ => {
+                                return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+                                    format!(
+                                        "chosen-view mechanism node {node_index} does not resolve a FIND-backed view"
+                                    ),
+                                ));
+                            }
+                        };
+                        let question_id = find_question_ids.get(find_index).copied().ok_or_else(
+                            || {
+                                CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                    "chosen-view mechanism node {node_index} references absent FIND index {find_index}"
+                                ))
+                            },
+                        )?;
+                        (explore::MechanismTargetId::ChosenView(view_id), question_id)
                     }
                 };
                 let observation = explore::MechanismObservationIr::derive_checked(
@@ -39548,6 +39748,13 @@ fn checked_explore_analysis_identities(
                     observation_digest,
                     normalization_digest,
                 );
+                if let Some((first_index, first_name)) = mechanism_consumers.get(&request_id) {
+                    return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                        "mechanism consumers `{first_name}` (node {first_index}) and `{}` (node {node_index}) have the same semantic MechanismRequestId; one semantic mechanism request may have only one authored `mechanisms` consumer (FIND aliases may still share one QuestionId)",
+                        node.name()
+                    )));
+                }
+                mechanism_consumers.insert(request_id, (node_index, node.name()));
                 let endpoint_totality = if let Some(sealed_analysis) = sealed_analysis {
                     match sealed_analysis.get(node_index) {
                         Some(CheckedExploreAnalysisIdentity::Mechanisms {
@@ -39592,6 +39799,19 @@ fn checked_explore_analysis_identities(
                 )))
             }
         };
+        match &identity {
+            CheckedExploreAnalysisIdentity::View { view_id } => {
+                if let Some((first_index, first_name)) =
+                    result_consumers.insert(*view_id, (node_index, node.name()))
+                {
+                    return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                        "result consumers `{first_name}` (node {first_index}) and `{}` (node {node_index}) have the same semantic ViewId; one semantic result may have only one authored `results` consumer (FIND aliases may still share one QuestionId)",
+                        node.name()
+                    )));
+                }
+            }
+            CheckedExploreAnalysisIdentity::Mechanisms { .. } => {}
+        }
         identities.push(identity);
     }
     Ok(identities.into_boxed_slice())
@@ -39599,7 +39819,6 @@ fn checked_explore_analysis_identities(
 
 fn checked_explore_analysis_graph_digest(
     query: &explore::ExploreQueryIr,
-    question_id: explore::QuestionId,
     identities: &[CheckedExploreAnalysisIdentity],
 ) -> Result<Box<str>, CheckedExploreQueryArtifactIssue> {
     if query.analysis.len() != identities.len() {
@@ -39608,8 +39827,7 @@ fn checked_explore_analysis_graph_digest(
         ));
     }
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-analysis-graph.v2\0");
-    hasher.update(question_id.bytes());
+    hasher.update(b"futuruna.checked-explore-analysis-graph.v3\0");
     let mut semantic_nodes = BTreeSet::<(u8, [u8; 32])>::new();
     for (node_index, (node, identity)) in query.analysis.iter().zip(identities).enumerate() {
         match (node, identity) {
@@ -39700,7 +39918,6 @@ fn checked_explore_support_observation_demand_id(
 
 fn checked_explore_support_observation_demand_identities(
     query: &explore::ExploreQueryIr,
-    question_id: explore::QuestionId,
     analysis: &[CheckedExploreAnalysisIdentity],
 ) -> Result<
     (
@@ -39736,9 +39953,8 @@ fn checked_explore_support_observation_demand_identities(
     }
 
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-support-observation-demand-set-id.v1\0");
+    hasher.update(b"futuruna.checked-explore-support-observation-demand-set-id.v2\0");
     hasher.update(CHECKED_EXPLORE_SUPPORT_OBSERVATION_DEMAND_SET_ID_VERSION.to_le_bytes());
-    hasher.update(question_id.bytes());
     hasher.update((canonical_set.len() as u64).to_le_bytes());
     for id in canonical_set {
         hasher.update(id.bytes());
@@ -39779,7 +39995,6 @@ fn checked_explore_starter_projection_id(
 
 fn checked_explore_starter_projection_identities(
     query: &explore::ExploreQueryIr,
-    question_id: explore::QuestionId,
     analysis: &[CheckedExploreAnalysisIdentity],
 ) -> Result<
     (
@@ -39827,9 +40042,8 @@ fn checked_explore_starter_projection_identities(
     }
 
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-starter-consumer-set-id.v1\0");
+    hasher.update(b"futuruna.checked-explore-starter-consumer-set-id.v2\0");
     hasher.update(CHECKED_EXPLORE_STARTER_CONSUMER_SET_ID_VERSION.to_le_bytes());
-    hasher.update(question_id.bytes());
     hasher.update((canonical_set.len() as u64).to_le_bytes());
     for id in canonical_set {
         hasher.update(id.bytes());
@@ -39842,7 +40056,7 @@ fn checked_explore_starter_projection_identities(
 
 fn checked_explore_transition_graph_identities(
     query: &explore::ExploreQueryIr,
-    question_id: explore::QuestionId,
+    relation_id: explore::RelationId,
     schemas: &explore::TransitionSchemaIdentities,
 ) -> (
     Box<[CheckedExploreTransitionGraphIdentity]>,
@@ -39852,10 +40066,10 @@ fn checked_explore_transition_graph_identities(
     let mut canonical_set = BTreeSet::new();
     for graph in query.transition_graphs.iter() {
         let mut hasher = Sha256::new();
-        hasher.update(b"futuruna.checked-explore-transition-graph-id.v1\0");
+        hasher.update(b"futuruna.checked-explore-transition-graph-id.v2\0");
         hasher.update(CHECKED_EXPLORE_TRANSITION_GRAPH_ID_VERSION.to_le_bytes());
         checked_query_hash_component(&mut hasher, "consumer-name", &graph.name);
-        hasher.update(question_id.bytes());
+        hasher.update(relation_id.bytes());
         hasher.update(schemas.state_schema_id().bytes());
         hasher.update(schemas.context_schema_id().bytes());
         hasher.update(schemas.transition_type_id().bytes());
@@ -39863,7 +40077,7 @@ fn checked_explore_transition_graph_identities(
         canonical_set.insert(id);
         identities.push(CheckedExploreTransitionGraphIdentity {
             id,
-            question_id,
+            relation_id,
             state_schema_id: schemas.state_schema_id(),
             context_schema_id: schemas.context_schema_id(),
             transition_type_id: schemas.transition_type_id(),
@@ -39871,9 +40085,9 @@ fn checked_explore_transition_graph_identities(
     }
 
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-transition-graph-consumer-set-id.v1\0");
+    hasher.update(b"futuruna.checked-explore-transition-graph-consumer-set-id.v2\0");
     hasher.update(CHECKED_EXPLORE_TRANSITION_GRAPH_CONSUMER_SET_ID_VERSION.to_le_bytes());
-    hasher.update(question_id.bytes());
+    hasher.update(relation_id.bytes());
     hasher.update((canonical_set.len() as u64).to_le_bytes());
     for id in canonical_set {
         hasher.update(id.bytes());
@@ -39998,24 +40212,40 @@ fn checked_explore_identity_ladder_with_index(
     )?;
     let admission_id =
         explore::AdmissionId::from_canonical_admission_digest(relation_id, admission_seal.digest);
-    let find_seal = checked_explore_find_semantic_seal(
-        index,
-        resolutions,
-        &semantic_binders,
-        &query.find,
-        sites.selection.as_ref(),
-    )?;
-    let question_id = explore::QuestionId::from_canonical_find_digest(
-        admission_id,
-        find_seal.digest,
-        query.find.polarity(),
-    );
+    if query.finds.len() != sites.find_predicates.len() {
+        return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+            "FIND declarations and checked predicate roots diverged".into(),
+        ));
+    }
     let mut classifier_reachable_declarations = relation_seal.reachable_declarations;
     classifier_reachable_declarations.extend(admission_seal.reachable_declarations);
-    classifier_reachable_declarations.extend(find_seal.reachable_declarations);
     let mut classifier_reachable_dependencies = relation_seal.reachable_dependencies;
     classifier_reachable_dependencies.extend(admission_seal.reachable_dependencies);
-    classifier_reachable_dependencies.extend(find_seal.reachable_dependencies);
+    let mut find_question_ids = Vec::with_capacity(query.finds.len());
+    let mut unique_question_ids = BTreeSet::new();
+    for (named_find, predicate_site) in query.finds.iter().zip(sites.find_predicates.iter()) {
+        let find_seal = checked_explore_find_semantic_seal(
+            index,
+            resolutions,
+            &semantic_binders,
+            &named_find.find,
+            predicate_site.as_ref(),
+        )?;
+        let question_id = explore::QuestionId::from_canonical_find_digest(
+            admission_id,
+            find_seal.digest,
+            named_find.find.polarity(),
+        );
+        classifier_reachable_declarations.extend(find_seal.reachable_declarations);
+        classifier_reachable_dependencies.extend(find_seal.reachable_dependencies);
+        find_question_ids.push(question_id);
+        unique_question_ids.insert(question_id);
+    }
+    let find_question_ids = find_question_ids.into_boxed_slice();
+    let question_ids = unique_question_ids
+        .into_iter()
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
     let transition_schemas = explore::TransitionSchemaIdentities::derive_checked_relational(
         &query.source.before_ty,
         &query.source.context_ty,
@@ -40033,7 +40263,7 @@ fn checked_explore_identity_ladder_with_index(
         query,
         sites,
         relation_id,
-        question_id,
+        &find_question_ids,
         sealed_analysis,
     )?;
     let product_rank_grouped_distinct = checked_explore_product_rank_grouped_distinct_certificates(
@@ -40044,18 +40274,18 @@ fn checked_explore_identity_ladder_with_index(
         source_projection_analysis.as_ref(),
     )?;
     let source_image_projection = source_projection_analysis.map(|analysis| analysis.certificate);
-    let analysis_graph_digest =
-        checked_explore_analysis_graph_digest(query, question_id, &analysis)?;
+    let analysis_graph_digest = checked_explore_analysis_graph_digest(query, &analysis)?;
     let (observation_demands, observation_demand_set_id) =
-        checked_explore_support_observation_demand_identities(query, question_id, &analysis)?;
+        checked_explore_support_observation_demand_identities(query, &analysis)?;
     let (starter_projections, starter_consumer_set_id) =
-        checked_explore_starter_projection_identities(query, question_id, &analysis)?;
+        checked_explore_starter_projection_identities(query, &analysis)?;
     let (transition_graphs, transition_graph_consumer_set_id) =
-        checked_explore_transition_graph_identities(query, question_id, &transition_schemas);
+        checked_explore_transition_graph_identities(query, relation_id, &transition_schemas);
     Ok(CheckedExploreIdentityLadder {
         relation_id,
         admission_id,
-        question_id,
+        find_question_ids,
+        question_ids,
         classifier_reachable_declarations: classifier_reachable_declarations
             .into_iter()
             .collect::<Vec<_>>()
@@ -40173,7 +40403,7 @@ fn build_checked_explore_query_artifact(
         resolutions,
         closed_query,
         &sites,
-        ladder.question_id,
+        &ladder.find_question_ids,
     )
     .map_err(|error| {
         CheckedExploreQueryArtifactIssue::ClassificationProgram(error.to_string().into_boxed_str())
@@ -40182,7 +40412,8 @@ fn build_checked_explore_query_artifact(
         identity,
         relation_id: ladder.relation_id,
         admission_id: ladder.admission_id,
-        question_id: ladder.question_id,
+        find_question_ids: ladder.find_question_ids,
+        question_ids: ladder.question_ids,
         classification_program: Arc::new(classification.program),
         classification_runtime_shapes: Arc::new(classification.runtime_shapes),
         classifier_reachable_declarations: ladder.classifier_reachable_declarations,
@@ -43173,10 +43404,12 @@ impl<'a> CheckedResolutionRecorder<'a> {
             );
             child_index += 1;
         }
-        if let Some(predicate) = query.selection.predicate() {
-            let expression_path = Self::path_child(path, child_index);
-            self.record_expr(declaration, predicate, &expression_path, false, false);
-            child_index += 1;
+        for find in &query.finds {
+            if let Some(predicate) = find.selection.predicate() {
+                let expression_path = Self::path_child(path, child_index);
+                self.record_expr(declaration, predicate, &expression_path, false, false);
+                child_index += 1;
+            }
         }
 
         let before_type = self
@@ -54619,7 +54852,7 @@ impl TypeChecker {
         before_ty: &Ty,
         after_ty: &Ty,
     ) -> bool {
-        if !matches!(&view.input, TypedExploreResultInput::Selected)
+        if !matches!(&view.input, TypedExploreResultInput::Find { .. })
             || !matches!(&view.grain, TypedExploreResultGrain::EachCase { .. })
             || !view.aggregates.is_empty()
             || view.having.is_some()
@@ -54854,43 +55087,59 @@ impl TypeChecker {
             })
             .collect::<Vec<_>>();
 
-        let typed_selection = match &query.selection {
-            ExploreSelection::All { span } => TypedExploreSelection::All { span: *span },
-            ExploreSelection::Matches { predicate, span } => {
-                self.check_explore_bool(
-                    predicate,
-                    "matches selection",
-                    &reserved_names,
-                    &available_names,
-                    &["before", "after", "context"],
+        let mut typed_finds = Vec::with_capacity(query.finds.len());
+        let mut find_by_name = BTreeMap::<String, usize>::new();
+        for (find_index, find) in query.finds.iter().enumerate() {
+            if find_by_name.insert(find.name.clone(), find_index).is_some() {
+                self.error_at_span(
+                    find.span,
+                    format!("duplicate exploration find {}", find.name),
                 );
-                TypedExploreSelection::Matches {
-                    predicate: predicate.clone(),
-                    span: *span,
-                }
             }
-            ExploreSelection::Violations { predicate, span } => {
-                self.check_explore_bool(
-                    predicate,
-                    "violations selection",
-                    &reserved_names,
-                    &available_names,
-                    &["before", "after", "context"],
-                );
-                TypedExploreSelection::Violations {
-                    predicate: predicate.clone(),
-                    span: *span,
+            let selection = match &find.selection {
+                ExploreSelection::All { span } => TypedExploreSelection::All { span: *span },
+                ExploreSelection::Matches { predicate, span } => {
+                    self.check_explore_bool(
+                        predicate,
+                        "matches selection",
+                        &reserved_names,
+                        &available_names,
+                        &["before", "after", "context"],
+                    );
+                    TypedExploreSelection::Matches {
+                        predicate: predicate.clone(),
+                        span: *span,
+                    }
                 }
-            }
-        };
+                ExploreSelection::Violations { predicate, span } => {
+                    self.check_explore_bool(
+                        predicate,
+                        "violations selection",
+                        &reserved_names,
+                        &available_names,
+                        &["before", "after", "context"],
+                    );
+                    TypedExploreSelection::Violations {
+                        predicate: predicate.clone(),
+                        span: *span,
+                    }
+                }
+            };
+            typed_finds.push(TypedExploreFind {
+                name: find.name.clone(),
+                selection,
+                span: find.span,
+            });
+        }
 
         let mut typed_analysis = Vec::with_capacity(query.analysis.len());
         let mut analysis_by_name = BTreeMap::<String, usize>::new();
         for (node_index, node) in query.analysis.iter().enumerate() {
-            if analysis_by_name.contains_key(node.name()) {
+            if analysis_by_name.contains_key(node.name()) || find_by_name.contains_key(node.name())
+            {
                 self.error_at_span(
                     node.span(),
-                    format!("duplicate exploration analysis declaration {}", node.name()),
+                    format!("duplicate exploration declaration {}", node.name()),
                 );
             }
 
@@ -54898,7 +55147,23 @@ impl TypeChecker {
                 ExploreAnalysisNode::Result(result) => {
                     let typed_input = match &result.input {
                         ExploreResultInput::Sources => TypedExploreResultInput::Sources,
-                        ExploreResultInput::Selected => TypedExploreResultInput::Selected,
+                        ExploreResultInput::Find { find_name } => {
+                            let find_index =
+                                find_by_name.get(find_name).copied().unwrap_or_else(|| {
+                                    self.error_at_span(
+                                        result.span,
+                                        format!(
+                                            "result view {} references unknown find {}",
+                                            result.name, find_name
+                                        ),
+                                    );
+                                    usize::MAX
+                                });
+                            TypedExploreResultInput::Find {
+                                find_name: find_name.clone(),
+                                find_index,
+                            }
+                        }
                         ExploreResultInput::MechanismIncidence { request_name } => {
                             let request_node_index = analysis_by_name
                                 .get(request_name)
@@ -54936,7 +55201,7 @@ impl TypeChecker {
                             "source results require group all or group by",
                         ),
                         (
-                            ExploreResultInput::Selected,
+                            ExploreResultInput::Find { .. },
                             ExploreResultGrain::EachIncidence { .. },
                         ) => self.error_at_span(
                             result.grain.span(),
@@ -54947,7 +55212,7 @@ impl TypeChecker {
                             ExploreResultGrain::EachCase { .. },
                         ) => self.error_at_span(
                             result.grain.span(),
-                            "each case requires the selected-case result input",
+                            "each case requires a named-find result input",
                         ),
                         _ => {}
                     }
@@ -55212,37 +55477,61 @@ impl TypeChecker {
                 }
                 ExploreAnalysisNode::Mechanisms(request) => {
                     let typed_target = match &request.target {
-                        ExploreMechanismTarget::SelectedCases => {
-                            TypedExploreMechanismTarget::SelectedCases
+                        ExploreMechanismTarget::FindCases { find_name } => {
+                            let find_index =
+                                find_by_name.get(find_name).copied().unwrap_or_else(|| {
+                                    self.error_at_span(
+                                        request.span,
+                                        format!(
+                                            "mechanism request {} references unknown find {}",
+                                            request.name, find_name
+                                        ),
+                                    );
+                                    usize::MAX
+                                });
+                            TypedExploreMechanismTarget::FindCases {
+                                find_name: find_name.clone(),
+                                find_index,
+                            }
                         }
                         ExploreMechanismTarget::ViewChosen { view_name } => {
-                            let view_node_index = analysis_by_name
+                            let (view_node_index, find_index) = analysis_by_name
                                 .get(view_name)
                                 .copied()
-                                .filter(|index| {
-                                    matches!(
-                                        typed_analysis.get(*index),
+                                .and_then(|index| {
+                                    match typed_analysis.get(index) {
                                         Some(TypedExploreAnalysisNode::Result(view))
-                                            if view.choose.is_some()
-                                                && matches!(
-                                                    &view.input,
-                                                    TypedExploreResultInput::Selected
-                                                )
-                                    )
+                                            if view.choose.is_some() =>
+                                        {
+                                            match &view.input {
+                                                TypedExploreResultInput::Find {
+                                                    find_index, ..
+                                                } => Some((index, *find_index)),
+                                                TypedExploreResultInput::Sources
+                                                | TypedExploreResultInput::MechanismIncidence {
+                                                    ..
+                                                } => None,
+                                            }
+                                        }
+                                        Some(TypedExploreAnalysisNode::Result(_))
+                                        | Some(TypedExploreAnalysisNode::Mechanisms(_))
+                                        | None => None,
+                                    }
                                 })
                                 .unwrap_or_else(|| {
                                     self.error_at_span(
                                         request.span,
                                         format!(
-                                            "mechanism request {} may target only an earlier chosen selected-case view; {} is unresolved, not chosen, post-mechanism, or declared later",
+                                            "mechanism request {} may target only an earlier chosen named-find view; {} is unresolved, not chosen, post-mechanism, or declared later",
                                             request.name, view_name
                                         ),
                                     );
-                                    usize::MAX
+                                    (usize::MAX, usize::MAX)
                                 });
                             TypedExploreMechanismTarget::ViewChosen {
                                 view_name: view_name.clone(),
                                 view_node_index,
+                                find_index,
                             }
                         }
                     };
@@ -55357,7 +55646,11 @@ impl TypeChecker {
             typed_analysis.push(typed_node);
         }
 
-        let mut projection_names = analysis_by_name.keys().cloned().collect::<BTreeSet<_>>();
+        let mut projection_names = find_by_name
+            .keys()
+            .chain(analysis_by_name.keys())
+            .cloned()
+            .collect::<BTreeSet<_>>();
         let mut typed_observation_demands = Vec::with_capacity(query.observation_demands.len());
         for demand in &query.observation_demands {
             if !projection_names.insert(demand.name.clone()) {
@@ -55442,7 +55735,7 @@ impl TypeChecker {
                     self.error_at_span(
                         projection.span,
                         format!(
-                            "starter projection {} requires earlier value view {} to be a selected-input `each case` view which directly selects case_id, context, before, and after without aggregates, having, or choice",
+                            "starter projection {} requires earlier value view {} to be a named-find-input `each case` view which directly selects case_id, context, before, and after without aggregates, having, or choice",
                             projection.name, projection.value_view_name
                         ),
                     );
@@ -55496,7 +55789,7 @@ impl TypeChecker {
                     span: query.successor.span,
                 },
                 admissions: typed_admissions,
-                selection: typed_selection,
+                finds: typed_finds,
                 analysis: typed_analysis,
                 observation_demands: typed_observation_demands,
                 starter_projections: typed_starter_projections,
@@ -56900,8 +57193,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from query_scoped_division_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using query_scoped_division_observer
 }
 
 ? explore proved_endpoint {
@@ -56910,8 +57203,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from query_scoped_division_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using query_scoped_division_observer
 }
 "#;
         let artifacts = explore_artifacts_for_source(source);
@@ -56995,8 +57288,8 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
-    mechanisms paths for selected from guarded_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using guarded_observer
 }
 "#;
         let mut artifacts = explore_artifacts_for_source(source);
@@ -57043,7 +57336,7 @@ mod tests {
         given context = 1000
     }
     transition after = before + context
-    find violations of after >= before
+    find cliffs = violations of after >= before
 }
 "#;
         let artifacts = explore_artifacts_for_source(source);
@@ -57089,6 +57382,265 @@ mod tests {
     }
 
     #[test]
+    fn explore_named_finds_align_distinct_questions_and_collapse_semantic_aliases() {
+        let source = r#"
+? explore question_alignment {
+    from {
+        vary before in [0, 1]
+        given context = ()
+    }
+    transition after = before + 1
+    find increases = matches of after > before
+    find unchanged = matches of after == before
+    find increases_alias = matches of after > before
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected named-find diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("checked plural-question query");
+
+        assert_eq!(
+            checked
+                .closed_query
+                .finds
+                .iter()
+                .map(|find| find.name.as_str())
+                .collect::<Vec<_>>(),
+            ["increases", "unchanged", "increases_alias"]
+        );
+        let aligned = checked.find_question_ids();
+        assert_eq!(aligned.len(), 3);
+        assert_ne!(aligned[0], aligned[1]);
+        assert_eq!(aligned[0], aligned[2]);
+        assert_eq!(checked.question_ids().len(), 2);
+        assert!(checked.question_ids().contains(&aligned[0]));
+        assert!(checked.question_ids().contains(&aligned[1]));
+    }
+
+    #[test]
+    fn explore_rejects_duplicate_semantic_analysis_consumers_at_checked_boundary() {
+        let source = r#"
+> alias_identity_observer(state: Int, context: Unit) -> Int { state }
+
+? explore duplicate_result_consumers {
+    from {
+        vary before in [0, 1]
+        given context = ()
+    }
+    transition after = before + 1
+    find increases = matches of after > before
+    find increases_alias = matches of after > before
+    results first_rows from find increases {
+        each case
+        select [before]
+    }
+    results alias_rows from find increases_alias {
+        each case
+        select [before]
+    }
+}
+
+? explore duplicate_mechanism_consumers {
+    from {
+        vary before in [0, 1]
+        given context = ()
+    }
+    transition after = before + 1
+    find increases = matches of after > before
+    find increases_alias = matches of after > before
+    mechanisms first_paths from find increases using alias_identity_observer
+    mechanisms alias_paths from find increases_alias using alias_identity_observer
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected source diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+
+        let result_issue = match artifacts.checked_exploration_query(0) {
+            Err(issue) => issue,
+            Ok(_) => panic!("duplicate semantic result consumers must fail before driver setup"),
+        };
+        let CheckedExploreQueryAccessError::Producer(
+            CheckedExploreQueryArtifactIssue::AnalysisGraph(result_message),
+        ) = result_issue
+        else {
+            panic!("unexpected duplicate-result issue: {result_issue:?}")
+        };
+        assert!(
+            result_message.contains("same semantic ViewId"),
+            "{result_message}"
+        );
+        assert!(result_message.contains("`first_rows`"), "{result_message}");
+        assert!(result_message.contains("`alias_rows`"), "{result_message}");
+        assert!(
+            result_message.contains("FIND aliases may still share one QuestionId"),
+            "{result_message}"
+        );
+
+        let mechanism_issue = match artifacts.checked_exploration_query(1) {
+            Err(issue) => issue,
+            Ok(_) => {
+                panic!("duplicate semantic mechanism consumers must fail before driver setup")
+            }
+        };
+        let CheckedExploreQueryAccessError::Producer(
+            CheckedExploreQueryArtifactIssue::AnalysisGraph(mechanism_message),
+        ) = mechanism_issue
+        else {
+            panic!("unexpected duplicate-mechanism issue: {mechanism_issue:?}")
+        };
+        assert!(
+            mechanism_message.contains("same semantic MechanismRequestId"),
+            "{mechanism_message}"
+        );
+        assert!(
+            mechanism_message.contains("`first_paths`"),
+            "{mechanism_message}"
+        );
+        assert!(
+            mechanism_message.contains("`alias_paths`"),
+            "{mechanism_message}"
+        );
+        assert!(
+            mechanism_message.contains("FIND aliases may still share one QuestionId"),
+            "{mechanism_message}"
+        );
+    }
+
+    #[test]
+    fn explore_question_ids_ignore_find_names_and_authored_order() {
+        let aligned_ids = |finds: &str| {
+            let source = r#"
+? explore stable_question_ids {
+    from {
+        vary before in [0, 1]
+        given context = ()
+    }
+    transition after = before + 1
+__FINDS__
+}
+"#
+            .replace("__FINDS__", finds);
+            let artifacts = explore_artifacts_for_source(&source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "unexpected question-identity diagnostics: {:?}",
+                artifacts.diagnostics
+            );
+            artifacts
+                .checked_exploration_query(0)
+                .expect("checked question-identity query")
+                .find_question_ids()
+                .to_vec()
+        };
+
+        let baseline = aligned_ids(
+            "    find increases = matches of after > before\n    find unchanged = matches of after == before",
+        );
+        let renamed = aligned_ids(
+            "    find first_name = matches of after > before\n    find second_name = matches of after == before",
+        );
+        let reordered = aligned_ids(
+            "    find unchanged = matches of after == before\n    find increases = matches of after > before",
+        );
+
+        assert_eq!(
+            baseline, renamed,
+            "presentation names cannot rename questions"
+        );
+        assert_eq!(baseline[0], reordered[1]);
+        assert_eq!(baseline[1], reordered[0]);
+    }
+
+    #[test]
+    fn explore_accepts_zero_finds_with_only_question_independent_consumers() {
+        let source = r#"
+? explore relation_only {
+    from {
+        vary before in [0, 1]
+        given context = ()
+    }
+    transition after = before + 1
+    results source_count from sources {
+        group all
+        aggregate [before_values = count_distinct(before)]
+        select [before_values]
+    }
+    transitions all_transitions from all cases
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected zero-find diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert!(artifacts.exploration_queries[0].finds.is_empty());
+        assert!(artifacts.exploration_universes[0].finds.is_empty());
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("zero-find relation query remains checkable");
+        assert!(checked.find_question_ids().is_empty());
+        assert!(checked.question_ids().is_empty());
+    }
+
+    #[test]
+    fn explore_parser_rejects_unknown_duplicate_and_unnamed_find_addresses() {
+        let unknown = r#"
+? explore unknown_find {
+    from { given before = 1
+        given context = () }
+    transition after = before
+    find all_cases = all
+    results rows from find missing { each case }
+}
+"#;
+        let error = parse_test_program(unknown).expect_err("reject an unknown find address");
+        assert!(
+            error.contains("references unknown find `missing`"),
+            "{error}"
+        );
+
+        let duplicate = r#"
+? explore duplicate_find {
+    from { given before = 1
+        given context = () }
+    transition after = before
+    find cases = all
+    find cases = matches of after == before
+}
+"#;
+        let error = parse_test_program(duplicate).expect_err("reject a duplicate find name");
+        assert!(
+            error.contains("duplicate exploration find `cases`"),
+            "{error}"
+        );
+
+        let unnamed = r#"
+? explore unnamed_find {
+    from { given before = 1
+        given context = () }
+    transition after = before
+    find all
+}
+"#;
+        let error = parse_test_program(unnamed).expect_err("reject an unnamed find");
+        assert!(
+            error.contains("exploration questions must be named"),
+            "{error}"
+        );
+    }
+
+    #[test]
     fn explore_source_producer_rejects_given_values_derived_from_source_bindings() {
         let source = r#"
 ? explore dependent_given {
@@ -57098,7 +57650,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find all_cases = all
 }
 "#;
         let artifacts = explore_artifacts_for_source(source);
@@ -57136,7 +57688,7 @@ mod tests {
         profile = before.profile,
         income = before.income + context.step
     )
-    find all
+    find all_cases = all
 }
 "#
     }
@@ -57165,7 +57717,9 @@ mod tests {
             .expect("valid checked source-coverage artifact");
         (
             checked.relation_id(),
-            checked.question_id(),
+            checked
+                .find_question_id(0)
+                .expect("source-coverage fixture declares one FIND"),
             checked.source_coverage().clone(),
         )
     }
@@ -57236,7 +57790,7 @@ mod tests {
         given context = ()
     }}
     transition after = before
-    find all
+    find all_cases = all
 }}
 "#
             )
@@ -57412,7 +57966,7 @@ mod tests {
         given context = ()
     }
     transition after = before
-    find all
+    find all_cases = all
 }
 "#;
         let (_, _, manifest) = source_coverage_snapshot(source, "container_source_coverage");
@@ -57438,9 +57992,9 @@ mod tests {
         let downstream_only = baseline_source
             .replace("recursive_source_coverage", "renamed_source_coverage")
             .replace(
-                "    find all",
-                r#"    find matches of before.income >= 0
-    results visible_cases {
+                "    find all_cases = all",
+                r#"    find nonnegative = matches of before.income >= 0
+    results visible_cases from find nonnegative {
         each case
         select [before]
     }"#,
@@ -57509,8 +58063,8 @@ mod tests {
         vary context in [IdentityContext(step = 1)]
     }
     transition after = identity_step(before, context)
-    find all
-    mechanisms paths for selected from identity_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using identity_observer
 }
 "#
     }
@@ -57605,12 +58159,12 @@ mod tests {
         assert_eq!(renamed_request, baseline_request);
 
         let with_view = baseline_source.replace(
-            "    mechanisms paths for selected from identity_observer\n",
-            r#"    results rows {
+            "    mechanisms paths from find all_cases using identity_observer\n",
+            r#"    results rows from find all_cases {
         each case
         select [case_id, before, after, context]
     }
-    mechanisms paths for selected from identity_observer
+    mechanisms paths from find all_cases using identity_observer
 "#,
         );
         let (_, viewed, viewed_request) =
@@ -57634,7 +58188,7 @@ mod tests {
     from { vary before in [0]
         given context = () }
     transition after = before
-    find all
+    find all_cases = all
 }
 "#;
         let with_unrelated = format!("{unrelated_prefix}{baseline_source}");
@@ -57644,8 +58198,8 @@ mod tests {
         assert_eq!(unrelated_request, baseline_request);
 
         let observer_selected = baseline_source.replace(
-            "mechanisms paths for selected from identity_observer",
-            "mechanisms paths for selected from identity_observer_alt",
+            "mechanisms paths from find all_cases using identity_observer",
+            "mechanisms paths from find all_cases using identity_observer_alt",
         );
         let (_, observer_selected_identity, observer_selected_request) =
             stable_model_owner_identity_snapshot(&observer_selected, "identity_target");
@@ -57766,8 +58320,8 @@ mod tests {
         vary context in [IdentityContext(step = 1)]
     }}
     transition after = identity_step(before, context)
-    find all
-    mechanisms paths for selected from identity_observer
+    find all_cases = all
+    mechanisms paths from find all_cases using identity_observer
 }}
 "#
             )
@@ -57793,7 +58347,7 @@ mod tests {
     from {{ vary before in [0]
         given context = () }}
     transition after = before
-    find all
+    find all_cases = all
 }}
 "#
             ),
@@ -58823,7 +59377,7 @@ mod tests {
     from {{ vary before in [1]
         given context = () }}
     transition after = before
-    find matches of eligible(before)
+    find eligible_cases = matches of eligible(before)
 }}
 "#
             );
@@ -58968,7 +59522,7 @@ mod tests {
     from {{ vary before in [1]
         given context = () }}
     transition after = before
-    find matches of eligible(before)
+    find eligible_cases = matches of eligible(before)
 }}
 "#
         );
@@ -59085,7 +59639,7 @@ mod tests {
     from {{ vary before in [1]
         given context = () }}
     transition after = before
-    find matches of eligible(before)
+    find eligible_cases = matches of eligible(before)
 }}
 "#
             );
@@ -59140,7 +59694,7 @@ mod tests {
     from { vary before in [0]
         given context = () }
     transition after = before
-    find all
+    find all_cases = all
 }
 "#,
         )
@@ -59201,7 +59755,7 @@ mod tests {
     from { vary before in [1]
         given context = () }
     transition after = before
-    find matches of eligible(before)
+    find eligible_cases = matches of eligible(before)
 }
 "#;
         let check = || {
@@ -59252,7 +59806,7 @@ mod tests {
     from { vary before in [1]
         given context = () }
     transition after = before
-    find matches of eligible(before)
+    find eligible_cases = matches of eligible(before)
 }
 "#;
         let statements = parse_test_program(source).expect("parse qualified-then-plain root");
@@ -59290,8 +59844,8 @@ mod tests {
     }}
     transition after = before + 1
     where before before >= 0
-    find matches of eligible(after)
-    results summary {{
+    find eligible_cases = matches of eligible(after)
+    results summary from find eligible_cases {{
         group by [bucket = before]
         measure [measure = after + before, alternate = before]
         aggregate [profiles = count_distinct(before)]
@@ -59320,7 +59874,11 @@ mod tests {
             ),
             (
                 "polarity",
-                baseline_source.replacen("find matches of", "find violations of", 1),
+                baseline_source.replacen(
+                    "find eligible_cases = matches of",
+                    "find eligible_cases = violations of",
+                    1,
+                ),
             ),
             (
                 "domain",
@@ -59408,15 +59966,15 @@ mod tests {
     where before before.income >= 0
     where after after.income >= 0
     where transition after.income >= before.income
-    find violations of net(after, context) >= net(before, context)
-    results cliffs_by_commune from selected {
+    find cliffs = violations of net(after, context) >= net(before, context)
+    results cliffs_by_commune from find cliffs {
         group by [commune = before.commune]
         measure [loss = net(before, context) - net(after, context)]
         having varies(loss)
         select [loss, income = before.income]
         choose pareto [maximize loss, minimize income]
     }
-    mechanisms cliff_paths for selected from observe_income
+    mechanisms cliff_paths from find cliffs using observe_income
     results raw_incidences from mechanisms cliff_paths {
         each incidence
         select [
@@ -59434,7 +59992,7 @@ mod tests {
         ]
         select [structural_mechanism_id, raw_signatures, cases]
     }
-    mechanisms winner_paths for view cliffs_by_commune chosen from Tax::observe_income
+    mechanisms winner_paths from view cliffs_by_commune chosen using Tax::observe_income
 }
 "#;
         let statements = parse_test_program(source).expect("parse canonical Explore query");
@@ -59484,14 +60042,19 @@ mod tests {
                 ExploreAdmissionScope::Transition,
             ]
         );
+        assert_eq!(query.finds.len(), 1);
+        assert_eq!(query.finds[0].name, "cliffs");
         assert!(matches!(
-            &query.selection,
+            &query.finds[0].selection,
             ExploreSelection::Violations { .. }
         ));
         let ExploreAnalysisNode::Result(case_view) = &query.analysis[0] else {
-            panic!("first analysis node must be the selected-case view");
+            panic!("first analysis node must be the named-find view");
         };
-        assert!(matches!(&case_view.input, ExploreResultInput::Selected));
+        assert!(matches!(
+            &case_view.input,
+            ExploreResultInput::Find { find_name } if find_name == "cliffs"
+        ));
         assert!(matches!(
             &case_view.grain,
             ExploreResultGrain::GroupBy { .. }
@@ -59504,6 +60067,10 @@ mod tests {
             panic!("second analysis node must be the mechanism request");
         };
         assert_eq!(cliff_paths.name, "cliff_paths");
+        assert!(matches!(
+            &cliff_paths.target,
+            ExploreMechanismTarget::FindCases { find_name } if find_name == "cliffs"
+        ));
         let ExploreAnalysisNode::Result(raw_incidences) = &query.analysis[2] else {
             panic!("third analysis node must be the incidence-grain view");
         };
@@ -59542,12 +60109,12 @@ mod tests {
     from {{ vary before in [1, 2]
         given context = () }}
     transition after = before + 1
-    find all
-    results starter_values {{
+    find all_cases = all
+    results starter_values from find all_cases {{
         each case
         select [case_id, context, before, after]
     }}
-    mechanisms paths for selected from observe
+    mechanisms paths from find all_cases using observe
     {projections}
 }}
 "#
@@ -59615,7 +60182,7 @@ observations edge_route from mechanisms paths for edge differential "{edge}" wit
         assert_eq!(baseline.program_hash(), observed.program_hash());
         assert_eq!(baseline.relation_id(), observed.relation_id());
         assert_eq!(baseline.admission_id(), observed.admission_id());
-        assert_eq!(baseline.question_id(), observed.question_id());
+        assert_eq!(baseline.question_ids(), observed.question_ids());
         assert_eq!(
             baseline.analysis_graph_hash(),
             observed.analysis_graph_hash()
@@ -59706,7 +60273,7 @@ observations values from mechanisms paths for edge activation "{digest}""#
     from {{ vary before in [1, 2]
         given context = () }}
     transition after = before + 1
-    find matches of after > before
+    find increases = matches of after > before
     {consumers}
 }}
 "#
@@ -59744,7 +60311,7 @@ observations values from mechanisms paths for edge activation "{digest}""#
         assert_eq!(baseline.program_hash(), graph.program_hash());
         assert_eq!(baseline.relation_id(), graph.relation_id());
         assert_eq!(baseline.admission_id(), graph.admission_id());
-        assert_eq!(baseline.question_id(), graph.question_id());
+        assert_eq!(baseline.question_ids(), graph.question_ids());
         assert_eq!(baseline.analysis_graph_hash(), graph.analysis_graph_hash());
         assert_eq!(
             baseline.transition_schemas().state_schema_id(),
@@ -59776,7 +60343,7 @@ observations values from mechanisms paths for edge activation "{digest}""#
             .checked_exploration_query(0)
             .expect("checked renamed graph consumer");
         assert_eq!(graph.relation_id(), renamed.relation_id());
-        assert_eq!(graph.question_id(), renamed.question_id());
+        assert_eq!(graph.question_ids(), renamed.question_ids());
         assert_ne!(
             consumer.1.id,
             renamed
@@ -59946,7 +60513,7 @@ starters values from mechanisms paths for mechanism "{digest}" using values from
         let artifacts = explore_artifacts_for_source(&invalid);
         assert!(artifacts.diagnostics.iter().any(|diagnostic| diagnostic
             .message
-            .contains("selected-input `each case` view")));
+            .contains("named-find-input `each case` view")));
     }
 
     #[test]
@@ -59977,7 +60544,7 @@ starters values from mechanisms paths for mechanism "{digest}" using values from
         assert_eq!(baseline.program_hash(), projected.program_hash());
         assert_eq!(baseline.relation_id(), projected.relation_id());
         assert_eq!(baseline.admission_id(), projected.admission_id());
-        assert_eq!(baseline.question_id(), projected.question_id());
+        assert_eq!(baseline.question_ids(), projected.question_ids());
         assert_eq!(
             baseline.analysis_graph_hash(),
             projected.analysis_graph_hash()
@@ -60039,7 +60606,7 @@ starters values from mechanisms paths for mechanism "{digest}" using values from
             .checked_exploration_query(0)
             .expect("checked route-conditioned node consumer");
         assert_eq!(total_node.relation_id(), routed_node.relation_id());
-        assert_eq!(total_node.question_id(), routed_node.question_id());
+        assert_eq!(total_node.question_ids(), routed_node.question_ids());
         assert_eq!(
             total_node.analysis_graph_hash(),
             routed_node.analysis_graph_hash(),
@@ -60090,17 +60657,17 @@ starters first from mechanisms paths for node activation "{digest}" using values
         for (label, source, expected) in [
             (
                 "bare binding",
-                "? explore bad { from { before = 1 } transition after = before find all }",
+                "? explore bad { from { before = 1 } transition after = before find cases = all }",
                 "expected exploration source producer `given`, `vary`, or `let`",
             ),
             (
                 "given domain",
-                "? explore bad { from { given before in [1] } transition after = before find all }",
+                "? explore bad { from { given before in [1] } transition after = before find cases = all }",
                 "expected `=` after exploration `given` binding `before`",
             ),
             (
                 "varied singleton",
-                "? explore bad { from { vary before = 1 } transition after = before find all }",
+                "? explore bad { from { vary before = 1 } transition after = before find cases = all }",
                 "expected `in` after exploration `vary` binding `before`",
             ),
         ] {
@@ -60116,7 +60683,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn explore_parser_rejects_obsolete_modes_and_empty_measure() {
         for obsolete in ["identity", "relative", "independent"] {
             let source = format!(
-                "? explore obsolete {{\nfrom {{ given before = 1\ngiven context = () }}\nto after {obsolete}\nfind all\n}}\n"
+                "? explore obsolete {{\nfrom {{ given before = 1\ngiven context = () }}\nto after {obsolete}\nfind cases = all\n}}\n"
             );
             let error = parse_test_program(&source).expect_err("obsolete mode must be rejected");
             assert!(
@@ -60132,8 +60699,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    results cases {
+    find all_cases = all
+    results cases from find all_cases {
         each case
         measure []
     }
@@ -60147,8 +60714,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    results counts {
+    find all_cases = all
+    results counts from find all_cases {
         group all
         aggregate []
     }
@@ -60165,9 +60732,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
+    find all_cases = all
     results bins from mechanisms paths { group all }
-    mechanisms paths for selected from observe
+    mechanisms paths from find all_cases using observe
 }
 "#;
         let error = parse_test_program(forward_mechanism)
@@ -60182,9 +60749,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    mechanisms paths for view winners chosen from observe
-    results winners { group all
+    find all_cases = all
+    mechanisms paths from view winners chosen using observe
+    results winners from find all_cases { group all
         choose one maximizing before }
 }
 "#;
@@ -60200,12 +60767,12 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    results cases { each incidence }
+    find all_cases = all
+    results cases from find all_cases { each incidence }
 }
 "#;
-        let error =
-            parse_test_program(wrong_grain).expect_err("selected rows cannot use incidence grain");
+        let error = parse_test_program(wrong_grain)
+            .expect_err("named-find rows cannot use incidence grain");
         assert!(error.contains("requires a mechanism-incidence"), "{error}");
 
         let open_aggregate = r#"
@@ -60213,8 +60780,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    results cases {
+    find all_cases = all
+    results cases from find all_cases {
         each case
         aggregate [profiles = count_distinct(before)]
     }
@@ -60232,13 +60799,13 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    mechanisms paths for selected from observe
+    find all_cases = all
+    mechanisms paths from find all_cases using observe
     results mechanism_winners from mechanisms paths {
         group by [signature_id]
         choose one maximizing before
     }
-    mechanisms nested for view mechanism_winners chosen from observe
+    mechanisms nested from view mechanism_winners chosen using observe
 }
 "#;
         let error = parse_test_program(post_mechanism_target)
@@ -60257,8 +60824,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     from { given before = 1
         given context = () }
     transition after = before
-    find all
-    mechanisms paths for selected from observe
+    find all_cases = all
+    mechanisms paths from find all_cases using observe
     results counts from mechanisms paths {
         group all
         aggregate [cases = count_distinct(case_id)]
@@ -60291,8 +60858,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     where before admit_before(before, context)
     where after admit_after(after, context)
     where transition admit_transition(before, after, context)
-    find matches of selected(before, after, context)
-    results view {
+    find selected_cases = matches of selected(before, after, context)
+    results view from find selected_cases {
         group by [group_key = group_expression(before)]
         measure [score = measure_expression(after)]
         having varies(score)
@@ -60302,7 +60869,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             minimize minimize_expression(shown)
         ]
     }
-    mechanisms paths for selected from observe_expression
+    mechanisms paths from find selected_cases using observe_expression
     results mechanism_view from mechanisms paths {
         group by [signature = signature_id]
         aggregate [cases = count_distinct(aggregate_expression(case_id))]
@@ -60385,8 +60952,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
     where before before.income >= 0
     where after after.income >= 0
     where transition after.income >= before.income
-    find matches of after.income > before.income
-    results by_status {
+    find increases = matches of after.income > before.income
+    results by_status from find increases {
         group by [status = before.status]
         measure [gain = after.income - before.income]
         aggregate [profiles = count_distinct(before.commune)]
@@ -60394,7 +60961,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         select [gain, profiles, income = before.income]
         choose all maximizing gain
     }
-    mechanisms paths for selected from observe_income
+    mechanisms paths from find increases using observe_income
     results raw_incidences from mechanisms paths {
         each incidence
         select [
@@ -60413,7 +60980,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         ]
         select [structural_mechanism_id, profiles, raw_signatures, cases]
     }
-    mechanisms winners for view by_status chosen from observe_income
+    mechanisms winners from view by_status chosen using observe_income
 }
 "#;
         let statements = parse_test_program(source).expect("parse checker fixture");
@@ -60461,13 +61028,22 @@ starters first from mechanisms paths for node activation "{digest}" using values
             TypedExploreSuccessorKind::Finite { .. }
         ));
         assert_eq!(query.admissions.len(), 3);
+        assert_eq!(query.finds.len(), 1);
+        assert_eq!(query.finds[0].name, "increases");
         assert!(matches!(
-            &query.selection,
+            &query.finds[0].selection,
             TypedExploreSelection::Matches { .. }
         ));
         let TypedExploreAnalysisNode::Result(by_status) = &query.analysis[0] else {
-            panic!("expected selected-case result view");
+            panic!("expected named-find result view");
         };
+        assert!(matches!(
+            &by_status.input,
+            TypedExploreResultInput::Find {
+                find_name,
+                find_index: 0,
+            } if find_name == "increases"
+        ));
         assert!(matches!(
             &by_status.grain,
             TypedExploreResultGrain::GroupBy { .. }
@@ -60477,6 +61053,13 @@ starters first from mechanisms paths for node activation "{digest}" using values
             panic!("expected mechanism request");
         };
         assert_eq!(paths.name, "paths");
+        assert!(matches!(
+            &paths.target,
+            TypedExploreMechanismTarget::FindCases {
+                find_name,
+                find_index: 0,
+            } if find_name == "increases"
+        ));
         let TypedExploreAnalysisNode::Result(raw_incidences) = &query.analysis[2] else {
             panic!("expected ungrouped mechanism-incidence view");
         };
@@ -60501,6 +61084,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             &winners.target,
             TypedExploreMechanismTarget::ViewChosen {
                 view_node_index: 0,
+                find_index: 0,
                 ..
             }
         ));
@@ -60515,8 +61099,8 @@ starters first from mechanisms paths for node activation "{digest}" using values
         given context = ()
     }
     transition after = before + 1
-    find all
-    results bins {
+    find all_cases = all
+    results bins from find all_cases {
         group by [bucket = before]
         aggregate [cases = count_distinct(before)]
         select [bucket, cases, repeated = cases]
@@ -65037,14 +65621,20 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         predicate: typechecker_missing_expr("missing_explore_where"),
                         span: Span::dummy(),
                     }],
-                    selection: ExploreSelection::Matches {
-                        predicate: typechecker_missing_expr("missing_explore_find"),
+                    finds: vec![ExploreFind {
+                        name: "coverage_find".to_string(),
+                        selection: ExploreSelection::Matches {
+                            predicate: typechecker_missing_expr("missing_explore_find"),
+                            span: Span::dummy(),
+                        },
                         span: Span::dummy(),
-                    },
+                    }],
                     analysis: vec![
                         ExploreAnalysisNode::Result(ExploreResultView {
                             name: "coverage_view".to_string(),
-                            input: ExploreResultInput::Selected,
+                            input: ExploreResultInput::Find {
+                                find_name: "coverage_find".to_string(),
+                            },
                             grain: ExploreResultGrain::GroupBy {
                                 fields: vec![ExploreResultField {
                                     name: "key".to_string(),
@@ -65084,7 +65674,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         }),
                         ExploreAnalysisNode::Mechanisms(ExploreMechanismRequest {
                             name: "coverage_mechanism".to_string(),
-                            target: ExploreMechanismTarget::SelectedCases,
+                            target: ExploreMechanismTarget::FindCases {
+                                find_name: "coverage_find".to_string(),
+                            },
                             callable_name: "missing_explore_mechanism".to_string(),
                             endpoint_template: typechecker_missing_expr(
                                 "missing_explore_mechanism",

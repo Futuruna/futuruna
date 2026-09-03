@@ -58,7 +58,7 @@ pub(crate) fn relational_tys_equivalent(left: &Ty, right: &Ty) -> bool {
 
 /// Version of the canonical relational IR shape, independent of run and view
 /// serialization versions.
-pub const EXPLORE_RELATIONAL_IR_VERSION: u32 = 2;
+pub const EXPLORE_RELATIONAL_IR_VERSION: u32 = 3;
 
 /// One already-checked finite-domain plan.
 ///
@@ -201,6 +201,17 @@ impl ExploreFindIr {
     }
 }
 
+/// One authored address for a closed FIND question.
+///
+/// `name` is deliberately kept outside [`ExploreFindIr`]: it resolves
+/// references within the declaration but is not part of the question's
+/// semantic identity.
+#[derive(Debug, Clone)]
+pub struct ExploreNamedFindIr {
+    pub name: String,
+    pub find: ExploreFindIr,
+}
+
 #[derive(Debug, Clone)]
 pub struct ExploreResultFieldIr {
     pub name: String,
@@ -215,8 +226,9 @@ pub enum ExploreResultInputIr {
     /// Canonical `(Context, Before)` rows, independently of successor,
     /// admission, and FIND progress.
     Sources,
-    /// Cases admitted and classified by this query's FIND question.
-    Selected,
+    /// Cases admitted and classified by one explicitly addressed FIND
+    /// question. The positional reference is closed during type checking.
+    Find { find_index: usize },
     /// Incidences produced by one strictly earlier mechanism node.
     MechanismIncidence { request_node_index: usize },
 }
@@ -283,8 +295,8 @@ pub enum ExploreResultChoiceIr {
     },
 }
 
-/// One named result node over selected cases or a prior mechanism-incidence
-/// relation.
+/// One named result node over source rows, an explicitly addressed FIND case
+/// relation, or a prior mechanism-incidence relation.
 #[derive(Debug, Clone)]
 pub struct ExploreResultViewIr {
     pub node_index: usize,
@@ -302,12 +314,11 @@ pub struct ExploreResultViewIr {
 /// Resolved case population consumed by a mechanism request.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ExploreMechanismTargetIr {
-    SelectedCases,
+    /// Cases classified by one explicitly addressed FIND question.
+    Find { find_index: usize },
     /// The closed reference is positional and strictly prior. The view's name
     /// remains only on its descriptor and cannot enter target identity.
-    ViewChosen {
-        view_node_index: usize,
-    },
+    ViewChosen { view_node_index: usize },
 }
 
 /// One named differential mechanism observation request.
@@ -474,7 +485,7 @@ pub struct ExploreQueryIr {
     pub source: ExploreSourceRelationIr,
     pub successor: ExploreSuccessorRelationIr,
     pub admissions: Box<[ExploreAdmissionIr]>,
-    pub find: ExploreFindIr,
+    pub finds: Box<[ExploreNamedFindIr]>,
     pub analysis: Box<[ExploreAnalysisNodeIr]>,
     pub(crate) observation_demands: Box<[ExploreSupportObservationDemandIr]>,
     pub(crate) starter_projections: Box<[ExploreStarterProjectionIr]>,
@@ -501,11 +512,47 @@ impl ExploreQueryIr {
             }
         }
 
+        self.validate_declaration_names()?;
+
         self.validate_analysis()?;
         self.validate_observation_demands()?;
         self.validate_starter_projections()?;
         self.validate_transition_graphs()?;
 
+        Ok(())
+    }
+
+    fn validate_declaration_names(&self) -> Result<(), String> {
+        let mut names = BTreeSet::new();
+        for find in self.finds.iter() {
+            if !names.insert(find.name.as_str()) {
+                return Err(format!("duplicate exploration declaration `{}`", find.name));
+            }
+        }
+        for name in self
+            .analysis
+            .iter()
+            .map(ExploreAnalysisNodeIr::name)
+            .chain(
+                self.observation_demands
+                    .iter()
+                    .map(|demand| demand.name.as_str()),
+            )
+            .chain(
+                self.starter_projections
+                    .iter()
+                    .map(|projection| projection.name.as_str()),
+            )
+            .chain(
+                self.transition_graphs
+                    .iter()
+                    .map(|graph| graph.name.as_str()),
+            )
+        {
+            if !names.insert(name) {
+                return Err(format!("duplicate exploration declaration `{name}`"));
+            }
+        }
         Ok(())
     }
 
@@ -563,10 +610,16 @@ impl ExploreQueryIr {
 
             match node {
                 ExploreAnalysisNodeIr::Result(view) => self.validate_result_view(view, expected)?,
-                ExploreAnalysisNodeIr::Mechanisms(request) => {
-                    if let ExploreMechanismTargetIr::ViewChosen { view_node_index } =
-                        &request.target
-                    {
+                ExploreAnalysisNodeIr::Mechanisms(request) => match &request.target {
+                    ExploreMechanismTargetIr::Find { find_index } => {
+                        if *find_index >= self.finds.len() {
+                            return Err(format!(
+                                "mechanism request `{}` targets absent FIND question index {}",
+                                request.name, find_index
+                            ));
+                        }
+                    }
+                    ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
                         if *view_node_index >= expected {
                             return Err(format!(
                                 "mechanism request `{}` targets non-prior result node index {}",
@@ -581,16 +634,16 @@ impl ExploreQueryIr {
                                 request.name, view_node_index
                             ));
                         };
-                        if !matches!(&view.input, ExploreResultInputIr::Selected)
+                        if !matches!(&view.input, ExploreResultInputIr::Find { .. })
                             || view.choose.is_none()
                         {
                             return Err(format!(
-                                "mechanism request `{}` must target a chosen selected-case view",
+                                "mechanism request `{}` must target a chosen FIND-case view",
                                 request.name
                             ));
                         }
                     }
-                }
+                },
             }
         }
         Ok(())
@@ -649,7 +702,7 @@ impl ExploreQueryIr {
                 &self.successor.after_ty,
             ) {
                 return Err(format!(
-                    "starter projection `{}` requires a lossless selected-input each-case value view",
+                    "starter projection `{}` requires a lossless FIND-backed each-case value view",
                     projection.name
                 ));
             }
@@ -689,22 +742,33 @@ impl ExploreQueryIr {
         view: &ExploreResultViewIr,
         node_index: usize,
     ) -> Result<(), String> {
-        if let ExploreResultInputIr::MechanismIncidence { request_node_index } = &view.input {
-            if *request_node_index >= node_index {
-                return Err(format!(
-                    "result view `{}` consumes non-prior mechanism node index {}",
-                    view.name, request_node_index
-                ));
+        match &view.input {
+            ExploreResultInputIr::Find { find_index } => {
+                if *find_index >= self.finds.len() {
+                    return Err(format!(
+                        "result view `{}` consumes absent FIND question index {}",
+                        view.name, find_index
+                    ));
+                }
             }
-            if !matches!(
-                self.analysis.get(*request_node_index),
-                Some(ExploreAnalysisNodeIr::Mechanisms(_))
-            ) {
-                return Err(format!(
-                    "result view `{}` consumes non-mechanism node index {}",
-                    view.name, request_node_index
-                ));
+            ExploreResultInputIr::MechanismIncidence { request_node_index } => {
+                if *request_node_index >= node_index {
+                    return Err(format!(
+                        "result view `{}` consumes non-prior mechanism node index {}",
+                        view.name, request_node_index
+                    ));
+                }
+                if !matches!(
+                    self.analysis.get(*request_node_index),
+                    Some(ExploreAnalysisNodeIr::Mechanisms(_))
+                ) {
+                    return Err(format!(
+                        "result view `{}` consumes non-mechanism node index {}",
+                        view.name, request_node_index
+                    ));
+                }
             }
+            ExploreResultInputIr::Sources => {}
         }
 
         match (&view.input, &view.grain) {
@@ -717,9 +781,9 @@ impl ExploreQueryIr {
                     view.name
                 ));
             }
-            (ExploreResultInputIr::Selected, ExploreResultGrainIr::EachIncidence { .. }) => {
+            (ExploreResultInputIr::Find { .. }, ExploreResultGrainIr::EachIncidence { .. }) => {
                 return Err(format!(
-                    "result view `{}` uses each-incidence grain over selected cases",
+                    "result view `{}` uses each-incidence grain over FIND cases",
                     view.name
                 ));
             }
@@ -782,7 +846,7 @@ fn starter_value_view_is_compatible(
     before_ty: &Ty,
     after_ty: &Ty,
 ) -> bool {
-    if !matches!(&view.input, ExploreResultInputIr::Selected)
+    if !matches!(&view.input, ExploreResultInputIr::Find { .. })
         || !matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
         || !view.aggregates.is_empty()
         || view.having.is_some()

@@ -6308,11 +6308,19 @@ fn relational_explore_mechanism_target_json(
     target: &explore::ExploreStreamMechanismTarget,
 ) -> serde_json::Value {
     match target {
-        explore::ExploreStreamMechanismTarget::Selected => serde_json::json!({
-            "kind": "selected",
+        explore::ExploreStreamMechanismTarget::Find { name, question_id } => serde_json::json!({
+            "kind": "find",
+            "name": name,
+            "question_id": question_id,
         }),
-        explore::ExploreStreamMechanismTarget::ChosenView { view_id } => serde_json::json!({
+        explore::ExploreStreamMechanismTarget::ChosenView {
+            name,
+            question_id,
+            view_id,
+        } => serde_json::json!({
             "kind": "chosen_view",
+            "name": name,
+            "question_id": question_id,
             "view_id": view_id,
         }),
     }
@@ -6322,9 +6330,11 @@ fn relational_explore_mechanism_target_text(
     target: &explore::ExploreStreamMechanismTarget,
 ) -> String {
     match target {
-        explore::ExploreStreamMechanismTarget::Selected => "selected cases".to_string(),
-        explore::ExploreStreamMechanismTarget::ChosenView { view_id } => {
-            format!("chosen view {view_id}")
+        explore::ExploreStreamMechanismTarget::Find { name, .. } => {
+            format!("cases selected by find `{name}`")
+        }
+        explore::ExploreStreamMechanismTarget::ChosenView { name, .. } => {
+            format!("cases chosen by view `{name}`")
         }
     }
 }
@@ -6979,15 +6989,19 @@ fn relational_explore_answer_result_json(
 
 fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) -> serde_json::Value {
     serde_json::json!({
-        "population": "selected_before_after_cases",
+        "population": "before_after_cases",
         "declared_relation_closed": report.relation_closed,
-        "find_frontier_closed": report.find_closed,
         "analysis_frontier_closed": report.analysis_closed,
         "source_coverage_has_gaps": report.source_coverage.has_gaps,
         "counts": {
-            "selected_cases": relational_explore_count_json(report.counts.selected),
             "admitted_cases": relational_explore_count_json(report.counts.admitted),
         },
+        "finds": report.finds.iter().map(|find| serde_json::json!({
+            "name": find.name,
+            "question_id": find.question_id,
+            "frontier_closed": find.closed,
+            "selected_cases": relational_explore_count_json(find.selected),
+        })).collect::<Vec<_>>(),
         "result_views": report
             .layers
             .iter()
@@ -7016,7 +7030,7 @@ fn relational_explore_report_json(
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v7",
+        "schema": "futuruna.explore.relational-stream.v8",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
         "query": {
@@ -7025,7 +7039,7 @@ fn relational_explore_report_json(
                 "checked_program": report.identity.checked_program,
                 "relation_id": report.identity.relation_id,
                 "admission_id": report.identity.admission_id,
-                "question_id": report.identity.question_id,
+                "question_ids": report.identity.question_ids,
                 "analysis_graph_digest": report.identity.analysis_graph_digest,
                 "journal_id": report.identity.journal_id,
             },
@@ -7068,8 +7082,12 @@ fn relational_explore_report_json(
         },
         "coverage": {
             "relation_closed": report.relation_closed,
-            "find_closed": report.find_closed,
             "analysis_closed": report.analysis_closed,
+            "finds": report.finds.iter().map(|find| serde_json::json!({
+                "name": find.name,
+                "question_id": find.question_id,
+                "closed": find.closed,
+            })).collect::<Vec<_>>(),
         },
         "counts": {
             "sources": relational_explore_count_json(report.counts.sources),
@@ -7077,9 +7095,13 @@ fn relational_explore_report_json(
             "admission_classified": relational_explore_count_json(report.counts.admission_classified),
             "admitted": relational_explore_count_json(report.counts.admitted),
             "rejected": relational_explore_count_json(report.counts.rejected),
-            "find_classified": relational_explore_count_json(report.counts.find_classified),
-            "selected": relational_explore_count_json(report.counts.selected),
-            "not_selected": relational_explore_count_json(report.counts.not_selected),
+            "finds": report.finds.iter().map(|find| serde_json::json!({
+                "name": find.name,
+                "question_id": find.question_id,
+                "classified": relational_explore_count_json(find.find_classified),
+                "selected": relational_explore_count_json(find.selected),
+                "not_selected": relational_explore_count_json(find.not_selected),
+            })).collect::<Vec<_>>(),
         },
         "analysis": {
             "scope_root": report.analysis_scope_root,
@@ -7115,26 +7137,34 @@ fn relational_explore_report_json(
 }
 
 fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceReport) {
-    if report.find_closed && report.counts.selected.is_exact() {
-        println!(
-            "Answer: {} satisfy the exploration's FIND condition in this declared relation.",
-            relational_explore_answer_count_text(
-                report.counts.selected,
-                "before-to-after case",
-                "before-to-after cases",
-            )
-        );
-    } else {
-        let confirmed = relational_explore_count_confirmed_lower_bound(report.counts.selected);
-        if confirmed == 0 {
+    if report.finds.is_empty() {
+        println!("Answer: this exploration declares no FIND questions.");
+    }
+    for find in &report.finds {
+        if find.closed && find.selected.is_exact() {
             println!(
-                "Answer so far: no before-to-after cases have been confirmed; the FIND frontier remains open."
+                "Answer `{}`: {} satisfy this FIND in the declared relation.",
+                find.name,
+                relational_explore_answer_count_text(
+                    find.selected,
+                    "before-to-after case",
+                    "before-to-after cases",
+                )
             );
         } else {
-            println!(
-                "Answer so far: {confirmed} before-to-after case{} confirmed; the FIND frontier remains open.",
-                if confirmed == 1 { "" } else { "s" },
-            );
+            let confirmed = relational_explore_count_confirmed_lower_bound(find.selected);
+            if confirmed == 0 {
+                println!(
+                    "Answer `{}` so far: no before-to-after cases confirmed; its FIND frontier remains open.",
+                    find.name
+                );
+            } else {
+                println!(
+                    "Answer `{}` so far: {confirmed} before-to-after case{} confirmed; its FIND frontier remains open.",
+                    find.name,
+                    if confirmed == 1 { "" } else { "s" },
+                );
+            }
         }
     }
 
@@ -7344,19 +7374,25 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
         }
     );
     println!(
-        "  coverage: relation {}, find {}, analysis {}",
+        "  coverage: relation {}, analysis {}",
         if report.relation_closed {
             "closed"
         } else {
             "open"
         },
-        if report.find_closed { "closed" } else { "open" },
         if report.analysis_closed {
             "closed"
         } else {
             "open"
         },
     );
+    for find in &report.finds {
+        println!(
+            "    find `{}`: {}",
+            find.name,
+            if find.closed { "closed" } else { "open" }
+        );
+    }
     println!(
         "  appended this invocation: {} semantic batch{}, {} event{}",
         report.semantic_batches_appended,
@@ -7428,11 +7464,18 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
         ("admission classified", report.counts.admission_classified),
         ("admitted", report.counts.admitted),
         ("rejected", report.counts.rejected),
-        ("find classified", report.counts.find_classified),
-        ("selected", report.counts.selected),
-        ("not selected", report.counts.not_selected),
     ] {
         println!("  {name}: {}", relational_explore_count_text(count));
+    }
+    for find in &report.finds {
+        println!("  find `{}` [{}]:", find.name, find.question_id);
+        for (name, count) in [
+            ("classified", find.find_classified),
+            ("selected", find.selected),
+            ("not selected", find.not_selected),
+        ] {
+            println!("    {name}: {}", relational_explore_count_text(count));
+        }
     }
     println!("Analysis layers:");
     if report.layers.is_empty() {
@@ -7545,7 +7588,14 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
     println!("  checked program: {}", report.identity.checked_program);
     println!("  relation: {}", report.identity.relation_id);
     println!("  admission: {}", report.identity.admission_id);
-    println!("  question: {}", report.identity.question_id);
+    if report.identity.question_ids.is_empty() {
+        println!("  questions: (none)");
+    } else {
+        println!("  questions:");
+        for question_id in &report.identity.question_ids {
+            println!("    {question_id}");
+        }
+    }
     println!(
         "  analysis graph: {}",
         report.identity.analysis_graph_digest
@@ -56282,8 +56332,8 @@ mod tests {
 
     #[test]
     fn formatter_formats_bounded_exploration_idempotently() {
-        let source = "? explore income_cliffs {\nfrom {\nvary income in range(0, 3)\nlet before = person(income)\ngiven context = ()\n}\ntransition after = promote(before, context)\nwhere before before.income>=0\nfind violations of net(after, context)>=net(before, context)\nresults cliffs {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
-        let expected = "? explore income_cliffs {\n    from {\n        vary income in range(0, 3)\n        let before = person(income)\n        given context = ()\n    }\n    transition after = promote(before, context)\n    where before before.income >= 0\n    find violations of net(after, context) >= net(before, context)\n    results cliffs {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
+        let source = "? explore income_cliffs {\nfrom {\nvary income in range(0, 3)\nlet before = person(income)\ngiven context = ()\n}\ntransition after = promote(before, context)\nwhere before before.income>=0\nfind cliff_cases = violations of net(after, context)>=net(before, context)\nresults cliffs from find cliff_cases {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
+        let expected = "? explore income_cliffs {\n    from {\n        vary income in range(0, 3)\n        let before = person(income)\n        given context = ()\n    }\n    transition after = promote(before, context)\n    where before before.income >= 0\n    find cliff_cases = violations of net(after, context) >= net(before, context)\n    results cliffs from find cliff_cases {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -56298,8 +56348,8 @@ mod tests {
 
     #[test]
     fn formatter_preserves_named_mechanism_requests_idempotently() {
-        let source = "? explore observed {\nfrom {\nvary before in states()\ngiven context = IncomeContext(step = 1)\n}\ntransition after in successors(before, context)\nwhere transition after.income>=before.income\nfind matches of changed(before, after, context)\nresults winners {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths for selected from observe_income\nmechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
-        let expected = "? explore observed {\n    from {\n        vary before in states()\n        given context = IncomeContext(step = 1)\n    }\n    transition after in successors(before, context)\n    where transition after.income >= before.income\n    find matches of changed(before, after, context)\n    results winners {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths for selected from observe_income\n    mechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
+        let source = "? explore observed {\nfrom {\nvary before in states()\ngiven context = IncomeContext(step = 1)\n}\ntransition after in successors(before, context)\nwhere transition after.income>=before.income\nfind changed_cases = matches of changed(before, after, context)\nresults winners from find changed_cases {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths from find changed_cases using observe_income\nmechanisms winner_paths from view winners chosen using Tax::observe_income\n}\n";
+        let expected = "? explore observed {\n    from {\n        vary before in states()\n        given context = IncomeContext(step = 1)\n    }\n    transition after in successors(before, context)\n    where transition after.income >= before.income\n    find changed_cases = matches of changed(before, after, context)\n    results winners from find changed_cases {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths from find changed_cases using observe_income\n    mechanisms winner_paths from view winners chosen using Tax::observe_income\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -58958,14 +59008,20 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 predicate: coverage_expr("explore_where"),
                 span: Span::dummy(),
             }],
-            selection: ExploreSelection::Matches {
-                predicate: coverage_expr("explore_find"),
+            finds: vec![ExploreFind {
+                name: "coverage_find".to_string(),
+                selection: ExploreSelection::Matches {
+                    predicate: coverage_expr("explore_find"),
+                    span: Span::dummy(),
+                },
                 span: Span::dummy(),
-            },
+            }],
             analysis: vec![
                 ExploreAnalysisNode::Result(ExploreResultView {
                     name: "coverage_view".to_string(),
-                    input: ExploreResultInput::Selected,
+                    input: ExploreResultInput::Find {
+                        find_name: "coverage_find".to_string(),
+                    },
                     grain: ExploreResultGrain::GroupBy {
                         fields: vec![ExploreResultField {
                             name: "key".to_string(),
@@ -58999,7 +59055,9 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 }),
                 ExploreAnalysisNode::Mechanisms(ExploreMechanismRequest {
                     name: "coverage_mechanism".to_string(),
-                    target: ExploreMechanismTarget::SelectedCases,
+                    target: ExploreMechanismTarget::FindCases {
+                        find_name: "coverage_find".to_string(),
+                    },
                     callable_name: "explore_mechanism".to_string(),
                     endpoint_template: coverage_expr("explore_mechanism"),
                     span: Span::dummy(),

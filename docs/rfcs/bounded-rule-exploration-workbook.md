@@ -6,9 +6,10 @@ The normative semantic contract is
 [Bounded Rule Exploration with `? explore`](bounded-rule-exploration.md). This
 workbook sharpens the intended authoring surface and turns it into the shortest
 coherent implementation path. The exact target spellings below are steering
-syntax. The current parser now accepts `from { given/vary/let }` and
-`transition after`; its scoped-`where`/single-`find` form and the
-publication-v13 `results`/`mechanisms`/`observations`/`starters` and
+syntax. The current parser now accepts `from { given/vary/let }`,
+`transition after`, zero or more named `find` questions, and explicit named
+question inputs for `results` and `mechanisms`. Its scoped `where` plus
+publication-v15 `results`/`mechanisms`/`observations`/`starters` and
 `transitions` forms remain transitional implementation spellings that lower
 toward this model.
 They are not a second public dialect and carry no compatibility requirement.
@@ -202,13 +203,13 @@ pretending it is another independent dimension:
 ```
 
 This is a semantic sketch, not a claim that the current parser accepts every
-token shown. The implementation now accepts `given`, `vary`, `let` and
-`transition after` directly. It still spells `admit` as scoped `where`, one
-named `find` as the query's single `find` plus implicit `selected`, `view` as
-in-query `results`, `choice` as `choose` inside a result, `explain` as
-`mechanisms`, and publication readers as trailing in-query declarations.
-First-class `derive`, several named finds, `ChoiceId`, separate `? analyze` and
-separate `? publish` remain the target.
+token shown. The implementation now accepts `given`, `vary`, `let`,
+`transition after`, and zero or more named finds directly. It spells `admit`
+as scoped `where`, `view` as in-query `results`, `choice` as `choose` inside a
+result, `explain` as `mechanisms`, and publication readers as trailing in-query
+declarations. Every result and mechanism consumer names its find explicitly;
+there is no implicit selected question. First-class `derive`, `ChoiceId`,
+separate `? analyze`, and separate `? publish` remain the target.
 New examples should use one surface intentionally and label transitional files
 as such; they must never imply two supported public grammars.
 
@@ -710,9 +711,27 @@ that repeated work toward `O(F)`, where `F` is the number of distinct opened
 dependency tuples; it is a required optimization before broad profile
 widening, not a current complexity claim.
 
-The concrete fallback remains output-sensitive and ultimately `O(N)` endpoint,
-admission and question evaluations, plus source-prefix work. It is the
-correctness floor. Current hot paths are:
+The concrete fallback remains output-sensitive. It performs `O(N)` endpoint
+and admission evaluations plus source-prefix work, then evaluates every unique
+semantic question for each admitted case. With predicate costs `f_i`, that
+question work is `O(N * sum(f_i))`; authored aliases of the same normalized
+question add no work. An honest extensional journal may retain `O(Nq)` keyed
+question decisions unless checked support or proof evidence compresses them.
+This is the correctness floor. Current hot paths are:
+
+The present certified classified-sweep protocol is deliberately exact-one:
+it activates only when the canonical semantic question set has one member
+(including any number of aliases of that member). Zero- and plural-question
+queries retain the shared concrete traversal and resumable journal. They do
+not pick an authored first find as a hidden primary question.
+
+Plural fan-out is itself bounded work. The ordinary DAG path registers at most
+one missing question leaf for one case per quantum; completing that leaf
+deterministically exposes the next. The singleton-source fusion optimization
+accounts for question classifications plus fixed bookkeeping under a
+4,096-event estimate and reduces its member batch accordingly. If even one
+member would exceed that estimate, fusion is disabled and the resumable leaf
+path remains authoritative.
 
 | Current operation | Current time | Retained or peak memory |
 |---|---:|---:|
@@ -725,7 +744,7 @@ correctness floor. Current hot paths are:
 | close classified support | `O((C + O + M) log (C + O + M))` full validation plus canonical hashing at each crash-safe seal boundary | derived key/ID validation sets only; no journal or support snapshot clone |
 | accept one concrete selected run | `O(k log N)` collision/classification preflight and merge for `k <= 256` cases | `O(k)` batch-local relation delta; no relation/admission/FIND prefix clones |
 | finish source traversal | `O(P + S + E)` ordered reachability/root validation over prefixes, sources and traversal edges | current `O(P + S + E)` reachability scratch; the terminal receipt itself is a fixed 212-byte body |
-| relation/admission/FIND closure | `O(N)` coverage validation | relation rows plus `O(A + Q)` decisions |
+| relation/admission/FIND closure | `O(N + A + Q)` coverage validation across all unique questions | relation rows plus `O(A + Q)` decisions; worst-case `Q = Nq` |
 | result evidence or projection-record insert | `O(log R)` in canonical indexes | one bounded record plus its reverse/index entry |
 | publish an ungrouped or choice-bearing row view | `O(R)` deterministic reducer/projection rebuild, once per process resume | current `O(R)` ephemeral row-state reducer plus cached bounded records; durable terminal state is constant-size |
 | resume bounded result projection publication | one `O(P)` cold prefix validation, then `O(delta)` for each newly durable suffix; sealed evidence-root checks are `O(1)` | one `(validated length, prefix root)` cursor per active view; no prefix-root array |
@@ -1200,10 +1219,16 @@ also carry name-independent `observations` demands outside that DAG. The stream
 now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
-The four-transition `relational-explore-stream-smoke.runa` query historically
-closed through publication v7 with four exact cases, two selected
-cases, one shared structural mechanism and execution profile, two incidences,
-and all eight planned artifacts caught up to the same journal prefix. The
+The four-transition `relational-explore-stream-smoke.runa` query now closes
+through report v8 and publication v15 with two named questions over one shared
+relation and admission. `all_cases` closes at exactly four cases;
+`interesting` closes at exactly two. The latter two cases share one raw
+signature, structural mechanism and execution profile. Its identity-only
+semantic transition graph closes with five states, four universe cases, four
+admitted cases and separate matched layers of four and two cases. A
+30-second cold slice first paused with zero semantic events, then a two-minute
+resume completed the same journal at sequence 179 and published all twelve
+artifacts. The
 first proof-bearing case-image artifact now installs
 root injectivity and optional exact cardinality atomically, with checked durable
 restoration and proper-prefix recovery for both resolver completions; positive
@@ -1218,7 +1243,7 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v13 is the current artifact plan and report v7 is the current
+Publication v15 is the current artifact plan and report v8 is the current
 compact report. Each mechanism request has one shared value-free observation
 stream plus one demand ledger. Automatic whole-mechanism observations remain
 the sole support-closure authority; explicitly requested mechanism/node/edge
@@ -1256,16 +1281,15 @@ closed at journal sequence 130 and head
 `81eaaa3bbd0089501dc9a2af7574762a7df8d0b0474673ddb223073265a6cf32`.
 
 The complementary conditioned mechanism-landscape entrypoint is now authored
-with the same 2,000-edge relation, `find all`, raw admitted-edge and successful
+with the same 2,000-edge relation, `find admitted_cases = all`, raw admitted-edge and successful
 incidence views, typed unavailable terminals, closure-qualified per-signature
 support, 1,000-DKK income bins and 50-DKK modeled net-change bins. These
 mechanism views become exact for the complete admitted target only after their
-frontier closes without replay-unavailable edges. Because `find all` gives
-`selected = admitted`, this first implementation
-can replay every admitted edge without prematurely adding several named-find
-targets to one executable relation. The target architecture expresses this
-population only as `find admitted_edges = all`; explanation names that
-QuestionId and never acquires a separate implicit `for admitted` surface.
+frontier closes without replay-unavailable edges. Positive membership in that
+question equals admission, so it can replay every admitted edge. The intended
+combined audit places this question beside `cliff_cases` over one executable
+relation; explanation names the relevant QuestionId and never acquires a
+separate implicit `for admitted` surface.
 
 Before starting that nonempty 2,000-edge replay, the durable mechanism path is
 being normalized: one complete signature definition is journaled once, and
@@ -1465,10 +1489,10 @@ rule-graph reasoning proves the skipped cell uniform.
   `transition after` relation directly. Carry the producer roles through typed
   IR, relation identity and source coverage rather than inferring them from
   cardinality.
-- Add named `derive` values, one shared `admit` and one or more named `find`
-  relations. Delete the remaining scoped-WHERE/single-FIND spelling when those
-  clauses replace it; do not maintain a compatibility adapter or document two
-  public dialects.
+- Add named `derive` values and one shared `admit` around the implemented zero
+  or more named `find` relations. Delete the remaining scoped-`where` spelling
+  when `admit` replaces it; do not maintain a compatibility adapter or
+  document two public dialects.
 - Accept singleton and exact-finite successor relations.
 - Type and purity-check ordered dependent bindings.
 - Reject the old compact syntax rather than adapting it.
@@ -1553,7 +1577,7 @@ rule-graph reasoning proves the skipped cell uniform.
 - Keep value authorization explicit and singular. Do not infer typed values
   from a compact observation or introduce a wildcard `cases × DAG subjects`
   export.
-- Lower publication-v13 trailing `observations`, `starters` and `transitions`
+- Lower publication-v15 trailing `observations`, `starters` and `transitions`
   declarations only as transitional implementation spellings.
 
 ### 6. Proof-oriented search reduction
@@ -1616,7 +1640,7 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v13 is completed. Those spellings are a
+Explore block while publication v15 is completed. Those spellings are a
 transitional lowering boundary, not another public language design.
 
 ```text
@@ -1638,7 +1662,7 @@ personskat-200k-result/
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v13 retains
+The `starters/` lane is explicit and single-subject. Publication v15 retains
 the materializer first introduced in v9 and schedules one artifact only for an
 authored transitional `starters NAME from mechanisms REQUEST ...` consumer
 whose `using values from VIEW` reference names a checked lossless
@@ -1673,7 +1697,7 @@ require building one giant array. Grouped views use the same NDJSON envelope,
 one authenticated projection record per line, so a large histogram also stays
 bounded and resumable.
 
-Report v7 partitions support observation state explicitly. The request layer
+Report v8 partitions support observation state explicitly. The request layer
 contains the total shared observation point count/root; automatic point,
 registered, dirty, observed and sealed counts plus its closure-authority chain
 root; and explicit registration, point, registered, ready, pending-backfill,
@@ -1755,7 +1779,7 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-Publication v13 replaces the old eager all-subject structural rows with
+Publication v15 replaces the old eager all-subject structural rows with
 scheduled compact observations. The structural-definition catalog advertises
 stable descriptors for every whole mechanism and activation/differential node
 or edge, but a descriptor is only an address. Every discovered whole mechanism
@@ -1765,7 +1789,7 @@ automatic slice. The core support receipt requires automatic registered,
 observed and sealed counts to equal the exact structural-mechanism count.
 
 Target-conditioned mechanism, node and edge slices are explicit readers. The
-following is the current publication-v13 transitional spelling; its target home
+following is the current publication-v15 transitional spelling; its target home
 is a separate `? publish` declaration:
 
 ```runa
@@ -1804,7 +1828,7 @@ typed cells were serialized. Exact starter-set evidence remains distinct from
 exact conditional-successor evidence.
 
 The explicit typed materialization job remains a different reader. Publication
-v13 retains the single-subject transitional `starters` form introduced in v9:
+v14 retains the single-subject transitional `starters` form introduced in v9:
 
 ```runa
 starters selected_cliff_node
@@ -1833,7 +1857,7 @@ renames the structural node or the core analysis DAG.
 Qualified artifacts use the unified subject-starter record schema v3. The
 optional route field is omitted from unqualified cursors and records.
 Publication v9 established the additive-consumer principle; the current
-Experimental v13 plan
+Experimental v15 plan
 preserves that separation without treating historical v9 bytes as a
 compatibility target.
 
@@ -1847,7 +1871,7 @@ resuming does not re-explore any cases. A fixed-fan-in external merge and
 arbitrary path-conditioned selectors remain future scaling work. The whole
 structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v13 keeps each mechanism request and authored projection in
+Publication schema v15 keeps each mechanism request and authored projection in
 independently resumable artifacts. `mechanisms/<name>.ndjson` is the
 answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
@@ -1966,7 +1990,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v13 treats this lane as an additive
+case-by-node table. Publication v15 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -2121,18 +2145,17 @@ gate requires:
 
 The deliberately nonempty
 `examples/relational-explore-stream-smoke.runa` fixture has now demonstrated
-the public frontend-to-publication happy path: four declared transitions, two
-selected cases, one shared replay-derived raw signature, one shared structural
-mechanism and execution profile, one two-case incidence aggregate, and exact
-two-case/two-starter support closure. All eight planned artifacts caught up at
-journal sequence 107 and head
-`fb37a53cac23fd1c4cee5da2508824f694ca11091d7696e60acf4fafbcba3d46`.
-Its case graph contains one classification-summary root, three exact outcome
-regions, the two authorized selected cases and one exact closure; those CaseIds
-equal the two mechanism terminal CaseIds. Reopening the identical query and
-directories appends zero semantic events and zero publication lines while
-preserving the journal head, analysis roots and artifact digests. It exercises
-the same stream without pretending to be a tax audit. An induced resource-pressure
+the plural public frontend-to-publication path. One shared four-case relation
+feeds `all_cases = exact(4)` and `interesting = exact(2)`; the latter produces
+one shared replay-derived raw signature, structural mechanism and execution
+profile, a two-case incidence aggregate and exact two-case/two-starter support
+closure. The semantic case graph closes at five states with `U_C = D_C = 4`
+and question-addressed matched layers `M_C = 4` and `M_C = 2`. A 30-second
+cold slice paused before semantic work; resuming the same authenticated run
+completed at journal sequence 179 and head
+`ec7c602c6fa3548bab4f0221247f019c49f4c63577c5d76d00c2b174a592ab81`,
+with all twelve planned artifacts caught up. It exercises the same stream
+without pretending to be a tax audit. An induced resource-pressure
 pause remains a separate focused acceptance check; it need not be rediscovered
 by repeatedly running the tiny happy-path query.
 The failed 200,000-DKK preparation attempt demonstrates only the outer
@@ -2169,7 +2192,7 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest. Report v7 may inline a schema-capped prefix of a small exact grouped
+manifest. Report v8 may inline a schema-capped prefix of a small exact grouped
 view directly from its authenticated projection journal; its evidence roots
 and truncation cursor make that preview auditable. The operational artifact
 index names the corresponding full NDJSON plus every case, mechanism, compact

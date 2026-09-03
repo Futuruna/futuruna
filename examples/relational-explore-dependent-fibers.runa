@@ -50,14 +50,14 @@ starting world, not presentation metadata.
 
     transition after in relational_fiber_successors(before, context)
 
-    find all
+    find all_cases = all
 
-    results dependent_cases from selected {
+    results dependent_cases from find all_cases {
         each case
         select [case_id, context, before, after]
     }
 
-    mechanisms dependent_paths for selected from relational_fiber_observe
+    mechanisms dependent_paths from find all_cases using relational_fiber_observe
 
     results dependent_mechanism_summary from mechanisms dependent_paths {
         group all

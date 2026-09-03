@@ -30,17 +30,17 @@ use super::transition::{
 };
 use super::{ExploreValue, SourceKey, SuccessorKey};
 
-pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION: u32 = 3;
 pub(crate) const RELATIONAL_CASE_TRANSITION_PROJECTION_SCHEMA: &str =
-    "futuruna.relational-selected-case-transitions.v2";
+    "futuruna.relational-selected-case-transitions.v3";
 /// V2 keeps collision checking and exact distinct-node closure in memory.
 /// Bound that auxiliary index independently of the much larger durable
 /// relation so publishing an authorized graph cannot exhaust the worker.
 /// Changing this bound requires a projection schema/version migration.
 pub(crate) const RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2: usize = 65_536;
 
-const PROJECTION_ID_HASH_V2: &[u8] =
-    b"futuruna.explore.relational-case-transition-projection-id.v2";
+const PROJECTION_ID_HASH_V3: &[u8] =
+    b"futuruna.explore.relational-case-transition-projection-id.v3";
 const CONTENT_ROOT_HASH_V2: &[u8] = b"futuruna.explore.relational-case-transition-content-root.v2";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -158,7 +158,7 @@ impl RelationalCaseTransitionClosure {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalCaseTransitionProjectionRecord {
     Header {
         projection_id: RelationalCaseTransitionProjectionId,
@@ -262,7 +262,7 @@ impl RelationalCaseTransitionProjection {
         if source_ordinal == 0 {
             return Some(RelationalCaseTransitionProjectionRecord::Header {
                 projection_id: self.projection_id,
-                contract: self.contract,
+                contract: self.contract.clone(),
                 state_schema_id: self.schemas.state_schema_id(),
                 context_schema_id: self.schemas.context_schema_id(),
                 transition_type_id: self.schemas.transition_type_id(),
@@ -303,12 +303,15 @@ pub(crate) fn derive_relational_case_transition_projection(
         return Err(RelationalCaseTransitionProjectionError::InvalidAuthorization);
     }
     let contract = scheduler.contract();
-    if authorization.question_id() != contract.question_id() {
+    let question_id = authorization.question_id();
+    if !contract.contains_question(question_id) {
         return Err(RelationalCaseTransitionProjectionError::QuestionIdentityMismatch);
     }
     let projection_id = derive_projection_id(contract, &schemas, &authorization);
 
-    let selected_discovery = scheduler.selected_discovery_suffix(0);
+    let selected_discovery = scheduler
+        .selected_discovery_suffix(question_id, 0)
+        .map_err(|_| RelationalCaseTransitionProjectionError::QuestionIdentityMismatch)?;
     let retained_member_count = selected_discovery
         .len()
         .min(RELATIONAL_CASE_TRANSITION_MAX_MEMBERS_V2);
@@ -329,7 +332,11 @@ pub(crate) fn derive_relational_case_transition_projection(
         .take(retained_member_count)
         .copied()
     {
-        if scheduler.question_decision(case_id) != Some(SelectionDecision::Selected) {
+        if scheduler
+            .question_decision(question_id, case_id)
+            .map_err(|_| RelationalCaseTransitionProjectionError::QuestionIdentityMismatch)?
+            != Some(SelectionDecision::Selected)
+        {
             return Err(RelationalCaseTransitionProjectionError::CaseIsNotSelected { case_id });
         }
         let case = scheduler
@@ -399,8 +406,7 @@ pub(crate) fn derive_relational_case_transition_projection(
         seal.validate_identity()
             .map_err(|_| RelationalCaseTransitionProjectionError::InvalidSelectedQuestionSeal)?;
         let coverage = seal.result_input_seal().coverage();
-        if seal.question_id() != contract.question_id()
-            || coverage.row_count() < capacity.required_at_least()
+        if seal.question_id() != question_id || coverage.row_count() < capacity.required_at_least()
         {
             return Err(RelationalCaseTransitionProjectionError::SelectedClosureMismatch);
         }
@@ -413,9 +419,12 @@ pub(crate) fn derive_relational_case_transition_projection(
                 RelationalCaseTransitionProjectionError::InvalidSelectedQuestionSeal
             })?;
             let coverage = seal.result_input_seal().coverage();
-            let canonical_selected = scheduler.selected_case_ids().collect::<BTreeSet<_>>();
+            let canonical_selected = scheduler
+                .selected_case_ids(question_id)
+                .map_err(|_| RelationalCaseTransitionProjectionError::QuestionIdentityMismatch)?
+                .collect::<BTreeSet<_>>();
             let exact_case_count = canonical_members.len() as u128;
-            if seal.question_id() != contract.question_id()
+            if seal.question_id() != question_id
                 || coverage.row_count() != exact_case_count
                 || canonical_selected.len() != canonical_members.len()
                 || !canonical_selected
@@ -448,7 +457,7 @@ pub(crate) fn derive_relational_case_transition_projection(
 
     Ok(RelationalCaseTransitionProjection {
         projection_id,
-        contract,
+        contract: contract.clone(),
         schemas,
         authorization,
         members: members.into_boxed_slice(),
@@ -475,16 +484,15 @@ fn require_state_compatible<'value>(
 }
 
 fn derive_projection_id(
-    contract: RelationalJournalContract,
+    contract: &RelationalJournalContract,
     schemas: &TransitionSchemaIdentities,
     authorization: &RelationalMechanismStarterValueAuthorization,
 ) -> RelationalCaseTransitionProjectionId {
     let mut hasher = Sha256::new();
-    hasher.update(PROJECTION_ID_HASH_V2);
+    hasher.update(PROJECTION_ID_HASH_V3);
     hasher.update(RELATIONAL_CASE_TRANSITION_PROJECTION_VERSION.to_be_bytes());
-    hasher.update(contract.relation_id().bytes());
-    hasher.update(contract.admission_id().bytes());
-    hasher.update(contract.question_id().bytes());
+    hasher.update(contract.id().bytes());
+    hasher.update(authorization.question_id().bytes());
     hasher.update(schemas.state_schema_id().bytes());
     hasher.update(schemas.context_schema_id().bytes());
     hasher.update(schemas.transition_type_id().bytes());

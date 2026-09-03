@@ -1,10 +1,10 @@
 //! Canonical semantic identity for relational Explore classification.
 //!
-//! A classification graph is program semantics: it can be shared by several
-//! bounded requests over the same checked FROM/TO/WHERE/FIND program. A
-//! capsule binds that graph to one exact support/provenance boundary. Runtime
-//! cache shape, scheduling and result materialization are deliberately absent
-//! from both identities.
+//! A classification graph is program semantics: source, successor and
+//! admission nodes are shared once, while every unique semantic FIND question
+//! has its own QuestionId-rooted lane. A capsule binds that whole question set
+//! to one exact support/provenance boundary. Runtime cache shape, scheduling
+//! and result materialization are deliberately absent from both identities.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -17,16 +17,19 @@ use super::relation::{AdmissionId, QuestionId, RelationId};
 use super::relational_support_planner::RelationalSupportPlanRoot;
 use super::support_cell::SupportCellId;
 
-pub(crate) const CLASSIFICATION_GRAPH_VERSION: u32 = 1;
+pub(crate) const CLASSIFICATION_NODE_VERSION: u32 = 1;
+pub(crate) const CLASSIFICATION_GRAPH_VERSION: u32 = 2;
 pub(crate) const CLASSIFICATION_RUNTIME_SHAPE_VERSION: u32 = 1;
-pub(crate) const CLASSIFICATION_CAPSULE_VERSION: u32 = 1;
+pub(crate) const CLASSIFICATION_QUESTION_SET_VERSION: u32 = 1;
+pub(crate) const CLASSIFICATION_CAPSULE_VERSION: u32 = 2;
 
 const TYPE_ID_V1: &[u8] = b"futuruna.explore.classification-type-id.v1\0";
 const CALLABLE_ID_V1: &[u8] = b"futuruna.explore.classification-callable-id.v1\0";
 const NODE_ID_V1: &[u8] = b"futuruna.explore.classification-node-id.v1\0";
-const GRAPH_ROOT_V1: &[u8] = b"futuruna.explore.classification-graph-root.v1\0";
+const GRAPH_ROOT_V2: &[u8] = b"futuruna.explore.classification-graph-root.v2\0";
 const RUNTIME_SHAPE_ROOT_V1: &[u8] = b"futuruna.explore.classification-runtime-shape-root.v1\0";
-const CAPSULE_ID_V1: &[u8] = b"futuruna.explore.classification-capsule-id.v1\0";
+const QUESTION_SET_ROOT_V1: &[u8] = b"futuruna.explore.classification-question-set-root.v1\0";
+const CAPSULE_ID_V2: &[u8] = b"futuruna.explore.classification-capsule-id.v2\0";
 const NO_SPECIALIZATION_V1: &[u8] = b"futuruna.explore.classification-no-specialization.v1\0";
 const EXACT_SPECIALIZATION_V1: &[u8] = b"futuruna.explore.classification-exact-specialization.v1\0";
 const PROVENANCE_ROOT_V1: &[u8] = b"futuruna.explore.classification-provenance-root.v1\0";
@@ -725,7 +728,7 @@ impl ClassificationNodeKey {
     fn derive_id(&self) -> ClassificationNodeId {
         let mut hasher = Sha256::new();
         hasher.update(NODE_ID_V1);
-        hasher.update(CLASSIFICATION_GRAPH_VERSION.to_le_bytes());
+        hasher.update(CLASSIFICATION_NODE_VERSION.to_le_bytes());
         hasher.update(self.ty.bytes());
         self.kind.hash_into(&mut hasher);
         ClassificationNodeId(hasher.finalize().into())
@@ -802,10 +805,11 @@ pub(crate) enum ClassificationSemanticLane {
         ordinal: u32,
         scope: ClassificationAdmissionScope,
     },
-    /// Final normalized selection decision: Matches lowers `p`, Violations
-    /// lowers `!p`, and Find All lowers `true`. Backends never reinterpret the
-    /// authored polarity independently of this root.
-    Find,
+    /// Final normalized decision for one semantic question. Matches lowers
+    /// `p`, Violations lowers `!p`, and Find All lowers `true`. The question
+    /// identity, rather than an authored alias or declaration ordinal, owns
+    /// the lane, so equivalent aliases share exactly one root.
+    Find(QuestionId),
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -837,7 +841,10 @@ impl ClassificationSemanticLane {
                 hasher.update([0x03, scope.canonical_tag()]);
                 hasher.update(ordinal.to_le_bytes());
             }
-            Self::Find => hasher.update([0x04]),
+            Self::Find(question_id) => {
+                hasher.update([0x04]);
+                hasher.update(question_id.bytes());
+            }
         }
     }
 }
@@ -1463,7 +1470,7 @@ fn derive_graph_root(
     residuals: &[ClassificationResidual],
 ) -> ClassificationGraphRoot {
     let mut hasher = Sha256::new();
-    hasher.update(GRAPH_ROOT_V1);
+    hasher.update(GRAPH_ROOT_V2);
     hasher.update(CLASSIFICATION_GRAPH_VERSION.to_le_bytes());
     hash_len(&mut hasher, lanes.len());
     for entry in lanes {
@@ -1526,7 +1533,85 @@ impl ClassificationProvenanceRoot {
     }
 }
 
-/// Request/support-bound replay capsule around one reusable semantic graph.
+/// Canonical identity of all semantic questions classified by one shared
+/// admission traversal. Authored aliases never enter this root.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct ClassificationQuestionSetRoot([u8; 32]);
+
+impl ClassificationQuestionSetRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Sorted, duplicate-free semantic question set bound to one classification
+/// capsule. Constructing this set deliberately coalesces equivalent authored
+/// aliases that resolved to the same [`QuestionId`].
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct FrozenClassificationQuestionSet {
+    version: u32,
+    question_ids: Box<[QuestionId]>,
+    root: ClassificationQuestionSetRoot,
+}
+
+impl FrozenClassificationQuestionSet {
+    pub(crate) fn freeze(
+        question_ids: impl IntoIterator<Item = QuestionId>,
+    ) -> Result<Self, RelationalClassificationCapsuleError> {
+        let mut question_ids = question_ids.into_iter().collect::<Vec<_>>();
+        question_ids.sort_unstable();
+        question_ids.dedup();
+        let root = derive_question_set_root(&question_ids);
+        Ok(Self {
+            version: CLASSIFICATION_QUESTION_SET_VERSION,
+            question_ids: question_ids.into_boxed_slice(),
+            root,
+        })
+    }
+
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        &self.question_ids
+    }
+
+    pub(crate) const fn root(&self) -> ClassificationQuestionSetRoot {
+        self.root
+    }
+
+    pub(crate) fn validate_identity(&self) -> bool {
+        self.version == CLASSIFICATION_QUESTION_SET_VERSION
+            && self.question_ids.windows(2).all(|pair| pair[0] < pair[1])
+            && self.root == derive_question_set_root(&self.question_ids)
+    }
+}
+
+fn derive_question_set_root(question_ids: &[QuestionId]) -> ClassificationQuestionSetRoot {
+    let mut hasher = Sha256::new();
+    hasher.update(QUESTION_SET_ROOT_V1);
+    hasher.update(CLASSIFICATION_QUESTION_SET_VERSION.to_le_bytes());
+    hash_len(&mut hasher, question_ids.len());
+    for question_id in question_ids {
+        hasher.update(question_id.bytes());
+    }
+    ClassificationQuestionSetRoot(hasher.finalize().into())
+}
+
+fn graph_question_ids(graph: &FrozenClassificationProgram) -> Box<[QuestionId]> {
+    graph
+        .lane_manifest()
+        .iter()
+        .filter_map(|entry| match entry.lane {
+            ClassificationSemanticLane::Find(question_id) => Some(question_id),
+            ClassificationSemanticLane::SourceBinding(_)
+            | ClassificationSemanticLane::Successor
+            | ClassificationSemanticLane::Admission { .. } => None,
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice()
+}
+
+/// Request/support-bound replay capsule around one reusable semantic graph
+/// and the complete set of questions evaluated over its shared admission
+/// traversal.
 #[derive(Clone, Debug)]
 pub(crate) struct RelationalClassificationCapsule {
     id: ClassificationCapsuleId,
@@ -1535,7 +1620,7 @@ pub(crate) struct RelationalClassificationCapsule {
     checked_program: [u8; 32],
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    questions: FrozenClassificationQuestionSet,
     support_plan_root: RelationalSupportPlanRoot,
     root_cell_id: Option<SupportCellId>,
     specialization_root: ClassificationSpecializationRoot,
@@ -1550,7 +1635,7 @@ impl RelationalClassificationCapsule {
         checked_program: [u8; 32],
         relation_id: RelationId,
         admission_id: AdmissionId,
-        question_id: QuestionId,
+        questions: FrozenClassificationQuestionSet,
         support_plan_root: RelationalSupportPlanRoot,
         root_cell_id: Option<SupportCellId>,
         specialization_root: ClassificationSpecializationRoot,
@@ -1559,6 +1644,11 @@ impl RelationalClassificationCapsule {
         if !graph.validate_identity() {
             return Err(RelationalClassificationCapsuleError::InvalidGraphIdentity);
         }
+        if !questions.validate_identity()
+            || graph_question_ids(graph.as_ref()).as_ref() != questions.question_ids()
+        {
+            return Err(RelationalClassificationCapsuleError::QuestionSetMismatch);
+        }
         runtime_shapes.validate_for_program(graph.as_ref())?;
         let id = derive_capsule_id(
             graph.graph_root(),
@@ -1566,7 +1656,7 @@ impl RelationalClassificationCapsule {
             checked_program,
             relation_id,
             admission_id,
-            question_id,
+            questions.root(),
             support_plan_root,
             root_cell_id,
             specialization_root,
@@ -1579,7 +1669,7 @@ impl RelationalClassificationCapsule {
             checked_program,
             relation_id,
             admission_id,
-            question_id,
+            questions,
             support_plan_root,
             root_cell_id,
             specialization_root,
@@ -1623,6 +1713,14 @@ impl RelationalClassificationCapsule {
         self.provenance_root
     }
 
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        self.questions.question_ids()
+    }
+
+    pub(crate) const fn question_set_root(&self) -> ClassificationQuestionSetRoot {
+        self.questions.root()
+    }
+
     /// Rebind a retained process-local evaluator only to the exact checked
     /// query and support scope that minted this capsule. Internal identity
     /// validity alone is insufficient: a different, self-consistent capsule
@@ -1633,7 +1731,7 @@ impl RelationalClassificationCapsule {
         checked_program: [u8; 32],
         relation_id: RelationId,
         admission_id: AdmissionId,
-        question_id: QuestionId,
+        question_set_root: ClassificationQuestionSetRoot,
         support_plan_root: RelationalSupportPlanRoot,
         root_cell_id: Option<SupportCellId>,
     ) -> bool {
@@ -1641,13 +1739,15 @@ impl RelationalClassificationCapsule {
             && self.checked_program == checked_program
             && self.relation_id == relation_id
             && self.admission_id == admission_id
-            && self.question_id == question_id
+            && self.questions.root() == question_set_root
             && self.support_plan_root == support_plan_root
             && self.root_cell_id == root_cell_id
     }
 
     pub(crate) fn validate_identity(&self) -> bool {
         self.graph.validate_identity()
+            && self.questions.validate_identity()
+            && graph_question_ids(self.graph.as_ref()).as_ref() == self.questions.question_ids()
             && self
                 .runtime_shapes
                 .validate_for_program(self.graph.as_ref())
@@ -1659,7 +1759,7 @@ impl RelationalClassificationCapsule {
                     self.checked_program,
                     self.relation_id,
                     self.admission_id,
-                    self.question_id,
+                    self.questions.root(),
                     self.support_plan_root,
                     self.root_cell_id,
                     self.specialization_root,
@@ -1675,21 +1775,21 @@ fn derive_capsule_id(
     checked_program: [u8; 32],
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    question_set_root: ClassificationQuestionSetRoot,
     support_plan_root: RelationalSupportPlanRoot,
     root_cell_id: Option<SupportCellId>,
     specialization_root: ClassificationSpecializationRoot,
     provenance_root: ClassificationProvenanceRoot,
 ) -> ClassificationCapsuleId {
     let mut hasher = Sha256::new();
-    hasher.update(CAPSULE_ID_V1);
+    hasher.update(CAPSULE_ID_V2);
     hasher.update(CLASSIFICATION_CAPSULE_VERSION.to_le_bytes());
     hasher.update(graph_root.bytes());
     hasher.update(runtime_shape_root.bytes());
     hasher.update(checked_program);
     hasher.update(relation_id.bytes());
     hasher.update(admission_id.bytes());
-    hasher.update(question_id.bytes());
+    hasher.update(question_set_root.bytes());
     hasher.update(support_plan_root.bytes());
     match root_cell_id {
         Some(root_cell_id) => {
@@ -1718,6 +1818,7 @@ pub(crate) enum RelationalClassificationCapsuleError {
     MissingSemanticLane(ClassificationSemanticLane),
     UnexpectedSemanticLane(ClassificationSemanticLane),
     DuplicateAdmissionOrdinal(u32),
+    QuestionSetMismatch,
     InvalidGraphIdentity,
     InvalidRuntimeShapeIdentity,
     MissingRuntimeConstructorShape([u8; 32]),
@@ -1798,6 +1899,9 @@ impl fmt::Display for RelationalClassificationCapsuleError {
             Self::DuplicateAdmissionOrdinal(ordinal) => write!(
                 formatter,
                 "classification graph repeats admission ordinal {ordinal} across semantic lanes"
+            ),
+            Self::QuestionSetMismatch => formatter.write_str(
+                "classification capsule question set does not exactly match its FIND lanes",
             ),
             Self::InvalidGraphIdentity => {
                 formatter.write_str("classification graph identity is invalid")
@@ -1881,11 +1985,28 @@ mod tests {
         ClassificationTypeId::from_checked_type_digest([tag; 32])
     }
 
+    fn question_id(tag: u8) -> QuestionId {
+        let relation_id = RelationId::from_canonical_semantic_digest([tag; 32]);
+        let admission_id = AdmissionId::from_canonical_admission_digest(relation_id, [tag; 32]);
+        QuestionId::from_canonical_find_digest(admission_id, [tag; 32], FindPolarity::Matches)
+    }
+
+    fn find_lane() -> ClassificationSemanticLane {
+        ClassificationSemanticLane::Find(question_id(1))
+    }
+
     fn constant(tag: u8) -> ClassificationNodeKind {
         ClassificationNodeKind::Constant(ClassificationConstant::Integer(i64::from(tag)))
     }
 
     fn frozen_program(op: ClassificationBinaryOp) -> FrozenClassificationProgram {
+        frozen_program_for_questions(op, [question_id(1)])
+    }
+
+    fn frozen_program_for_questions(
+        op: ClassificationBinaryOp,
+        question_ids: impl IntoIterator<Item = QuestionId>,
+    ) -> FrozenClassificationProgram {
         let mut interner = ClassificationInterner::default();
         let state = interner
             .intern(ClassificationNodeKey {
@@ -1912,16 +2033,19 @@ mod tests {
                 },
             })
             .unwrap();
-        FrozenClassificationProgram::freeze(
-            interner,
-            [ClassificationSemanticLane::Find],
-            [ClassificationLaneRoot {
-                lane: ClassificationSemanticLane::Find,
+        let lanes = question_ids
+            .into_iter()
+            .map(ClassificationSemanticLane::Find)
+            .collect::<Vec<_>>();
+        let roots = lanes
+            .iter()
+            .copied()
+            .map(|lane| ClassificationLaneRoot {
+                lane,
                 node: predicate,
-            }],
-            [],
-        )
-        .unwrap()
+            })
+            .collect::<Vec<_>>();
+        FrozenClassificationProgram::freeze(interner, lanes, roots, []).unwrap()
     }
 
     #[test]
@@ -1961,9 +2085,9 @@ mod tests {
             .unwrap();
         let right = FrozenClassificationProgram::freeze(
             right_interner,
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [ClassificationLaneRoot {
-                lane: ClassificationSemanticLane::Find,
+                lane: find_lane(),
                 node: predicate,
             }],
             [],
@@ -1982,6 +2106,79 @@ mod tests {
             frozen_program(ClassificationBinaryOp::LessThan).graph_root(),
             frozen_program(ClassificationBinaryOp::GreaterThan).graph_root(),
         );
+    }
+
+    #[test]
+    fn question_set_coalesces_aliases_and_capsule_requires_every_find_lane() {
+        let first = question_id(1);
+        let second = question_id(2);
+        let first_only = frozen_program_for_questions(ClassificationBinaryOp::LessThan, [first]);
+        let second_only = frozen_program_for_questions(ClassificationBinaryOp::LessThan, [second]);
+        assert_eq!(first_only.nodes(), second_only.nodes());
+        assert_ne!(first_only.graph_root(), second_only.graph_root());
+        let graph = Arc::new(frozen_program_for_questions(
+            ClassificationBinaryOp::LessThan,
+            [second, first],
+        ));
+        let reordered =
+            frozen_program_for_questions(ClassificationBinaryOp::LessThan, [first, second]);
+        assert_eq!(graph.graph_root(), reordered.graph_root());
+        assert_eq!(graph.nodes(), reordered.nodes());
+        let questions = FrozenClassificationQuestionSet::freeze([second, first, first]).unwrap();
+        let mut expected = vec![first, second];
+        expected.sort_unstable();
+        assert_eq!(questions.question_ids(), expected.as_slice());
+        assert!(questions.validate_identity());
+        assert_eq!(
+            graph_question_ids(graph.as_ref()).as_ref(),
+            expected.as_slice()
+        );
+
+        let relation_id = RelationId::from_canonical_semantic_digest([3; 32]);
+        let admission_id = AdmissionId::from_canonical_admission_digest(relation_id, [4; 32]);
+        let capsule = RelationalClassificationCapsule::bind(
+            Arc::clone(&graph),
+            Arc::new(FrozenClassificationRuntimeShapes::freeze([]).unwrap()),
+            [5; 32],
+            relation_id,
+            admission_id,
+            questions.clone(),
+            RelationalSupportPlanRoot::from_journal_codec_bytes([6; 32]),
+            None,
+            ClassificationSpecializationRoot::none(),
+            ClassificationProvenanceRoot::from_checked_source_coverage_digest([7; 32]),
+        )
+        .unwrap();
+        assert_eq!(capsule.question_ids(), expected.as_slice());
+        assert_eq!(capsule.question_set_root(), questions.root());
+        assert!(capsule.validates_binding(
+            [5; 32],
+            relation_id,
+            admission_id,
+            questions.root(),
+            RelationalSupportPlanRoot::from_journal_codec_bytes([6; 32]),
+            None,
+        ));
+
+        let incomplete = FrozenClassificationQuestionSet::freeze([first]).unwrap();
+        assert!(matches!(
+            RelationalClassificationCapsule::bind(
+                graph,
+                Arc::new(FrozenClassificationRuntimeShapes::freeze([]).unwrap()),
+                [5; 32],
+                relation_id,
+                admission_id,
+                incomplete,
+                RelationalSupportPlanRoot::from_journal_codec_bytes([6; 32]),
+                None,
+                ClassificationSpecializationRoot::none(),
+                ClassificationProvenanceRoot::from_checked_source_coverage_digest([7; 32]),
+            ),
+            Err(RelationalClassificationCapsuleError::QuestionSetMismatch)
+        ));
+        let empty = FrozenClassificationQuestionSet::freeze([]).unwrap();
+        assert!(empty.question_ids().is_empty());
+        assert!(empty.validate_identity());
     }
 
     #[test]
@@ -2143,9 +2340,9 @@ mod tests {
                 return_type: integer_type,
                 body: observation,
             }],
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [ClassificationLaneRoot {
-                lane: ClassificationSemanticLane::Find,
+                lane: find_lane(),
                 node: selected,
             }],
             [],
@@ -2223,9 +2420,9 @@ mod tests {
                     return_type: boolean_type,
                     body,
                 }],
-                [ClassificationSemanticLane::Find],
+                [find_lane()],
                 [ClassificationLaneRoot {
-                    lane: ClassificationSemanticLane::Find,
+                    lane: find_lane(),
                     node: call,
                 }],
                 [],
@@ -2267,18 +2464,14 @@ mod tests {
             .unwrap();
         let graph = FrozenClassificationProgram::freeze(
             interner,
-            [
-                source_zero_lane,
-                source_one_lane,
-                ClassificationSemanticLane::Find,
-            ],
+            [source_zero_lane, source_one_lane, find_lane()],
             [
                 ClassificationLaneRoot {
                     lane: source_zero_lane,
                     node: source_zero,
                 },
                 ClassificationLaneRoot {
-                    lane: ClassificationSemanticLane::Find,
+                    lane: find_lane(),
                     node: find,
                 },
             ],
@@ -2301,14 +2494,11 @@ mod tests {
             Some(ClassificationLaneStatus::Residual)
         );
         assert_eq!(
-            graph.lane_status(ClassificationSemanticLane::Find),
+            graph.lane_status(find_lane()),
             Some(ClassificationLaneStatus::Lowered)
         );
         assert_eq!(graph.lane_is_complete(source_one_lane), Some(false));
-        assert_eq!(
-            graph.lane_is_complete(ClassificationSemanticLane::Find),
-            Some(true)
-        );
+        assert_eq!(graph.lane_is_complete(find_lane()), Some(true));
         assert!(!graph.is_complete());
         assert!(graph.validate_identity());
 
@@ -2322,9 +2512,9 @@ mod tests {
         assert_eq!(
             FrozenClassificationProgram::freeze(
                 incomplete_interner,
-                [source_zero_lane, ClassificationSemanticLane::Find],
+                [source_zero_lane, find_lane()],
                 [ClassificationLaneRoot {
-                    lane: ClassificationSemanticLane::Find,
+                    lane: find_lane(),
                     node: find,
                 }],
                 [],
@@ -2416,7 +2606,7 @@ mod tests {
         let nodes = base.nodes().iter().cloned().collect::<BTreeMap<_, _>>();
         let residual = ClassificationResidual::new(
             ClassificationResidualReason::DynamicDispatch,
-            ClassificationSemanticLane::Find,
+            find_lane(),
             [7; 32],
             [
                 ClassificationResidualDependency::Node(root.node),
@@ -2435,7 +2625,7 @@ mod tests {
         );
         let with_residual = FrozenClassificationProgram::freeze(
             ClassificationInterner { nodes },
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [],
             [residual],
         )
@@ -2443,13 +2633,13 @@ mod tests {
         assert_ne!(base.graph_root(), with_residual.graph_root());
         assert!(!with_residual.is_complete());
         assert_eq!(
-            with_residual.lane_status(ClassificationSemanticLane::Find),
+            with_residual.lane_status(find_lane()),
             Some(ClassificationLaneStatus::Residual)
         );
 
         let callable_residual = ClassificationResidual::new(
             ClassificationResidualReason::DynamicDispatch,
-            ClassificationSemanticLane::Find,
+            find_lane(),
             [7; 32],
             [ClassificationResidualDependency::Callable(
                 ClassificationCallableId::from_checked_callable_digest([2; 32]),
@@ -2457,18 +2647,18 @@ mod tests {
         );
         let callable_graph = FrozenClassificationProgram::freeze(
             ClassificationInterner::default(),
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [],
             [callable_residual],
         )
         .unwrap();
         let rule_family_graph = FrozenClassificationProgram::freeze(
             ClassificationInterner::default(),
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [],
             [ClassificationResidual::new(
                 ClassificationResidualReason::DynamicDispatch,
-                ClassificationSemanticLane::Find,
+                find_lane(),
                 [7; 32],
                 [ClassificationResidualDependency::RuleFamily([2; 32])],
             )],
@@ -2509,7 +2699,6 @@ mod tests {
         checked_program: u8,
         relation: u8,
         admission: u8,
-        question: u8,
         support_plan: u8,
         root_cell: Option<u8>,
         specialization: Option<u8>,
@@ -2522,7 +2711,6 @@ mod tests {
                 checked_program: 13,
                 relation: 10,
                 admission: 11,
-                question: 12,
                 support_plan: 1,
                 root_cell: Some(14),
                 specialization: None,
@@ -2550,18 +2738,15 @@ mod tests {
         let relation_id = RelationId::from_canonical_semantic_digest([tags.relation; 32]);
         let admission_id =
             AdmissionId::from_canonical_admission_digest(relation_id, [tags.admission; 32]);
-        let question_id = QuestionId::from_canonical_find_digest(
-            admission_id,
-            [tags.question; 32],
-            FindPolarity::Matches,
-        );
+        let questions =
+            FrozenClassificationQuestionSet::freeze(graph_question_ids(graph.as_ref())).unwrap();
         RelationalClassificationCapsule::bind(
             graph,
             runtime_shapes,
             [tags.checked_program; 32],
             relation_id,
             admission_id,
-            question_id,
+            questions,
             RelationalSupportPlanRoot::from_journal_codec_bytes([tags.support_plan; 32]),
             tags.root_cell
                 .map(|tag| SupportCellId::from_journal_codec_bytes([tag; 32])),
@@ -2605,9 +2790,9 @@ mod tests {
             .unwrap();
         FrozenClassificationProgram::freeze(
             interner,
-            [ClassificationSemanticLane::Find],
+            [find_lane()],
             [ClassificationLaneRoot {
-                lane: ClassificationSemanticLane::Find,
+                lane: find_lane(),
                 node: predicate,
             }],
             [],
@@ -2655,11 +2840,8 @@ mod tests {
         let relation_id = RelationId::from_canonical_semantic_digest([tags.relation; 32]);
         let admission_id =
             AdmissionId::from_canonical_admission_digest(relation_id, [tags.admission; 32]);
-        let question_id = QuestionId::from_canonical_find_digest(
-            admission_id,
-            [tags.question; 32],
-            FindPolarity::Matches,
-        );
+        let questions =
+            FrozenClassificationQuestionSet::freeze(graph_question_ids(graph.as_ref())).unwrap();
         assert!(matches!(
             RelationalClassificationCapsule::bind(
                 Arc::clone(&graph),
@@ -2667,7 +2849,7 @@ mod tests {
                 [tags.checked_program; 32],
                 relation_id,
                 admission_id,
-                question_id,
+                questions,
                 RelationalSupportPlanRoot::from_journal_codec_bytes([tags.support_plan; 32]),
                 tags.root_cell
                     .map(|tag| SupportCellId::from_journal_codec_bytes([tag; 32])),
@@ -2715,10 +2897,6 @@ mod tests {
             },
             CapsuleTags {
                 admission: 23,
-                ..base
-            },
-            CapsuleTags {
-                question: 24,
                 ..base
             },
             CapsuleTags {
