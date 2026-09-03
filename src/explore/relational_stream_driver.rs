@@ -616,6 +616,37 @@ impl<'query> RelationalStreamDriver<'query> {
             })
     }
 
+    fn durable_explicit_observation_schedulers_are_settled(
+        &self,
+        journal: &RelationalJournal,
+    ) -> bool {
+        self.support_requests.iter().copied().all(|request_id| {
+            journal
+                .durable_explicit_mechanism_support_scheduler_summary(request_id)
+                .is_none_or(|scheduler| scheduler.is_fully_settled())
+        })
+    }
+
+    /// Recognize a replayed terminal journal using only bounded retained
+    /// metadata. This fast path deliberately refuses to bypass the checked
+    /// runtime gateway for any certified source-summary proof which has not
+    /// yet been rebound in this process, or any retained explicit support
+    /// observation lane which has not fully settled.
+    pub(crate) fn terminal_state_is_complete_without_work(
+        &self,
+        journal: &RelationalJournal,
+    ) -> bool {
+        journal.analysis_state().is_some_and(|analysis| {
+            analysis.is_closed()
+                && !analysis.has_pending_mechanism_artifact()
+                && !self
+                    .results
+                    .certified_source_summary_rebind_required(journal)
+                && self.durable_explicit_observation_schedulers_are_settled(journal)
+                && self.configured_observation_demands_are_sealed(journal)
+        })
+    }
+
     /// Execute at most one semantic quantum. A runtime failure is returned as
     /// a transient execution error; it is never converted to unavailable or
     /// closed evidence by this coordinator.

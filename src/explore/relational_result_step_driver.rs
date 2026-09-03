@@ -319,6 +319,23 @@ impl<'query> RelationalResultStepDriver<'query> {
         self.max_rows_per_quantum
     }
 
+    /// Whether a replayed terminal analysis still needs the bounded checked
+    /// source-summary gateway before it may be reported as complete. Most
+    /// streams have no certified source summary and can therefore recognize
+    /// an already-complete journal without waiting for a host work permit.
+    pub(crate) fn certified_source_summary_rebind_required(
+        &self,
+        journal: &RelationalJournal,
+    ) -> bool {
+        let Some(analysis) = journal.analysis_state() else {
+            return false;
+        };
+        let rebound = self.rebound_certified_source_summaries.borrow();
+        self.sources.keys().any(|view_id| {
+            analysis.certified_source_summary(*view_id).is_some() && !rebound.contains(view_id)
+        })
+    }
+
     /// Rebind every retained compact source summary to this invocation's
     /// checked compiler theorem and runtime witnesses. The stream driver calls
     /// this before honoring a replayed terminal analysis bit; `step` repeats

@@ -62,6 +62,25 @@ same exact closure. The scheduler addresses the authenticated result projection
 incrementally by ordinal; it does not rematerialize or copy the full result
 before mechanism replay. This remains a kernel audit, not a Personskat result.
 
+The compact answer is now shaped for the policy result rather than only for
+engine inspection. Report v9 and publication v16 list every named result,
+including an ungrouped configuration ledger and an exact-empty view, with its
+resolved input, row grain, ordered typed columns, group keys, exact or open row
+count, evidence roots, and resumable NDJSON path. The manifest joins those
+views to their FIND and mechanism identities without guessing from names and
+without embedding the population. A completed Personskat run can therefore
+state the exact cliff-case and structural-mechanism counts, show the grouped
+50-DKK loss-bin rows, and point to the complete saved configurations from one
+bounded index. This is output-contract readiness, not a new Personskat result.
+Reopening an already closed ordinary stream now returns `complete` before the
+time-limit or host-permit loop, with zero new semantic events; any retained
+certified source-summary proof still receives its required checked runtime
+rebind before that shortcut is allowed, and every retained explicit support
+reader must have finished backfill, dirty-prefix observation and sealing.
+An exact-empty result still has a real owner-only zero-byte NDJSON file at its
+advertised path, so `caught_up` never disguises an absent configuration
+artifact.
+
 The existing executable calibration uses the same underlying discipline with
 ordinary collections:
 
@@ -2034,7 +2053,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v15 projects those points into a resumable request-local sidecar;
+Publication v16 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -2106,7 +2125,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v15
+view is rebuilt from the same authenticated signature leaves. Publication v16
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -2161,7 +2180,7 @@ is needed. These frontend and scheduler semantics are integrated through the
 journal, stream driver and publication plan; focused executable verification
 is the next gate before a larger audit run.
 
-Those descriptors are authorization-neutral. Publication v15 retains the
+Those descriptors are authorization-neutral. Publication v16 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -2194,7 +2213,7 @@ carrying one source/successor pair; the deduplicated source-only population is
 `P`. An unqualified consumer omits the optional route coordinate and retains
 its v1 consumer-local identity and record shape. In the historical
 publication-v9 contract this allowed a qualified consumer to be appended
-without republishing the core exploration. Publication v15 preserves the
+without republishing the core exploration. Publication v16 preserves the
 semantic separation, but has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
@@ -2448,7 +2467,7 @@ An earlier single-question checkpoint of
 positive transitions, one shared raw mechanism signature, and one structural
 mechanism/execution profile. Its eight publication-v7 artifacts reached
 sequence 107. That snapshot remains implementation history; the current
-plural 4/2/1 execution and its twelve publication-v15 artifacts are recorded
+plural 4/2/1 execution and its twelve publication-v16 artifacts are recorded
 at the start of this workbook. Both are runtime evidence for the resumable
 stream and case/mechanism graph, not Personskat evidence.
 
@@ -2739,7 +2758,7 @@ case-support fiber on demand while the other 8,052 nodes and 20,720 edges stayed
 factorized. Publication must never eagerly serialize all of those case-support
 fibers merely because the structural DAG is published.
 
-Publication v15 keeps that typed consumer but removes the eager closure-time
+Publication v16 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
@@ -2882,7 +2901,7 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v15 implements
+unions and honest unknown/interval/exact counts. Publication v16 implements
 independently domain-separated inner/outer expression bounds for `S`, the
 correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
 `P = distinct_sources(S)`. Its append-only observation points also carry
@@ -2982,7 +3001,7 @@ support-overlay coordinates and references; typed starter values stay
 authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
-Publication v15 emits one flat observation artifact per mechanism request at
+Publication v16 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -3050,7 +3069,7 @@ observations stay compact and value-free; adding or reading them does not
 implicitly publish private starter configurations.
 
 The compact public answer now exposes this distinction directly. Relational
-stream JSON v8 names every named question's closure-aware before-to-after case count and,
+stream JSON v9 names every named question's closure-aware before-to-after case count and,
 for every mechanism request, the structural-mechanism, successful replay and
 unavailable-replay counts plus the exact sealed target's distinct starter
 count and evidence roots. Each request record must also directly link its

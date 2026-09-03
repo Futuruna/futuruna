@@ -63,11 +63,12 @@ use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewCount, R
 use super::stream_resource::ExactStreamOneWorkerEnvelope;
 use super::{
     ExploreAnalysisNodeIr, ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismTargetIr,
-    ExploreResultInputIr, ExploreSourceBindingKindIr, ExploreSuccessorKindIr,
-    RelationalInterpreterExpressionRuntime, RelationalSupportPlan, RelationalSupportPlanner,
+    ExploreResultGrainIr, ExploreResultInputIr, ExploreResultViewIr, ExploreSourceBindingKindIr,
+    ExploreSuccessorKindIr, RelationalInterpreterExpressionRuntime, RelationalSupportPlan,
+    RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 8;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 9;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -873,6 +874,30 @@ pub struct ExploreStreamResultEvidence {
     pub result_root: String,
 }
 
+/// One checked, ordered column in a named result's public schema.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamResultColumn {
+    pub name: String,
+    pub ty: String,
+}
+
+/// Resolved upstream address and semantic identity for one result view.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ExploreStreamResultInput {
+    Sources { relation_id: String },
+    Find { name: String, question_id: String },
+    MechanismIncidence { name: String, request_id: String },
+}
+
+/// Checked output grain of one named result view.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExploreStreamResultGrain {
+    EachCase,
+    EachIncidence,
+    GroupAll,
+    GroupBy,
+}
+
 /// A bounded, SELECT-authorized sample of one exact grouped result.
 ///
 /// The full rows remain in the independently resumable NDJSON artifact. The
@@ -893,13 +918,21 @@ pub struct ExploreStreamGroupedResultPreview {
 pub struct ExploreStreamResultLayer {
     pub name: String,
     pub view_id: String,
+    pub input: ExploreStreamResultInput,
+    pub grain: ExploreStreamResultGrain,
+    pub columns: Vec<ExploreStreamResultColumn>,
+    pub group_keys: Vec<ExploreStreamResultColumn>,
     pub status: ExploreStreamLayerStatus,
     pub input_rows: ExploreStreamCount,
+    pub output_rows: ExploreStreamCount,
     pub projection_records: ExploreStreamCount,
     /// Number of bounded records appended during this invocation. Their
     /// values remain in the journal-owned projection and can be copied to
     /// NDJSON by a separate cursor without materializing one report array.
     pub projection_records_appended: u128,
+    /// Exact authenticated roots for any published result, independently of
+    /// whether a bounded grouped preview is applicable.
+    pub evidence: Option<ExploreStreamResultEvidence>,
     pub grouped_preview: Option<ExploreStreamGroupedResultPreview>,
 }
 
@@ -1994,11 +2027,13 @@ fn analysis_layers(
         let name = node.name().to_string();
         let layer = match (node, identity) {
             (
-                ExploreAnalysisNodeIr::Result(_),
+                ExploreAnalysisNodeIr::Result(view),
                 CheckedExploreAnalysisIdentity::View { view_id },
             ) => ExploreStreamLayer::Result(result_layer(
                 analysis,
-                name,
+                checked,
+                index,
+                view,
                 *view_id,
                 projection_starts.get(index).copied().unwrap_or(0),
                 &mut preview_budget,
@@ -2083,6 +2118,100 @@ fn public_mechanism_target(
     }
 }
 
+fn public_result_input(
+    checked: &CheckedExploreQueryView<'_>,
+    node_index: usize,
+    input: &ExploreResultInputIr,
+) -> Result<ExploreStreamResultInput, ExploreStreamPreparationError> {
+    match input {
+        ExploreResultInputIr::Sources => Ok(ExploreStreamResultInput::Sources {
+            relation_id: hex(checked.relation_id().bytes()),
+        }),
+        ExploreResultInputIr::Find {
+            find_name,
+            find_index,
+        } => {
+            let find = checked.closed_query.finds.get(*find_index).ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} names missing FIND {find_index}"
+                ))
+            })?;
+            if find.name != *find_name {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} FIND address diverged from its checked input"
+                )));
+            }
+            let question_id = checked.find_question_id(*find_index).ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} FIND {find_index} has no aligned QuestionId"
+                ))
+            })?;
+            Ok(ExploreStreamResultInput::Find {
+                name: find_name.clone(),
+                question_id: hex(question_id.bytes()),
+            })
+        }
+        ExploreResultInputIr::MechanismIncidence { request_node_index } => {
+            if *request_node_index >= node_index {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} does not reference a prior mechanism node"
+                )));
+            }
+            let node = checked
+                .closed_query
+                .analysis
+                .get(*request_node_index)
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(format!(
+                        "result node {node_index} names missing mechanism node {request_node_index}"
+                    ))
+                })?;
+            let identity = checked
+                .artifact
+                .analysis
+                .get(*request_node_index)
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(format!(
+                        "result node {node_index} input node {request_node_index} has no checked identity"
+                    ))
+                })?;
+            let ExploreAnalysisNodeIr::Mechanisms(request) = node else {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} input node {request_node_index} is not a mechanism request"
+                )));
+            };
+            let CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. } = identity else {
+                return Err(ExploreStreamPreparationError::Execution(format!(
+                    "result node {node_index} input node {request_node_index} has no mechanism identity"
+                )));
+            };
+            Ok(ExploreStreamResultInput::MechanismIncidence {
+                name: request.name.clone(),
+                request_id: hex(request_id.bytes()),
+            })
+        }
+    }
+}
+
+const fn public_result_grain(grain: &ExploreResultGrainIr) -> ExploreStreamResultGrain {
+    match grain {
+        ExploreResultGrainIr::EachCase { .. } => ExploreStreamResultGrain::EachCase,
+        ExploreResultGrainIr::EachIncidence { .. } => ExploreStreamResultGrain::EachIncidence,
+        ExploreResultGrainIr::GroupAll { .. } => ExploreStreamResultGrain::GroupAll,
+        ExploreResultGrainIr::GroupBy { .. } => ExploreStreamResultGrain::GroupBy,
+    }
+}
+
+fn public_result_columns(fields: &[super::ExploreResultFieldIr]) -> Vec<ExploreStreamResultColumn> {
+    fields
+        .iter()
+        .map(|field| ExploreStreamResultColumn {
+            name: field.name.clone(),
+            ty: field.ty.to_string(),
+        })
+        .collect()
+}
+
 #[derive(Default)]
 struct ExploreStreamPreviewBudget {
     rows: usize,
@@ -2093,26 +2222,45 @@ struct ExploreStreamPreviewBudget {
 
 fn result_layer(
     analysis: Option<&super::RelationalAnalysisJournalState>,
-    name: String,
+    checked: &CheckedExploreQueryView<'_>,
+    node_index: usize,
+    view: &ExploreResultViewIr,
     view_id: super::ViewId,
     start: usize,
     preview_budget: &mut ExploreStreamPreviewBudget,
 ) -> Result<ExploreStreamResultLayer, ExploreStreamPreparationError> {
+    let input = public_result_input(checked, node_index, &view.input)?;
+    let grain = public_result_grain(&view.grain);
+    let columns = public_result_columns(&view.select);
+    let group_keys = match &view.grain {
+        ExploreResultGrainIr::GroupBy { fields, .. } => public_result_columns(fields),
+        ExploreResultGrainIr::EachCase { .. }
+        | ExploreResultGrainIr::EachIncidence { .. }
+        | ExploreResultGrainIr::GroupAll { .. } => Vec::new(),
+    };
     let absent = || ExploreStreamResultLayer {
-        name: name.clone(),
+        name: view.name.clone(),
         view_id: hex(view_id.bytes()),
+        input: input.clone(),
+        grain,
+        columns: columns.clone(),
+        group_keys: group_keys.clone(),
         status: ExploreStreamLayerStatus::ResultUnregistered,
         input_rows: ExploreStreamCount::LowerBound(0),
+        output_rows: ExploreStreamCount::LowerBound(0),
         projection_records: ExploreStreamCount::LowerBound(0),
         projection_records_appended: 0,
+        evidence: None,
         grouped_preview: None,
     };
     let Some(analysis) = analysis else {
         return Ok(absent());
     };
-    let published_output_groups = analysis
+    let published_counts = analysis
         .result_projection_closure(view_id)
-        .and_then(|closure| closure.counts().output_groups());
+        .map(|closure| closure.counts());
+    let published_output_groups = published_counts.and_then(|counts| counts.output_groups());
+    let published_output_rows = published_counts.map(|counts| counts.output_rows());
     match (analysis.open_catalog(), analysis.closed_catalog()) {
         (Some(open), None) => {
             let status = open
@@ -2137,25 +2285,39 @@ fn result_layer(
             let publication = open
                 .result_publication(view_id)
                 .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let projection_record_count = projection.len() as u128;
+            let output_rows =
+                result_output_rows(status, spec, projection_record_count, published_output_rows)?;
+            let result_evidence = public_result_evidence(
+                status,
+                publication,
+                projection_record_count,
+                projection.root().bytes(),
+            )?;
             let grouped_preview = grouped_result_preview(
                 spec,
-                projection.len() as u128,
-                projection.root().bytes(),
+                projection_record_count,
                 projection.records(),
-                publication,
+                result_evidence.clone(),
                 published_output_groups,
                 preview_budget,
             )?;
             Ok(ExploreStreamResultLayer {
-                name,
+                name: view.name.clone(),
                 view_id: hex(view_id.bytes()),
+                input: input.clone(),
+                grain,
+                columns: columns.clone(),
+                group_keys: group_keys.clone(),
                 status: layer_status(status),
                 input_rows: relation_count(evidence.logical_len(), evidence.input_is_sealed()),
+                output_rows,
                 projection_records: relation_count(
-                    projection.len() as u128,
+                    projection_record_count,
                     status == RelationalAnalysisLayerStatus::ResultPublished,
                 ),
                 projection_records_appended: projection_suffix_len(projection.len(), start)?,
+                evidence: result_evidence,
                 grouped_preview,
             })
         }
@@ -2183,28 +2345,43 @@ fn result_layer(
             else {
                 return Ok(absent());
             };
+            let projection_record_count = projection.records().len() as u128;
+            let output_rows = result_output_rows(
+                result.status(),
+                spec,
+                projection_record_count,
+                published_output_rows,
+            )?;
+            let result_evidence = public_result_evidence(
+                result.status(),
+                *publication,
+                projection_record_count,
+                projection.root().bytes(),
+            )?;
             let grouped_preview = grouped_result_preview(
                 spec,
-                projection.records().len() as u128,
-                projection.root().bytes(),
+                projection_record_count,
                 projection.records().iter(),
-                *publication,
+                result_evidence.clone(),
                 published_output_groups,
                 preview_budget,
             )?;
             Ok(ExploreStreamResultLayer {
-                name,
+                name: view.name.clone(),
                 view_id: hex(view_id.bytes()),
+                input: input.clone(),
+                grain,
+                columns: columns.clone(),
+                group_keys: group_keys.clone(),
                 status: layer_status(result.status()),
                 input_rows: relation_count(evidence.logical_len(), evidence.input_is_sealed()),
-                projection_records: relation_count(
-                    projection.records().len() as u128,
-                    publication.is_some(),
-                ),
+                output_rows,
+                projection_records: relation_count(projection_record_count, publication.is_some()),
                 projection_records_appended: projection_suffix_len(
                     projection.records().len(),
                     start,
                 )?,
+                evidence: result_evidence,
                 grouped_preview,
             })
         }
@@ -2214,19 +2391,78 @@ fn result_layer(
     }
 }
 
+fn result_output_rows(
+    status: RelationalAnalysisLayerStatus,
+    spec: &ResultViewSpec,
+    projection_record_count: u128,
+    published_count: Option<ResultViewCount>,
+) -> Result<ExploreStreamCount, ExploreStreamPreparationError> {
+    if status == RelationalAnalysisLayerStatus::ResultPublished {
+        return match published_count {
+            Some(ResultViewCount::Exact(value)) => Ok(ExploreStreamCount::Exact(value)),
+            Some(ResultViewCount::LowerBound(_) | ResultViewCount::Provisional(_)) => Err(
+                preview_error("published result retained a non-exact output-row count"),
+            ),
+            None => Err(preview_error(
+                "published result omitted its authenticated output-row count",
+            )),
+        };
+    }
+
+    // Every ungrouped projection record is one output row. Grouped prefixes
+    // interleave headers and chosen rows, so their record count is not a row
+    // count and the compact report deliberately avoids a population scan.
+    Ok(ExploreStreamCount::LowerBound(
+        if spec.grain().is_grouped() {
+            0
+        } else {
+            projection_record_count
+        },
+    ))
+}
+
+fn public_result_evidence(
+    status: RelationalAnalysisLayerStatus,
+    publication: Option<RelationalResultPublication>,
+    projection_record_count: u128,
+    projection_root: [u8; 32],
+) -> Result<Option<ExploreStreamResultEvidence>, ExploreStreamPreparationError> {
+    let Some(publication) = publication else {
+        return if status == RelationalAnalysisLayerStatus::ResultPublished {
+            Err(preview_error(
+                "published result omitted its authenticated publication receipt",
+            ))
+        } else {
+            Ok(None)
+        };
+    };
+    if status != RelationalAnalysisLayerStatus::ResultPublished {
+        return Err(preview_error(
+            "open result unexpectedly retained a terminal publication receipt",
+        ));
+    }
+    Ok(Some(ExploreStreamResultEvidence {
+        spec_root: hex(publication.spec_root().bytes()),
+        projection_root: hex(projection_root),
+        projection_record_count,
+        publication_id: hex(publication.id().bytes()),
+        evidence_root: hex(publication.evidence_root().bytes()),
+        result_root: hex(publication.result_root().bytes()),
+    }))
+}
+
 fn grouped_result_preview<'a>(
     spec: &ResultViewSpec,
     projection_record_count: u128,
-    projection_root: [u8; 32],
     records: impl Iterator<Item = &'a IndexedResultProjectionRecord>,
-    publication: Option<RelationalResultPublication>,
+    evidence: Option<ExploreStreamResultEvidence>,
     published_output_groups: Option<ResultViewCount>,
     budget: &mut ExploreStreamPreviewBudget,
 ) -> Result<Option<ExploreStreamGroupedResultPreview>, ExploreStreamPreparationError> {
     if !spec.grain().is_grouped() || spec.choice().is_some() {
         return Ok(None);
     }
-    let Some(publication) = publication else {
+    let Some(evidence) = evidence else {
         return Ok(None);
     };
     let exact_output_groups = match published_output_groups {
@@ -2368,14 +2604,7 @@ fn grouped_result_preview<'a>(
         rows,
         scanned_projection_records,
         status,
-        evidence: ExploreStreamResultEvidence {
-            spec_root: hex(publication.spec_root().bytes()),
-            projection_root: hex(projection_root),
-            projection_record_count,
-            publication_id: hex(publication.id().bytes()),
-            evidence_root: hex(publication.evidence_root().bytes()),
-            result_root: hex(publication.result_root().bytes()),
-        },
+        evidence,
     }))
 }
 
@@ -2867,6 +3096,7 @@ mod regional_stream_acceptance_tests {
     use std::num::NonZeroU16;
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
+    use std::time::Duration;
 
     use super::super::relational_analysis_catalog::RelationalAnalysisCatalogError;
     use super::super::relational_analysis_journal::{
@@ -3001,6 +3231,35 @@ mod regional_stream_acceptance_tests {
         choose all maximizing score
     }
     mechanisms winner_path from view winner chosen using chosen_target_observer
+}
+"#;
+
+    const SELF_DESCRIBING_ANSWER_PUBLICATION: &str = r#"
+? explore self_describing_answer_publication {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find all_cases = all
+    find impossible = matches of before < 0
+
+    results all_rows from find all_cases {
+        each case
+        select [before, after]
+    }
+
+    results empty_rows from find impossible {
+        each case
+        select [before, after]
+    }
+
+    results before_bins from find all_cases {
+        group by [bin = before]
+        aggregate [cases = count_distinct(case_id)]
+        select [bin, cases]
+    }
 }
 "#;
 
@@ -3426,7 +3685,7 @@ mod regional_stream_acceptance_tests {
             .run_slice(None)
             .expect("complete tiny plural publication fixture");
 
-        assert_eq!(report.schema_version, 8);
+        assert_eq!(report.schema_version, 9);
         assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
         assert_eq!(report.counts.cases, ExploreStreamCount::Exact(2));
         assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(2));
@@ -3454,7 +3713,7 @@ mod regional_stream_acceptance_tests {
                 .expect("read plural publication manifest"),
         )
         .expect("parse plural publication manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(15));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(16));
         assert_eq!(
             manifest["identity"]["question_ids"]
                 .as_array()
@@ -3470,6 +3729,129 @@ mod regional_stream_acceptance_tests {
                 .map(|find| find["name"].as_str().expect("manifest FIND name"))
                 .collect::<Vec<_>>(),
             vec!["all_cases", "upper_case"]
+        );
+    }
+
+    #[test]
+    fn answer_index_describes_ungrouped_grouped_and_exact_empty_results() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let output = temp.path().join("output");
+        let prepared = prepare(SELF_DESCRIBING_ANSWER_PUBLICATION);
+
+        let cold_journal = RelationalJournal::new(prepared.contract.clone());
+        let cold_layers = analysis_layers(
+            &cold_journal,
+            &prepared.checked.view(),
+            &vec![0; prepared.checked.view().closed_query.analysis.len()],
+        )
+        .expect("describe result declarations before analysis registration");
+        let cold_results = cold_layers
+            .iter()
+            .filter_map(|layer| match layer {
+                ExploreStreamLayer::Result(result) => Some(result),
+                ExploreStreamLayer::Mechanisms(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(cold_results.len(), 3);
+        assert!(cold_results.iter().all(|result| {
+            result.status == ExploreStreamLayerStatus::ResultUnregistered
+                && result.output_rows == ExploreStreamCount::LowerBound(0)
+                && result.evidence.is_none()
+                && !result.columns.is_empty()
+        }));
+        assert_eq!(cold_results[0].grain, ExploreStreamResultGrain::EachCase);
+        assert_eq!(cold_results[2].grain, ExploreStreamResultGrain::GroupBy);
+        assert_eq!(cold_results[2].group_keys[0].name, "bin");
+        assert_eq!(cold_results[2].group_keys[0].ty, "Int");
+
+        let mut epoch = prepared
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: Some(output.clone()),
+                outer_containment: None,
+            })
+            .expect("open self-describing answer publication epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic answer publication resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("complete tiny self-describing answer fixture");
+        assert_eq!(report.schema_version, 9);
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+
+        let results = report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                ExploreStreamLayer::Result(result) => Some(result),
+                ExploreStreamLayer::Mechanisms(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(results.len(), 3);
+        assert_eq!(results[0].name, "all_rows");
+        assert_eq!(results[0].output_rows, ExploreStreamCount::Exact(2));
+        assert_eq!(results[1].name, "empty_rows");
+        assert_eq!(results[1].output_rows, ExploreStreamCount::Exact(0));
+        assert_eq!(results[2].name, "before_bins");
+        assert_eq!(results[2].output_rows, ExploreStreamCount::Exact(2));
+        assert!(results.iter().all(|result| result.evidence.is_some()));
+
+        let resumed = epoch
+            .run_slice(Some(Duration::from_nanos(1)))
+            .expect("recognize a completed journal before the runtime deadline");
+        assert_eq!(resumed.lifecycle, ExploreStreamLifecycle::Complete);
+        assert_eq!(resumed.semantic_batches_appended, 0);
+        assert_eq!(resumed.semantic_events_appended, 0);
+        assert!(resumed
+            .publication
+            .as_ref()
+            .is_some_and(ExploreStreamPublication::is_caught_up));
+
+        let publication = report.publication.expect("answer publication summary");
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&publication.manifest_path).expect("read answer manifest"),
+        )
+        .expect("parse answer manifest");
+        assert_eq!(manifest["schema_version"].as_u64(), Some(16));
+        assert_eq!(manifest["answer"]["rows_inlined"].as_bool(), Some(false));
+        let views = manifest["answer"]["result_views"]
+            .as_array()
+            .expect("manifest answer result views");
+        assert_eq!(views.len(), 3);
+        assert_eq!(views[0]["name"].as_str(), Some("all_rows"));
+        assert_eq!(views[0]["grain"].as_str(), Some("each_case"));
+        assert_eq!(
+            views[0]["counts"]["output_rows"]["status"].as_str(),
+            Some("exact")
+        );
+        assert_eq!(
+            views[0]["counts"]["output_rows"]["value"].as_str(),
+            Some("2")
+        );
+        assert_eq!(views[1]["name"].as_str(), Some("empty_rows"));
+        assert_eq!(
+            views[1]["counts"]["output_rows"]["value"].as_str(),
+            Some("0")
+        );
+        assert_eq!(views[2]["grain"].as_str(), Some("group_by"));
+        assert_eq!(
+            views[2]["group_key_columns"][0]["name"].as_str(),
+            Some("bin")
+        );
+        assert!(views.iter().all(|view| {
+            view["artifact"]["caught_up_to_journal_prefix"].as_bool() == Some(true)
+                && view["artifact"]["path"].as_str().is_some()
+                && view["artifact"]["layer_roots"].is_object()
+        }));
+        let empty_artifact = output.join(
+            views[1]["artifact"]["path"]
+                .as_str()
+                .expect("exact-empty result artifact path"),
+        );
+        assert_eq!(
+            fs::read(&empty_artifact).expect("read materialized exact-empty result artifact"),
+            b""
         );
     }
 

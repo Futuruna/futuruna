@@ -338,7 +338,7 @@ semantic node IDs.
 ### Current Experimental executable boundary
 
 The separated target syntax above is not yet a complete implementation claim.
-Publication v15 and report v8 execute the nested checkpoint with ordered
+Publication v16 and report v9 execute the nested checkpoint with ordered
 `from` bindings, `transition after`, scoped `where`, zero or more
 `find NAME = all|matches|violations` declarations, explicit
 `results ... from find NAME`, `mechanisms ... from find NAME using OBSERVER`,
@@ -370,6 +370,18 @@ and only those chosen cases enter the ordinary bounded incidence scheduler. A
 complete admitted mechanism landscape can now be another named
 `find NAME = all` in the same relation as a cliff question. These are staged
 implementation limits, not competing semantic definitions.
+
+Report v9 and publication v16 add one bounded answer index over that staged
+graph. Every declared result appears even when it is ungrouped, still open, or
+exactly empty. Its descriptor names the resolved input relation, grain,
+ordered selected columns and types, group keys, output-row and
+projection-record counts, publication status, evidence roots when available,
+and the resumable NDJSON artifact. The index is `O(number of declarations +
+bounded previews)`: it never embeds an ungrouped case population, and it never
+guesses that a view is a configuration ledger, histogram, or summary from its
+authored name. Consequently a consumer can join explicit FIND counts,
+mechanism counts, grouped bins, and saved configuration paths without
+conflating semantic closure with artifact catch-up.
 
 In the target language an `observe support` declaration addresses exactly one
 request-relative compact
@@ -551,7 +563,7 @@ view, choice or explanation binds exactly the coverage components reachable
 from its typed input edges plus its own AnalysisNodeCoverageId; unrelated
 questions or analysis nodes do not contaminate its bundle.
 
-This composed bundle is the normative target. Publication v15 currently emits
+This composed bundle is the normative target. Publication v16 currently emits
 the RelationId-scoped source manifest and carries admission/question/request
 identities, but does not yet emit every sibling coverage artifact or the
 composed bundle. Current artifacts MUST describe that boundary rather than
@@ -1168,7 +1180,7 @@ projects only `P` from that exact correlated source. They have different member
 schemas, counts, roots, cursors and materialization statuses even when every
 starter happens to have one successor.
 
-Publication v15 does not implement that target split. It retains the explicit
+Publication v16 does not implement that target split. It retains the explicit
 single-subject `starters` consumer introduced in publication v9 as transitional
 historical executable syntax:
 
@@ -1206,7 +1218,7 @@ source/successor pair; it is the implementation precursor of target `support
 cases`. A genuine target `support starters` member contains only the
 deduplicated `SourceKey`. The optional cursor field is omitted for an
 unqualified consumer. Publication v9 first established the additive consumer
-model; under the current Experimental v15 plan, either historical form still
+model; under the current Experimental v16 plan, either historical form still
 attaches without renaming or reopening the core analysis, but neither v9 bytes
 nor the misleading `starters` spelling are a compatibility target.
 
@@ -1665,6 +1677,16 @@ certified region coverage or another exact method. Each separately requested
 view, choice, explanation and support relation reports its own semantic status;
 each public consumer reports materialization independently.
 
+On resume, a terminal journal with no pending bounded runtime-proof rebind and
+no pending, dirty or unsealed explicit support-observation lane is recognized
+before deadline and host work-permit polling. Returning `complete` with zero
+new events is an observation of retained closure, not a semantic quantum. A
+certified source-summary artifact is different: the implementation MUST first
+rebind it to the current checked compiler theorem and runtime witnesses, so a
+cached terminal bit can never bypass that trust boundary. Likewise, attaching
+an additive support reader cannot let the shortcut skip its retained backfill,
+observation or seal work.
+
 Publication v13's historical lifecycle `running <-> paused -> sealed` and
 answer values `partial | complete | unknown | unsupported | error` must be read
 through these axes: `sealed` is execution terminality, `complete` corresponds
@@ -1789,7 +1811,7 @@ NDJSON); a renderer MUST NOT require one in-memory JSON array merely to save an
 otherwise durable exact answer. Only fields authorized by a view's
 `select` schema may enter its public configuration export.
 
-Publication v15 gives every mechanism request two support-observation
+Publication v16 gives every mechanism request two support-observation
 artifacts. `mechanisms/<request>.support-observations.ndjson` is the one shared
 append-only point stream for automatic and explicit slices.
 `mechanisms/<request>.support-observation-demands.ndjson` is the durable demand
@@ -1801,7 +1823,7 @@ sidecar publishes assignments, structural closure and at most one automatic
 support receipt; it MUST NOT duplicate those point records or emit one support
 row for every structural node and edge at closure.
 
-Publication v15 implements independently domain-separated inner/outer
+Publication v16 implements independently domain-separated inner/outer
 expression bounds for correlated case support `S` and distinct-starter
 projection `P = distinct_sources(S)`, plus explicit `starter_set_status` and
 `correlated_support_status`. Publication v12 is implementation history, not a
@@ -1821,7 +1843,7 @@ containing those links). Discoverability fields are references only: they
 neither inline values nor enter `StructuralMechanismId`, `StructuralNodeId` or
 `StructuralEdgeId`.
 
-Report v8 MUST expose the same partitions rather than one ambiguous total. It
+Report v9 MUST expose the same partitions rather than one ambiguous total. It
 reports the total shared point count/root; automatic point, registered, dirty,
 observed and sealed counts plus the automatic chain root; and explicit demand
 registrations, point count, registered, ready, pending-backfill, dirty,

@@ -127,9 +127,9 @@ use super::relational_public::{
     ExploreStreamCount, ExploreStreamCoverageBindingRole, ExploreStreamCoverageClassification,
     ExploreStreamCoverageConstructorLayout, ExploreStreamCoverageGapReason,
     ExploreStreamCoverageLiteralKind, ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject,
-    ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
-    ExploreStreamMechanismTarget, ExploreStreamPauseReason, ExploreStreamSliceReport,
-    EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
+    ExploreStreamFind, ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
+    ExploreStreamMechanismLayer, ExploreStreamMechanismTarget, ExploreStreamPauseReason,
+    ExploreStreamResultLayer, ExploreStreamSliceReport, EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
 };
 use super::relational_semantic_transition_graph_projection::{
     RelationalSemanticTransitionGraphProjection, RelationalSemanticTransitionGraphProjectionId,
@@ -150,16 +150,16 @@ use super::{
     RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 15;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 16;
 
-const CURSOR_FILE: &str = ".publication-cursor-v15.json";
+const CURSOR_FILE: &str = ".publication-cursor-v16.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
-const PRESENTATION_PLAN_DIGEST_V1: &[u8] = b"futuruna.explore.publication-presentation-plan.v1";
-const ARTIFACT_PRESENTATION_DIGEST_V1: &[u8] =
-    b"futuruna.explore.publication-artifact-presentation.v1";
-const RESULT_PREFIX_ROOT_V15: &[u8] = b"futuruna.explore.publication-prefix.v15";
-const RESULT_PREFIX_EXTEND_V15: &[u8] = b"futuruna.explore.publication-prefix-extend.v15";
+const PRESENTATION_PLAN_DIGEST_V2: &[u8] = b"futuruna.explore.publication-presentation-plan.v2";
+const ARTIFACT_PRESENTATION_DIGEST_V2: &[u8] =
+    b"futuruna.explore.publication-artifact-presentation.v2";
+const RESULT_PREFIX_ROOT_V16: &[u8] = b"futuruna.explore.publication-prefix.v16";
+const RESULT_PREFIX_EXTEND_V16: &[u8] = b"futuruna.explore.publication-prefix-extend.v16";
 const CASE_SUPPORT_ARTIFACT_KEY: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH: &str = "graphs/case-support.ndjson";
@@ -341,6 +341,43 @@ struct PublicationFindPlan {
     question_id: QuestionId,
 }
 
+/// One ordered, checked column in a public result schema. The authored name is
+/// presentation identity; the type is semantic metadata already committed by
+/// the result ViewId.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct PublicationResultColumn {
+    name: Box<str>,
+    type_name: Box<str>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum PublicationResultGrain {
+    EachCase,
+    EachIncidence,
+    GroupAll,
+    GroupBy,
+}
+
+impl PublicationResultGrain {
+    const fn from_checked(grain: &ExploreResultGrainIr) -> Self {
+        match grain {
+            ExploreResultGrainIr::EachCase { .. } => Self::EachCase,
+            ExploreResultGrainIr::EachIncidence { .. } => Self::EachIncidence,
+            ExploreResultGrainIr::GroupAll { .. } => Self::GroupAll,
+            ExploreResultGrainIr::GroupBy { .. } => Self::GroupBy,
+        }
+    }
+
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::EachCase => "each_case",
+            Self::EachIncidence => "each_incidence",
+            Self::GroupAll => "group_all",
+            Self::GroupBy => "group_by",
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PublicationMechanismTarget {
     target: MechanismTargetId,
@@ -402,7 +439,9 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         view_id: ViewId,
-        select_names: Box<[Box<str>]>,
+        grain: PublicationResultGrain,
+        select_columns: Box<[PublicationResultColumn]>,
+        group_key_columns: Box<[PublicationResultColumn]>,
         source: ResultPublicationSource,
         input: ResultPublicationInput,
     },
@@ -571,6 +610,22 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructuralDefinitions { target, .. }
             | Self::SubjectStarters { target, .. } => Some(target),
             Self::MechanismSupportObservations { audit_lineage, .. } => Some(&audit_lineage.target),
+            Self::Result { .. }
+            | Self::CaseSupport { .. }
+            | Self::CaseTransitions { .. }
+            | Self::SemanticTransitionGraph { .. } => None,
+        }
+    }
+
+    const fn mechanism_request_id(&self) -> Option<MechanismRequestId> {
+        match self {
+            Self::Mechanism { request_id, .. }
+            | Self::MechanismDefinitions { request_id, .. }
+            | Self::MechanismSupportObservations { request_id, .. }
+            | Self::MechanismSupportObservationDemands { request_id, .. }
+            | Self::MechanismStructural { request_id, .. }
+            | Self::MechanismStructuralDefinitions { request_id, .. }
+            | Self::SubjectStarters { request_id, .. } => Some(*request_id),
             Self::Result { .. }
             | Self::CaseSupport { .. }
             | Self::CaseTransitions { .. }
@@ -760,12 +815,29 @@ impl RelationalPublicationPlan {
                         name: view.name.clone().into_boxed_str(),
                         path: PathBuf::from("views").join(format!("{safe_name}.ndjson")),
                         view_id: *view_id,
-                        select_names: view
+                        grain: PublicationResultGrain::from_checked(&view.grain),
+                        select_columns: view
                             .select
                             .iter()
-                            .map(|field| field.name.clone().into_boxed_str())
+                            .map(|field| PublicationResultColumn {
+                                name: field.name.clone().into_boxed_str(),
+                                type_name: field.ty.to_string().into_boxed_str(),
+                            })
                             .collect::<Vec<_>>()
                             .into_boxed_slice(),
+                        group_key_columns: match &view.grain {
+                            ExploreResultGrainIr::GroupBy { fields, .. } => fields
+                                .iter()
+                                .map(|field| PublicationResultColumn {
+                                    name: field.name.clone().into_boxed_str(),
+                                    type_name: field.ty.to_string().into_boxed_str(),
+                                })
+                                .collect::<Vec<_>>()
+                                .into_boxed_slice(),
+                            ExploreResultGrainIr::EachCase { .. }
+                            | ExploreResultGrainIr::EachIncidence { .. }
+                            | ExploreResultGrainIr::GroupAll { .. } => Box::new([]),
+                        },
                         source,
                         input,
                     }
@@ -1123,7 +1195,7 @@ fn derive_publication_presentation_plan_digest(
     finds: &[PublicationFindPlan],
     artifacts: &[PublicationArtifactPlan],
 ) -> Result<[u8; 32], RelationalPublicationError> {
-    let mut digest = CanonicalPresentationDigest::new(PRESENTATION_PLAN_DIGEST_V1);
+    let mut digest = CanonicalPresentationDigest::new(PRESENTATION_PLAN_DIGEST_V2);
     digest.text(b"query-name", query_name);
     digest.count(b"find-count", finds.len());
     for (ordinal, find) in finds.iter().enumerate() {
@@ -1156,7 +1228,7 @@ fn derive_publication_presentation_plan_digest(
 fn artifact_presentation_digest(
     artifact: &PublicationArtifactPlan,
 ) -> Result<[u8; 32], RelationalPublicationError> {
-    let mut digest = CanonicalPresentationDigest::new(ARTIFACT_PRESENTATION_DIGEST_V1);
+    let mut digest = CanonicalPresentationDigest::new(ARTIFACT_PRESENTATION_DIGEST_V2);
     digest.text(b"key", artifact.key());
     digest.text(b"kind", artifact.kind());
     digest.text(b"name", artifact.name());
@@ -1177,7 +1249,8 @@ fn artifact_presentation_digest(
     match artifact {
         PublicationArtifactPlan::Result {
             input,
-            select_names,
+            select_columns,
+            group_key_columns,
             ..
         } => {
             match input {
@@ -1197,10 +1270,19 @@ fn artifact_presentation_digest(
                     digest.bytes(b"result-input-request-id", &request_id.bytes());
                 }
             }
-            digest.count(b"select-name-count", select_names.len());
-            for (ordinal, name) in select_names.iter().enumerate() {
+            // Grain and types are semantic and already protected by the
+            // ViewId embedded in the artifact key. Bind the authored column
+            // addresses here so a rename cannot silently resume into an
+            // installed presentation.
+            digest.count(b"select-name-count", select_columns.len());
+            for (ordinal, column) in select_columns.iter().enumerate() {
                 digest.count(b"select-name-ordinal", ordinal);
-                digest.text(b"select-name", name);
+                digest.text(b"select-name", &column.name);
+            }
+            digest.count(b"group-key-name-count", group_key_columns.len());
+            for (ordinal, column) in group_key_columns.iter().enumerate() {
+                digest.count(b"group-key-name-ordinal", ordinal);
+                digest.text(b"group-key-name", &column.name);
             }
         }
         PublicationArtifactPlan::MechanismSupportObservationDemands { aliases, .. } => {
@@ -4010,11 +4092,39 @@ fn append_artifact_batch(
         Some(&source_end),
         Some(line_budget),
     )?;
-    if matches!(
-        &first,
-        AddressedPublicationRecord::NotReady | AddressedPublicationRecord::Exhausted
-    ) {
-        return Ok(AppendSummary::default());
+    match &first {
+        AddressedPublicationRecord::NotReady => return Ok(AppendSummary::default()),
+        AddressedPublicationRecord::Exhausted => {
+            // Exact-empty results are real materialized artifacts, not a
+            // missing file disguised by a zero cursor. Create their
+            // owner-only zero-byte file before advertising the result path as
+            // caught up. Other empty artifact kinds retain their established
+            // lazy-file behavior.
+            if !matches!(artifact, PublicationArtifactPlan::Result { .. })
+                || initial.line_count != 0
+                || initial.byte_len != 0
+            {
+                return Ok(AppendSummary::default());
+            }
+            let path = output_directory.join(artifact.path());
+            ensure_safe_artifact_target(&path)?;
+            let file =
+                open_owner_only_append_file(&path).map_err(|error| io_error(&path, error))?;
+            let opened_len = file
+                .metadata()
+                .map_err(|error| io_error(&path, error))?
+                .len();
+            if opened_len != initial.byte_len {
+                return Err(RelationalPublicationError::PublicationAhead {
+                    path,
+                    committed: initial.byte_len,
+                    actual: opened_len,
+                });
+            }
+            file.sync_all().map_err(|error| io_error(&path, error))?;
+            return Ok(AppendSummary::default());
+        }
+        AddressedPublicationRecord::Emit { .. } | AddressedPublicationRecord::Skip { .. } => {}
     }
     let pending = PendingArtifactBatch {
         checkpoint: CursorCheckpoint::from_checkpoint(current),
@@ -4217,7 +4327,7 @@ fn record_at(
         (
             PublicationArtifactPlan::Result {
                 view_id,
-                select_names,
+                select_columns,
                 source: ResultPublicationSource::EarlyEachCase,
                 input: ResultPublicationInput::Find { question_id, .. },
                 ..
@@ -4232,14 +4342,14 @@ fn record_at(
                 journal,
                 *question_id,
                 *view_id,
-                select_names,
+                select_columns,
                 next_source_ordinal,
             )?,
         ),
         (
             PublicationArtifactPlan::Result {
                 view_id,
-                select_names,
+                select_columns,
                 source: ResultPublicationSource::DurableProjection,
                 ..
             },
@@ -4249,7 +4359,7 @@ fn record_at(
         ) => address_flat_record(
             artifact,
             next_source_ordinal,
-            durable_projection_record(journal, *view_id, select_names, next_source_ordinal)?,
+            durable_projection_record(journal, *view_id, select_columns, next_source_ordinal)?,
         ),
         (
             PublicationArtifactPlan::MechanismSupportObservations {
@@ -6224,6 +6334,22 @@ fn public_result_input(input: &ResultPublicationInput, relation_id: RelationId) 
     }
 }
 
+fn public_result_columns(columns: &[PublicationResultColumn]) -> JsonValue {
+    JsonValue::Array(
+        columns
+            .iter()
+            .enumerate()
+            .map(|(ordinal, column)| {
+                json!({
+                    "ordinal": ordinal,
+                    "name": column.name,
+                    "type": column.type_name,
+                })
+            })
+            .collect(),
+    )
+}
+
 fn case_support_record(
     artifact: &PublicationArtifactPlan,
     projection: Option<&PublicationCaseSupportProjection<'_>>,
@@ -7155,7 +7281,7 @@ fn early_each_case_record(
     journal: &RelationalJournal,
     question_id: QuestionId,
     view_id: ViewId,
-    select_names: &[Box<str>],
+    select_columns: &[PublicationResultColumn],
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let ordinal = usize::try_from(source_ordinal).map_err(|_| {
@@ -7222,7 +7348,7 @@ fn early_each_case_record(
         .early_select_iter()
         .map(|value| value.ok_or(RelationalPublicationError::ResultSelectNotRowLocal { view_id }))
         .collect::<Result<Vec<_>, _>>()?;
-    let values = public_selected_values(select_names, values.into_iter())?;
+    let values = public_selected_values(select_columns, values.into_iter())?;
     Ok(PublicationRecord::Emit(json!({
         "kind": "selected_case",
         "row_id": public_row_id(row_id),
@@ -7233,7 +7359,7 @@ fn early_each_case_record(
 fn durable_projection_record(
     journal: &RelationalJournal,
     view_id: ViewId,
-    select_names: &[Box<str>],
+    select_columns: &[PublicationResultColumn],
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let ordinal = usize::try_from(source_ordinal).map_err(|_| {
@@ -7258,7 +7384,7 @@ fn durable_projection_record(
                 .result_projection(view_id)
                 .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
             if let Some(record) = projection.record(source_ordinal) {
-                return public_projection_record(record, select_names);
+                return public_projection_record(record, select_columns);
             }
             if source_ordinal == projection.len() as u128 {
                 let publication = open
@@ -7291,7 +7417,7 @@ fn durable_projection_record(
                 return Ok(PublicationRecord::NotReady);
             };
             if let Some(record) = projection.records().get(ordinal) {
-                return public_projection_record(record, select_names);
+                return public_projection_record(record, select_columns);
             }
             if source_ordinal == projection.records().len() as u128 {
                 if let Some(publication) = publication {
@@ -7310,13 +7436,13 @@ fn durable_projection_record(
 
 fn public_projection_record(
     indexed: &IndexedResultProjectionRecord,
-    select_names: &[Box<str>],
+    select_columns: &[PublicationResultColumn],
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     match indexed.record() {
         ResultProjectionRecord::Row(row) => Ok(PublicationRecord::Emit(json!({
             "kind": "result_row",
             "row_id": public_row_id(row.row_id()),
-            "values": public_selected_values(select_names, row.values().iter())?,
+            "values": public_selected_values(select_columns, row.values().iter())?,
         }))),
         ResultProjectionRecord::Group(group) => match group.disposition() {
             ResultGroupDisposition::Provisional {
@@ -7326,7 +7452,7 @@ fn public_projection_record(
                     "kind": "result_group",
                     "disposition": "provisional",
                     "currently_passes_having": currently_passes_having,
-                    "values": public_selected_values(select_names, values.iter())?,
+                    "values": public_selected_values(select_columns, values.iter())?,
                 }))),
                 // A grouped choice exposes only its selected rows. Group keys
                 // and reducer state are not SELECT-authorized values.
@@ -7337,7 +7463,7 @@ fn public_projection_record(
                 Some(values) => Ok(PublicationRecord::Emit(json!({
                     "kind": "result_group",
                     "disposition": "exact",
-                    "values": public_selected_values(select_names, values.iter())?,
+                    "values": public_selected_values(select_columns, values.iter())?,
                 }))),
                 // A grouped choice publishes its selected rows as following
                 // ChosenRow records. Group keys/reducer state are not SELECT.
@@ -7347,7 +7473,7 @@ fn public_projection_record(
         ResultProjectionRecord::ChosenRow { row, .. } => Ok(PublicationRecord::Emit(json!({
             "kind": "chosen_result_row",
             "row_id": public_row_id(row.row_id()),
-            "values": public_selected_values(select_names, row.values().iter())?,
+            "values": public_selected_values(select_columns, row.values().iter())?,
         }))),
     }
 }
@@ -9045,19 +9171,19 @@ fn public_unavailable_reason(
 }
 
 fn public_selected_values<'value>(
-    names: &[Box<str>],
+    columns: &[PublicationResultColumn],
     values: impl ExactSizeIterator<Item = &'value ResultValue>,
 ) -> Result<JsonValue, RelationalPublicationError> {
-    if names.len() != values.len() {
+    if columns.len() != values.len() {
         return Err(RelationalPublicationError::SelectShapeMismatch {
-            names: names.len(),
+            names: columns.len(),
             values: values.len(),
         });
     }
-    let fields = names
+    let fields = columns
         .iter()
         .zip(values)
-        .map(|(name, value)| (name.to_string(), public_result_value(value)))
+        .map(|(column, value)| (column.name.to_string(), public_result_value(value)))
         .collect::<JsonMap<_, _>>();
     Ok(JsonValue::Object(fields))
 }
@@ -9211,6 +9337,315 @@ fn publication_line_bytes(
         .map_err(|error| RelationalPublicationError::Json(error.to_string()))?;
     line.push(b'\n');
     Ok(line)
+}
+
+/// Build a declaration-bounded answer directory. It contains no result rows:
+/// every artifact reference points back to the independently resumable
+/// descriptor in the manifest's `artifacts` array. Links are derived from
+/// checked IDs and resolved inputs/targets, never from tax-specific names.
+fn build_manifest_answer_index(
+    plan: &RelationalPublicationPlan,
+    report: &ExploreStreamSliceReport,
+    artifact_descriptors: &[JsonValue],
+) -> Result<JsonValue, RelationalPublicationError> {
+    let mut descriptor_by_key = BTreeMap::<String, &JsonValue>::new();
+    for descriptor in artifact_descriptors {
+        let key = descriptor
+            .get("key")
+            .and_then(JsonValue::as_str)
+            .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+        if descriptor_by_key
+            .insert(key.to_string(), descriptor)
+            .is_some()
+        {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
+    }
+    if descriptor_by_key.len() != plan.artifacts.len()
+        || plan
+            .artifacts
+            .iter()
+            .any(|artifact| !descriptor_by_key.contains_key(artifact.key()))
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+
+    let mut find_by_address = BTreeMap::<(String, String), &ExploreStreamFind>::new();
+    let mut result_by_view = BTreeMap::<String, &ExploreStreamResultLayer>::new();
+    let mut mechanism_by_request = BTreeMap::<String, &ExploreStreamMechanismLayer>::new();
+    for find in &report.finds {
+        if find_by_address
+            .insert((find.name.clone(), find.question_id.clone()), find)
+            .is_some()
+        {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
+    }
+    for layer in &report.layers {
+        match layer {
+            ExploreStreamLayer::Result(result) => {
+                if result_by_view
+                    .insert(result.view_id.clone(), result)
+                    .is_some()
+                {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+            }
+            ExploreStreamLayer::Mechanisms(mechanism) => {
+                if mechanism_by_request
+                    .insert(mechanism.request_id.clone(), mechanism)
+                    .is_some()
+                {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+            }
+        }
+    }
+
+    let result_plan_count = plan
+        .artifacts
+        .iter()
+        .filter(|artifact| matches!(artifact, PublicationArtifactPlan::Result { .. }))
+        .count();
+    let mechanism_plan_count = plan
+        .artifacts
+        .iter()
+        .filter(|artifact| matches!(artifact, PublicationArtifactPlan::Mechanism { .. }))
+        .count();
+    if find_by_address.len() != plan.finds.len()
+        || result_by_view.len() != result_plan_count
+        || mechanism_by_request.len() != mechanism_plan_count
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+
+    let mut result_keys_by_find = BTreeMap::<(QuestionId, String), Vec<String>>::new();
+    let mut mechanism_requests_by_find = BTreeMap::<(QuestionId, String), Vec<String>>::new();
+    let mut mechanism_requests_by_view = BTreeMap::<ViewId, Vec<String>>::new();
+    let mut result_keys_by_mechanism = BTreeMap::<MechanismRequestId, Vec<String>>::new();
+    let mut artifact_keys_by_mechanism = BTreeMap::<MechanismRequestId, Vec<String>>::new();
+    for artifact in plan.artifacts.iter() {
+        if let Some(request_id) = artifact.mechanism_request_id() {
+            artifact_keys_by_mechanism
+                .entry(request_id)
+                .or_default()
+                .push(artifact.key().to_string());
+        }
+        match artifact {
+            PublicationArtifactPlan::Result { key, input, .. } => match input {
+                ResultPublicationInput::Find {
+                    question_id,
+                    authored_name,
+                } => result_keys_by_find
+                    .entry((*question_id, authored_name.to_string()))
+                    .or_default()
+                    .push(key.to_string()),
+                ResultPublicationInput::MechanismIncidence { request_id } => {
+                    result_keys_by_mechanism
+                        .entry(*request_id)
+                        .or_default()
+                        .push(key.to_string());
+                }
+                ResultPublicationInput::Sources => {}
+            },
+            PublicationArtifactPlan::Mechanism {
+                request_id, target, ..
+            } => match target.semantic_target() {
+                MechanismTargetId::Selected => mechanism_requests_by_find
+                    .entry((target.question_id(), target.authored_name.to_string()))
+                    .or_default()
+                    .push(hex(request_id.bytes())),
+                MechanismTargetId::ChosenView(view_id) => mechanism_requests_by_view
+                    .entry(view_id)
+                    .or_default()
+                    .push(hex(request_id.bytes())),
+            },
+            PublicationArtifactPlan::MechanismDefinitions { .. }
+            | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
+            | PublicationArtifactPlan::MechanismStructural { .. }
+            | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
+            | PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::CaseSupport { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {}
+        }
+    }
+
+    let finds = plan
+        .finds
+        .iter()
+        .map(|find| {
+            let question_id = hex(find.question_id.bytes());
+            let summary = find_by_address
+                .get(&(find.name.to_string(), question_id.clone()))
+                .copied()
+                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+            Ok(json!({
+                "name": summary.name,
+                "question_id": summary.question_id,
+                "frontier": if summary.closed { "exact" } else { "open" },
+                "counts": {
+                    "find_classified": public_count_json(summary.find_classified),
+                    "selected": public_count_json(summary.selected),
+                    "not_selected": public_count_json(summary.not_selected),
+                },
+                "result_artifact_keys": result_keys_by_find
+                    .get(&(find.question_id, find.name.to_string()))
+                    .cloned()
+                    .unwrap_or_default(),
+                "mechanism_request_ids": mechanism_requests_by_find
+                    .get(&(find.question_id, find.name.to_string()))
+                    .cloned()
+                    .unwrap_or_default(),
+            }))
+        })
+        .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
+
+    let mut result_views = Vec::with_capacity(result_plan_count);
+    let mut mechanisms = Vec::with_capacity(mechanism_plan_count);
+    for artifact in plan.artifacts.iter() {
+        match artifact {
+            PublicationArtifactPlan::Result {
+                key,
+                name,
+                view_id,
+                input,
+                grain,
+                select_columns,
+                group_key_columns,
+                ..
+            } => {
+                let view_id_hex = hex(view_id.bytes());
+                let layer = result_by_view
+                    .get(&view_id_hex)
+                    .copied()
+                    .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                if layer.name != name.as_ref() {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+                let descriptor = descriptor_by_key
+                    .get(key.as_ref())
+                    .copied()
+                    .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                result_views.push(json!({
+                    "name": layer.name,
+                    "view_id": layer.view_id,
+                    "status": layer_status_name(layer.status),
+                    "frontier": if matches!(layer.status, ExploreStreamLayerStatus::ResultPublished) {
+                        "exact"
+                    } else {
+                        "open"
+                    },
+                    "input": public_result_input(input, plan.contract.relation_id()),
+                    "grain": grain.as_str(),
+                    "select_columns": public_result_columns(select_columns),
+                    "group_key_columns": public_result_columns(group_key_columns),
+                    "counts": {
+                        "input_rows": public_count_json(layer.input_rows),
+                        "output_rows": public_count_json(layer.output_rows),
+                        "projection_records": public_count_json(layer.projection_records),
+                    },
+                    "artifact": answer_result_artifact_reference(descriptor)?,
+                    "mechanism_request_ids": mechanism_requests_by_view
+                        .get(view_id)
+                        .cloned()
+                        .unwrap_or_default(),
+                }));
+            }
+            PublicationArtifactPlan::Mechanism {
+                name,
+                request_id,
+                target,
+                ..
+            } => {
+                let request_id_hex = hex(request_id.bytes());
+                let layer = mechanism_by_request
+                    .get(&request_id_hex)
+                    .copied()
+                    .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                let target_json = public_mechanism_target_id(target);
+                if layer.name != name.as_ref()
+                    || public_mechanism_target_json(&layer.target) != target_json
+                {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+                mechanisms.push(json!({
+                    "name": layer.name,
+                    "request_id": layer.request_id,
+                    "status": layer_status_name(layer.status),
+                    "frontier": if matches!(layer.status, ExploreStreamLayerStatus::MechanismClosed) {
+                        "exact"
+                    } else {
+                        "open"
+                    },
+                    "target": target_json,
+                    "counts": {
+                        "target_cases": public_count_json(layer.target_cases),
+                        "terminal_cases": public_count_json(layer.terminal_cases),
+                        "incidence_cases": public_count_json(layer.incidence_cases),
+                        "unavailable_cases": public_count_json(layer.unavailable_cases),
+                        "raw_signatures": public_count_json(layer.raw_signatures),
+                        "structural_assignments": public_count_json(layer.structural_assignments),
+                        "structural_mechanisms": public_count_json(layer.structural_mechanisms),
+                        "execution_profiles": public_count_json(layer.execution_profiles),
+                    },
+                    "artifact_keys": artifact_keys_by_mechanism
+                        .get(request_id)
+                        .cloned()
+                        .unwrap_or_default(),
+                    "result_artifact_keys": result_keys_by_mechanism
+                        .get(request_id)
+                        .cloned()
+                        .unwrap_or_default(),
+                }));
+            }
+            PublicationArtifactPlan::MechanismDefinitions { .. }
+            | PublicationArtifactPlan::MechanismSupportObservations { .. }
+            | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
+            | PublicationArtifactPlan::MechanismStructural { .. }
+            | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
+            | PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::CaseSupport { .. }
+            | PublicationArtifactPlan::CaseTransitions { .. }
+            | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {}
+        }
+    }
+
+    Ok(json!({
+        "schema_version": 1,
+        "materialization": "declaration_index",
+        "rows_inlined": false,
+        "finds": finds,
+        "result_views": result_views,
+        "mechanisms": mechanisms,
+    }))
+}
+
+fn answer_result_artifact_reference(
+    descriptor: &JsonValue,
+) -> Result<JsonValue, RelationalPublicationError> {
+    let object = descriptor
+        .as_object()
+        .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+    let field = |name: &str| {
+        object
+            .get(name)
+            .cloned()
+            .ok_or(RelationalPublicationError::PlanIdentityMismatch)
+    };
+    Ok(json!({
+        "key": field("key")?,
+        "kind": field("kind")?,
+        "view_id": field("view_id")?,
+        "path": field("path")?,
+        "presentation_digest": field("presentation_digest")?,
+        "published_lines": field("published_lines")?,
+        "available_source_records": field("available_source_records")?,
+        "caught_up_to_journal_prefix": field("caught_up_to_journal_prefix")?,
+        "prefix_digest": field("prefix_digest")?,
+        "layer_roots": field("layer_roots")?,
+    }))
 }
 
 fn build_manifest(
@@ -9422,10 +9857,34 @@ fn build_manifest(
                     );
                 }
             }
-            if let PublicationArtifactPlan::Result { input, .. } = artifact {
+            if let PublicationArtifactPlan::Result {
+                input,
+                view_id,
+                grain,
+                select_columns,
+                group_key_columns,
+                ..
+            } = artifact
+            {
+                object.insert(
+                    "view_id".into(),
+                    JsonValue::String(hex(view_id.bytes())),
+                );
                 object.insert(
                     "input".into(),
                     public_result_input(input, plan.contract.relation_id()),
+                );
+                object.insert(
+                    "grain".into(),
+                    JsonValue::String(grain.as_str().into()),
+                );
+                object.insert(
+                    "select_columns".into(),
+                    public_result_columns(select_columns),
+                );
+                object.insert(
+                    "group_key_columns".into(),
+                    public_result_columns(group_key_columns),
                 );
                 if let Some(coverage) = mechanism_result_input_coverage(journal, input)? {
                     object.insert(
@@ -10023,6 +10482,7 @@ fn build_manifest(
         .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
     let (artifacts, artifact_summaries): (Vec<_>, Vec<_>) =
         artifact_descriptors.into_iter().unzip();
+    let answer = build_manifest_answer_index(plan, report, &artifacts)?;
 
     Ok((
         json!({
@@ -10078,6 +10538,7 @@ fn build_manifest(
             "analysis_scope_root": report.analysis_scope_root,
             "analysis_terminal_root": report.analysis_terminal_root,
             "analysis_closure_set_root": report.analysis_closure_set_root,
+            "answer": answer,
             "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
             "artifacts": artifacts,
             "publication_cursor": {
@@ -11372,7 +11833,7 @@ fn path_to_manifest_string(path: &Path) -> Result<String, RelationalPublicationE
 
 fn publication_prefix_genesis(artifact_key: &str, presentation_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_ROOT_V15);
+    hasher.update(RESULT_PREFIX_ROOT_V16);
     hasher.update((artifact_key.len() as u64).to_be_bytes());
     hasher.update(artifact_key.as_bytes());
     hasher.update(presentation_digest);
@@ -11381,7 +11842,7 @@ fn publication_prefix_genesis(artifact_key: &str, presentation_digest: [u8; 32])
 
 fn extend_publication_prefix(prior: [u8; 32], line_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_EXTEND_V15);
+    hasher.update(RESULT_PREFIX_EXTEND_V16);
     hasher.update(prior);
     hasher.update(line_digest);
     hasher.finalize().into()
@@ -11950,7 +12411,13 @@ mod tests {
             name: "rows".into(),
             path: PathBuf::from("views/rows.ndjson"),
             view_id,
-            select_names: vec!["before".into()].into_boxed_slice(),
+            grain: PublicationResultGrain::EachCase,
+            select_columns: vec![PublicationResultColumn {
+                name: "before".into(),
+                type_name: "Int".into(),
+            }]
+            .into_boxed_slice(),
+            group_key_columns: Box::new([]),
             source: ResultPublicationSource::EarlyEachCase,
             input: ResultPublicationInput::Find {
                 question_id,
@@ -12064,6 +12531,9 @@ mod tests {
 
         let PublicationArtifactPlan::Result {
             input: direct_input,
+            grain: direct_grain,
+            select_columns: direct_select_columns,
+            group_key_columns: direct_group_key_columns,
             ..
         } = &direct.artifacts[0]
         else {
@@ -12090,6 +12560,56 @@ mod tests {
                 "name": "increases_alias",
                 "question_id": "21".repeat(32),
             })
+        );
+        assert_eq!(*direct_grain, PublicationResultGrain::EachCase);
+        assert_eq!(
+            public_result_columns(direct_select_columns),
+            json!([{
+                "ordinal": 0,
+                "name": "before",
+                "type": "Int",
+            }])
+        );
+        assert!(direct_group_key_columns.is_empty());
+
+        let mut renamed_select = direct.artifacts[0].clone();
+        let PublicationArtifactPlan::Result { select_columns, .. } = &mut renamed_select else {
+            unreachable!("test plan contains one result")
+        };
+        select_columns[0].name = "starting_income".into();
+        assert_ne!(
+            artifact_presentation_digest(&direct.artifacts[0]).expect("direct result presentation"),
+            artifact_presentation_digest(&renamed_select).expect("renamed SELECT presentation"),
+            "authored SELECT column names are result presentation identity"
+        );
+
+        let mut grouped = direct.artifacts[0].clone();
+        let PublicationArtifactPlan::Result {
+            grain,
+            group_key_columns,
+            ..
+        } = &mut grouped
+        else {
+            unreachable!("test plan contains one result")
+        };
+        *grain = PublicationResultGrain::GroupBy;
+        *group_key_columns = vec![PublicationResultColumn {
+            name: "income_bin".into(),
+            type_name: "Int".into(),
+        }]
+        .into_boxed_slice();
+        let mut renamed_group = grouped.clone();
+        let PublicationArtifactPlan::Result {
+            group_key_columns, ..
+        } = &mut renamed_group
+        else {
+            unreachable!("test plan contains one result")
+        };
+        group_key_columns[0].name = "salary_bin".into();
+        assert_ne!(
+            artifact_presentation_digest(&grouped).expect("grouped result presentation"),
+            artifact_presentation_digest(&renamed_group).expect("renamed GROUP BY presentation"),
+            "authored GROUP BY column names are result presentation identity"
         );
 
         let current = RelationalPublicationCheckpoint::new(0, [0x91; 32]);

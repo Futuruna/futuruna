@@ -342,6 +342,14 @@ where
         });
     }
 
+    // A fully closed ordinary stream needs no CPU/RAM work permit merely to
+    // rediscover that it is finished. Check this before constructing a
+    // deadline or polling the host-stability window, while preserving the
+    // mandatory runtime rebind path for retained certified source summaries.
+    if driver.terminal_state_is_complete_without_work(durable.journal()?) {
+        return complete(durable, 0, 0);
+    }
+
     let started = Instant::now();
     let deadline = match budget.max_runtime() {
         Some(runtime) => Some(

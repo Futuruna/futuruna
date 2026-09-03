@@ -411,8 +411,9 @@ pub use relational_public::{
     ExploreStreamObserverMemoStats, ExploreStreamOuterContainment, ExploreStreamPauseReason,
     ExploreStreamPopulationCounts, ExploreStreamPreparationError, ExploreStreamPreviewLimit,
     ExploreStreamPreviewStatus, ExploreStreamProjectedValue, ExploreStreamPublication,
-    ExploreStreamPublicationArtifact, ExploreStreamResultEvidence, ExploreStreamResultField,
-    ExploreStreamResultGroupRow, ExploreStreamResultLayer, ExploreStreamSliceOptions,
+    ExploreStreamPublicationArtifact, ExploreStreamResultColumn, ExploreStreamResultEvidence,
+    ExploreStreamResultField, ExploreStreamResultGrain, ExploreStreamResultGroupRow,
+    ExploreStreamResultInput, ExploreStreamResultLayer, ExploreStreamSliceOptions,
     ExploreStreamSliceReport, ExploreStreamSourceCoverage, PreparedRelationalExplore,
     RelationalExploreEpoch, EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
 };

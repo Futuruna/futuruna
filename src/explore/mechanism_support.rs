@@ -1705,6 +1705,16 @@ impl MechanismExplicitObservationSchedulerSummary {
     pub(crate) const fn unsealed(self) -> MechanismUnsealedExplicitObservationSummary {
         self.unsealed
     }
+
+    /// Whether every registered explicit observation has finished any
+    /// backfill, consumed its last dirty prefix and received its terminal
+    /// sealed observation. The registry itself intentionally remains durable
+    /// after settlement.
+    pub(crate) const fn is_fully_settled(self) -> bool {
+        self.pending_backfill.slice_count() == 0
+            && self.dirty.slice_count() == 0
+            && self.unsealed.slice_count() == 0
+    }
 }
 
 /// Authenticated root of the operational set of mechanism slices whose latest
@@ -7710,6 +7720,28 @@ fn subject_starter_fixture(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicit_observation_scheduler_settlement_covers_every_work_lane() {
+        let summary = |pending_backfill, dirty, unsealed| {
+            MechanismExplicitObservationSchedulerSummary::restore_from_journal_codec(
+                [0x11; 32],
+                1,
+                1_u128.saturating_sub(pending_backfill),
+                [0x22; 32],
+                pending_backfill,
+                [0x33; 32],
+                dirty,
+                [0x44; 32],
+                unsealed,
+            )
+        };
+
+        assert!(summary(0, 0, 0).is_fully_settled());
+        assert!(!summary(1, 0, 1).is_fully_settled());
+        assert!(!summary(0, 1, 1).is_fully_settled());
+        assert!(!summary(0, 0, 1).is_fully_settled());
+    }
 
     fn mechanism_support_key(fixture: &ClosedSubjectStarterFixture) -> MechanismSupportKey {
         MechanismSupportKey::new(

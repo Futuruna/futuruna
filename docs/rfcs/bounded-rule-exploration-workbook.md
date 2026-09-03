@@ -10,7 +10,7 @@ syntax. The current parser now accepts `from { given/vary/let }`,
 `transition after`, zero or more named `find` questions, and explicit named
 question inputs for `results` and `mechanisms`, including an exact chosen result
 as a mechanism target. Its scoped `where` plus
-publication-v15 `results`/`mechanisms`/`observations`/`starters` and
+publication-v16 `results`/`mechanisms`/`observations`/`starters` and
 `transitions` forms remain transitional implementation spellings that lower
 toward this model.
 They are not a second public dialect and carry no compatibility requirement.
@@ -1224,7 +1224,7 @@ now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
 The four-transition `relational-explore-stream-smoke.runa` query now closes
-through report v8 and publication v15 with two named questions over one shared
+through report v9 and publication v16 with two named questions over one shared
 relation and admission. `all_cases` closes at exactly four cases;
 `interesting` closes at exactly two. The latter two cases share one raw
 signature, structural mechanism and execution profile. Its identity-only
@@ -1252,14 +1252,28 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v15 is the current artifact plan and report v8 is the current
-compact report. Each mechanism request has one shared value-free observation
+Publication v16 is the current artifact plan and report v9 is the current
+compact report. Every named result now has a bounded self-describing entry even
+when it is ungrouped, open, or exact-empty. The entry names its resolved input,
+grain, ordered selected schema, group keys, output-row and projection-record
+counts, evidence roots when published, and its independently resumable NDJSON
+artifact. Population rows never enter the compact answer or manifest index.
+Each mechanism request has one shared value-free observation
 stream plus one demand ledger. Automatic whole-mechanism observations remain
 the sole support-closure authority; explicitly requested mechanism/node/edge
 slices register, backfill in pages of at most 256 assignments, follow
 incident-only updates and can attach before or after analysis closure. This
 source path is integrated; focused executable verification remains the next
 gate before a broader Personskat run.
+
+A reopened terminal journal is recognized before the runtime deadline or host
+work-permit poll when no checked runtime proof rebind and no retained explicit
+support-observation backfill, dirty prefix or unsealed slice remains. It
+returns `complete` with zero appended semantic events and leaves every
+caught-up artifact unchanged. A retained certified source summary still passes
+its bounded compiler/runtime rebind gateway first; terminal recognition cannot
+bypass that trust check—or pending work from an additive support reader—merely
+to improve resume latency.
 
 The v13 observation schema implements independently domain-separated
 inner/outer expression bounds for correlated case support `S` and
@@ -1586,7 +1600,7 @@ rule-graph reasoning proves the skipped cell uniform.
 - Keep value authorization explicit and singular. Do not infer typed values
   from a compact observation or introduce a wildcard `cases × DAG subjects`
   export.
-- Lower publication-v15 trailing `observations`, `starters` and `transitions`
+- Lower publication-v16 trailing `observations`, `starters` and `transitions`
   declarations only as transitional implementation spellings.
 
 ### 6. Proof-oriented search reduction
@@ -1649,7 +1663,7 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v15 is completed. Those spellings are a
+Explore block while publication v16 is completed. Those spellings are a
 transitional lowering boundary, not another public language design.
 
 ```text
@@ -1671,7 +1685,7 @@ personskat-200k-result/
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v15 retains
+The `starters/` lane is explicit and single-subject. Publication v16 retains
 the materializer first introduced in v9 and schedules one artifact only for an
 authored transitional `starters NAME from mechanisms REQUEST ...` consumer
 whose `using values from VIEW` reference names a checked lossless
@@ -1706,7 +1720,7 @@ require building one giant array. Grouped views use the same NDJSON envelope,
 one authenticated projection record per line, so a large histogram also stays
 bounded and resumable.
 
-Report v8 partitions support observation state explicitly. The request layer
+Report v9 partitions support observation state explicitly. The request layer
 contains the total shared observation point count/root; automatic point,
 registered, dirty, observed and sealed counts plus its closure-authority chain
 root; and explicit registration, point, registered, ready, pending-backfill,
@@ -1788,7 +1802,7 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-Publication v15 replaces the old eager all-subject structural rows with
+Publication v16 replaces the old eager all-subject structural rows with
 scheduled compact observations. The structural-definition catalog advertises
 stable descriptors for every whole mechanism and activation/differential node
 or edge, but a descriptor is only an address. Every discovered whole mechanism
@@ -1798,7 +1812,7 @@ automatic slice. The core support receipt requires automatic registered,
 observed and sealed counts to equal the exact structural-mechanism count.
 
 Target-conditioned mechanism, node and edge slices are explicit readers. The
-following is the current publication-v15 transitional spelling; its target home
+following is the current publication-v16 transitional spelling; its target home
 is a separate `? publish` declaration:
 
 ```runa
@@ -1866,7 +1880,7 @@ renames the structural node or the core analysis DAG.
 Qualified artifacts use the unified subject-starter record schema v3. The
 optional route field is omitted from unqualified cursors and records.
 Publication v9 established the additive-consumer principle; the current
-Experimental v15 plan
+Experimental v16 plan
 preserves that separation without treating historical v9 bytes as a
 compatibility target.
 
@@ -1880,7 +1894,7 @@ resuming does not re-explore any cases. A fixed-fan-in external merge and
 arbitrary path-conditioned selectors remain future scaling work. The whole
 structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v15 keeps each mechanism request and authored projection in
+Publication schema v16 keeps each mechanism request and authored projection in
 independently resumable artifacts. `mechanisms/<name>.ndjson` is the
 answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
@@ -1999,7 +2013,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v15 treats this lane as an additive
+case-by-node table. Publication v16 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -2201,7 +2215,7 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest. Report v8 may inline a schema-capped prefix of a small exact grouped
+manifest. Report v9 may inline a schema-capped prefix of a small exact grouped
 view directly from its authenticated projection journal; its evidence roots
 and truncation cursor make that preview auditable. The operational artifact
 index names the corresponding full NDJSON plus every case, mechanism, compact
