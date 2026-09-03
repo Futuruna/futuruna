@@ -15,6 +15,26 @@ finite profile and successor relations + authenticated frontier ->
 content-stable cases -> classify -> named views + explicit-target provenance
 ```
 
+The **target language** now makes that architecture visible: `given` states
+conditioning, `vary` introduces a finite dimension, `let` constructs local
+values including Before, and `transition` declares the typed After relation.
+`derive` names pure computed facts and endpoint observations.
+A total `admit` decision classifies every constructed transition. One or more
+named `find` relations then ask semantic questions without creating a
+privileged relation called `selected`. Views, partitioned choices and causal
+explanations live in separate `? analyze` declarations, while `? publish`
+attaches authorized artifacts. Time limits, workers,
+memory limits, journal locations and publication paths remain invocation
+controls rather than query semantics.
+
+> **Syntax status.** The `? explore`, `? analyze`, and `? publish` blocks in section 9 are
+> accepted **target syntax**, not claims about the parser available today. The
+> current Experimental relational examples execute the earlier
+> `from`/`to`/`where`/`find`/`results`/`mechanisms` surface while the frontend is
+> migrated. The collection audit below is executable ordinary Futuruna. Neither
+> current surface is a compatibility promise, and the workbook does not present
+> target syntax as already runnable.
+
 The existing executable calibration uses the same underlying discipline with
 ordinary collections:
 
@@ -126,8 +146,8 @@ modeled_after_tax_resources(profile, g + 100)
 ```
 
 This reduces the concrete population from 200,000 to 2,000 transitions. A
-selected coarse edge is a useful refinement neighborhood and mechanism
-witness. A nonselected coarse edge does not prove that no 1-DKK subedge inside
+coarse edge in the named cliff finding is a useful refinement neighborhood and
+mechanism witness. An edge outside that finding does not prove that no 1-DKK subedge inside
 it is harmful, because several rule changes may cancel over the wider
 interval. Likewise, the endpoint-difference mechanism DAG for one 100-DKK edge
 may contain several rule changes inside that interval; refinement separates
@@ -143,19 +163,18 @@ There are therefore two different coarse-grid questions:
    a signature, admission status or rule-event boundary changes—even when the
    100-DKK net result is harmless.
 
-The first executable landscape uses a separate `find all` query. In that
-question `selected = admitted` by definition, which lets the already-closed
-selected-target machinery do the right work without calling harmless edges
-cliffs. The eventual general combined-query spelling should be `mechanisms ...
-for admitted from ...`: that target belongs to the admission identity and
-would let one cliff question both select violations and explain its entire
-admitted background. Adding it correctly requires admission-scoped target
-seals and durable materialization, not merely another parser keyword, so it is
-not a prerequisite for the first exact landscape.
+The current executable landscape uses a separate `find all` query. In that
+implementation `selected = admitted` by definition, which lets the existing
+target machinery do the right work without calling harmless edges cliffs. The
+target syntax instead lets one Explore declaration name both `find cliffs`
+and `find admitted_edges`, then lets separate analyses explain either
+relation. That generalization needs finding-scoped target seals and durable
+materialization, not merely another parser keyword, so the separate executable
+query remains an honest transition step.
 
 Calling the first query “mechanism discovery” without this qualification would
-be misleading. With `mechanisms ... for selected`, an exact-empty cliff result
-also produces exactly zero requested mechanisms; it does not prove that the
+be misleading. In the current `mechanisms ... for selected` implementation, an
+exact-empty cliff result also produces exactly zero requested mechanisms; it does not prove that the
 interval contains no legal mechanism change. The efficient next design reuses
 each grid endpoint trace across its two neighboring edges and stores shared
 trace/DAG nodes content-addressably, rather than independently replaying both
@@ -619,10 +638,11 @@ shard. It is not the semantic north star or an implicit default. The full
 result should be able to reveal that a profile dimension is decisive,
 irrelevant, or relevant only in combination with other facts.
 
-This section records the accepted Experimental language direction. The source
-blocks below use the canonical frontend grammar; they are not evidence that the
-relational evaluator has executed or closed the declared world. The normative
-contract and current implementation checkpoint remain in
+This section records the accepted Experimental language direction. Its source
+blocks use the target grammar described above; they are not accepted by the
+current parser and are not evidence that an evaluator has executed or closed
+the declared world. The evolving normative contract and current implementation
+checkpoint remain in
 [Bounded Rule Exploration with `? explore`](../../docs/rfcs/bounded-rule-exploration.md),
 its [implementation workbook](../../docs/rfcs/bounded-rule-exploration-workbook.md),
 and [feature stages](../../docs/feature-stages.md).
@@ -633,11 +653,11 @@ Explore is best understood as a provenance-aware relational query over typed
 state transitions:
 
 ```text
-finite coordinates
-    -> Context + Before -> finite successors(Before, Context)
-    -> admissible transitions
-    -> matching, violating, or all transitions
-    -> grouped, measured, chosen, and projected result views
+given conditions + finite varied dimensions + derived Before
+    -> typed transition -> finite dependent After states
+    -> total admission decision
+    -> one or more named question relations
+    -> separate views, partitioned choices, and explanations
 ```
 
 The general transition contract is:
@@ -649,18 +669,21 @@ successors(context, before) -> finite set of after states
 The algebra fixes the semantic order without imposing a batch execution order:
 
 ```text
-R          = distinct source rows (context, before) produced by FROM
+R          = distinct source rows produced by from { given/vary/let }
 C_R        = { (context, before, after) | (context, before) in R,
-                                           after in successors(context, before) }
+                                           after in transition(context, before) }
 D_A        = { case in C_R | admission_A(case) }
-S_Q        = { case in D_A | selection_Q(case) }
-V_case     = a named relational view over S_Q
-M(target)  = differential signature incidence for a named case target
+Q_n        = { case in D_A | named_find_n(case) }
+V_case     = a named relational view over one Q_n
+K_(Q,p)    = a choice proved within each declared partition p of Q_n
+M(target)  = differential signature incidence for a named find or choice
 V_evidence = a named relational view over the incidence relation produced by M
 ```
 
-`RelationId`, `AdmissionId`, `QuestionId`, `ViewId` and
-`MechanismRequestId` name those layers respectively. Cases must exist
+The target identity ladder gives the relation, admission, each question, each
+analysis node and each explanation request separate content identities. The
+current implementation's corresponding names include `RelationId`,
+`AdmissionId`, `QuestionId`, `ViewId` and `MechanismRequestId`. Cases must exist
 extensionally before a mechanism can claim their support, but the observable
 scheduler may enumerate, classify and replay different committed cases in an
 interleaved stream. This resolves the apparent “cases or mechanisms first?”
@@ -713,87 +736,116 @@ does not. The compiler can recognize an affine successor, source events and
 other structure without making `boundaries` the semantic definition of the
 query.
 
-One possible relational spelling is:
+The target relational spelling is deliberately explicit about which values are
+conditioned, enumerated and derived:
 
 ```runa
 ? explore personskat_income_cliffs_2026 {
     from {
-        profile in coherent_personskat_profiles_2026(
-            PersonskatProfileSpace2026(
-                municipalities = supported_municipalities_2026(),
-                church_tax_statuses = supported_church_tax_statuses_2026(),
-                households = supported_household_profiles_2026(),
-                commutes = supported_commute_profiles_2026(),
-                income_compositions = supported_income_compositions_2026(),
-                pensions = supported_pension_profiles_2026()
+        given tax_year = 2026
+        given salary_step_kroner = 1
+
+        vary profile in coherent_personskat_profiles(
+            tax_year,
+            PersonskatProfileSpace(
+                municipalities = supported_municipalities(tax_year),
+                church_tax_statuses = supported_church_tax_statuses(tax_year),
+                households = supported_household_profiles(tax_year),
+                commutes = supported_commute_profiles(tax_year),
+                income_compositions = supported_income_compositions(tax_year),
+                pensions = supported_pension_profiles(tax_year)
             )
         )
-        coordinate in supported_income_coordinates_2026(
+        vary gross_salary_before_kroner in supported_income_coordinates(
             profile,
             range(0, 1_500_000)
         )
-        context = SalaryChange(amount_kroner = 1)
-        before = personskat_state_2026(profile, coordinate)
+
+        let context = SalaryChange(amount_kroner = salary_step_kroner)
+        let before = personskat_state(
+            tax_year,
+            profile,
+            gross_salary_before_kroner
+        )
     }
 
-    to after = apply_salary_change(before, context)
+    transition after = apply_salary_change(before, context)
 
-    where before personskat_supported(before)
-    where after personskat_supported(after)
-    where transition salary_change_permitted(before, after, context)
+    derive policy_assessment {
+        before = assess_personskat(before, context)
+        after = assess_personskat(after, context)
+    }
+    derive resources_before_ore = policy_assessment.before.resources_ore
+    derive resources_after_ore = policy_assessment.after.resources_ore
 
-    find violations of modeled_after_tax_resources_never_fall(
-        before,
-        after,
-        context
+    admit supported when policy_assessment.before.supported
+        && policy_assessment.after.supported
+        && salary_change_permitted(before, after, context)
+
+    find cliffs = violations of (
+        resources_after_ore >= resources_before_ore
     )
+    find admitted_edges = all
+}
 
-    results cliffs from selected {
+? analyze personskat_income_cliff_answer
+from explore personskat_income_cliffs_2026 {
+    view admitted_summary from find admitted_edges {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+        updates closure_gated
+    }
+
+    view cliff_cases from find cliffs {
         each case
-        measure [
-            loss_ore = modeled_after_tax_resources_ore(before) -
-                modeled_after_tax_resources_ore(after)
-        ]
+        measure [loss_ore = resources_before_ore - resources_after_ore]
         select [
+            case_id,
             profile = before.profile,
             gross_salary_before_kroner = before.gross_salary_kroner,
             gross_salary_after_kroner = after.gross_salary_kroner,
             loss_ore
         ]
+        updates monotone
     }
 
-    results case_summary from selected {
+    view cliff_summary from find cliffs {
         group all
         aggregate [
             cases = count_distinct(case_id),
+            starters = count_distinct(source_key),
             affected_profiles = count_distinct(before.profile)
         ]
-        select [cases, affected_profiles]
+        select [cases, starters, affected_profiles]
+        updates revisable
     }
 
-    mechanisms cliff_paths for selected from assess_personskat
+    explain cliff_paths from find cliffs using policy_assessment
 
-    results mechanism_summary from mechanisms cliff_paths {
+    view mechanism_summary from explain cliff_paths {
         group all
         aggregate [
             mechanisms = count_distinct(structural_mechanism_id),
             raw_signatures = count_distinct(signature_id),
             execution_profiles = count_distinct(execution_profile_id),
-            explained_cases = count_distinct(case_id)
+            explained_cases = count_distinct(case_id),
+            explained_starters = count_distinct(source_key)
         ]
         select [
             mechanisms,
             raw_signatures,
             execution_profiles,
-            explained_cases
+            explained_cases,
+            explained_starters
         ]
+        updates revisable
     }
 
-    results mechanism_loss_bins_50_dkk from mechanisms cliff_paths {
+    view mechanism_loss_bins_50_dkk from explain cliff_paths {
         group by [
             bin_start_ore = floor_to_bin(
-                modeled_after_tax_resources_ore(before) -
-                    modeled_after_tax_resources_ore(after),
+                resources_before_ore - resources_after_ore,
                 5_000
             )
         ]
@@ -801,27 +853,63 @@ One possible relational spelling is:
             mechanisms = count_distinct(structural_mechanism_id),
             raw_signatures = count_distinct(signature_id),
             execution_profiles = count_distinct(execution_profile_id),
-            cases = count_distinct(case_id)
+            cases = count_distinct(case_id),
+            starters = count_distinct(source_key)
         ]
         select [
             bin_start_ore,
             mechanisms,
             raw_signatures,
             execution_profiles,
-            cases
+            cases,
+            starters
         ]
+        updates revisable
     }
+}
+
+? publish personskat_income_cliff_evidence
+from analyze personskat_income_cliff_answer {
+    emit view admitted_summary
+    emit view cliff_cases
+    emit view cliff_summary
+    emit view mechanism_summary
+    emit view mechanism_loss_bins_50_dkk
 }
 ```
 
-The final `results` block is the target structural result spelling downstream
-of mechanism replay and quotient assignment. `mechanisms` counts distinct
-`structural_mechanism_id` values; `raw_signatures` and `execution_profiles`
-retain execution-sensitive populations separately. An authored
-mechanism-incidence row joins `case_id`, `transition_id`, raw `signature_id`,
-`structural_mechanism_id`, `execution_profile_id`, Context, Before and After.
-The row waits for its durable quotient assignment, and exact closure commits
-both the raw incidence and structural quotient roots. Consequently,
+`given` is visible conditioning and `vary` is finite enumeration, possibly
+dependent on earlier bindings. `let` introduces a pure local abbreviation and
+`derive` computes a typed fact; neither silently adds a dimension. The
+`transition` clause owns the intervention and its finite successor fiber.
+For every constructed transition, `admit` must terminate with one total typed
+Boolean decision. A false decision is a reported rejection. A semantic failure
+to produce either Boolean is an integrity error, selects nothing, and prevents
+exact admission closure; cancellation or resource pressure instead pauses with
+the affected frontier still open. Neither route is a filtered-away case.
+
+`find cliffs` and `find admitted_edges` are ordinary named question relations.
+There is no implicit `selected` relation. This lets one declared world support
+both the cliff question and an admitted-edge mechanism landscape without
+changing relation identity or pretending harmless edges are cliffs.
+
+The separate `? analyze` declaration consumes those named semantic relations.
+Its `view`, `choice` and `explain` nodes form a typed analysis DAG but do not
+change which cases exist or satisfy a finding. An explanation request names a
+finding or a choice plus a checked observer. It never requires an author to
+paste a post-run raw mechanism hash back into semantic Explore source. A
+discovered identity may be used by an external inspection or publication
+request, where it is an operational address rather than part of the question.
+
+The final mechanism-bin view is downstream of endpoint replay and quotient
+assignment. `mechanisms` counts distinct `structural_mechanism_id` values;
+`raw_signatures` and `execution_profiles` retain execution-sensitive
+populations separately. An explanation-incidence row preserves the complete
+resolved find/choice row—including its addressable Explore derives—and adds
+`transition_id`, raw `signature_id`, `structural_mechanism_id` and
+`execution_profile_id`. The inherited case row already carries `case_id`,
+`source_key`, Context, Before and After. Exact closure commits both the raw
+incidence and structural quotient roots, so
 `count_distinct(signature_id)` remains a raw-signature histogram rather than a
 mechanism histogram.
 
@@ -829,10 +917,10 @@ mechanism histogram.
 examples, it cannot claim exactness until its raw incidence, structural
 assignment and declared result-input frontiers have closed.
 
-`coherent_personskat_profiles_2026(...)` is a dependent relation, not an
+`coherent_personskat_profiles(...)` is a dependent relation, not an
 instruction to cross those catalogs blindly. It joins and derives them into
-whole typed profile rows. The next `in` is genuinely lateral:
-`supported_income_coordinates_2026(profile, ...)` may return a different finite
+whole typed profile rows. The second `vary` is genuinely lateral:
+`supported_income_coordinates(profile, ...)` may return a different finite
 set for each profile because income composition, hours, pension facts or model
 support can constrain the meaningful salary coordinates. Each resulting
 `before` pairs one coherent profile with one supported lower endpoint. A
@@ -842,20 +930,22 @@ should retain producer dependencies so the decision structure and relevance
 analysis can share evaluation or compress equal behavior without dropping any
 declared profile column, SourceKey or support count.
 
-Bindings in `from` are ordered. `name = expression` contributes one value;
-`name in finite_expression` performs a dependent finite expansion in the style
-of SQL `LATERAL`. Each expression can see only earlier bindings. The block must
-ultimately bind exactly one semantic `context` and one semantic `before`;
-auxiliary bindings such as `source` remain authenticated construction lineage,
-not extra hidden fields in case identity. Several independent `in` bindings do
-form a product, but coherent-profile helpers let the author express a join
-instead of generating nonsense combinations and filtering them afterward.
+Source bindings are ordered. `given` and `let` contribute one value; `vary`
+performs a dependent finite expansion in the style of SQL `LATERAL`. Each
+source expression can see only earlier bindings. The `from` block must
+ultimately bind one semantic `context` and `before`; the transition binds one
+typed `after` per successor and retains every meaningful action value in case
+identity.
+Auxiliary bindings remain authenticated construction lineage, not extra hidden
+fields. Several independent `vary` bindings do form a product, but
+coherent-profile helpers let the author express a join instead of generating
+nonsense combinations and filtering them afterward.
 The closed IR resolves local binders to ordered indices, so alpha-renaming an
 auxiliary spelling such as `profile` does not rename an otherwise identical
 `RelationId`.
 
 There is no Personskat-only producer primitive. Any checked pure expression of
-an exact-finite collection type can appear after `in`. The closed IR records its
+an exact-finite collection type can appear after `vary ... in`. The closed IR records its
 resolved expression, element schema, dependencies on earlier bindings,
 set-normalization, canonical enumerator and lineage contract. A list is the
 smallest implementation; a range, indexed relation or certified symbolic cell
@@ -871,25 +961,26 @@ variable must never change the explored world behind an unchanged identity.
 `profile_space` declares finite catalogs and bounds; it is not a single profile
 whose remaining facts Explore silently holds constant.
 
-Nor is the name `coherent_personskat_profiles_2026` itself proof that the query
-is broad. The checked exploration bundle needs a `RelationId`-scoped,
-FROM-only source-construction manifest that audits the helper's reachable
-producer closure. It recursively names canonical Context and Before field
+Nor is the name `coherent_personskat_profiles` itself proof that the query
+is broad. The checked exploration bundle needs `RelationId`-scoped source and
+successor coverage components. Source coverage audits the `from` helper's
+reachable producer closure and recursively names Context and Before field
 paths and every reachable immutable producer input as one of: varied finite
 dimension, derived fact, explicit conditioning, proof-backed exact
 irrelevance, or reported coverage gap. A Copenhagen literal or immutable
 top-level constant buried in `personskat_state_2026` therefore appears as
-conditioning even though it was not written beside the `from` clause. An
-unsupported nested path remains an explicit gap; the manifest never fills it
+conditioning even though it was not written as `given`. An
+unsupported nested path remains an explicit gap; coverage never fills it
 by inventing a dimension. It is generated from the ordinary checked program
 and does not require authors to repeat the profile schema in a second
 Explore-only language.
 
-That manifest answers only how the source world was constructed. Coverage of
-facts consumed by Before/After admission, `find` and
-`personskat_..._vurder_100_kroner_trin` requires separate, not-yet-emitted
-siblings scoped by `AdmissionId`, `QuestionId` and `MechanismRequestId`.
-Editing one of those consumers must not rewrite the FROM-only source facts.
+Successor coverage separately audits transition-block dependencies and every
+After field. Coverage of facts consumed by admission and named finds requires
+sibling AdmissionId/QuestionId components; each view, choice or explanation
+observer gets one generic AnalysisNodeCoverageId for only the dependencies it
+adds. Editing one consumer must not rewrite source or successor facts. A result
+CoverageBundleId composes exactly the components reachable from that result.
 Until an exact irrelevance producer exists for a path, this workbook makes no
 claim that the mere availability of an `exact irrelevance` category proves the
 path irrelevant.
@@ -912,39 +1003,36 @@ outside a search.
 
 Conditioned facts are optional, visible source restrictions. If Copenhagen and
 non-membership of the national church define the calibration world rather than
-the validity of an already constructed case, restrict the finite producer in
-`from`, for example:
+the validity of an already constructed case, state them as `given` inputs to
+the finite producer, for example:
 
 ```runa
-all_profiles = coherent_personskat_profiles_2026(profile_space)
-profile in filter(
-    all_profiles,
-    |candidate: PersonskatProfile2026|
-        candidate.municipality == Municipality.Copenhagen &&
-        candidate.church_tax_status == ChurchTaxStatus.NotMember
+given municipality = Municipality.Copenhagen
+given church_tax_status = ChurchTaxStatus.NotMember
+vary profile in coherent_personskat_profiles_where(
+    profile_space,
+    municipality = municipality,
+    church_tax_status = church_tax_status
 )
 ```
 
 That source restriction changes `RelationId` because it declares a smaller
-finite world. By contrast, scoped `where before`, `where after` and
-`where transition` clauses classify constructed cases as admissible and belong
-to `AdmissionId`. Optimizers may push a safe admission predicate into producer
-execution, but that physical shortcut must not change either identity or its
-population counts. Without explicit source conditioning, the relation ranges
-over the whole declared coherent profile relation; there are no hidden “fixed
-profile facts.”
-
-Several scoped `where` clauses are a pure conjunction. Source order and repeated
-identical conjuncts remain available for diagnostics but normalize away from
-`AdmissionId`; scope plus resolved predicate semantics define the admission.
+finite world. By contrast, `admit` classifies every constructed transition and
+belongs to `AdmissionId`. Optimizers may push a safe admission predicate into
+producer execution, but that physical shortcut must not change either identity
+or its admitted/rejected population counts. Without explicit source
+conditioning, the relation ranges over the whole declared coherent profile
+relation; there are no hidden “fixed profile facts.” Conjunct order and repeated
+identical terms remain available for diagnostics but normalize away from
+`AdmissionId`; resolved total predicate semantics define the admission.
 
 The end-exclusive source range supplies lower salary endpoints through
-1,499,999 DKK; the successor reaches 1,500,000 DKK. `to after` constructs that
-comparison. Scoped `where` clauses distinguish unsupported or invalid cases
-from valid nonmatches. `find` states the question. `results cliffs from
-selected` defines a named view of the evidence, and the mechanism root names
-the endpoint computation whose Before/After executions are compared. The
-downstream loss-bin view waits for that request's incidence relation.
+1,499,999 DKK; the successor reaches 1,500,000 DKK. `transition` constructs that
+comparison. `admit` distinguishes rejected cases and integrity failures from
+admitted nonmatches. Named `find` clauses state the questions. `view cliff_cases`
+projects one question relation, and `explain cliff_paths` names the endpoint computation
+whose Before/After executions are compared. The downstream loss-bin view waits
+for that explanation's incidence relation.
 
 The smallest final-architecture sequence is:
 
@@ -960,19 +1048,19 @@ The smallest final-architecture sequence is:
    values from canonical content, never discovery order or a temporary
    ordinal. The stream can pause and publish lower bounds before enumeration
    closes without renaming committed cases.
-3. Seal scoped admission in `AdmissionId`, then seal `find` in `QuestionId`.
-   Classify each discovered case under those identities independently of
-   presentation. Changing only admission or the question does not rename the
-   case universe. A complete exploration with zero result views is valid.
-4. Materialize zero or more named `ViewId` projections over that classified
-   relation without changing its cases or classification evidence.
-5. Replay an explicitly named mechanism request against either `selected`
-   cases or the `chosen` cases of a named view; the latter target seals that
-   `ViewId`. The request name is an address, while its semantic identity comes
-   from its question, target, observer and normalization contract.
-6. Materialize zero or more mechanism-incidence views whose source seals the
-   resolved `MechanismRequestId`. Exact distinct-signature aggregation waits for
-   that request frontier to close; it never feeds back into its own target.
+3. Seal total admission in `AdmissionId`, then seal each named find under its
+   own QuestionId. Classify every discovered case independently of
+   presentation. Changing only admission or a question does not rename the case
+   universe. A complete Explore declaration with no analysis is valid.
+4. In a separate `? analyze`, materialize zero or more named view and
+   partitioned-choice projections without changing cases or classifications.
+5. Replay an explicitly named explanation request against a named find or
+   the proven members of a named choice. The request name is an address, while
+   its semantic identity comes from its target, observer and normalization
+   contract.
+6. Materialize zero or more explanation-incidence views. Exact
+   distinct-signature aggregation waits for that explanation frontier to
+   close; it never feeds back into its own target.
 
 This is the canonical dependency order. Future surface extensions must
 preserve it rather than reintroducing an implicit execution phase.
@@ -1077,27 +1165,43 @@ hash and answer roots remain arrival-order independent. Exact FIND closure is
 required only to seal those downstream inputs and publish exact counts; it is
 not a gate in front of useful evidence.
 
-Lifecycle and answer closure are related but distinct:
+Execution, semantic certainty and artifact availability are orthogonal:
 
 ```text
-lifecycle:              running <-> paused; {running, paused} -> sealed
-answer status:          partial | complete | unknown | unsupported | error
-classification frontier: open | closed
-mechanism frontier:     not requested | open | closed | unavailable
+execution.status:       running | paused(reason) | stopped(reason)
+semantic.status:        open | exact | unavailable(reason) |
+                        error(reason)                             (per relation)
+materialization.status: not_requested | pending | caught_up |
+                        capacity_limited | unmaterialized | error (per artifact)
+count.status:           unknown | lower_bound(n) |
+                        interval(lower, upper) | exact(n)
 ```
 
 A time limit, resource pressure or user interruption pauses after the latest
-committed evidence. Resuming continues from the same frontier. The scheduler
+committed evidence and carries a ResumeCursor. `stopped(reason)` carries no
+continuation capability: all requested obligations are terminal, explicitly
+abandoned, or ended by an unrecoverable integrity failure. Resuming a paused
+run continues from the same frontier. The scheduler
 may always choose the most informative ready node, and it may revisit source
 analysis as newly closed regions expose new opportunities. There is no authored
 `probes` block, no probe-complete semantic state, no `--pause-after probes`, and
 no probe plan in query identity.
 
-A requested case answer may become `complete` while separately requested
-mechanism replay is still open. `partial` is also the normal status of useful
-evidence in a running or paused stream. Sealing says no more work will be
-appended; it may preserve a terminal `partial` or `unknown` answer, but neither
-status disguises an open frontier as exact closure.
+There is no ambiguous global `partial` or unqualified `complete`. A named
+finding may be semantically exact while one explanation remains open and a
+JSON artifact is still catching up. Conversely, publication can be caught up
+to a paused evidence prefix while the semantic answer remains open.
+`stopped(reason)` says why no worker is continuing; it does not turn an
+unavailable proof into an exact answer. Every public count carries its own status, and every report
+states the declared universe to which that status applies.
+
+The report also carries an opaque EvidenceToken committing the JournalContract,
+semantic graph, coverage and canonical evidence/projection roots for one
+cohesive cross-artifact read. It excludes journal head, sequence and work position. A
+separately typed resume cursor identifies the next operational work position;
+neither token is accepted where the other is required. The cursor is
+operational state; the EvidenceToken is semantic read authority. Neither is
+part of `RelationId`, a question predicate or structural mechanism identity.
 
 Scheduling policy and each scheduling decision may remain observable
 operational provenance. They do not change the declared world or answer. Some
@@ -1131,49 +1235,48 @@ SQL's bag semantics, null rules or nondeterministic limits:
 
 | Explore concept | Relational role |
 |---|---|
-| `from` | finite source relation |
-| `to after` | dependent finite successor relation |
-| scoped `where` | Before, After and transition admission |
-| `find matches`, `find violations`, `find all` | selected transition relation |
-| `results NAME from sources` | grouped view over canonical `(context, before)` source rows |
-| `results NAME from selected` | named view over selected cases; `from selected` may be omitted |
-| `mechanisms NAME ...` | named differential-signature incidence relation |
-| `results NAME from mechanisms REQUEST` | named post-replay incidence view |
-| `each case` | one logical row per selected `CaseId` |
+| `given NAME = EXPR` | visible conditioning in the declared source world |
+| `vary NAME in FINITE_RELATION` | a finite, possibly dependent source or successor dimension |
+| `let NAME = EXPR` | pure local abbreviation without added cardinality |
+| `derive NAME = EXPR` or paired endpoint block | typed pure computed fact without added cardinality |
+| `transition after = EXPR`, `after in FINITE_RELATION`, or an ordered block with one `yield` | finite successor relation and intervention |
+| total `admit NAME when PREDICATE` | admitted/rejected classification of every constructed case |
+| `find NAME = all/matches/violations` | one named semantic question relation over admitted cases |
+| `? analyze ... from explore ...` | a separate typed result/explanation DAG |
+| `view NAME from RELATION` | grouped or row-grain projection over a named relation |
+| `partition all/by` | explicit comparison population for a choice proof |
+| `choice NAME from find NAME` | partitioned argmin, argmax, all-ties or Pareto relation, independent of display views |
+| `explain NAME from find/choice NAME using DERIVATION` | differential-signature incidence relation |
+| `each case` | one logical row per finding `CaseId` |
 | `each incidence` | one logical row per mechanism-incidence triple |
 | `group by` or `group all` | closed groups over either input relation |
 | `measure` | named exact per-input-row scalars |
 | `aggregate` | closed-group reducers; currently `count_distinct` |
-| `having varies(NAME)` | retain groups whose named measure varies after closure |
+| `having varies(NAME)` | retain a closed group/choice partition only when its named measure has at least two distinct exact values |
 | `select` | public projection and privacy allow-list |
-| `choose` | explicit one-row, all-ties or frontier cardinality policy |
 
-The closest SQL analogy for `to after in successors(before, context)` is a
-`LATERAL` join or `CROSS APPLY`: the finite successor relation is evaluated for
-each source row and may return a different number of rows. That is the crucial
-generalization beyond a Cartesian list of profile switches. `results` blocks
-are named `SELECT`-like views; mechanism replay is the extra provenance layer
-ordinary SQL does not provide.
+The closest SQL analogy for a `vary` inside `transition` is a `LATERAL` join or
+`CROSS APPLY`: the finite successor dimension is evaluated for each source row
+and may return a different number of rows. Dependencies stay visible in source
+order rather than disappearing inside an apparently independent Cartesian
+product. `view` blocks are named `SELECT`-like projections; `choice` states the
+comparison proof explicitly, and `explain` is the provenance layer ordinary
+SQL does not provide.
 
-Named views and mechanism requests form a typed dependency DAG after `find`.
-An unqualified `results NAME { ... }` is shorthand for `from selected`.
-Source-backed views are independent of admission and FIND closure and expose
-only canonical `context` and `before`; auxiliary producer bindings remain
-lineage, and `after`/`case_id` do not yet exist at that relational stage.
-Mechanisms may target selected cases or the chosen rows of an already resolved
-case view; a post-replay view may read a mechanism request's incidence rows.
-Names resolve to semantic IDs, and the checker rejects dependency cycles such
-as a mechanism targeting a view that itself depends on that mechanism. This is
-the result-DAG extension needed for structural-mechanism histograms; those
-views additionally depend on structural quotient assignment and cannot be
-faked by renaming a raw-signature aggregate. Forcing every view to pretend it
-reads raw cases would hide a real semantic dependency.
+Named views, choices and explanations form a typed dependency DAG after the
+semantic Explore declaration. A view consumes a named find, choice or
+explanation-incidence relation; a choice consumes a find directly; and an
+explanation consumes a find or choice. Names resolve to semantic IDs, and the
+checker rejects cycles. Structural-mechanism histograms genuinely
+depend on quotient assignment; they cannot be faked by renaming a
+raw-signature aggregate.
 
-Selected-case inputs use `each case`; mechanism-incidence inputs use `each
-incidence`. Source inputs currently require `group all` or `group by [...]`;
-selected and incidence inputs may use those grouped forms as well.
-Mismatching the row grain and input relation is a type error, and `aggregate`
-is available only for a closed group.
+Finding inputs use `each case`; explanation inputs use `each incidence`.
+Either may use `group all` or `group by [...]`. Mismatching row grain and input
+relation is a type error, and an exact aggregate or choice requires closure of
+its declared input. A `partition` is not a display group: it identifies the
+complete comparison set within which minimum, maximum, all-ties or Pareto
+membership is proved.
 
 Entries in `group by`, `measure` and `select` use `name = expression`; a bare
 `name` is shorthand for `name = name`. The implemented closed aggregate form is
@@ -1185,56 +1288,61 @@ consume closed groups, and later view clauses can refer to earlier names without
 making evaluation order or alias resolution implicit.
 
 The superseded `output.key` form hid a semantic `GROUP BY` inside presentation.
-The accepted named `results` surface makes grouping, measurement, aggregation
-and representative choice explicit. `find all` is equally important: “which
-municipality minimizes tax?” is an optimization over admissible alternatives,
-not an artificial always-true Boolean witness search.
+The target `view`/`choice` surface makes grouping, measurement, aggregation,
+comparison population and cardinality policy explicit. A named `find
+alternatives = all` relation is equally important: “which municipality minimizes
+tax?” is an optimization over admissible alternatives, not an artificial
+always-true Boolean witness search.
 
-The exact case relation remains primary. Named views are projections over it;
+The exact case relation remains primary. Named finds are semantic
+subrelations and views are projections over them;
 no mandatory grouping key should force a choice between hiding profile
 multiplicity and emitting an unreadable row for every profile field. `each
 case` preserves `CaseId` as logical row identity, so two cases remain distinct
-even when every selected display value is equal. The analogous raw replay view
+even when every displayed value is equal. The analogous raw explanation view
 uses `each incidence`, preserving the authorized `(CaseId, TransitionId,
 SignatureId)` incidence row before any grouping.
 
-Seven layers should remain separate:
+The target keeps these layers separate:
 
 - **base relation identity (`RelationId`)**: stable model/type owners, state and
   context schemas, ordered finite source producers, canonical dependent
   successor semantics, endpoint membership and lineage contracts;
 - **admission identity (`AdmissionId`)**: one `RelationId` plus scoped Before,
   After and transition validity predicates;
-- **question identity (`QuestionId`)**: one `AdmissionId` plus the normalized
-  `find` expression and polarity, including the predicate-free `find all`;
-- **view identity (`ViewId`)**: one typed input-relation identity—normally a
-  `QuestionId` selected relation or `MechanismRequestId` incidence relation—
-  plus grouping, measures, aggregates, group filters, selected public fields,
-  ordering, choice and privacy policy;
-- **mechanism-request identity (`MechanismRequestId`)**: one `QuestionId`, an
-  explicit selected or view-chosen target, canonical endpoint observation
-  roots and signature normalization; a view-scoped target references its
-  `ViewId`;
-- **durable-evidence identity**: immutable relation, question, requested view
-  DAG and mechanism requests plus evidence-retention authorization, bound to
-  evaluator, journal and serialization-schema contracts; and
+- **question identity (`QuestionId`)**: one `AdmissionId` plus one normalized
+  named find predicate and polarity, including the predicate-free `all` relation;
+- **analysis identity (`AnalyzeGraphId`)**: one Explore contract plus its checked
+  view, choice and explanation dependency DAG;
+- **view identity (`ViewId`)**: one QuestionId, ChoiceId or
+  MechanismRequestId-incidence input plus grouping, measures, aggregates,
+  selected public fields, ordering, update mode and privacy policy;
+- **choice identity (`ChoiceId`)**: one QuestionId plus measures, comparison
+  partitions, eligibility, objective, cardinality and tie policy, independent
+  of any display view;
+- **explanation-request identity (`MechanismRequestId`)**: one named find
+  or choice target, canonical endpoint observation roots and signature
+  normalization;
+- **durable-evidence identity**: immutable relation, admission, named finds,
+  analysis DAG and explanation requests plus evidence-retention authorization,
+  bound to evaluator, journal and serialization-schema contracts; and
 - **operational records**: each invocation's run-state path, time and resource
   limits and workers, plus scheduler and pause events accumulated in the
   journal across resumes.
 
 `SourceKey`, `SuccessorKey` and `CaseId` derive from `RelationId` and canonical
-row content. They therefore survive a new admission predicate, a switch from
-`matches` to `violations`, or an additional view. Admission classifications are
-keyed by `(AdmissionId, CaseId)` and selection classifications by
-`(QuestionId, CaseId)`. This is not only a hash detail: it is what lets one
+row content. They therefore survive a new admission predicate, finding or
+analysis. Admission classifications are keyed by `(AdmissionId, CaseId)` and
+question classifications by `(QuestionId, CaseId)`. This is what lets one
 authenticated transition relation answer another authorized question without
 pretending that the underlying cases changed.
 
-Explore query names, `results NAME` block names and mechanism request names are
-unique source addresses, not semantic hash inputs. Renaming a view and updating
-references preserves its `ViewId`; the grouping, expressions, field names,
-choice and privacy schema do not. Likewise a view-scoped mechanism request
-seals the resolved `ViewId`, never the raw view spelling.
+Explore, find, analysis, view, choice and explanation names are unique
+source addresses, not raw hash literals. Renaming an address and updating its
+references preserves semantic identity; changing its normalized relation,
+predicate, partition, observer or privacy contract does not. The transitional
+implementation calls a find population `selected`; that is an implementation
+checkpoint, not target-language vocabulary.
 
 This separation allows one durable body of evidence to support another
 authorized question or result view without pretending that a new predicate or
@@ -1258,25 +1366,69 @@ tax-municipality alternative and asks for a global optimum:
 ```runa
 ? explore lowest_tax_municipality {
     from {
-        before = initial_person
-        context in tax_municipality_changes(municipalities_2026)
+        given before = initial_person
+        let context = TaxMunicipalityComparison()
     }
 
-    to after = apply_tax_municipality_change(before, context)
+    transition after {
+        vary municipality in supported_tax_municipalities(before.tax_year)
+        let change = TaxMunicipalityChange(municipality = municipality)
+        yield apply_tax_municipality_change(before, change)
+    }
 
-    where before personskat_supported(before)
-    where after personskat_supported(after)
-    find all
+    derive policy_assessment {
+        before = assess_personskat(before, context)
+        after = assess_personskat(after, context)
+    }
+    derive annual_tax_ore = policy_assessment.after.annual_tax_ore
 
-    results lowest_tax from selected {
+    admit supported when policy_assessment.before.supported
+        && policy_assessment.after.supported
+        && tax_municipality_change_permitted(before, after)
+
+    find alternatives = all
+}
+
+? analyze lowest_tax_municipality_answer
+from explore lowest_tax_municipality {
+    view tax_options from find alternatives {
+        each case
+        select [case_id, municipality = after.tax_municipality, annual_tax_ore]
+        updates monotone
+    }
+
+    view municipality_summary from find alternatives {
         group all
-        measure [tax_ore = tax_due(after)]
-        having varies(tax_ore)
-        select [municipality = after.tax_municipality, tax_ore]
-        choose all minimizing tax_ore
+        aggregate [
+            alternative_cases = count_distinct(case_id),
+            distinct_annual_tax_values = count_distinct(annual_tax_ore)
+        ]
+        select [alternative_cases, distinct_annual_tax_values]
+        updates closure_gated
     }
 
-    mechanisms municipality_paths for view lowest_tax chosen from assess_personskat
+    choice lowest_tax from find alternatives {
+        partition all
+        measure [annual_tax_ore]
+        having varies(annual_tax_ore)
+        choose all minimizing annual_tax_ore
+        updates closure_gated
+    }
+
+    view lowest_tax_options from choice lowest_tax {
+        each case
+        select [case_id, municipality = after.tax_municipality, annual_tax_ore]
+        updates closure_gated
+    }
+
+    explain municipality_paths from choice lowest_tax using policy_assessment
+}
+
+? publish lowest_tax_municipality_evidence
+from analyze lowest_tax_municipality_answer {
+    emit view tax_options
+    emit view municipality_summary
+    emit view lowest_tax_options
 }
 ```
 
@@ -1286,14 +1438,23 @@ municipality-derived parameter. It is not a relocation model. A relocation
 query needs a different successor relation that regenerates or branches over
 commute, property, residence-category, island and other residence-dependent
 facts, and projects a key that distinguishes those After states.
-`choose all minimizing` returns the complete tied argmin set; choosing one
-display representative would be a different, explicitly named policy.
+`partition all` says that every admitted municipality alternative belongs to
+one global comparison population. After that partition closes, `having
+varies(annual_tax_ore)` is true exactly when it contains at least two distinct annual
+tax values; false yields an authenticated exact-empty choice rather than a
+recommendation. `choose all minimizing` returns every CaseId tied at the
+minimum; choosing one display representative would be a different, explicitly
+named policy. If this Explore instead varied people, the analysis would need
+`partition by [starter = source_key]` to prove one optimum per starting person.
 Here `initial_person` is intentional conditioning expressed by the question
 “given this person”; it is not an Explore-wide assumption that profiles are
 fixed.
 
 If the encoded model has no municipality-dependent result, exact closure proves
-zero spread and publishes no “best municipality” recommendation.
+zero spread and publishes no “best municipality” recommendation. The
+closure-gated summary distinguishes that result (`alternative_cases > 0`,
+`distinct_annual_tax_values = 1`) from an exact empty candidate relation
+(`alternative_cases = 0`).
 
 The household question uses a finite dependent successor relation rather than
 pretending every labor and pension choice is independent:
@@ -1301,113 +1462,216 @@ pretending every labor and pension choice is independent:
 ```runa
 ? explore household_reallocation {
     from {
-        before = current_household
-        context = HouseholdPlanningRequest(limits = planning_limits)
+        given before = current_household
+        given limits = planning_limits
+        let context = HouseholdPlanningRequest(limits = limits)
     }
 
-    to after in candidate_household_successors(before, context)
+    transition after {
+        vary spouse_hours_per_week in candidate_spouse_hours_per_week(before, context)
+        vary own_hours_per_week in candidate_own_hours_per_week(
+            before,
+            context,
+            spouse_hours_per_week
+        )
+        vary pension_plan in candidate_pension_plans(
+            before,
+            context,
+            spouse_hours_per_week,
+            own_hours_per_week
+        )
+        let plan = HouseholdPlan(
+            spouse_hours_per_week = spouse_hours_per_week,
+            own_hours_per_week = own_hours_per_week,
+            pension = pension_plan
+        )
+        yield apply_household_plan(before, plan)
+    }
 
-    where before household_supported(before)
-    where after household_supported(after)
-    where transition legally_and_practically_feasible(
-        before,
-        after,
-        context
+    derive household_assessment {
+        before = assess_household_plan(before, context)
+        after = assess_household_plan(after, context)
+    }
+    derive resources_before_ore = household_assessment.before.disposable_ore
+    derive resources_after_ore = household_assessment.after.disposable_ore
+    derive spouse_hours_per_week_after = after.spouse.hours_per_week
+    derive own_hours_per_week_after = after.self.hours_per_week
+    derive spouse_pension_after_ore = after.spouse.pension_ore
+
+    admit feasible when household_assessment.before.supported
+        && household_assessment.after.supported
+        && legally_and_practically_feasible(
+            before,
+            after,
+            context
+        )
+
+    find within_resource_floor = matches of (
+        resources_after_ore
+            >= resources_before_ore - context.limits.resource_tolerance_ore
     )
+}
 
-    find matches of resources_not_below_floor(
-        before,
-        after,
-        context.limits.resource_tolerance
-    )
+? analyze household_reallocation_answer
+from explore household_reallocation {
+    view feasible_plans from find within_resource_floor {
+        each case
+        select [case_id, request = context, plan = after, resources_after_ore]
+        updates monotone
+    }
 
-    results tradeoffs from selected {
-        group all
+    choice tradeoffs from find within_resource_floor {
+        partition by [starter = source_key]
         measure [
-            disposable_ore = household_disposable(after),
-            spouse_hours = after.spouse.hours,
-            own_hours = after.self.hours,
-            spouse_pension_ore = after.spouse.pension_ore
+            disposable_ore = resources_after_ore,
+            spouse_hours_per_week = spouse_hours_per_week_after,
+            own_hours_per_week = own_hours_per_week_after,
+            spouse_pension_ore = spouse_pension_after_ore
         ]
-        select [request = context, plan = after, disposable_ore]
-        choose pareto [
+        pareto [
             maximize disposable_ore,
-            minimize spouse_hours,
-            minimize own_hours,
+            minimize spouse_hours_per_week,
+            minimize own_hours_per_week,
             maximize spouse_pension_ore
         ]
+        updates closure_gated
     }
 
-    mechanisms household_paths for view tradeoffs chosen from assess_household_plan
+    view tradeoff_plans from choice tradeoffs {
+        each case
+        select [case_id, request = context, plan = after, resources_after_ore]
+        updates closure_gated
+    }
+
+    explain household_paths from choice tradeoffs using household_assessment
+}
+
+? publish household_reallocation_evidence
+from analyze household_reallocation_answer {
+    emit view feasible_plans
+    emit view tradeoff_plans
 }
 ```
+
+The municipality and household relations are also the smallest permanent
+support-projection fixtures: one starter may yield several successor cases for
+one explained mechanism. A later mechanism-selected Publish attachment must
+therefore demonstrate `|support cases S| > |support starters P|` while both
+relations close exactly; equal counts in a singleton-transition cliff fixture
+are not enough to test the distinction.
 
 This query can expose the trade-off frontier; it cannot infer what the couple
 “should” prefer. The one-sided floor permits plans that improve resources while
 rejecting plans more than the stated tolerance below Before. This example
 deliberately exercises a real successor fiber: the single canonical source may
 have zero, one or many finite After rows, and its successor frontier closes
-independently. `candidate_household_successors` derives earnings from hours and
-wage assumptions, conserves declared household transfers, assigns pension
-payer and ownership explicitly, and does not vary correlated amounts
-independently. A materially different payment route must be represented in the
-typed After plan, or split into typed Context sources when route identity is not
-state; it cannot hide in producer provenance and survive as another case.
+independently. The `candidate_*` producers encode finite structural domains and
+dependencies only; legal and practical eligibility remains in `admit feasible`.
+The ordered `vary` bindings make dependency explicit:
+`own_hours_per_week` may depend on `spouse_hours_per_week`, and `pension_plan`
+may depend on both.
+The final plan derives earnings from hours and wage assumptions, conserves
+declared household transfers, and assigns pension payer and ownership without
+varying correlated amounts independently. A materially different payment route
+must be represented in the typed After plan. If route identity is not state,
+vary it in `from`, encode it in typed Context and let the successor depend on
+that Context; a transition-block local cannot hide in producer provenance and
+survive as another case.
 `current_household` is likewise an explicit “given this household” condition;
 another question may enumerate a coherent household-profile relation instead.
 Feasibility and whether objectives are lexicographic, weighted or Pareto are
-explicit parts of the question. General dependent relations and Pareto result
-views are part of the accepted checked surface, but their relational evaluator
-and reducers are not wired end to end yet. `choose pareto` is set-valued: it
-returns every nondominated selected row. A member observed during an open
-search is provisional; only group closure can prove that no unseen case
-dominates it.
+explicit parts of the question. General dependent relations and partitioned
+Pareto choices are target semantics; their target syntax is not wired end to
+end yet. `pareto` is set-valued and returns every nondominated CaseId in each
+declared starter partition. Candidate `x` dominates `y` exactly when it is no
+worse on every declared objective and strictly better on at least one. Equal
+objective vectors do not dominate each other, so all distinct tied CaseIds
+remain. Every objective must be total and exactly comparable, and only
+partition closure can prove that no unseen case dominates a member.
 
-Every `mechanisms` clause declares a unique request name, a target and an
-explicit canonical endpoint observation. The name makes several requests using
-the same observer independently addressable without defining semantic
-identity. `for selected` means every case selected by `find` before view
-processing. `for view NAME chosen` waits for that view's closure, targets its
-chosen rows, and seals the referenced `ViewId` into mechanism-request identity.
+Every target `explain` node declares a unique request name, a named relation
+target and an explicit canonical endpoint observation. The name makes several
+requests using the same observer independently addressable without defining
+semantic identity. `from find NAME` targets every case in that question relation;
+`from choice NAME` waits for the choice's partition closure, targets its proven
+members, and seals the referenced `ChoiceId` into explanation-request identity.
 Presentation fields and measures do not infer the observation root. Here
-`assess_household_plan` must expose the modeled resources, hours, pension and
-tax dependencies needed by the question and objectives. A future convenience
+`household_assessment` resolves to `assess_household_plan`, which must expose
+the modeled resources, hours, pension and tax dependencies needed by the
+question and objectives. A future convenience
 inference is possible only after its normalization is specified; it is not
 implicit in this design.
 
 The named observer resolves to one checked pure callable of shape
 `(State, Context) -> Observation`, evaluated independently at Before and After.
 Its reachable rule and call closure, not every theoretical value of those
-types, is sealed into mechanism-request identity. Before replay is authorized,
-a request-scoped static certificate proves that observer total for both Before
-and After over sound finite over-approximations of the endpoint marginals
-induced by the exact bounded `from`/`to` relation. This is not a universal proof
-over every theoretical value of a large legal model. `RelationId` retains the
-exact correlated `(Context, Before)` starter relation and each conditional
-successor fiber, while the certificate's Before and After proof roots may cover
-a larger Cartesian endpoint population. The proof follows the exact checked
-call and rule closure, rejects unresolved partial dispatch, effects and
-recursion, and uses checked integer ranges to rule out overflow, zero division
-and the other runtime partialities reachable in that request.
+types, is sealed into explanation-request identity. The request carries one
+totality obligation over every distinct Before and After endpoint in its exact
+target. A static certificate may discharge that obligation over sound finite
+over-approximations before replay. Alternatively, after the finite target
+closes, a complete set of successful canonical endpoint-evaluation receipts may
+discharge it extensionally. A sample or open prefix is never enough.
 
-Fresh replay remains the sole source of concrete traces and signatures; the
-certificate authorizes that canonical evaluator rather than replacing it with
-an alternate one. A semantic evaluation failure after a valid certificate is
-therefore an integrity error, not an equivalent definedness route. Durable
-unavailable terminals remain appropriate for operational limits such as
-instrumentation or capacity. Signature counts are exact only when the target
-and operational terminal frontiers close with no unavailable replay;
+Fresh traced evaluation remains the sole source of concrete traces and
+signatures. A semantic evaluation failure after a valid static certificate is
+an integrity error. Without such a certificate, deterministic partiality is
+typed unavailable and prevents exact explanation; operational instrumentation
+or capacity limits do the same. Signature counts are exact only when the target,
+totality obligation and replay frontiers close with no unavailable endpoint;
 otherwise they remain unknown or lower bounds. The engine never silently falls
 back to tracing selected display fields.
 
-Mechanism replay over `view NAME chosen` explains the chosen transitions; it
+Mechanism replay over `choice NAME` explains the chosen transitions; it
 does not prove that they minimize a measure or lie on the Pareto frontier. That
-proof comes from exact selected-relation closure plus the view's closed
-reducers, `having` and `choose` semantics. A request for comparative causal
-explanation must instead target all selected alternatives or name a separate
+proof comes from exact question-relation closure plus the choice's measures and
+partition semantics. A request for comparative causal
+explanation must instead target all find alternatives or name a separate
 checked group-comparison observer. Structural-mechanism counts and optimum
 proofs therefore remain distinct even when they are published together; raw
 signature/profile counts are separately named audit measures.
+
+The currently executable relational surface spells these same dependencies as
+`results ... from selected`, `choose ...` inside a result block and
+`mechanisms ... for view ... chosen`. Those forms document implementation
+progress below; they are not mixed into the target blocks above.
+
+### Perspective-based scenario acceptance
+
+A target-syntax scenario is ready for implementation only when four independent
+perspectives can recover its contract without repairing it in scheduler code or
+publication configuration:
+
+- **Policy author:** can point to every conditioned input in `given`, every
+  finite search dimension in `vary`, every computed fact in `let` or `derive`,
+  the intervention in `transition`, the total eligibility decision in `admit`,
+  and the policy proposition in each named `find` relation. For minima or
+  Pareto questions, the author can also state exactly which alternatives each
+  `partition` compares and why the requested observer explains the chosen
+  outcome.
+- **Language implementer:** can assign a typed grain and stable identity to
+  every declaration, build one acyclic Explore/Analyze dependency graph, state
+  when each node may revise or close, and implement the syntax without a
+  scenario-specific special case. Choice consumes semantic question rows rather
+  than a display projection; explanation names its checked observer; Publish
+  cannot change membership or choice.
+- **Auditor/result consumer:** can restate the declared universe and transition
+  from the checked query contract, distinguish rejected from unavailable cases,
+  tell whether each finding, choice and explanation is open or exact, and
+  distinguish cases, distinct starters and structural mechanisms. The auditor
+  can use one EvidenceToken to read mutually consistent artifacts and a
+  separately typed ResumeCursor to continue a paused run, without treating
+  either token or a mechanism hash as policy input.
+- **Stream operator:** can pause and resume bounded work, apply public
+  add/retract/seal events deterministically, distinguish execution, semantic,
+  materialization and count status, and enforce resource/publication policy
+  without changing semantic identities or completeness claims.
+
+If any perspective must infer a hidden fixed profile, an implicit comparison
+group, an unreported filter, or what an unqualified “complete” means, the
+scenario fails acceptance even if its evaluator happens to terminate.
+The dated cross-scenario verdict and the issues corrected before it passed are
+recorded in the
+[implementation workbook](../../docs/rfcs/bounded-rule-exploration-workbook.md#pbr-round-2-record-2026-09-03).
 
 ### The result is graph-backed, but not every graph is a DAG
 
@@ -1654,7 +1918,9 @@ support**, or source preimage. In an income-cliff request it describes the
 starters of selected cliff cases whose explanation reaches the node; it does
 not claim to characterize every taxpayer state in which the rule could execute.
 The same structural node can consequently have different support overlays for
-`selected`, `admitted` or another named target without changing identity.
+different explicitly named `find` or `choice` targets without changing
+identity. An all-admitted overlay is expressed by naming `find NAME = all`;
+admission itself is not a mechanism-request target.
 Each overlay also retains the conditional successor fiber
 `afters(node, source)`, because one starting world may have several explored
 transitions. Every validated node has this support definitionally, while
@@ -1683,7 +1949,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v12 projects those points into a resumable request-local sidecar;
+Publication v13 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -1755,7 +2021,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v12
+view is rebuilt from the same authenticated signature leaves. Publication v13
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -1810,7 +2076,7 @@ is needed. These frontend and scheduler semantics are integrated through the
 journal, stream driver and publication plan; focused executable verification
 is the next gate before a larger audit run.
 
-Those descriptors are authorization-neutral. Publication v12 retains the
+Those descriptors are authorization-neutral. Publication v13 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -1838,12 +2104,12 @@ binds the route into the publication plan and resume cursor without renaming
 the structural subject, request, question or analysis DAG.
 
 The route-qualified typed artifact uses the historically named subject-starter
-record schema v2. Its members are nevertheless `S` case-support members, each
+record schema v3. Its members are nevertheless `S` case-support members, each
 carrying one source/successor pair; the deduplicated source-only population is
 `P`. An unqualified consumer omits the optional route coordinate and retains
 its v1 consumer-local identity and record shape. In the historical
 publication-v9 contract this allowed a qualified consumer to be appended
-without republishing the core exploration. Publication v12 preserves the
+without republishing the core exploration. Publication v13 preserves the
 semantic separation, but has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
@@ -2020,26 +2286,69 @@ incidence remain open rather than merely censored.
 
 ### What a finished answer publishes
 
-A paused or sealed exploration bundle should make the result speak at three
-resolutions:
+A paused or stopped target bundle should make the result speak without requiring
+the reader to reconstruct the query from hashes. It publishes:
 
-- a closure-aware summary of declared, constructible, admissible and selected
-  source rows, cases and transitions, affected `ProfileKeyId` values,
+- a normalized query contract covering every `given`, `vary`, `let`, `derive`,
+  `transition`, `admit` and named `find` relation, including units,
+  cardinality and declared coverage limits;
+- a closure-aware summary of declared, constructible, admitted, rejected and
+  unavailable source rows, cases and transitions, affected `ProfileKeyId` values,
   structural mechanisms, raw signatures, execution profiles, and
   saturated-support signatures;
 - named relational views such as `cliffs`, `affected_profiles` and
   `mechanism_loss_bins_50_dkk`, each with its own exactness, schema, grouping
   key and privacy authorization; and
-- the authenticated journal/evidence root plus typed snapshot and JSON export
-  handles needed to resume a paused run or audit and analyze either form.
+- orthogonal execution, semantic, materialization and count statuses, one
+  opaque EvidenceToken for consistent reads, and a separate ResumeCursor when
+  resumable work remains.
 
-An eventual report can therefore honestly say “Y concrete profile-transition
-cases across P profiles share X structural mechanisms, represented by R raw
-signatures and E execution profiles; Z raw-signature supports are at least c
-because their support-counting cap was reached,” followed by an exact or
-lower-bound 50-DKK **structural-mechanism** histogram and links to the
-corresponding case and incidence views. JSON is a reproducible materialization
-of named evidence, not the authority from which the graphs are reconstructed.
+The three most easily confused counts stay visibly different:
+
+- a **case** is one constructible `(Context, Before, After)` transition in this
+  relation; admission and each named find define separately counted subsets;
+- a **starter** is one distinct `(Context, Before)` source row and may own zero,
+  one or several admitted successor cases; and
+- a **structural mechanism** is one normalized differential explanation shared
+  by any number of cases and starters.
+
+For an exact result, illustrative public wording is:
+
+> **Question.** Find 100-DKK salary transitions whose modeled after-tax
+> resources decrease. **Declared universe.** Exactly 2,000 lower endpoints
+> `0, 100, ..., 199,900` DKK for one explicitly conditioned 2026 profile, each
+> with a +100-DKK successor through 200,000 DKK. This is not a claim about other
+> profiles or 1-DKK transitions. **Answer — exact.** 16
+> finding cases from 16 distinct starters share 2 structural mechanisms under
+> the recorded explanation equivalence version. **Execution:**
+> `stopped(completed)`.
+> **Semantic:** finding exact; explanation exact. **Materialization:** 10/10
+> artifacts caught up. **Evidence:** `TOKEN`.
+
+For a useful paused prefix, the wording is instead:
+
+> **Execution:** paused safely after 20 minutes. **Semantic:** open. Of the
+> exactly 2,000 declared transitions, 512 are classified; at least 3 finding
+> cases from at least 3 starters and at least 2 structural mechanisms are
+> confirmed. No exact-total or exact-empty claim is available yet.
+> **Materialization:** caught up to EvidenceToken `TOKEN`. **ResumeCursor:**
+> `CURSOR`; only that cursor continues the run.
+
+For one shared explanation:
+
+> Mechanism M7 is shared by at least 84 cases from exactly 61 distinct starters. Their
+> input values and execution multiplicities may differ; fresh Before/After
+> replays normalize to the same differential rule-and-branch topology. Starter
+> support is exact. Correlated case/successor support is open, so 84 is a lower
+> bound rather than an inferred total.
+
+The concrete numbers above are examples of wording, not new Personskat audit
+results. A real report may also say that `Z` raw-signature supports are at
+least `c` because their support-counting cap was reached, followed by an exact
+or lower-bound 50-DKK **structural-mechanism** histogram and links to the
+corresponding case, starter and incidence views. JSON is a reproducible
+materialization of named evidence, not the authority from which the graphs are
+reconstructed.
 
 ### Experimental implementation boundary
 
@@ -2077,23 +2386,29 @@ identity ladder and request-scoped certificates. A query-local artifact or
 certificate failure is retained on that slot without poisoning a valid sibling
 query.
 
-Endpoint replay now has a precise authorization seam in the branch design. A
-query-relative proof producer must mint one
-`RelationalEndpointTotalityCertificate` for the mechanism request before its
-observer may run. The certificate binds the request and relation identities,
+Endpoint replay currently has a precise but deliberately narrower authorization
+seam than the target contract. Today's implementation accepts only a
+query-relative static `RelationalEndpointTotalityCertificate` before its
+observer may run. That certificate binds the request and relation identities,
 the Before and After marginal-overapproximation roots, the normalized abstract-
-proof root and its obligation count. `RelationId` continues to bind the exact
-correlated `(Context, Before) -> Set<After>` relation; the proof roots record
-possibly larger endpoint marginals over which totality was actually
-established. The selected query's analysis graph seals the request/certificate
-pair, and the plan root commits that graph. The journal contract stores the
-graph digest; genesis commits the contract ID and therefore those identities
-transitively, not the plan root directly. The first semantic event registers
-the complete plan/root, and resume validates the contract and registered plan
-before accepting more work. The replay runtime accepts only the matching
-request-scoped authorization. A semantic endpoint failure after authorization
-is an integrity error; operational instrumentation or capacity exhaustion
-remains separately reportable as unavailable replay.
+proof root and its obligation count. It is the current static subtype of
+endpoint-totality evidence, not the identity of the explanation or its only
+future proof strategy. `RelationId` continues to bind the exact correlated
+`(Context, Before) -> Set<After>` relation; the proof roots record possibly
+larger endpoint marginals over which static totality was established.
+
+The target AnalyzeGraph and journal genesis seal the
+`(MechanismRequestId, EndpointTotalityObligationId)` pair, not a certificate.
+Either accepted static evidence or complete extensional endpoint receipts may
+later discharge that obligation and enter the semantic evidence root without
+renaming the graph or genesis contract. During the transition, the executable
+plan additionally requires and authenticates the matching static certificate;
+that is a runtime authorization limit of this implementation slice, not a
+second semantic graph contract. The first semantic event registers the complete
+plan/root, and resume validates the contract, obligation and any proof artifact
+on which accepted evidence depends. A semantic endpoint failure after valid
+static authorization is an integrity error; operational instrumentation or
+capacity exhaustion remains separately reportable as unavailable replay.
 
 Status matters here: the certificate carrier, query-relative abstract prover,
 per-query failure isolation and plan/journal/replay authorization seam are now
@@ -2111,11 +2426,12 @@ publication work; this is admission evidence for those query-relative proof
 domains, not an exploration result or broad Personskat profile closure.
 
 All completed 2,000- and 10,500-edge Personskat streams described below predate
-the certificate-bearing analysis-graph and plan identities. Their results
-remain historical evidence under their then-current declared relations and
-journal contracts, but their journals and artifacts cannot be resumed or
-accepted as authority by the current contract. A current execution must begin
-with a new certificate-bearing genesis.
+the obligation-bearing target graph and the current static-proof authorization
+seam. Their results remain historical evidence under their then-current
+declared relations and journal contracts, but their journals and artifacts
+cannot be resumed or accepted as authority by the current contract. A current
+execution must begin with a new obligation-bearing genesis and whatever valid
+totality evidence its implementation supports.
 
 The historical first complete Personskat stream closed on 2026-08-31. Its
 result was authenticated and exact for its then-current declared relation:
@@ -2341,7 +2657,7 @@ case-support fiber on demand while the other 8,052 nodes and 20,720 edges stayed
 factorized. Publication must never eagerly serialize all of those case-support
 fibers merely because the structural DAG is published.
 
-Publication v12 keeps that typed consumer but removes the eager closure-time
+Publication v13 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
@@ -2484,14 +2800,15 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v12 records
-authenticated inner/outer fiber-expression identities for `S`, the correlated
-`SourceKey -> Set<SuccessorKey>` case-support contract, in append-only
-observation points. The corrected result contract also requires distinct
-projection-expression roots for `P^-` and `P^+`, plus explicit
-`starter_set_status` and `correlated_support_status`; those additions remain a
-publication-schema implementation step and must not be inferred from the
-current scalar starter count. The structural-definition catalog supplies
+unions and honest unknown/interval/exact counts. Publication v13 implements
+independently domain-separated inner/outer expression bounds for `S`, the
+correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
+`P = distinct_sources(S)`. Its append-only observation points also carry
+explicit `starter_set_status` and `correlated_support_status`; neither status
+is inferred from scalar counts or root equality. Publication v12 is
+implementation history, not a compatibility target. Typed-region execution
+and the broad Personskat run remain later work. The structural-definition
+catalog supplies
 stable slice descriptors rather than eagerly publishing one closure-time row
 for every subject. An explicit typed `starters` consumer remains the separate
 authorized materializer for one mechanism, node facet or edge facet; for node
@@ -2583,7 +2900,7 @@ support-overlay coordinates and references; typed starter values stay
 authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
-Publication v12 emits one flat observation artifact per mechanism request at
+Publication v13 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -2928,10 +3245,12 @@ execution target:
    came through the query-bound native V2 classifier and checked parity canary;
    it is not evidence that capsule V1 executes the Personskat rule graph.
 
-   The request-scoped endpoint-totality certificate is now the closed pre-
-   genesis boundary, not an observer name or an inferred claim that a callable
-   is pure. The exact 200,000-DKK certificate audit exercised this deliberately
-   small proof language:
+   The current implementation's request-scoped static endpoint-totality
+   certificate is now its closed pre-run authorization boundary, not an
+   observer name or an inferred claim that a callable is pure. The target
+   graph/genesis binds the underlying obligation and can later accept complete
+   extensional evidence without changing identity. The exact 200,000-DKK
+   certificate audit exercised this deliberately small static proof language:
 
    1. path-sensitive integer intervals and predicates that carry guards such as
       `nævner > 0` into `/` and `%`, while proving `i64` overflow absent;
@@ -2964,9 +3283,9 @@ execution target:
    and no broader Personskat conclusion follows from it. Uniform or split
    evidence may likewise be minted only after its own exact seam closes; a
    semantic ID or literal-only recipe is never substituted for the checked
-   graph. The next experimental boundary is a fresh certificate-bearing genesis
-   followed by one bounded, observable semantic stream slice—not a 1.5-million-
-   income launch.
+   graph. The next experimental boundary is a fresh obligation-bearing genesis,
+   discharged by the currently supported static certificate, followed by one
+   bounded, observable semantic stream slice—not a 1.5-million-income launch.
 
    Positive consumption also has a narrow first rung. Exact population totals
    can become public without inventing cases, but concrete result expressions
@@ -3304,7 +3623,8 @@ execution target:
    choice deterministic. Every layer consumes concrete singleton cells and
    certified larger cells through one interface.
 5. Extend the smoke-proven concrete-case endpoint replay and exact incidence
-   path to certified larger cells and admission-scoped mechanism targets.
+   path to certified larger cells and explicitly named `find ... = all`
+   mechanism targets.
 6. Add the optimizer as a proof portfolio: checked relevance slicing and
    before/after delta reuse first; affine, interval and congruence closure plus
    guard-driven splits next; categorical decision diagrams, integer-polyhedral

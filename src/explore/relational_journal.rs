@@ -131,12 +131,12 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 21;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 22;
 
-const JOURNAL_CONTRACT_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-contract.v21";
-const JOURNAL_GENESIS_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-genesis.v21";
+const JOURNAL_CONTRACT_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-contract.v22";
+const JOURNAL_GENESIS_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-genesis.v22";
 const JOURNAL_EVENT_HASH_V19: &[u8] = b"futuruna.explore.relational-journal-event.v19";
-const JOURNAL_ENTRY_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-entry.v21";
+const JOURNAL_ENTRY_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-entry.v22";
 const CORE_EVIDENCE_ROOT_HASH_V5: &[u8] = b"futuruna.explore.relational-core-evidence-root.v5";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -145,12 +145,12 @@ const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
 const EXTENSIONAL_CONTENT_ROOT_HASH_V4: &[u8] =
     b"futuruna.explore.relational-extensional-content-root.v4";
 const CHECKPOINT_ROOT_HASH_V7: &[u8] = b"futuruna.explore.relational-checkpoint-root.v7";
-const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V1: &[u8] =
-    b"futuruna.explore.mechanism-support-observation-point-id.v1";
-const MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V1: &[u8] =
-    b"futuruna.explore.mechanism-support-observation-chain-genesis.v1";
-const MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V1: &[u8] =
-    b"futuruna.explore.mechanism-support-observation-chain-step.v1";
+const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-point-id.v2";
+const MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-chain-genesis.v2";
+const MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-observation-chain-step.v2";
 const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_GENESIS_V1: &[u8] =
     b"futuruna.explore.mechanism-support-observation-demand-chain-genesis.v1";
 const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_STEP_V1: &[u8] =
@@ -158,7 +158,7 @@ const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CHAIN_STEP_V1: &[u8] =
 const MECHANISM_SUPPORT_OBSERVATION_DEMAND_CLAIM_HASH_V1: &[u8] =
     b"futuruna.explore.mechanism-support-observation-demand-claim.v1";
 
-pub(crate) const MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION: u32 = 1;
+pub(crate) const MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION: u32 = 2;
 pub(crate) const MECHANISM_SUPPORT_OBSERVATION_DEMAND_REGISTRATION_VERSION: u32 = 1;
 pub(crate) const MECHANISM_SUPPORT_OBSERVATION_BACKFILL_VERSION: u32 = 1;
 
@@ -466,7 +466,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V21);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V22);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -493,7 +493,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V21);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V22);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -8977,7 +8977,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V21);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V22);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -9413,7 +9413,7 @@ fn derive_mechanism_support_observation_point_id(
     status: MechanismSupportObservationStatus,
     supersedes: Option<MechanismSupportObservationPointId>,
 ) -> MechanismSupportObservationPointId {
-    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V1);
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V2);
     hasher.u32(version);
     hasher.digest(slice.id().bytes());
     hasher.u128(cursor.target_discovery());
@@ -9441,7 +9441,7 @@ fn derive_mechanism_support_observation_point_id(
 fn mechanism_support_observation_chain_genesis(
     request_id: MechanismRequestId,
 ) -> MechanismSupportObservationChainRoot {
-    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V1);
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_GENESIS_V2);
     hasher.u32(MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION);
     hasher.digest(request_id.bytes());
     MechanismSupportObservationChainRoot(hasher.finish())
@@ -9453,7 +9453,7 @@ fn extend_mechanism_support_observation_chain(
     point_ordinal: u128,
     point_id: MechanismSupportObservationPointId,
 ) -> MechanismSupportObservationChainRoot {
-    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V1);
+    let mut hasher = ChainHasher::new(MECHANISM_SUPPORT_OBSERVATION_CHAIN_STEP_V2);
     hasher.u32(MECHANISM_SUPPORT_OBSERVATION_POINT_VERSION);
     hasher.digest(request_id.bytes());
     hasher.digest(prior.bytes());

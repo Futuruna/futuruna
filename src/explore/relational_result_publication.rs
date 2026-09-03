@@ -63,14 +63,15 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonDefinition,
 };
 use super::mechanism_support::{
-    MechanismClosedSubjectStarterProjectionAuthority,
+    MechanismClosedSubjectStarterProjectionAuthority, MechanismCorrelatedSupportStatus,
     MechanismExplicitObservationRegistrationDisposition,
     MechanismExplicitObservationRegistrationPhase, MechanismExplicitObservationSchedulerSummary,
-    MechanismFactorizedStarterBoundBasis, MechanismSupportCatalogBuilder,
-    MechanismSupportClosureReceipt, MechanismSupportCount, MechanismSupportFacet,
-    MechanismSupportKey, MechanismSupportSlice, MechanismSupportStarterCursor,
-    MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
-    MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION, MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
+    MechanismFactorizedStarterBoundBasis, MechanismStarterSetStatus,
+    MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportCount,
+    MechanismSupportExpressionBounds, MechanismSupportFacet, MechanismSupportKey,
+    MechanismSupportSlice, MechanismSupportStarterCursor, MechanismSupportSubject,
+    AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT, MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION,
+    MECHANISM_STARTER_PROJECTION_EXPR_VERSION, MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
     MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
 };
 use super::relational_analysis_catalog::{
@@ -148,13 +149,13 @@ use super::{
     RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 12;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 13;
 
-const CURSOR_FILE: &str = ".publication-cursor-v12.json";
+const CURSOR_FILE: &str = ".publication-cursor-v13.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
-const RESULT_PREFIX_ROOT_V12: &[u8] = b"futuruna.explore.publication-prefix.v12";
-const RESULT_PREFIX_EXTEND_V12: &[u8] = b"futuruna.explore.publication-prefix-extend.v12";
+const RESULT_PREFIX_ROOT_V13: &[u8] = b"futuruna.explore.publication-prefix.v13";
+const RESULT_PREFIX_EXTEND_V13: &[u8] = b"futuruna.explore.publication-prefix-extend.v13";
 const CASE_SUPPORT_ARTIFACT_KEY: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH: &str = "graphs/case-support.ndjson";
@@ -334,6 +335,33 @@ struct SupportObservationDemandAlias {
     slice: MechanismSupportSlice,
 }
 
+/// Checked producer lineage shared by one mechanism request's public support
+/// artifacts. Subject and route remain record-local because the observation
+/// stream contains several independently addressed support slices.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct PublicationAuditLineage {
+    contract: RelationalJournalContract,
+    mechanism_request_id: MechanismRequestId,
+    target: MechanismTargetId,
+    source_coverage_manifest_digest: [u8; 32],
+}
+
+impl PublicationAuditLineage {
+    const fn new(
+        contract: RelationalJournalContract,
+        mechanism_request_id: MechanismRequestId,
+        target: MechanismTargetId,
+        source_coverage_manifest_digest: [u8; 32],
+    ) -> Self {
+        Self {
+            contract,
+            mechanism_request_id,
+            target,
+            source_coverage_manifest_digest,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum PublicationArtifactPlan {
     Result {
@@ -365,6 +393,7 @@ enum PublicationArtifactPlan {
         name: Box<str>,
         path: PathBuf,
         request_id: MechanismRequestId,
+        audit_lineage: PublicationAuditLineage,
     },
     MechanismSupportObservationDemands {
         key: Box<str>,
@@ -410,6 +439,7 @@ enum PublicationArtifactPlan {
         transition_schemas: TransitionSchemaIdentities,
         structural_artifact_key: Box<str>,
         structural_artifact_path: Box<str>,
+        audit_lineage: PublicationAuditLineage,
     },
     CaseSupport {
         authorization: Option<RelationalCaseIdPublicationAuthorization>,
@@ -501,6 +531,7 @@ pub(crate) struct RelationalPublicationPlan {
     checked_program: Box<str>,
     contract: RelationalJournalContract,
     journal_id: [u8; 32],
+    source_coverage_manifest_digest: [u8; 32],
     support_observation_demand_set_id: [u8; 32],
     starter_consumer_set_id: [u8; 32],
     transition_graph_consumer_set_id: [u8; 32],
@@ -522,6 +553,14 @@ impl RelationalPublicationPlan {
         {
             return Err(RelationalPublicationError::PlanIdentityMismatch);
         }
+        let source_coverage = checked.source_coverage();
+        if !source_coverage.validate_identity()
+            || source_coverage.relation_id != contract.relation_id()
+        {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        }
+        let source_coverage_manifest_digest =
+            decode_hex_digest(source_coverage.manifest_digest.as_ref())?;
 
         let support_observation_demand_set_id = checked.support_observation_demand_set_id().bytes();
         let mut support_observation_aliases =
@@ -636,6 +675,13 @@ impl RelationalPublicationPlan {
                     ExploreAnalysisNodeIr::Mechanisms(request),
                     CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
                 ) => {
+                    let target = checked_mechanism_target_at(checked, node_index, *request_id)?;
+                    let audit_lineage = PublicationAuditLineage::new(
+                        contract,
+                        *request_id,
+                        target,
+                        source_coverage_manifest_digest,
+                    );
                     let request_id_hex = hex(request_id.bytes());
                     let discovery_artifact_key =
                         format!("mechanism:{request_id_hex}").into_boxed_str();
@@ -677,6 +723,7 @@ impl RelationalPublicationPlan {
                         name: format!("{}_support_observations", request.name).into_boxed_str(),
                         path: observations_path,
                         request_id: *request_id,
+                        audit_lineage,
                     };
                     if !paths.insert(observations.path().to_path_buf()) {
                         return Err(RelationalPublicationError::ArtifactPathCollision(
@@ -711,7 +758,6 @@ impl RelationalPublicationPlan {
                         PathBuf::from("mechanisms").join(format!("{safe_name}.structural.ndjson"));
                     let structural_artifact_path =
                         path_to_manifest_string(&structural_path)?.into_boxed_str();
-                    let target = checked_mechanism_target_at(checked, node_index, *request_id)?;
                     if structural_references
                         .insert(
                             *request_id,
@@ -840,6 +886,12 @@ impl RelationalPublicationPlan {
                 transition_schemas: checked.transition_schemas().clone(),
                 structural_artifact_key: structural_artifact_key.clone(),
                 structural_artifact_path: structural_artifact_path.clone(),
+                audit_lineage: PublicationAuditLineage::new(
+                    contract,
+                    identity.request_id,
+                    *target,
+                    source_coverage_manifest_digest,
+                ),
             };
             if !paths.insert(artifact.path().to_path_buf()) {
                 return Err(RelationalPublicationError::ArtifactPathCollision(
@@ -916,6 +968,7 @@ impl RelationalPublicationPlan {
             checked_program: checked.program_hash().to_string().into_boxed_str(),
             contract,
             journal_id: contract.id().bytes(),
+            source_coverage_manifest_digest,
             support_observation_demand_set_id,
             starter_consumer_set_id: checked.starter_consumer_set_id().bytes(),
             transition_graph_consumer_set_id: checked.transition_graph_consumer_set_id().bytes(),
@@ -1717,6 +1770,7 @@ struct PublicationCursor {
     schema_version: u32,
     journal_id: String,
     query_name: String,
+    source_coverage_manifest_digest: String,
     checkpoint: CursorCheckpoint,
     artifacts: BTreeMap<String, ArtifactCursor>,
     pending: Option<PendingArtifactBatch>,
@@ -2849,6 +2903,7 @@ fn validate_report(
         || report.identity.question_id != hex(plan.contract.question_id().bytes())
         || report.identity.analysis_graph_digest != hex(plan.contract.analysis_graph_digest())
         || report.identity.journal_id != hex(plan.journal_id)
+        || report.source_coverage.manifest_digest != hex(plan.source_coverage_manifest_digest)
     {
         return Err(RelationalPublicationError::ReportIdentityMismatch);
     }
@@ -2873,6 +2928,7 @@ fn load_or_create_cursor(
         }
         if cursor.journal_id != hex(plan.journal_id)
             || cursor.query_name != plan.query_name.as_ref()
+            || cursor.source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
         {
             return Err(RelationalPublicationError::CursorIdentityMismatch);
         }
@@ -2931,6 +2987,7 @@ fn load_or_create_cursor(
         schema_version: RELATIONAL_PUBLICATION_SCHEMA_VERSION,
         journal_id: hex(plan.journal_id),
         query_name: plan.query_name.to_string(),
+        source_coverage_manifest_digest: hex(plan.source_coverage_manifest_digest),
         checkpoint: CursorCheckpoint::from_checkpoint(current),
         artifacts,
         pending: None,
@@ -3043,7 +3100,10 @@ fn validate_cursor_plan(
             expected: RELATIONAL_PUBLICATION_SCHEMA_VERSION,
         });
     }
-    if cursor.journal_id != hex(plan.journal_id) || cursor.query_name != plan.query_name.as_ref() {
+    if cursor.journal_id != hex(plan.journal_id)
+        || cursor.query_name != plan.query_name.as_ref()
+        || cursor.source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
+    {
         return Err(RelationalPublicationError::CursorIdentityMismatch);
     }
     if cursor.artifacts.len() != plan.artifacts.len() {
@@ -3779,14 +3839,23 @@ fn record_at(
             durable_projection_record(journal, *view_id, select_names, next_source_ordinal)?,
         ),
         (
-            PublicationArtifactPlan::MechanismSupportObservations { request_id, .. },
+            PublicationArtifactPlan::MechanismSupportObservations {
+                request_id,
+                audit_lineage,
+                ..
+            },
             ArtifactSourceCursor::Flat {
                 next_source_ordinal,
             },
         ) => address_flat_record(
             artifact,
             next_source_ordinal,
-            mechanism_support_observation_record(journal, *request_id, next_source_ordinal)?,
+            mechanism_support_observation_record(
+                journal,
+                *request_id,
+                *audit_lineage,
+                next_source_ordinal,
+            )?,
         ),
         (
             PublicationArtifactPlan::MechanismSupportObservationDemands { request_id, .. },
@@ -3913,6 +3982,7 @@ fn record_at(
                 transition_schemas,
                 structural_artifact_key,
                 structural_artifact_path,
+                audit_lineage,
                 ..
             },
             ArtifactSourceCursor::SubjectStarters {
@@ -3933,6 +4003,7 @@ fn record_at(
             transition_schemas,
             structural_artifact_key,
             structural_artifact_path,
+            *audit_lineage,
             identity,
             header_emitted,
             accumulator,
@@ -3982,6 +4053,7 @@ fn next_flat_source(
 fn mechanism_support_observation_record(
     journal: &RelationalJournal,
     request_id: MechanismRequestId,
+    audit_lineage: PublicationAuditLineage,
     source_ordinal: u128,
 ) -> Result<PublicationRecord, RelationalPublicationError> {
     let available = journal.mechanism_support_observation_count(request_id);
@@ -4020,11 +4092,9 @@ fn mechanism_support_observation_record(
     }
     let cursor = claim.cursor();
     let residual = summary.residual_summary();
-    let uninspected_signature_count = summary
-        .contributing_signature_count()
-        .checked_sub(summary.inspected_signature_count())
-        .ok_or(RelationalPublicationError::MechanismOrdinalIndexMismatch)?;
-    Ok(PublicationRecord::Emit(json!({
+    let audit_lineage =
+        public_mechanism_support_audit_lineage(journal, audit_lineage, summary.slice())?;
+    let mut record = json!({
         "kind": "mechanism_support_observation",
         "observation_version": claim.version(),
         "summary_version": MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION,
@@ -4034,6 +4104,7 @@ fn mechanism_support_observation_record(
         "supersedes_point_id": claim.supersedes().map(|point_id| hex(point_id.bytes())),
         "status": public_mechanism_support_observation_status(point.status()),
         "slice": public_mechanism_support_slice_coordinate(slice),
+        "audit_lineage": audit_lineage,
         "checkpoint_cursor": {
             "target_discovery": cursor.target_discovery().to_string(),
             "terminal_discovery": cursor.terminal_discovery().to_string(),
@@ -4057,50 +4128,16 @@ fn mechanism_support_observation_record(
             "prefix_root": hex(summary.signature_prefix_root()),
         },
         "shared_residual": public_mechanism_support_residual(residual),
-        "case_count": public_mechanism_support_count(summary.case_count()),
-        "origin_preimage_support": {
-            "meaning": "request_target_conditioned_origins_with_a_supporting_successor",
-            "distinct_starter_count": public_mechanism_support_count(summary.starter_count()),
-            "starter_bound_basis": public_factorized_starter_bound_basis(
-                summary.starter_bound_basis(),
-            ),
-            "correlated_origin_successor": {
-                "identity_kind": "authenticated_fiber_expression",
-                "fiber_expr_version": MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
-                "coordinate_contract": {
-                    "coordinate_system": "origin_preimage",
-                    "source_key": "SourceKey",
-                    "source_value": "(Context, Before)",
-                    "fiber_member_key": "SuccessorKey",
-                    "fiber_member_value": "After",
-                    "type_binding": "mechanism_request_relation",
-                },
-                "inner": {
-                    "expression_root": hex(summary.inner_fiber_expr_root().bytes()),
-                    "representation": "factorized_imported_subject_signature_union",
-                },
-                "outer": {
-                    "expression_root": hex(summary.outer_fiber_expr_root().bytes()),
-                    "representation": if summary.fiber_expr_bounds_are_equal() {
-                        "same_as_inner"
-                    } else {
-                        "inner_union_uninspected_signatures_and_shared_possible_support"
-                    },
-                    "uninspected_contributing_signatures": uninspected_signature_count.to_string(),
-                    "shared_residual_root": hex(residual.root().bytes()),
-                    "opaque_undiscovered_target": summary.target_frontier_is_open(),
-                },
-                "bounds_relation": if summary.fiber_expr_bounds_are_equal() {
-                    "equal"
-                } else {
-                    "inner_subset_outer"
-                },
-                "materialized_content_root": null,
-                "typed_values_serialized": false,
-                "cells_serialized": false,
-            },
-        },
-    })))
+    });
+    insert_public_mechanism_support_expression_bounds(
+        &mut record,
+        summary.support_expression_bounds(),
+        Some(summary.case_count()),
+        Some(summary.starter_count()),
+        Some(summary.starter_bound_basis()),
+        "not_materialized",
+    );
+    Ok(PublicationRecord::Emit(record))
 }
 
 fn mechanism_support_observation_demand_record(
@@ -4348,6 +4385,41 @@ fn public_mechanism_support_slice_coordinate(slice: MechanismSupportSlice) -> Js
             None => json!({ "kind": "total" }),
         },
     })
+}
+
+fn public_mechanism_support_audit_lineage(
+    journal: &RelationalJournal,
+    lineage: PublicationAuditLineage,
+    slice: MechanismSupportSlice,
+) -> Result<JsonValue, RelationalPublicationError> {
+    if lineage.contract != journal.contract()
+        || lineage.mechanism_request_id != slice.key().request_id()
+        || lineage.target != slice.key().target()
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let route = match slice.enclosing_mechanism() {
+        Some(mechanism_id) => json!({
+            "kind": "within_mechanism",
+            "structural_mechanism_id": hex(mechanism_id.bytes()),
+        }),
+        None => json!({ "kind": "total" }),
+    };
+    Ok(json!({
+        "support_slice_id": hex(slice.id().bytes()),
+        "mechanism_request_id": hex(lineage.mechanism_request_id.bytes()),
+        "relation_id": hex(lineage.contract.relation_id().bytes()),
+        "admission_id": hex(lineage.contract.admission_id().bytes()),
+        "question_id": hex(lineage.contract.question_id().bytes()),
+        "target_id": public_mechanism_target_id(lineage.target),
+        "subject": public_mechanism_support_subject(slice.subject()),
+        "facet": slice.key().facet().map(mechanism_support_facet_name),
+        "route": route,
+        "state_schema_id": hex(lineage.contract.state_schema_id().bytes()),
+        "context_schema_id": hex(lineage.contract.context_schema_id().bytes()),
+        "transition_type_id": hex(lineage.contract.transition_type_id().bytes()),
+        "source_coverage_manifest_digest": hex(lineage.source_coverage_manifest_digest),
+    }))
 }
 
 fn public_structural_support_slice_descriptor(
@@ -4955,10 +5027,17 @@ fn subject_starter_publication_authority<'journal>(
     let key_authority = support
         .derive_closed_support_slice_starter_projection_authority(slice, structural)
         .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+    let support_expression_bounds = key_authority.support_expression_bounds();
     if key_authority.structural_root() != structural_closure.root()
         || key_authority.support_root() != support_closure.root()
         || key_authority.subject() != subject
         || key_authority.enclosing_mechanism() != within_mechanism
+        || !support_expression_bounds.case_bounds_are_equal()
+        || !support_expression_bounds.starter_bounds_are_equal()
+        || !support_expression_bounds.starter_set_status().is_exact()
+        || !support_expression_bounds
+            .correlated_support_status()
+            .is_exact()
     {
         return Err(RelationalPublicationError::MechanismStarterSourceCoordinateMismatch);
     }
@@ -5073,6 +5152,7 @@ fn subject_starter_record(
     transition_schemas: &TransitionSchemaIdentities,
     structural_artifact_key: &str,
     structural_artifact_path: &str,
+    audit_lineage: PublicationAuditLineage,
     identity: SubjectStarterCursorIdentity,
     header_emitted: bool,
     accumulator_cursor: Option<MechanismStarterAccumulatorCursor>,
@@ -5114,6 +5194,11 @@ fn subject_starter_record(
             Ok(AddressedPublicationRecord::NotReady)
         };
     };
+    let audit_lineage = public_mechanism_support_audit_lineage(
+        journal,
+        audit_lineage,
+        authority.key_authority.slice(),
+    )?;
     if closure_emitted {
         let Some(accumulator_cursor) = accumulator_cursor else {
             return Err(RelationalPublicationError::MechanismStarterSourceCoordinateMismatch);
@@ -5148,6 +5233,7 @@ fn subject_starter_record(
                 authorization,
                 structural_artifact_key,
                 structural_artifact_path,
+                &audit_lineage,
             ),
         });
     }
@@ -5176,6 +5262,7 @@ fn subject_starter_record(
                 job,
                 authorization,
                 closure,
+                &audit_lineage,
             ),
         });
     }
@@ -5203,6 +5290,7 @@ fn subject_starter_record(
             job,
             authorization,
             &page,
+            &audit_lineage,
         );
         let Some(line_budget) = line_budget else {
             break (page, value);
@@ -5278,6 +5366,7 @@ fn public_subject_starter_header(
     authorization: &RelationalMechanismStarterValueAuthorization,
     structural_artifact_key: &str,
     structural_artifact_path: &str,
+    audit_lineage: &JsonValue,
 ) -> JsonValue {
     let mut record = json!({
         "kind": "subject_starters_header",
@@ -5285,12 +5374,12 @@ fn public_subject_starter_header(
         "request_id": hex(request_id.bytes()),
         "target": public_mechanism_target_id(target),
         "subject": public_mechanism_support_subject(subject),
+        "audit_lineage": audit_lineage,
         "projection_plan_version": MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
         "projection_plan_id": hex(authority.projection_plan_id().bytes()),
         "projection_job_version": RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION,
         "projection_job_id": hex(job.id().bytes()),
         "authorization": public_mechanism_starter_authorization(authorization),
-        "correlated_fiber_expression_root": hex(authority.correlated_fiber_expr_root().bytes()),
         "exact_case_count": authority.exact_case_count().to_string(),
         "exact_distinct_starter_count": null,
         "structural_quotient_root": hex(authority.structural_root().bytes()),
@@ -5301,6 +5390,14 @@ fn public_subject_starter_header(
         },
         "page_member_limit": MECHANISM_STARTER_PAGE_MEMBER_LIMIT.get(),
     });
+    insert_public_mechanism_support_expression_bounds(
+        &mut record,
+        authority.support_expression_bounds(),
+        Some(MechanismSupportCount::Exact(authority.exact_case_count())),
+        None,
+        None,
+        "pending",
+    );
     insert_public_mechanism_support_slice(&mut record, within_mechanism);
     record
 }
@@ -5315,6 +5412,7 @@ fn public_subject_starter_page(
     job: RelationalMechanismStarterProjectionJob,
     authorization: &RelationalMechanismStarterValueAuthorization,
     page: &RelationalMechanismStarterProjectionPage,
+    audit_lineage: &JsonValue,
 ) -> JsonValue {
     let mut record = json!({
         "kind": "subject_starters_page",
@@ -5322,6 +5420,7 @@ fn public_subject_starter_page(
         "request_id": hex(request_id.bytes()),
         "target": public_mechanism_target_id(target),
         "subject": public_mechanism_support_subject(subject),
+        "audit_lineage": audit_lineage,
         "projection_plan_id": hex(job.projection_plan_id().bytes()),
         "projection_job_id": hex(job.id().bytes()),
         "authorization_id": hex(authorization.authorization_id().bytes()),
@@ -5368,6 +5467,7 @@ fn public_subject_starter_closure(
     job: RelationalMechanismStarterProjectionJob,
     authorization: &RelationalMechanismStarterValueAuthorization,
     closure: RelationalMechanismStarterProjectionClosure,
+    audit_lineage: &JsonValue,
 ) -> JsonValue {
     let mut record = json!({
         "kind": "subject_starters_closure",
@@ -5375,6 +5475,7 @@ fn public_subject_starter_closure(
         "request_id": hex(request_id.bytes()),
         "target": public_mechanism_target_id(target),
         "subject": public_mechanism_support_subject(subject),
+        "audit_lineage": audit_lineage,
         "projection_plan_id": hex(closure.projection_plan_id().bytes()),
         "projection_job_id": hex(closure.job_id().bytes()),
         "authorization_id": hex(authorization.authorization_id().bytes()),
@@ -5387,6 +5488,14 @@ fn public_subject_starter_closure(
         "structural_quotient_root": hex(job.authority().structural_root().bytes()),
         "mechanism_support_closure_root": hex(job.authority().support_root().bytes()),
     });
+    insert_public_mechanism_support_expression_bounds(
+        &mut record,
+        job.authority().support_expression_bounds(),
+        Some(MechanismSupportCount::Exact(closure.exact_case_count())),
+        Some(MechanismSupportCount::Exact(closure.exact_starter_count())),
+        None,
+        "materialized",
+    );
     insert_public_mechanism_support_slice(&mut record, within_mechanism);
     record
 }
@@ -5521,6 +5630,85 @@ fn public_mechanism_support_count(count: MechanismSupportCount) -> JsonValue {
             "status": "exact",
             "value": value.to_string(),
         }),
+    }
+}
+
+fn insert_public_mechanism_support_expression_bounds(
+    record: &mut JsonValue,
+    bounds: MechanismSupportExpressionBounds,
+    case_count: Option<MechanismSupportCount>,
+    starter_count: Option<MechanismSupportCount>,
+    starter_bound_basis: Option<MechanismFactorizedStarterBoundBasis>,
+    starter_materialization: &'static str,
+) {
+    let object = record
+        .as_object_mut()
+        .expect("mechanism support publication records are JSON objects");
+    object.insert(
+        "case_support".into(),
+        json!({
+            "identity_kind": "authenticated_fiber_expression",
+            "expression_version": MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
+            "inner_root": hex(bounds.case_inner_root().bytes()),
+            "outer_root": hex(bounds.case_outer_root().bytes()),
+            "bounds_relation": if bounds.case_bounds_are_equal() {
+                "equal"
+            } else {
+                "inner_subset_outer"
+            },
+            "coordinates": {
+                "coordinate_system": "origin_preimage",
+                "source_key": "SourceKey",
+                "source_value": "(Context, Before)",
+                "fiber_member_key": "SuccessorKey",
+                "fiber_member_value": "After",
+                "type_binding": "mechanism_request_relation",
+            },
+            "count": case_count.map(public_mechanism_support_count),
+        }),
+    );
+    object.insert(
+        "starter_support".into(),
+        json!({
+            "identity_kind": "authenticated_distinct_source_projection_expression",
+            "expression_version": MECHANISM_STARTER_PROJECTION_EXPR_VERSION,
+            "projection": "distinct_sources(case_support)",
+            "inner_root": hex(bounds.starter_inner_root().bytes()),
+            "outer_root": hex(bounds.starter_outer_root().bytes()),
+            "bounds_relation": if bounds.starter_bounds_are_equal() {
+                "equal"
+            } else {
+                "inner_subset_outer"
+            },
+            "count": starter_count.map(public_mechanism_support_count),
+            "starter_bound_basis": starter_bound_basis.map(public_factorized_starter_bound_basis),
+            "materialization": starter_materialization,
+            "starter_set_status": public_mechanism_starter_set_status(
+                bounds.starter_set_status(),
+            ),
+        }),
+    );
+    object.insert(
+        "correlated_support_status".into(),
+        JsonValue::String(
+            public_mechanism_correlated_support_status(bounds.correlated_support_status()).into(),
+        ),
+    );
+}
+
+const fn public_mechanism_starter_set_status(status: MechanismStarterSetStatus) -> &'static str {
+    match status {
+        MechanismStarterSetStatus::Open => "open",
+        MechanismStarterSetStatus::ExactStarterSet => "exact_starter_set",
+    }
+}
+
+const fn public_mechanism_correlated_support_status(
+    status: MechanismCorrelatedSupportStatus,
+) -> &'static str {
+    match status {
+        MechanismCorrelatedSupportStatus::Open => "open",
+        MechanismCorrelatedSupportStatus::ExactCorrelatedSupport => "exact_correlated_support",
     }
 }
 
@@ -8745,12 +8933,12 @@ fn build_manifest(
                 object.insert(
                     "record_schema".into(),
                     JsonValue::String(
-                        "futuruna.relational-mechanism-support-observations-v1".into(),
+                        "futuruna.relational-mechanism-support-observations-v2".into(),
                     ),
                 );
                 object.insert(
                     "record_schema_version".into(),
-                    JsonValue::Number(1u32.into()),
+                    JsonValue::Number(2u32.into()),
                 );
                 object.insert(
                     "request_id".into(),
@@ -8765,8 +8953,12 @@ fn build_manifest(
                     JsonValue::Number(MECHANISM_STARTER_PROJECTION_PLAN_VERSION.into()),
                 );
                 object.insert(
-                    "support_fiber_expr_version".into(),
+                    "case_support_expr_version".into(),
                     JsonValue::Number(MECHANISM_SUPPORT_FIBER_EXPR_VERSION.into()),
+                );
+                object.insert(
+                    "starter_projection_expr_version".into(),
+                    JsonValue::Number(MECHANISM_STARTER_PROJECTION_EXPR_VERSION.into()),
                 );
                 object.insert(
                     "source_order".into(),
@@ -8992,11 +9184,7 @@ fn build_manifest(
             } = artifact
             {
                 let (record_schema, record_schema_version) =
-                    if within_mechanism.is_some() {
-                        ("futuruna.relational-subject-starters-v2", 2u32)
-                    } else {
-                        ("futuruna.relational-subject-starters-v1", 1u32)
-                    };
+                    ("futuruna.relational-subject-starters-v3", 3u32);
                 object.insert(
                     "record_schema".into(),
                     JsonValue::String(record_schema.into()),
@@ -9071,6 +9259,14 @@ fn build_manifest(
                 object.insert(
                     "page_member_limit".into(),
                     JsonValue::Number(MECHANISM_STARTER_PAGE_MEMBER_LIMIT.get().into()),
+                );
+                object.insert(
+                    "case_support_expr_version".into(),
+                    JsonValue::Number(MECHANISM_SUPPORT_FIBER_EXPR_VERSION.into()),
+                );
+                object.insert(
+                    "starter_projection_expr_version".into(),
+                    JsonValue::Number(MECHANISM_STARTER_PROJECTION_EXPR_VERSION.into()),
                 );
                 object.insert("contains_typed_values".into(), JsonValue::Bool(true));
                 object.insert(
@@ -9308,6 +9504,9 @@ fn build_manifest(
                 "admission_id": report.identity.admission_id,
                 "question_id": report.identity.question_id,
                 "analysis_graph_digest": report.identity.analysis_graph_digest,
+                "source_coverage_manifest_digest": hex(
+                    plan.source_coverage_manifest_digest,
+                ),
                 "support_observation_demand_set_id": hex(
                     plan.support_observation_demand_set_id,
                 ),
@@ -10424,6 +10623,10 @@ fn validate_existing_manifest<A: RelationalPublicationAuthority>(
         .get("query")
         .and_then(JsonValue::as_str)
         .ok_or_else(|| RelationalPublicationError::InvalidManifest(path.to_path_buf()))?;
+    let source_coverage_manifest_digest = manifest
+        .pointer("/identity/source_coverage_manifest_digest")
+        .and_then(JsonValue::as_str)
+        .ok_or_else(|| RelationalPublicationError::InvalidManifest(path.to_path_buf()))?;
     let sequence = manifest
         .pointer("/journal/next_sequence")
         .and_then(JsonValue::as_u64)
@@ -10435,6 +10638,7 @@ fn validate_existing_manifest<A: RelationalPublicationAuthority>(
     if version != RELATIONAL_PUBLICATION_SCHEMA_VERSION as u64
         || journal_id != hex(plan.journal_id)
         || query != plan.query_name.as_ref()
+        || source_coverage_manifest_digest != hex(plan.source_coverage_manifest_digest)
     {
         return Err(RelationalPublicationError::ManifestIdentityMismatch);
     }
@@ -10605,7 +10809,7 @@ fn path_to_manifest_string(path: &Path) -> Result<String, RelationalPublicationE
 
 fn publication_prefix_genesis(artifact_key: &str) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_ROOT_V12);
+    hasher.update(RESULT_PREFIX_ROOT_V13);
     hasher.update((artifact_key.len() as u64).to_be_bytes());
     hasher.update(artifact_key.as_bytes());
     hasher.finalize().into()
@@ -10613,7 +10817,7 @@ fn publication_prefix_genesis(artifact_key: &str) -> [u8; 32] {
 
 fn extend_publication_prefix(prior: [u8; 32], line_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_EXTEND_V12);
+    hasher.update(RESULT_PREFIX_EXTEND_V13);
     hasher.update(prior);
     hasher.update(line_digest);
     hasher.finalize().into()

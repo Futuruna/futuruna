@@ -7607,8 +7607,8 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 20,
-                expected: 21
+                actual: 21,
+                expected: 22
             }
         ));
     }

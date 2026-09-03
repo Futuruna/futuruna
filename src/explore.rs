@@ -39,13 +39,15 @@ pub(crate) use mechanism_incidence::{
 mod mechanism_support;
 pub(crate) use mechanism_support::{
     MechanismClosedStarterProjectionAuthority, MechanismClosedSubjectStarterProjectionAuthority,
-    MechanismStarterProjectionPlanId, MechanismStarterUpperProvenance,
+    MechanismCorrelatedSupportStatus, MechanismStarterProjectionExprRoot,
+    MechanismStarterProjectionPlanId, MechanismStarterSetStatus, MechanismStarterUpperProvenance,
     MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportClosureRoot,
-    MechanismSupportCount, MechanismSupportError, MechanismSupportFacet,
-    MechanismSupportFiberExprRoot, MechanismSupportFrontierRoot, MechanismSupportKey,
-    MechanismSupportResidualRoot, MechanismSupportStarterCursor, MechanismSupportStarterMember,
-    MechanismSupportStarterPage, MechanismSupportSubject, MechanismSupportSubjectStarterPage,
-    MechanismSupportView, MechanismSupportViewRoot, MECHANISM_SUPPORT_VERSION,
+    MechanismSupportCount, MechanismSupportError, MechanismSupportExpressionBounds,
+    MechanismSupportFacet, MechanismSupportFiberExprRoot, MechanismSupportFrontierRoot,
+    MechanismSupportKey, MechanismSupportResidualRoot, MechanismSupportStarterCursor,
+    MechanismSupportStarterMember, MechanismSupportStarterPage, MechanismSupportSubject,
+    MechanismSupportSubjectStarterPage, MechanismSupportView, MechanismSupportViewRoot,
+    MECHANISM_STARTER_PROJECTION_EXPR_VERSION, MECHANISM_SUPPORT_VERSION,
     MECHANISM_SUPPORT_VIEW_VERSION,
 };
 mod relational_mechanism_starter_authorization;

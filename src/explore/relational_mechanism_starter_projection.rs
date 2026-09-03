@@ -14,10 +14,10 @@ use sha2::{Digest, Sha256};
 
 use super::mechanism_incidence::MechanismSignatureId;
 use super::mechanism_support::{
-    MechanismClosedSubjectStarterProjectionAuthority, MechanismStarterProjectionPlanId,
-    MechanismSupportCatalogBuilder, MechanismSupportError, MechanismSupportFacet,
-    MechanismSupportKey, MechanismSupportStarterCursor, MechanismSupportStarterMember,
-    MechanismSupportSubject,
+    MechanismClosedSubjectStarterProjectionAuthority, MechanismCorrelatedSupportStatus,
+    MechanismStarterProjectionPlanId, MechanismStarterSetStatus, MechanismSupportCatalogBuilder,
+    MechanismSupportError, MechanismSupportFacet, MechanismSupportKey,
+    MechanismSupportStarterCursor, MechanismSupportStarterMember, MechanismSupportSubject,
 };
 use super::relation::{
     MechanismTargetId, QuestionId, RelationId, RelationalCaseId, RelationalCaseRef, SourceKey,
@@ -32,10 +32,10 @@ use super::structural_mechanism::{
 use super::transition::{canonical_explore_value_digest, TransitionSchemaIdentities};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION: u32 = 3;
 
-const JOB_ID_V2: &[u8] =
-    b"futuruna.explore.relational-mechanism-subject-starter-projection.job-id.v2";
+const JOB_ID_V3: &[u8] =
+    b"futuruna.explore.relational-mechanism-subject-starter-projection.job-id.v3";
 const MEMBER_ID_V1: &[u8] =
     b"futuruna.explore.relational-mechanism-starter-projection.member-id.v1";
 const CONTENT_GENESIS_V1: &[u8] =
@@ -49,8 +49,8 @@ const PAGE_MANIFEST_GENESIS_V1: &[u8] =
     b"futuruna.explore.relational-mechanism-starter-projection.page-manifest-genesis.v1";
 const PAGE_MANIFEST_APPEND_V1: &[u8] =
     b"futuruna.explore.relational-mechanism-starter-projection.page-manifest-append.v1";
-const CLOSURE_ROOT_V2: &[u8] =
-    b"futuruna.explore.relational-mechanism-subject-starter-projection.closure-root.v2";
+const CLOSURE_ROOT_V3: &[u8] =
+    b"futuruna.explore.relational-mechanism-subject-starter-projection.closure-root.v3";
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalMechanismStarterProjectionJobId([u8; 32]);
@@ -841,12 +841,24 @@ fn derive_job_id_from_parts(
     context_schema_id: [u8; 32],
     transition_type_id: [u8; 32],
 ) -> RelationalMechanismStarterProjectionJobId {
-    let mut encoder = ProjectionEncoder::new(JOB_ID_V2);
+    let mut encoder = ProjectionEncoder::new(JOB_ID_V3);
     encoder.u32(RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION);
     encode_support_key(&mut encoder, authority.key());
     encoder.digest(authority.question_id().bytes());
     encoder.digest(authority.projection_plan_id().bytes());
-    encoder.digest(authority.correlated_fiber_expr_root().bytes());
+    let support_bounds = authority.support_expression_bounds();
+    encoder.digest(support_bounds.case_inner_root().bytes());
+    encoder.digest(support_bounds.case_outer_root().bytes());
+    encoder.digest(support_bounds.starter_inner_root().bytes());
+    encoder.digest(support_bounds.starter_outer_root().bytes());
+    encoder.u8(match support_bounds.starter_set_status() {
+        MechanismStarterSetStatus::Open => 0x01,
+        MechanismStarterSetStatus::ExactStarterSet => 0x02,
+    });
+    encoder.u8(match support_bounds.correlated_support_status() {
+        MechanismCorrelatedSupportStatus::Open => 0x01,
+        MechanismCorrelatedSupportStatus::ExactCorrelatedSupport => 0x02,
+    });
     encoder.digest(authority.structural_root().bytes());
     encoder.digest(authority.support_root().bytes());
     encoder.u128(authority.exact_case_count());
@@ -958,7 +970,7 @@ fn derive_closure_root(
     exact_case_count: u128,
     exact_starter_count: u128,
 ) -> RelationalMechanismStarterProjectionClosureRoot {
-    let mut encoder = ProjectionEncoder::new(CLOSURE_ROOT_V2);
+    let mut encoder = ProjectionEncoder::new(CLOSURE_ROOT_V3);
     encoder.u32(RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION);
     encoder.digest(job_id.bytes());
     encode_support_key(&mut encoder, key);

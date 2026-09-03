@@ -29,13 +29,14 @@ use super::structural_mechanism::{
     StructuralQuotientClosureRoot, StructuralSignatureAssignment,
 };
 
-pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 3;
-pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 5;
-pub(crate) const MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION: u32 = 2;
-pub(crate) const MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION: u32 = 1;
+pub(crate) const MECHANISM_SUPPORT_VERSION: u32 = 4;
+pub(crate) const MECHANISM_SUPPORT_VIEW_VERSION: u32 = 6;
+pub(crate) const MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION: u32 = 3;
+pub(crate) const MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION: u32 = 2;
 pub(crate) const MECHANISM_SUPPORT_SLICE_ID_VERSION: u32 = 1;
 pub(crate) const MECHANISM_SUPPORT_FIBER_EXPR_VERSION: u32 = 1;
-pub(crate) const MECHANISM_STARTER_PROJECTION_PLAN_VERSION: u32 = 2;
+pub(crate) const MECHANISM_STARTER_PROJECTION_EXPR_VERSION: u32 = 1;
+pub(crate) const MECHANISM_STARTER_PROJECTION_PLAN_VERSION: u32 = 3;
 /// Automatic all-subject publication may inspect at most this many immutable
 /// signature-fiber summaries for one row. The cap is part of the summary
 /// schema, not a runtime tuning knob: crossing it yields honest wider bounds
@@ -51,24 +52,26 @@ pub(crate) const EXPLICIT_OBSERVATION_BACKFILL_MAX_ASSIGNMENTS: usize = 256;
 // in the signature fibers and callers may explicitly choose another limit.
 const DEFAULT_HOT_SUBJECT_PROJECTION_LIMIT: usize = 1;
 
-const SUPPORT_VIEW_ROOT_V5: &[u8] = b"futuruna.explore.mechanism-support-view-root.v5";
+const SUPPORT_VIEW_ROOT_V6: &[u8] = b"futuruna.explore.mechanism-support-view-root.v6";
 const SUPPORT_SLICE_ID_V1: &[u8] = b"futuruna.explore.mechanism-support-slice-id.v1";
-const FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-observation-signature-prefix-root.v1";
-const FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-observation-summary-root.v1";
-const FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-observation-inner-fiber-expr-root.v1";
-const FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-observation-outer-fiber-expr-root.v1";
-const FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
-    b"futuruna.explore.mechanism-factorized-subject-signature-prefix-root.v2";
-const FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-slice-signature-prefix-root.v1";
-const FACTORIZED_SUBJECT_SUMMARY_ROOT_V2: &[u8] =
-    b"futuruna.explore.mechanism-factorized-subject-summary-root.v2";
-const FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V1: &[u8] =
-    b"futuruna.explore.mechanism-factorized-support-slice-summary-root.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-signature-prefix-root.v2";
+const FACTORIZED_SUPPORT_OBSERVATION_STARTER_PREFIX_ROOT_V1: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-starter-prefix-root.v1";
+const FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-summary-root.v2";
+const FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-inner-fiber-expr-root.v2";
+const FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-observation-outer-fiber-expr-root.v2";
+const FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V3: &[u8] =
+    b"futuruna.explore.mechanism-factorized-subject-signature-prefix-root.v3";
+const FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-slice-signature-prefix-root.v2";
+const FACTORIZED_SUBJECT_SUMMARY_ROOT_V3: &[u8] =
+    b"futuruna.explore.mechanism-factorized-subject-summary-root.v3";
+const FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V2: &[u8] =
+    b"futuruna.explore.mechanism-factorized-support-slice-summary-root.v2";
 const SUPPORT_FIBER_EXPR_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-fiber-expr-root.v1";
 const SUPPORT_SLICE_FIBER_EXPR_ROOT_V1: &[u8] =
     b"futuruna.explore.mechanism-support-slice-fiber-expr-root.v1";
@@ -78,14 +81,24 @@ const FIBER_EXPR_POSSIBLE_SUPPORT_ENVELOPE: u8 = 0x03;
 const FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE: u8 = 0x01;
 const FIBER_EXPR_SOURCE_CONTEXT_BEFORE: u8 = 0x01;
 const FIBER_EXPR_SUCCESSOR_AFTER: u8 = 0x01;
-const STARTER_PROJECTION_PLAN_ID_V2: &[u8] =
-    b"futuruna.explore.mechanism-subject-starter-projection-plan-id.v2";
-const SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1: &[u8] =
-    b"futuruna.explore.mechanism-support-slice-starter-projection-plan-id.v1";
-const SUPPORT_FRONTIER_ROOT_V3: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v3";
-const SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V3: &[u8] =
-    b"futuruna.explore.mechanism-support-frontier-imported-prefix-root.v3";
-const SUPPORT_CLOSURE_ROOT_V1: &[u8] = b"futuruna.explore.mechanism-support-closure-root.v1";
+const STARTER_PROJECTION_EXPR_FACTORIZED_SUBJECT_V1: &[u8] =
+    b"futuruna.explore.mechanism-starter-projection-expression.factorized-subject.v1";
+const STARTER_PROJECTION_EXPR_OBSERVATION_PREFIX_V1: &[u8] =
+    b"futuruna.explore.mechanism-starter-projection-expression.observation-prefix.v1";
+const STARTER_PROJECTION_EXPR_MATERIALIZED_V1: &[u8] =
+    b"futuruna.explore.mechanism-starter-projection-expression.materialized.v1";
+const STARTER_PROJECTION_EXPR_TARGET_ENVELOPE_V1: &[u8] =
+    b"futuruna.explore.mechanism-starter-projection-expression.target-envelope.v1";
+const STARTER_PROJECTION_EXPR_OPAQUE_UPPER_V1: &[u8] =
+    b"futuruna.explore.mechanism-starter-projection-expression.opaque-upper.v1";
+const STARTER_PROJECTION_PLAN_ID_V3: &[u8] =
+    b"futuruna.explore.mechanism-subject-starter-projection-plan-id.v3";
+const SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-slice-starter-projection-plan-id.v2";
+const SUPPORT_FRONTIER_ROOT_V4: &[u8] = b"futuruna.explore.mechanism-support-frontier-root.v4";
+const SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V4: &[u8] =
+    b"futuruna.explore.mechanism-support-frontier-imported-prefix-root.v4";
+const SUPPORT_CLOSURE_ROOT_V2: &[u8] = b"futuruna.explore.mechanism-support-closure-root.v2";
 const SHARED_RESIDUAL_ROOT_V2: &[u8] =
     b"futuruna.explore.mechanism-support-factorized-residual-root.v2";
 const FIBER_CASE_INDEX_V1: &[u8] = b"futuruna.explore.mechanism-support-fiber-case-index.v1";
@@ -94,14 +107,20 @@ const UNAVAILABLE_CASE_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-unavailable-case-index.v1";
 const SIGNATURE_FIBER_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-signature-fiber-index.v1";
+const SIGNATURE_STARTER_SET_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-signature-starter-set-index.v1";
 const TERMINAL_FACT_INDEX_V1: &[u8] = b"futuruna.explore.mechanism-support-terminal-fact-index.v1";
 const TARGET_STARTER_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-target-starter-index.v1";
+const TARGET_STARTER_SET_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-target-starter-set-index.v1";
 const SUBJECT_SIGNATURE_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-subject-signature-index.v1";
 const SUBJECT_CASE_INDEX_V1: &[u8] = b"futuruna.explore.mechanism-support-subject-case-index.v1";
-const SUBJECT_STARTER_INDEX_V1: &[u8] =
-    b"futuruna.explore.mechanism-support-subject-starter-index.v1";
+const SUBJECT_CORRELATED_STARTER_INDEX_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-subject-correlated-starter-index.v2";
+const SUBJECT_STARTER_SET_INDEX_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-subject-starter-set-index.v1";
 const SUBJECT_SUCCESSOR_INDEX_V1: &[u8] =
     b"futuruna.explore.mechanism-support-subject-successor-index.v1";
 const UNASSIGNED_SIGNATURE_INDEX_V1: &[u8] =
@@ -123,7 +142,12 @@ const UNAVAILABLE_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-unavail
 const TERMINAL_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-terminal-value.v1";
 const SIGNATURE_FIBER_VALUE_V1: &[u8] =
     b"futuruna.explore.mechanism-support-signature-fiber-value.v1";
-const STARTER_FIBER_VALUE_V1: &[u8] = b"futuruna.explore.mechanism-support-starter-fiber-value.v1";
+const SIGNATURE_STARTER_SET_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-signature-starter-set-value.v1";
+const STARTER_SET_MEMBER_VALUE_V1: &[u8] =
+    b"futuruna.explore.mechanism-support-starter-set-member-value.v1";
+const CORRELATED_STARTER_FIBER_VALUE_V2: &[u8] =
+    b"futuruna.explore.mechanism-support-correlated-starter-fiber-value.v2";
 const TARGET_STARTER_VALUE_V1: &[u8] =
     b"futuruna.explore.mechanism-support-target-starter-value.v1";
 const AUTOMATIC_OBSERVATION_REGISTRY_VALUE_V1: &[u8] =
@@ -348,6 +372,13 @@ impl MechanismStarterUpperProvenance {
     pub(crate) const fn is_conservative_target_projection_upper(self) -> bool {
         matches!(self, Self::ConservativeTargetProjectionUpper { .. })
     }
+
+    const fn proves_exact_starter_set(self) -> bool {
+        matches!(
+            self,
+            Self::ExactCorrelatedInner { .. } | Self::ExactStarterSetFromTargetSaturation { .. }
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -371,6 +402,123 @@ pub(crate) struct MechanismSupportFiberExprRoot([u8; 32]);
 impl MechanismSupportFiberExprRoot {
     pub(crate) const fn bytes(self) -> [u8; 32] {
         self.0
+    }
+}
+
+/// Authenticated identity of a distinct `SourceKey<(Context, Before)>` set
+/// expression. This is deliberately a different type and hash domain from
+/// [`MechanismSupportFiberExprRoot`]: changing successor multiplicity may
+/// change `S` without changing its distinct-starter projection `P`.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct MechanismStarterProjectionExprRoot([u8; 32]);
+
+impl MechanismStarterProjectionExprRoot {
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
+/// Whether the distinct starter set `P` is closed. This is intentionally
+/// independent of both its scalar count and closure of the successor fibers.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum MechanismStarterSetStatus {
+    Open,
+    ExactStarterSet,
+}
+
+impl MechanismStarterSetStatus {
+    pub(crate) const fn is_exact(self) -> bool {
+        matches!(self, Self::ExactStarterSet)
+    }
+}
+
+/// Whether the complete correlated `SourceKey -> Set<SuccessorKey>` relation
+/// `S` is closed, including every dependent successor fiber.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum MechanismCorrelatedSupportStatus {
+    Open,
+    ExactCorrelatedSupport,
+}
+
+impl MechanismCorrelatedSupportStatus {
+    pub(crate) const fn is_exact(self) -> bool {
+        matches!(self, Self::ExactCorrelatedSupport)
+    }
+}
+
+/// Independently authenticated set bounds for correlated case support `S`
+/// and its distinct-source projection `P = distinct_sources(S)`.
+///
+/// Root equality is necessary but never sufficient for an exactness claim;
+/// callers must inspect the explicit status. Construction is checked so an
+/// exact correlated claim cannot exist without both equal `S` bounds and an
+/// exact starter set, while an independently proved exact starter set may
+/// close before the successor fibers do.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct MechanismSupportExpressionBounds {
+    case_inner_root: MechanismSupportFiberExprRoot,
+    case_outer_root: MechanismSupportFiberExprRoot,
+    starter_inner_root: MechanismStarterProjectionExprRoot,
+    starter_outer_root: MechanismStarterProjectionExprRoot,
+    starter_set_status: MechanismStarterSetStatus,
+    correlated_support_status: MechanismCorrelatedSupportStatus,
+}
+
+impl MechanismSupportExpressionBounds {
+    fn checked(
+        case_inner_root: MechanismSupportFiberExprRoot,
+        case_outer_root: MechanismSupportFiberExprRoot,
+        starter_inner_root: MechanismStarterProjectionExprRoot,
+        starter_outer_root: MechanismStarterProjectionExprRoot,
+        starter_set_status: MechanismStarterSetStatus,
+        correlated_support_status: MechanismCorrelatedSupportStatus,
+    ) -> Result<Self, MechanismSupportError> {
+        if (starter_set_status.is_exact() && starter_inner_root != starter_outer_root)
+            || (correlated_support_status.is_exact()
+                && (case_inner_root != case_outer_root || !starter_set_status.is_exact()))
+        {
+            return Err(MechanismSupportError::SupportExpressionBoundsConflict);
+        }
+        Ok(Self {
+            case_inner_root,
+            case_outer_root,
+            starter_inner_root,
+            starter_outer_root,
+            starter_set_status,
+            correlated_support_status,
+        })
+    }
+
+    pub(crate) const fn case_inner_root(self) -> MechanismSupportFiberExprRoot {
+        self.case_inner_root
+    }
+
+    pub(crate) const fn case_outer_root(self) -> MechanismSupportFiberExprRoot {
+        self.case_outer_root
+    }
+
+    pub(crate) const fn starter_inner_root(self) -> MechanismStarterProjectionExprRoot {
+        self.starter_inner_root
+    }
+
+    pub(crate) const fn starter_outer_root(self) -> MechanismStarterProjectionExprRoot {
+        self.starter_outer_root
+    }
+
+    pub(crate) const fn starter_set_status(self) -> MechanismStarterSetStatus {
+        self.starter_set_status
+    }
+
+    pub(crate) const fn correlated_support_status(self) -> MechanismCorrelatedSupportStatus {
+        self.correlated_support_status
+    }
+
+    pub(crate) fn case_bounds_are_equal(self) -> bool {
+        self.case_inner_root == self.case_outer_root
+    }
+
+    pub(crate) fn starter_bounds_are_equal(self) -> bool {
+        self.starter_inner_root == self.starter_outer_root
     }
 }
 
@@ -411,7 +559,7 @@ pub(crate) struct MechanismClosedSubjectStarterProjectionAuthority {
     slice: MechanismSupportSlice,
     question_id: QuestionId,
     projection_plan_id: MechanismStarterProjectionPlanId,
-    correlated_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     structural_root: StructuralQuotientClosureRoot,
     support_root: MechanismSupportClosureRoot,
     exact_case_count: u128,
@@ -442,8 +590,14 @@ impl MechanismClosedSubjectStarterProjectionAuthority {
         self.projection_plan_id
     }
 
+    pub(crate) const fn support_expression_bounds(self) -> MechanismSupportExpressionBounds {
+        self.support_expression_bounds
+    }
+
+    /// Transitional case-support accessor. New consumers should retain the
+    /// complete S/P bundle through [`Self::support_expression_bounds`].
     pub(crate) const fn correlated_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
-        self.correlated_fiber_expr_root
+        self.support_expression_bounds.case_inner_root()
     }
 
     pub(crate) const fn structural_root(self) -> StructuralQuotientClosureRoot {
@@ -494,6 +648,10 @@ impl MechanismClosedStarterProjectionAuthority {
 
     pub(crate) const fn correlated_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
         self.inner.correlated_fiber_expr_root()
+    }
+
+    pub(crate) const fn support_expression_bounds(self) -> MechanismSupportExpressionBounds {
+        self.inner.support_expression_bounds()
     }
 
     pub(crate) const fn structural_root(self) -> StructuralQuotientClosureRoot {
@@ -632,6 +790,17 @@ pub(crate) enum MechanismFactorizedStarterBoundBasis {
     },
 }
 
+impl MechanismFactorizedStarterBoundBasis {
+    const fn proves_exact_starter_set(self) -> bool {
+        matches!(
+            self,
+            Self::ExactEmpty
+                | Self::ExactFactorizedBoundCollapse
+                | Self::ExactTargetStarterSaturation { .. }
+        )
+    }
+}
+
 /// Constant-space automatic-publication summary. Authenticated inner/outer
 /// fiber-expression identities retain the correlation contract without
 /// serializing values. Exact correlated cells remain a separate, explicitly
@@ -642,8 +811,7 @@ pub(crate) struct MechanismFactorizedSubjectSummary {
     slice: MechanismSupportSlice,
     root: MechanismFactorizedSubjectSummaryRoot,
     projection_plan_id: MechanismStarterProjectionPlanId,
-    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
-    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     contributing_signature_count: u128,
     inspected_signature_count: u128,
     signature_scan_complete: bool,
@@ -671,16 +839,20 @@ impl MechanismFactorizedSubjectSummary {
         self.projection_plan_id
     }
 
+    pub(crate) const fn support_expression_bounds(self) -> MechanismSupportExpressionBounds {
+        self.support_expression_bounds
+    }
+
     pub(crate) const fn inner_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
-        self.inner_fiber_expr_root
+        self.support_expression_bounds.case_inner_root()
     }
 
     pub(crate) const fn outer_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
-        self.outer_fiber_expr_root
+        self.support_expression_bounds.case_outer_root()
     }
 
     pub(crate) fn fiber_expr_bounds_are_equal(self) -> bool {
-        self.inner_fiber_expr_root == self.outer_fiber_expr_root
+        self.support_expression_bounds.case_bounds_are_equal()
     }
 
     pub(crate) const fn contributing_signature_count(self) -> u128 {
@@ -750,8 +922,7 @@ pub(crate) struct MechanismFactorizedSupportObservationSummary {
     support_root: Option<MechanismSupportClosureRoot>,
     projection_plan_id: Option<MechanismStarterProjectionPlanId>,
     target_frontier_open: bool,
-    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
-    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     contributing_signature_count: u128,
     inspected_signature_count: u128,
     signature_scan_complete: bool,
@@ -799,16 +970,20 @@ impl MechanismFactorizedSupportObservationSummary {
         self.target_frontier_open
     }
 
+    pub(crate) const fn support_expression_bounds(self) -> MechanismSupportExpressionBounds {
+        self.support_expression_bounds
+    }
+
     pub(crate) const fn inner_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
-        self.inner_fiber_expr_root
+        self.support_expression_bounds.case_inner_root()
     }
 
     pub(crate) const fn outer_fiber_expr_root(self) -> MechanismSupportFiberExprRoot {
-        self.outer_fiber_expr_root
+        self.support_expression_bounds.case_outer_root()
     }
 
     pub(crate) fn fiber_expr_bounds_are_equal(self) -> bool {
-        self.inner_fiber_expr_root == self.outer_fiber_expr_root
+        self.support_expression_bounds.case_bounds_are_equal()
     }
 
     pub(crate) const fn contributing_signature_count(self) -> u128 {
@@ -860,7 +1035,7 @@ impl MechanismSupportFrontierRoot {
     }
 }
 
-/// Reproducible decomposition of one V3 frontier. The imported-prefix root is
+/// Reproducible decomposition of one V4 frontier. The imported-prefix root is
 /// invariant when only an optional upstream seal arrives, which lets the
 /// journal distinguish legitimate monotone enrichment at the same cursor from
 /// arbitrary rewriting of already-checkpointed derived support state.
@@ -1048,6 +1223,7 @@ struct SignatureCaseFiber {
     cases: BTreeMap<RelationalCaseId, (SourceKey, SuccessorKey)>,
     starters: BTreeMap<SourceKey, BTreeSet<SuccessorKey>>,
     authenticated_cases: AuthenticatedTreapMap,
+    authenticated_starters: AuthenticatedTreapMap,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1063,6 +1239,7 @@ impl SignatureCaseFiber {
             cases: BTreeMap::new(),
             starters: BTreeMap::new(),
             authenticated_cases: AuthenticatedTreapMap::new(FIBER_CASE_INDEX_V1),
+            authenticated_starters: AuthenticatedTreapMap::new(SUBJECT_STARTER_SET_INDEX_V1),
         }
     }
 }
@@ -1073,8 +1250,7 @@ impl SignatureCaseFiber {
 pub(crate) struct MechanismSupportView {
     key: MechanismSupportKey,
     root: MechanismSupportViewRoot,
-    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
-    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     inner_signature_root: [u8; 32],
     inner_case_root: [u8; 32],
     inner_starter_root: [u8; 32],
@@ -1094,16 +1270,20 @@ impl MechanismSupportView {
         self.root
     }
 
+    pub(crate) const fn support_expression_bounds(&self) -> MechanismSupportExpressionBounds {
+        self.support_expression_bounds
+    }
+
     pub(crate) const fn inner_fiber_expr_root(&self) -> MechanismSupportFiberExprRoot {
-        self.inner_fiber_expr_root
+        self.support_expression_bounds.case_inner_root()
     }
 
     pub(crate) const fn outer_fiber_expr_root(&self) -> MechanismSupportFiberExprRoot {
-        self.outer_fiber_expr_root
+        self.support_expression_bounds.case_outer_root()
     }
 
     pub(crate) fn fiber_expr_bounds_are_equal(&self) -> bool {
-        self.inner_fiber_expr_root == self.outer_fiber_expr_root
+        self.support_expression_bounds.case_bounds_are_equal()
     }
 
     pub(crate) const fn case_count(&self) -> MechanismSupportCount {
@@ -1147,7 +1327,8 @@ struct SubjectProjectionCache {
     structural_prefix_revision: StructuralCatalogRevision,
     signature_index: AuthenticatedTreapMap,
     case_index: AuthenticatedTreapMap,
-    starter_index: AuthenticatedTreapMap,
+    correlated_starter_index: AuthenticatedTreapMap,
+    starter_set_index: AuthenticatedTreapMap,
     successor_fibers: BTreeMap<SourceKey, AuthenticatedTreapMap>,
 }
 
@@ -1161,7 +1342,10 @@ impl SubjectProjectionCache {
             structural_prefix_revision,
             signature_index: AuthenticatedTreapMap::new(SUBJECT_SIGNATURE_INDEX_V1),
             case_index: AuthenticatedTreapMap::new(SUBJECT_CASE_INDEX_V1),
-            starter_index: AuthenticatedTreapMap::new(SUBJECT_STARTER_INDEX_V1),
+            correlated_starter_index: AuthenticatedTreapMap::new(
+                SUBJECT_CORRELATED_STARTER_INDEX_V2,
+            ),
+            starter_set_index: AuthenticatedTreapMap::new(SUBJECT_STARTER_SET_INDEX_V1),
             successor_fibers: BTreeMap::new(),
         }
     }
@@ -1171,7 +1355,7 @@ impl SubjectProjectionCache {
     }
 
     fn starter_count(&self) -> u128 {
-        self.starter_index.total_weight()
+        self.starter_set_index.total_weight()
     }
 
     fn is_for_structural_prefix(
@@ -1193,7 +1377,7 @@ impl SubjectProjectionCache {
     }
 }
 
-/// V5 view roots distinguish resumable operational prefixes from final
+/// V6 view roots distinguish resumable operational prefixes from final
 /// semantic authority. Open roots bind the exact imported discovery prefix;
 /// closed roots return to canonical, discovery-order-independent structural
 /// commitments.
@@ -1281,6 +1465,7 @@ impl MechanismSupportResidualSummary {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct SignatureFiberSummary {
     root: [u8; 32],
+    starter_set_root: [u8; 32],
     case_count: u128,
     starter_count: u128,
 }
@@ -2000,6 +2185,7 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     target: BTreeMap<RelationalCaseId, TargetCaseCoordinate>,
     target_starter_refcounts: BTreeMap<SourceKey, u128>,
     target_starter_index: AuthenticatedTreapMap,
+    target_starter_set_index: AuthenticatedTreapMap,
     target_discovery_cursor: usize,
     target_discovery_revision: Option<MechanismTargetDiscoveryRevision>,
     pending_cases: AuthenticatedTreapMap,
@@ -2007,6 +2193,7 @@ pub(crate) struct MechanismSupportCatalogBuilder {
     terminal_fact_index: AuthenticatedTreapMap,
     signature_fibers: BTreeMap<MechanismSignatureId, SignatureCaseFiber>,
     signature_fiber_index: AuthenticatedTreapMap,
+    signature_starter_set_index: AuthenticatedTreapMap,
     unassigned_signature_index: AuthenticatedTreapMap,
     terminal_discovery_cursor: usize,
     terminal_discovery_revision: Option<MechanismTerminalDiscoveryRevision>,
@@ -2051,6 +2238,7 @@ impl MechanismSupportCatalogBuilder {
             target: BTreeMap::new(),
             target_starter_refcounts: BTreeMap::new(),
             target_starter_index: AuthenticatedTreapMap::new(TARGET_STARTER_INDEX_V1),
+            target_starter_set_index: AuthenticatedTreapMap::new(TARGET_STARTER_SET_INDEX_V1),
             target_discovery_cursor: 0,
             target_discovery_revision: None,
             pending_cases: AuthenticatedTreapMap::new(PENDING_CASE_INDEX_V1),
@@ -2058,6 +2246,7 @@ impl MechanismSupportCatalogBuilder {
             terminal_fact_index: AuthenticatedTreapMap::new(TERMINAL_FACT_INDEX_V1),
             signature_fibers: BTreeMap::new(),
             signature_fiber_index: AuthenticatedTreapMap::new(SIGNATURE_FIBER_INDEX_V1),
+            signature_starter_set_index: AuthenticatedTreapMap::new(SIGNATURE_STARTER_SET_INDEX_V1),
             unassigned_signature_index: AuthenticatedTreapMap::new(UNASSIGNED_SIGNATURE_INDEX_V1),
             terminal_discovery_cursor: 0,
             terminal_discovery_revision: None,
@@ -3237,8 +3426,20 @@ impl MechanismSupportCatalogBuilder {
                     target_starter_value(source, next_refcount),
                     "target starters",
                 )?;
+                let mut next_target_starter_set = self.target_starter_set_index.clone();
+                if prior_refcount == 0 {
+                    next_target_starter_set
+                        .insert(
+                            source.bytes().to_vec().into_boxed_slice(),
+                            starter_set_member_value(source),
+                        )
+                        .map_err(|_| {
+                            MechanismSupportError::AuthenticatedIndex("target starter set")
+                        })?;
+                }
                 self.pending_cases = next_pending;
                 self.target_starter_index = next_target_starters;
+                self.target_starter_set_index = next_target_starter_set;
                 entry.insert(TargetCaseCoordinate {
                     source,
                     successor,
@@ -3733,12 +3934,27 @@ impl MechanismSupportCatalogBuilder {
                 let prior_starters = existing.map_or(0usize, |fiber| fiber.starters.len());
                 let source_is_new =
                     existing.is_none_or(|fiber| !fiber.starters.contains_key(&coordinate.source));
+                let mut next_starters = existing.map_or_else(
+                    || AuthenticatedTreapMap::new(SUBJECT_STARTER_SET_INDEX_V1),
+                    |fiber| fiber.authenticated_starters.clone(),
+                );
+                if source_is_new {
+                    next_starters
+                        .insert(
+                            coordinate.source.bytes().to_vec().into_boxed_slice(),
+                            starter_set_member_value(coordinate.source),
+                        )
+                        .map_err(|_| {
+                            MechanismSupportError::AuthenticatedIndex("signature starter set")
+                        })?;
+                }
                 let starter_count = prior_starters
                     .checked_add(usize::from(source_is_new))
                     .ok_or(MechanismSupportError::CountOverflow)?
                     as u128;
                 let summary = SignatureFiberSummary {
                     root: next_cases.root_hash(),
+                    starter_set_root: next_starters.root_hash(),
                     case_count: next_cases.total_weight(),
                     starter_count,
                 };
@@ -3750,6 +3966,13 @@ impl MechanismSupportCatalogBuilder {
                     signature_key(signature_id),
                     summary_value,
                     "signature fibers",
+                )?;
+                let mut next_signature_starter_sets = self.signature_starter_set_index.clone();
+                set_authenticated_value(
+                    &mut next_signature_starter_sets,
+                    signature_key(signature_id),
+                    signature_starter_set_value(signature_id, summary),
+                    "signature starter sets",
                 )?;
                 let mut next_unassigned = self.unassigned_signature_index.clone();
                 if imported_assignment.is_none() {
@@ -3805,12 +4028,14 @@ impl MechanismSupportCatalogBuilder {
                 self.pending_cases = next_pending;
                 self.terminal_fact_index = next_terminal_facts;
                 self.signature_fiber_index = next_fiber_index;
+                self.signature_starter_set_index = next_signature_starter_sets;
                 self.unassigned_signature_index = next_unassigned;
                 let fiber = self
                     .signature_fibers
                     .entry(signature_id)
                     .or_insert_with(SignatureCaseFiber::new);
                 fiber.authenticated_cases = next_cases;
+                fiber.authenticated_starters = next_starters;
                 fiber
                     .cases
                     .insert(record.case_id(), (coordinate.source, coordinate.successor));
@@ -4079,7 +4304,9 @@ impl MechanismSupportCatalogBuilder {
         let unavailable_cases = self.unavailable_cases.total_weight();
         let signature_fibers = self.signature_fiber_index.entry_count();
         let target_starters = self.target_starter_index.total_weight();
+        let target_starter_set_count = self.target_starter_set_index.total_weight();
         let residual = self.factorized_residual()?;
+        self.validate_starter_set_authentication()?;
         if self.pending_cases.entry_count() != 0
             || self.pending_cases.total_weight() != 0
             || self.unassigned_signature_index.entry_count() != 0
@@ -4090,7 +4317,10 @@ impl MechanismSupportCatalogBuilder {
                 .ok_or(MechanismSupportError::CountOverflow)?
                 != target_cases
             || signature_fibers != self.signature_fibers.len() as u128
+            || self.signature_starter_set_index.entry_count() != signature_fibers
             || target_starters != self.target_starter_refcounts.len() as u128
+            || target_starter_set_count != target_starters
+            || self.target_starter_set_index.entry_count() != target_starters
             || residual.case_count != unavailable_cases
             || self
                 .target
@@ -4104,7 +4334,7 @@ impl MechanismSupportCatalogBuilder {
 
         let incidence_root = closed_incidence.root();
         let structural_root = structural_closure.root();
-        let mut encoder = SupportEncoder::new(SUPPORT_CLOSURE_ROOT_V1);
+        let mut encoder = SupportEncoder::new(SUPPORT_CLOSURE_ROOT_V2);
         encoder.u32(MECHANISM_SUPPORT_VERSION);
         encoder.digest(self.scope.request_id().bytes());
         encode_target(&mut encoder, self.scope.target());
@@ -4114,8 +4344,10 @@ impl MechanismSupportCatalogBuilder {
         encoder.u128(target_cases);
         encode_authenticated_index(&mut encoder, &self.terminal_fact_index);
         encode_authenticated_index(&mut encoder, &self.signature_fiber_index);
+        encode_authenticated_index(&mut encoder, &self.signature_starter_set_index);
         encode_authenticated_index(&mut encoder, &self.unavailable_cases);
         encode_authenticated_index(&mut encoder, &self.target_starter_index);
+        encode_authenticated_index(&mut encoder, &self.target_starter_set_index);
         encode_authenticated_index(&mut encoder, &self.pending_cases);
         encode_authenticated_index(&mut encoder, &self.unassigned_signature_index);
         encoder.digest(residual.root.bytes());
@@ -4209,10 +4441,15 @@ impl MechanismSupportCatalogBuilder {
             self.observation_index_for_slice(slice)?;
 
         let mut signature_prefix_encoder =
-            SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V1);
+            SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SIGNATURE_PREFIX_ROOT_V2);
         signature_prefix_encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
         encode_total_or_conditioned_support_slice(&mut signature_prefix_encoder, slice);
         signature_prefix_encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
+        let mut starter_prefix_encoder =
+            SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_STARTER_PREFIX_ROOT_V1);
+        starter_prefix_encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
+        encode_total_or_conditioned_support_slice(&mut starter_prefix_encoder, slice);
+        starter_prefix_encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
 
         let mut inspected_signature_count = 0u128;
         let mut case_lower_bound = 0u128;
@@ -4236,11 +4473,13 @@ impl MechanismSupportCatalogBuilder {
                 .checked_add(1)
                 .ok_or(MechanismSupportError::CountOverflow)?;
             signature_prefix_encoder.digest(signature_id.bytes());
+            starter_prefix_encoder.digest(signature_id.bytes());
             let Some(fiber) = self.signature_fibers.get(&signature_id) else {
                 // The structural assignment is imported but no successful
                 // terminal for it is confirmed yet. Its possible cases are
                 // already represented by the pending residual.
                 signature_prefix_encoder.u8(0x00);
+                starter_prefix_encoder.u8(0x00);
                 continue;
             };
             let summary = signature_fiber_summary(fiber);
@@ -4248,13 +4487,25 @@ impl MechanismSupportCatalogBuilder {
                 .signature_fiber_index
                 .get(&signature_id.bytes())
                 .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
-            if authenticated_summary != Some(signature_fiber_value(signature_id, summary)) {
+            let authenticated_starter_summary = self
+                .signature_starter_set_index
+                .get(&signature_id.bytes())
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature starter sets"))?;
+            if authenticated_summary != Some(signature_fiber_value(signature_id, summary))
+                || authenticated_starter_summary
+                    != Some(signature_starter_set_value(signature_id, summary))
+                || summary.starter_count != fiber.starters.len() as u128
+                || fiber.authenticated_starters.entry_count() != summary.starter_count
+            {
                 return Err(MechanismSupportError::ResidualPartitionConflict);
             }
             signature_prefix_encoder.u8(0x01);
             signature_prefix_encoder.digest(summary.root);
             signature_prefix_encoder.u128(summary.case_count);
             signature_prefix_encoder.u128(summary.starter_count);
+            starter_prefix_encoder.u8(0x01);
+            starter_prefix_encoder.digest(summary.starter_set_root);
+            starter_prefix_encoder.u128(summary.starter_count);
             case_lower_bound = case_lower_bound
                 .checked_add(summary.case_count)
                 .ok_or(MechanismSupportError::CountOverflow)?;
@@ -4277,6 +4528,10 @@ impl MechanismSupportCatalogBuilder {
         signature_prefix_encoder.u128(inspected_signature_count);
         signature_prefix_encoder.u8(u8::from(signature_scan_complete));
         let signature_prefix_root = signature_prefix_encoder.finish();
+        starter_prefix_encoder.u128(contributing_signature_count);
+        starter_prefix_encoder.u128(inspected_signature_count);
+        starter_prefix_encoder.u8(u8::from(signature_scan_complete));
+        let starter_prefix_root = starter_prefix_encoder.finish();
 
         let target_case_count = self.target.len() as u128;
         let target_starter_count = self.target_starter_index.total_weight();
@@ -4311,7 +4566,7 @@ impl MechanismSupportCatalogBuilder {
                 }
             }
         };
-        let target_starter_root = self.target_starter_index.root_hash();
+        let target_starter_root = self.target_starter_set_index.root_hash();
         let (starter_count, starter_bound_basis) = if target_frontier_open {
             (
                 MechanismSupportCount::Unknown {
@@ -4356,13 +4611,6 @@ impl MechanismSupportCatalogBuilder {
 
         let structural_root = frontier.structural_closure_root();
         let support_root = self.closure.map(MechanismSupportClosureReceipt::root);
-        let projection_plan_id =
-            match (structural_root, support_root) {
-                (Some(structural_root), Some(support_root)) => Some(
-                    derive_starter_projection_plan_id(slice, structural_root, support_root),
-                ),
-                _ => None,
-            };
         let inner_fiber_expr_root = derive_factorized_observation_inner_fiber_expr_root(
             slice,
             frontier.imported_prefix_root(),
@@ -4383,6 +4631,31 @@ impl MechanismSupportCatalogBuilder {
             target_frontier_open,
             support_root.is_some(),
         );
+        let starter_inner_root =
+            derive_factorized_observation_starter_projection_expr_root(slice, starter_prefix_root);
+        let correlated_support_is_exact = signature_scan_complete
+            && residual.case_count() == 0
+            && !target_frontier_open
+            && support_root.is_some();
+        let support_expression_bounds = derive_support_expression_bounds(
+            slice,
+            inner_fiber_expr_root,
+            outer_fiber_expr_root,
+            starter_inner_root,
+            target_starter_root,
+            target_frontier_open,
+            starter_bound_basis.proves_exact_starter_set(),
+            correlated_support_is_exact,
+        )?;
+        let projection_plan_id = match (structural_root, support_root) {
+            (Some(structural_root), Some(support_root)) => Some(derive_starter_projection_plan_id(
+                slice,
+                structural_root,
+                support_root,
+                support_expression_bounds,
+            )),
+            _ => None,
+        };
         let slice_id = slice.id();
         let root = derive_factorized_support_observation_summary_root(
             slice,
@@ -4392,8 +4665,7 @@ impl MechanismSupportCatalogBuilder {
             support_root,
             projection_plan_id,
             target_frontier_open,
-            inner_fiber_expr_root,
-            outer_fiber_expr_root,
+            support_expression_bounds,
             contributing_signature_count,
             inspected_signature_count,
             signature_scan_complete,
@@ -4413,8 +4685,7 @@ impl MechanismSupportCatalogBuilder {
             support_root,
             projection_plan_id,
             target_frontier_open,
-            inner_fiber_expr_root,
-            outer_fiber_expr_root,
+            support_expression_bounds,
             contributing_signature_count,
             inspected_signature_count,
             signature_scan_complete,
@@ -4433,7 +4704,7 @@ impl MechanismSupportCatalogBuilder {
         structural_revision: StructuralCatalogRevision,
         residual: MechanismSupportResidualSummary,
     ) -> [u8; 32] {
-        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V3);
+        let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_IMPORTED_PREFIX_ROOT_V4);
         encoder.u32(MECHANISM_SUPPORT_VERSION);
         encoder.digest(self.scope.request_id().bytes());
         encode_target(&mut encoder, self.scope.target());
@@ -4456,9 +4727,11 @@ impl MechanismSupportCatalogBuilder {
         encode_authenticated_index(&mut encoder, &self.terminal_fact_index);
         encode_authenticated_index(&mut encoder, &self.unavailable_cases);
         encode_authenticated_index(&mut encoder, &self.signature_fiber_index);
+        encode_authenticated_index(&mut encoder, &self.signature_starter_set_index);
         encode_authenticated_index(&mut encoder, &self.unassigned_signature_index);
         encoder.digest(self.target_starter_index.root_hash());
         encoder.u128(self.target_starter_index.total_weight());
+        encode_authenticated_index(&mut encoder, &self.target_starter_set_index);
         encoder.digest(residual.root().bytes());
         encoder.u128(residual.case_count());
         encoder.finish()
@@ -4575,8 +4848,13 @@ impl MechanismSupportCatalogBuilder {
             || self.unavailable_cases.total_weight() != support_closure.unavailable_case_count()
             || self.signature_fiber_index.entry_count() != support_closure.signature_fiber_count()
             || self.signature_fibers.len() as u128 != support_closure.signature_fiber_count()
+            || self.signature_starter_set_index.entry_count()
+                != support_closure.signature_fiber_count()
             || self.target_starter_index.total_weight() != support_closure.target_starter_count()
             || self.target_starter_refcounts.len() as u128 != support_closure.target_starter_count()
+            || self.target_starter_set_index.total_weight()
+                != support_closure.target_starter_count()
+            || self.target_starter_set_index.entry_count() != support_closure.target_starter_count()
             || self.terminal_fact_index.total_weight() != support_closure.target_case_count()
             || support_closure
                 .successful_case_count()
@@ -4596,7 +4874,7 @@ impl MechanismSupportCatalogBuilder {
         // Recompute the O(1) root envelope so a row cannot combine a stored
         // closure receipt with a same-cardinality but divergent authenticated
         // index state.
-        let mut closure_encoder = SupportEncoder::new(SUPPORT_CLOSURE_ROOT_V1);
+        let mut closure_encoder = SupportEncoder::new(SUPPORT_CLOSURE_ROOT_V2);
         closure_encoder.u32(MECHANISM_SUPPORT_VERSION);
         closure_encoder.digest(self.scope.request_id().bytes());
         encode_target(&mut closure_encoder, self.scope.target());
@@ -4606,8 +4884,10 @@ impl MechanismSupportCatalogBuilder {
         closure_encoder.u128(support_closure.target_case_count());
         encode_authenticated_index(&mut closure_encoder, &self.terminal_fact_index);
         encode_authenticated_index(&mut closure_encoder, &self.signature_fiber_index);
+        encode_authenticated_index(&mut closure_encoder, &self.signature_starter_set_index);
         encode_authenticated_index(&mut closure_encoder, &self.unavailable_cases);
         encode_authenticated_index(&mut closure_encoder, &self.target_starter_index);
+        encode_authenticated_index(&mut closure_encoder, &self.target_starter_set_index);
         encode_authenticated_index(&mut closure_encoder, &self.pending_cases);
         encode_authenticated_index(&mut closure_encoder, &self.unassigned_signature_index);
         closure_encoder.digest(residual.root.bytes());
@@ -4640,7 +4920,16 @@ impl MechanismSupportCatalogBuilder {
                 .signature_fiber_index
                 .get(&signature_bytes)
                 .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
-            if authenticated_summary != Some(signature_fiber_value(signature_id, summary)) {
+            let authenticated_starter_summary = self
+                .signature_starter_set_index
+                .get(&signature_bytes)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature starter sets"))?;
+            if authenticated_summary != Some(signature_fiber_value(signature_id, summary))
+                || authenticated_starter_summary
+                    != Some(signature_starter_set_value(signature_id, summary))
+                || summary.starter_count != fiber.starters.len() as u128
+                || fiber.authenticated_starters.entry_count() != summary.starter_count
+            {
                 return Err(MechanismSupportError::ClosureConflict);
             }
             inspected_signature_count = inspected_signature_count
@@ -4682,7 +4971,7 @@ impl MechanismSupportCatalogBuilder {
         };
 
         let target_starter_count = support_closure.target_starter_count();
-        let target_starter_root = self.target_starter_index.root_hash();
+        let target_starter_root = self.target_starter_set_index.root_hash();
         let (starter_count, starter_bound_basis) = if starter_lower_bound == target_starter_count {
             (
                 MechanismSupportCount::Exact(starter_lower_bound),
@@ -4718,11 +5007,6 @@ impl MechanismSupportCatalogBuilder {
             )
         };
 
-        let projection_plan_id = derive_starter_projection_plan_id(
-            slice,
-            structural_closure.root(),
-            support_closure.root(),
-        );
         let inner_fiber_expr_root = derive_factorized_inner_fiber_expr_root(
             slice,
             structural_closure.root(),
@@ -4734,6 +5018,28 @@ impl MechanismSupportCatalogBuilder {
             residual.root,
             residual.case_count,
             target_frontier_open,
+        );
+        let starter_inner_root = derive_factorized_subject_starter_projection_expr_root(
+            slice,
+            structural_closure.root(),
+            self.signature_starter_set_index.root_hash(),
+        );
+        let correlated_support_is_exact = residual.case_count == 0 && !target_frontier_open;
+        let support_expression_bounds = derive_support_expression_bounds(
+            slice,
+            inner_fiber_expr_root,
+            outer_fiber_expr_root,
+            starter_inner_root,
+            target_starter_root,
+            target_frontier_open,
+            starter_bound_basis.proves_exact_starter_set(),
+            correlated_support_is_exact,
+        )?;
+        let projection_plan_id = derive_starter_projection_plan_id(
+            slice,
+            structural_closure.root(),
+            support_closure.root(),
+            support_expression_bounds,
         );
         let root = derive_factorized_subject_summary_root(
             slice,
@@ -4750,15 +5056,13 @@ impl MechanismSupportCatalogBuilder {
             starter_count,
             starter_bound_basis,
             projection_plan_id,
-            inner_fiber_expr_root,
-            outer_fiber_expr_root,
+            support_expression_bounds,
         );
         Ok(MechanismFactorizedSubjectSummary {
             slice,
             root,
             projection_plan_id,
-            inner_fiber_expr_root,
-            outer_fiber_expr_root,
+            support_expression_bounds,
             contributing_signature_count,
             inspected_signature_count,
             signature_scan_complete,
@@ -4806,7 +5110,10 @@ impl MechanismSupportCatalogBuilder {
                 .ok_or(MechanismSupportError::ClosurePrerequisite(
                     "structural quotient closure",
                 ))?;
-        if !summary.fiber_expr_bounds_are_equal()
+        if !summary
+            .support_expression_bounds()
+            .correlated_support_status()
+            .is_exact()
             || support_closure.unavailable_case_count() != 0
             || summary.shared_residual_root() != support_closure.residual_root()
             || support_closure.structural_root() != structural_closure.root()
@@ -4838,8 +5145,16 @@ impl MechanismSupportCatalogBuilder {
                 .signature_fiber_index
                 .get(&signature_id.bytes())
                 .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
+            let authenticated_starter_summary = self
+                .signature_starter_set_index
+                .get(&signature_id.bytes())
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature starter sets"))?;
             if authenticated_summary != Some(signature_fiber_value(signature_id, fiber_summary))
+                || authenticated_starter_summary
+                    != Some(signature_starter_set_value(signature_id, fiber_summary))
                 || fiber_summary.case_count != fiber.cases.len() as u128
+                || fiber_summary.starter_count != fiber.starters.len() as u128
+                || fiber.authenticated_starters.entry_count() != fiber_summary.starter_count
                 || fiber_summary.case_count
                     != fiber
                         .starters
@@ -4868,7 +5183,7 @@ impl MechanismSupportCatalogBuilder {
             slice,
             question_id: self.scope.question_id(),
             projection_plan_id: summary.projection_plan_id(),
-            correlated_fiber_expr_root: summary.inner_fiber_expr_root(),
+            support_expression_bounds: summary.support_expression_bounds(),
             structural_root: structural_closure.root(),
             support_root: support_closure.root(),
             exact_case_count,
@@ -5067,8 +5382,13 @@ impl MechanismSupportCatalogBuilder {
             || self.unavailable_cases.total_weight() != support_closure.unavailable_case_count()
             || self.signature_fiber_index.entry_count() != support_closure.signature_fiber_count()
             || self.signature_fibers.len() as u128 != support_closure.signature_fiber_count()
+            || self.signature_starter_set_index.entry_count()
+                != support_closure.signature_fiber_count()
             || self.target_starter_index.total_weight() != support_closure.target_starter_count()
             || self.target_starter_refcounts.len() as u128 != support_closure.target_starter_count()
+            || self.target_starter_set_index.total_weight()
+                != support_closure.target_starter_count()
+            || self.target_starter_set_index.entry_count() != support_closure.target_starter_count()
             || self.terminal_fact_index.total_weight() != support_closure.target_case_count()
             || support_closure
                 .successful_case_count()
@@ -5159,12 +5479,19 @@ impl MechanismSupportCatalogBuilder {
         )?;
         let inner_signature_root = projection.signature_index.root_hash();
         let inner_case_root = projection.case_index.root_hash();
-        let inner_starter_root = projection.starter_index.root_hash();
+        let inner_starter_root = projection.correlated_starter_index.root_hash();
+        let inner_starter_set_root = projection.starter_set_index.root_hash();
         let inner_cases = projection.case_count();
         let inner_starters = projection.starter_count();
-        let target_starter_root = self.target_starter_index.root_hash();
+        let target_starter_root = self.target_starter_set_index.root_hash();
         let target_starters = self.target_starter_index.total_weight();
-        if target_starters != self.target_starter_refcounts.len() as u128 {
+        if target_starters != self.target_starter_refcounts.len() as u128
+            || self.target_starter_set_index.entry_count() != target_starters
+            || self.target_starter_set_index.total_weight() != target_starters
+            || projection.correlated_starter_index.entry_count() != inner_starters
+            || projection.correlated_starter_index.total_weight() != inner_starters
+            || projection.successor_fibers.len() as u128 != inner_starters
+        {
             return Err(MechanismSupportError::ResidualPartitionConflict);
         }
         // Every projection coordinate is admitted through this exact target,
@@ -5235,6 +5562,19 @@ impl MechanismSupportCatalogBuilder {
                 },
             )
         };
+        let starter_inner_expr_root =
+            derive_materialized_starter_projection_expr_root(total_slice, inner_starter_set_root);
+        let correlated_support_is_exact = !target_frontier_open && residual_cases == 0;
+        let support_expression_bounds = derive_support_expression_bounds(
+            total_slice,
+            inner_fiber_expr_root,
+            outer_fiber_expr_root,
+            starter_inner_expr_root,
+            target_starter_root,
+            target_frontier_open,
+            starter_upper_provenance.proves_exact_starter_set(),
+            correlated_support_is_exact,
+        )?;
         let root = derive_support_view_root(
             key,
             self.target_seal.as_ref().map(MechanismTargetSeal::id),
@@ -5247,6 +5587,7 @@ impl MechanismSupportCatalogBuilder {
             inner_starter_root,
             shared_residual.root,
             target_frontier_open,
+            support_expression_bounds,
             case_count,
             starter_count,
             starter_upper_provenance,
@@ -5254,8 +5595,7 @@ impl MechanismSupportCatalogBuilder {
         Ok(MechanismSupportView {
             key,
             root,
-            inner_fiber_expr_root,
-            outer_fiber_expr_root,
+            support_expression_bounds,
             inner_signature_root,
             inner_case_root,
             inner_starter_root,
@@ -5354,6 +5694,10 @@ impl MechanismSupportCatalogBuilder {
                     .checked_add(successful_cases)
                     .ok_or(MechanismSupportError::CountOverflow)?
             || target_starters != self.target_starter_refcounts.len() as u128
+            || self.target_starter_set_index.entry_count() != target_starters
+            || self.target_starter_set_index.total_weight() != target_starters
+            || self.signature_starter_set_index.entry_count()
+                != self.signature_fiber_index.entry_count()
         {
             return Err(MechanismSupportError::ResidualPartitionConflict);
         }
@@ -5396,6 +5740,68 @@ impl MechanismSupportCatalogBuilder {
                 case_count: unassigned_cases,
             },
         })
+    }
+
+    fn validate_starter_set_authentication(&self) -> Result<(), MechanismSupportError> {
+        for (source, refcount) in &self.target_starter_refcounts {
+            let key = source.bytes();
+            let refcount_value = self
+                .target_starter_index
+                .get(&key)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("target starters"))?;
+            let set_value = self
+                .target_starter_set_index
+                .get(&key)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("target starter set"))?;
+            if *refcount == 0
+                || refcount_value != Some(target_starter_value(*source, *refcount))
+                || set_value != Some(starter_set_member_value(*source))
+            {
+                return Err(MechanismSupportError::ResidualPartitionConflict);
+            }
+        }
+
+        for (signature_id, fiber) in &self.signature_fibers {
+            let summary = signature_fiber_summary(fiber);
+            if summary.case_count != fiber.cases.len() as u128
+                || summary.starter_count != fiber.starters.len() as u128
+                || fiber.authenticated_cases.entry_count() != summary.case_count
+                || fiber.authenticated_starters.entry_count() != summary.starter_count
+            {
+                return Err(MechanismSupportError::ResidualPartitionConflict);
+            }
+            let mut correlated_case_count = 0u128;
+            for source in fiber.starters.keys().copied() {
+                let value = fiber
+                    .authenticated_starters
+                    .get(&source.bytes())
+                    .map_err(|_| {
+                        MechanismSupportError::AuthenticatedIndex("signature starter set")
+                    })?;
+                if value != Some(starter_set_member_value(source)) {
+                    return Err(MechanismSupportError::ResidualPartitionConflict);
+                }
+                correlated_case_count = correlated_case_count
+                    .checked_add(fiber.starters[&source].len() as u128)
+                    .ok_or(MechanismSupportError::CountOverflow)?;
+            }
+            let key = signature_id.bytes();
+            let fiber_value = self
+                .signature_fiber_index
+                .get(&key)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature fibers"))?;
+            let starter_value = self
+                .signature_starter_set_index
+                .get(&key)
+                .map_err(|_| MechanismSupportError::AuthenticatedIndex("signature starter sets"))?;
+            if correlated_case_count != summary.case_count
+                || fiber_value != Some(signature_fiber_value(*signature_id, summary))
+                || starter_value != Some(signature_starter_set_value(*signature_id, summary))
+            {
+                return Err(MechanismSupportError::ResidualPartitionConflict);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -5679,8 +6085,9 @@ fn build_imported_subject_projection(
 fn signature_fiber_summary(fiber: &SignatureCaseFiber) -> SignatureFiberSummary {
     SignatureFiberSummary {
         root: fiber.authenticated_cases.root_hash(),
+        starter_set_root: fiber.authenticated_starters.root_hash(),
         case_count: fiber.authenticated_cases.total_weight(),
-        starter_count: fiber.starters.len() as u128,
+        starter_count: fiber.authenticated_starters.total_weight(),
     }
 }
 
@@ -5766,21 +6173,31 @@ fn insert_projection_successor(
             .map_err(|_| MechanismSupportError::AuthenticatedIndex("subject successor fiber"))?;
     }
     let successor_count = next_successors.total_weight();
-    let mut encoder = SupportEncoder::new(STARTER_FIBER_VALUE_V1);
-    encoder.u32(MECHANISM_SUPPORT_VERSION);
-    encoder.digest(source.bytes());
-    encoder.digest(next_successors.root_hash());
-    encoder.u128(successor_count);
-    let starter_value = AuthenticatedTreapValue::new(encoder.finish(), 1);
-    let mut next_starters = projection.starter_index.clone();
+    let mut correlated_encoder = SupportEncoder::new(CORRELATED_STARTER_FIBER_VALUE_V2);
+    correlated_encoder.u32(MECHANISM_SUPPORT_VERSION);
+    correlated_encoder.digest(source.bytes());
+    correlated_encoder.digest(next_successors.root_hash());
+    correlated_encoder.u128(successor_count);
+    let correlated_value = AuthenticatedTreapValue::new(correlated_encoder.finish(), 1);
+    let mut next_correlated_starters = projection.correlated_starter_index.clone();
     set_authenticated_value(
-        &mut next_starters,
+        &mut next_correlated_starters,
         source.bytes().to_vec().into_boxed_slice(),
-        starter_value,
-        "subject starters",
+        correlated_value,
+        "subject correlated starters",
     )?;
+    let mut next_starter_set = projection.starter_set_index.clone();
+    if !authenticated_contains(&next_starter_set, &source.bytes(), "subject starter set")? {
+        next_starter_set
+            .insert(
+                source.bytes().to_vec().into_boxed_slice(),
+                starter_set_member_value(source),
+            )
+            .map_err(|_| MechanismSupportError::AuthenticatedIndex("subject starter set"))?;
+    }
     projection.successor_fibers.insert(source, next_successors);
-    projection.starter_index = next_starters;
+    projection.correlated_starter_index = next_correlated_starters;
+    projection.starter_set_index = next_starter_set;
     Ok(())
 }
 
@@ -5818,9 +6235,29 @@ fn signature_fiber_value(
     encoder.u32(MECHANISM_SUPPORT_VERSION);
     encoder.digest(signature_id.bytes());
     encoder.digest(summary.root);
+    encoder.digest(summary.starter_set_root);
     encoder.u128(summary.case_count);
     encoder.u128(summary.starter_count);
     AuthenticatedTreapValue::new(encoder.finish(), summary.case_count)
+}
+
+fn signature_starter_set_value(
+    signature_id: MechanismSignatureId,
+    summary: SignatureFiberSummary,
+) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(SIGNATURE_STARTER_SET_VALUE_V1);
+    encoder.u32(MECHANISM_SUPPORT_VERSION);
+    encoder.digest(signature_id.bytes());
+    encoder.digest(summary.starter_set_root);
+    encoder.u128(summary.starter_count);
+    AuthenticatedTreapValue::new(encoder.finish(), summary.starter_count)
+}
+
+fn starter_set_member_value(source: SourceKey) -> AuthenticatedTreapValue {
+    let mut encoder = SupportEncoder::new(STARTER_SET_MEMBER_VALUE_V1);
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encoder.digest(source.bytes());
+    AuthenticatedTreapValue::new(encoder.finish(), 1)
 }
 
 fn automatic_observation_registry_value(
@@ -6033,7 +6470,7 @@ fn derive_support_frontier_root(
     incidence_closure_root: Option<MechanismIncidenceRoot>,
     structural_closure_root: Option<StructuralQuotientClosureRoot>,
 ) -> MechanismSupportFrontierRoot {
-    let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V3);
+    let mut encoder = SupportEncoder::new(SUPPORT_FRONTIER_ROOT_V4);
     encoder.u32(MECHANISM_SUPPORT_VERSION);
     encoder.digest(imported_prefix_root);
     encode_optional_digest(
@@ -6055,16 +6492,18 @@ fn derive_starter_projection_plan_id(
     slice: MechanismSupportSlice,
     structural_root: StructuralQuotientClosureRoot,
     support_root: MechanismSupportClosureRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
 ) -> MechanismStarterProjectionPlanId {
     let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
-        SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V1
+        SUPPORT_SLICE_STARTER_PROJECTION_PLAN_ID_V2
     } else {
-        STARTER_PROJECTION_PLAN_ID_V2
+        STARTER_PROJECTION_PLAN_ID_V3
     });
     encoder.u32(MECHANISM_STARTER_PROJECTION_PLAN_VERSION);
     encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.digest(structural_root.bytes());
     encoder.digest(support_root.bytes());
+    encode_support_expression_bounds(&mut encoder, support_expression_bounds);
     MechanismStarterProjectionPlanId(encoder.finish())
 }
 
@@ -6106,6 +6545,113 @@ fn derive_outer_fiber_expr_root(
     MechanismSupportFiberExprRoot(encoder.finish())
 }
 
+fn derive_factorized_subject_starter_projection_expr_root(
+    slice: MechanismSupportSlice,
+    structural_root: StructuralQuotientClosureRoot,
+    signature_starter_set_root: [u8; 32],
+) -> MechanismStarterProjectionExprRoot {
+    let mut encoder = SupportEncoder::new(STARTER_PROJECTION_EXPR_FACTORIZED_SUBJECT_V1);
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(structural_root.bytes());
+    encoder.digest(signature_starter_set_root);
+    MechanismStarterProjectionExprRoot(encoder.finish())
+}
+
+fn derive_factorized_observation_starter_projection_expr_root(
+    slice: MechanismSupportSlice,
+    starter_prefix_root: [u8; 32],
+) -> MechanismStarterProjectionExprRoot {
+    let mut encoder = SupportEncoder::new(STARTER_PROJECTION_EXPR_OBSERVATION_PREFIX_V1);
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(starter_prefix_root);
+    MechanismStarterProjectionExprRoot(encoder.finish())
+}
+
+fn derive_materialized_starter_projection_expr_root(
+    slice: MechanismSupportSlice,
+    starter_set_root: [u8; 32],
+) -> MechanismStarterProjectionExprRoot {
+    let mut encoder = SupportEncoder::new(STARTER_PROJECTION_EXPR_MATERIALIZED_V1);
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    encoder.digest(starter_set_root);
+    MechanismStarterProjectionExprRoot(encoder.finish())
+}
+
+fn derive_starter_projection_outer_expr_root(
+    slice: MechanismSupportSlice,
+    starter_inner_root: MechanismStarterProjectionExprRoot,
+    case_outer_root: MechanismSupportFiberExprRoot,
+    target_starter_set_root: [u8; 32],
+    target_frontier_open: bool,
+    starter_set_status: MechanismStarterSetStatus,
+) -> MechanismStarterProjectionExprRoot {
+    if starter_set_status.is_exact() {
+        return starter_inner_root;
+    }
+    let mut encoder = SupportEncoder::new(if target_frontier_open {
+        STARTER_PROJECTION_EXPR_OPAQUE_UPPER_V1
+    } else {
+        STARTER_PROJECTION_EXPR_TARGET_ENVELOPE_V1
+    });
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encode_total_or_conditioned_support_slice(&mut encoder, slice);
+    if target_frontier_open {
+        // The outer S expression commits the opaque undiscovered-target
+        // obligation. Its projection is an abstract upper expression rather
+        // than an enumerated finite starter set.
+        encoder.digest(starter_inner_root.bytes());
+        encoder.digest(case_outer_root.bytes());
+    } else {
+        // Every possible source belongs to the sealed target's canonical
+        // distinct SourceKey set. This is a conservative envelope when the
+        // subject-specific union has not itself closed.
+        encoder.digest(target_starter_set_root);
+    }
+    MechanismStarterProjectionExprRoot(encoder.finish())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn derive_support_expression_bounds(
+    slice: MechanismSupportSlice,
+    case_inner_root: MechanismSupportFiberExprRoot,
+    case_outer_root: MechanismSupportFiberExprRoot,
+    starter_inner_root: MechanismStarterProjectionExprRoot,
+    target_starter_set_root: [u8; 32],
+    target_frontier_open: bool,
+    starter_set_is_exact: bool,
+    correlated_support_is_exact: bool,
+) -> Result<MechanismSupportExpressionBounds, MechanismSupportError> {
+    let correlated_support_status = if correlated_support_is_exact {
+        MechanismCorrelatedSupportStatus::ExactCorrelatedSupport
+    } else {
+        MechanismCorrelatedSupportStatus::Open
+    };
+    let starter_set_status = if starter_set_is_exact || correlated_support_is_exact {
+        MechanismStarterSetStatus::ExactStarterSet
+    } else {
+        MechanismStarterSetStatus::Open
+    };
+    let starter_outer_root = derive_starter_projection_outer_expr_root(
+        slice,
+        starter_inner_root,
+        case_outer_root,
+        target_starter_set_root,
+        target_frontier_open,
+        starter_set_status,
+    );
+    MechanismSupportExpressionBounds::checked(
+        case_inner_root,
+        case_outer_root,
+        starter_inner_root,
+        starter_outer_root,
+        starter_set_status,
+        correlated_support_status,
+    )
+}
+
 fn support_fiber_expr_encoder(slice: MechanismSupportSlice, expression_kind: u8) -> SupportEncoder {
     let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
         SUPPORT_SLICE_FIBER_EXPR_ROOT_V1
@@ -6133,7 +6679,7 @@ fn derive_factorized_observation_inner_fiber_expr_root(
     confirmed_case_count: u128,
     confirmed_starter_lower_bound: u128,
 ) -> MechanismSupportFiberExprRoot {
-    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V1);
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_INNER_FIBER_EXPR_ROOT_V2);
     encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
     encoder.u8(FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE);
     encoder.u8(FIBER_EXPR_SOURCE_CONTEXT_BEFORE);
@@ -6166,7 +6712,7 @@ fn derive_factorized_observation_outer_fiber_expr_root(
     {
         return inner;
     }
-    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V1);
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_OUTER_FIBER_EXPR_ROOT_V2);
     encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
     encoder.u8(FIBER_EXPR_ORIGIN_PREIMAGE_COORDINATE);
     encoder.u8(FIBER_EXPR_SOURCE_CONTEXT_BEFORE);
@@ -6192,8 +6738,7 @@ fn derive_factorized_support_observation_summary_root(
     support_root: Option<MechanismSupportClosureRoot>,
     projection_plan_id: Option<MechanismStarterProjectionPlanId>,
     target_frontier_open: bool,
-    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
-    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     contributing_signature_count: u128,
     inspected_signature_count: u128,
     signature_scan_complete: bool,
@@ -6203,7 +6748,7 @@ fn derive_factorized_support_observation_summary_root(
     starter_count: MechanismSupportCount,
     starter_bound_basis: MechanismFactorizedStarterBoundBasis,
 ) -> MechanismFactorizedSupportObservationSummaryRoot {
-    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V1);
+    let mut encoder = SupportEncoder::new(FACTORIZED_SUPPORT_OBSERVATION_SUMMARY_ROOT_V2);
     encoder.u32(MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION);
     encode_total_or_conditioned_support_slice(&mut encoder, slice);
     encoder.digest(slice_id.bytes());
@@ -6222,8 +6767,7 @@ fn derive_factorized_support_observation_summary_root(
         projection_plan_id.map(MechanismStarterProjectionPlanId::bytes),
     );
     encoder.u8(u8::from(target_frontier_open));
-    encoder.digest(inner_fiber_expr_root.bytes());
-    encoder.digest(outer_fiber_expr_root.bytes());
+    encode_support_expression_bounds(&mut encoder, support_expression_bounds);
     encoder.u128(AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT as u128);
     encoder.u128(contributing_signature_count);
     encoder.u128(inspected_signature_count);
@@ -6252,13 +6796,12 @@ fn derive_factorized_subject_summary_root(
     starter_count: MechanismSupportCount,
     starter_bound_basis: MechanismFactorizedStarterBoundBasis,
     projection_plan_id: MechanismStarterProjectionPlanId,
-    inner_fiber_expr_root: MechanismSupportFiberExprRoot,
-    outer_fiber_expr_root: MechanismSupportFiberExprRoot,
+    support_expression_bounds: MechanismSupportExpressionBounds,
 ) -> MechanismFactorizedSubjectSummaryRoot {
     let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
-        FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V1
+        FACTORIZED_SUPPORT_SLICE_SUMMARY_ROOT_V2
     } else {
-        FACTORIZED_SUBJECT_SUMMARY_ROOT_V2
+        FACTORIZED_SUBJECT_SUMMARY_ROOT_V3
     });
     encoder.u32(MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION);
     encode_total_or_conditioned_support_slice(&mut encoder, slice);
@@ -6276,8 +6819,7 @@ fn derive_factorized_subject_summary_root(
     encode_count(&mut encoder, starter_count);
     encode_factorized_starter_bound_basis(&mut encoder, starter_bound_basis);
     encoder.digest(projection_plan_id.bytes());
-    encoder.digest(inner_fiber_expr_root.bytes());
-    encoder.digest(outer_fiber_expr_root.bytes());
+    encode_support_expression_bounds(&mut encoder, support_expression_bounds);
     MechanismFactorizedSubjectSummaryRoot(encoder.finish())
 }
 
@@ -6285,9 +6827,9 @@ fn factorized_support_slice_signature_prefix_encoder(
     slice: MechanismSupportSlice,
 ) -> SupportEncoder {
     let mut encoder = SupportEncoder::new(if slice.enclosing_mechanism().is_some() {
-        FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V1
+        FACTORIZED_SUPPORT_SLICE_SIGNATURE_PREFIX_ROOT_V2
     } else {
-        FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V2
+        FACTORIZED_SUBJECT_SIGNATURE_PREFIX_ROOT_V3
     });
     encoder.u32(MECHANISM_FACTORIZED_SUBJECT_SUMMARY_VERSION);
     encode_total_or_conditioned_support_slice(&mut encoder, slice);
@@ -6341,11 +6883,12 @@ fn derive_support_view_root(
     inner_starter_root: [u8; 32],
     shared_residual_root: MechanismSupportResidualRoot,
     target_frontier_open: bool,
+    support_expression_bounds: MechanismSupportExpressionBounds,
     case_count: MechanismSupportCount,
     starter_count: MechanismSupportCount,
     starter_upper_provenance: MechanismStarterUpperProvenance,
 ) -> MechanismSupportViewRoot {
-    let mut encoder = SupportEncoder::new(SUPPORT_VIEW_ROOT_V5);
+    let mut encoder = SupportEncoder::new(SUPPORT_VIEW_ROOT_V6);
     encoder.u32(MECHANISM_SUPPORT_VIEW_VERSION);
     encoder.digest(key.request_id.bytes());
     encode_target(&mut encoder, key.target);
@@ -6400,10 +6943,31 @@ fn derive_support_view_root(
     encoder.digest(inner_case_root);
     encoder.digest(inner_starter_root);
     encoder.digest(shared_residual_root.bytes());
+    encode_support_expression_bounds(&mut encoder, support_expression_bounds);
     encode_count(&mut encoder, case_count);
     encode_count(&mut encoder, starter_count);
     encode_starter_upper_provenance(&mut encoder, starter_upper_provenance);
     MechanismSupportViewRoot(encoder.finish())
+}
+
+fn encode_support_expression_bounds(
+    encoder: &mut SupportEncoder,
+    bounds: MechanismSupportExpressionBounds,
+) {
+    encoder.u32(MECHANISM_SUPPORT_FIBER_EXPR_VERSION);
+    encoder.digest(bounds.case_inner_root().bytes());
+    encoder.digest(bounds.case_outer_root().bytes());
+    encoder.u32(MECHANISM_STARTER_PROJECTION_EXPR_VERSION);
+    encoder.digest(bounds.starter_inner_root().bytes());
+    encoder.digest(bounds.starter_outer_root().bytes());
+    encoder.u8(match bounds.starter_set_status() {
+        MechanismStarterSetStatus::Open => 0x00,
+        MechanismStarterSetStatus::ExactStarterSet => 0x01,
+    });
+    encoder.u8(match bounds.correlated_support_status() {
+        MechanismCorrelatedSupportStatus::Open => 0x00,
+        MechanismCorrelatedSupportStatus::ExactCorrelatedSupport => 0x01,
+    });
 }
 
 fn encode_optional_digest(encoder: &mut SupportEncoder, digest: Option<[u8; 32]>) {
@@ -6555,6 +7119,7 @@ pub(crate) enum MechanismSupportError {
     TerminalConflict,
     SignatureConflict,
     ResidualPartitionConflict,
+    SupportExpressionBoundsConflict,
     CatalogClosed,
     ClosurePrerequisite(&'static str),
     ClosureConflict,
@@ -6629,6 +7194,9 @@ impl fmt::Display for MechanismSupportError {
             Self::SignatureConflict => "one target coordinate has conflicting raw signatures",
             Self::ResidualPartitionConflict => {
                 "mechanism support residual factors violate their disjoint partition"
+            }
+            Self::SupportExpressionBoundsConflict => {
+                "mechanism support expression bounds contain an invalid exactness claim"
             }
             Self::CatalogClosed => {
                 "mechanism support cannot accept new evidence after request closure"
@@ -7720,6 +8288,17 @@ mod tests {
             second.inner_fiber_expr_root()
         );
         assert!(sealed.fiber_expr_bounds_are_equal());
+        let sealed_bounds = sealed.support_expression_bounds();
+        assert!(sealed_bounds.case_bounds_are_equal());
+        assert!(sealed_bounds.starter_bounds_are_equal());
+        assert_eq!(
+            sealed_bounds.starter_set_status(),
+            MechanismStarterSetStatus::ExactStarterSet
+        );
+        assert_eq!(
+            sealed_bounds.correlated_support_status(),
+            MechanismCorrelatedSupportStatus::ExactCorrelatedSupport
+        );
     }
 
     #[test]
@@ -7920,6 +8499,43 @@ mod tests {
         ));
         assert!(!incremental_sealed.target_frontier_is_open());
         assert!(!incremental_sealed.fiber_expr_bounds_are_equal());
+        let observation_bounds = incremental_sealed.support_expression_bounds();
+        assert!(!observation_bounds.case_bounds_are_equal());
+        assert!(!observation_bounds.starter_bounds_are_equal());
+        assert_eq!(
+            observation_bounds.starter_set_status(),
+            MechanismStarterSetStatus::Open
+        );
+        assert_eq!(
+            observation_bounds.correlated_support_status(),
+            MechanismCorrelatedSupportStatus::Open
+        );
+
+        // The closed factorized authority is not limited by the publication
+        // scan cap. Its S and P expressions can therefore be exact while the
+        // deliberately cheap scalar cardinalities remain interval-valued.
+        let closed_summary = incremental
+            .derive_closed_factorized_support_slice_summary(slice, &fixture.structural)
+            .expect("closed capped factorized summary");
+        assert!(matches!(
+            closed_summary.case_count(),
+            MechanismSupportCount::Interval { .. }
+        ));
+        assert!(matches!(
+            closed_summary.starter_count(),
+            MechanismSupportCount::Interval { .. }
+        ));
+        let closed_bounds = closed_summary.support_expression_bounds();
+        assert!(closed_bounds.case_bounds_are_equal());
+        assert!(closed_bounds.starter_bounds_are_equal());
+        assert_eq!(
+            closed_bounds.starter_set_status(),
+            MechanismStarterSetStatus::ExactStarterSet
+        );
+        assert_eq!(
+            closed_bounds.correlated_support_status(),
+            MechanismCorrelatedSupportStatus::ExactCorrelatedSupport
+        );
     }
 
     #[test]
@@ -8010,6 +8626,17 @@ mod tests {
             MechanismFactorizedStarterBoundBasis::ExactTargetStarterSaturation { .. }
         ));
         assert!(!summary.fiber_expr_bounds_are_equal());
+        let bounds = summary.support_expression_bounds();
+        assert!(!bounds.case_bounds_are_equal());
+        assert!(bounds.starter_bounds_are_equal());
+        assert_eq!(
+            bounds.starter_set_status(),
+            MechanismStarterSetStatus::ExactStarterSet
+        );
+        assert_eq!(
+            bounds.correlated_support_status(),
+            MechanismCorrelatedSupportStatus::Open
+        );
         assert_eq!(
             fixture
                 .support
@@ -8017,6 +8644,104 @@ mod tests {
             Err(MechanismSupportError::ClosurePrerequisite(
                 "exact correlated structural-subject starter support",
             ))
+        );
+    }
+
+    #[test]
+    fn starter_projection_identity_ignores_successor_multiplicity() {
+        let fixture = multi_signature_shared_starter_fixture();
+        let mut support = fixture.pre_structural_support;
+        support
+            .sync_structural_assignments(&fixture.structural)
+            .expect("shared-starter structural assignments");
+
+        support
+            .sync_incidence_terminals_through(&fixture.open_incidence, &fixture.structural, 1)
+            .expect("first shared-starter successor");
+        let key = MechanismSupportKey::new(
+            support.scope(),
+            MechanismSupportSubject::Mechanism(fixture.mechanism_id),
+        );
+        let first = support
+            .derive_view(key, &fixture.structural)
+            .expect("one-successor shared-starter view");
+
+        support
+            .sync_incidence_terminals_through(
+                &fixture.open_incidence,
+                &fixture.structural,
+                fixture.open_incidence.terminal_discovery_count() as u128,
+            )
+            .expect("complete shared-starter successors");
+        let second = support
+            .derive_view(key, &fixture.structural)
+            .expect("two-successor shared-starter view");
+
+        assert_ne!(
+            first.support_expression_bounds().case_inner_root(),
+            second.support_expression_bounds().case_inner_root()
+        );
+        assert_eq!(
+            first.support_expression_bounds().starter_inner_root(),
+            second.support_expression_bounds().starter_inner_root()
+        );
+        assert_eq!(first.starter_count().lower_bound(), 1);
+        assert_eq!(second.starter_count().lower_bound(), 1);
+    }
+
+    #[test]
+    fn support_expression_exactness_requires_matching_roots() {
+        let case_inner = MechanismSupportFiberExprRoot([0x11; 32]);
+        let case_outer = MechanismSupportFiberExprRoot([0x12; 32]);
+        let starter_inner = MechanismStarterProjectionExprRoot([0x21; 32]);
+        let starter_outer = MechanismStarterProjectionExprRoot([0x22; 32]);
+
+        let equal_but_open = MechanismSupportExpressionBounds::checked(
+            case_inner,
+            case_inner,
+            starter_inner,
+            starter_inner,
+            MechanismStarterSetStatus::Open,
+            MechanismCorrelatedSupportStatus::Open,
+        )
+        .expect("equal expression roots remain valid open bounds");
+        assert!(equal_but_open.case_bounds_are_equal());
+        assert!(equal_but_open.starter_bounds_are_equal());
+        assert!(!equal_but_open.starter_set_status().is_exact());
+        assert!(!equal_but_open.correlated_support_status().is_exact());
+
+        assert_eq!(
+            MechanismSupportExpressionBounds::checked(
+                case_inner,
+                case_inner,
+                starter_inner,
+                starter_outer,
+                MechanismStarterSetStatus::ExactStarterSet,
+                MechanismCorrelatedSupportStatus::Open,
+            ),
+            Err(MechanismSupportError::SupportExpressionBoundsConflict)
+        );
+        assert_eq!(
+            MechanismSupportExpressionBounds::checked(
+                case_inner,
+                case_outer,
+                starter_inner,
+                starter_inner,
+                MechanismStarterSetStatus::ExactStarterSet,
+                MechanismCorrelatedSupportStatus::ExactCorrelatedSupport,
+            ),
+            Err(MechanismSupportError::SupportExpressionBoundsConflict)
+        );
+        assert_eq!(
+            MechanismSupportExpressionBounds::checked(
+                case_inner,
+                case_inner,
+                starter_inner,
+                starter_inner,
+                MechanismStarterSetStatus::Open,
+                MechanismCorrelatedSupportStatus::ExactCorrelatedSupport,
+            ),
+            Err(MechanismSupportError::SupportExpressionBoundsConflict)
         );
     }
 
@@ -8045,6 +8770,12 @@ mod tests {
                 .expect("closed subject authority");
             assert_eq!(authority.subject(), subject);
             assert_eq!(authority.exact_case_count(), 2);
+            assert_eq!(
+                authority
+                    .support_expression_bounds()
+                    .correlated_support_status(),
+                MechanismCorrelatedSupportStatus::ExactCorrelatedSupport
+            );
             assert!(plan_ids.insert(authority.projection_plan_id()));
 
             let first = fixture
@@ -8337,6 +9068,7 @@ mod tests {
                     changed_slice,
                     structural_closure.root(),
                     support_root,
+                    first_authority.support_expression_bounds(),
                 ),
                 first_authority.projection_plan_id()
             );
