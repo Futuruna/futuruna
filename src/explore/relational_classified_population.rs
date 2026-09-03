@@ -68,10 +68,7 @@ impl RelationalClassificationProgressCounts {
         if !plan.validate_root() {
             return Err(CertifiedRelationalClassificationCountsError::InvalidSupportPlanRoot);
         }
-        let [registered_question_id] = plan.question_ids() else {
-            return Err(CertifiedRelationalClassificationCountsError::UnsupportedQuestionSet);
-        };
-        if *registered_question_id != question_id {
+        if plan.question_ids().binary_search(&question_id).is_err() {
             return Err(
                 CertifiedRelationalClassificationCountsError::UnknownQuestion { question_id },
             );
@@ -552,7 +549,6 @@ fn merge_fact<T: Copy + Eq>(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CertifiedRelationalClassificationCountsError {
     InvalidSupportPlanRoot,
-    UnsupportedQuestionSet,
     UnknownQuestion {
         question_id: QuestionId,
     },
@@ -604,9 +600,6 @@ impl fmt::Display for CertifiedRelationalClassificationCountsError {
             Self::InvalidSupportPlanRoot => {
                 formatter.write_str("classification counts received an invalid support plan")
             }
-            Self::UnsupportedQuestionSet => formatter.write_str(
-                "certified classification-count acceleration requires exactly one semantic question",
-            ),
             Self::UnknownQuestion { question_id } => write!(
                 formatter,
                 "classification counts requested unregistered question {question_id:?}"

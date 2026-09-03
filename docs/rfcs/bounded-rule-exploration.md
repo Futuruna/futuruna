@@ -338,7 +338,7 @@ semantic node IDs.
 ### Current Experimental executable boundary
 
 The separated target syntax above is not yet a complete implementation claim.
-Publication v16 and report v9 execute the nested checkpoint with ordered
+Publication v17 and report v9 execute the nested checkpoint with ordered
 `from` bindings, `transition after`, scoped `where`, zero or more
 `find NAME = all|matches|violations` declarations, explicit
 `results ... from find NAME`, `mechanisms ... from find NAME using OBSERVER`,
@@ -359,9 +359,20 @@ member and cannot alias the case-support artifact.
 
 The current concrete execution path evaluates every unique named question over
 one shared relation and admission, while identical normalized aliases reuse one
-QuestionId and predicate evaluation. Certified sweep and regional-proof
-accelerators are still exact-one and fall back to that concrete stream for
-zero/plural question sets without choosing a primary. A chosen-view mechanism
+QuestionId and predicate evaluation. The checked classified sweep also shares
+one canonical case-partition traversal across the complete sorted QuestionId
+set. Each admitted coordinate contributes one packed joint decision vector;
+maximal adjacent equal vectors become support runs, with admission evidence
+once and question-indexed selection evidence on the same run cell. Per-question
+counts and closure therefore remain independent without retaining a resident
+case-by-question table, while the arbitrary-predicate lower bound remains
+`Omega(Nq)` decision bits in the worst case. Selected row payload is materialized
+once per any-selected joint run and shared by every selecting question.
+Native-classifier v2 and regional-proof accelerators remain exact-one and use
+the checked plural sweep as their fallback without choosing a primary. A
+pause/reopen audit over 300 transitions and two overlapping predicates closes
+after 300 classifications with independent exact selected counts of 20 and 10
+and one 20-case concrete union. A chosen-view mechanism
 target must name an earlier FIND-backed result containing `choose`. Execution
 waits for that exact result to publish, scans its authenticated projection in
 bounded resumable chunks, and admits each CaseId with its exact projection
@@ -371,7 +382,7 @@ complete admitted mechanism landscape can now be another named
 `find NAME = all` in the same relation as a cliff question. These are staged
 implementation limits, not competing semantic definitions.
 
-Report v9 and publication v16 add one bounded answer index over that staged
+Report v9 and publication v17 add one bounded answer index over that staged
 graph. Every declared result appears even when it is ungrouped, still open, or
 exactly empty. Its descriptor names the resolved input relation, grain,
 ordered selected columns and types, group keys, output-row and
@@ -563,7 +574,7 @@ view, choice or explanation binds exactly the coverage components reachable
 from its typed input edges plus its own AnalysisNodeCoverageId; unrelated
 questions or analysis nodes do not contaminate its bundle.
 
-This composed bundle is the normative target. Publication v16 currently emits
+This composed bundle is the normative target. Publication v17 currently emits
 the RelationId-scoped source manifest and carries admission/question/request
 identities, but does not yet emit every sibling coverage artifact or the
 composed bundle. Current artifacts MUST describe that boundary rather than
@@ -1180,7 +1191,7 @@ projects only `P` from that exact correlated source. They have different member
 schemas, counts, roots, cursors and materialization statuses even when every
 starter happens to have one successor.
 
-Publication v16 does not implement that target split. It retains the explicit
+Publication v17 does not implement that target split. It retains the explicit
 single-subject `starters` consumer introduced in publication v9 as transitional
 historical executable syntax:
 
@@ -1218,7 +1229,7 @@ source/successor pair; it is the implementation precursor of target `support
 cases`. A genuine target `support starters` member contains only the
 deduplicated `SourceKey`. The optional cursor field is omitted for an
 unqualified consumer. Publication v9 first established the additive consumer
-model; under the current Experimental v16 plan, either historical form still
+model; under the current Experimental v17 plan, either historical form still
 attaches without renaming or reopening the core analysis, but neither v9 bytes
 nor the misleading `starters` spelling are a compatibility target.
 
@@ -1811,7 +1822,7 @@ NDJSON); a renderer MUST NOT require one in-memory JSON array merely to save an
 otherwise durable exact answer. Only fields authorized by a view's
 `select` schema may enter its public configuration export.
 
-Publication v16 gives every mechanism request two support-observation
+Publication v17 gives every mechanism request two support-observation
 artifacts. `mechanisms/<request>.support-observations.ndjson` is the one shared
 append-only point stream for automatic and explicit slices.
 `mechanisms/<request>.support-observation-demands.ndjson` is the durable demand
@@ -1823,7 +1834,7 @@ sidecar publishes assignments, structural closure and at most one automatic
 support receipt; it MUST NOT duplicate those point records or emit one support
 row for every structural node and edge at closure.
 
-Publication v16 implements independently domain-separated inner/outer
+Publication v17 implements independently domain-separated inner/outer
 expression bounds for correlated case support `S` and distinct-starter
 projection `P = distinct_sources(S)`, plus explicit `starter_set_status` and
 `correlated_support_status`. Publication v12 is implementation history, not a

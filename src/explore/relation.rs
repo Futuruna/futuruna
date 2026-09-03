@@ -2453,15 +2453,33 @@ impl SelectedCaseBatchRow {
 pub(crate) fn install_selected_case_batch(
     relation: &mut RelationCatalogBuilder,
     admission: &mut AdmissionCatalogBuilder,
-    question: &mut QuestionCatalogBuilder,
+    questions: &mut BTreeMap<QuestionId, QuestionCatalogBuilder>,
+    selected_question_ids: &[QuestionId],
     rows: impl IntoIterator<Item = SelectedCaseBatchRow>,
 ) -> Result<(), SelectedCaseBatchError> {
-    if admission.relation_id != relation.relation_id || question.relation_id != relation.relation_id
-    {
+    if admission.relation_id != relation.relation_id {
         return Err(RelationClassificationError::RelationIdentityMismatch.into());
     }
-    if question.admission_id != admission.admission_id {
-        return Err(RelationClassificationError::AdmissionIdentityMismatch.into());
+    if selected_question_ids.is_empty()
+        || selected_question_ids
+            .windows(2)
+            .any(|pair| pair[0] >= pair[1])
+    {
+        return Err(SelectedCaseBatchError::InvalidQuestionSet);
+    }
+    for question_id in selected_question_ids {
+        let question =
+            questions
+                .get(question_id)
+                .ok_or(SelectedCaseBatchError::UnknownQuestion {
+                    question_id: *question_id,
+                })?;
+        if question.relation_id != relation.relation_id {
+            return Err(RelationClassificationError::RelationIdentityMismatch.into());
+        }
+        if question.admission_id != admission.admission_id {
+            return Err(RelationClassificationError::AdmissionIdentityMismatch.into());
+        }
     }
     if relation.source_enumeration_closed {
         return Err(RelationCatalogError::SourceEnumerationClosed.into());
@@ -2559,11 +2577,18 @@ pub(crate) fn install_selected_case_batch(
                 }
             });
         }
-        if question.decision(row.case_id).is_some() {
-            return Err(RelationClassificationError::SelectionDecisionConflict {
-                case_id: row.case_id,
+        for question_id in selected_question_ids {
+            if questions
+                .get(question_id)
+                .expect("the selected question set was validated")
+                .decision(row.case_id)
+                .is_some()
+            {
+                return Err(RelationClassificationError::SelectionDecisionConflict {
+                    case_id: row.case_id,
+                }
+                .into());
             }
-            .into());
         }
 
         let source_key = delta.insert_source(row.source)?;
@@ -2577,23 +2602,34 @@ pub(crate) fn install_selected_case_batch(
     // Capacity is operational, not semantic. Reserve before the move-only
     // commits so a recoverable allocation refusal cannot expose a partial
     // three-catalog transaction.
-    question
-        .selected_discovery_order
-        .try_reserve(case_ids.len())
-        .map_err(|_| SelectedCaseBatchError::AllocationFailed)?;
+    for question_id in selected_question_ids {
+        questions
+            .get_mut(question_id)
+            .expect("the selected question set was validated")
+            .selected_discovery_order
+            .try_reserve(case_ids.len())
+            .map_err(|_| SelectedCaseBatchError::AllocationFailed)?;
+    }
 
     relation.apply_selected_delta(delta);
-    for case_id in case_ids {
+    for case_id in case_ids.iter().copied() {
         let previous = admission
             .decisions
             .insert(case_id, AdmissionDecision::Admitted);
         debug_assert!(previous.is_none());
         admission.admitted_count += 1;
-        let previous = question
-            .decisions
-            .insert(case_id, SelectionDecision::Selected);
-        debug_assert!(previous.is_none());
-        question.selected_discovery_order.push(case_id);
+    }
+    for question_id in selected_question_ids {
+        let question = questions
+            .get_mut(question_id)
+            .expect("the selected question set was validated");
+        for case_id in case_ids.iter().copied() {
+            let previous = question
+                .decisions
+                .insert(case_id, SelectionDecision::Selected);
+            debug_assert!(previous.is_none());
+            question.selected_discovery_order.push(case_id);
+        }
     }
     Ok(())
 }
@@ -3079,6 +3115,10 @@ pub(crate) enum RelationClassificationError {
 pub(crate) enum SelectedCaseBatchError {
     Catalog(RelationCatalogError),
     Classification(RelationClassificationError),
+    InvalidQuestionSet,
+    UnknownQuestion {
+        question_id: QuestionId,
+    },
     SourceKeyClaimMismatch {
         claimed: SourceKey,
         derived: SourceKey,
@@ -3117,6 +3157,12 @@ impl fmt::Display for SelectedCaseBatchError {
         match self {
             Self::Catalog(error) => fmt::Display::fmt(error, formatter),
             Self::Classification(error) => fmt::Display::fmt(error, formatter),
+            Self::InvalidQuestionSet => formatter
+                .write_str("selected-case batch requires a nonempty canonical question set"),
+            Self::UnknownQuestion { question_id } => write!(
+                formatter,
+                "selected-case batch references unknown question {question_id:?}",
+            ),
             Self::SourceKeyClaimMismatch { .. } => {
                 formatter.write_str("selected-case batch SourceKey claim mismatch")
             }

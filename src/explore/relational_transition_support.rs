@@ -278,6 +278,27 @@ pub(crate) struct RelationalTransitionSupportIndex {
     matched: BTreeMap<QuestionId, MatchedTransitionSupport>,
 }
 
+/// Bounded rollback guard for a batch of already authenticated transitions.
+///
+/// The authenticated treaps are persistent, so their snapshots are shallow
+/// `Arc` clones. The mutable semantic maps are append-only during this guard;
+/// rollback therefore removes only the keys inserted by this batch instead of
+/// cloning the complete accumulated index. Matched-layer snapshots are
+/// proportional to the registered question count, never the case population.
+pub(crate) struct RelationalTransitionSupportAppendTransaction<'index> {
+    index: &'index mut RelationalTransitionSupportIndex,
+    original_state_tree: Option<AuthenticatedTreapMap>,
+    original_transition_tree: Option<AuthenticatedTreapMap>,
+    original_universe_support_tree: Option<AuthenticatedTreapMap>,
+    original_admitted_transition_tree: Option<AuthenticatedTreapMap>,
+    original_admitted_support_tree: Option<AuthenticatedTreapMap>,
+    original_matched: Option<BTreeMap<QuestionId, MatchedTransitionSupport>>,
+    inserted_state_ids: Vec<StateId>,
+    inserted_transition_ids: Vec<TransitionId>,
+    inserted_case_ids: Vec<RelationalCaseId>,
+    committed: bool,
+}
+
 impl RelationalTransitionSupportIndex {
     pub(crate) fn new(
         state_schema_id: StateSchemaId,
@@ -297,6 +318,30 @@ impl RelationalTransitionSupportIndex {
             admitted_transition_tree: AuthenticatedTreapMap::new(ADMITTED_TRANSITION_TREE_DOMAIN),
             admitted_support_tree: AuthenticatedTreapMap::new(ADMITTED_SUPPORT_TREE_DOMAIN),
             matched: BTreeMap::new(),
+        }
+    }
+
+    pub(crate) fn begin_append_transaction(
+        &mut self,
+    ) -> RelationalTransitionSupportAppendTransaction<'_> {
+        let original_state_tree = self.state_tree.clone();
+        let original_transition_tree = self.transition_tree.clone();
+        let original_universe_support_tree = self.universe_support_tree.clone();
+        let original_admitted_transition_tree = self.admitted_transition_tree.clone();
+        let original_admitted_support_tree = self.admitted_support_tree.clone();
+        let original_matched = self.matched.clone();
+        RelationalTransitionSupportAppendTransaction {
+            index: self,
+            original_state_tree: Some(original_state_tree),
+            original_transition_tree: Some(original_transition_tree),
+            original_universe_support_tree: Some(original_universe_support_tree),
+            original_admitted_transition_tree: Some(original_admitted_transition_tree),
+            original_admitted_support_tree: Some(original_admitted_support_tree),
+            original_matched: Some(original_matched),
+            inserted_state_ids: Vec::new(),
+            inserted_transition_ids: Vec::new(),
+            inserted_case_ids: Vec::new(),
+            committed: false,
         }
     }
 
@@ -837,6 +882,121 @@ impl RelationalTransitionSupportIndex {
     }
 }
 
+impl RelationalTransitionSupportAppendTransaction<'_> {
+    pub(crate) fn insert_universe(
+        &mut self,
+        relation: &RelationCatalogBuilder,
+        case_id: RelationalCaseId,
+        source_key: SourceKey,
+        source: &SourceRow,
+        successor_key: SuccessorKey,
+        successor: &SuccessorRow,
+    ) -> Result<(), RelationalTransitionSupportError> {
+        let prepared = self.index.preflight_universe(
+            relation,
+            case_id,
+            source_key,
+            source,
+            successor_key,
+            successor,
+        )?;
+        let before_state_id = prepared.before_state_id;
+        let after_state_id = prepared.after_state_id;
+        let transition_id = prepared.transition_id;
+        let case_id = prepared.case_id;
+        let before_state_is_new = !self.index.states.contains_key(&before_state_id);
+        let after_state_is_new = !self.index.states.contains_key(&after_state_id);
+        if !prepared.already_present {
+            if before_state_is_new {
+                self.inserted_state_ids.push(before_state_id);
+            }
+            if after_state_is_new && after_state_id != before_state_id {
+                self.inserted_state_ids.push(after_state_id);
+            }
+            self.inserted_transition_ids.push(transition_id);
+            self.inserted_case_ids.push(case_id);
+            let inserted = self.index.commit_universe(prepared);
+            debug_assert!(inserted);
+        } else {
+            let inserted = self.index.commit_universe(prepared);
+            debug_assert!(!inserted);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn classify_admission(
+        &mut self,
+        case_id: RelationalCaseId,
+        decision: AdmissionDecision,
+    ) -> Result<(), RelationalTransitionSupportError> {
+        let prepared = self.index.preflight_admission(case_id, decision)?;
+        self.index.commit_classification(prepared);
+        Ok(())
+    }
+
+    pub(crate) fn classify_question(
+        &mut self,
+        question_id: QuestionId,
+        case_id: RelationalCaseId,
+        decision: SelectionDecision,
+    ) -> Result<(), RelationalTransitionSupportError> {
+        let prepared = self
+            .index
+            .preflight_question(question_id, case_id, decision)?;
+        self.index.commit_classification(prepared);
+        Ok(())
+    }
+
+    /// Publish the staged batch. Every fallible semantic operation has already
+    /// happened; consuming the guard merely disables rollback.
+    pub(crate) fn commit(mut self) {
+        self.committed = true;
+    }
+}
+
+impl Drop for RelationalTransitionSupportAppendTransaction<'_> {
+    fn drop(&mut self) {
+        if self.committed {
+            return;
+        }
+
+        self.index.state_tree = self
+            .original_state_tree
+            .take()
+            .expect("transition-support transaction owns its state-tree snapshot");
+        self.index.transition_tree = self
+            .original_transition_tree
+            .take()
+            .expect("transition-support transaction owns its transition-tree snapshot");
+        self.index.universe_support_tree = self
+            .original_universe_support_tree
+            .take()
+            .expect("transition-support transaction owns its universe snapshot");
+        self.index.admitted_transition_tree = self
+            .original_admitted_transition_tree
+            .take()
+            .expect("transition-support transaction owns its admitted-transition snapshot");
+        self.index.admitted_support_tree = self
+            .original_admitted_support_tree
+            .take()
+            .expect("transition-support transaction owns its admitted-support snapshot");
+        self.index.matched = self
+            .original_matched
+            .take()
+            .expect("transition-support transaction owns its question-layer snapshots");
+
+        for case_id in self.inserted_case_ids.iter().copied() {
+            self.index.cases.remove(&case_id);
+        }
+        for transition_id in self.inserted_transition_ids.iter().copied() {
+            self.index.transitions.remove(&transition_id);
+        }
+        for state_id in self.inserted_state_ids.iter().copied() {
+            self.index.states.remove(&state_id);
+        }
+    }
+}
+
 fn hash_tree(hasher: &mut Sha256, tree: &AuthenticatedTreapMap) {
     hasher.update(tree.root_hash());
     hasher.update(tree.entry_count().to_be_bytes());
@@ -1093,6 +1253,98 @@ mod tests {
             }
         }
         (support, cases)
+    }
+
+    #[test]
+    fn append_transaction_rolls_back_only_its_bounded_delta() {
+        let relation_id = RelationId::from_canonical_semantic_digest([51; 32]);
+        let mut relation = RelationCatalogBuilder::new(relation_id);
+        let source = SourceRow::new(
+            ExploreValue::Int(7),
+            ExploreValue::Int(10),
+            RelationProvenance::default(),
+        );
+        let source_key = relation.insert_source(source.clone()).unwrap();
+        let successor = SuccessorRow::new(ExploreValue::Int(11), RelationProvenance::default());
+        let successor_key = SuccessorKey::derive(relation_id, source_key, &successor);
+        let case_id = RelationalCaseId::derive(relation_id, source_key, successor_key);
+        let question_id = QuestionId::from_journal_codec_bytes([52; 32]);
+        let unknown_question_id = QuestionId::from_journal_codec_bytes([53; 32]);
+        let mut support = RelationalTransitionSupportIndex::new(
+            StateSchemaId::from_bytes([54; 32]),
+            ContextSchemaId::from_bytes([55; 32]),
+            TransitionTypeId::from_bytes([56; 32]),
+        );
+        assert!(support.register_question(question_id));
+        let root_before = support.root();
+        let counts_before = support.counts();
+
+        {
+            let mut transaction = support.begin_append_transaction();
+            transaction
+                .insert_universe(
+                    &relation,
+                    case_id,
+                    source_key,
+                    &source,
+                    successor_key,
+                    &successor,
+                )
+                .unwrap();
+            transaction
+                .classify_admission(case_id, AdmissionDecision::Admitted)
+                .unwrap();
+            transaction
+                .classify_question(question_id, case_id, SelectionDecision::Selected)
+                .unwrap();
+            assert!(matches!(
+                transaction.classify_question(
+                    unknown_question_id,
+                    case_id,
+                    SelectionDecision::Selected,
+                ),
+                Err(RelationalTransitionSupportError::UnknownQuestion { question_id })
+                    if question_id == unknown_question_id
+            ));
+        }
+
+        assert_eq!(support.root(), root_before);
+        assert_eq!(support.counts(), counts_before);
+        assert!(support.states.is_empty());
+        assert!(support.transitions.is_empty());
+        assert!(support.cases.is_empty());
+
+        let mut transaction = support.begin_append_transaction();
+        transaction
+            .insert_universe(
+                &relation,
+                case_id,
+                source_key,
+                &source,
+                successor_key,
+                &successor,
+            )
+            .unwrap();
+        transaction
+            .classify_admission(case_id, AdmissionDecision::Admitted)
+            .unwrap();
+        transaction
+            .classify_question(question_id, case_id, SelectionDecision::Selected)
+            .unwrap();
+        let relation_insert = relation
+            .preflight_insert_successor(source_key, successor)
+            .unwrap();
+        relation.commit_preflight_successor(relation_insert);
+        transaction.commit();
+
+        let counts = support.counts();
+        assert_eq!(counts.states(), 2);
+        assert_eq!(counts.cases(RelationalTransitionLayer::Universe), Some(1));
+        assert_eq!(counts.cases(RelationalTransitionLayer::Admitted), Some(1));
+        assert_eq!(
+            counts.cases(RelationalTransitionLayer::Matched(question_id)),
+            Some(1)
+        );
     }
 
     #[test]

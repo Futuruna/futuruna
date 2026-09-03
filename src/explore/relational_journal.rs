@@ -131,12 +131,12 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 24;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 25;
 
-const JOURNAL_CONTRACT_HASH_V24: &[u8] = b"futuruna.explore.relational-journal-contract.v24";
-const JOURNAL_GENESIS_HASH_V24: &[u8] = b"futuruna.explore.relational-journal-genesis.v24";
-const JOURNAL_EVENT_HASH_V20: &[u8] = b"futuruna.explore.relational-journal-event.v20";
-const JOURNAL_ENTRY_HASH_V24: &[u8] = b"futuruna.explore.relational-journal-entry.v24";
+const JOURNAL_CONTRACT_HASH_V25: &[u8] = b"futuruna.explore.relational-journal-contract.v25";
+const JOURNAL_GENESIS_HASH_V25: &[u8] = b"futuruna.explore.relational-journal-genesis.v25";
+const JOURNAL_EVENT_HASH_V21: &[u8] = b"futuruna.explore.relational-journal-event.v21";
+const JOURNAL_ENTRY_HASH_V25: &[u8] = b"futuruna.explore.relational-journal-entry.v25";
 const CORE_EVIDENCE_ROOT_HASH_V6: &[u8] = b"futuruna.explore.relational-core-evidence-root.v6";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -144,7 +144,7 @@ const EXHAUSTION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exhaustion-evidence-root.v2";
 const EXTENSIONAL_CONTENT_ROOT_HASH_V5: &[u8] =
     b"futuruna.explore.relational-extensional-content-root.v5";
-const CHECKPOINT_ROOT_HASH_V8: &[u8] = b"futuruna.explore.relational-checkpoint-root.v8";
+const CHECKPOINT_ROOT_HASH_V9: &[u8] = b"futuruna.explore.relational-checkpoint-root.v9";
 const QUESTION_FRONTIER_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.question-frontier-set-root.v1";
 const QUESTION_CONTENT_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.question-content-set-root.v1";
 const MECHANISM_SUPPORT_OBSERVATION_POINT_ID_V2: &[u8] =
@@ -500,7 +500,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(&self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V24);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V25);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -530,7 +530,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V24);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V25);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -1694,22 +1694,28 @@ impl RelationalClassifiedSupportFragment {
         }
     }
 
-    pub(crate) const fn admitted_not_selected_count(&self) -> u128 {
+    pub(crate) fn admitted_not_selected_count(&self, question_id: QuestionId) -> Option<u128> {
         match self {
-            Self::Concrete(artifact) => artifact.admitted_not_selected_count(),
-            Self::CertifiedZeroSelected(artifact) => match artifact.conclusion() {
-                RelationalCertifiedRegionConclusion::Rejected => 0,
-                RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
-                    artifact.case_cardinality()
-                }
-            },
+            Self::Concrete(artifact) => artifact.admitted_not_selected_count(question_id),
+            Self::CertifiedZeroSelected(artifact) if artifact.question_id() == question_id => {
+                Some(match artifact.conclusion() {
+                    RelationalCertifiedRegionConclusion::Rejected => 0,
+                    RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
+                        artifact.case_cardinality()
+                    }
+                })
+            }
+            Self::CertifiedZeroSelected(_) => None,
         }
     }
 
-    pub(crate) const fn admitted_selected_count(&self) -> u128 {
+    pub(crate) fn admitted_selected_count(&self, question_id: QuestionId) -> Option<u128> {
         match self {
-            Self::Concrete(artifact) => artifact.admitted_selected_count(),
-            Self::CertifiedZeroSelected(_) => 0,
+            Self::Concrete(artifact) => artifact.admitted_selected_count(question_id),
+            Self::CertifiedZeroSelected(artifact) if artifact.question_id() == question_id => {
+                Some(0)
+            }
+            Self::CertifiedZeroSelected(_) => None,
         }
     }
 }
@@ -2932,7 +2938,6 @@ impl RelationalEvidenceState {
         &mut self,
         artifact: &RelationalCaseChunkPartitionArtifact,
     ) -> Result<(), RelationalJournalError> {
-        self.require_single_question_optimization(artifact.question_id())?;
         if self.concrete_source_traversal_has_started() {
             return Err(RelationalJournalError::ClassifiedSweepConflictsWithSourceTraversal);
         }
@@ -3069,15 +3074,11 @@ impl RelationalEvidenceState {
             .verified_case_chunk_partition
             .as_ref()
             .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
-        self.require_single_question_optimization(verified_partition.artifact().question_id())?;
         if verified_partition.artifact().plan_root() != plan.root()
             || verified_partition.artifact().relation_id() != plan.relation_id()
             || verified_partition.artifact().admission_id() != plan.admission_id()
-            || plan
-                .question_ids()
-                .binary_search(&verified_partition.artifact().question_id())
-                .is_err()
-            || artifact.question_id() != verified_partition.artifact().question_id()
+            || verified_partition.artifact().question_ids() != plan.question_ids()
+            || artifact.question_ids() != verified_partition.artifact().question_ids()
             || verified_partition.artifact().id() != artifact.chunk_partition_id()
         {
             return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3168,15 +3169,11 @@ impl RelationalEvidenceState {
                 .verified_case_chunk_partition
                 .as_ref()
                 .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
-            self.require_single_question_optimization(verified_partition.artifact().question_id())?;
             if verified_partition.artifact().plan_root() != plan.root()
                 || verified_partition.artifact().relation_id() != plan.relation_id()
                 || verified_partition.artifact().admission_id() != plan.admission_id()
-                || plan
-                    .question_ids()
-                    .binary_search(&verified_partition.artifact().question_id())
-                    .is_err()
-                || artifact.question_id() != verified_partition.artifact().question_id()
+                || verified_partition.artifact().question_ids() != plan.question_ids()
+                || artifact.question_ids() != verified_partition.artifact().question_ids()
                 || verified_partition.artifact().id() != artifact.chunk_partition_id()
             {
                 return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3345,7 +3342,7 @@ impl RelationalEvidenceState {
                 (Some(_), None) | (None, None) => {}
             }
 
-            let mut admitted_selection_activation = false;
+            let mut admitted_selection_activations = BTreeSet::new();
             for descriptor in plan.obligations() {
                 if let RelationalStagedObligationDescriptor::SelectionOnAdmitted {
                     activation,
@@ -3360,14 +3357,15 @@ impl RelationalEvidenceState {
                     {
                         return Err(RelationalJournalError::InvalidSupportPlanActivation);
                     }
-                    admitted_selection_activation = true;
+                    if !admitted_selection_activations.insert(*question_id) {
+                        return Err(RelationalJournalError::InvalidSupportPlanActivation);
+                    }
                 }
             }
-            if verified
-                .runs()
+            if admitted_selection_activations
                 .iter()
-                .any(|run| run.descriptor().outcome().selection().is_some())
-                && !admitted_selection_activation
+                .copied()
+                .ne(plan.question_ids().iter().copied())
             {
                 return Err(RelationalJournalError::InvalidSupportPlanActivation);
             }
@@ -3552,25 +3550,32 @@ impl RelationalEvidenceState {
 
             let admission = relational_classified_sweep_gateway::admission(&verified, run_ordinal)
                 .map_err(RelationalClassifiedSweepError::from)?;
-            let selection = if verified.runs()[run_ordinal]
+            let mut selections = Vec::new();
+            if verified.runs()[run_ordinal]
                 .descriptor()
                 .outcome()
-                .selection()
-                .is_some()
+                .admission()
+                == AdmissionDecision::Admitted
             {
-                let selection =
-                    relational_classified_sweep_gateway::selection(&verified, run_ordinal)
-                        .map_err(RelationalClassifiedSweepError::from)?;
-                Some((
-                    SupportObligationRecord::Selection(selection.obligation().clone()),
-                    SupportEvidenceRecord::Selection(selection),
-                ))
-            } else {
-                None
-            };
+                selections
+                    .try_reserve_exact(artifact.question_ids().len())
+                    .map_err(|_| SupportEvidenceError::AtomicAppendReservationFailed)?;
+                for question_id in artifact.question_ids() {
+                    let selection = relational_classified_sweep_gateway::selection(
+                        &verified,
+                        run_ordinal,
+                        *question_id,
+                    )
+                    .map_err(RelationalClassifiedSweepError::from)?;
+                    selections.push((
+                        SupportObligationRecord::Selection(selection.obligation().clone()),
+                        SupportEvidenceRecord::Selection(selection),
+                    ));
+                }
+            }
             classification_evidence.push((
                 SupportEvidenceRecord::Admission(admission),
-                selection,
+                selections,
                 verified.runs()[run_ordinal].cell().id(),
             ));
         }
@@ -3597,11 +3602,22 @@ impl RelationalEvidenceState {
         // new run records, rather than cloning the complete accumulated support
         // catalog (twice) for every chunk. The cursor remains deliberately last
         // and outside the support evidence root.
+        let selection_evidence_count = classification_evidence
+            .iter()
+            .try_fold(0usize, |count, (_, selections, _)| {
+                count.checked_add(selections.len())
+            })
+            .ok_or(SupportEvidenceError::AtomicAppendReservationFailed)?;
         let undo_capacity = verified
             .runs()
             .len()
             .checked_mul(9)
             .and_then(|capacity| capacity.checked_add(3))
+            .and_then(|capacity| {
+                selection_evidence_count
+                    .checked_mul(2)
+                    .and_then(|selection_capacity| capacity.checked_add(selection_capacity))
+            })
             .ok_or(SupportEvidenceError::AtomicAppendReservationFailed)?;
         let mut support = self.support.begin_append_transaction(undo_capacity)?;
         for cell in run_cells {
@@ -3618,9 +3634,9 @@ impl RelationalEvidenceState {
             support.insert_obligation_refinement_with_children(refinement, child_obligations)?;
         }
 
-        for (admission, selection, cell_id) in classification_evidence {
+        for (admission, selections, cell_id) in classification_evidence {
             support.insert_declared_evidence_record(admission)?;
-            if let Some((obligation, evidence)) = selection {
+            for (obligation, evidence) in selections {
                 support.declare_root_obligation_record(obligation)?;
                 support.insert_declared_evidence_record(evidence)?;
             }
@@ -3690,7 +3706,7 @@ impl RelationalEvidenceState {
         };
         if partition_artifact_id != verified_partition.artifact().id()
             || artifact.root_cell_id() != verified_partition.artifact().root_cell_id()
-            || artifact.question_id() != verified_partition.artifact().question_id()
+            || verified_partition.artifact().question_ids() != &[artifact.question_id()]
             || artifact.plan_root() != plan.root()
             || artifact.relation_id() != plan.relation_id()
             || artifact.admission_id() != plan.admission_id()
@@ -3936,15 +3952,11 @@ impl RelationalEvidenceState {
             .verified_case_chunk_partition
             .as_ref()
             .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
-        self.require_single_question_optimization(verified_partition.artifact().question_id())?;
         if verified_partition.artifact().plan_root() != plan.root()
             || verified_partition.artifact().relation_id() != plan.relation_id()
             || verified_partition.artifact().admission_id() != plan.admission_id()
-            || plan
-                .question_ids()
-                .binary_search(&verified_partition.artifact().question_id())
-                .is_err()
-            || artifact.question_id() != verified_partition.artifact().question_id()
+            || verified_partition.artifact().question_ids() != plan.question_ids()
+            || artifact.question_ids() != verified_partition.artifact().question_ids()
             || verified_partition.artifact().id() != artifact.chunk_partition_id()
         {
             return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
@@ -3991,7 +4003,6 @@ impl RelationalEvidenceState {
         &mut self,
         artifact: &RelationalSelectedRunMaterializationArtifact,
     ) -> Result<(), RelationalJournalError> {
-        self.require_single_question_optimization(artifact.question_id())?;
         let chunk_ordinal = usize::try_from(artifact.chunk_ordinal()).map_err(|_| {
             RelationalJournalError::SelectedRunClassifiedArtifactMissing {
                 chunk_ordinal: artifact.chunk_ordinal(),
@@ -4026,9 +4037,12 @@ impl RelationalEvidenceState {
             &verified_classified,
             artifact.run_ordinal(),
         )?;
-        let question_id = artifact.question_id();
-        if !self.contract.contains_question(question_id) {
-            return Err(RelationalJournalError::UnknownQuestion { question_id });
+        for question_id in artifact.selected_question_ids() {
+            if !self.contract.contains_question(*question_id) {
+                return Err(RelationalJournalError::UnknownQuestion {
+                    question_id: *question_id,
+                });
+            }
         }
         let run_cell_id = verified.artifact().run_cell_id();
 
@@ -4057,9 +4071,9 @@ impl RelationalEvidenceState {
         // mutated. This makes a transition collision or allocation failure an
         // all-or-nothing rejection alongside the relation/classification
         // batch instead of exposing a partially installed selected witness.
-        let mut staged_transition_support = self.transition_support.clone();
+        let mut transition_support = self.transition_support.begin_append_transaction();
         for record in verified.cases().iter() {
-            let universe = staged_transition_support.preflight_universe(
+            transition_support.insert_universe(
                 &self.relation,
                 record.case_id(),
                 record.source_key(),
@@ -4067,16 +4081,14 @@ impl RelationalEvidenceState {
                 record.successor_key(),
                 record.successor(),
             )?;
-            staged_transition_support.commit_universe(universe);
-            let admitted = staged_transition_support
-                .preflight_admission(record.case_id(), AdmissionDecision::Admitted)?;
-            staged_transition_support.commit_classification(admitted);
-            let matched = staged_transition_support.preflight_question(
-                question_id,
-                record.case_id(),
-                SelectionDecision::Selected,
-            )?;
-            staged_transition_support.commit_classification(matched);
+            transition_support.classify_admission(record.case_id(), AdmissionDecision::Admitted)?;
+            for question_id in artifact.selected_question_ids() {
+                transition_support.classify_question(
+                    *question_id,
+                    record.case_id(),
+                    SelectionDecision::Selected,
+                )?;
+            }
         }
 
         // Validate against the durable prefixes and build one bounded local
@@ -4084,14 +4096,11 @@ impl RelationalEvidenceState {
         // has no semantic failure path and does not clone the selected prefix.
         // No enumeration seal is minted here: these remain sparse witnesses
         // emerging from an open certified population.
-        let question = self
-            .questions
-            .get_mut(&question_id)
-            .ok_or(RelationalJournalError::UnknownQuestion { question_id })?;
         install_selected_case_batch(
             &mut self.relation,
             &mut self.admission,
-            question,
+            &mut self.questions,
+            artifact.selected_question_ids(),
             verified.cases().iter().map(|record| {
                 SelectedCaseBatchRow::new(
                     record.source_key(),
@@ -4102,7 +4111,7 @@ impl RelationalEvidenceState {
                 )
             }),
         )?;
-        self.transition_support = staged_transition_support;
+        transition_support.commit();
 
         // All semantic conflicts were rejected before the batch merge. These
         // two indexes only publish the already accepted bounded artifact.
@@ -4601,7 +4610,10 @@ impl RelationalEvidenceState {
         let Some(progress) = self.classified_sweep_progress.as_ref() else {
             if population.is_exact_empty()
                 && self.classified_support_fragments.is_empty()
-                && self.selected_run_materializations.is_empty()
+                && !self
+                    .selected_run_materializations
+                    .values()
+                    .any(|artifact| artifact.contains_question(question_id))
                 && catalog == 0
             {
                 return Ok(Vec::new());
@@ -4626,8 +4638,12 @@ impl RelationalEvidenceState {
             let Some(classified) = classified.concrete() else {
                 continue;
             };
+            let question_index = classified
+                .question_ids()
+                .binary_search(&question_id)
+                .map_err(|_| RelationalJournalError::UnknownQuestion { question_id })?;
             for run in classified.runs() {
-                if run.outcome() != RelationalClassifiedCaseOutcome::AdmittedSelected {
+                if run.outcome().selection(question_index) != Some(SelectionDecision::Selected) {
                     continue;
                 }
                 expected_run_count = expected_run_count
@@ -4637,6 +4653,11 @@ impl RelationalEvidenceState {
                     .selected_run_materializations
                     .get(&run.cell_id())
                     .ok_or(RelationalJournalError::CertifiedSelectedMaterializationCoverageOpen)?;
+                if !artifact.contains_question(question_id) {
+                    return Err(
+                        RelationalJournalError::CertifiedSelectedMaterializationCoverageOpen,
+                    );
+                }
                 materialized = materialized
                     .checked_add(artifact.materialized_case_count())
                     .ok_or(RelationalJournalError::SequenceOverflow)?;
@@ -4646,7 +4667,12 @@ impl RelationalEvidenceState {
             }
         }
 
-        if self.selected_run_materializations.len() != expected_run_count
+        if self
+            .selected_run_materializations
+            .values()
+            .filter(|artifact| artifact.contains_question(question_id))
+            .count()
+            != expected_run_count
             || !all_materialized_cases_are_selected
             || materialized != certified
             || catalog != certified
@@ -6031,11 +6057,7 @@ impl<'a> RelationalSchedulerView<'a> {
     /// authority for choosing the next canonical chunk.
     pub(crate) fn classified_sweep_progress(
         self,
-        question_id: QuestionId,
     ) -> Result<Option<&'a RelationalClassifiedSweepProgress>, RelationalJournalError> {
-        self.journal
-            .state
-            .require_single_question_optimization(question_id)?;
         Ok(self.journal.state.classified_sweep_progress.as_ref())
     }
 
@@ -6045,11 +6067,7 @@ impl<'a> RelationalSchedulerView<'a> {
     /// finalized and its canonical whole-chunk artifact is accepted.
     pub(crate) fn classified_chunk_accumulator(
         self,
-        question_id: QuestionId,
     ) -> Result<Option<&'a RelationalClassifiedChunkAccumulator>, RelationalJournalError> {
-        self.journal
-            .state
-            .require_single_question_optimization(question_id)?;
         Ok(self.journal.state.classified_chunk_accumulator.as_ref())
     }
 
@@ -6058,11 +6076,7 @@ impl<'a> RelationalSchedulerView<'a> {
     /// the replay input for sparse selected-run realization.
     pub(crate) fn classified_support_fragments(
         self,
-        question_id: QuestionId,
     ) -> Result<&'a [RelationalClassifiedSupportFragment], RelationalJournalError> {
-        self.journal
-            .state
-            .require_single_question_optimization(question_id)?;
         Ok(&self.journal.state.classified_support_fragments)
     }
 
@@ -6072,27 +6086,20 @@ impl<'a> RelationalSchedulerView<'a> {
     /// standalone cache or snapshot.
     pub(crate) fn verified_case_chunk_partition(
         self,
-        question_id: QuestionId,
     ) -> Result<Option<&'a VerifiedRelationalCaseChunkPartition>, RelationalJournalError> {
-        self.journal
-            .state
-            .require_single_question_optimization(question_id)?;
         Ok(self.journal.state.verified_case_chunk_partition.as_ref())
     }
 
     pub(crate) fn selected_run_materialization(
         self,
-        question_id: QuestionId,
         run_cell_id: SupportCellId,
     ) -> Result<Option<&'a RelationalSelectedRunMaterializationArtifact>, RelationalJournalError>
     {
-        self.journal.state.question(question_id)?;
         Ok(self
             .journal
             .state
             .selected_run_materializations
-            .get(&run_cell_id)
-            .filter(|artifact| artifact.question_id() == question_id))
+            .get(&run_cell_id))
     }
 
     /// Whether every admitted+selected run in the accepted classified prefix
@@ -6109,8 +6116,12 @@ impl<'a> RelationalSchedulerView<'a> {
             let Some(artifact) = artifact.concrete() else {
                 continue;
             };
+            let question_index = artifact
+                .question_ids()
+                .binary_search(&question_id)
+                .map_err(|_| RelationalJournalError::UnknownQuestion { question_id })?;
             for run in artifact.runs() {
-                if run.outcome() != RelationalClassifiedCaseOutcome::AdmittedSelected {
+                if run.outcome().selection(question_index) != Some(SelectionDecision::Selected) {
                     continue;
                 }
                 expected = match expected.checked_add(1) {
@@ -6122,7 +6133,7 @@ impl<'a> RelationalSchedulerView<'a> {
                     .state
                     .selected_run_materializations
                     .get(&run.cell_id())
-                    .is_some_and(|artifact| artifact.question_id() == question_id)
+                    .is_some_and(|artifact| artifact.contains_question(question_id))
                 {
                     return Ok(false);
                 }
@@ -6133,7 +6144,7 @@ impl<'a> RelationalSchedulerView<'a> {
             .state
             .selected_run_materializations
             .values()
-            .filter(|artifact| artifact.question_id() == question_id)
+            .filter(|artifact| artifact.contains_question(question_id))
             .count()
             == expected)
     }
@@ -6148,7 +6159,7 @@ impl<'a> RelationalSchedulerView<'a> {
             .state
             .selected_run_materializations
             .values()
-            .filter(|artifact| artifact.question_id() == question_id)
+            .filter(|artifact| artifact.contains_question(question_id))
             .count())
     }
 
@@ -6165,7 +6176,7 @@ impl<'a> RelationalSchedulerView<'a> {
             .state
             .selected_run_materializations
             .values()
-            .filter(move |artifact| artifact.question_id() == question_id))
+            .filter(move |artifact| artifact.contains_question(question_id)))
     }
 
     /// Concrete selected CaseIds admitted by sparse run artifacts. They are
@@ -6181,7 +6192,7 @@ impl<'a> RelationalSchedulerView<'a> {
             .state
             .selected_run_materializations
             .values()
-            .filter(move |artifact| artifact.question_id() == question_id)
+            .filter(move |artifact| artifact.contains_question(question_id))
             .flat_map(|artifact| artifact.cases().iter().map(|record| record.case_id())))
     }
 
@@ -7491,18 +7502,7 @@ impl RelationalJournal {
             analysis_closure_set_root,
         );
         let work = self.state.work.snapshot()?;
-        let classified_chunk_accumulator = match self.state.classified_chunk_accumulator.as_ref() {
-            Some(accumulator) => Some((
-                self.state
-                    .verified_case_chunk_partition
-                    .as_ref()
-                    .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?
-                    .artifact()
-                    .question_id(),
-                accumulator,
-            )),
-            None => None,
-        };
+        let classified_chunk_accumulator = self.state.classified_chunk_accumulator.as_ref();
         let checkpoint_root = relational_checkpoint_root(
             &self.contract,
             question_frontier_root,
@@ -7729,17 +7729,7 @@ impl RelationalJournal {
             transition_support.root(),
             support.root(),
         );
-        let classified_chunk_accumulator = match classified_chunk_accumulator.as_ref() {
-            Some(accumulator) => Some((
-                verified_case_chunk_partition
-                    .as_ref()
-                    .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?
-                    .artifact()
-                    .question_id(),
-                accumulator,
-            )),
-            None => None,
-        };
+        let classified_chunk_accumulator = classified_chunk_accumulator.as_ref();
         let checkpoint_root = relational_checkpoint_root(
             &self.contract,
             question_frontier_root,
@@ -8519,6 +8509,12 @@ impl From<SelectedCaseBatchError> for RelationalJournalError {
         match error {
             SelectedCaseBatchError::Catalog(error) => Self::Relation(error),
             SelectedCaseBatchError::Classification(error) => Self::Classification(error),
+            SelectedCaseBatchError::InvalidQuestionSet => {
+                Self::ClassifiedSweep(RelationalClassifiedSweepError::InvalidQuestionSet)
+            }
+            SelectedCaseBatchError::UnknownQuestion { question_id } => {
+                Self::UnknownQuestion { question_id }
+            }
             SelectedCaseBatchError::SourceKeyClaimMismatch { claimed, derived } => {
                 Self::SourceKeyClaimMismatch { claimed, derived }
             }
@@ -9231,7 +9227,7 @@ fn relational_checkpoint_root(
     question_frontier: RelationalQuestionFrontierSetRoot,
     work: WorkFrontierRoot,
     support: &SupportEvidenceSnapshot,
-    classified_chunk_accumulator: Option<(QuestionId, &RelationalClassifiedChunkAccumulator)>,
+    classified_chunk_accumulator: Option<&RelationalClassifiedChunkAccumulator>,
     latest_support_frontiers: &BTreeMap<
         MechanismRequestId,
         RelationalMechanismSupportCheckpointReceipt,
@@ -9250,7 +9246,7 @@ fn relational_checkpoint_root(
     >,
     mechanism_support_observations: &BTreeMap<MechanismRequestId, MechanismSupportObservationLog>,
 ) -> RelationalCheckpointRoot {
-    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V8);
+    let mut hasher = ChainHasher::new(CHECKPOINT_ROOT_HASH_V9);
     hasher.digest(contract.id().bytes());
     hasher.digest(question_frontier.bytes());
     hasher.digest(work.bytes());
@@ -9260,9 +9256,12 @@ fn relational_checkpoint_root(
         hasher.digest(cursor.id().bytes());
     }
     match classified_chunk_accumulator {
-        Some((question_id, accumulator)) => {
+        Some(accumulator) => {
             hasher.tag(0x01);
-            hasher.digest(question_id.bytes());
+            hasher.u64(accumulator.question_ids().len() as u64);
+            for question_id in accumulator.question_ids() {
+                hasher.digest(question_id.bytes());
+            }
             hasher.digest(accumulator.chunk_partition_id().bytes());
             hasher.digest(accumulator.chunk_id().bytes());
             hasher.u128(accumulator.chunk_ordinal());
@@ -9392,7 +9391,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V24);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V25);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -9401,7 +9400,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V20);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V21);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -9538,7 +9537,10 @@ fn hash_relational_case_chunk_partition_artifact(
     hasher.digest(artifact.plan_root().bytes());
     hasher.digest(artifact.relation_id().bytes());
     hasher.digest(artifact.admission_id().bytes());
-    hasher.digest(artifact.question_id().bytes());
+    hasher.u64(artifact.question_ids().len() as u64);
+    for question_id in artifact.question_ids() {
+        hasher.digest(question_id.bytes());
+    }
     hasher.digest(artifact.case_image_certificate_id());
     hasher.digest(artifact.injectivity_evidence_id().bytes());
     hasher.digest(artifact.root_cell_id().bytes());
@@ -9578,7 +9580,10 @@ fn hash_relational_classified_chunk_artifact(
     hasher.digest(artifact.plan_root().bytes());
     hasher.digest(artifact.relation_id().bytes());
     hasher.digest(artifact.admission_id().bytes());
-    hasher.digest(artifact.question_id().bytes());
+    hasher.u64(artifact.question_ids().len() as u64);
+    for question_id in artifact.question_ids() {
+        hasher.digest(question_id.bytes());
+    }
     hasher.digest(artifact.chunk_partition_id().bytes());
     hasher.digest(artifact.chunk_id().bytes());
     hasher.u128(artifact.chunk_ordinal());
@@ -9589,8 +9594,11 @@ fn hash_relational_classified_chunk_artifact(
     hasher.u128(artifact.evaluated_case_count());
     hasher.digest(artifact.evaluated_cases_root());
     hasher.u128(artifact.rejected_count());
-    hasher.u128(artifact.admitted_not_selected_count());
-    hasher.u128(artifact.admitted_selected_count());
+    hasher.u128(artifact.admitted_count());
+    hasher.u64(artifact.admitted_selected_counts().len() as u64);
+    for count in artifact.admitted_selected_counts() {
+        hasher.u128(*count);
+    }
     hasher.u64(artifact.runs().len() as u64);
     for run in artifact.runs() {
         hasher.digest(run.id().bytes());
@@ -9598,11 +9606,10 @@ fn hash_relational_classified_chunk_artifact(
         hasher.digest(run.cell_id().bytes());
         hasher.u128(run.interval_start());
         hasher.u128(run.interval_end_exclusive());
-        hasher.tag(match run.outcome() {
-            RelationalClassifiedCaseOutcome::Rejected => 0x01,
-            RelationalClassifiedCaseOutcome::AdmittedNotSelected => 0x02,
-            RelationalClassifiedCaseOutcome::AdmittedSelected => 0x03,
-        });
+        hasher.tag(run.outcome().canonical_tag());
+        if let Some(mask) = run.outcome().decision_mask() {
+            hasher.bytes(mask.bytes());
+        }
     }
     match artifact.partition_id() {
         Some(partition_id) => {
@@ -9670,7 +9677,10 @@ fn hash_relational_selected_run_materialization_artifact(
     hasher.digest(artifact.plan_root().bytes());
     hasher.digest(artifact.relation_id().bytes());
     hasher.digest(artifact.admission_id().bytes());
-    hasher.digest(artifact.question_id().bytes());
+    hasher.u64(artifact.selected_question_ids().len() as u64);
+    for question_id in artifact.selected_question_ids() {
+        hasher.digest(question_id.bytes());
+    }
     hasher.digest(artifact.classified_chunk_artifact_id().bytes());
     hasher.digest(artifact.chunk_partition_id().bytes());
     hasher.digest(artifact.chunk_id().bytes());

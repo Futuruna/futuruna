@@ -14,7 +14,6 @@ use std::num::NonZeroU16;
 
 use crate::CheckedExploreQueryView;
 
-use super::relation::QuestionId;
 use super::relational_bounded_chunk_partition::{
     plan_relational_bounded_case_chunks, RelationalCaseChunkId, RelationalCaseChunkPartition,
     RelationalCaseChunkPartitionArtifact, RelationalCaseChunkPartitionArtifactId,
@@ -155,7 +154,7 @@ pub(crate) struct RelationalClassifiedSweepStepDriver<'query> {
     // must evaluate those exact Expr nodes.
     checked: CheckedExploreQueryView<'query>,
     support_plan: &'query RelationalSupportPlan,
-    question_id: QuestionId,
+    questions: FrozenClassificationQuestionSet,
     expected_root_injectivity: SupportCellEvidence<InjectiveMappingClaim>,
     partition: RelationalCaseChunkPartition,
     root_admission_obligation_id: SupportProofObligationId,
@@ -201,12 +200,18 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             .closed_query
             .validate()
             .map_err(RelationalClassifiedSweepStepDriverError::InvalidQuery)?;
-        let question_id = require_single_question(checked.question_ids())?;
-        let plan_question_id = require_single_question(support_plan.question_ids())?;
+        let questions =
+            FrozenClassificationQuestionSet::freeze(checked.question_ids().iter().copied())
+                .map_err(|_| RelationalClassifiedSweepStepDriverError::InvalidQuestionSet)?;
+        if questions.question_ids().is_empty() {
+            return Err(RelationalClassifiedSweepStepDriverError::EmptyQuestionSet);
+        }
         if !support_plan.validate_root()
+            || !questions.validate_identity()
             || support_plan.relation_id() != checked.relation_id()
             || support_plan.admission_id() != checked.admission_id()
-            || plan_question_id != question_id
+            || questions.question_ids() != checked.question_ids()
+            || support_plan.question_ids() != questions.question_ids()
         {
             return Err(RelationalClassifiedSweepStepDriverError::SupportPlanScopeMismatch);
         }
@@ -224,9 +229,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 checked_program,
                 checked.relation_id(),
                 checked.admission_id(),
-                FrozenClassificationQuestionSet::freeze([question_id]).map_err(|_| {
-                    RelationalClassifiedSweepStepDriverError::ClassificationEvaluatorScopeMismatch
-                })?,
+                questions.clone(),
                 support_plan.root(),
                 support_plan.root_cell_id(),
                 ClassificationSpecializationRoot::none(),
@@ -264,6 +267,14 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 return Err(RelationalClassifiedSweepStepDriverError::UnsupportedPartition(reason));
             }
         };
+        if partition.artifact().questions() != &questions {
+            return Err(RelationalClassifiedSweepStepDriverError::SupportPlanScopeMismatch);
+        }
+        let native_classifier = if questions.question_ids().len() == 1 {
+            native_classifier
+        } else {
+            None
+        };
 
         let root_admission = root_admission_obligation(support_plan)?;
         let root_admission_obligation_id = root_admission.id();
@@ -288,7 +299,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         Ok(Self {
             checked: *checked,
             support_plan,
-            question_id,
+            questions,
             expected_root_injectivity: case_image_proof.injectivity().clone(),
             partition,
             root_admission_obligation_id,
@@ -336,13 +347,13 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 }
             };
         let verified_partition = view
-            .verified_case_chunk_partition(self.question_id)?
+            .verified_case_chunk_partition()?
             .ok_or(RelationalClassifiedSweepStepDriverError::CanonicalPartitionMismatch)?;
         if verified_partition.artifact().id() != self.partition.artifact().id()
             || verified_partition.artifact().plan_root() != self.support_plan.root()
             || verified_partition.artifact().relation_id() != checked.relation_id()
             || verified_partition.artifact().admission_id() != checked.admission_id()
-            || verified_partition.artifact().question_id() != self.question_id
+            || verified_partition.artifact().questions() != &self.questions
             || verified_partition.durable_root_injectivity_evidence_id()
                 != durable_root_injectivity.id()
             || verified_partition.durable_root_injectivity_receipt_id()
@@ -375,7 +386,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             return Err(RelationalClassifiedSweepStepDriverError::CanonicalPartitionMismatch);
         }
         let progress = view
-            .classified_sweep_progress(self.question_id)?
+            .classified_sweep_progress()?
             .ok_or(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMissing)?;
         if progress.partition_artifact_id() != artifact.id()
             || progress.root_cell_id() != root_cell.id()
@@ -474,7 +485,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 }
             };
 
-        let prior = view.classified_chunk_accumulator(self.question_id)?;
+        let prior = view.classified_chunk_accumulator()?;
         if prior.is_some_and(|accumulator| accumulator.is_complete()) {
             let classified = finalize_relational_classified_case_chunk(
                 self.support_plan,
@@ -624,6 +635,8 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         if contract.relation_id() != checked.relation_id()
             || contract.admission_id() != checked.admission_id()
             || contract.question_ids() != checked.question_ids()
+            || self.questions.question_ids() != checked.question_ids()
+            || !self.questions.validate_identity()
             || contract.state_schema_id() != checked.transition_schemas().state_schema_id()
             || contract.context_schema_id() != checked.transition_schemas().context_schema_id()
             || contract.transition_type_id() != checked.transition_schemas().transition_type_id()
@@ -685,19 +698,6 @@ fn root_admission_obligation(
     root_admission.ok_or(RelationalClassifiedSweepStepDriverError::RootAdmissionObligationMissing)
 }
 
-fn require_single_question(
-    question_ids: &[QuestionId],
-) -> Result<QuestionId, RelationalClassifiedSweepStepDriverError> {
-    let [question_id] = question_ids else {
-        return Err(
-            RelationalClassifiedSweepStepDriverError::QuestionArityMismatch {
-                actual: question_ids.len(),
-            },
-        );
-    };
-    Ok(*question_id)
-}
-
 fn decode_canonical_sha256(value: &str) -> Option<[u8; 32]> {
     if value.len() != 64
         || value
@@ -719,9 +719,8 @@ fn decode_canonical_sha256(value: &str) -> Option<[u8; 32]> {
 pub(crate) enum RelationalClassifiedSweepStepDriverError {
     InvalidQuery(String),
     SupportPlanScopeMismatch,
-    QuestionArityMismatch {
-        actual: usize,
-    },
+    InvalidQuestionSet,
+    EmptyQuestionSet,
     ClassificationEvaluatorUnavailable,
     ClassificationEvaluatorScopeMismatch,
     AlreadyBounded {
@@ -770,10 +769,12 @@ impl fmt::Display for RelationalClassifiedSweepStepDriverError {
             Self::InvalidQuery(message) => write!(formatter, "invalid checked query: {message}"),
             Self::SupportPlanScopeMismatch => formatter
                 .write_str("classified-sweep driver support plan does not match the checked query"),
-            Self::QuestionArityMismatch { actual } => write!(
-                formatter,
-                "classified-sweep driver requires exactly one semantic question, found {actual}"
-            ),
+            Self::InvalidQuestionSet => {
+                formatter.write_str("classified-sweep question set is not canonical")
+            }
+            Self::EmptyQuestionSet => {
+                formatter.write_str("classified-sweep driver requires at least one question")
+            }
             Self::ClassificationEvaluatorUnavailable => formatter.write_str(
                 "classified-sweep classification evaluator is already mutably borrowed",
             ),

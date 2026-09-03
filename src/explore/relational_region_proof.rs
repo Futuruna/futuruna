@@ -714,7 +714,7 @@ impl RelationalRegionReplayAuthority {
         if artifact.plan_root() != self.support_plan.root()
             || artifact.relation_id() != self.support_plan.relation_id()
             || artifact.admission_id() != self.support_plan.admission_id()
-            || artifact.question_id() != self.question_id
+            || artifact.question_ids() != [self.question_id]
             || artifact.root_cell_id()
                 != self
                     .support_plan
@@ -3062,7 +3062,7 @@ mod tests {
             .scheduler_view()
             .expect("inspect accepted proof prefix");
         let classified_support_fragments = view
-            .classified_support_fragments(question_id)
+            .classified_support_fragments()
             .expect("read classified support fragments");
         assert_eq!(classified_support_fragments.len(), 1);
         assert!(matches!(
@@ -3071,13 +3071,14 @@ mod tests {
                 if retained == artifact
         ));
         assert_eq!(
-            view.classified_sweep_progress(question_id)
+            view.classified_sweep_progress()
                 .expect("read classified sweep progress")
                 .expect("partition owns classified progress")
                 .next_chunk_ordinal(),
             1
         );
         let projection = derive_relational_case_support_projection(
+            question_id,
             &verified_partition,
             classified_support_fragments,
             |_| None,
@@ -3167,11 +3168,11 @@ mod tests {
             .scheduler_view()
             .expect("inspect failed append state");
         assert!(view
-            .classified_support_fragments(question_id)
+            .classified_support_fragments()
             .expect("read classified support fragments")
             .is_empty());
         assert_eq!(
-            view.classified_sweep_progress(question_id)
+            view.classified_sweep_progress()
                 .expect("read classified sweep progress")
                 .expect("partition progress remains installed")
                 .next_chunk_ordinal(),

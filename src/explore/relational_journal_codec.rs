@@ -63,13 +63,15 @@ use super::relational_certified_source_summary::{
     RelationalCertifiedSourceSummaryError, RELATIONAL_CERTIFIED_SOURCE_SUMMARY_MAX_GROUPS,
     RELATIONAL_CERTIFIED_SOURCE_SUMMARY_VERSION, RELATIONAL_CERTIFIED_SOURCE_SUMMARY_VERSION_V1,
 };
-use super::relational_classification_capsule::{ClassificationCapsuleId, ClassificationNodeId};
+use super::relational_classification_capsule::{
+    ClassificationCapsuleId, ClassificationNodeId, FrozenClassificationQuestionSet,
+};
 use super::relational_classified_sweep::{
     RelationalClassifiedCaseOutcome, RelationalClassifiedChunkArtifact,
     RelationalClassifiedChunkArtifactId, RelationalClassifiedChunkSliceArtifact,
     RelationalClassifiedChunkSliceId, RelationalClassifiedChunkSliceRun,
     RelationalClassifiedChunkTranscriptRoot, RelationalClassifiedRunDescriptor,
-    RelationalClassifiedRunId, RelationalClassifiedSweepError,
+    RelationalClassifiedRunId, RelationalClassifiedSweepError, RelationalQuestionDecisionMask,
 };
 use super::relational_endpoint_totality::RelationalEndpointTotalityCertificateId;
 use super::relational_executor::{
@@ -172,7 +174,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 17;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 18;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -2804,7 +2806,7 @@ fn encode_case_chunk_partition_artifact(
     encoder.digest(artifact.plan_root().bytes())?;
     encoder.digest(artifact.relation_id().bytes())?;
     encoder.digest(artifact.admission_id().bytes())?;
-    encoder.digest(artifact.question_id().bytes())?;
+    encode_classification_question_set(encoder, artifact.questions())?;
     encoder.digest(artifact.case_image_certificate_id())?;
     encoder.digest(artifact.injectivity_evidence_id().bytes())?;
     encoder.digest(artifact.root_cell_id().bytes())?;
@@ -2844,7 +2846,10 @@ fn decode_case_chunk_partition_artifact(
     let plan_root = RelationalSupportPlanRoot::from_journal_codec_bytes(reader.digest()?);
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let questions = decode_classification_question_set(
+        reader,
+        "case-chunk partition classification questions",
+    )?;
     let case_image_certificate_id = reader.digest()?;
     let injectivity_evidence_id = SupportCellEvidenceId::from_journal_codec_bytes(reader.digest()?);
     let root_cell_id = SupportCellId::from_journal_codec_bytes(reader.digest()?);
@@ -2895,7 +2900,7 @@ fn decode_case_chunk_partition_artifact(
         plan_root,
         relation_id,
         admission_id,
-        question_id,
+        questions,
         case_image_certificate_id,
         injectivity_evidence_id,
         root_cell_id,
@@ -2911,6 +2916,71 @@ fn decode_case_chunk_partition_artifact(
     .map_err(RelationalJournalCodecError::from)
 }
 
+fn encode_classification_question_set(
+    encoder: &mut Encoder,
+    questions: &FrozenClassificationQuestionSet,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.collection_len(questions.question_ids().len())?;
+    for question_id in questions.question_ids() {
+        encoder.digest(question_id.bytes())?;
+    }
+    Ok(())
+}
+
+fn decode_classification_question_set(
+    reader: &mut Reader<'_>,
+    component: &'static str,
+) -> Result<FrozenClassificationQuestionSet, RelationalJournalCodecError> {
+    let count = reader.collection_len(component)?;
+    let mut question_ids = Vec::new();
+    question_ids
+        .try_reserve_exact(count)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed { requested: count })?;
+    for _ in 0..count {
+        question_ids.push(QuestionId::from_journal_codec_bytes(reader.digest()?));
+    }
+    let questions =
+        FrozenClassificationQuestionSet::freeze(question_ids.iter().copied()).map_err(|_| {
+            RelationalJournalCodecError::Malformed("classification question set is invalid")
+        })?;
+    if questions.question_ids() != question_ids.as_slice() {
+        return Err(RelationalJournalCodecError::Malformed(
+            "classification question set is not canonical",
+        ));
+    }
+    Ok(questions)
+}
+
+fn encode_classified_case_outcome(
+    encoder: &mut Encoder,
+    outcome: &RelationalClassifiedCaseOutcome,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.tag(outcome.canonical_tag())?;
+    if let Some(mask) = outcome.decision_mask() {
+        encoder.blob(mask.bytes())?;
+    }
+    Ok(())
+}
+
+fn decode_classified_case_outcome(
+    reader: &mut Reader<'_>,
+    question_count: usize,
+) -> Result<RelationalClassifiedCaseOutcome, RelationalJournalCodecError> {
+    match reader.tag()? {
+        0x01 => Ok(RelationalClassifiedCaseOutcome::Rejected),
+        0x02 => RelationalQuestionDecisionMask::restore_from_journal_codec(
+            reader.blob()?,
+            question_count,
+        )
+        .map(RelationalClassifiedCaseOutcome::Admitted)
+        .map_err(RelationalJournalCodecError::from),
+        tag => Err(RelationalJournalCodecError::UnknownTag {
+            component: "classified case outcome",
+            tag,
+        }),
+    }
+}
+
 fn encode_classified_chunk_slice_artifact(
     encoder: &mut Encoder,
     artifact: &RelationalClassifiedChunkSliceArtifact,
@@ -2920,7 +2990,7 @@ fn encode_classified_chunk_slice_artifact(
     encoder.digest(artifact.plan_root().bytes())?;
     encoder.digest(artifact.relation_id().bytes())?;
     encoder.digest(artifact.admission_id().bytes())?;
-    encoder.digest(artifact.question_id().bytes())?;
+    encode_classification_question_set(encoder, artifact.question_set())?;
     encoder.digest(artifact.chunk_partition_id().bytes())?;
     encoder.digest(artifact.chunk_id().bytes())?;
     encoder.u128(artifact.chunk_ordinal())?;
@@ -2940,13 +3010,16 @@ fn encode_classified_chunk_slice_artifact(
     encoder.digest(artifact.transcript_root_before().bytes())?;
     encoder.digest(artifact.transcript_root_after().bytes())?;
     encoder.u128(artifact.rejected_count())?;
-    encoder.u128(artifact.admitted_not_selected_count())?;
-    encoder.u128(artifact.admitted_selected_count())?;
+    encoder.u128(artifact.admitted_count())?;
+    encoder.collection_len(artifact.admitted_selected_counts().len())?;
+    for count in artifact.admitted_selected_counts() {
+        encoder.u128(*count)?;
+    }
     encoder.collection_len(artifact.runs().len())?;
     for run in artifact.runs() {
         encoder.u128(run.interval_start())?;
         encoder.u128(run.interval_end_exclusive())?;
-        encoder.tag(run.outcome().canonical_tag())?;
+        encode_classified_case_outcome(encoder, run.outcome())?;
     }
     Ok(())
 }
@@ -2959,7 +3032,8 @@ fn decode_classified_chunk_slice_artifact(
     let plan_root = RelationalSupportPlanRoot::from_journal_codec_bytes(reader.digest()?);
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let question_set =
+        decode_classification_question_set(reader, "classified chunk slice question IDs")?;
     let chunk_partition_id =
         RelationalCaseChunkPartitionArtifactId::from_canonical_bytes(reader.digest()?);
     let chunk_id = RelationalCaseChunkId::from_canonical_bytes(reader.digest()?);
@@ -2987,8 +3061,22 @@ fn decode_classified_chunk_slice_artifact(
     let transcript_root_after =
         RelationalClassifiedChunkTranscriptRoot::from_journal_codec_bytes(reader.digest()?);
     let rejected_count = reader.u128()?;
-    let admitted_not_selected_count = reader.u128()?;
-    let admitted_selected_count = reader.u128()?;
+    let admitted_count = reader.u128()?;
+    let selected_count_len = reader.collection_len("classified chunk slice selected counts")?;
+    if selected_count_len != question_set.question_ids().len() {
+        return Err(RelationalJournalCodecError::Malformed(
+            "classified chunk slice selected-count arity mismatch",
+        ));
+    }
+    let mut admitted_selected_counts = Vec::new();
+    admitted_selected_counts
+        .try_reserve_exact(selected_count_len)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed {
+            requested: selected_count_len,
+        })?;
+    for _ in 0..selected_count_len {
+        admitted_selected_counts.push(reader.u128()?);
+    }
     let run_count = reader.collection_len("classified chunk slice runs")?;
     if run_count > 256 {
         return Err(RelationalJournalCodecError::DeclaredLengthTooLarge {
@@ -3006,9 +3094,7 @@ fn decode_classified_chunk_slice_artifact(
     for _ in 0..run_count {
         let interval_start = reader.u128()?;
         let interval_end_exclusive = reader.u128()?;
-        let outcome = RelationalClassifiedCaseOutcome::from_codec_tag(reader.tag()?).ok_or(
-            RelationalJournalCodecError::Malformed("unknown classified slice run outcome"),
-        )?;
+        let outcome = decode_classified_case_outcome(reader, question_set.question_ids().len())?;
         runs.push(
             RelationalClassifiedChunkSliceRun::restore_from_journal_codec(
                 interval_start,
@@ -3023,7 +3109,7 @@ fn decode_classified_chunk_slice_artifact(
         plan_root,
         relation_id,
         admission_id,
-        question_id,
+        question_set,
         chunk_partition_id,
         chunk_id,
         chunk_ordinal,
@@ -3037,8 +3123,8 @@ fn decode_classified_chunk_slice_artifact(
         transcript_root_before,
         transcript_root_after,
         rejected_count,
-        admitted_not_selected_count,
-        admitted_selected_count,
+        admitted_count,
+        admitted_selected_counts.into_boxed_slice(),
         runs.into_boxed_slice(),
     )
     .map_err(RelationalJournalCodecError::from)
@@ -3053,7 +3139,7 @@ fn encode_classified_chunk_artifact(
     encoder.digest(artifact.plan_root().bytes())?;
     encoder.digest(artifact.relation_id().bytes())?;
     encoder.digest(artifact.admission_id().bytes())?;
-    encoder.digest(artifact.question_id().bytes())?;
+    encode_classification_question_set(encoder, artifact.question_set())?;
     encoder.digest(artifact.chunk_partition_id().bytes())?;
     encoder.digest(artifact.chunk_id().bytes())?;
     encoder.u128(artifact.chunk_ordinal())?;
@@ -3064,8 +3150,11 @@ fn encode_classified_chunk_artifact(
     encoder.u128(artifact.evaluated_case_count())?;
     encoder.digest(artifact.evaluated_cases_root())?;
     encoder.u128(artifact.rejected_count())?;
-    encoder.u128(artifact.admitted_not_selected_count())?;
-    encoder.u128(artifact.admitted_selected_count())?;
+    encoder.u128(artifact.admitted_count())?;
+    encoder.collection_len(artifact.admitted_selected_counts().len())?;
+    for count in artifact.admitted_selected_counts() {
+        encoder.u128(*count)?;
+    }
     encoder.collection_len(artifact.runs().len())?;
     for run in artifact.runs() {
         encoder.digest(run.id().bytes())?;
@@ -3073,7 +3162,7 @@ fn encode_classified_chunk_artifact(
         encoder.digest(run.cell_id().bytes())?;
         encoder.u128(run.interval_start())?;
         encoder.u128(run.interval_end_exclusive())?;
-        encoder.tag(run.outcome().canonical_tag())?;
+        encode_classified_case_outcome(encoder, run.outcome())?;
     }
     match artifact.partition_id() {
         Some(partition_id) => {
@@ -3093,7 +3182,7 @@ fn decode_classified_chunk_artifact(
     let plan_root = RelationalSupportPlanRoot::from_journal_codec_bytes(reader.digest()?);
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let question_set = decode_classification_question_set(reader, "classified chunk question IDs")?;
     let chunk_partition_id =
         RelationalCaseChunkPartitionArtifactId::from_canonical_bytes(reader.digest()?);
     let chunk_id = RelationalCaseChunkId::from_canonical_bytes(reader.digest()?);
@@ -3105,8 +3194,22 @@ fn decode_classified_chunk_artifact(
     let evaluated_case_count = reader.u128()?;
     let evaluated_cases_root = reader.digest()?;
     let rejected_count = reader.u128()?;
-    let admitted_not_selected_count = reader.u128()?;
-    let admitted_selected_count = reader.u128()?;
+    let admitted_count = reader.u128()?;
+    let selected_count_len = reader.collection_len("classified chunk selected counts")?;
+    if selected_count_len != question_set.question_ids().len() {
+        return Err(RelationalJournalCodecError::Malformed(
+            "classified chunk selected-count arity mismatch",
+        ));
+    }
+    let mut admitted_selected_counts = Vec::new();
+    admitted_selected_counts
+        .try_reserve_exact(selected_count_len)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed {
+            requested: selected_count_len,
+        })?;
+    for _ in 0..selected_count_len {
+        admitted_selected_counts.push(reader.u128()?);
+    }
     let run_count = reader.collection_len("classified chunk runs")?;
     if run_count > 256 {
         return Err(RelationalJournalCodecError::DeclaredLengthTooLarge {
@@ -3129,9 +3232,7 @@ fn decode_classified_chunk_artifact(
         let cell_id = SupportCellId::from_journal_codec_bytes(reader.digest()?);
         let run_start = reader.u128()?;
         let run_end_exclusive = reader.u128()?;
-        let outcome = RelationalClassifiedCaseOutcome::from_codec_tag(reader.tag()?).ok_or(
-            RelationalJournalCodecError::Malformed("unknown classified run outcome"),
-        )?;
+        let outcome = decode_classified_case_outcome(reader, question_set.question_ids().len())?;
         runs.push(
             RelationalClassifiedRunDescriptor::restore_from_journal_codec(
                 id,
@@ -3161,7 +3262,7 @@ fn decode_classified_chunk_artifact(
         plan_root,
         relation_id,
         admission_id,
-        question_id,
+        question_set,
         chunk_partition_id,
         chunk_id,
         chunk_ordinal,
@@ -3172,8 +3273,8 @@ fn decode_classified_chunk_artifact(
         evaluated_case_count,
         evaluated_cases_root,
         rejected_count,
-        admitted_not_selected_count,
-        admitted_selected_count,
+        admitted_count,
+        admitted_selected_counts.into_boxed_slice(),
         runs.into_boxed_slice(),
         partition_id,
     )
@@ -3305,7 +3406,10 @@ fn encode_selected_run_materialization_artifact(
     encoder.digest(artifact.plan_root().bytes())?;
     encoder.digest(artifact.relation_id().bytes())?;
     encoder.digest(artifact.admission_id().bytes())?;
-    encoder.digest(artifact.question_id().bytes())?;
+    encoder.collection_len(artifact.selected_question_ids().len())?;
+    for question_id in artifact.selected_question_ids() {
+        encoder.digest(question_id.bytes())?;
+    }
     encoder.digest(artifact.classified_chunk_artifact_id().bytes())?;
     encoder.digest(artifact.chunk_partition_id().bytes())?;
     encoder.digest(artifact.chunk_id().bytes())?;
@@ -3341,7 +3445,16 @@ fn decode_selected_run_materialization_artifact(
     let plan_root = RelationalSupportPlanRoot::from_journal_codec_bytes(reader.digest()?);
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
-    let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+    let selected_question_count = reader.collection_len("selected-run question IDs")?;
+    let mut selected_question_ids = Vec::new();
+    selected_question_ids
+        .try_reserve_exact(selected_question_count)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed {
+            requested: selected_question_count,
+        })?;
+    for _ in 0..selected_question_count {
+        selected_question_ids.push(QuestionId::from_journal_codec_bytes(reader.digest()?));
+    }
     let classified_chunk_artifact_id =
         RelationalClassifiedChunkArtifactId::from_journal_codec_bytes(reader.digest()?);
     let chunk_partition_id =
@@ -3391,7 +3504,7 @@ fn decode_selected_run_materialization_artifact(
         plan_root,
         relation_id,
         admission_id,
-        question_id,
+        selected_question_ids.into_boxed_slice(),
         classified_chunk_artifact_id,
         chunk_partition_id,
         chunk_id,

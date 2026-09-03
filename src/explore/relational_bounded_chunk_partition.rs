@@ -18,12 +18,17 @@
 //! children. Physical workers may use smaller quanta inside a chunk; the fixed
 //! maximum is semantic because it determines child-cell and artifact identity.
 //!
-//! V2 adds one shape without changing any V1 artifact or identity: an exact
+//! V2 added one shape without changing any V1 artifact or identity: an exact
 //! independent product of two or more varying zero-based ordinal factors is
 //! linearized by canonical mixed-radix rank (last factor fastest) and split
 //! into `ProductRankInterval` children. This planner still requires the same
 //! separately verified assignment-to-case injectivity proof; rankability is
 //! never treated as evidence that the mapped image is injective.
+//!
+//! V3 binds every partition shape to the complete canonical classification
+//! question set. The partition remains shared structural scheduling data: it
+//! has no primary question, and an empty set is valid when the enclosing
+//! support plan permits one.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -32,6 +37,9 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use super::relation::{AdmissionId, QuestionId, RelationId};
+use super::relational_classification_capsule::{
+    ClassificationQuestionSetRoot, FrozenClassificationQuestionSet,
+};
 use super::relational_support_planner::{
     prove_relational_case_image_injectivity, RelationalCaseImageAssignmentKind,
     RelationalCaseImageInjectivityProof, RelationalCaseImageInjectivityProofError,
@@ -47,7 +55,8 @@ use super::support_cell::{
 };
 
 pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1: u32 = 1;
-pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2: u32 = 2;
+pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION: u32 = 3;
 
 /// Semantic V1 ceiling for one later exhaustive classification chunk.
 pub(crate) const RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1: u128 = 256;
@@ -62,6 +71,11 @@ const CASE_CHUNK_PARTITION_ARTIFACT_ID_V2: &[u8] =
     b"futuruna.explore.relational-case-chunk.partition-artifact.v2";
 const CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V2: &[u8] =
     b"futuruna.explore.relational-case-chunk.restricted-injectivity-proof.v2";
+const CASE_CHUNK_ID_V3: &[u8] = b"futuruna.explore.relational-case-chunk.id.v3";
+const CASE_CHUNK_PARTITION_ARTIFACT_ID_V3: &[u8] =
+    b"futuruna.explore.relational-case-chunk.partition-artifact.v3";
+const CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V3: &[u8] =
+    b"futuruna.explore.relational-case-chunk.restricted-injectivity-proof.v3";
 
 /// Canonical coordinate shape recognized by the versioned planner.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -100,12 +114,7 @@ impl RelationalCaseChunkShape {
     }
 
     const fn schema_version(self) -> u32 {
-        match self {
-            Self::BareOrdinalInterval | Self::ProductFactor => {
-                RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1
-            }
-            Self::ProductRankInterval => RELATIONAL_CASE_CHUNK_PARTITION_VERSION,
-        }
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION
     }
 }
 
@@ -209,7 +218,7 @@ pub(crate) struct RelationalCaseChunkPartitionArtifact {
     plan_root: RelationalSupportPlanRoot,
     relation_id: RelationId,
     admission_id: AdmissionId,
-    question_id: QuestionId,
+    questions: FrozenClassificationQuestionSet,
     case_image_certificate_id: [u8; 32],
     injectivity_evidence_id: SupportCellEvidenceId,
     root_cell_id: SupportCellId,
@@ -233,7 +242,7 @@ impl RelationalCaseChunkPartitionArtifact {
         plan_root: RelationalSupportPlanRoot,
         relation_id: RelationId,
         admission_id: AdmissionId,
-        question_id: QuestionId,
+        questions: FrozenClassificationQuestionSet,
         case_image_certificate_id: [u8; 32],
         injectivity_evidence_id: SupportCellEvidenceId,
         root_cell_id: SupportCellId,
@@ -252,7 +261,7 @@ impl RelationalCaseChunkPartitionArtifact {
             plan_root,
             relation_id,
             admission_id,
-            question_id,
+            questions,
             case_image_certificate_id,
             injectivity_evidence_id,
             root_cell_id,
@@ -289,8 +298,16 @@ impl RelationalCaseChunkPartitionArtifact {
         self.admission_id
     }
 
-    pub(crate) const fn question_id(&self) -> QuestionId {
-        self.question_id
+    pub(crate) const fn questions(&self) -> &FrozenClassificationQuestionSet {
+        &self.questions
+    }
+
+    pub(crate) fn question_ids(&self) -> &[QuestionId] {
+        self.questions.question_ids()
+    }
+
+    pub(crate) const fn question_set_root(&self) -> ClassificationQuestionSetRoot {
+        self.questions.root()
     }
 
     pub(crate) const fn case_image_certificate_id(&self) -> [u8; 32] {
@@ -342,6 +359,11 @@ impl RelationalCaseChunkPartitionArtifact {
             return Err(
                 RelationalCaseChunkPartitionError::UnsupportedArtifactVersion(self.schema_version),
             );
+        }
+        if !self.questions.validate_identity() {
+            return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
+                "artifact question set is not canonical",
+            ));
         }
         if self.max_chunk_coordinates != RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1 {
             return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
@@ -596,9 +618,19 @@ pub(crate) fn plan_relational_bounded_case_chunks(
     plan: &RelationalSupportPlan,
     case_image_proof: &RelationalCaseImageInjectivityProof,
 ) -> Result<RelationalCaseChunkPlanningOutcome, RelationalCaseChunkPartitionError> {
-    let question_id = require_single_question(plan.question_ids())?;
     if !plan.validate_root() {
         return Err(RelationalCaseChunkPartitionError::InvalidPlanRoot);
+    }
+    let questions = FrozenClassificationQuestionSet::freeze(plan.question_ids().iter().copied())
+        .map_err(|_| {
+            RelationalCaseChunkPartitionError::InternalPlannerInvariant(
+                "support-plan question set could not be frozen",
+            )
+        })?;
+    if !questions.validate_identity() || questions.question_ids() != plan.question_ids() {
+        return Err(RelationalCaseChunkPartitionError::InternalPlannerInvariant(
+            "support-plan question set is not canonical",
+        ));
     }
     let root = plan
         .cases()
@@ -786,7 +818,7 @@ pub(crate) fn plan_relational_bounded_case_chunks(
         plan_root: plan.root(),
         relation_id: plan.relation_id(),
         admission_id: plan.admission_id(),
-        question_id,
+        questions,
         case_image_certificate_id: proof_artifact.certificate_id(),
         injectivity_evidence_id: case_image_proof.injectivity().id(),
         root_cell_id: root.id(),
@@ -822,17 +854,6 @@ pub(crate) fn plan_relational_bounded_case_chunks(
             certificate,
         },
     ))
-}
-
-fn require_single_question(
-    question_ids: &[QuestionId],
-) -> Result<QuestionId, RelationalCaseChunkPartitionError> {
-    let [question_id] = question_ids else {
-        return Err(RelationalCaseChunkPartitionError::QuestionArityMismatch {
-            actual: question_ids.len(),
-        });
-    };
-    Ok(*question_id)
 }
 
 /// Rebuild a retained partition artifact from the installed support plan and
@@ -1279,7 +1300,8 @@ fn derive_chunk_id(
     let schema_version = shape.schema_version();
     let mut hasher = CanonicalChunkHasher::new(match schema_version {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_ID_V1,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_ID_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_ID_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_ID_V3,
         _ => unreachable!("case-chunk shape has a supported schema version"),
     });
     hasher.u32(schema_version);
@@ -1308,7 +1330,8 @@ fn derive_child_restricted_injectivity_proof_digest(
 ) -> [u8; 32] {
     let mut hasher = CanonicalChunkHasher::new(match artifact.schema_version() {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V1,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V3,
         _ => unreachable!("validated case-chunk artifact version"),
     });
     hasher.u32(artifact.schema_version());
@@ -1334,14 +1357,15 @@ fn derive_artifact_id(
 ) -> RelationalCaseChunkPartitionArtifactId {
     let mut hasher = CanonicalChunkHasher::new(match artifact.schema_version {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_PARTITION_ARTIFACT_ID_V1,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_PARTITION_ARTIFACT_ID_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_PARTITION_ARTIFACT_ID_V2,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_PARTITION_ARTIFACT_ID_V3,
         _ => unreachable!("validated case-chunk artifact version"),
     });
     hasher.u32(artifact.schema_version);
     hasher.digest(artifact.plan_root.bytes());
     hasher.digest(artifact.relation_id.bytes());
     hasher.digest(artifact.admission_id.bytes());
-    hasher.digest(artifact.question_id.bytes());
+    hasher.digest(artifact.question_set_root().bytes());
     hasher.digest(artifact.case_image_certificate_id);
     hasher.digest(artifact.injectivity_evidence_id.bytes());
     hasher.digest(artifact.root_cell_id.bytes());
@@ -1442,9 +1466,6 @@ pub(crate) enum RelationalCaseChunkPartitionError {
         factor_index: usize,
     },
     InvalidPlanRoot,
-    QuestionArityMismatch {
-        actual: usize,
-    },
     MissingCaseRoot,
     RootCellMismatch,
     CaseImageProofScopeMismatch,
@@ -1545,10 +1566,6 @@ impl fmt::Display for RelationalCaseChunkPartitionError {
             Self::InvalidPlanRoot => {
                 formatter.write_str("case-chunk support-plan root is not canonical")
             }
-            Self::QuestionArityMismatch { actual } => write!(
-                formatter,
-                "case-chunk optimization requires exactly one semantic question, found {actual}"
-            ),
             Self::MissingCaseRoot => {
                 formatter.write_str("case-chunk planner requires a positive case root")
             }

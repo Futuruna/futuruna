@@ -22,12 +22,13 @@ use super::relational_classification_capsule::{
     ClassificationBinaryOp, ClassificationCallableId, ClassificationInputLane,
     ClassificationInputSlot, ClassificationLaneStatus, ClassificationNodeId,
     ClassificationNodeKind, ClassificationSemanticLane, ClassificationUnaryOp,
-    RelationalClassificationCapsule, RuntimeConstructorKey, RuntimeConstructorShape,
+    FrozenClassificationQuestionSet, RelationalClassificationCapsule, RuntimeConstructorKey,
+    RuntimeConstructorShape,
 };
 use super::relational_classified_sweep::{
     RelationalCheckedClassificationContext, RelationalClassifiedCaseOutcome,
     RelationalClassifiedSweepError, RelationalOrderedClassificationBackend,
-    RelationalOrderedClassificationSubject,
+    RelationalOrderedClassificationSubject, RelationalQuestionDecisionMask,
 };
 use super::relational_executor::RelationalExpressionRuntime;
 use super::ExploreValue;
@@ -655,15 +656,9 @@ impl RelationalOrderedClassificationBackend for RelationalClassificationEvaluato
         subjects: &[RelationalOrderedClassificationSubject<'_>],
         checked: &mut RelationalCheckedClassificationContext<'_, '_, '_, R>,
     ) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalClassifiedSweepError> {
-        let question_id = match self.capsule.question_ids() {
-            [question_id] => *question_id,
-            _ => {
-                return Err(RelationalClassifiedSweepError::InvalidQuery(
-                    "legacy single-question classification cannot consume a plural QuestionId set"
-                        .to_string(),
-                ));
-            }
-        };
+        let question_set =
+            FrozenClassificationQuestionSet::freeze(self.capsule.question_ids().iter().copied())
+                .map_err(|_| RelationalClassifiedSweepError::InvalidQuestionSet)?;
         let mut capsule_delta = RelationalClassificationEvaluatorStats::default();
         let capsule_attempt = self
             .try_classify_ordered_question_batch(subjects, &mut capsule_delta)
@@ -674,18 +669,19 @@ impl RelationalOrderedClassificationBackend for RelationalClassificationEvaluato
                         AdmissionDecision::Rejected if outcome.questions().is_empty() => {
                             Ok(RelationalClassifiedCaseOutcome::Rejected)
                         }
-                        AdmissionDecision::Admitted => match outcome.decision(question_id) {
-                            Some(SelectionDecision::Selected) => {
-                                Ok(RelationalClassifiedCaseOutcome::AdmittedSelected)
-                            }
-                            Some(SelectionDecision::NotSelected) => {
-                                Ok(RelationalClassifiedCaseOutcome::AdmittedNotSelected)
-                            }
-                            None => Err(RelationalClassificationEvaluatorFallback {
+                        AdmissionDecision::Admitted => {
+                            RelationalQuestionDecisionMask::from_ordered_decisions(
+                                &question_set,
+                                outcome.questions().iter().map(|question| {
+                                    (question.question_id(), question.decision())
+                                }),
+                            )
+                            .map(RelationalClassifiedCaseOutcome::Admitted)
+                            .map_err(|_| RelationalClassificationEvaluatorFallback {
                                 subject_index: None,
                                 reason: RelationalClassificationEvaluatorFallbackReason::InvalidCapsuleIdentity,
-                            }),
-                        },
+                            })
+                        }
                         AdmissionDecision::Rejected => {
                             Err(RelationalClassificationEvaluatorFallback {
                                 subject_index: None,
@@ -1895,7 +1891,10 @@ mod tests {
 
         assert_eq!(
             expected,
-            vec![RelationalClassifiedCaseOutcome::AdmittedSelected; 3]
+            vec![
+                RelationalClassifiedCaseOutcome::from_codec_tag(0x03).expect("native selected tag");
+                3
+            ]
         );
         assert_eq!(outcomes.as_ref(), expected.as_slice());
         let stats = backend.stats();
@@ -2007,7 +2006,8 @@ mod tests {
                 .unwrap();
             assert_eq!(
                 seeded.as_ref(),
-                &[RelationalClassifiedCaseOutcome::AdmittedSelected]
+                &[RelationalClassifiedCaseOutcome::from_codec_tag(0x03)
+                    .expect("native selected tag")]
             );
         }
         let seeded_cache = backend.call_cache.clone();
@@ -2025,7 +2025,10 @@ mod tests {
 
         assert_eq!(
             expected,
-            vec![RelationalClassifiedCaseOutcome::AdmittedSelected; 2]
+            vec![
+                RelationalClassifiedCaseOutcome::from_codec_tag(0x03).expect("native selected tag");
+                2
+            ]
         );
         assert_eq!(outcomes.as_ref(), expected.as_slice());
         assert_eq!(backend.call_cache, seeded_cache);

@@ -247,10 +247,7 @@ impl ClosedCertifiedSelectedPopulation {
             return Err(CertifiedSelectedPopulationError::SupportEvidenceOpen);
         }
 
-        let [registered_question_id] = plan.question_ids() else {
-            return Err(CertifiedSelectedPopulationError::UnsupportedQuestionSet);
-        };
-        if *registered_question_id != question_id {
+        if plan.question_ids().binary_search(&question_id).is_err() {
             return Err(CertifiedSelectedPopulationError::UnknownQuestion { question_id });
         }
         let relation_id = plan.relation_id();
@@ -844,7 +841,6 @@ fn derive_fragment_coverage(
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CertifiedSelectedPopulationError {
     InvalidSupportPlanRoot,
-    UnsupportedQuestionSet,
     UnknownQuestion {
         question_id: QuestionId,
     },
@@ -898,9 +894,6 @@ impl fmt::Display for CertifiedSelectedPopulationError {
             Self::InvalidSupportPlanRoot => {
                 formatter.write_str("certified population received an invalid support-plan root")
             }
-            Self::UnsupportedQuestionSet => formatter.write_str(
-                "certified selected-population acceleration requires exactly one semantic question",
-            ),
             Self::UnknownQuestion { question_id } => write!(
                 formatter,
                 "certified population requested unregistered question {question_id:?}"

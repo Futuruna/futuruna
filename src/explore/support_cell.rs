@@ -1623,14 +1623,14 @@ pub(crate) mod relational_classified_sweep_gateway {
     use super::*;
     use crate::explore::relational_classified_sweep::VerifiedRelationalClassifiedChunk;
 
-    const INJECTIVITY_VERIFIER_V1: &[u8] =
-        b"futuruna.explore.relational-classified-sweep.injectivity-verifier.v1";
-    const CARDINALITY_VERIFIER_V1: &[u8] =
-        b"futuruna.explore.relational-classified-sweep.cardinality-verifier.v1";
-    const ADMISSION_VERIFIER_V1: &[u8] =
-        b"futuruna.explore.relational-classified-sweep.admission-verifier.v1";
-    const SELECTION_VERIFIER_V1: &[u8] =
-        b"futuruna.explore.relational-classified-sweep.selection-verifier.v1";
+    const INJECTIVITY_VERIFIER_V2: &[u8] =
+        b"futuruna.explore.relational-classified-sweep.injectivity-verifier.v2";
+    const CARDINALITY_VERIFIER_V2: &[u8] =
+        b"futuruna.explore.relational-classified-sweep.cardinality-verifier.v2";
+    const ADMISSION_VERIFIER_V2: &[u8] =
+        b"futuruna.explore.relational-classified-sweep.admission-verifier.v2";
+    const SELECTION_VERIFIER_V2: &[u8] =
+        b"futuruna.explore.relational-classified-sweep.selection-verifier.v2";
 
     pub(crate) fn injectivity(
         proof: &VerifiedRelationalClassifiedChunk,
@@ -1648,7 +1648,7 @@ pub(crate) mod relational_classified_sweep_gateway {
             claim,
             CertifiedInjective,
             binding,
-            INJECTIVITY_VERIFIER_V1,
+            INJECTIVITY_VERIFIER_V2,
         )
     }
 
@@ -1664,7 +1664,7 @@ pub(crate) mod relational_classified_sweep_gateway {
             ExactCardinalityClaim,
             run.descriptor().cardinality(),
             bindings.cardinality(),
-            CARDINALITY_VERIFIER_V1,
+            CARDINALITY_VERIFIER_V2,
         )
     }
 
@@ -1680,31 +1680,36 @@ pub(crate) mod relational_classified_sweep_gateway {
             AdmissionClassificationClaim::new(proof.artifact().admission_id()),
             run.descriptor().outcome().admission(),
             bindings.admission(),
-            ADMISSION_VERIFIER_V1,
+            ADMISSION_VERIFIER_V2,
         )
     }
 
     pub(crate) fn selection(
         proof: &VerifiedRelationalClassifiedChunk,
         run_ordinal: usize,
+        question_id: QuestionId,
     ) -> Result<SupportCellEvidence<SelectionClassificationClaim>, SupportCellError> {
         let (run, bindings) = proof
             .run_and_bindings(run_ordinal)
             .ok_or(SupportCellError::EvidenceCellMismatch)?;
+        let question_index = proof
+            .artifact()
+            .question_index(question_id)
+            .ok_or(SupportCellError::EvidenceCellMismatch)?;
         let conclusion = run
             .descriptor()
             .outcome()
-            .selection()
+            .selection(question_index)
             .ok_or(SupportCellError::ReceiptConclusionMismatch)?;
         let binding = bindings
-            .selection()
+            .selection(question_index)
             .ok_or(SupportCellError::ReceiptConclusionMismatch)?;
         accepted(
             run.cell(),
-            SelectionClassificationClaim::new(proof.artifact().question_id()),
+            SelectionClassificationClaim::new(question_id),
             conclusion,
             binding,
-            SELECTION_VERIFIER_V1,
+            SELECTION_VERIFIER_V2,
         )
     }
 

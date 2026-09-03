@@ -7,7 +7,7 @@
 //! merely to print a checkpoint.
 
 use std::cell::RefCell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -37,6 +37,7 @@ use super::relational_classification_capsule::{
     FrozenClassificationQuestionSet, RelationalClassificationCapsule,
 };
 use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
+use super::relational_classified_population::RelationalClassificationProgressCounts;
 use super::relational_durable_journal::{RelationalDurableJournal, RelationalDurableJournalLimits};
 use super::relational_interpreter_mechanism::{
     checked_ground_definitions, RelationalInterpreterMechanismReplayRuntime,
@@ -1620,23 +1621,60 @@ fn build_report(
         Some(certified) => ExploreStreamCount::Exact(certified),
         None => relation_count(case_count, relation_enumeration_closed),
     };
-    // The current classified-support accelerator proves one semantic question
-    // at a time. Use it only when the checked set is exactly singular; plural
-    // queries share the concrete traversal and never nominate a primary FIND.
-    let classification_progress = match checked.question_ids() {
-        [question_id] => scheduler
-            .classification_progress_counts(*question_id)
-            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
-        _ => None,
-    };
-    if let (Some(certified), Some(classified)) =
-        (certified_case_cardinality, classification_progress)
-    {
-        if classified.candidates() != certified {
-            return Err(ExploreStreamPreparationError::Execution(format!(
-                "classified case candidate count {} does not match certified root cardinality {certified}",
-                classified.candidates()
-            )));
+    // A shared classified sweep has one admission partition and one selection
+    // partition per canonical QuestionId. Derive every question explicitly:
+    // this keeps named FIND reports independent without nominating a semantic
+    // primary, while also checking that their shared admission accounting is
+    // identical.
+    let mut classification_progress = BTreeMap::new();
+    let mut classification_progress_available = None;
+    let mut classification_admission_progress: Option<RelationalClassificationProgressCounts> =
+        None;
+    for question_id in checked.question_ids().iter().copied() {
+        let question_progress = scheduler
+            .classification_progress_counts(question_id)
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        match classification_progress_available {
+            Some(expected) if expected != question_progress.is_some() => {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "named FINDs disagree on classified-support availability".into(),
+                ));
+            }
+            None => classification_progress_available = Some(question_progress.is_some()),
+            Some(_) => {}
+        }
+        if let Some(classified) = question_progress {
+            if let Some(certified) = certified_case_cardinality {
+                if classified.candidates() != certified {
+                    return Err(ExploreStreamPreparationError::Execution(format!(
+                        "classified case candidate count {} does not match certified root cardinality {certified}",
+                        classified.candidates()
+                    )));
+                }
+            }
+            if let Some(shared) = classification_admission_progress {
+                if classified.candidates() != shared.candidates()
+                    || classified.classified() != shared.classified()
+                    || classified.admitted() != shared.admitted()
+                    || classified.rejected() != shared.rejected()
+                    || classified.is_complete() != shared.is_complete()
+                {
+                    return Err(ExploreStreamPreparationError::Execution(
+                        "named FINDs disagree on their shared admission classification progress"
+                            .into(),
+                    ));
+                }
+            } else {
+                classification_admission_progress = Some(classified);
+            }
+        }
+        if classification_progress
+            .insert(question_id, question_progress)
+            .is_some()
+        {
+            return Err(ExploreStreamPreparationError::Execution(
+                "checked question identity set contains a duplicate QuestionId".into(),
+            ));
         }
     }
     let admission_classified = scheduler.admission_decision_count() as u128;
@@ -1672,7 +1710,8 @@ fn build_report(
     };
     let admission_closed_extensional =
         relation_enumeration_closed && admission_classified == case_count;
-    let support_complete = classification_progress.is_some_and(|counts| counts.is_complete());
+    let support_complete =
+        classification_admission_progress.is_some_and(|counts| counts.is_complete());
     let relation_closed = relation_enumeration_closed || support_complete;
     let sources_observed = scheduler.source_count() as u128;
     let source_enumeration_closed = scheduler.source_enumeration_is_closed();
@@ -1690,21 +1729,21 @@ fn build_report(
 
     let admission_classified_count = merge_population_count(
         "admission-classified cases",
-        classification_progress.map(|counts| (counts.classified(), counts.is_complete())),
+        classification_admission_progress.map(|counts| (counts.classified(), counts.is_complete())),
         admission_classified,
         admission_closed_extensional,
         certified_admission_counts.map(|(classified, _, _)| classified),
     )?;
     let admitted_count = merge_population_count(
         "admitted cases",
-        classification_progress.map(|counts| (counts.admitted(), counts.is_complete())),
+        classification_admission_progress.map(|counts| (counts.admitted(), counts.is_complete())),
         admitted,
         admission_closed_extensional,
         certified_admission_counts.map(|(_, admitted, _)| admitted),
     )?;
     let rejected_count = merge_population_count(
         "rejected cases",
-        classification_progress.map(|counts| (counts.rejected(), counts.is_complete())),
+        classification_admission_progress.map(|counts| (counts.rejected(), counts.is_complete())),
         rejected,
         admission_closed_extensional,
         certified_admission_counts.map(|(_, _, rejected)| rejected),
@@ -1738,8 +1777,7 @@ fn build_report(
             .analysis_state()
             .and_then(|analysis| analysis.selected_question(question_id));
         let certified_selected_count = selected_seal.map(|seal| seal.mechanism_target().count());
-        let question_progress =
-            classification_progress.filter(|_| checked.question_ids() == [question_id]);
+        let question_progress = classification_progress.get(&question_id).copied().flatten();
         let question_support_complete =
             question_progress.is_some_and(|counts| counts.is_complete());
         let closed =
@@ -3098,6 +3136,7 @@ mod regional_stream_acceptance_tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
+    use super::super::relation::SelectionDecision;
     use super::super::relational_analysis_catalog::RelationalAnalysisCatalogError;
     use super::super::relational_analysis_journal::{
         RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
@@ -3195,6 +3234,19 @@ mod regional_stream_acceptance_tests {
 
     transition after = before + 1
     find cases = matches of before >= 280
+}
+"#;
+
+    const SHARED_PLURAL_CLASSIFIED_SWEEP: &str = r#"
+? explore shared_plural_classified_sweep {
+    from {
+        vary before in range(0, 300)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find final_twenty = matches of before >= 280
+    find final_ten = matches of before >= 290
 }
 "#;
 
@@ -3465,7 +3517,7 @@ mod regional_stream_acceptance_tests {
         assert!(journal
             .scheduler_view()
             .expect("inspect partial fixture")
-            .classified_chunk_accumulator(question_id)
+            .classified_chunk_accumulator()
             .unwrap()
             .is_some());
 
@@ -3692,9 +3744,19 @@ mod regional_stream_acceptance_tests {
         assert_eq!(report.identity.question_ids.len(), 2);
         assert_eq!(report.finds.len(), 2);
         assert_eq!(report.finds[0].name, "all_cases");
+        assert_eq!(
+            report.finds[0].find_classified,
+            ExploreStreamCount::Exact(2)
+        );
         assert_eq!(report.finds[0].selected, ExploreStreamCount::Exact(2));
+        assert_eq!(report.finds[0].not_selected, ExploreStreamCount::Exact(0));
         assert_eq!(report.finds[1].name, "upper_case");
+        assert_eq!(
+            report.finds[1].find_classified,
+            ExploreStreamCount::Exact(2)
+        );
         assert_eq!(report.finds[1].selected, ExploreStreamCount::Exact(1));
+        assert_eq!(report.finds[1].not_selected, ExploreStreamCount::Exact(1));
         assert_ne!(report.finds[0].question_id, report.finds[1].question_id);
         assert!(report
             .finds
@@ -3705,15 +3767,35 @@ mod regional_stream_acceptance_tests {
             .publication
             .as_ref()
             .expect("plural run must refresh its publication manifest");
-        assert!(publication.artifacts.iter().all(|artifact| {
-            artifact.key != "graph:case-support" && artifact.key != "graph:case-transitions"
+        let case_support_artifacts = publication
+            .artifacts
+            .iter()
+            .filter(|artifact| artifact.kind == "case_support_graph")
+            .collect::<Vec<_>>();
+        assert_eq!(case_support_artifacts.len(), 2);
+        assert!(case_support_artifacts.iter().all(|artifact| {
+            artifact.key.starts_with("graph:case-support:")
+                && artifact.key != "graph:case-support"
+                && artifact.relative_path.starts_with("graphs")
         }));
+        assert_eq!(
+            case_support_artifacts
+                .iter()
+                .map(|artifact| artifact.key.as_str())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            2
+        );
+        assert!(publication
+            .artifacts
+            .iter()
+            .all(|artifact| artifact.key != "graph:case-transitions"));
         let manifest: serde_json::Value = serde_json::from_str(
             &fs::read_to_string(&publication.manifest_path)
                 .expect("read plural publication manifest"),
         )
         .expect("parse plural publication manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(16));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(17));
         assert_eq!(
             manifest["identity"]["question_ids"]
                 .as_array()
@@ -3729,6 +3811,49 @@ mod regional_stream_acceptance_tests {
                 .map(|find| find["name"].as_str().expect("manifest FIND name"))
                 .collect::<Vec<_>>(),
             vec!["all_cases", "upper_case"]
+        );
+        let manifest_case_support = manifest["artifacts"]
+            .as_array()
+            .expect("manifest artifact descriptors")
+            .iter()
+            .filter(|artifact| artifact["kind"] == "case_support_graph")
+            .collect::<Vec<_>>();
+        assert_eq!(manifest_case_support.len(), 2);
+        let expected_question_ids = report
+            .identity
+            .question_ids
+            .iter()
+            .map(String::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        let published_question_ids = manifest_case_support
+            .iter()
+            .map(|artifact| {
+                artifact["question_id"]
+                    .as_str()
+                    .expect("case-support question identity")
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(published_question_ids, expected_question_ids);
+        let selected_counts = manifest_case_support
+            .iter()
+            .map(|artifact| {
+                (
+                    artifact["question_id"]
+                        .as_str()
+                        .expect("case-support question identity"),
+                    artifact["graph_projection"]["counts"]["selected_cases"]["value"]
+                        .as_str()
+                        .expect("exact case-support selected count"),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(
+            selected_counts.get(report.finds[0].question_id.as_str()),
+            Some(&"2")
+        );
+        assert_eq!(
+            selected_counts.get(report.finds[1].question_id.as_str()),
+            Some(&"1")
         );
     }
 
@@ -3813,7 +3938,7 @@ mod regional_stream_acceptance_tests {
             &fs::read_to_string(&publication.manifest_path).expect("read answer manifest"),
         )
         .expect("parse answer manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(16));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(17));
         assert_eq!(manifest["answer"]["rows_inlined"].as_bool(), Some(false));
         let views = manifest["answer"]["result_views"]
             .as_array()
@@ -4326,7 +4451,7 @@ mod regional_stream_acceptance_tests {
                 .scheduler_view()
                 .expect("inspect hybrid prefix");
             assert!(matches!(
-                view.classified_support_fragments(question_id).unwrap(),
+                view.classified_support_fragments().unwrap(),
                 [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
                     _
                 )]
@@ -4360,7 +4485,7 @@ mod regional_stream_acceptance_tests {
             reopened
                 .scheduler_view()
                 .expect("inspect replayed hybrid prefix")
-                .classified_support_fragments(question_id)
+                .classified_support_fragments()
                 .unwrap(),
             [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
                 _
@@ -4410,7 +4535,7 @@ mod regional_stream_acceptance_tests {
         let view = journal
             .scheduler_view()
             .expect("inspect completed hybrid view");
-        let fragments = view.classified_support_fragments(question_id).unwrap();
+        let fragments = view.classified_support_fragments().unwrap();
         assert!(matches!(
             fragments,
             [
@@ -4428,7 +4553,11 @@ mod regional_stream_acceptance_tests {
         assert_eq!(
             fragments
                 .iter()
-                .map(|fragment| fragment.admitted_selected_count())
+                .map(|fragment| {
+                    fragment
+                        .admitted_selected_count(question_id)
+                        .expect("hybrid fragment contains the query question")
+                })
                 .sum::<u128>(),
             20
         );
@@ -4461,16 +4590,14 @@ mod regional_stream_acceptance_tests {
             )
             .expect("authorize exact public hybrid closure");
         let partition = view
-            .verified_case_chunk_partition(question_id)
+            .verified_case_chunk_partition()
             .unwrap()
             .expect("hybrid canonical partition");
         let projection = derive_relational_case_support_projection(
+            question_id,
             partition,
             fragments,
-            |cell_id| {
-                view.selected_run_materialization(question_id, cell_id)
-                    .unwrap()
-            },
+            |cell_id| view.selected_run_materialization(cell_id).unwrap(),
             None,
             Some(closure_authority),
         )
@@ -4543,6 +4670,349 @@ mod regional_stream_acceptance_tests {
                 if closure.exact_logical_case_count == 300
                     && closure.exact_selected_case_count == 20
         ));
+    }
+
+    #[test]
+    fn plural_classified_sweep_resumes_once_and_shares_joint_question_runs() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let mut classified_member_evaluations = 0u128;
+
+        let (question_twenty_id, question_ten_id, paused_checkpoint) = {
+            let mut prepared = prepare(SHARED_PLURAL_CLASSIFIED_SWEEP);
+            let checked = prepared.checked.view();
+            let [question_twenty_id, question_ten_id] = checked.find_question_ids() else {
+                panic!("shared plural fixture must have exactly two authored FIND questions");
+            };
+            assert!(prepared.region_replay_authority.is_none());
+            assert!(prepared.native_classifier_plan.is_none());
+            assert!(!prepared.native_classifier_shape_v2);
+
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build shared plural stream scheduler");
+            let mut durable = RelationalDurableJournal::open_or_create(
+                &run_state,
+                prepared.contract.clone(),
+                prepared.analysis_plan_root,
+                RelationalDurableJournalLimits::default(),
+            )
+            .expect("open shared plural durable journal");
+
+            let mut paused_checkpoint = None;
+            for _ in 0..64 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow shared plural planning journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(17).unwrap(),
+                    )
+                    .expect("advance shared plural prefix");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("shared plural stream quiesced before its first classified slice");
+                };
+                let quantum = batch.quantum();
+                let pause_after_batch = match quantum {
+                    RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(
+                        sweep,
+                    )) => {
+                        let evaluated = sweep
+                            .evaluated_member_count()
+                            .expect("the first shared plural slice evaluates members");
+                        classified_member_evaluations += u128::from(evaluated.get());
+                        assert_eq!(evaluated.get(), 17);
+                        assert_eq!(sweep.chunk_ordinal(), 0);
+                        assert_eq!(sweep.interval_start(), 0);
+                        assert_eq!(sweep.interval_end_exclusive(), 256);
+                        assert!(sweep.slice_artifact_id().is_some());
+                        assert!(sweep.classified_artifact_id().is_none());
+                        true
+                    }
+                    _ => false,
+                };
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .expect("append shared plural prefix batch");
+                if pause_after_batch {
+                    let view = durable
+                        .journal()
+                        .expect("inspect shared plural prefix")
+                        .scheduler_view()
+                        .expect("inspect shared plural prefix scheduler");
+                    let accumulator = view
+                        .classified_chunk_accumulator()
+                        .expect("inspect shared plural accumulator")
+                        .expect("the incomplete shared plural slice is retained");
+                    assert_eq!(accumulator.interval_start(), 0);
+                    assert_eq!(accumulator.interval_end_exclusive(), 256);
+                    assert_eq!(accumulator.next_coordinate(), 17);
+                    assert_eq!(accumulator.evaluated_case_count(), 17);
+                    assert!(view
+                        .classified_support_fragments()
+                        .expect("inspect shared plural classified prefix")
+                        .is_empty());
+                    paused_checkpoint = Some(
+                        durable
+                            .flush_for_pause()
+                            .expect("flush incomplete shared plural slice"),
+                    );
+                    break;
+                }
+            }
+
+            (
+                *question_twenty_id,
+                *question_ten_id,
+                paused_checkpoint.expect("fixture did not reach a 17-member classified slice"),
+            )
+        };
+
+        let mut prepared = prepare(SHARED_PLURAL_CLASSIFIED_SWEEP);
+        let checked = prepared.checked.view();
+        assert_eq!(
+            checked.find_question_ids(),
+            [question_twenty_id, question_ten_id]
+        );
+        assert!(prepared.region_replay_authority.is_none());
+        assert!(prepared.native_classifier_plan.is_none());
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("rebuild shared plural stream scheduler after pause");
+        let mut durable = RelationalDurableJournal::open_or_create(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+        )
+        .expect("reopen shared plural durable journal");
+        {
+            let reopened = durable
+                .journal()
+                .expect("inspect reopened shared plural journal");
+            assert_eq!(reopened.next_sequence(), paused_checkpoint.next_sequence());
+            assert_eq!(reopened.head(), paused_checkpoint.head());
+            let accumulator = reopened
+                .scheduler_view()
+                .expect("inspect reopened shared plural scheduler")
+                .classified_chunk_accumulator()
+                .expect("inspect reopened shared plural accumulator")
+                .expect("the incomplete shared plural slice survives replay");
+            assert_eq!(accumulator.next_coordinate(), 17);
+            assert_eq!(accumulator.evaluated_case_count(), 17);
+        }
+
+        let mut completed = false;
+        for _ in 0..256 {
+            match driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow reopened shared plural planning journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(17).unwrap(),
+                )
+                .expect("resume shared plural stream")
+            {
+                RelationalStreamStepOutcome::Emitted(batch) => {
+                    if let RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(
+                        sweep,
+                    )) = batch.quantum()
+                    {
+                        classified_member_evaluations += sweep
+                            .evaluated_member_count()
+                            .map_or(0, |evaluated| u128::from(evaluated.get()));
+                    }
+                    durable
+                        .append_events(
+                            batch.expected_sequence(),
+                            batch.expected_head(),
+                            batch.into_events(),
+                        )
+                        .expect("append resumed shared plural batch");
+                }
+                RelationalStreamStepOutcome::Complete => {
+                    completed = true;
+                    break;
+                }
+                RelationalStreamStepOutcome::Quiescent(quiescence) => {
+                    panic!("shared plural stream quiesced before closure: {quiescence:?}");
+                }
+            }
+        }
+        assert!(
+            completed,
+            "shared plural fixture exceeded its compact bound"
+        );
+        assert_eq!(
+            classified_member_evaluations, 300,
+            "two FIND predicates share one 300-member classified sweep"
+        );
+        durable
+            .flush_for_pause()
+            .expect("flush completed shared plural journal");
+
+        let journal = durable
+            .journal()
+            .expect("inspect completed shared plural journal");
+        let view = journal
+            .scheduler_view()
+            .expect("inspect completed shared plural scheduler");
+        let fragments = view
+            .classified_support_fragments()
+            .expect("inspect shared plural classified fragments");
+        assert_eq!(fragments.len(), 2);
+        assert!(fragments
+            .iter()
+            .all(|fragment| fragment.certificate().is_none()));
+        assert_eq!(
+            fragments
+                .iter()
+                .map(RelationalClassifiedSupportFragment::exact_case_count)
+                .sum::<u128>(),
+            300
+        );
+        assert_eq!(
+            fragments
+                .iter()
+                .map(|fragment| {
+                    fragment
+                        .admitted_selected_count(question_twenty_id)
+                        .expect("shared fragment contains the final-twenty question")
+                })
+                .sum::<u128>(),
+            20
+        );
+        assert_eq!(
+            fragments
+                .iter()
+                .map(|fragment| {
+                    fragment
+                        .admitted_selected_count(question_ten_id)
+                        .expect("shared fragment contains the final-ten question")
+                })
+                .sum::<u128>(),
+            10
+        );
+
+        let joint_runs = fragments
+            .iter()
+            .flat_map(|fragment| {
+                let artifact = fragment
+                    .concrete()
+                    .expect("plural execution has no exact-one regional fragment");
+                let twenty_index = artifact
+                    .question_index(question_twenty_id)
+                    .expect("shared artifact indexes the final-twenty question");
+                let ten_index = artifact
+                    .question_index(question_ten_id)
+                    .expect("shared artifact indexes the final-ten question");
+                artifact.runs().iter().map(move |run| {
+                    assert_eq!(
+                        run.outcome().selection(artifact.question_ids().len()),
+                        None,
+                        "the packed mask rejects indexes outside its logical question set",
+                    );
+                    (
+                        run.interval_start(),
+                        run.interval_end_exclusive(),
+                        run.outcome().admission(),
+                        run.outcome()
+                            .selection(twenty_index)
+                            .expect("admitted run has a final-twenty decision"),
+                        run.outcome()
+                            .selection(ten_index)
+                            .expect("admitted run has a final-ten decision"),
+                    )
+                })
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            joint_runs,
+            vec![
+                (
+                    0,
+                    256,
+                    AdmissionDecision::Admitted,
+                    SelectionDecision::NotSelected,
+                    SelectionDecision::NotSelected,
+                ),
+                (
+                    256,
+                    280,
+                    AdmissionDecision::Admitted,
+                    SelectionDecision::NotSelected,
+                    SelectionDecision::NotSelected,
+                ),
+                (
+                    280,
+                    290,
+                    AdmissionDecision::Admitted,
+                    SelectionDecision::Selected,
+                    SelectionDecision::NotSelected,
+                ),
+                (
+                    290,
+                    300,
+                    AdmissionDecision::Admitted,
+                    SelectionDecision::Selected,
+                    SelectionDecision::Selected,
+                ),
+            ]
+        );
+
+        assert_eq!(
+            view.selected_run_materializations(question_twenty_id)
+                .expect("inspect final-twenty materializations")
+                .count(),
+            2
+        );
+        assert_eq!(
+            view.selected_run_materializations(question_ten_id)
+                .expect("inspect final-ten materializations")
+                .count(),
+            1
+        );
+        let twenty_cases = view
+            .materialized_selected_case_ids(question_twenty_id)
+            .expect("inspect final-twenty concrete cases")
+            .collect::<std::collections::BTreeSet<_>>();
+        let ten_cases = view
+            .materialized_selected_case_ids(question_ten_id)
+            .expect("inspect final-ten concrete cases")
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(twenty_cases.len(), 20);
+        assert_eq!(ten_cases.len(), 10);
+        assert!(ten_cases.is_subset(&twenty_cases));
+        assert_eq!(twenty_cases.union(&ten_cases).count(), 20);
+        assert!(view
+            .selected_run_materializations_cover_classified_prefix(question_twenty_id)
+            .expect("verify final-twenty materialization cover"));
+        assert!(view
+            .selected_run_materializations_cover_classified_prefix(question_ten_id)
+            .expect("verify final-ten materialization cover"));
+        assert!(view.support_catalog_is_sealed());
+        assert!(journal
+            .analysis_state()
+            .is_some_and(|analysis| analysis.is_closed()));
     }
 
     #[test]

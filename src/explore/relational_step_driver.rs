@@ -415,7 +415,7 @@ impl<'query> RelationalStepDriver<'query> {
         } else {
             None
         };
-        let classified_sweep = if singleton_question
+        let classified_sweep = if !question_ids.is_empty()
             && support.has_case_chunk_partition()
             && !full_transition_materialization_requested
         {
@@ -541,16 +541,15 @@ impl<'query> RelationalStepDriver<'query> {
             }
         }
 
-        // Certified support artifacts currently close exactly one semantic
-        // question. Zero- and plural-question explores use the shared concrete
-        // relation/admission path until the support protocol itself becomes
-        // question-indexed; they must never reinterpret one question as the
-        // primary population for the whole run.
-        let certified_support_is_applicable = self.question_ids.len() == 1;
+        // Structural support and its bounded classified sweep are shared by
+        // every nonempty canonical question set. An empty Explore continues
+        // through the ordinary concrete relation/admission path because there
+        // is no FIND vector to classify.
+        let classified_support_is_applicable = !self.question_ids.is_empty();
         let defer_symbolic_support = self.full_transition_materialization_requested
             && !view.support_catalog_is_sealed()
             && !self.concrete_base_is_classified(view)?;
-        if certified_support_is_applicable && !defer_symbolic_support {
+        if classified_support_is_applicable && !defer_symbolic_support {
             match self.support.step(view)? {
                 RelationalSupportStepOutcome::Emitted(batch) => {
                     debug_assert_eq!(batch.expected_sequence(), view.sequence());
@@ -573,7 +572,7 @@ impl<'query> RelationalStepDriver<'query> {
         // particular, a statically exact-empty case population reaches this
         // branch immediately after support-plan registration and never mints
         // a synthetic CaseId or an extensional relation claim.
-        if certified_support_is_applicable
+        if classified_support_is_applicable
             && view.support_catalog_is_sealed()
             && !(self.full_transition_materialization_requested
                 && view.source_traversal_is_started())
@@ -592,18 +591,16 @@ impl<'query> RelationalStepDriver<'query> {
         // in caller-bounded slices; support advances only when those slices
         // deterministically close one canonical chunk transcript.
         if let Some(classified_sweep) = &self.classified_sweep {
-            let [question_id] = self.question_ids.as_ref() else {
-                return Err(RelationalStepDriverError::InvalidOrderedClassification);
-            };
             // A concrete slice checkpoint owns its child until completion.
-            // Otherwise the producer-owned capsule prover gets exactly one
+            // Otherwise the producer-owned regional prover gets exactly one
             // chance to close the next whole canonical child before any case
-            // in that child is evaluated.
-            if view.classified_chunk_accumulator(*question_id)?.is_none() {
+            // in that child is evaluated. Regional proof remains deliberately
+            // unary until its proof artifact binds a complete question set.
+            if self.question_ids.len() == 1 && view.classified_chunk_accumulator()?.is_none() {
                 if let (Some(authority), Some(partition), Some(progress)) = (
                     journal.region_replay_authority(),
-                    view.verified_case_chunk_partition(*question_id)?,
-                    view.classified_sweep_progress(*question_id)?,
+                    view.verified_case_chunk_partition()?,
+                    view.classified_sweep_progress()?,
                 ) {
                     let chunk_ordinal = usize::try_from(progress.next_chunk_ordinal())
                         .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
@@ -1208,7 +1205,7 @@ impl<'query> RelationalStepDriver<'query> {
                     outcome.admission(),
                 ));
                 let mut question_classification_count = 0u128;
-                if let Some(selection) = outcome.selection() {
+                if let Some(selection) = outcome.selection(0) {
                     events.push(RelationalJournalEvent::question_classified(
                         *question_id,
                         case_id,

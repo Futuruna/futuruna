@@ -15,7 +15,9 @@
 use std::error::Error;
 use std::fmt;
 
-use super::relation::{AdmissionId, QuestionId, RelationId, RelationalCaseId, ViewId};
+use super::relation::{
+    AdmissionId, QuestionId, RelationId, RelationalCaseId, SelectionDecision, ViewId,
+};
 use super::relational_analysis_journal::{
     RelationalSelectedPopulationAuthority, RelationalSelectedQuestionSeal,
     RelationalSelectedQuestionSealId,
@@ -40,9 +42,9 @@ use super::relational_support_planner::RelationalSupportPlanRoot;
 use super::support_cell::SupportCellId;
 use super::support_evidence::SupportEvidenceRoot;
 
-pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION: u32 = 3;
 pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA: &str =
-    "futuruna.relational-case-support-graph.v2";
+    "futuruna.relational-case-support-graph.v3";
 
 /// Stable public provenance for one classified partition child.
 ///
@@ -77,6 +79,14 @@ impl RelationalCaseSupportClassificationAuthority {
 pub(crate) enum RelationalCaseSupportRegionAuthority {
     ConcreteRun(RelationalClassifiedRunId),
     CertifiedRegion([u8; 32]),
+}
+
+/// One question's scalar projection of a shared joint classification outcome.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RelationalCaseSupportOutcome {
+    Rejected,
+    AdmittedNotSelected,
+    AdmittedSelected,
 }
 
 impl RelationalCaseSupportRegionAuthority {
@@ -278,7 +288,7 @@ pub(crate) enum RelationalCaseSupportProjectionRecord {
         region_authority: RelationalCaseSupportRegionAuthority,
         run_ordinal: u16,
         exact_case_count: u128,
-        outcome: RelationalClassifiedCaseOutcome,
+        outcome: RelationalCaseSupportOutcome,
         correlated_starter_region_id: Option<RelationalStarterRegionId>,
     },
     SelectedMaterialization {
@@ -301,6 +311,7 @@ pub(crate) enum RelationalCaseSupportProjectionRecord {
 /// exact record then scans only one V1 chunk, whose run and selected-case cover
 /// is bounded by the partition contract.
 pub(crate) struct RelationalCaseSupportProjection<'a> {
+    question_id: QuestionId,
     partition: &'a RelationalCaseChunkPartitionArtifact,
     classified_fragments: &'a [RelationalClassifiedSupportFragment],
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
@@ -317,6 +328,10 @@ struct RelationalCaseSupportChunkOrdinalIndex {
 }
 
 impl<'a> RelationalCaseSupportProjection<'a> {
+    pub(crate) const fn question_id(&self) -> QuestionId {
+        self.question_id
+    }
+
     pub(crate) const fn metadata(&self) -> RelationalCaseSupportProjectionMetadata {
         self.metadata
     }
@@ -337,7 +352,7 @@ impl<'a> RelationalCaseSupportProjection<'a> {
             return Ok(Some(RelationalCaseSupportProjectionRecord::Root {
                 relation_id: self.partition.relation_id(),
                 admission_id: self.partition.admission_id(),
-                question_id: self.partition.question_id(),
+                question_id: self.question_id,
                 support_plan_root: self.partition.plan_root(),
                 partition_artifact_id: self.partition.id(),
                 exact_logical_case_count: self.metadata.exact_logical_case_count,
@@ -385,7 +400,11 @@ impl<'a> RelationalCaseSupportProjection<'a> {
             .checked_sub(chunk_start)
             .ok_or(RelationalCaseSupportProjectionError::OrdinalIndexMismatch)?;
         if relative == 0 {
-            return Ok(Some(chunk_record(self.partition, fragment)?));
+            return Ok(Some(chunk_record(
+                self.question_id,
+                self.partition,
+                fragment,
+            )?));
         }
         relative -= 1;
 
@@ -396,10 +415,10 @@ impl<'a> RelationalCaseSupportProjection<'a> {
             if relative == 0 {
                 let outcome = match certificate.conclusion() {
                     RelationalCertifiedRegionConclusion::Rejected => {
-                        RelationalClassifiedCaseOutcome::Rejected
+                        RelationalCaseSupportOutcome::Rejected
                     }
                     RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
-                        RelationalClassifiedCaseOutcome::AdmittedNotSelected
+                        RelationalCaseSupportOutcome::AdmittedNotSelected
                     }
                 };
                 return Ok(Some(RelationalCaseSupportProjectionRecord::Region {
@@ -420,6 +439,7 @@ impl<'a> RelationalCaseSupportProjection<'a> {
         };
 
         for run in chunk.runs() {
+            let outcome = scalar_outcome(self.question_id, chunk, run)?;
             if relative == 0 {
                 return Ok(Some(RelationalCaseSupportProjectionRecord::Region {
                     classification_authority:
@@ -427,13 +447,13 @@ impl<'a> RelationalCaseSupportProjection<'a> {
                     region_authority: RelationalCaseSupportRegionAuthority::ConcreteRun(run.id()),
                     run_ordinal: run.ordinal(),
                     exact_case_count: run.cardinality(),
-                    outcome: run.outcome(),
+                    outcome,
                     correlated_starter_region_id: None,
                 }));
             }
             relative -= 1;
 
-            if run.outcome() != RelationalClassifiedCaseOutcome::AdmittedSelected {
+            if outcome != RelationalCaseSupportOutcome::AdmittedSelected {
                 continue;
             }
             let materialization = *materializations
@@ -442,7 +462,13 @@ impl<'a> RelationalCaseSupportProjection<'a> {
             materialization_index = materialization_index
                 .checked_add(1)
                 .ok_or(RelationalCaseSupportProjectionError::ArithmeticOverflow)?;
-            validate_materialization(self.partition, chunk, run, materialization)?;
+            validate_materialization(
+                self.question_id,
+                self.partition,
+                chunk,
+                run,
+                materialization,
+            )?;
             if relative == 0 {
                 return Ok(Some(
                     RelationalCaseSupportProjectionRecord::SelectedMaterialization {
@@ -485,6 +511,7 @@ impl<'a> RelationalCaseSupportProjection<'a> {
 /// classified artifacts.  `selected_materialization` must read the same
 /// immutable authenticated journal prefix as the supplied artifacts.
 pub(crate) fn derive_relational_case_support_projection<'a, F>(
+    question_id: QuestionId,
     verified_partition: &'a VerifiedRelationalCaseChunkPartition,
     classified_fragments: &'a [RelationalClassifiedSupportFragment],
     mut selected_materialization: F,
@@ -495,6 +522,13 @@ where
     F: FnMut(SupportCellId) -> Option<&'a RelationalSelectedRunMaterializationArtifact>,
 {
     let partition = verified_partition.artifact();
+    if partition
+        .question_ids()
+        .binary_search(&question_id)
+        .is_err()
+    {
+        return Err(RelationalCaseSupportProjectionError::QuestionNotInPartition { question_id });
+    }
     let planned_chunk_count = usize_to_u128(partition.chunks().len())?;
     let classified_chunk_count = usize_to_u128(classified_fragments.len())?;
     if classified_chunk_count > planned_chunk_count {
@@ -510,9 +544,12 @@ where
     let mut classified_region_count = 0_u128;
     let mut classified_region_capacity = 0usize;
     for (index, fragment) in classified_fragments.iter().enumerate() {
-        validate_classified_fragment(partition, index, fragment)?;
+        validate_classified_fragment(question_id, partition, index, fragment)?;
         classified_case_count = checked_add(classified_case_count, fragment.exact_case_count())?;
-        selected_case_count = checked_add(selected_case_count, fragment.admitted_selected_count())?;
+        selected_case_count = checked_add(
+            selected_case_count,
+            fragment_admitted_selected_count(question_id, fragment)?,
+        )?;
         let region_count = match fragment {
             RelationalClassifiedSupportFragment::Concrete(chunk) => chunk.runs().len(),
             RelationalClassifiedSupportFragment::CertifiedZeroSelected(_) => 1,
@@ -573,7 +610,9 @@ where
         for run in chunk.runs() {
             package_record_count = checked_add(package_record_count, 1)?;
             package_region_count = checked_add(package_region_count, 1)?;
-            if run.outcome() != RelationalClassifiedCaseOutcome::AdmittedSelected {
+            if scalar_outcome(question_id, chunk, run)?
+                != RelationalCaseSupportOutcome::AdmittedSelected
+            {
                 continue;
             }
             let Some(materialization) = selected_materialization(run.cell_id()) else {
@@ -581,7 +620,7 @@ where
                 first_missing = Some((chunk.chunk_ordinal(), run.ordinal()));
                 break 'chunks;
             };
-            validate_materialization(partition, chunk, run, materialization)?;
+            validate_materialization(question_id, partition, chunk, run, materialization)?;
             materializations.push(materialization);
             package_record_count = checked_add(package_record_count, 1)?;
             package_materialization_count = checked_add(package_materialization_count, 1)?;
@@ -640,7 +679,7 @@ where
             if !classification_complete || !materialization_complete {
                 return Err(RelationalCaseSupportProjectionError::PrematureClosure);
             }
-            if authority.question_id != partition.question_id() {
+            if authority.question_id != question_id {
                 return Err(RelationalCaseSupportProjectionError::ClosureQuestionMismatch);
             }
             if authority.certified_root_case_count != exact_logical_case_count
@@ -719,6 +758,7 @@ where
     };
 
     Ok(RelationalCaseSupportProjection {
+        question_id,
         partition,
         classified_fragments,
         authorization,
@@ -730,6 +770,7 @@ where
 }
 
 fn chunk_record(
+    question_id: QuestionId,
     partition: &RelationalCaseChunkPartitionArtifact,
     fragment: &RelationalClassifiedSupportFragment,
 ) -> Result<RelationalCaseSupportProjectionRecord, RelationalCaseSupportProjectionError> {
@@ -753,13 +794,89 @@ fn chunk_record(
         chunk_ordinal: fragment.chunk_ordinal(),
         exact_case_count: fragment.exact_case_count(),
         rejected_case_count: fragment.rejected_count(),
-        admitted_not_selected_case_count: fragment.admitted_not_selected_count(),
-        admitted_selected_case_count: fragment.admitted_selected_count(),
+        admitted_not_selected_case_count: fragment_admitted_not_selected_count(
+            question_id,
+            fragment,
+        )?,
+        admitted_selected_case_count: fragment_admitted_selected_count(question_id, fragment)?,
         region_count,
     })
 }
 
+fn scalar_outcome(
+    question_id: QuestionId,
+    chunk: &RelationalClassifiedChunkArtifact,
+    run: &RelationalClassifiedRunDescriptor,
+) -> Result<RelationalCaseSupportOutcome, RelationalCaseSupportProjectionError> {
+    let question_index = chunk.question_index(question_id).ok_or(
+        RelationalCaseSupportProjectionError::QuestionNotInClassifiedChunk {
+            question_id,
+            chunk_ordinal: chunk.chunk_ordinal(),
+        },
+    )?;
+    match run.outcome() {
+        RelationalClassifiedCaseOutcome::Rejected => Ok(RelationalCaseSupportOutcome::Rejected),
+        RelationalClassifiedCaseOutcome::Admitted(_) => match run
+            .outcome()
+            .selection(question_index)
+        {
+            Some(SelectionDecision::NotSelected) => {
+                Ok(RelationalCaseSupportOutcome::AdmittedNotSelected)
+            }
+            Some(SelectionDecision::Selected) => Ok(RelationalCaseSupportOutcome::AdmittedSelected),
+            None => Err(
+                RelationalCaseSupportProjectionError::ClassifiedRunOutcomeMismatch {
+                    chunk_ordinal: chunk.chunk_ordinal(),
+                    run_ordinal: run.ordinal(),
+                },
+            ),
+        },
+    }
+}
+
+fn fragment_admitted_selected_count(
+    question_id: QuestionId,
+    fragment: &RelationalClassifiedSupportFragment,
+) -> Result<u128, RelationalCaseSupportProjectionError> {
+    match fragment {
+        RelationalClassifiedSupportFragment::Concrete(chunk) => {
+            chunk.admitted_selected_count(question_id).ok_or(
+                RelationalCaseSupportProjectionError::QuestionNotInClassifiedChunk {
+                    question_id,
+                    chunk_ordinal: chunk.chunk_ordinal(),
+                },
+            )
+        }
+        RelationalClassifiedSupportFragment::CertifiedZeroSelected(_) => Ok(0),
+    }
+}
+
+fn fragment_admitted_not_selected_count(
+    question_id: QuestionId,
+    fragment: &RelationalClassifiedSupportFragment,
+) -> Result<u128, RelationalCaseSupportProjectionError> {
+    match fragment {
+        RelationalClassifiedSupportFragment::Concrete(chunk) => {
+            chunk.admitted_not_selected_count(question_id).ok_or(
+                RelationalCaseSupportProjectionError::QuestionNotInClassifiedChunk {
+                    question_id,
+                    chunk_ordinal: chunk.chunk_ordinal(),
+                },
+            )
+        }
+        RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
+            Ok(match certificate.conclusion() {
+                RelationalCertifiedRegionConclusion::Rejected => 0,
+                RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
+                    certificate.case_cardinality()
+                }
+            })
+        }
+    }
+}
+
 fn validate_classified_fragment(
+    question_id: QuestionId,
     partition: &RelationalCaseChunkPartitionArtifact,
     chunk_index: usize,
     fragment: &RelationalClassifiedSupportFragment,
@@ -787,14 +904,21 @@ fn validate_classified_fragment(
                 chunk.plan_root() == partition.plan_root()
                     && chunk.relation_id() == partition.relation_id()
                     && chunk.admission_id() == partition.admission_id()
-                    && chunk.question_id() == partition.question_id()
+                    && chunk.question_ids() == partition.question_ids()
+                    && chunk.question_index(question_id).is_some()
                     && chunk.chunk_partition_id() == partition.id()
             }
             RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
+                let [partition_question_id] = partition.question_ids() else {
+                    return Err(
+                        RelationalCaseSupportProjectionError::RegionalCertificateRequiresOneQuestion,
+                    );
+                };
                 certificate.plan_root() == partition.plan_root()
                     && certificate.relation_id() == partition.relation_id()
                     && certificate.admission_id() == partition.admission_id()
-                    && certificate.question_id() == partition.question_id()
+                    && certificate.question_id() == *partition_question_id
+                    && certificate.question_id() == question_id
                     && matches!(
                         certificate.subject(),
                         RelationalRegionProofSubject::CanonicalChunk {
@@ -811,10 +935,12 @@ fn validate_classified_fragment(
             },
         );
     }
+    let admitted_not_selected = fragment_admitted_not_selected_count(question_id, fragment)?;
+    let admitted_selected = fragment_admitted_selected_count(question_id, fragment)?;
     let classified = fragment
         .rejected_count()
-        .checked_add(fragment.admitted_not_selected_count())
-        .and_then(|count| count.checked_add(fragment.admitted_selected_count()))
+        .checked_add(admitted_not_selected)
+        .and_then(|count| count.checked_add(admitted_selected))
         .ok_or(RelationalCaseSupportProjectionError::ArithmeticOverflow)?;
     if classified != fragment.exact_case_count() {
         return Err(
@@ -843,6 +969,7 @@ fn validate_classified_fragment(
 }
 
 fn validate_materialization(
+    question_id: QuestionId,
     partition: &RelationalCaseChunkPartitionArtifact,
     chunk: &RelationalClassifiedChunkArtifact,
     run: &RelationalClassifiedRunDescriptor,
@@ -851,7 +978,7 @@ fn validate_materialization(
     if materialization.plan_root() != partition.plan_root()
         || materialization.relation_id() != partition.relation_id()
         || materialization.admission_id() != partition.admission_id()
-        || materialization.question_id() != partition.question_id()
+        || !materialization.contains_question(question_id)
         || materialization.classified_chunk_artifact_id() != chunk.id()
         || materialization.chunk_partition_id() != partition.id()
         || materialization.chunk_id() != chunk.chunk_id()
@@ -902,6 +1029,14 @@ pub(crate) enum RelationalCaseSupportProjectionError {
     InvalidSelectedQuestionSeal,
     SelectedQuestionIsNotSupportCertified,
     SelectedQuestionCoverageMismatch,
+    QuestionNotInPartition {
+        question_id: QuestionId,
+    },
+    QuestionNotInClassifiedChunk {
+        question_id: QuestionId,
+        chunk_ordinal: u128,
+    },
+    RegionalCertificateRequiresOneQuestion,
     ClassifiedPrefixExceedsPartition,
     ClassifiedChunkOrderMismatch {
         expected: u128,
@@ -917,6 +1052,10 @@ pub(crate) enum RelationalCaseSupportProjectionError {
         chunk_ordinal: u128,
         expected: u16,
         actual: u16,
+    },
+    ClassifiedRunOutcomeMismatch {
+        chunk_ordinal: u128,
+        run_ordinal: u16,
     },
     SelectedMaterializationScopeMismatch {
         chunk_ordinal: u128,
@@ -963,6 +1102,21 @@ impl fmt::Display for RelationalCaseSupportProjectionError {
                 f,
                 "selected-question seal coverage disagrees with its certified population"
             ),
+            Self::QuestionNotInPartition { question_id } => write!(
+                f,
+                "case-support question {question_id:?} is not in the shared classified partition"
+            ),
+            Self::QuestionNotInClassifiedChunk {
+                question_id,
+                chunk_ordinal,
+            } => write!(
+                f,
+                "case-support question {question_id:?} is not in classified chunk {chunk_ordinal}"
+            ),
+            Self::RegionalCertificateRequiresOneQuestion => write!(
+                f,
+                "regional classification certificates require an exact-one-question partition"
+            ),
             Self::ClassifiedPrefixExceedsPartition => {
                 write!(f, "classified chunk prefix exceeds the verified partition")
             }
@@ -985,6 +1139,13 @@ impl fmt::Display for RelationalCaseSupportProjectionError {
             } => write!(
                 f,
                 "classified chunk {chunk_ordinal} run order mismatch: expected {expected}, found {actual}"
+            ),
+            Self::ClassifiedRunOutcomeMismatch {
+                chunk_ordinal,
+                run_ordinal,
+            } => write!(
+                f,
+                "classified chunk {chunk_ordinal} run {run_ordinal} has no outcome for the requested question"
             ),
             Self::SelectedMaterializationScopeMismatch {
                 chunk_ordinal,

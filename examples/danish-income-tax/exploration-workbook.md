@@ -42,7 +42,7 @@ relation and admission for `find all_cases = all` and
 `find interesting = matches of ...`. After a deliberately short cold slice
 paused at sequence zero, the same journal resumed and closed with
 `all_cases = exact(4)`, `interesting = exact(2)`, one structural mechanism
-explaining both interesting cases, and twelve caught-up artifacts. Its saved
+explaining both interesting cases, and fourteen caught-up artifacts. Its saved
 `views/selected_cases.ndjson` contains the two typed cases;
 `views/mechanism_summary.ndjson` reports `mechanisms = 1` and
 `explained_cases = 2`; and `graphs/case_graph.ndjson` closes with five state
@@ -63,7 +63,7 @@ incrementally by ordinal; it does not rematerialize or copy the full result
 before mechanism replay. This remains a kernel audit, not a Personskat result.
 
 The compact answer is now shaped for the policy result rather than only for
-engine inspection. Report v9 and publication v16 list every named result,
+engine inspection. Report v9 and publication v17 list every named result,
 including an ungrouped configuration ledger and an exact-empty view, with its
 resolved input, row grain, ordered typed columns, group keys, exact or open row
 count, evidence roots, and resumable NDJSON path. The manifest joins those
@@ -1424,12 +1424,33 @@ questions. For `N` admitted cases and question-predicate costs `f_i`, this is
 `O(N * sum(f_i))` question work, not `q` repetitions of source construction,
 successor evaluation, endpoint observation and admission. Authored aliases of
 one normalized question add no evaluation work. Honest extensional evidence
-still requires up to `O(Nq)` keyed decisions; any smaller representation must
-be justified by a checked compression or proof, not by silently sampling.
-At the current implementation checkpoint, the certified scalar sweep is
-available only when the canonical question set has exactly one member. A
-zero- or plural-question query uses the same resumable concrete stream; it
-never nominates the first authored find as an optimization surrogate.
+can require `Omega(Nq)` decision bits for arbitrary unrelated predicates; no
+algorithm can erase information that is genuinely independent. The compact
+classified sweep therefore compresses only what the checked transcript proves
+repetitive. Every admitted coordinate carries one packed bit vector in
+canonical `QuestionId` order, rejection is a separate admission outcome, and
+adjacent coordinates coalesce only when their complete joint outcome is equal.
+For chunk `c` with `R_c` joint runs, retained classification state is
+`O(sum_c R_c * ceil(q/8))` decision bytes plus per-question scalar counts,
+rather than a resident table of case records crossed with questions. Its
+honest worst case is still `R_c = N_c`.
+
+One rankable case partition and one transcript are shared by all named
+questions. Admission evidence is installed once per run; selection evidence
+is installed for every `(run, QuestionId)` before that leaf seals, so each
+question can close and count independently from the same support DAG. A run
+selected by several questions is concretely revisited once and its bounded row
+payload is shared by those questions. Native-classifier v2 and regional
+certificates remain exact-one accelerators; plural sweeps use the checked
+interpreter backend without choosing a primary or first-authored question.
+The focused implementation audit uses 300 integer transitions and two
+overlapping finds selecting the final 20 and final 10 cases. It pauses inside
+the first chunk after 17 evaluations, reopens the journal, and completes with
+exact counts `20` and `10` after exactly 300 total transition classifications,
+not 600. The joint RLE has four chunk-local runs (`0..256`, `256..280`,
+`280..290`, `290..300`); the two questions reference two and one selected runs
+respectively, while their concrete union is materialized once as 20 cases.
+Neither the native nor regional exact-one accelerator participates.
 The non-fused work DAG exposes at most one missing question leaf per case and
 quantum. Singleton-source fusion charges the number of question decisions to
 a fixed event budget, shrinks the member batch to fit, and disables itself when
@@ -2053,7 +2074,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v16 projects those points into a resumable request-local sidecar;
+Publication v17 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -2125,7 +2146,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v16
+view is rebuilt from the same authenticated signature leaves. Publication v17
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -2180,7 +2201,7 @@ is needed. These frontend and scheduler semantics are integrated through the
 journal, stream driver and publication plan; focused executable verification
 is the next gate before a larger audit run.
 
-Those descriptors are authorization-neutral. Publication v16 retains the
+Those descriptors are authorization-neutral. Publication v17 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -2213,7 +2234,7 @@ carrying one source/successor pair; the deduplicated source-only population is
 `P`. An unqualified consumer omits the optional route coordinate and retains
 its v1 consumer-local identity and record shape. In the historical
 publication-v9 contract this allowed a qualified consumer to be appended
-without republishing the core exploration. Publication v16 preserves the
+without republishing the core exploration. Publication v17 preserves the
 semantic separation, but has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
@@ -2467,7 +2488,7 @@ An earlier single-question checkpoint of
 positive transitions, one shared raw mechanism signature, and one structural
 mechanism/execution profile. Its eight publication-v7 artifacts reached
 sequence 107. That snapshot remains implementation history; the current
-plural 4/2/1 execution and its twelve publication-v16 artifacts are recorded
+plural 4/2/1 execution and its fourteen publication-v17 artifacts are recorded
 at the start of this workbook. Both are runtime evidence for the resumable
 stream and case/mechanism graph, not Personskat evidence.
 
@@ -2758,16 +2779,18 @@ case-support fiber on demand while the other 8,052 nodes and 20,720 edges stayed
 factorized. Publication must never eagerly serialize all of those case-support
 fibers merely because the structural DAG is published.
 
-Publication v16 keeps that typed consumer but removes the eager closure-time
+Publication v17 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
 measurement remains historical evidence for the support algebra, not the shape
 or cost of the current publication.
 
-The existing `graphs/case-support.ndjson` remains a different useful object: it
-is the classification/support partition proving how searched regions became
-excluded, admitted, matched and selected. It is not the semantic state graph
+The existing `graphs/case-support-<question-id-hex>.ndjson` lane remains a
+different useful object: one artifact per canonical question projects the
+shared classification/support partition proving how searched regions became
+excluded, admitted, matched and selected. Aliases share the QuestionId-addressed
+artifact; no authored find is primary. It is not the semantic state graph
 `Before -> Transition -> After`. That semantic graph and the mechanism
 starter-support projections can share identifiers and typed case evidence, but
 neither should be misnamed as the other.
@@ -2901,7 +2924,7 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v16 implements
+unions and honest unknown/interval/exact counts. Publication v17 implements
 independently domain-separated inner/outer expression bounds for `S`, the
 correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
 `P = distinct_sources(S)`. Its append-only observation points also carry
@@ -3001,7 +3024,7 @@ support-overlay coordinates and references; typed starter values stay
 authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
-Publication v16 emits one flat observation artifact per mechanism request at
+Publication v17 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -3605,8 +3628,8 @@ target:
    lazy validated byte-offset/cumulative-edge index is built only for an
    addressed signature; no fresh process scans every known definition to
    resume one line. The internal case/support DAG now also has a pure public
-   projection attached to the same resumable publisher as
-   `graphs/case-support.ndjson`. A classified partition publishes root → chunk
+   question-relative projection attached to the same resumable publisher as
+   `graphs/case-support-<question-id-hex>.ndjson`. A classified partition publishes root → chunk
    → region → selected materialization → authorized case. A run that closes
    without ever minting such a partition publishes root → exact classification
    region → authorized case instead, with one closure naming the actual

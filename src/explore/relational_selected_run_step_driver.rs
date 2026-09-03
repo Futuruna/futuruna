@@ -14,13 +14,12 @@ use std::fmt;
 
 use crate::CheckedExploreQueryView;
 
-use super::relation::QuestionId;
 use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkId, RelationalCaseChunkPartitionError, RelationalCaseChunkUnsupported,
 };
 use super::relational_classified_sweep::{
-    reverify_relational_classified_chunk_artifact, RelationalClassifiedCaseOutcome,
-    RelationalClassifiedChunkArtifactId, RelationalClassifiedRunId, RelationalClassifiedSweepError,
+    reverify_relational_classified_chunk_artifact, RelationalClassifiedChunkArtifactId,
+    RelationalClassifiedRunId, RelationalClassifiedSweepError,
 };
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_journal::{
@@ -127,7 +126,6 @@ pub(crate) struct RelationalSelectedRunStepDriver<'query> {
     // interpreter runtime; this is a shallow view copy, never a cloned IR.
     checked: CheckedExploreQueryView<'query>,
     support_plan: &'query RelationalSupportPlan,
-    question_id: QuestionId,
     discovery_cursor: RefCell<(usize, usize)>,
 }
 
@@ -140,19 +138,16 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
             .closed_query
             .validate()
             .map_err(RelationalSelectedRunStepDriverError::InvalidQuery)?;
-        let question_id = require_single_question(checked.question_ids())?;
-        let plan_question_id = require_single_question(support_plan.question_ids())?;
         if !support_plan.validate_root()
             || support_plan.relation_id() != checked.relation_id()
             || support_plan.admission_id() != checked.admission_id()
-            || plan_question_id != question_id
+            || support_plan.question_ids() != checked.question_ids()
         {
             return Err(RelationalSelectedRunStepDriverError::SupportPlanScopeMismatch);
         }
         Ok(Self {
             checked: *checked,
             support_plan,
-            question_id,
             discovery_cursor: RefCell::new((0, 0)),
         })
     }
@@ -166,12 +161,12 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         let view = journal.scheduler_view()?;
         self.validate_scope(checked, view)?;
 
-        let retained = view.classified_support_fragments(self.question_id)?;
+        let retained = view.classified_support_fragments()?;
         if retained.is_empty() {
             return Ok(RelationalSelectedRunStepOutcome::CaughtUp);
         }
         let verified_partition = view
-            .verified_case_chunk_partition(self.question_id)?
+            .verified_case_chunk_partition()?
             .ok_or(RelationalSelectedRunStepDriverError::CanonicalPartitionMismatch)?;
         let durable_root_injectivity = match view
             .support_evidence_record(verified_partition.durable_root_injectivity_evidence_id())
@@ -193,14 +188,14 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         if verified_partition.artifact().plan_root() != self.support_plan.root()
             || verified_partition.artifact().relation_id() != checked.relation_id()
             || verified_partition.artifact().admission_id() != checked.admission_id()
-            || verified_partition.artifact().question_id() != self.question_id
+            || verified_partition.artifact().question_ids() != checked.question_ids()
             || verified_partition.artifact().injectivity_evidence_id()
                 != durable_root_injectivity.id()
         {
             return Err(RelationalSelectedRunStepDriverError::CanonicalPartitionMismatch);
         }
         let progress = view
-            .classified_sweep_progress(self.question_id)?
+            .classified_sweep_progress()?
             .ok_or(RelationalSelectedRunStepDriverError::ClassifiedProgressMissing)?;
         if progress.accepted_chunk_count() != retained.len()
             || progress.partition_artifact_id() != verified_partition.artifact().id()
@@ -249,10 +244,8 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
                 0
             };
             for (run_index, run) in artifact.runs().iter().enumerate().skip(first_run) {
-                if run.outcome() == RelationalClassifiedCaseOutcome::AdmittedSelected
-                    && view
-                        .selected_run_materialization(self.question_id, run.cell_id())?
-                        .is_none()
+                if run.outcome().any_selected()
+                    && view.selected_run_materialization(run.cell_id())?.is_none()
                 {
                     cursor = (chunk_index, run_index);
                     target = Some((chunk_index, run_index));
@@ -307,9 +300,9 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
             .runs()
             .get(run_index)
             .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-        if run.descriptor().outcome() != RelationalClassifiedCaseOutcome::AdmittedSelected
+        if !run.descriptor().outcome().any_selected()
             || view
-                .selected_run_materialization(self.question_id, run.cell().id())?
+                .selected_run_materialization(run.cell().id())?
                 .is_some()
         {
             return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
@@ -385,26 +378,10 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
     }
 }
 
-fn require_single_question(
-    question_ids: &[QuestionId],
-) -> Result<QuestionId, RelationalSelectedRunStepDriverError> {
-    let [question_id] = question_ids else {
-        return Err(
-            RelationalSelectedRunStepDriverError::QuestionArityMismatch {
-                actual: question_ids.len(),
-            },
-        );
-    };
-    Ok(*question_id)
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalSelectedRunStepDriverError {
     InvalidQuery(String),
     SupportPlanScopeMismatch,
-    QuestionArityMismatch {
-        actual: usize,
-    },
     AlreadyBounded,
     UnsupportedPartition(RelationalCaseChunkUnsupported),
     JournalScopeMismatch,
@@ -439,10 +416,6 @@ impl fmt::Display for RelationalSelectedRunStepDriverError {
             Self::InvalidQuery(message) => write!(formatter, "invalid checked query: {message}"),
             Self::SupportPlanScopeMismatch => formatter
                 .write_str("selected-run driver support plan does not match the checked query"),
-            Self::QuestionArityMismatch { actual } => write!(
-                formatter,
-                "selected-run driver requires exactly one semantic question, found {actual}"
-            ),
             Self::AlreadyBounded => formatter
                 .write_str("selected-run driver requires the proper classified chunk partition"),
             Self::UnsupportedPartition(reason) => write!(

@@ -10,7 +10,7 @@ syntax. The current parser now accepts `from { given/vary/let }`,
 `transition after`, zero or more named `find` questions, and explicit named
 question inputs for `results` and `mechanisms`, including an exact chosen result
 as a mechanism target. Its scoped `where` plus
-publication-v16 `results`/`mechanisms`/`observations`/`starters` and
+publication-v17 `results`/`mechanisms`/`observations`/`starters` and
 `transitions` forms remain transitional implementation spellings that lower
 toward this model.
 They are not a second public dialect and carry no compatibility requirement.
@@ -694,6 +694,8 @@ Use separate symbols for the logical plan and the materialized prefix:
 - `S`: distinct set-normalized source rows;
 - `N`: distinct constructible cases;
 - `A`, `Q`: admission and FIND decision records;
+- `q`: canonical unique semantic questions in one classified sweep, and `R_c`:
+  maximal joint-outcome runs retained for classified chunk `c`;
 - `W`: retained work-DAG nodes after compaction;
 - `C`, `O`, `M`: support cells, proof obligations and accepted proof evidence;
 - `R`: evaluated result-input rows, `G`: result groups, `K`: candidates in one
@@ -713,27 +715,32 @@ that repeated work toward `O(F)`, where `F` is the number of distinct opened
 dependency tuples; it is a required optimization before broad profile
 widening, not a current complexity claim.
 
-The concrete fallback remains output-sensitive. It performs `O(N)` endpoint
-and admission evaluations plus source-prefix work, then evaluates every unique
-semantic question for each admitted case. With predicate costs `f_i`, that
-question work is `O(N * sum(f_i))`; authored aliases of the same normalized
-question add no work. An honest extensional journal may retain `O(Nq)` keyed
-question decisions unless checked support or proof evidence compresses them.
-This is the correctness floor. Current hot paths are:
+The current nonempty classified sweep remains output-sensitive. It performs
+`O(N)` endpoint and admission evaluations plus source-prefix work, then
+evaluates every unique semantic question for each admitted case. With question
+predicate costs `f_i`, that work is `O(N sum_i f_i)`; authored aliases of the
+same normalized question add no work. The sweep binds one canonical ordered
+`QuestionId` set and represents an admitted outcome as a packed joint decision
+mask in that order. Adjacent cases are run-length encoded only when their full
+outcome agrees: rejection, or admission with the same complete mask.
 
-The present certified classified-sweep protocol is deliberately exact-one:
-it activates only when the canonical semantic question set has one member
-(including any number of aliases of that member). Zero- and plural-question
-queries retain the shared concrete traversal and resumable journal. They do
-not pick an authored first find as a hidden primary question.
+For chunk `c`, compact retained decision state is
+`O(R_c ceil(q / 8))`; across chunks it is
+`O(sum_c R_c ceil(q / 8))` plus `O(q)` exact counters. This is a compression
+opportunity, not a better worst-case bound: adversarial outcomes can force one
+run per case and require `Omega(Nq)` decision bits. An admitted run carries one
+admission-evidence item and one selection-evidence item per semantic question;
+admission is not duplicated for question fan-out.
 
-Plural fan-out is itself bounded work. The ordinary DAG path registers at most
-one missing question leaf for one case per quantum; completing that leaf
-deterministically exposes the next. The singleton-source fusion optimization
-accounts for question classifications plus fixed bookkeeping under a
-4,096-event estimate and reduces its member batch accordingly. If even one
-member would exceed that estimate, fusion is disabled and the resumable leaf
-path remains authoritative.
+Cases selected by at least one question are materialized once as a shared
+any-selected union payload. That payload records its canonical selected
+`QuestionId` subset, and question-specific catalogs and public support are
+projections of it rather than duplicate case rows. The native V2 classifier
+and region-proof accelerators remain exact-one. They do not choose an authored
+first question when `q > 1`; the shared concrete classifier handles the full
+vector. A zero-question query keeps the concrete traversal fallback because
+there is no decision vector to classify. This is the correctness floor.
+Current hot paths are:
 
 | Current operation | Current time | Retained or peak memory |
 |---|---:|---:|
@@ -741,10 +748,10 @@ path remains authoritative.
 | resume a depth-`d` source prefix | `O(d)` fiber evaluations and set normalization | current prefix plus one materialized fiber |
 | enumerate one configured quantum | `O(k)` evaluator steps after the fiber opens | `O(k)` unapplied events; production fused work cold-starts at `k = 1`, then adapts toward five seconds with `k <= 256` |
 | reconstruct the verified case-chunk partition | `O(B)` once per cold journal replay; later slices/chunks/runs use indexed lookup in the replay-derived opaque authority | one `O(B)` partition/binding cache, currently `B = 782` for the 200k audit |
-| accept one classified chunk | `O(r log C)` keyed validation/append for `r <= 256` homogeneous runs, including causal root and opposite-obligation evidence-index lookups, plus bounded addressed-chunk reverification | `O(r)` exact-key undo log (`<= 9r + 3`); no accumulated support-catalog clone, proof scan or whole-partition rebuild |
+| accept one classified chunk | `O(rq log C)` worst-case keyed validation/append for `r <= 256` joint-outcome runs, including one admission item per run, one selection item per admitted run/question, causal roots and bounded addressed-chunk reverification | `O(rq)` exact-key undo/validation state; the durable outcome masks use `O(r ceil(q / 8))` plus `O(q)` counts, with no accumulated support-catalog clone, proof scan or whole-partition rebuild |
 | derive public classified counts | `O(C log C + M log C)` over the case-root-reachable support topology and facts | `O(C + M)` topology/key indexes while all semantic cells and evidence remain borrowed; no support snapshot or payload clone |
 | close classified support | `O((C + O + M) log (C + O + M))` full validation plus canonical hashing at each crash-safe seal boundary | derived key/ID validation sets only; no journal or support snapshot clone |
-| accept one concrete selected run | `O(k log N)` collision/classification preflight and merge for `k <= 256` cases | `O(k)` batch-local relation delta; no relation/admission/FIND prefix clones |
+| accept one shared any-selected run | `O(kq log N)` worst-case collision/classification preflight and sparse per-question membership merge for `k <= 256` union-selected cases | one `O(k)` batch-local relation/admission payload plus selected-question masks and sparse per-question memberships; no duplicate case row per matching question and no relation/admission/FIND prefix clones |
 | finish source traversal | `O(P + S + E)` ordered reachability/root validation over prefixes, sources and traversal edges | current `O(P + S + E)` reachability scratch; the terminal receipt itself is a fixed 212-byte body |
 | relation/admission/FIND closure | `O(N + A + Q)` coverage validation across all unique questions | relation rows plus `O(A + Q)` decisions; worst-case `Q = Nq` |
 | result evidence or projection-record insert | `O(log R)` in canonical indexes | one bounded record plus its reverse/index entry |
@@ -1224,14 +1231,14 @@ now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
 The four-transition `relational-explore-stream-smoke.runa` query now closes
-through report v9 and publication v16 with two named questions over one shared
+through report v9 and publication v17 with two named questions over one shared
 relation and admission. `all_cases` closes at exactly four cases;
 `interesting` closes at exactly two. The latter two cases share one raw
 signature, structural mechanism and execution profile. Its identity-only
 semantic transition graph closes with five states, four universe cases, four
 admitted cases and separate matched layers of four and two cases. A
 30-second cold slice first paused with zero semantic events, then a two-minute
-resume completed the same journal at sequence 179 and published all twelve
+resume completed the same journal at sequence 179 and published all fourteen
 artifacts. The
 first proof-bearing case-image artifact now installs
 root injectivity and optional exact cardinality atomically, with checked durable
@@ -1252,7 +1259,7 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v16 is the current artifact plan and report v9 is the current
+Publication v17 is the current artifact plan and report v9 is the current
 compact report. Every named result now has a bounded self-describing entry even
 when it is ungrouped, open, or exact-empty. The entry names its resolved input,
 grain, ordered selected schema, group keys, output-row and projection-record
@@ -1482,10 +1489,13 @@ An exact injective mapped image of an ordered integer range with a singleton
 successor has a stronger fallback than retaining one journal-state row per
 coordinate. First partition the root structurally into bounded ordinal chunks.
 Within a chunk, evaluate adjacent endpoints in order and partition that chunk
-again into maximal homogeneous rejected runs, admitted/not-selected runs, and
-selected fragments. Selected fragments remain concretely materializable for
-views and mechanism replay; the other runs carry typed admission/FIND evidence
-and exact cardinality without fabricating extensional `CaseId`s.
+again into maximal runs with the same full joint outcome: rejected, or admitted
+with one packed decision bit for every canonical `QuestionId`. A case selected
+by any bit remains concretely materializable once for views and mechanism
+replay. Its shared payload records all selecting questions, from which each
+question obtains its own projection; the other runs carry typed
+admission/FIND evidence and exact cardinality without fabricating extensional
+`CaseId`s.
 
 Each accepted sweep batch is bound to the checked query, support-plan root,
 root cell, mapped-image materializer, starting cursor and ending ordinal. A
@@ -1496,13 +1506,18 @@ boundary as individual classifications; later a classification-capsule proof
 may discharge the identical chunk obligation without evaluation.
 
 For `N` adjacent edges the black-box lower bound remains `N + 1` distinct
-endpoint observations, which the adjacent-value memo already attains. If `B`
-is the number of chunks, `R` the number of homogeneous outcome runs and `X` the
-selected cases retained for downstream work, retained semantic state becomes
-`O(B + R + X)` plus one bounded chunk, rather than necessarily `O(N)`. The
-honest worst case remains `R + X = Theta(N)`. Binary search and probes can rank
-where to work next, but cannot certify skipped coordinates unless interval or
-rule-graph reasoning proves the skipped cell uniform.
+endpoint observations, which the adjacent-value memo already attains. For `q`
+unique questions it also performs `O(N sum_i f_i)` predicate work. If `B` is
+the number of chunks, `R_c` the number of joint-outcome runs in chunk `c` and
+`X_union` the cases selected by at least one question, retained semantic state
+becomes
+`O(B + sum_c R_c ceil(q / 8) + q + X_union)` plus one bounded chunk. This need
+not allocate one case row per question, but the honest adversarial decision
+floor is still `Omega(Nq)` bits when every case breaks the preceding joint run.
+Each admitted run authenticates admission once and selection once per
+question. Binary search and probes can rank where to work next, but cannot
+certify skipped coordinates unless interval or rule-graph reasoning proves the
+skipped cell uniform.
 
 ## Implementation checkpoints
 
@@ -1600,7 +1615,7 @@ rule-graph reasoning proves the skipped cell uniform.
 - Keep value authorization explicit and singular. Do not infer typed values
   from a compact observation or introduce a wildcard `cases × DAG subjects`
   export.
-- Lower publication-v16 trailing `observations`, `starters` and `transitions`
+- Lower publication-v17 trailing `observations`, `starters` and `transitions`
   declarations only as transitional implementation spellings.
 
 ### 6. Proof-oriented search reduction
@@ -1663,7 +1678,7 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v16 is completed. Those spellings are a
+Explore block while publication v17 is completed. Those spellings are a
 transitional lowering boundary, not another public language design.
 
 ```text
@@ -1681,11 +1696,11 @@ personskat-200k-result/
   mechanisms/cliff_paths.support-observations.ndjson
   mechanisms/cliff_paths.support-observation-demands.ndjson
   starters/selected_cliff_node.ndjson
-  graphs/case-support.ndjson
+  graphs/case-support-<question-id-hex>.ndjson
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v16 retains
+The `starters/` lane is explicit and single-subject. Publication v17 retains
 the materializer first introduced in v9 and schedules one artifact only for an
 authored transitional `starters NAME from mechanisms REQUEST ...` consumer
 whose `using values from VIEW` reference names a checked lossless
@@ -1802,7 +1817,7 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-Publication v16 replaces the old eager all-subject structural rows with
+Publication v17 replaces the old eager all-subject structural rows with
 scheduled compact observations. The structural-definition catalog advertises
 stable descriptors for every whole mechanism and activation/differential node
 or edge, but a descriptor is only an address. Every discovered whole mechanism
@@ -1812,7 +1827,7 @@ automatic slice. The core support receipt requires automatic registered,
 observed and sealed counts to equal the exact structural-mechanism count.
 
 Target-conditioned mechanism, node and edge slices are explicit readers. The
-following is the current publication-v16 transitional spelling; its target home
+following is the current publication-v17 transitional spelling; its target home
 is a separate `? publish` declaration:
 
 ```runa
@@ -1880,7 +1895,7 @@ renames the structural node or the core analysis DAG.
 Qualified artifacts use the unified subject-starter record schema v3. The
 optional route field is omitted from unqualified cursors and records.
 Publication v9 established the additive-consumer principle; the current
-Experimental v16 plan
+Experimental v17 plan
 preserves that separation without treating historical v9 bytes as a
 compatibility target.
 
@@ -1894,7 +1909,7 @@ resuming does not re-explore any cases. A fixed-fan-in external merge and
 arbitrary path-conditioned selectors remain future scaling work. The whole
 structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v16 keeps each mechanism request and authored projection in
+Publication schema v17 keeps each mechanism request and authored projection in
 independently resumable artifacts. `mechanisms/<name>.ndjson` is the
 answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
@@ -1972,10 +1987,13 @@ explicit on-demand export; it is not on the critical result path. None of the
 v13 structural or compact observation artifacts contains replay-only state or
 context values.
 
-The automatic `graphs/case-support.ndjson` artifact is the complementary
-public reflection of the authenticated case/support prefix. It has two honest
-projection shapes rather than pretending every scheduler path creates the same
-proof artifact. A partitioned classified run emits a root, then complete chunk
+Each canonical question's automatic
+`graphs/case-support-<question-id-hex>.ndjson` artifact is the complementary
+public reflection of its projection from the shared authenticated case/support
+prefix. Publication v17 gives every `QuestionId` its own key, path, cursor and
+manifest descriptor; aliases share that artifact and no find is primary. The
+artifact has two honest projection shapes rather than pretending every
+scheduler path creates the same proof artifact. A partitioned classified run emits a root, then complete chunk
 packages containing structural chunk and homogeneous region records,
 selected-materialization records, and authorized cases. A completed run that
 never mints a chunk partition emits an exact classification-summary root, the
@@ -2013,7 +2031,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v16 treats this lane as an additive
+case-by-node table. Publication v17 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -2177,7 +2195,7 @@ and question-addressed matched layers `M_C = 4` and `M_C = 2`. A 30-second
 cold slice paused before semantic work; resuming the same authenticated run
 completed at journal sequence 179 and head
 `ec7c602c6fa3548bab4f0221247f019c49f4c63577c5d76d00c2b174a592ab81`,
-with all twelve planned artifacts caught up. It exercises the same stream
+with all fourteen planned artifacts caught up. It exercises the same stream
 without pretending to be a tax audit. An induced resource-pressure
 pause remains a separate focused acceptance check; it need not be rediscovered
 by repeatedly running the tiny happy-path query.
