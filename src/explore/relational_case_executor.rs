@@ -1387,7 +1387,8 @@ impl Error for RelationalCaseExecutorError {
 mod tests {
     use super::super::relational_ir::{
         ExploreAdmissionIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
-        ExploreSourceBindingRoleIr, ExploreSourceRelationIr, ExploreSuccessorRelationIr,
+        ExploreSourceBindingRoleIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
+        ExploreSuccessorRelationIr,
     };
     use super::*;
     use crate::{ExprKind, Literal, Span, EXPLORE_RELATION_NORMALIZATION_VERSION};
@@ -1470,6 +1471,7 @@ mod tests {
                     name: "context".to_string(),
                     value_ty: int_ty(),
                     role: ExploreSourceBindingRoleIr::Context,
+                    producer_role: ExploreSourceProducerRoleIr::Given,
                     dependencies: Box::new([]),
                     kind: ExploreSourceBindingKindIr::Singleton { value: int(7) },
                     span: Span::dummy(),
@@ -1479,6 +1481,7 @@ mod tests {
                     name: "before".to_string(),
                     value_ty: int_ty(),
                     role: ExploreSourceBindingRoleIr::Before,
+                    producer_role: ExploreSourceProducerRoleIr::Given,
                     dependencies: Box::new([]),
                     kind: ExploreSourceBindingKindIr::Singleton { value: int(10) },
                     span: Span::dummy(),

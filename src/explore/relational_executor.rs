@@ -2263,7 +2263,9 @@ impl Error for RelationalSourceExecutorError {}
 
 #[cfg(test)]
 mod tests {
-    use super::super::relational_ir::{ExploreSourceBindingIr, ExploreSourceDependencyIr};
+    use super::super::relational_ir::{
+        ExploreSourceBindingIr, ExploreSourceDependencyIr, ExploreSourceProducerRoleIr,
+    };
     use super::*;
     use crate::{
         ExploreRelationMultiplicity, ExprKind, Literal, Span,
@@ -2333,11 +2335,19 @@ mod tests {
         dependencies: Vec<ExploreSourceDependencyIr>,
         kind: ExploreSourceBindingKindIr,
     ) -> ExploreSourceBindingIr {
+        let producer_role = match &kind {
+            ExploreSourceBindingKindIr::Finite { .. } => ExploreSourceProducerRoleIr::Vary,
+            ExploreSourceBindingKindIr::Singleton { .. } if dependencies.is_empty() => {
+                ExploreSourceProducerRoleIr::Given
+            }
+            ExploreSourceBindingKindIr::Singleton { .. } => ExploreSourceProducerRoleIr::Let,
+        };
         ExploreSourceBindingIr {
             binding_index,
             name: name.to_string(),
             value_ty,
             role,
+            producer_role,
             dependencies: dependencies.into_boxed_slice(),
             kind,
             span: Span::dummy(),

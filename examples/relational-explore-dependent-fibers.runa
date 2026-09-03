@@ -43,12 +43,12 @@ starting world, not presentation metadata.
 
 ? explore relational_stream_dependent_fibers_smoke {
     from {
-        action in [1, 0, 1]
-        before in relational_fiber_starters(action)
-        context = RelationalFiberContext(action = action)
+        vary action in [1, 0, 1]
+        vary before in relational_fiber_starters(action)
+        let context = RelationalFiberContext(action = action)
     }
 
-    to after in relational_fiber_successors(before, context)
+    transition after in relational_fiber_successors(before, context)
 
     find all
 

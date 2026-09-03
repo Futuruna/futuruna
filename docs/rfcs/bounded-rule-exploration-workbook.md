@@ -6,9 +6,10 @@ The normative semantic contract is
 [Bounded Rule Exploration with `? explore`](bounded-rule-exploration.md). This
 workbook sharpens the intended authoring surface and turns it into the shortest
 coherent implementation path. The exact target spellings below are steering
-syntax. The current parser's relational `from`/`to`/scoped-`where`/single-`find`
-form and the publication-v13 `results`/`mechanisms`/`observations`/`starters`
-and `transitions` forms are transitional implementation spellings that lower
+syntax. The current parser now accepts `from { given/vary/let }` and
+`transition after`; its scoped-`where`/single-`find` form and the
+publication-v13 `results`/`mechanisms`/`observations`/`starters` and
+`transitions` forms remain transitional implementation spellings that lower
 toward this model.
 They are not a second public dialect and carry no compatibility requirement.
 The old Cartesian and probe-era syntax remains rejected rather than adapted.
@@ -200,14 +201,14 @@ pretending it is another independent dimension:
 }
 ```
 
-This is a semantic sketch, not a claim that the current parser accepts these
-exact tokens. The transitional implementation currently spells `given` and
-`let` as `name = expression`, `vary` as `name in expression`, `transition` as
-`to after`, `admit` as scoped `where`, one named `find` as the query's single
-`find` plus implicit `selected`, `view` as in-query `results`, `choice` as
-`choose` inside a result, `explain` as `mechanisms`, and publication readers as
-trailing in-query declarations. First-class `derive`, several named finds,
-`ChoiceId`, separate `? analyze` and separate `? publish` remain the target.
+This is a semantic sketch, not a claim that the current parser accepts every
+token shown. The implementation now accepts `given`, `vary`, `let` and
+`transition after` directly. It still spells `admit` as scoped `where`, one
+named `find` as the query's single `find` plus implicit `selected`, `view` as
+in-query `results`, `choice` as `choose` inside a result, `explain` as
+`mechanisms`, and publication readers as trailing in-query declarations.
+First-class `derive`, several named finds, `ChoiceId`, separate `? analyze` and
+separate `? publish` remain the target.
 New examples should use one surface intentionally and label transitional files
 as such; they must never imply two supported public grammars.
 
@@ -288,11 +289,22 @@ range over the declared relation. Intersections that are relevant only in
 combination remain separate decision cells, which is where quirky profiles can
 emerge without a blind Cartesian evaluation.
 
-The exact finite range is end-exclusive, so lower endpoints end at 1,499,999
-and the singleton successor may reach 1,500,000. The number is a declared
-question bound, not a suspected threshold. The initial implementation work and
-small experiments must not launch this whole range merely to get an early
-number.
+In the target example above, the exact finite range is end-exclusive, so a
+`+1 DKK` question has lower endpoints through 1,499,999 and a final successor
+at 1,500,000. That is the eventual exhaustive one-krone cliff relation, not the
+first broad execution milestone.
+
+The first broad audit is deliberately a different, coarser RelationId. For
+each declared coherent profile it uses lower endpoints
+`0, 1_000, ..., 1_499_000 DKK` and the transition `g -> g + 1_000 DKK`, ending
+at exactly 1,500,000 DKK. It therefore has exactly **1,500 edges per profile**
+and **1,501 reusable endpoints per profile**. Exact closure of that relation
+would be exact only for those 1,000-DKK endpoint transitions and their observed
+mechanisms; it would neither enumerate nor certify the 1,500,000 adjacent
+1-DKK cliffs per profile. The horizon is a declared question bound, not a
+suspected threshold. This is a planned audit contract: no broad run has begun,
+and this paragraph makes no claim that the target Explore/Analyze/Publish
+surface can execute it yet.
 
 The first honest runnable Personskat audit may be a **conditioned bootstrap**:
 choose one source-backed coherent profile explicitly, vary lower annual income
@@ -307,22 +319,23 @@ an auxiliary `income` dimension merely to copy it into `before`: that redundant
 dependent singleton would add roughly one source fiber, receipt and traversal
 edge per income without adding a case or proving anything new.
 
-The first **population audit** at the same income horizon is a separate
-milestone. It ranges over a declared genuinely multidimensional coherent
-profile relation, publishes its coverage manifest and closes every source,
-successor, admission and FIND frontier. Either audit may produce an exact empty
-cliff relation in the current model. Empty is useful evidence only when all
-frontiers required by that audit close; it is never inferred from seeing no
-sampled case. A separate tiny synthetic fixture deliberately contains a shared
-nonempty mechanism so the integration milestone exercises case-to-mechanism
-incidence and a post-mechanism view even when Personskat below 200,000 DKK is
-empty.
+An earlier **small population calibration** at the same income horizon remains
+a separate useful step, but it is not the first broad audit defined above. It
+ranges over a declared genuinely multidimensional coherent profile relation,
+publishes its coverage manifest and closes every source, successor, admission
+and FIND frontier. Either calibration may produce an exact empty cliff relation
+in the current model. Empty is useful evidence only when all frontiers required
+by that audit close; it is never inferred from seeing no sampled case. A
+separate tiny synthetic fixture deliberately contains a shared nonempty
+mechanism so the integration milestone exercises case-to-mechanism incidence
+and a post-mechanism view even when Personskat below 200,000 DKK is empty.
 
 Those components are now connected for the conditioned bootstrap; its first
 attempt nevertheless stopped during preparation before semantic replay. The
 conditioned bootstrap may use concrete enumeration if it fits the resource
-envelope. The population audit remains gated on the proof portfolio so it does
-not blindly multiply profiles by income where exact cells are available.
+envelope. Any multidimensional calibration remains gated on the proof portfolio
+so it does not blindly multiply profiles by income where exact cells are
+available.
 
 `transition after in successors(before, context)` is the target multivalued
 form. A household planning query uses it when one coherent source has zero, one
@@ -330,7 +343,8 @@ or many candidate After plans. The equivalent ordered `transition after {
 vary ...; let ...; yield ... }` block exposes dependent successor bindings and
 requires exactly one typed `yield`; it lowers to the same set-normalized finite
 fiber. This is the decisive generalization beyond a fixed mixed-radix product.
-The current parser spells the simple form `to after in`.
+The current parser accepts the simple forms `transition after =` and
+`transition after in`; the ordered transition block remains to be implemented.
 
 ## What each clause owns
 
@@ -354,6 +368,12 @@ through its checked closure declares that smaller source world and changes
 `RelationId`. An `admit` condition instead classifies cases in the already
 declared relation and changes `AdmissionId`. An optimizer may push the predicate
 physically but may not move it semantically.
+
+`given` is source-independent conditioning: it may use sealed module values and
+pure helpers, but not an earlier binding from the same `from` relation. Use
+`let` when one singleton value is computed from earlier source bindings. Both
+`vary` and `let` are ordered and may depend only on earlier bindings; this keeps
+coverage from misreporting a varied-dependent value as a fixed condition.
 
 Every analysis node names its input. `from find cliffs`, `from choice
 worst_cliffs` and `from explain cliff_paths` are different typed relations;
@@ -1102,6 +1122,15 @@ lost headroom reduce leases or pause earlier. Scale-up requires a stable window
 and durable shard evidence; limits never enter RelationId, CaseId or answer
 roots.
 
+Distributed execution, when added, partitions that same checked query into
+canonical disjoint evidence chunks. Every returned chunk is bound to the same
+RelationId, admission/question identities, coverage obligations and evaluator
+contract; the coordinator validates its support and authenticated commitment
+before an idempotent merge into the one evidence stream. Worker count, host and
+arrival order cannot create another answer. This is ordinary deterministic
+evidence-chunk production and merge under one authority, not mining, chain
+competition or distributed consensus.
+
 The governor's one-worker envelope has an explicit relational work subject
 bound to `(expected_sequence, expected_journal_head)`. The outer run loop
 consumes that permit before evaluation, appends the resulting head-bound batch
@@ -1245,6 +1274,13 @@ adjacent endpoint proposals are already reused, so a linear `N`-edge landscape
 needs `N + 1` endpoint evaluations inside an uninterrupted epoch. This removes
 both avoidable evaluation and avoidable trace-payload repetition before a
 longer run. No through-1,500,000-DKK stream should start at this checkpoint.
+
+The first broad successor to these calibration runs is now fixed more
+precisely: a `0..1,500,000 DKK` horizon sampled by `+1,000 DKK` transitions,
+giving 1,500 edges and 1,501 reusable endpoints for every declared profile.
+It is a coarse endpoint-and-mechanism audit, not exhaustive one-krone cliff
+coverage. No such run has started, and the milestone does not assert current
+frontend or runtime support for the target contract.
 
 The implementation history below records the proof and fallback slices that
 led to this checkpoint; superseded candidate counts and launch refusals there
@@ -1425,13 +1461,14 @@ rule-graph reasoning proves the skipped cell uniform.
 
 ### 1. Canonical frontend and closed relation IR
 
-- Make the target `? explore` contract parse `given`/`vary`/`let`, one
-  `transition`, named `derive` values, one shared `admit` and one or more named
-  `find` relations.
-- Lower the current relational FROM/TO/WHERE/single-FIND parser through the same
-  IR only as a transitional implementation step. Delete that spelling when the
-  target frontend replaces it; do not maintain a compatibility adapter or
-  document two public dialects.
+- Parse `given`/`vary`/`let` and the simple singleton or exact-finite
+  `transition after` relation directly. Carry the producer roles through typed
+  IR, relation identity and source coverage rather than inferring them from
+  cardinality.
+- Add named `derive` values, one shared `admit` and one or more named `find`
+  relations. Delete the remaining scoped-WHERE/single-FIND spelling when those
+  clauses replace it; do not maintain a compatibility adapter or document two
+  public dialects.
 - Accept singleton and exact-finite successor relations.
 - Type and purity-check ordered dependent bindings.
 - Reject the old compact syntax rather than adapting it.
@@ -1549,8 +1586,13 @@ rule-graph reasoning proves the skipped cell uniform.
   the nonempty mechanism fixture, not a planted tax threshold, to cover the
   mechanism-incidence path independently.
 - Widen income and profile domains organically while watching frontier shape.
-- Start the through-1,500,000-DKK stream only after the implementation avoids
-  per-profile/per-krone waste where the model admits exact cells.
+- Make the first broad audit a declared coherent profile relation crossed with
+  lower salaries `0, 1_000, ..., 1_499_000 DKK` and `+1_000 DKK` successors
+  through exactly 1,500,000 DKK: 1,500 edges and 1,501 reusable endpoints per
+  profile.
+- Report its closure only as exact over that coarse relation. Do not describe
+  it as an exhaustive 1-DKK cliff audit, and do not start it until the target
+  contract has an honest executable path.
 
 ### 8. Permanent confidence
 

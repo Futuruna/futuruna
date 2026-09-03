@@ -158,8 +158,8 @@ pub use relational_ir::{
     ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr, ExploreResultFieldIr,
     ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
     ExploreSourceBindingIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr,
-    ExploreSourceDependencyIr, ExploreSourceRelationIr, ExploreSuccessorKindIr,
-    ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
+    ExploreSourceDependencyIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
+    ExploreSuccessorKindIr, ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
 };
 pub(crate) use relational_ir::{
     ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr, ExploreStarterProjectionIr,
@@ -7305,6 +7305,11 @@ fn elaborate_query(
             definitions,
         )
         .map_err(|message| vec![Diagnostic::error_at(binding.span, message)])?;
+        let producer_role = match binding.producer_role {
+            TypedExploreSourceProducerRole::Given => ExploreSourceProducerRoleIr::Given,
+            TypedExploreSourceProducerRole::Vary => ExploreSourceProducerRoleIr::Vary,
+            TypedExploreSourceProducerRole::Let => ExploreSourceProducerRoleIr::Let,
+        };
         let kind = match &binding.kind {
             TypedExploreSourceBindingKind::Singleton { value } => {
                 ExploreSourceBindingKindIr::Singleton {
@@ -7334,6 +7339,7 @@ fn elaborate_query(
             name: binding.name.clone(),
             value_ty: binding.value_ty.clone(),
             role,
+            producer_role,
             dependencies,
             kind,
             span: binding.span,
@@ -8451,10 +8457,10 @@ mod tests {
 
 ? explore payloads {
     from {
-        before in values(Payload)
-        context = ()
+        vary before in values(Payload)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;
@@ -8548,12 +8554,12 @@ mod tests {
 
 ? explore dependent_domains {
     from {
-        seed in choices
-        candidate in around(seed)
-        before in range(candidate, candidate + 2)
-        context = ()
+        vary seed in choices
+        vary candidate in around(seed)
+        vary before in range(candidate, candidate + 2)
+        given context = ()
     }
-    to after = before + 1
+    transition after = before + 1
     find all
 }
 "#;
@@ -8627,19 +8633,19 @@ mod tests {
 
 ? explore generic_values {
     from {
-        option in values(Option(Bit))
-        result in values(Result(Bit, Flag))
-        pair in values(Pair(Bit, Flag))
-        boolean in values(Bool)
-        before = Profile(
+        vary option in values(Option(Bit))
+        vary result in values(Result(Bit, Flag))
+        vary pair in values(Pair(Bit, Flag))
+        vary boolean in values(Bool)
+        let before = Profile(
             option = option,
             result = result,
             pair = pair,
             boolean = boolean
         )
-        context = ()
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;
@@ -8694,10 +8700,10 @@ mod tests {
 # FilingStatus = Online | Paper(copies: Int)
 ? explore invalid {
     from {
-        before in values(FilingStatus)
-        context = ()
+        vary before in values(FilingStatus)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#,
@@ -8709,10 +8715,10 @@ mod tests {
 # Status = Beta
 ? explore invalid {
     from {
-        before in values(Status)
-        context = ()
+        vary before in values(Status)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#,
@@ -8726,10 +8732,10 @@ mod tests {
 = profiles: List(Profile) = [Profile(1)]
 ? explore invalid {
     from {
-        before in profiles
-        context = ()
+        vary before in profiles
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#,
@@ -8741,10 +8747,10 @@ mod tests {
 # Status = Active | Inactive
 ? explore invalid {
     from {
-        before in values(Option(Status))
-        context = ()
+        vary before in values(Option(Status))
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#,
@@ -8756,10 +8762,10 @@ mod tests {
 # Base = First | Second
 ? explore invalid {
     from {
-        before in values(Combined)
-        context = ()
+        vary before in values(Combined)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#,
@@ -8790,11 +8796,11 @@ mod tests {
 
 ? explore ambiguous_helper {
     from {
-        seed in [1, 2]
-        before = helper(seed)
-        context = ()
+        vary seed in [1, 2]
+        let before = helper(seed)
+        given context = ()
     }
-    to after = helper(before)
+    transition after = helper(before)
     find matches of eligible(after)
 }
 "#;
@@ -8995,13 +9001,13 @@ mod tests {
 @ import ./domain
 ? explore imported {
     from {
-        status in values(ImportedStatus)
-        declared_status in imported_statuses
-        score in imported_scores()
-        before = ImportedProfile(status = status, score = score)
-        context = ()
+        vary status in values(ImportedStatus)
+        vary declared_status in imported_statuses
+        vary score in imported_scores()
+        let before = ImportedProfile(status = status, score = score)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;
@@ -9042,10 +9048,10 @@ mod tests {
 = root_values: List(Int) = [1, 2]
 ? explore invalid_capture {
     from {
-        before in captured
-        context = ()
+        vary before in captured
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;
@@ -9069,10 +9075,10 @@ mod tests {
 = declared_choices: List(Int) = choices()
 ? explore invalid_members {
     from {
-        before in declared_choices
-        context = ()
+        vary before in declared_choices
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;

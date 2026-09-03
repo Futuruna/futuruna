@@ -4887,9 +4887,22 @@ pub enum ExploreSourceBindingKind {
     Finite { domain: Expr },
 }
 
+/// How an authored Explore source binding produces its value.
+///
+/// This is distinct from the binding's semantic row role (`context`,
+/// `before`, or auxiliary): `given` declares conditioning, `vary` declares a
+/// finite dimension, and `let` declares a derived singleton value.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreSourceProducerRole {
+    Given,
+    Vary,
+    Let,
+}
+
 #[derive(Debug, Clone)]
 pub struct ExploreSourceBinding {
     pub name: String,
+    pub producer_role: ExploreSourceProducerRole,
     pub kind: ExploreSourceBindingKind,
     pub span: Span,
 }
@@ -5182,7 +5195,7 @@ pub struct ExploreQuery {
     pub span: Span,
 }
 
-pub const EXPLORE_RELATION_NORMALIZATION_VERSION: u32 = 1;
+pub const EXPLORE_RELATION_NORMALIZATION_VERSION: u32 = 2;
 
 /// Type-checked finite-domain syntax. Exact finiteness is sealed by relation
 /// elaboration before execution.
@@ -5208,10 +5221,18 @@ pub enum TypedExploreSourceBindingKind {
     Finite { domain: TypedExploreDomain },
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypedExploreSourceProducerRole {
+    Given,
+    Vary,
+    Let,
+}
+
 #[derive(Debug, Clone)]
 pub struct TypedExploreSourceBinding {
     pub name: String,
     pub value_ty: Ty,
+    pub producer_role: TypedExploreSourceProducerRole,
     pub kind: TypedExploreSourceBindingKind,
     pub span: Span,
 }
@@ -8110,6 +8131,7 @@ fn strip_spans_explore_query(query: &ExploreQuery) -> ExploreQuery {
                 .iter()
                 .map(|binding| ExploreSourceBinding {
                     name: binding.name.clone(),
+                    producer_role: binding.producer_role,
                     kind: match &binding.kind {
                         ExploreSourceBindingKind::Singleton { value } => {
                             ExploreSourceBindingKind::Singleton {
@@ -9223,7 +9245,7 @@ impl Parser {
                 format!("`{}`", token.source_text)
             };
             Err(format!(
-                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `from`, `to`, zero or more `where`, `find`, then zero or more `results` and `mechanisms`",
+                "{}:{}: expected `{}` in exploration, found {}; clauses must appear as `from`, `transition`, zero or more `where`, `find`, then zero or more `results` and `mechanisms`",
                 token.line, token.col, word, found
             ))
         }
@@ -9263,6 +9285,21 @@ impl Parser {
         let mut names = BTreeSet::new();
         while self.peek_kind() != TokenKind::RBrace && self.peek_kind() != TokenKind::Eof {
             let token = self.peek().clone();
+            let producer_role = if self.peek_word("given") {
+                self.advance();
+                ExploreSourceProducerRole::Given
+            } else if self.peek_word("vary") {
+                self.advance();
+                ExploreSourceProducerRole::Vary
+            } else if self.peek_word("let") {
+                self.advance();
+                ExploreSourceProducerRole::Let
+            } else {
+                return Err(format!(
+                    "{}:{}: expected exploration source producer `given`, `vary`, or `let`; bare source bindings are not supported",
+                    token.line, token.col
+                ));
+            };
             let (name, _) = self.expect_explore_binder("source binding")?;
             if !names.insert(name.clone()) {
                 return Err(format!(
@@ -9272,28 +9309,45 @@ impl Parser {
             }
             if name == "after" {
                 return Err(format!(
-                    "{}:{}: `after` is introduced by the `to` relation and cannot be a `from` binding",
+                    "{}:{}: `after` is introduced by the `transition` relation and cannot be a `from` binding",
                     token.line, token.col
                 ));
             }
-            let kind = if self.consume_explore_equals() {
-                ExploreSourceBindingKind::Singleton {
-                    value: self.parse_expr()?,
+            let kind = match producer_role {
+                ExploreSourceProducerRole::Given | ExploreSourceProducerRole::Let => {
+                    if !self.consume_explore_equals() {
+                        let found = self.peek();
+                        let keyword = match producer_role {
+                            ExploreSourceProducerRole::Given => "given",
+                            ExploreSourceProducerRole::Let => "let",
+                            ExploreSourceProducerRole::Vary => unreachable!(),
+                        };
+                        return Err(format!(
+                            "{}:{}: expected `=` after exploration `{keyword}` binding `{name}`",
+                            found.line, found.col
+                        ));
+                    }
+                    ExploreSourceBindingKind::Singleton {
+                        value: self.parse_expr()?,
+                    }
                 }
-            } else if self.peek_word("in") {
-                self.advance();
-                ExploreSourceBindingKind::Finite {
-                    domain: self.parse_expr()?,
+                ExploreSourceProducerRole::Vary => {
+                    if !self.peek_word("in") {
+                        let found = self.peek();
+                        return Err(format!(
+                            "{}:{}: expected `in` after exploration `vary` binding `{name}`",
+                            found.line, found.col
+                        ));
+                    }
+                    self.advance();
+                    ExploreSourceBindingKind::Finite {
+                        domain: self.parse_expr()?,
+                    }
                 }
-            } else {
-                let found = self.peek();
-                return Err(format!(
-                    "{}:{}: expected `=` or `in` after exploration source binding `{name}`",
-                    found.line, found.col
-                ));
             };
             bindings.push(ExploreSourceBinding {
                 name,
+                producer_role,
                 kind,
                 span: self.span_since(&token),
             });
@@ -9314,7 +9368,15 @@ impl Parser {
     }
 
     fn parse_explore_successor(&mut self) -> Result<ExploreSuccessorRelation, String> {
-        let start = self.expect_explore_word("to")?;
+        let start = if self.peek_word("to") {
+            let token = self.peek();
+            return Err(format!(
+                "{}:{}: exploration successors use `transition after`, not legacy `to after`",
+                token.line, token.col
+            ));
+        } else {
+            self.expect_explore_word("transition")?
+        };
         self.expect_explore_word("after")?;
         let kind = if self.consume_explore_equals() {
             ExploreSuccessorKind::Singleton {
@@ -28515,7 +28577,7 @@ struct CheckedExploreIdentityLadder {
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
 }
 
-pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 2;
+pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CheckedExploreCoverageRootRole {
@@ -28688,8 +28750,11 @@ impl CheckedExploreSourceCoverageManifest {
                 CheckedExploreCoverageClassification::DerivedFromDeclaredDimensions {
                     dimension_ids,
                 } => {
-                    if dimension_ids.is_empty()
-                        || dimension_ids.windows(2).any(|pair| pair[0] >= pair[1])
+                    // A `let` with no varied dependencies is the constant
+                    // function over the empty dimension product. Keeping the
+                    // empty set here distinguishes derivation from authored
+                    // `given` conditioning without inventing a dimension.
+                    if dimension_ids.windows(2).any(|pair| pair[0] >= pair[1])
                         || dimension_ids
                             .iter()
                             .any(|dimension_id| !declared_dimensions.contains(dimension_id))
@@ -36327,7 +36392,7 @@ fn checked_explore_source_coverage_manifest_digest(
     entries: &[CheckedExploreCoverageEntry],
 ) -> Box<str> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v2\0");
+    hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v3\0");
     checked_query_hash_component(&mut hasher, "coverage-version", &version.to_string());
     hasher.update(relation_id.bytes());
     hasher.update(semantic_dependency_digest);
@@ -36610,11 +36675,14 @@ fn checked_explore_binding_coverages(
 ) -> Vec<CheckedExploreBindingCoverage> {
     let mut coverages = Vec::with_capacity(query.source.bindings.len());
     for (position, binding) in query.source.bindings.iter().enumerate() {
-        let coverage = match &binding.kind {
-            explore::ExploreSourceBindingKindIr::Finite { .. } => {
+        let coverage = match binding.producer_role {
+            explore::ExploreSourceProducerRoleIr::Vary => {
                 CheckedExploreBindingCoverage::Varied(subject_ids[position])
             }
-            explore::ExploreSourceBindingKindIr::Singleton { .. } => {
+            explore::ExploreSourceProducerRoleIr::Given => {
+                CheckedExploreBindingCoverage::Conditioned
+            }
+            explore::ExploreSourceProducerRoleIr::Let => {
                 let mut dimensions = BTreeSet::new();
                 let mut gap = None;
                 for dependency in &binding.dependencies {
@@ -36633,8 +36701,6 @@ fn checked_explore_binding_coverages(
                 }
                 if let Some(reason) = gap {
                     CheckedExploreBindingCoverage::Gap(reason)
-                } else if dimensions.is_empty() {
-                    CheckedExploreBindingCoverage::Conditioned
                 } else {
                     CheckedExploreBindingCoverage::Derived(dimensions)
                 }
@@ -38999,6 +39065,15 @@ fn hash_checked_explore_relation_ir(
                 explore::ExploreSourceBindingRoleIr::Auxiliary => "auxiliary",
                 explore::ExploreSourceBindingRoleIr::Context => "context",
                 explore::ExploreSourceBindingRoleIr::Before => "before",
+            },
+        );
+        checked_query_hash_component(
+            hasher,
+            "source-producer-role",
+            match binding.producer_role {
+                explore::ExploreSourceProducerRoleIr::Given => "given",
+                explore::ExploreSourceProducerRoleIr::Vary => "vary",
+                explore::ExploreSourceProducerRoleIr::Let => "let",
             },
         );
         hash_checked_explore_type_schema(hasher, resolutions, &binding.value_ty)?;
@@ -54180,6 +54255,37 @@ impl TypeChecker {
         }
     }
 
+    fn check_explore_given_independence(
+        &mut self,
+        binding_name: &str,
+        expr: &Expr,
+        available: &BTreeSet<String>,
+    ) {
+        let mut uses = FreeSymbolUses::default();
+        collect_true_free_symbol_uses(expr, &mut uses, &BTreeSet::new(), &BTreeMap::new());
+        let dependencies = uses
+            .values
+            .into_iter()
+            .chain(uses.calls)
+            .filter(|name| available.contains(name))
+            .collect::<BTreeSet<_>>();
+        if dependencies.is_empty() {
+            return;
+        }
+        let names = dependencies
+            .iter()
+            .map(|name| format!("`{name}`"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        self.error_at_expr(
+            expr,
+            format!(
+                "exploration `given {binding_name}` depends on earlier source binding{} {names}; use `let` for values derived from source bindings",
+                if dependencies.len() == 1 { "" } else { "s" }
+            ),
+        );
+    }
+
     fn check_explore_role_environment(&mut self, expr: &Expr, allowed: &[&str], environment: &str) {
         let mut uses = FreeSymbolUses::default();
         collect_true_free_symbol_uses(expr, &mut uses, &BTreeSet::new(), &BTreeMap::new());
@@ -54606,6 +54712,13 @@ impl TypeChecker {
                         &reserved_names,
                         &available_names,
                     );
+                    if binding.producer_role == ExploreSourceProducerRole::Given {
+                        self.check_explore_given_independence(
+                            &binding.name,
+                            value,
+                            &available_names,
+                        );
+                    }
                     self.check_explore_expression(value);
                     let value_ty = self.inferred_explore_ty(value).unwrap_or_else(|| {
                         self.error_at_expr(
@@ -54641,6 +54754,11 @@ impl TypeChecker {
             typed_bindings.push(TypedExploreSourceBinding {
                 name: binding.name.clone(),
                 value_ty,
+                producer_role: match binding.producer_role {
+                    ExploreSourceProducerRole::Given => TypedExploreSourceProducerRole::Given,
+                    ExploreSourceProducerRole::Vary => TypedExploreSourceProducerRole::Vary,
+                    ExploreSourceProducerRole::Let => TypedExploreSourceProducerRole::Let,
+                },
                 kind,
                 span: binding.span,
             });
@@ -56778,20 +56896,20 @@ mod tests {
 
 ? explore unproved_endpoint {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from query_scoped_division_observer
 }
 
 ? explore proved_endpoint {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from query_scoped_division_observer
 }
@@ -56873,10 +56991,10 @@ mod tests {
 
 ? explore guarded_query {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from guarded_observer
 }
@@ -56915,6 +57033,82 @@ mod tests {
         ));
     }
 
+    #[test]
+    fn coarse_income_grid_lowers_symbolically_without_enumerating_edges() {
+        let source = r#"
+? explore coarse_income_grid {
+    from {
+        vary income_index in range(0, 1500)
+        let before = income_index * 1000
+        given context = 1000
+    }
+    transition after = before + context
+    find violations of after >= before
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected coarse-grid diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let query = &artifacts.exploration_universes[0];
+        assert_eq!(query.source.bindings.len(), 3);
+        assert!(matches!(
+            query.source.bindings[0].producer_role,
+            explore::ExploreSourceProducerRoleIr::Vary
+        ));
+        let explore::ExploreSourceBindingKindIr::Finite { domain } = &query.source.bindings[0].kind
+        else {
+            panic!("the income index must remain one compact finite range")
+        };
+        let explore::ExploreFiniteDomainIr::IntRange {
+            start,
+            end_exclusive,
+        } = domain
+        else {
+            panic!("the income index must lower to the native range domain")
+        };
+        assert!(matches!(start.kind, ExprKind::Lit(Literal::Int(0))));
+        assert!(matches!(
+            end_exclusive.kind,
+            ExprKind::Lit(Literal::Int(1_500))
+        ));
+        assert!(matches!(
+            query.source.bindings[1].producer_role,
+            explore::ExploreSourceProducerRoleIr::Let
+        ));
+        assert!(matches!(
+            query.source.bindings[2].producer_role,
+            explore::ExploreSourceProducerRoleIr::Given
+        ));
+        assert!(matches!(
+            query.successor.kind,
+            explore::ExploreSuccessorKindIr::Singleton { .. }
+        ));
+    }
+
+    #[test]
+    fn explore_source_producer_rejects_given_values_derived_from_source_bindings() {
+        let source = r#"
+? explore dependent_given {
+    from {
+        vary income in range(0, 10)
+        given before = income
+        given context = ()
+    }
+    transition after = before
+    find all
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(artifacts.diagnostics.iter().any(|diagnostic| {
+            diagnostic
+                .message
+                .contains("`given before` depends on earlier source binding `income`")
+        }));
+    }
+
     fn recursive_source_coverage_fixture() -> &'static str {
         r#"
 # CoverageProfile(commune: Int, church: Int, year: Int)
@@ -56927,18 +57121,18 @@ mod tests {
 
 ? explore recursive_source_coverage {
     from {
-        commune in [101, 147]
-        church in [0, 1]
-        income in range(0, 3)
-        profile = CoverageProfile(
+        vary commune in [101, 147]
+        vary church in [0, 1]
+        vary income in range(0, 3)
+        let profile = CoverageProfile(
             commune = commune,
             church = church,
             year = hidden_year_value()
         )
-        before = CoverageState(profile = profile, income = income)
-        context = CoverageContext(step = 1)
+        let before = CoverageState(profile = profile, income = income)
+        given context = CoverageContext(step = 1)
     }
-    to after = CoverageState(
+    transition after = CoverageState(
         profile = before.profile,
         income = before.income + context.step
     )
@@ -57028,6 +57222,42 @@ mod tests {
             }
             other => panic!("expected varied finite dimension, found {other:?}"),
         }
+    }
+
+    #[test]
+    fn explore_source_producer_given_and_constant_let_have_distinct_identity_and_coverage() {
+        let source = |producer: &str| {
+            format!(
+                r#"
+? explore producer_roles {{
+    from {{
+        {producer} seed = 1
+        let before = seed
+        given context = ()
+    }}
+    transition after = before
+    find all
+}}
+"#
+            )
+        };
+        let (given_relation, _, given_manifest) =
+            source_coverage_snapshot(&source("given"), "producer_roles");
+        let (let_relation, _, let_manifest) =
+            source_coverage_snapshot(&source("let"), "producer_roles");
+
+        assert_ne!(given_relation, let_relation);
+        assert!(given_manifest.validate_identity());
+        assert!(let_manifest.validate_identity());
+        assert!(matches!(
+            source_coverage_binding(&given_manifest, "seed").classification,
+            CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction
+        ));
+        assert!(matches!(
+            &source_coverage_binding(&let_manifest, "seed").classification,
+            CheckedExploreCoverageClassification::DerivedFromDeclaredDimensions { dimension_ids }
+                if dimension_ids.is_empty()
+        ));
     }
 
     #[test]
@@ -57127,12 +57357,12 @@ mod tests {
 ? explore recursive_source_coverage {"#,
             )
             .replace(
-                r#"profile = CoverageProfile(
+                r#"let profile = CoverageProfile(
             commune = commune,
             church = church,
             year = hidden_year_value()
         )"#,
-                "profile = make_profile(commune, church)",
+                "let profile = make_profile(commune, church)",
             );
         let (_, _, manifest) = source_coverage_snapshot(&source, "recursive_source_coverage");
         assert!(manifest.validate_identity());
@@ -57178,10 +57408,10 @@ mod tests {
 
 ? explore container_source_coverage {
     from {
-        before = CoverageContainer(children = [CoverageChild(value = 1)])
-        context = ()
+        given before = CoverageContainer(children = [CoverageChild(value = 1)])
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
 }
 "#;
@@ -57275,10 +57505,10 @@ mod tests {
 
 ? explore identity_target {
     from {
-        before in [IdentityState(value = 1)]
-        context in [IdentityContext(step = 1)]
+        vary before in [IdentityState(value = 1)]
+        vary context in [IdentityContext(step = 1)]
     }
-    to after = identity_step(before, context)
+    transition after = identity_step(before, context)
     find all
     mechanisms paths for selected from identity_observer
 }
@@ -57401,9 +57631,9 @@ mod tests {
 
         let unrelated_prefix = r#"
 ? explore unrelated {
-    from { before in [0]
-        context = () }
-    to after = before
+    from { vary before in [0]
+        given context = () }
+    transition after = before
     find all
 }
 "#;
@@ -57532,10 +57762,10 @@ mod tests {
                 r#"@ import ./{target}
 ? explore identity_target {{
     from {{
-        before in [IdentityState(value = 1)]
-        context in [IdentityContext(step = 1)]
+        vary before in [IdentityState(value = 1)]
+        vary context in [IdentityContext(step = 1)]
     }}
-    to after = identity_step(before, context)
+    transition after = identity_step(before, context)
     find all
     mechanisms paths for selected from identity_observer
 }}
@@ -57560,9 +57790,9 @@ mod tests {
             format!(
                 r#"{model}
 ? explore imported_query_only {{
-    from {{ before in [0]
-        context = () }}
-    to after = before
+    from {{ vary before in [0]
+        given context = () }}
+    transition after = before
     find all
 }}
 "#
@@ -58590,9 +58820,9 @@ mod tests {
             let source = format!(
                 r#"{imports}
 ? explore scan {{
-    from {{ before in [1]
-        context = () }}
-    to after = before
+    from {{ vary before in [1]
+        given context = () }}
+    transition after = before
     find matches of eligible(before)
 }}
 "#
@@ -58735,9 +58965,9 @@ mod tests {
 @ import OtherQualified from ./qualified
 > helper(value: Int) -> Int {{ value + 2 }}
 ? explore scan {{
-    from {{ before in [1]
-        context = () }}
-    to after = before
+    from {{ vary before in [1]
+        given context = () }}
+    transition after = before
     find matches of eligible(before)
 }}
 "#
@@ -58852,9 +59082,9 @@ mod tests {
                 r#"@ import Qualified from ./{target}
 | eligible(value: Int) -> True under value > 0
 ? explore scan {{
-    from {{ before in [1]
-        context = () }}
-    to after = before
+    from {{ vary before in [1]
+        given context = () }}
+    transition after = before
     find matches of eligible(before)
 }}
 "#
@@ -58907,9 +59137,9 @@ mod tests {
             temp_dir.join("dep_right.runa"),
             r#"> nested(value: Int) -> Int { value + 1 }
 ? explore imported_query_only {
-    from { before in [0]
-        context = () }
-    to after = before
+    from { vary before in [0]
+        given context = () }
+    transition after = before
     find all
 }
 "#,
@@ -58968,9 +59198,9 @@ mod tests {
         let source = r#"@ import Qualified from ./qualified_pair
 | eligible(value: Int) -> True under value > 0
 ? explore scan {
-    from { before in [1]
-        context = () }
-    to after = before
+    from { vary before in [1]
+        given context = () }
+    transition after = before
     find matches of eligible(before)
 }
 "#;
@@ -59019,9 +59249,9 @@ mod tests {
         let source = r#"@ import Qualified from ./shared
 @ import ./shared
 ? explore scan {
-    from { before in [1]
-        context = () }
-    to after = before
+    from { vary before in [1]
+        given context = () }
+    transition after = before
     find matches of eligible(before)
 }
 "#;
@@ -59053,12 +59283,12 @@ mod tests {
 | other(value: Int) -> True under value >= 0
 ? explore scan {{
     from {{
-        candidate in [1, 2]
-        fixed = 3
-        before = candidate + fixed
-        context = ()
+        vary candidate in [1, 2]
+        given fixed = 3
+        let before = candidate + fixed
+        given context = ()
     }}
-    to after = before + 1
+    transition after = before + 1
     where before before >= 0
     find matches of eligible(after)
     results summary {{
@@ -59094,11 +59324,11 @@ mod tests {
             ),
             (
                 "domain",
-                baseline_source.replacen("candidate in [1, 2]", "candidate in [1, 3]", 1),
+                baseline_source.replacen("vary candidate in [1, 2]", "vary candidate in [1, 3]", 1),
             ),
             (
                 "derived value",
-                baseline_source.replacen("fixed = 3", "fixed = 4", 1),
+                baseline_source.replacen("given fixed = 3", "given fixed = 4", 1),
             ),
             (
                 "constraint",
@@ -59106,7 +59336,11 @@ mod tests {
             ),
             (
                 "successor",
-                baseline_source.replacen("to after = before + 1", "to after = before + 2", 1),
+                baseline_source.replacen(
+                    "transition after = before + 1",
+                    "transition after = before + 2",
+                    1,
+                ),
             ),
             (
                 "group key",
@@ -59151,15 +59385,15 @@ mod tests {
         let source = r#"
 ? explore income_cliffs {
     from {
-        income in range(0, 3)
-        before = PersonState(
+        vary income in range(0, 3)
+        let before = PersonState(
             income = income,
             commune = 101,
             status = Employed
         )
-        context in [ExploreContext(step = 1), ExploreContext(step = 2)]
+        vary context in [ExploreContext(step = 1), ExploreContext(step = 2)]
     }
-    to after in [
+    transition after in [
         PersonState(
             income = before.income + context.step,
             commune = before.commune,
@@ -59211,12 +59445,24 @@ mod tests {
         assert_eq!(query.name, "income_cliffs");
         assert_eq!(query.source.bindings.len(), 3);
         assert!(matches!(
+            &query.source.bindings[0].producer_role,
+            ExploreSourceProducerRole::Vary
+        ));
+        assert!(matches!(
             &query.source.bindings[0].kind,
             ExploreSourceBindingKind::Finite { .. }
         ));
         assert!(matches!(
+            &query.source.bindings[1].producer_role,
+            ExploreSourceProducerRole::Let
+        ));
+        assert!(matches!(
             &query.source.bindings[1].kind,
             ExploreSourceBindingKind::Singleton { .. }
+        ));
+        assert!(matches!(
+            &query.source.bindings[2].producer_role,
+            ExploreSourceProducerRole::Vary
         ));
         assert!(matches!(
             &query.source.bindings[2].kind,
@@ -59293,9 +59539,9 @@ mod tests {
             r#"
 > observe(state: Int, context: Unit) -> Int {{ state }}
 ? explore starter_projection {{
-    from {{ before in [1, 2]
-        context = () }}
-    to after = before + 1
+    from {{ vary before in [1, 2]
+        given context = () }}
+    transition after = before + 1
     find all
     results starter_values {{
         each case
@@ -59457,9 +59703,9 @@ observations values from mechanisms paths for edge activation "{digest}""#
         format!(
             r#"
 ? explore transition_graph {{
-    from {{ before in [1, 2]
-        context = () }}
-    to after = before + 1
+    from {{ vary before in [1, 2]
+        given context = () }}
+    transition after = before + 1
     find matches of after > before
     {consumers}
 }}
@@ -59840,23 +60086,52 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
+    fn explore_source_producer_parser_rejects_implicit_or_mismatched_forms() {
+        for (label, source, expected) in [
+            (
+                "bare binding",
+                "? explore bad { from { before = 1 } transition after = before find all }",
+                "expected exploration source producer `given`, `vary`, or `let`",
+            ),
+            (
+                "given domain",
+                "? explore bad { from { given before in [1] } transition after = before find all }",
+                "expected `=` after exploration `given` binding `before`",
+            ),
+            (
+                "varied singleton",
+                "? explore bad { from { vary before = 1 } transition after = before find all }",
+                "expected `in` after exploration `vary` binding `before`",
+            ),
+        ] {
+            let error = parse_test_program(source).expect_err(label);
+            assert!(
+                error.contains(expected),
+                "unexpected {label} diagnostic: {error}"
+            );
+        }
+    }
+
+    #[test]
     fn explore_parser_rejects_obsolete_modes_and_empty_measure() {
         for obsolete in ["identity", "relative", "independent"] {
             let source = format!(
-                "? explore obsolete {{\nfrom {{ before = 1\ncontext = () }}\nto after {obsolete}\nfind all\n}}\n"
+                "? explore obsolete {{\nfrom {{ given before = 1\ngiven context = () }}\nto after {obsolete}\nfind all\n}}\n"
             );
             let error = parse_test_program(&source).expect_err("obsolete mode must be rejected");
             assert!(
-                error.contains("expected `=` or `in` after exploration successor `after`"),
+                error.contains(
+                    "exploration successors use `transition after`, not legacy `to after`"
+                ),
                 "unexpected diagnostic for {obsolete}: {error}"
             );
         }
 
         let source = r#"
 ? explore empty_measure {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     results cases {
         each case
@@ -59869,9 +60144,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let source = r#"
 ? explore empty_aggregate {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     results counts {
         group all
@@ -59887,9 +60162,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
     fn explore_parser_rejects_forward_analysis_dependencies_and_wrong_row_grains() {
         let forward_mechanism = r#"
 ? explore forward_mechanism {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     results bins from mechanisms paths { group all }
     mechanisms paths for selected from observe
@@ -59904,9 +60179,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let forward_view = r#"
 ? explore forward_view {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     mechanisms paths for view winners chosen from observe
     results winners { group all
@@ -59922,9 +60197,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let wrong_grain = r#"
 ? explore wrong_grain {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     results cases { each incidence }
 }
@@ -59935,9 +60210,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let open_aggregate = r#"
 ? explore open_aggregate {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     results cases {
         each case
@@ -59954,9 +60229,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
         let post_mechanism_target = r#"
 ? explore post_mechanism_target {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     mechanisms paths for selected from observe
     results mechanism_winners from mechanisms paths {
@@ -59979,9 +60254,9 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 > observe(state: Int, context: Unit) -> Int { state }
 ? explore reordered {
-    from { before = 1
-        context = () }
-    to after = before
+    from { given before = 1
+        given context = () }
+    transition after = before
     find all
     mechanisms paths for selected from observe
     results counts from mechanisms paths {
@@ -60008,11 +60283,11 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let source = r#"
 ? explore traversal {
     from {
-        auxiliary in source_domain()
-        before = make_before(auxiliary)
-        context = make_context(auxiliary)
+        vary auxiliary in source_domain()
+        let before = make_before(auxiliary)
+        let context = make_context(auxiliary)
     }
-    to after in successors(before, context)
+    transition after in successors(before, context)
     where before admit_before(before, context)
     where after admit_after(after, context)
     where transition admit_transition(before, after, context)
@@ -60094,16 +60369,16 @@ starters first from mechanisms paths for node activation "{digest}" using values
 
 ? explore income_cliffs {
     from {
-        candidate_status in values(Status)
-        income in range(0, 3)
-        before = PersonState(
+        vary candidate_status in values(Status)
+        vary income in range(0, 3)
+        let before = PersonState(
             income = income,
             commune = 101,
             status = candidate_status
         )
-        context = ExploreContext(step = 1)
+        given context = ExploreContext(step = 1)
     }
-    to after in [
+    transition after in [
         promote(before, context, before.status),
         promote(before, context, Retired)
     ]
@@ -60159,6 +60434,22 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert!(checker.diagnostics.is_empty(), "{:?}", checker.diagnostics);
         let query = &checker.exploration_queries[0];
         assert_eq!(query.source.bindings.len(), 4);
+        assert!(matches!(
+            &query.source.bindings[0].producer_role,
+            TypedExploreSourceProducerRole::Vary
+        ));
+        assert!(matches!(
+            &query.source.bindings[1].producer_role,
+            TypedExploreSourceProducerRole::Vary
+        ));
+        assert!(matches!(
+            &query.source.bindings[2].producer_role,
+            TypedExploreSourceProducerRole::Let
+        ));
+        assert!(matches!(
+            &query.source.bindings[3].producer_role,
+            TypedExploreSourceProducerRole::Given
+        ));
         assert_eq!(query.source.before_binding_index, 2);
         assert_eq!(query.source.context_binding_index, 3);
         assert_eq!(
@@ -60220,10 +60511,10 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let valid = r#"
 ? explore histogram {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before + 1
+    transition after = before + 1
     find all
     results bins {
         group by [bucket = before]
@@ -64710,6 +65001,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                         bindings: vec![
                             ExploreSourceBinding {
                                 name: "auxiliary".to_string(),
+                                producer_role: ExploreSourceProducerRole::Vary,
                                 kind: ExploreSourceBindingKind::Finite {
                                     domain: typechecker_missing_expr("missing_explore_domain"),
                                 },
@@ -64717,6 +65009,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                             },
                             ExploreSourceBinding {
                                 name: "before".to_string(),
+                                producer_role: ExploreSourceProducerRole::Let,
                                 kind: ExploreSourceBindingKind::Singleton {
                                     value: typechecker_missing_expr("missing_explore_before"),
                                 },
@@ -64724,6 +65017,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
                             },
                             ExploreSourceBinding {
                                 name: "context".to_string(),
+                                producer_role: ExploreSourceProducerRole::Given,
                                 kind: ExploreSourceBindingKind::Singleton {
                                     value: typechecker_missing_expr("missing_explore_context"),
                                 },

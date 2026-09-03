@@ -89,10 +89,10 @@ fn guarded_transitive_integer_division_certifies_and_plans_deterministically() {
 
 ? explore guarded_transitive_division {
     from {
-        before in [0, 1, 2]
-        context = ()
+        vary before in [0, 1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_guarded_observer
 }
@@ -124,10 +124,10 @@ fn deep_acyclic_endpoint_helper_chain_certifies_on_the_default_stack() {
         r#"
 ? explore deep_acyclic_endpoint_helpers {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_deep_observer
 }
@@ -155,10 +155,10 @@ fn acyclic_endpoint_helper_depth_exhaustion_is_a_typed_capacity_refusal() {
         r#"
 ? explore too_deep_acyclic_endpoint_helpers {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_too_deep_observer
 }
@@ -187,10 +187,10 @@ fn endpoint_equality_honors_the_canonical_runtime_node_limit_before_planning() {
 
 ? explore equality_runtime_node_limit {{
     from {{
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }}
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_equality_limit_observer
 }}
@@ -228,10 +228,10 @@ fn endpoint_totality_sort_by_skips_the_callback_for_an_exact_empty_list() {
 
 ? explore empty_sort_callback_is_unreachable {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_empty_sort_observer
 }
@@ -249,10 +249,10 @@ fn endpoint_totality_sort_by_proves_the_callback_on_each_reachable_exact_item() 
 
 ? explore nonempty_sort_callback_is_reachable {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_nonempty_sort_observer
 }
@@ -275,10 +275,10 @@ fn endpoint_totality_sort_by_preserves_exact_runtime_key_order() {
 
 ? explore exact_sort_order_reaches_zero {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_exact_sort_observer
 }
@@ -310,10 +310,10 @@ fn endpoint_totality_find_skips_the_callback_for_an_exact_empty_list() {
 
 ? explore empty_find_callback_is_unreachable {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_empty_find_observer
 }
@@ -334,10 +334,10 @@ fn endpoint_totality_find_proves_the_callback_on_reachable_items() {
 
 ? explore nonempty_find_callback_is_reachable {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_reachable_find_observer
 }
@@ -374,10 +374,10 @@ fn distinct_nullary_variants_keep_filter_length_and_nested_guards_exact() {
 
 ? explore exact_municipal_filter_supports_nested_guard {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_municipal_observer
 }
@@ -403,10 +403,10 @@ fn endpoint_totality_attributes_callback_failure_to_the_callback_argument() {
 
 ? explore callback_failure_has_exact_site {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_callback_site_observer
 }
@@ -441,10 +441,10 @@ fn endpoint_totality_cached_base_call_does_not_hide_reachable_recursion() {
 
 ? explore cached_base_does_not_authorize_recursion {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_warm_recursive_observer
 }
@@ -473,10 +473,10 @@ fn endpoint_totality_false_clause_does_not_close_an_unrelated_dispatch_residual(
 
 ? explore false_clause_does_not_close_unrelated_residual {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_partial_false_observer
 }
@@ -505,10 +505,10 @@ fn endpoint_totality_reached_false_clause_closes_its_dispatch_domain() {
 
 ? explore reached_false_clause_closes_its_domain {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_reached_false_observer
 }
@@ -530,10 +530,10 @@ fn unguarded_transitive_integer_division_is_rejected_before_planning() {
 
 ? explore unguarded_transitive_division {
     from {
-        before in [0, 1, 2]
-        context = ()
+        vary before in [0, 1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_unguarded_observer
 }
@@ -556,10 +556,10 @@ fn integer_overflow_is_rejected_before_planning() {
 
 ? explore overflowing_endpoint_observer {
     from {
-        before in [9223372036854775807]
-        context = ()
+        vary before in [9223372036854775807]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_overflowing_observer
 }
@@ -582,10 +582,10 @@ fn bounded_sum_list_certifies_exact_integer_inputs() {
 
 ? explore bounded_sum_list_endpoint {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_sum_list_observer
 }
@@ -603,10 +603,10 @@ fn overflowing_sum_list_is_rejected_before_planning() {
 
 ? explore overflowing_sum_list_endpoint {
     from {
-        before in [9223372036854775807]
-        context = ()
+        vary before in [9223372036854775807]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_overflowing_sum_list_observer
 }
@@ -633,10 +633,10 @@ fn structural_unit_equality_cannot_prune_a_runtime_partial_branch() {
 
 ? explore structural_unit_equality_runtime_parity {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_unit_contains_observer
 }
@@ -661,10 +661,10 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
 
 ? explore partial_value_rule {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_partial_rule_observer
 }
@@ -686,10 +686,10 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
 
 ? explore total_value_rule {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_total_rule_observer
 }
@@ -709,10 +709,10 @@ fn complementary_modulo_guards_close_the_ordered_dispatch_residual() {
 
 ? explore complementary_modulo_partition {
     from {
-        before in range(0, 201)
-        context = ()
+        vary before in range(0, 201)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_modulo_partition_observer
 }
@@ -733,10 +733,10 @@ fn reversed_complementary_inequality_guards_close_the_ordered_dispatch_residual(
 
 ? explore complementary_order_partition {
     from {
-        before in [-1, 0, 1]
-        context = ()
+        vary before in [-1, 0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_order_partition_observer
 }
@@ -757,10 +757,10 @@ fn non_covering_modulo_guards_leave_a_partial_dispatch_residual() {
 
 ? explore incomplete_modulo_partition {
     from {
-        before in range(0, 201)
-        context = ()
+        vary before in range(0, 201)
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_incomplete_modulo_observer
 }
@@ -788,10 +788,10 @@ fn reversed_string_concatenation_guards_do_not_form_a_complementary_partition() 
 
 ? explore string_concat_order_is_not_total {
     from {
-        before in [EndpointConcatTriple("a", "b", "ba"), EndpointConcatTriple("c", "b", "ba")]
-        context = ()
+        vary before in [EndpointConcatTriple("a", "b", "ba"), EndpointConcatTriple("c", "b", "ba")]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_concat_partition_observer
 }
@@ -817,10 +817,10 @@ fn nan_order_guards_do_not_masquerade_as_a_complementary_partition() {
 
 ? explore nan_order_guards_are_not_total {
     from {
-        before in [0]
-        context = ()
+        vary before in [0]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_nan_split_observer
 }
@@ -845,10 +845,10 @@ fn nan_self_equality_does_not_masquerade_as_reflexive_dispatch() {
 
 ? explore nan_self_equality_is_not_total {
     from {
-        before in [0]
-        context = ()
+        vary before in [0]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_nan_reflexive_observer
 }
@@ -876,10 +876,10 @@ fn bare_scoped_rule_call_retains_its_exact_receiver_captures() {
 
 ? explore scoped_sibling_capture {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_scoped_sibling_observer
 }
@@ -900,10 +900,10 @@ fn closed_higher_order_rule_contract_certifies_without_legacy_totality() {
 
 ? explore higher_order_rule_contract {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_higher_order_observer
 }
@@ -929,10 +929,10 @@ fn exhaustive_match_valued_rule_retains_a_type_contract_for_endpoint_proof() {
 
 ? explore exhaustive_match_rule {
     from {
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_match_rule_observer
 }
@@ -983,10 +983,10 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
 
 ? explore effectful_endpoint_observer {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_test_effect_observer
 }

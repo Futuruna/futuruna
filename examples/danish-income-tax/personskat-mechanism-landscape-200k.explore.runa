@@ -82,7 +82,7 @@ first fixed-profile system audit.
 
 ? explore personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026 {
     from {
-        context = Personskat200kAuditConfiguration(
+        given context = Personskat200kAuditConfiguration(
             skatteår = 2026,
             kommune = København,
             betaler_kirkeskat = Falskt,
@@ -105,10 +105,10 @@ first fixed-profile system audit.
             har_ligningslov33a = Falskt,
             har_årsopgørelse = Falskt
         )
-        before in range(0, 2000)
+        vary before in range(0, 2000)
     }
 
-    to after = before + 1
+    transition after = before + 1
 
     where before personskat_200k_audit_configuration_understøttet(context) &&
     personskat_200k_audit_observation(

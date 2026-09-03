@@ -947,10 +947,10 @@ mod tests {
 
 ? explore trace_cascade {
     from {
-        before = 7
-        context = ()
+        given before = 7
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from observe_cascade
 }
@@ -1055,10 +1055,10 @@ mod tests {
 
 ? explore trace_no_applicable {
     from {
-        before = 7
-        context = ()
+        given before = 7
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from observe_miss
 }
@@ -1112,10 +1112,10 @@ mod tests {
 
 ? explore trace_incomplete_prefix {
     from {
-        before = 7
-        context = ()
+        given before = 7
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from observe_miss
 }
@@ -1182,10 +1182,10 @@ mod tests {
 
 ? explore trace_scoped_memo {
     from {
-        before = 7
-        context = ()
+        given before = 7
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from observe_scope
 }
@@ -1271,10 +1271,10 @@ mod tests {
 
 ? explore trace_unresolved_scoped_member {
     from {
-        before = 7
-        context = ()
+        given before = 7
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from observe_rule
 }

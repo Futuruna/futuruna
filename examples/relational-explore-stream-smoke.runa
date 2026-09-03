@@ -21,14 +21,14 @@ journal restoration honest about transitive finite-dimension dependencies.
 
 ? explore relational_stream_nonempty_smoke {
     from {
-        axis in range(0, 2)
-        derived = axis * 2
-        offset in range(0, 2)
-        before = derived + offset
-        context = ()
+        vary axis in range(0, 2)
+        let derived = axis * 2
+        vary offset in range(0, 2)
+        let before = derived + offset
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
 
     where transition after == before + 1
     find matches of before == 1 || before == 2
@@ -71,11 +71,11 @@ journal restoration honest about transitive finite-dimension dependencies.
 
 ? explore relational_stream_empty_smoke {
     from {
-        before in range(0, 2)
-        context = ()
+        vary before in range(0, 2)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
 
     where transition after == before + 1
     find matches of before < 0

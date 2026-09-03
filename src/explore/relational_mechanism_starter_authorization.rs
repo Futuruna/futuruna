@@ -581,10 +581,10 @@ mod tests {
             r#"
 ? explore starter_authorization {{
     from {{
-        before in [1, 2]
-        context = ()
+        vary before in [1, 2]
+        given context = ()
     }}
-    to after = before + 1
+    transition after = before + 1
     find all
     results candidate from selected {{
 {result_body}

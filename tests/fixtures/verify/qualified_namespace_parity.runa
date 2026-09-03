@@ -43,10 +43,10 @@
 
 ? explore qualified_namespace_transitive {
     from {
-        before = 1
-        context = ()
+        given before = 1
+        given context = ()
     }
-    to after = qualified_transitive_target(before)
+    transition after = qualified_transitive_target(before)
     find all
     results qualified_namespace_transitive_cases from selected {
         each case

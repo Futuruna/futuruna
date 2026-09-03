@@ -1440,10 +1440,10 @@ mod tests {
 
 ? explore structural_gate_fixture {
     from {
-        before = 1
-        context = 0
+        given before = 1
+        given context = 0
     }
-    to after = 2
+    transition after = 2
     find all
     mechanisms paths for selected from structural_gate_observe
     results incidences from mechanisms paths {

@@ -56282,8 +56282,8 @@ mod tests {
 
     #[test]
     fn formatter_formats_bounded_exploration_idempotently() {
-        let source = "? explore income_cliffs {\nfrom {\nincome in range(0, 3)\nbefore = person(income)\ncontext = ()\n}\nto after = promote(before, context)\nwhere before before.income>=0\nfind violations of net(after, context)>=net(before, context)\nresults cliffs {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
-        let expected = "? explore income_cliffs {\n    from {\n        income in range(0, 3)\n        before = person(income)\n        context = ()\n    }\n    to after = promote(before, context)\n    where before before.income >= 0\n    find violations of net(after, context) >= net(before, context)\n    results cliffs {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
+        let source = "? explore income_cliffs {\nfrom {\nvary income in range(0, 3)\nlet before = person(income)\ngiven context = ()\n}\ntransition after = promote(before, context)\nwhere before before.income>=0\nfind violations of net(after, context)>=net(before, context)\nresults cliffs {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
+        let expected = "? explore income_cliffs {\n    from {\n        vary income in range(0, 3)\n        let before = person(income)\n        given context = ()\n    }\n    transition after = promote(before, context)\n    where before before.income >= 0\n    find violations of net(after, context) >= net(before, context)\n    results cliffs {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -56298,8 +56298,8 @@ mod tests {
 
     #[test]
     fn formatter_preserves_named_mechanism_requests_idempotently() {
-        let source = "? explore observed {\nfrom {\nbefore in states()\ncontext = IncomeContext(step = 1)\n}\nto after in successors(before, context)\nwhere transition after.income>=before.income\nfind matches of changed(before, after, context)\nresults winners {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths for selected from observe_income\nmechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
-        let expected = "? explore observed {\n    from {\n        before in states()\n        context = IncomeContext(step = 1)\n    }\n    to after in successors(before, context)\n    where transition after.income >= before.income\n    find matches of changed(before, after, context)\n    results winners {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths for selected from observe_income\n    mechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
+        let source = "? explore observed {\nfrom {\nvary before in states()\ngiven context = IncomeContext(step = 1)\n}\ntransition after in successors(before, context)\nwhere transition after.income>=before.income\nfind matches of changed(before, after, context)\nresults winners {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths for selected from observe_income\nmechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
+        let expected = "? explore observed {\n    from {\n        vary before in states()\n        given context = IncomeContext(step = 1)\n    }\n    transition after in successors(before, context)\n    where transition after.income >= before.income\n    find matches of changed(before, after, context)\n    results winners {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths for selected from observe_income\n    mechanisms winner_paths for view winners chosen from Tax::observe_income\n}\n";
 
         let formatted = format_runa_source(source);
         assert_eq!(formatted, expected);
@@ -58922,6 +58922,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 bindings: vec![
                     ExploreSourceBinding {
                         name: "axis".to_string(),
+                        producer_role: ExploreSourceProducerRole::Vary,
                         kind: ExploreSourceBindingKind::Finite {
                             domain: coverage_expr("explore_domain"),
                         },
@@ -58929,6 +58930,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     },
                     ExploreSourceBinding {
                         name: "before".to_string(),
+                        producer_role: ExploreSourceProducerRole::Let,
                         kind: ExploreSourceBindingKind::Singleton {
                             value: coverage_expr("explore_before"),
                         },
@@ -58936,6 +58938,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     },
                     ExploreSourceBinding {
                         name: "context".to_string(),
+                        producer_role: ExploreSourceProducerRole::Given,
                         kind: ExploreSourceBindingKind::Singleton {
                             value: coverage_expr("explore_context"),
                         },

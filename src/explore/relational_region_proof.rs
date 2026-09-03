@@ -2701,11 +2701,11 @@ mod tests {
 
 ? explore capsule_exact_empty {
     from {
-        before in range(0, 2)
-        context = ()
+        vary before in range(0, 2)
+        given context = ()
     }
 
-    to after = bump(before)
+    transition after = bump(before)
     find matches of after < before
 }
 "#;
@@ -2715,11 +2715,11 @@ mod tests {
 
 ? explore capsule_violations_empty {
     from {
-        before in range(0, 2)
-        context = ()
+        vary before in range(0, 2)
+        given context = ()
     }
 
-    to after = bump(before)
+    transition after = bump(before)
     find violations of after >= before
 }
 "#;
@@ -2729,11 +2729,11 @@ mod tests {
 
 ? explore capsule_partitioned_empty {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = bump(before)
+    transition after = bump(before)
     find matches of after < before
 }
 "#;

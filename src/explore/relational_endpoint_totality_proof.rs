@@ -10754,10 +10754,10 @@ mod tests {
 
 ? explore endpoint_bad_result_contract {
     from {
-        before in [1]
-        context = ()
+        vary before in [1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from endpoint_bad_result
 }

@@ -204,7 +204,9 @@ Bindings in `from` are ordered and have explicit coverage roles:
 - `let name = expression` deterministically derives one value and never acts as
   an independent cardinality multiplier.
 
-Every expression may refer only to earlier bindings. Exactly one resulting
+`given` is source-independent: its expression may use sealed immutable module
+values and pure helpers, but no binding in the same `from` relation. `vary` and
+`let` expressions may refer only to earlier bindings. Exactly one resulting
 `context` and one `before` binding feed the transition. Auxiliary bindings are
 authenticated construction lineage, not hidden case-identity fields.
 Alpha-renaming a resolved local binder does not change semantics.

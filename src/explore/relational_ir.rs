@@ -1,8 +1,9 @@
 //! Closed relational query descriptors for Explore.
 //!
 //! This IR preserves the dependency order of the finite source relation and
-//! gives `context`, `before`, and each per-source `after` value semantic roles.
-//! It deliberately contains no Cartesian axes, boundary hints, output mode,
+//! preserves the authored `given`/`vary`/`let` producer roles, and gives
+//! `context`, `before`, and each per-source `after` value semantic roles. It
+//! deliberately contains no Cartesian axes, boundary hints, output mode,
 //! probe plan, scheduling policy, or rank-derived identity.
 
 use std::collections::BTreeSet;
@@ -57,7 +58,7 @@ pub(crate) fn relational_tys_equivalent(left: &Ty, right: &Ty) -> bool {
 
 /// Version of the canonical relational IR shape, independent of run and view
 /// serialization versions.
-pub const EXPLORE_RELATIONAL_IR_VERSION: u32 = 1;
+pub const EXPLORE_RELATIONAL_IR_VERSION: u32 = 2;
 
 /// One already-checked finite-domain plan.
 ///
@@ -96,6 +97,19 @@ pub enum ExploreSourceBindingRoleIr {
     Before,
 }
 
+/// How an authored source binding produces its value.
+///
+/// This is deliberately separate from [`ExploreSourceBindingRoleIr`]: a
+/// producer role records whether the author conditioned, varied, or derived a
+/// binding, while the binding role records how the resulting value
+/// participates in the canonical `(Context, Before)` source row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExploreSourceProducerRoleIr {
+    Given,
+    Vary,
+    Let,
+}
+
 #[derive(Debug, Clone)]
 pub enum ExploreSourceBindingKindIr {
     Singleton { value: Expr },
@@ -109,6 +123,7 @@ pub struct ExploreSourceBindingIr {
     pub name: String,
     pub value_ty: Ty,
     pub role: ExploreSourceBindingRoleIr,
+    pub producer_role: ExploreSourceProducerRoleIr,
     /// Canonical, index-sorted dependencies. Every edge must point strictly to
     /// an earlier binding.
     pub dependencies: Box<[ExploreSourceDependencyIr]>,
@@ -823,6 +838,31 @@ impl ExploreSourceRelationIr {
                 return Err(format!("duplicate source binding name `{}`", binding.name));
             }
 
+            match (binding.producer_role, &binding.kind) {
+                (
+                    ExploreSourceProducerRoleIr::Given | ExploreSourceProducerRoleIr::Let,
+                    ExploreSourceBindingKindIr::Singleton { .. },
+                )
+                | (ExploreSourceProducerRoleIr::Vary, ExploreSourceBindingKindIr::Finite { .. }) => {
+                }
+                (producer_role, kind) => {
+                    let expected_kind = match producer_role {
+                        ExploreSourceProducerRoleIr::Given | ExploreSourceProducerRoleIr::Let => {
+                            "a singleton value"
+                        }
+                        ExploreSourceProducerRoleIr::Vary => "a finite domain",
+                    };
+                    let actual_kind = match kind {
+                        ExploreSourceBindingKindIr::Singleton { .. } => "a singleton value",
+                        ExploreSourceBindingKindIr::Finite { .. } => "a finite domain",
+                    };
+                    return Err(format!(
+                        "source binding `{}` has producer role {producer_role:?}, which requires {expected_kind}, but carries {actual_kind}",
+                        binding.name
+                    ));
+                }
+            }
+
             let mut previous_dependency = None;
             for dependency in binding.dependencies.iter() {
                 if dependency.binding_index >= expected {
@@ -845,6 +885,14 @@ impl ExploreSourceRelationIr {
                     ));
                 }
                 previous_dependency = Some(dependency.binding_index);
+            }
+            if binding.producer_role == ExploreSourceProducerRoleIr::Given {
+                if let Some(dependency) = binding.dependencies.first() {
+                    return Err(format!(
+                        "source `given {}` depends on earlier source binding `{}`; use `let` for values derived from source bindings",
+                        binding.name, dependency.binding_name
+                    ));
+                }
             }
 
             match binding.role {

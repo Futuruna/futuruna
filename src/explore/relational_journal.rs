@@ -9793,10 +9793,10 @@ mod tests {
         let source = r#"
 ? explore journal_fixture {
     from {
-        before = 199999
-        context = 1
+        given before = 199999
+        given context = 1
     }
-    to after = 200000
+    transition after = 200000
     find all
 }
 "#;

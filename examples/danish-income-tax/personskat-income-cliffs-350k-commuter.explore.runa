@@ -298,8 +298,8 @@ calculation. This file is a bounded model audit, not individual tax advice.
 
 ? explore personskat_income_cliffs_commuter_lattice_100_dkk_to_350k_2026 {
     from {
-        afstand_50_km_trin in range(1, 4)
-        profil = Personskat350kCommuterProfile(
+        vary afstand_50_km_trin in range(1, 4)
+        let profil = Personskat350kCommuterProfile(
             skatteår = 2026,
             kommune = København,
             betaler_kirkeskat = Falskt,
@@ -308,15 +308,15 @@ calculation. This file is a bounded model audit, not individual tax advice.
             arbejdsdage = 203,
             daglige_befordringskilometer = afstand_50_km_trin * 50
         )
-        bruttoløn_100_kroner_trin in range(0, 3500)
-        before = Personskat350kCommuterState(
+        vary bruttoløn_100_kroner_trin in range(0, 3500)
+        let before = Personskat350kCommuterState(
             profil = profil,
             bruttoløn_kroner = bruttoløn_100_kroner_trin * 100
         )
-        context = Personskat350kSalaryPromotion(lønstigning_kroner = 100)
+        given context = Personskat350kSalaryPromotion(lønstigning_kroner = 100)
     }
 
-    to after = personskat_350k_commuter_apply_promotion(before, context)
+    transition after = personskat_350k_commuter_apply_promotion(before, context)
 
     where before personskat_350k_commuter_observation(
         before,

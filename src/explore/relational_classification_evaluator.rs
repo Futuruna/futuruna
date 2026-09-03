@@ -1244,8 +1244,8 @@ mod tests {
     };
     use super::super::relational_ir::{
         ExploreFindIr, ExploreQueryIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
-        ExploreSourceBindingRoleIr, ExploreSourceRelationIr, ExploreSuccessorKindIr,
-        ExploreSuccessorRelationIr,
+        ExploreSourceBindingRoleIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
+        ExploreSuccessorKindIr, ExploreSuccessorRelationIr,
     };
     use super::super::relational_support_planner::RelationalSupportPlanRoot;
     use super::*;
@@ -1338,6 +1338,7 @@ mod tests {
                         name: "context".to_string(),
                         value_ty: Ty::Unit,
                         role: ExploreSourceBindingRoleIr::Context,
+                        producer_role: ExploreSourceProducerRoleIr::Given,
                         dependencies: Box::new([]),
                         kind: ExploreSourceBindingKindIr::Singleton {
                             value: Expr::unspanned(ExprKind::Unit),
@@ -1349,6 +1350,7 @@ mod tests {
                         name: "before".to_string(),
                         value_ty: before_ty.clone(),
                         role: ExploreSourceBindingRoleIr::Before,
+                        producer_role: ExploreSourceProducerRoleIr::Vary,
                         dependencies: Box::new([]),
                         kind: ExploreSourceBindingKindIr::Finite {
                             domain: ExploreFiniteDomainIr::Exact(before_domain),

@@ -2787,11 +2787,11 @@ mod regional_stream_acceptance_tests {
     const EXACT_EMPTY: &str = r#"
 ? explore regional_exact_empty {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
     find matches of after < before
 }
 "#;
@@ -2799,11 +2799,11 @@ mod regional_stream_acceptance_tests {
     const UNIFORMLY_SELECTED: &str = r#"
 ? explore regional_uniformly_selected {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
     find matches of after > before
 }
 "#;
@@ -2811,11 +2811,11 @@ mod regional_stream_acceptance_tests {
     const MIXED_FIRST_CHILD: &str = r#"
 ? explore regional_mixed_first_child {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
     find matches of before >= 128
 }
 "#;
@@ -2823,11 +2823,11 @@ mod regional_stream_acceptance_tests {
     const UNSUPPORTED_NONLINEAR: &str = r#"
 ? explore regional_unsupported_nonlinear {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
     find matches of before * before < 0
 }
 "#;
@@ -2835,11 +2835,11 @@ mod regional_stream_acceptance_tests {
     const HYBRID: &str = r#"
 ? explore regional_hybrid {
     from {
-        before in range(0, 300)
-        context = ()
+        vary before in range(0, 300)
+        given context = ()
     }
 
-    to after = before + 1
+    transition after = before + 1
     find matches of before >= 280
 }
 "#;
@@ -3060,10 +3060,10 @@ mod regional_stream_acceptance_tests {
 
 ? explore pause_guard {
     from {
-        before in [0, 1]
-        context = ()
+        vary before in [0, 1]
+        given context = ()
     }
-    to after = before
+    transition after = before
     find all
     mechanisms paths for selected from pause_guard_observer
 }

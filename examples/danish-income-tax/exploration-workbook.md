@@ -72,6 +72,17 @@ realization, proof-specialized source results and a query-bound compiled
 residual classifier; the coarse audit is the first Personskat target for that
 complete path.
 
+The newly chosen **first broad audit** is another separately identified
+relation. For every profile in its declared coherent profile world it ranges
+over lower salaries `0, 1_000, ..., 1_499_000 DKK` and compares each with its
+`+1_000 DKK` successor through exactly 1,500,000 DKK. That is **1,500 edges per
+profile** whose endpoint evaluator can reuse **1,501 endpoints per profile**.
+Closing it would answer the coarse endpoint and mechanism questions exactly
+for that grid; it would not enumerate or certify the 1,500,000 adjacent 1-DKK
+transitions per profile. No run has started, no result count exists, and the
+milestone is not a claim that the target Explore/Analyze/Publish syntax is
+currently executable.
+
 The current architecture also has its first proof-first stream seam. For each
 next canonical child, a producer-owned certificate may close a whole
 zero-selected region before the concrete classifier touches its members. The
@@ -122,6 +133,13 @@ The first-class Explore question is broader:
 > income levels, which 1-DKK salary increases reduce after-tax resources, which
 > profiles are affected, and which replay-derived mechanisms are shared by
 > those otherwise different cases in the checked-in encoded model?
+
+The first broad execution milestone asks the same kind of comparative question
+at 1,000-DKK resolution over the declared `0..1,500,000 DKK` horizon. It is
+purposefully a mechanism-and-endpoint survey before an exhaustive one-krone
+cliff proof. A mechanism or net-loss change can nominate a finer separately
+identified query, but coarse coverage never transfers silently to that finer
+relation.
 
 For the fixed-profile calibration, gross income `g`, exact final tax `tax(g)`,
 and values measured in øre give the searched condition:
@@ -930,9 +948,11 @@ should retain producer dependencies so the decision structure and relevance
 analysis can share evaluation or compress equal behavior without dropping any
 declared profile column, SourceKey or support count.
 
-Source bindings are ordered. `given` and `let` contribute one value; `vary`
-performs a dependent finite expansion in the style of SQL `LATERAL`. Each
-source expression can see only earlier bindings. The `from` block must
+Source bindings are ordered. `given` contributes one source-independent value
+from sealed module facts or pure helpers. `let` contributes one value derived
+from earlier source bindings, and `vary` performs a dependent finite expansion
+in the style of SQL `LATERAL`. `vary` and `let` can see only earlier bindings;
+`given` cannot depend on another binding in the same `from` block. The block must
 ultimately bind one semantic `context` and `before`; the transition binds one
 typed `after` per successor and retains every meaningful action value in case
 identity.
@@ -1026,13 +1046,19 @@ relation; there are no hidden “fixed profile facts.” Conjunct order and repe
 identical terms remain available for diagnostics but normalize away from
 `AdmissionId`; resolved total predicate semantics define the admission.
 
-The end-exclusive source range supplies lower salary endpoints through
-1,499,999 DKK; the successor reaches 1,500,000 DKK. `transition` constructs that
-comparison. `admit` distinguishes rejected cases and integrity failures from
-admitted nonmatches. Named `find` clauses state the questions. `view cliff_cases`
-projects one question relation, and `explain cliff_paths` names the endpoint computation
+In this target snippet, the end-exclusive source range and
+`salary_step_kroner = 1` supply lower salary endpoints through 1,499,999 DKK and a final successor
+at 1,500,000 DKK. That spells the eventual exhaustive one-krone question; it is
+not the planned first broad run. The broad milestone has its own RelationId,
+uses lower endpoints `0, 1_000, ..., 1_499_000 DKK`, and applies a
+`+1_000 DKK` transition, yielding 1,500 edges and 1,501 reusable endpoints per
+profile. `transition` constructs either declared comparison. `admit`
+distinguishes rejected cases and integrity failures from admitted nonmatches.
+Named `find` clauses state the questions. `view cliff_cases` projects one
+question relation, and `explain cliff_paths` names the endpoint computation
 whose Before/After executions are compared. The downstream loss-bin view waits
-for that explanation's incidence relation.
+for that explanation's incidence relation. No broad milestone run has begun,
+and this target spelling is not presented as currently executable syntax.
 
 The smallest final-architecture sequence is:
 
@@ -1226,7 +1252,11 @@ resume point, including late in a 200,000-row result.
 
 The blockchain analogy remains useful only in this precise sense: the run
 appends content-addressed evidence about a finite world and can resume at its
-authenticated head; it is not mining cases or running distributed consensus.
+authenticated head. Distributed workers, if used, receive canonical disjoint
+chunks of the same checked query and return query-bound evidence chunks. The
+coordinator verifies their coverage and commitments, then merges them
+idempotently into the same evidence root regardless of arrival order. Workers
+do not mine cases, choose between competing chains or run consensus.
 
 ### SQL-like views over graph-backed evidence
 
@@ -1779,8 +1809,10 @@ shape(S(m))   = a union of correlated typed regions
 Lower bounds grow as incidences or disjoint uniform cells arrive. Finite upper
 bounds shrink as remaining regions are assigned elsewhere or proved empty.
 When both meet, the count is exact. Stable CaseIds and disjoint-cell receipts
-make this lattice mergeable across resumed or distributed workers without
-double counting.
+make query-bound authenticated evidence chunks mergeable across resumed or
+distributed workers without double counting. This is one canonical merge
+algebra under the same question and coverage authority, not a consensus
+protocol.
 
 A mechanism may occupy a bounded income interval while being invariant across
 several commune or household dimensions; geometrically its support is a union
@@ -3170,8 +3202,9 @@ schemas is evidence for this contract.
 ### Final pieces to lock before the broad run
 
 The architecture now has a strong center, but the following pieces must be made
-coherent before a nationwide through-1,500,000-DKK exploration is a sensible
-execution target:
+coherent before the first broad `0..1,500,000 DKK` audit—1,000-DKK transitions,
+1,500 edges and 1,501 reusable endpoints per profile—is a sensible execution
+target:
 
 1. Keep source construction and downstream consumers on their own checked
    identities. The source side is the `RelationId`-scoped, FROM-only recursive
@@ -3686,11 +3719,16 @@ an intentional shared mechanism supplied the nonempty integration signal, so
 this quiet Personskat range does not leave mechanism incidence and
 post-mechanism grouping structurally unexercised.
 
-There is therefore no planned 1.5-million-income execution merely to obtain an
-early number. The milestone is a profile-and-income relation plus proof-closure
-experiment. The desired signal is that widening the declared world adds a
-small number of source events, mechanism signatures and certified cells rather
-than requiring one full Personskat evaluation for every krone-profile pair.
+There is now one precise first broad execution milestone, rather than a vague
+1.5-million-income run merely intended to obtain an early number. It crosses a
+declared coherent profile relation with 1,500 `+1,000 DKK` edges from zero
+through 1,500,000 DKK and reuses the 1,501 endpoints per profile. It is a
+profile-and-income endpoint/mechanism audit plus proof-closure experiment, not
+an exhaustive 1-DKK cliff audit. The desired signal is that widening the
+declared world adds a small number of source events, mechanism signatures and
+certified cells rather than requiring one evaluation for every
+krone-profile pair. This audit has not run, and the current executable surface
+is not claimed to implement the target contract needed to run it.
 
 The intended execution portfolio is proof-first rather than worker-first:
 
@@ -3701,10 +3739,14 @@ The intended execution portfolio is proof-first rather than worker-first:
 3. the ordinary interpreter replays selected cases to derive mechanism and
    incidence evidence.
 
-The coordinator alone mints `CaseId` values, folds the canonical transcript and
-appends evidence. A compiled kernel, local worker pool or distributed worker is
-therefore an execution detail, never an alternative source of truth. This
-keeps the same result identity while allowing later map/reduce acceleration.
+The coordinator alone validates canonically derived `CaseId` values, folds the
+canonical transcript and appends evidence. A compiled kernel, local worker pool
+or distributed worker is therefore an execution detail, never an alternative
+source of truth. Parallel work is admitted only as disjoint, authenticated
+evidence chunks bound to the same checked query and coverage obligations; the
+coordinator verifies and idempotently merges those chunks into one evidence
+root. This keeps result identity independent of worker placement and arrival
+order. It is map/reduce-style acceleration, not mining or consensus.
 
 Resource control is a passive operational failsafe, not an Explore research
 thread. Work runs beneath the operator's 80-percent CPU/RAM policy and 6-GiB
