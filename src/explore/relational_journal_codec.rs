@@ -172,7 +172,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 16;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 17;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -5939,6 +5939,18 @@ fn encode_analysis_event(
             encoder.digest(request_id.bytes())?;
             encoder.digest(case_id.bytes())
         }
+        RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+            request_id,
+            view_id,
+            projection_ordinal,
+            case_id,
+        } => {
+            encoder.tag(0x14)?;
+            encoder.digest(request_id.bytes())?;
+            encoder.digest(view_id.bytes())?;
+            encoder.u128(*projection_ordinal)?;
+            encoder.digest(case_id.bytes())
+        }
         RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromSelected {
             request_id,
             question_seal_id,
@@ -6063,6 +6075,14 @@ fn decode_analysis_event(
         0x07 => Ok(
             RelationalAnalysisEvidenceEvent::MechanismTargetCaseAccepted {
                 request_id: MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
+                case_id: RelationalCaseId::from_journal_codec_bytes(reader.digest()?),
+            },
+        ),
+        0x14 => Ok(
+            RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+                request_id: MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
+                view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
+                projection_ordinal: reader.u128()?,
                 case_id: RelationalCaseId::from_journal_codec_bytes(reader.digest()?),
             },
         ),
@@ -7638,8 +7658,8 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 22,
-                expected: 23
+                actual: 23,
+                expected: 24
             }
         ));
     }

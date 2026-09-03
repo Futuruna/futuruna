@@ -48,11 +48,11 @@ use super::result_evidence::{
 };
 use super::result_projection::{
     IndexedResultProjectionRecord, ResultProjectionCatalogBuilder, ResultProjectionClosure,
-    ResultProjectionError, ResultProjectionRoot, ResultProjectionSnapshot,
+    ResultProjectionError, ResultProjectionRecord, ResultProjectionRoot, ResultProjectionSnapshot,
 };
 use super::result_view::{
     ClosedResultView, CompactClosedResultView, ResultViewCount, ResultViewInputKind,
-    ResultViewRoot, ResultViewSpec, ResultViewSpecRoot,
+    ResultViewInputRowId, ResultViewRoot, ResultViewSpec, ResultViewSpecRoot,
 };
 use super::structural_mechanism::StructuralQuotientClosureRoot;
 use super::transition::TransitionId;
@@ -258,6 +258,56 @@ impl RelationalResultPublication {
             );
         }
         Ok(())
+    }
+}
+
+/// O(1)-revalidated address space for one exact published FIND-backed choice.
+///
+/// The retained publication witness already authenticated the full reducer
+/// output and projection prefix. This compact value therefore lets a bounded
+/// downstream scheduler address that immutable projection without rebuilding
+/// a [`ClosedResultView`] or copying its input contributions.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PublishedChosenResultSummary {
+    result_root: ResultViewRoot,
+    exact_chosen_count: u128,
+    projection_record_count: u128,
+    grouped: bool,
+}
+
+impl PublishedChosenResultSummary {
+    pub(crate) const fn result_root(self) -> ResultViewRoot {
+        self.result_root
+    }
+
+    pub(crate) const fn exact_chosen_count(self) -> u128 {
+        self.exact_chosen_count
+    }
+
+    pub(crate) const fn projection_record_count(self) -> u128 {
+        self.projection_record_count
+    }
+
+    pub(crate) const fn grouped(self) -> bool {
+        self.grouped
+    }
+}
+
+/// One chosen CaseId addressed by its durable projection-record ordinal.
+/// Group headers have no value of this type and are skipped by the scanner.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct PublishedChosenTargetCase {
+    projection_ordinal: u128,
+    case_id: RelationalCaseId,
+}
+
+impl PublishedChosenTargetCase {
+    pub(crate) const fn projection_ordinal(self) -> u128 {
+        self.projection_ordinal
+    }
+
+    pub(crate) const fn case_id(self) -> RelationalCaseId {
+        self.case_id
     }
 }
 
@@ -1423,6 +1473,153 @@ impl RelationalAnalysisCatalogBuilder {
         Ok(self.registered_result(view_id)?.publication)
     }
 
+    /// Resolve the compact, immutable address space for one exact published
+    /// FIND-backed result with a checked choice. Validation is O(1): the full
+    /// projection was authenticated when the publication witness was minted,
+    /// so this path compares only retained roots, counts, and scope metadata.
+    pub(crate) fn published_chosen_result_summary(
+        &self,
+        view_id: ViewId,
+    ) -> Result<PublishedChosenResultSummary, RelationalAnalysisCatalogError> {
+        let result = self.result_layer(view_id)?;
+        let registered = result
+            .registered
+            .as_ref()
+            .ok_or(RelationalAnalysisCatalogError::ResultSpecNotRegistered { view_id })?;
+        if !matches!(
+            result.registration.input(),
+            RelationalResolvedResultInput::Selected(_)
+        ) || registered.spec.input_kind() != ResultViewInputKind::Case
+            || registered.spec.choice().is_none()
+        {
+            return Err(RelationalAnalysisCatalogError::Mechanism(
+                MechanismIncidenceError::ChosenViewCannotDenoteExactCases,
+            ));
+        }
+        validate_published_result_identity(self.plan.root(), &result.registration, registered)?;
+        let publication = registered
+            .publication
+            .ok_or(RelationalAnalysisCatalogError::ResultNotPublished { view_id })?;
+        let validated = registered
+            .validated_publication
+            .ok_or(RelationalAnalysisCatalogError::PublishedResultValidationMissing { view_id })?;
+        let ResultViewCount::Exact(exact_chosen_count) = validated.closure.counts().output_rows()
+        else {
+            return Err(RelationalAnalysisCatalogError::Mechanism(
+                MechanismIncidenceError::ChosenViewCannotDenoteExactCases,
+            ));
+        };
+        let projection = &registered.projection;
+        let chosen_index_matches = match exact_chosen_count.checked_sub(1) {
+            Some(last) => {
+                projection.chosen_output_record(last).is_some()
+                    && projection
+                        .chosen_output_record(exact_chosen_count)
+                        .is_none()
+            }
+            None => projection.chosen_output_record(0).is_none(),
+        };
+        if !chosen_index_matches {
+            return Err(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::CatalogIndexDiverged,
+            ));
+        }
+        Ok(PublishedChosenResultSummary {
+            result_root: publication.result_root(),
+            exact_chosen_count,
+            projection_record_count: validated.closure.record_count(),
+            grouped: registered.spec.grain().is_grouped(),
+        })
+    }
+
+    /// Address the zero-based Nth chosen CaseId without allocating or scanning
+    /// interleaved grouped-output headers. The process-local ordinal index is
+    /// rebuilt deterministically whenever durable projection records replay.
+    pub(crate) fn published_chosen_target_case_at(
+        &self,
+        view_id: ViewId,
+        chosen_ordinal: u128,
+    ) -> Result<Option<PublishedChosenTargetCase>, RelationalAnalysisCatalogError> {
+        let summary = self.published_chosen_result_summary(view_id)?;
+        if chosen_ordinal >= summary.exact_chosen_count() {
+            return Ok(None);
+        }
+        let record = self
+            .registered_result(view_id)?
+            .projection
+            .chosen_output_record(chosen_ordinal)
+            .ok_or(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::CatalogIndexDiverged,
+            ))?;
+        let case_id = chosen_case_id_from_projection_record(summary, record)?.ok_or(
+            RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::CatalogIndexDiverged,
+            ),
+        )?;
+        Ok(Some(PublishedChosenTargetCase {
+            projection_ordinal: record.ordinal(),
+            case_id,
+        }))
+    }
+
+    /// Prove that one request/view/ordinal/CaseId tuple addresses the exact
+    /// chosen projection record claimed by a bounded target-admission event.
+    pub(crate) fn validate_published_chosen_target_case(
+        &self,
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        projection_ordinal: u128,
+        case_id: RelationalCaseId,
+    ) -> Result<(), RelationalAnalysisCatalogError> {
+        self.validate_chosen_mechanism_target_dependency(request_id, view_id)?;
+        let summary = self.published_chosen_result_summary(view_id)?;
+        if projection_ordinal >= summary.projection_record_count() {
+            return Err(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::ExpectedRecordMismatch {
+                    ordinal: projection_ordinal,
+                },
+            ));
+        }
+        let record = self
+            .registered_result(view_id)?
+            .projection
+            .record(projection_ordinal)
+            .ok_or(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::CatalogIndexDiverged,
+            ))?;
+        if record.ordinal() != projection_ordinal
+            || chosen_case_id_from_projection_record(summary, record)? != Some(case_id)
+        {
+            return Err(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::ExpectedRecordMismatch {
+                    ordinal: projection_ordinal,
+                },
+            ));
+        }
+        Ok(())
+    }
+
+    /// Admit one chosen mechanism target case only after checking its exact
+    /// projection provenance. Equal event replay remains idempotent.
+    pub(crate) fn accept_published_chosen_target_case(
+        &mut self,
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        projection_ordinal: u128,
+        case_id: RelationalCaseId,
+    ) -> Result<bool, RelationalAnalysisCatalogError> {
+        self.validate_published_chosen_target_case(
+            request_id,
+            view_id,
+            projection_ordinal,
+            case_id,
+        )?;
+        self.mechanism_layer_mut(request_id)?
+            .incidence
+            .insert_target_case(case_id)
+            .map_err(RelationalAnalysisCatalogError::Mechanism)
+    }
+
     pub(crate) fn result_evidence_root(
         &self,
         view_id: ViewId,
@@ -1442,6 +1639,14 @@ impl RelationalAnalysisCatalogBuilder {
         request_id: MechanismRequestId,
         case_id: RelationalCaseId,
     ) -> Result<bool, RelationalAnalysisCatalogError> {
+        if !matches!(
+            self.mechanism_registration(request_id)?.target(),
+            RelationalResolvedMechanismTarget::Selected(_)
+        ) {
+            return Err(
+                RelationalAnalysisCatalogError::MechanismTargetDependencyMismatch { request_id },
+            );
+        }
         self.mechanism_layer_mut(request_id)?
             .incidence
             .insert_target_case(case_id)
@@ -1633,6 +1838,30 @@ impl RelationalAnalysisCatalogBuilder {
         self.mechanism_layer_mut(request_id)?
             .incidence
             .seal_chosen_view_target(view)
+            .map_err(RelationalAnalysisCatalogError::Mechanism)
+    }
+
+    /// Seal a chosen-view mechanism target directly from the retained exact
+    /// publication claim. Every target member was admitted through
+    /// [`Self::accept_published_chosen_target_case`], so closure needs only
+    /// compare the resolved target, immutable result root, and exact chosen
+    /// cardinality before committing the already accumulated target set.
+    /// Publication revalidation is O(1); the incidence builder still performs
+    /// the same one O(N) canonical CaseId hash used by every target seal.
+    pub(crate) fn seal_mechanism_target_from_published_result_claim(
+        &mut self,
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        result_root: ResultViewRoot,
+    ) -> Result<bool, RelationalAnalysisCatalogError> {
+        self.validate_chosen_mechanism_target_dependency(request_id, view_id)?;
+        let summary = self.published_chosen_result_summary(view_id)?;
+        if summary.result_root() != result_root {
+            return Err(RelationalAnalysisCatalogError::PublishedResultRootMismatch { view_id });
+        }
+        self.mechanism_layer_mut(request_id)?
+            .incidence
+            .seal_chosen_view_target_commitment(view_id, result_root, summary.exact_chosen_count())
             .map_err(RelationalAnalysisCatalogError::Mechanism)
     }
 
@@ -1945,6 +2174,22 @@ impl RelationalAnalysisCatalogBuilder {
         {
             Some(AnalysisLayerBuilder::Mechanisms(mechanism)) => Ok(mechanism),
             _ => Err(RelationalAnalysisCatalogError::UnknownMechanismLayer { request_id }),
+        }
+    }
+
+    fn validate_chosen_mechanism_target_dependency(
+        &self,
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+    ) -> Result<(), RelationalAnalysisCatalogError> {
+        match self.mechanism_registration(request_id)?.target() {
+            RelationalResolvedMechanismTarget::ChosenView(expected) if expected == view_id => {
+                Ok(())
+            }
+            RelationalResolvedMechanismTarget::Selected(_)
+            | RelationalResolvedMechanismTarget::ChosenView(_) => Err(
+                RelationalAnalysisCatalogError::MechanismTargetDependencyMismatch { request_id },
+            ),
         }
     }
 
@@ -2709,6 +2954,32 @@ fn validate_question(
             expected,
             actual: question.question_id(),
         })
+    }
+}
+
+fn chosen_case_id_from_projection_record(
+    summary: PublishedChosenResultSummary,
+    indexed: &IndexedResultProjectionRecord,
+) -> Result<Option<RelationalCaseId>, RelationalAnalysisCatalogError> {
+    let row = match (summary.grouped(), indexed.record()) {
+        (false, ResultProjectionRecord::Row(row)) => row,
+        (true, ResultProjectionRecord::Group(_)) => return Ok(None),
+        (true, ResultProjectionRecord::ChosenRow { row, .. }) => row,
+        (false, ResultProjectionRecord::Group(_))
+        | (false, ResultProjectionRecord::ChosenRow { .. })
+        | (true, ResultProjectionRecord::Row(_)) => {
+            return Err(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::RecordKindMismatch,
+            ));
+        }
+    };
+    match row.row_id() {
+        ResultViewInputRowId::Case(case_id) => Ok(Some(case_id)),
+        ResultViewInputRowId::Source(_) | ResultViewInputRowId::Incidence(_) => {
+            Err(RelationalAnalysisCatalogError::ResultProjection(
+                ResultProjectionError::OutputRowKindMismatch,
+            ))
+        }
     }
 }
 

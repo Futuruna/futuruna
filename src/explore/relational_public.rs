@@ -2064,7 +2064,7 @@ fn public_mechanism_target(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
             };
-            let ExploreResultInputIr::Find { find_index } = &view.input else {
+            let ExploreResultInputIr::Find { find_index, .. } = &view.input else {
                 return Err(ExploreStreamPreparationError::Execution(format!(
                     "mechanism target analysis node {view_node_index} is not FIND-backed"
                 )));
@@ -2868,6 +2868,10 @@ mod regional_stream_acceptance_tests {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
 
+    use super::super::relational_analysis_catalog::RelationalAnalysisCatalogError;
+    use super::super::relational_analysis_journal::{
+        RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
+    };
     use super::super::relational_analysis_plan::{
         RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
         RelationalMechanismLayerRegistration, RelationalMechanismObservationId,
@@ -2881,13 +2885,14 @@ mod regional_stream_acceptance_tests {
         RelationalClassifiedSweepStepDriver, RelationalClassifiedSweepStepOutcome,
     };
     use super::super::relational_durable_journal::{
-        RelationalDurableJournal, RelationalDurableJournalLimits,
+        RelationalDurableJournal, RelationalDurableJournalError, RelationalDurableJournalLimits,
     };
     use super::super::relational_frontier::{WorkCompletionRef, WorkNodeSpec};
     use super::super::relational_journal::{
         RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
-        RelationalJournal, RelationalJournalEvent,
+        RelationalJournal, RelationalJournalError, RelationalJournalEvent,
     };
+    use super::super::relational_mechanism_step_driver::RelationalMechanismStepQuantum;
     use super::super::relational_step_driver::{
         RelationalConcreteQuiescence, RelationalStepDriver, RelationalStepOutcome,
         RelationalStepQuantum,
@@ -2896,6 +2901,7 @@ mod regional_stream_acceptance_tests {
         RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuantum,
         RelationalStreamStepOutcome,
     };
+    use super::super::result_projection::ResultProjectionError;
     use super::super::stream_resource::{
         ExactStreamOneWorkerEnvelope, ExactStreamResourceAction, ExactStreamWorkSubject,
     };
@@ -2972,6 +2978,29 @@ mod regional_stream_acceptance_tests {
     transition after = before + 1
     find all_cases = all
     find upper_case = matches of before >= 1
+}
+"#;
+
+    const CHOSEN_MECHANISM_PUBLICATION: &str = r#"
+> chosen_target_observer(state: Int, context: Unit) -> Int {
+    if state < 2 { 0 } else { 1 }
+}
+
+? explore chosen_mechanism_publication {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find all_cases = all
+    results winner from find all_cases {
+        group all
+        measure [score = before / 2]
+        select [case_id, before, after, score]
+        choose all maximizing score
+    }
+    mechanisms winner_path from view winner chosen using chosen_target_observer
 }
 "#;
 
@@ -3441,6 +3470,259 @@ mod regional_stream_acceptance_tests {
                 .map(|find| find["name"].as_str().expect("manifest FIND name"))
                 .collect::<Vec<_>>(),
             vec!["all_cases", "upper_case"]
+        );
+    }
+
+    #[test]
+    fn chosen_view_mechanism_target_resumes_from_its_exact_published_case_set() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let output = temp.path().join("output");
+
+        // Stop halfway through the two-row chosen-target batch. Reopening
+        // below must recover the durable proper prefix and replay exactly the
+        // two winners rather than rebuilding an ambient selected population.
+        {
+            let mut prepared = prepare(CHOSEN_MECHANISM_PUBLICATION);
+            let checked = prepared.checked.view();
+            let limits = RelationalStreamDriverLimits::new(
+                NonZeroU16::new(4).unwrap(),
+                NonZeroU16::new(4).unwrap(),
+                NonZeroU16::new(2).unwrap(),
+            );
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    limits,
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build chosen-target stream scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open chosen-target durable journal");
+            let mut admitted_chosen_target = false;
+            for _ in 0..512 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow chosen-target planning journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(4).unwrap(),
+                    )
+                    .expect("advance chosen-target prefix");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("chosen-target stream quiesced before target admission");
+                };
+                let quantum = batch.quantum();
+                let chosen_batch = matches!(
+                    quantum,
+                    RelationalStreamQuantum::Mechanism(
+                        RelationalMechanismStepQuantum::AdmitChosenTargetCases {
+                            case_count,
+                            ..
+                        }
+                    ) if case_count.get() == 2
+                );
+                let expected_sequence = batch.expected_sequence();
+                let expected_head = batch.expected_head();
+                let events = batch.into_events().into_vec();
+                let append_count = if chosen_batch {
+                    assert_eq!(events.len(), 2);
+                    1
+                } else {
+                    events.len()
+                };
+                durable
+                    .append_events(
+                        expected_sequence,
+                        expected_head,
+                        events.into_iter().take(append_count),
+                    )
+                    .expect("append chosen-target prefix batch");
+                if chosen_batch {
+                    admitted_chosen_target = true;
+                    durable
+                        .flush_for_pause()
+                        .expect("flush chosen-target crash prefix");
+                    break;
+                }
+            }
+            assert!(
+                admitted_chosen_target,
+                "fixture did not stop inside its two-case chosen target batch"
+            );
+        }
+
+        let mut epoch = prepare(CHOSEN_MECHANISM_PUBLICATION)
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: Some(output),
+                outer_containment: None,
+            })
+            .expect("reopen chosen-target stream epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic chosen-target resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("resume and complete chosen-target stream");
+
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert!(report.analysis_closed);
+        assert_eq!(report.counts.cases, ExploreStreamCount::Exact(4));
+        assert_eq!(report.finds.len(), 1);
+        assert_eq!(report.finds[0].selected, ExploreStreamCount::Exact(4));
+
+        let mechanism = report
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                ExploreStreamLayer::Mechanisms(mechanism) if mechanism.name == "winner_path" => {
+                    Some(mechanism)
+                }
+                _ => None,
+            })
+            .expect("chosen mechanism layer");
+        assert_eq!(mechanism.status, ExploreStreamLayerStatus::MechanismClosed);
+        assert!(matches!(
+            &mechanism.target,
+            ExploreStreamMechanismTarget::ChosenView {
+                name,
+                question_id,
+                ..
+            } if name == "winner" && question_id == &report.finds[0].question_id
+        ));
+        assert_eq!(mechanism.target_cases, ExploreStreamCount::Exact(2));
+        assert_eq!(mechanism.terminal_cases, ExploreStreamCount::Exact(2));
+        assert_eq!(mechanism.incidence_cases, ExploreStreamCount::Exact(2));
+        assert_eq!(mechanism.unavailable_cases, ExploreStreamCount::Exact(0));
+        assert_eq!(mechanism.raw_signatures, ExploreStreamCount::Exact(1));
+        assert_eq!(
+            mechanism.structural_mechanisms,
+            ExploreStreamCount::Exact(1)
+        );
+        assert!(mechanism.raw_closure_root.is_some());
+        assert!(mechanism.structural_closure_root.is_some());
+    }
+
+    #[test]
+    fn chosen_view_mechanism_target_rejects_tampered_projection_provenance() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let mut prepared = prepare(CHOSEN_MECHANISM_PUBLICATION);
+        let checked = prepared.checked.view();
+        let limits = RelationalStreamDriverLimits::new(
+            NonZeroU16::new(4).unwrap(),
+            NonZeroU16::new(4).unwrap(),
+            NonZeroU16::new(2).unwrap(),
+        );
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            limits,
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build chosen-target provenance scheduler");
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .expect("open chosen-target provenance journal");
+
+        let mut rejected_tamper = false;
+        for _ in 0..512 {
+            let outcome = driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow chosen-target provenance journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(4).unwrap(),
+                )
+                .expect("advance chosen-target provenance prefix");
+            let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                panic!("chosen-target stream quiesced before its provenance batch");
+            };
+            let expected_sequence = batch.expected_sequence();
+            let expected_head = batch.expected_head();
+            let is_chosen_batch = matches!(
+                batch.quantum(),
+                RelationalStreamQuantum::Mechanism(
+                    RelationalMechanismStepQuantum::AdmitChosenTargetCases {
+                        case_count,
+                        ..
+                    }
+                ) if case_count.get() == 2
+            );
+            let events = batch.into_events().into_vec();
+            if !is_chosen_batch {
+                durable
+                    .append_events(expected_sequence, expected_head, events)
+                    .expect("append chosen-target provenance setup batch");
+                continue;
+            }
+
+            assert_eq!(events.len(), 2);
+            let chosen_claim = |event: &RelationalJournalEvent| match event {
+                RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                    RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+                        request_id,
+                        view_id,
+                        projection_ordinal,
+                        case_id,
+                    },
+                )) => (*request_id, *view_id, *projection_ordinal, *case_id),
+                _ => panic!("chosen-target batch contained a non-provenance event"),
+            };
+            let (request_id, view_id, projection_ordinal, first_case_id) = chosen_claim(&events[0]);
+            let (second_request_id, second_view_id, second_ordinal, second_case_id) =
+                chosen_claim(&events[1]);
+            assert_eq!(second_request_id, request_id);
+            assert_eq!(second_view_id, view_id);
+            assert_ne!(second_ordinal, projection_ordinal);
+            assert_ne!(second_case_id, first_case_id);
+
+            let tampered = RelationalJournalEvent::analysis(
+                RelationalAnalysisEvidenceEvent::mechanism_chosen_target_case_accepted(
+                    request_id,
+                    view_id,
+                    projection_ordinal,
+                    second_case_id,
+                ),
+            );
+            let error = durable
+                .append_events(expected_sequence, expected_head, [tampered])
+                .expect_err("a CaseId from another projection ordinal must be rejected");
+            assert!(matches!(
+                error,
+                RelationalDurableJournalError::Journal(RelationalJournalError::Analysis(
+                    RelationalAnalysisJournalError::Catalog(
+                        RelationalAnalysisCatalogError::ResultProjection(
+                            ResultProjectionError::ExpectedRecordMismatch { ordinal }
+                        )
+                    )
+                )) if ordinal == projection_ordinal
+            ));
+            rejected_tamper = true;
+            break;
+        }
+        assert!(
+            rejected_tamper,
+            "fixture did not reach its chosen-target provenance batch"
         );
     }
 

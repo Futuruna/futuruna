@@ -28,12 +28,13 @@ memory limits, journal locations and publication paths remain invocation
 controls rather than query semantics.
 
 > **Syntax status.** Named `find` declarations and explicit
-> `results ... from find NAME` / `mechanisms ... from find NAME` consumers are
-> now being carried through the Experimental frontend and durable runtime on
-> this branch. The separate `? analyze` and `? publish` blocks in section 9
-> remain accepted **target syntax**, not a claim that every sketched clause is
-> executable today. The collection audit below is executable ordinary
-> Futuruna. No Experimental surface here is yet a compatibility promise.
+> `results ... from find NAME`, `mechanisms ... from find NAME`, and
+> `mechanisms ... from view NAME chosen` consumers are now carried through the
+> Experimental frontend and durable runtime on this branch. The separate
+> `? analyze` and `? publish` blocks in section 9 remain accepted **target
+> syntax**, not a claim that every sketched clause is executable today. The
+> collection audit below is executable ordinary Futuruna. No Experimental
+> surface here is yet a compatibility promise.
 
 The first closed plural stream is now concrete evidence rather than a design
 sketch. The four-case `relational-explore-stream-smoke.runa` run used one
@@ -47,6 +48,19 @@ explaining both interesting cases, and twelve caught-up artifacts. Its saved
 `explained_cases = 2`; and `graphs/case_graph.ndjson` closes with five state
 nodes, four universe/admitted cases, and question-specific matched layers of
 four and two cases. This is a kernel audit, not a Personskat result.
+
+The chosen-target dependency is also executable rather than sketched. The
+four-case
+[relational-explore-chosen-mechanism-smoke.runa](../relational-explore-chosen-mechanism-smoke.runa)
+result chose the two tied maximum-score cases (`before = 2` and `before = 3`),
+admitted exactly those two CaseIds into `winner_path`, and closed with one
+shared structural mechanism.
+Its downstream grouped result is exactly `{ cases: 2, mechanisms: 1 }`; all
+nine artifacts caught up at sequence 116. A focused crash test stopped after
+only the first of the two projection-backed target events and resumed to the
+same exact closure. The scheduler addresses the authenticated result projection
+incrementally by ordinal; it does not rematerialize or copy the full result
+before mechanism replay. This remains a kernel audit, not a Personskat result.
 
 The existing executable calibration uses the same underlying discipline with
 ordinary collections:
@@ -1198,12 +1212,16 @@ enumerate-everything phase.
 
 The implementation scheduler now follows that contract directly. At each
 durable base prefix it catches selected-case result evidence, post-mechanism
-incidence-result evidence and selected-mechanism target/replay work up to the
-currently known discovery ordinals, then grants one more base quantum. The
-ordinals are replay-built scheduling indexes only—CaseId remains a content
-hash and answer roots remain arrival-order independent. Exact FIND closure is
-required only to seal those downstream inputs and publish exact counts; it is
-not a gate in front of useful evidence.
+incidence-result evidence and direct FIND-target mechanism work up to the
+currently known discovery ordinals, then grants one more base quantum. Those
+consumers can stream while FIND remains open. A chosen-result mechanism target
+instead waits for its choosing result to become exact and published, then
+walks that immutable projection in bounded chunks; each target event binds its
+CaseId to the exact projection ordinal and the target seal binds the result
+root. The ordinals are replay-built scheduling indexes only—CaseId remains a
+content hash and answer roots remain arrival-order independent. Exact FIND
+closure is required only where a downstream operation actually needs an exact
+input, not as a universal gate in front of useful evidence.
 
 Execution, semantic certainty and artifact availability are orthogonal:
 
@@ -1693,10 +1711,12 @@ checked group-comparison observer. Structural-mechanism counts and optimum
 proofs therefore remain distinct even when they are published together; raw
 signature/profile counts are separately named audit measures.
 
-The currently executable relational surface spells these same dependencies as
-`results ... from selected`, `choose ...` inside a result block and
-`mechanisms ... for view ... chosen`. Those forms document implementation
-progress below; they are not mixed into the target blocks above.
+The currently executable relational surface makes the question address
+explicit: `results ... from find NAME`, `choose ...` inside a result block,
+and either `mechanisms ... from find NAME using OBSERVER` or
+`mechanisms ... from view NAME chosen using OBSERVER`. There is no ambient
+`selected` relation; `results ... from selected` is rejected and must name its
+FIND input.
 
 ### Perspective-based scenario acceptance
 

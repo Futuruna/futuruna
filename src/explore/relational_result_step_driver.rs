@@ -267,7 +267,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                     }
                 }
                 (
-                    ExploreResultInputIr::Find { find_index },
+                    ExploreResultInputIr::Find { find_index, .. },
                     input @ RelationalResolvedResultInput::Selected(question_id),
                 ) => {
                     if checked.find_question_ids().get(*find_index) != Some(&question_id) {

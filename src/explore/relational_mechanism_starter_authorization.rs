@@ -330,7 +330,7 @@ fn compatible_authorization(
     view: &ExploreResultViewIr,
     view_id: ViewId,
 ) -> Option<RelationalMechanismStarterValueAuthorization> {
-    let ExploreResultInputIr::Find { find_index } = &view.input else {
+    let ExploreResultInputIr::Find { find_index, .. } = &view.input else {
         return None;
     };
     if !matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })

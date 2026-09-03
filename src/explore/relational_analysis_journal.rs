@@ -85,7 +85,7 @@ use super::structural_mechanism::{
 };
 use super::transition::TransitionId;
 
-pub(crate) const RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION: u32 = 8;
+pub(crate) const RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION: u32 = 9;
 pub(crate) const RELATIONAL_SELECTED_QUESTION_SEAL_VERSION: u32 = 2;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_VERSION: u32 = 1;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_DEFAULT_CHUNK_BYTES: usize = 32 << 10;
@@ -93,7 +93,7 @@ pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNK_BYTES: usize = 64 << 10
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNKS: usize = 65_536;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_BYTES: usize = 512 << 20;
 
-const ANALYSIS_EVENT_HASH_V8: &[u8] = b"futuruna.explore.relational-analysis-event.v8";
+const ANALYSIS_EVENT_HASH_V9: &[u8] = b"futuruna.explore.relational-analysis-event.v9";
 const ANALYSIS_SCOPE_ROOT_HASH_V2: &[u8] = b"futuruna.explore.relational-analysis-journal-scope.v2";
 const ANALYSIS_CLOSURE_SET_ROOT_HASH_V1: &[u8] =
     b"futuruna.explore.relational-analysis-closure-set-root.v1";
@@ -831,6 +831,15 @@ pub(crate) enum RelationalAnalysisEvidenceEvent {
         request_id: MechanismRequestId,
         case_id: RelationalCaseId,
     },
+    /// One chosen target member, bound to the exact durable result-projection
+    /// record that selected it. This keeps replay validation constant-work per
+    /// accepted case instead of rematerializing the complete result view.
+    MechanismChosenTargetCaseAccepted {
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        projection_ordinal: u128,
+        case_id: RelationalCaseId,
+    },
     MechanismTargetSealedFromSelected {
         request_id: MechanismRequestId,
         question_seal_id: RelationalSelectedQuestionSealId,
@@ -1014,6 +1023,20 @@ impl RelationalAnalysisEvidenceEvent {
         }
     }
 
+    pub(crate) const fn mechanism_chosen_target_case_accepted(
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        projection_ordinal: u128,
+        case_id: RelationalCaseId,
+    ) -> Self {
+        Self::MechanismChosenTargetCaseAccepted {
+            request_id,
+            view_id,
+            projection_ordinal,
+            case_id,
+        }
+    }
+
     pub(crate) const fn mechanism_target_sealed_from_selected(
         request_id: MechanismRequestId,
         question: RelationalSelectedQuestionSeal,
@@ -1028,10 +1051,22 @@ impl RelationalAnalysisEvidenceEvent {
         request_id: MechanismRequestId,
         view: &ClosedResultView,
     ) -> Self {
+        Self::mechanism_target_sealed_from_result_claim(request_id, view.view_id(), view.root())
+    }
+
+    /// Build the same replay-validated chosen-result seal from the compact
+    /// claim retained by the published projection. Event application compares
+    /// the immutable result root and exact chosen count; each preceding target
+    /// admission independently names and validates its projection record.
+    pub(crate) const fn mechanism_target_sealed_from_result_claim(
+        request_id: MechanismRequestId,
+        view_id: ViewId,
+        result_root: ResultViewRoot,
+    ) -> Self {
         Self::MechanismTargetSealedFromResult {
             request_id,
-            view_id: view.view_id(),
-            result_root: view.root(),
+            view_id,
+            result_root,
         }
     }
 
@@ -1195,7 +1230,7 @@ impl RelationalAnalysisEvidenceEvent {
     /// independently collision-checkable; their compact header binds the full
     /// typed payload digest while their closure binds the exact chunk stream.
     pub(crate) fn digest(&self) -> RelationalAnalysisEvidenceEventDigest {
-        let mut hasher = AnalysisEventHasher::new(ANALYSIS_EVENT_HASH_V8);
+        let mut hasher = AnalysisEventHasher::new(ANALYSIS_EVENT_HASH_V9);
         hasher.u32(RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION);
         match self {
             Self::SelectedQuestionBound { seal_id, .. } => {
@@ -1292,6 +1327,18 @@ impl RelationalAnalysisEvidenceEvent {
             } => {
                 hasher.tag(0x06);
                 hasher.digest(request_id.bytes());
+                hasher.digest(case_id.bytes());
+            }
+            Self::MechanismChosenTargetCaseAccepted {
+                request_id,
+                view_id,
+                projection_ordinal,
+                case_id,
+            } => {
+                hasher.tag(0x13);
+                hasher.digest(request_id.bytes());
+                hasher.digest(view_id.bytes());
+                hasher.u128(*projection_ordinal);
                 hasher.digest(case_id.bytes());
             }
             Self::MechanismTargetSealedFromSelected {
@@ -3016,6 +3063,19 @@ impl RelationalAnalysisJournalState {
             } => self
                 .open_catalog_mut_or_error()?
                 .insert_mechanism_target_case(*request_id, *case_id)?,
+            RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+                request_id,
+                view_id,
+                projection_ordinal,
+                case_id,
+            } => self
+                .open_catalog_mut_or_error()?
+                .accept_published_chosen_target_case(
+                    *request_id,
+                    *view_id,
+                    *projection_ordinal,
+                    *case_id,
+                )?,
             RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromSelected {
                 request_id,
                 question_seal_id,
@@ -3054,27 +3114,15 @@ impl RelationalAnalysisJournalState {
                 view_id,
                 result_root,
             } => {
-                let view = self
-                    .open_catalog_or_error()?
-                    .materialize_published_result(*view_id)
-                    .map_err(|error| match error {
-                        RelationalAnalysisCatalogError::ResultNotPublished { .. } => {
-                            RelationalAnalysisJournalError::PublishedViewMissing {
-                                view_id: *view_id,
-                            }
-                        }
-                        error => RelationalAnalysisJournalError::Catalog(error),
-                    })?;
-                if view.root() != *result_root {
-                    return Err(RelationalAnalysisJournalError::EventClaimMismatch(
-                        "chosen result root",
-                    ));
-                }
                 let open = self
                     .open
                     .as_mut()
                     .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
-                open.seal_mechanism_target_from_result(*request_id, &view)?
+                open.seal_mechanism_target_from_published_result_claim(
+                    *request_id,
+                    *view_id,
+                    *result_root,
+                )?
             }
             RelationalAnalysisEvidenceEvent::MechanismArtifactOpened { header } => {
                 self.open_mechanism_artifact(*header)?;
@@ -3332,6 +3380,10 @@ impl RelationalAnalysisJournalState {
     ) -> Result<(), RelationalAnalysisJournalError> {
         let request_payload = match event {
             RelationalAnalysisEvidenceEvent::MechanismTargetCaseAccepted { request_id, .. }
+            | RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+                request_id,
+                ..
+            }
             | RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromSelected {
                 request_id,
                 ..

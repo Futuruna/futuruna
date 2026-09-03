@@ -341,8 +341,9 @@ The separated target syntax above is not yet a complete implementation claim.
 Publication v15 and report v8 execute the nested checkpoint with ordered
 `from` bindings, `transition after`, scoped `where`, zero or more
 `find NAME = all|matches|violations` declarations, explicit
-`results ... from find NAME` / `mechanisms ... from find NAME using OBSERVER`
-consumers, `observations`, `starters` and `transitions`.
+`results ... from find NAME`, `mechanisms ... from find NAME using OBSERVER`,
+and `mechanisms ... from view VIEW chosen using OBSERVER` consumers,
+`observations`, `starters` and `transitions`.
 The existing engine's `results` maps toward target `view`; embedded `choose`
 maps toward target `choice`; and `mechanisms` maps toward target `explain ...
 using`. Its placement-order dependency rule is implementation history, not the
@@ -360,13 +361,15 @@ The current concrete execution path evaluates every unique named question over
 one shared relation and admission, while identical normalized aliases reuse one
 QuestionId and predicate evaluation. Certified sweep and regional-proof
 accelerators are still exact-one and fall back to that concrete stream for
-zero/plural question sets without choosing a primary. A
-view-chosen target already has checked syntax, lowering, sealed-ViewId
-mechanism-request identity and a durable plan representation, but its
-replay/incidence scheduler remains deferred. A complete admitted mechanism
-landscape can now be another named `find NAME = all` in the same relation as a
-cliff question. These are staged implementation limits, not competing semantic
-definitions.
+zero/plural question sets without choosing a primary. A chosen-view mechanism
+target must name an earlier FIND-backed result containing `choose`. Execution
+waits for that exact result to publish, scans its authenticated projection in
+bounded resumable chunks, and admits each CaseId with its exact projection
+ordinal as durable provenance. The target seal binds the immutable result root,
+and only those chosen cases enter the ordinary bounded incidence scheduler. A
+complete admitted mechanism landscape can now be another named
+`find NAME = all` in the same relation as a cliff question. These are staged
+implementation limits, not competing semantic definitions.
 
 In the target language an `observe support` declaration addresses exactly one
 request-relative compact

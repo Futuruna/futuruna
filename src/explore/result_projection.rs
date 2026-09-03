@@ -13,7 +13,10 @@
 //! the canonical order produced by [`ClosedResultView`]; the ordinal is part
 //! of each record identity and the prefix root. Prefix hashing and resume are
 //! constant-work per record, while the defensive collision index adds a
-//! logarithmic lookup and retains deterministic replay.
+//! logarithmic lookup and retains deterministic replay. A separate
+//! process-local chosen-row index gives downstream mechanism targets O(1)
+//! addressing across group headers; replay rebuilds it, and no semantic root
+//! or snapshot contains it.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -368,6 +371,40 @@ pub(crate) struct ResultProjectionCatalogBuilder {
     root: ResultProjectionRoot,
     records: Vec<IndexedResultProjectionRecord>,
     ordinals_by_id: BTreeMap<ResultProjectionRecordId, u128>,
+    chosen_record_kind: Option<ChosenProjectionRecordKind>,
+    chosen_projection_ordinals: Vec<usize>,
+}
+
+/// The projection-record kind that carries a chosen output row for this
+/// result spec. This and the ordinal index it drives are process-local replay
+/// accelerators: snapshots, roots, and semantic identities remain unchanged.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ChosenProjectionRecordKind {
+    UngroupedRow,
+    GroupedChosenRow,
+}
+
+impl ChosenProjectionRecordKind {
+    fn from_spec(spec: &ResultViewSpec) -> Option<Self> {
+        spec.choice().map(|_| {
+            if spec.grain().is_grouped() {
+                Self::GroupedChosenRow
+            } else {
+                Self::UngroupedRow
+            }
+        })
+    }
+
+    const fn matches(self, record: &ResultProjectionRecord) -> bool {
+        matches!(
+            (self, record),
+            (Self::UngroupedRow, ResultProjectionRecord::Row(_))
+                | (
+                    Self::GroupedChosenRow,
+                    ResultProjectionRecord::ChosenRow { .. }
+                )
+        )
+    }
 }
 
 /// Process-local proof that a durable projection prefix matched one
@@ -420,6 +457,8 @@ impl ResultProjectionCatalogBuilder {
             root: projection_genesis_root(view_id, spec_root),
             records: Vec::new(),
             ordinals_by_id: BTreeMap::new(),
+            chosen_record_kind: ChosenProjectionRecordKind::from_spec(spec),
+            chosen_projection_ordinals: Vec::new(),
         })
     }
 
@@ -443,6 +482,25 @@ impl ResultProjectionCatalogBuilder {
         usize::try_from(ordinal)
             .ok()
             .and_then(|ordinal| self.records.get(ordinal))
+    }
+
+    /// Return the record carrying the zero-based Nth chosen output row in
+    /// O(1). Ungrouped choice rows address the existing record vector
+    /// directly; grouped choices use the small ordinal index to jump over
+    /// interleaved headers.
+    pub(crate) fn chosen_output_record(
+        &self,
+        chosen_ordinal: u128,
+    ) -> Option<&IndexedResultProjectionRecord> {
+        match self.chosen_record_kind? {
+            ChosenProjectionRecordKind::UngroupedRow => self
+                .record(chosen_ordinal)
+                .filter(|record| matches!(record.record(), ResultProjectionRecord::Row(_))),
+            ChosenProjectionRecordKind::GroupedChosenRow => usize::try_from(chosen_ordinal)
+                .ok()
+                .and_then(|ordinal| self.chosen_projection_ordinals.get(ordinal))
+                .and_then(|ordinal| self.records.get(*ordinal)),
+        }
     }
 
     pub(crate) fn records(&self) -> impl Iterator<Item = &IndexedResultProjectionRecord> + '_ {
@@ -524,8 +582,9 @@ impl ResultProjectionCatalogBuilder {
     }
 
     /// Consume this projection prefix into its canonical checkpoint. The
-    /// identity-to-ordinal map is a replay accelerator rather than snapshot
-    /// evidence, so terminal assembly moves the record vector directly.
+    /// identity and chosen-output ordinal indexes are replay accelerators
+    /// rather than snapshot evidence, so terminal assembly moves the record
+    /// vector directly.
     pub(crate) fn into_snapshot(self) -> ResultProjectionSnapshot {
         let Self {
             view_id,
@@ -533,8 +592,10 @@ impl ResultProjectionCatalogBuilder {
             root,
             records,
             ordinals_by_id,
+            chosen_record_kind: _,
+            chosen_projection_ordinals,
         } = self;
-        drop(ordinals_by_id);
+        drop((ordinals_by_id, chosen_projection_ordinals));
         ResultProjectionSnapshot {
             version: RESULT_PROJECTION_SNAPSHOT_VERSION,
             view_id,
@@ -601,8 +662,15 @@ impl ResultProjectionCatalogBuilder {
         }
 
         let next_root = extend_projection_root(self.root, &indexed);
+        let index_chosen_output = self.chosen_record_kind.is_some_and(|kind| {
+            kind == ChosenProjectionRecordKind::GroupedChosenRow && kind.matches(indexed.record())
+        });
+        let projection_ordinal = self.records.len();
         self.ordinals_by_id.insert(indexed.id, indexed.ordinal);
         self.records.push(indexed);
+        if index_chosen_output {
+            self.chosen_projection_ordinals.push(projection_ordinal);
+        }
         self.root = next_root;
         Ok(true)
     }

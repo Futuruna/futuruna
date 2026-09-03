@@ -227,8 +227,13 @@ pub enum ExploreResultInputIr {
     /// admission, and FIND progress.
     Sources,
     /// Cases admitted and classified by one explicitly addressed FIND
-    /// question. The positional reference is closed during type checking.
-    Find { find_index: usize },
+    /// question. The positional reference is closed during type checking;
+    /// the authored name remains presentation metadata and never enters the
+    /// semantic [`super::ViewId`].
+    Find {
+        find_name: String,
+        find_index: usize,
+    },
     /// Incidences produced by one strictly earlier mechanism node.
     MechanismIncidence { request_node_index: usize },
 }
@@ -743,11 +748,20 @@ impl ExploreQueryIr {
         node_index: usize,
     ) -> Result<(), String> {
         match &view.input {
-            ExploreResultInputIr::Find { find_index } => {
-                if *find_index >= self.finds.len() {
+            ExploreResultInputIr::Find {
+                find_name,
+                find_index,
+            } => {
+                let Some(find) = self.finds.get(*find_index) else {
                     return Err(format!(
                         "result view `{}` consumes absent FIND question index {}",
                         view.name, find_index
+                    ));
+                };
+                if find.name != *find_name {
+                    return Err(format!(
+                        "result view `{}` addresses FIND `{find_name}` but index {find_index} resolves `{}`",
+                        view.name, find.name
                     ));
                 }
             }

@@ -1053,7 +1053,7 @@ impl MechanismIncidenceCatalogBuilder {
         )
     }
 
-    /// Close a `for view NAME chosen` target from an immutable exact result
+    /// Close a `from view NAME chosen` target from an immutable exact result
     /// view. Only a chosen selected-case view can denote the requested CaseId
     /// set; aggregate-only or incidence output fails closed.
     pub(crate) fn seal_chosen_view_target(
@@ -1076,6 +1076,39 @@ impl MechanismIncidenceCatalogBuilder {
                 root: view.root(),
             },
             exact,
+        )
+    }
+
+    /// Close a `from view NAME chosen` target from a compact claim already
+    /// authenticated by the owning analysis catalog. Every local target case
+    /// must have entered through that catalog's projection-provenance check;
+    /// this boundary independently checks the resolved view and exact chosen
+    /// cardinality before committing the accumulated canonical CaseId set.
+    pub(crate) fn seal_chosen_view_target_commitment(
+        &mut self,
+        view_id: ViewId,
+        result_root: ResultViewRoot,
+        exact_cardinality: u128,
+    ) -> Result<bool, MechanismIncidenceError> {
+        let MechanismTargetId::ChosenView(expected_view_id) = self.scope.target else {
+            return Err(MechanismIncidenceError::TargetScopeMismatch);
+        };
+        if view_id != expected_view_id {
+            return Err(MechanismIncidenceError::ChosenViewScopeMismatch {
+                expected: expected_view_id,
+                actual: view_id,
+            });
+        }
+        let target = MechanismTargetCaseSetCommitment::from_canonical_cases(&self.target_cases);
+        if target.count() != exact_cardinality {
+            return Err(MechanismIncidenceError::TargetSealCaseSetMismatch);
+        }
+        self.install_prechecked_target_seal(
+            MechanismTargetSealUpstream::ChosenResultView {
+                view_id,
+                root: result_root,
+            },
+            target,
         )
     }
 
@@ -1111,6 +1144,13 @@ impl MechanismIncidenceCatalogBuilder {
 
     pub(crate) fn target_discovery_at(&self, ordinal: usize) -> Option<RelationalCaseId> {
         self.target_discovery_order.get(ordinal).copied()
+    }
+
+    /// Borrow target members in their durable discovery order starting at an
+    /// invocation-local cursor.  This order is operational only; the sealed
+    /// target set and incidence root remain canonical by CaseId.
+    pub(crate) fn target_discovery_suffix(&self, from_ordinal: usize) -> &[RelationalCaseId] {
+        &self.target_discovery_order[from_ordinal..]
     }
 
     pub(crate) fn target_discovery_prefix_revision(

@@ -7226,7 +7226,11 @@ fn lower_result_view(view: &TypedExploreResultView, node_index: usize) -> Explor
         name: view.name.clone(),
         input: match &view.input {
             TypedExploreResultInput::Sources => ExploreResultInputIr::Sources,
-            TypedExploreResultInput::Find { find_index, .. } => ExploreResultInputIr::Find {
+            TypedExploreResultInput::Find {
+                find_name,
+                find_index,
+            } => ExploreResultInputIr::Find {
+                find_name: find_name.clone(),
                 find_index: *find_index,
             },
             TypedExploreResultInput::MechanismIncidence {

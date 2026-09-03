@@ -8,7 +8,8 @@ workbook sharpens the intended authoring surface and turns it into the shortest
 coherent implementation path. The exact target spellings below are steering
 syntax. The current parser now accepts `from { given/vary/let }`,
 `transition after`, zero or more named `find` questions, and explicit named
-question inputs for `results` and `mechanisms`. Its scoped `where` plus
+question inputs for `results` and `mechanisms`, including an exact chosen result
+as a mechanism target. Its scoped `where` plus
 publication-v15 `results`/`mechanisms`/`observations`/`starters` and
 `transitions` forms remain transitional implementation spellings that lower
 toward this model.
@@ -207,8 +208,9 @@ token shown. The implementation now accepts `given`, `vary`, `let`,
 `transition after`, and zero or more named finds directly. It spells `admit`
 as scoped `where`, `view` as in-query `results`, `choice` as `choose` inside a
 result, `explain` as `mechanisms`, and publication readers as trailing in-query
-declarations. Every result and mechanism consumer names its find explicitly;
-there is no implicit selected question. First-class `derive`, `ChoiceId`,
+declarations. Result consumers and direct mechanism consumers name their find
+explicitly; a mechanism may instead name an earlier FIND-backed result's exact
+chosen cases. There is no implicit selected question. First-class `derive`, `ChoiceId`,
 separate `? analyze`, and separate `? publish` remain the target.
 New examples should use one surface intentionally and label transitional files
 as such; they must never imply two supported public grammars.
@@ -1099,11 +1101,13 @@ The frontier tracks:
 
 A discovered prefix, source row or case publishes an immutable readiness token.
 Downstream work depends on that token, not on completion of the producer that
-yielded it. The unified scheduler now catches selected-result and
-selected-mechanism work up to the current authenticated prefix before granting
-one more base quantum. Result specs/evidence and mechanism target/replay events
+yielded it. The unified scheduler now catches selected-result and direct
+FIND-target mechanism work up to the current authenticated prefix before granting
+one more base quantum. Their result evidence and mechanism target/replay events
 therefore appear while FIND is open; only input/target seals, publications and
-global closure wait for exact FIND closure. One quirky profile case may be
+global closure wait for exact FIND closure. A chosen-view mechanism target is
+different: it waits for the exact choosing result to publish before admitting
+its winners in bounded resumable chunks. One quirky profile case may be
 admitted, selected, shown and replayed while the same source or successor
 enumerator continues finding other cases.
 
@@ -1232,10 +1236,15 @@ artifacts. The
 first proof-bearing case-image artifact now installs
 root injectivity and optional exact cardinality atomically, with checked durable
 restoration and proper-prefix recovery for both resolver completions; positive
-weighted SupportCells still cannot feed result reducers, and chosen-view
-mechanisms remain deferred. The unified
-scheduler now joins readiness-driven selected results, mechanism-incidence
-results, selected-target replay and base enumeration. The production checked
+weighted SupportCells still cannot feed result reducers. Exact FIND-backed
+chosen-view mechanisms now wait for the result publication, admit its chosen
+CaseIds from authenticated projection ordinals in bounded resumable chunks,
+and seal against that result root. This avoids rebuilding or copying the full
+result during downstream scheduling. A replay-built operational chosen-output
+index jumps over grouped headers in O(1) per chosen row and remains outside
+snapshots and semantic identity. The unified scheduler now joins
+readiness-driven selected results, mechanism-incidence results, selected-target
+replay and base enumeration. The production checked
 interpreter supplies fresh Before/After rule and branch traces from the
 artifact-owned program snapshot. Mechanism traces now cross the durable store
 as bounded, prefix-resumable artifacts with checked private restoration.

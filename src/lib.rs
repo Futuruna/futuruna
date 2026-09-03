@@ -39567,7 +39567,7 @@ fn checked_explore_analysis_identities(
                     explore::ExploreResultInputIr::Sources => {
                         explore::ViewInputId::Sources(relation_id)
                     }
-                    explore::ExploreResultInputIr::Find { find_index } => {
+                    explore::ExploreResultInputIr::Find { find_index, .. } => {
                         let question_id = find_question_ids.get(*find_index).copied().ok_or_else(
                             || {
                                 CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
@@ -39671,7 +39671,7 @@ fn checked_explore_analysis_identities(
                         let find_index = match query.analysis.get(*view_node_index) {
                             Some(explore::ExploreAnalysisNodeIr::Result(
                                 explore::ExploreResultViewIr {
-                                    input: explore::ExploreResultInputIr::Find { find_index },
+                                    input: explore::ExploreResultInputIr::Find { find_index, .. },
                                     ..
                                 },
                             )) => *find_index,
@@ -57393,6 +57393,10 @@ mod tests {
     find increases = matches of after > before
     find unchanged = matches of after == before
     find increases_alias = matches of after > before
+    results alias_rows from find increases_alias {
+        each case
+        select [before]
+    }
 }
 "#;
         let artifacts = explore_artifacts_for_source(source);
@@ -57421,6 +57425,60 @@ mod tests {
         assert_eq!(checked.question_ids().len(), 2);
         assert!(checked.question_ids().contains(&aligned[0]));
         assert!(checked.question_ids().contains(&aligned[1]));
+        let [explore::ExploreAnalysisNodeIr::Result(alias_rows)] =
+            checked.closed_query.analysis.as_ref()
+        else {
+            panic!("expected the one authored result consumer")
+        };
+        assert!(matches!(
+            &alias_rows.input,
+            explore::ExploreResultInputIr::Find {
+                find_name,
+                find_index: 2,
+            } if find_name == "increases_alias"
+        ));
+        let [CheckedExploreAnalysisIdentity::View {
+            view_id: alias_view_id,
+        }] = checked.artifact.analysis.as_ref()
+        else {
+            panic!("expected the result view identity")
+        };
+
+        let direct_source = source.replace(
+            "results alias_rows from find increases_alias",
+            "results alias_rows from find increases",
+        );
+        let direct_artifacts = explore_artifacts_for_source(&direct_source);
+        assert!(
+            direct_artifacts.diagnostics.is_empty(),
+            "unexpected direct-address diagnostics: {:?}",
+            direct_artifacts.diagnostics
+        );
+        let direct = direct_artifacts
+            .checked_exploration_query(0)
+            .expect("checked direct-address query");
+        let [explore::ExploreAnalysisNodeIr::Result(direct_rows)] =
+            direct.closed_query.analysis.as_ref()
+        else {
+            panic!("expected the direct result consumer")
+        };
+        assert!(matches!(
+            &direct_rows.input,
+            explore::ExploreResultInputIr::Find {
+                find_name,
+                find_index: 0,
+            } if find_name == "increases"
+        ));
+        let [CheckedExploreAnalysisIdentity::View {
+            view_id: direct_view_id,
+        }] = direct.artifact.analysis.as_ref()
+        else {
+            panic!("expected the direct result view identity")
+        };
+        assert_eq!(
+            alias_view_id, direct_view_id,
+            "authored FIND aliases address one semantic result input"
+        );
     }
 
     #[test]

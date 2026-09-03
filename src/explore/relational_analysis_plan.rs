@@ -447,7 +447,7 @@ fn build_result_registration(
 ) -> Result<RelationalAnalysisLayerRegistration, RelationalAnalysisPlanError> {
     let input = match &view.input {
         ExploreResultInputIr::Sources => RelationalResolvedResultInput::Sources(relation_id),
-        ExploreResultInputIr::Find { find_index } => RelationalResolvedResultInput::Selected(
+        ExploreResultInputIr::Find { find_index, .. } => RelationalResolvedResultInput::Selected(
             find_question_ids.get(*find_index).copied().ok_or(
                 RelationalAnalysisPlanError::UnknownFindIndex {
                     node_index,

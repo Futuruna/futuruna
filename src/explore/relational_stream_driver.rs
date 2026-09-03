@@ -953,7 +953,7 @@ impl<'query> RelationalStreamDriver<'query> {
                     },
                 ));
             }
-            RelationalMechanismStepQuiescence::DeferredChosenView {
+            RelationalMechanismStepQuiescence::AwaitingChosenView {
                 request_id,
                 view_id,
             } => {
@@ -973,7 +973,7 @@ impl<'query> RelationalStreamDriver<'query> {
             RelationalMechanismStepQuiescence::AnalysisAlreadyClosed => {
                 return Ok(RelationalStreamStepOutcome::Complete);
             }
-            RelationalMechanismStepQuiescence::SelectedMechanismsComplete => {}
+            RelationalMechanismStepQuiescence::MechanismsComplete => {}
         }
 
         if let RelationalResultStepQuiescence::AwaitingSourceMaterialization { view_id } =

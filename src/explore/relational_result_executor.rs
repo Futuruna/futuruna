@@ -1506,7 +1506,10 @@ mod tests {
         let view = ExploreResultViewIr {
             node_index: 0,
             name: "lowest_tax".to_string(),
-            input: ExploreResultInputIr::Find { find_index: 0 },
+            input: ExploreResultInputIr::Find {
+                find_name: "all_cases".into(),
+                find_index: 0,
+            },
             grain: ExploreResultGrainIr::GroupAll {
                 span: Span::dummy(),
             },

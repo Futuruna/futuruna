@@ -146,7 +146,7 @@ use super::structural_mechanism::{
     STRUCTURAL_DEFINITION_CATALOG_VERSION, STRUCTURAL_MECHANISM_QUOTIENT_VERSION,
 };
 use super::{
-    ExploreValue, MechanismRequestId, MechanismTargetId, QuestionId, RelationalCaseId,
+    ExploreValue, MechanismRequestId, MechanismTargetId, QuestionId, RelationId, RelationalCaseId,
     RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
 };
 
@@ -314,18 +314,23 @@ enum ResultPublicationSource {
 /// results need the request identity at publication time so a closed
 /// projection over successful incidences cannot erase permanently unavailable
 /// target cases from its public certainty.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum ResultPublicationInput {
     Sources,
-    Find { question_id: QuestionId },
-    MechanismIncidence { request_id: MechanismRequestId },
+    Find {
+        question_id: QuestionId,
+        authored_name: Box<str>,
+    },
+    MechanismIncidence {
+        request_id: MechanismRequestId,
+    },
 }
 
 impl ResultPublicationInput {
-    const fn mechanism_request_id(self) -> Option<MechanismRequestId> {
+    const fn mechanism_request_id(&self) -> Option<MechanismRequestId> {
         match self {
             Self::Sources | Self::Find { .. } => None,
-            Self::MechanismIncidence { request_id } => Some(request_id),
+            Self::MechanismIncidence { request_id } => Some(*request_id),
         }
     }
 }
@@ -699,11 +704,25 @@ impl RelationalPublicationPlan {
                 ) => {
                     let input = match &view.input {
                         ExploreResultInputIr::Sources => ResultPublicationInput::Sources,
-                        ExploreResultInputIr::Find { find_index } => {
+                        ExploreResultInputIr::Find {
+                            find_name,
+                            find_index,
+                        } => {
+                            let find = checked
+                                .closed_query
+                                .finds
+                                .get(*find_index)
+                                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                            if find.name != *find_name {
+                                return Err(RelationalPublicationError::PlanIdentityMismatch);
+                            }
                             let question_id = checked
                                 .find_question_id(*find_index)
                                 .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
-                            ResultPublicationInput::Find { question_id }
+                            ResultPublicationInput::Find {
+                                question_id,
+                                authored_name: find_name.as_str().into(),
+                            }
                         }
                         super::relational_ir::ExploreResultInputIr::MechanismIncidence {
                             request_node_index,
@@ -727,7 +746,7 @@ impl RelationalPublicationPlan {
                     // declared, publication conservatively waits for the
                     // durable projection instead of rediscovering staging or
                     // switching source order after emitting an open prefix.
-                    let source = if matches!(input, ResultPublicationInput::Find { .. })
+                    let source = if matches!(&input, ResultPublicationInput::Find { .. })
                         && matches!(view.grain, ExploreResultGrainIr::EachCase { .. })
                         && view.choose.is_none()
                         && view.aggregates.is_empty()
@@ -1156,7 +1175,28 @@ fn artifact_presentation_digest(
         digest.text(b"target-kind", "none");
     }
     match artifact {
-        PublicationArtifactPlan::Result { select_names, .. } => {
+        PublicationArtifactPlan::Result {
+            input,
+            select_names,
+            ..
+        } => {
+            match input {
+                ResultPublicationInput::Sources => {
+                    digest.text(b"result-input-kind", "sources");
+                }
+                ResultPublicationInput::Find {
+                    question_id,
+                    authored_name,
+                } => {
+                    digest.text(b"result-input-kind", "find");
+                    digest.text(b"result-input-name", authored_name);
+                    digest.bytes(b"result-input-question-id", &question_id.bytes());
+                }
+                ResultPublicationInput::MechanismIncidence { request_id } => {
+                    digest.text(b"result-input-kind", "mechanism-incidence");
+                    digest.bytes(b"result-input-request-id", &request_id.bytes());
+                }
+            }
             digest.count(b"select-name-count", select_names.len());
             for (ordinal, name) in select_names.iter().enumerate() {
                 digest.count(b"select-name-ordinal", ordinal);
@@ -1303,7 +1343,7 @@ fn checked_mechanism_target_at(
             else {
                 return Err(RelationalPublicationError::PlanIdentityMismatch);
             };
-            let ExploreResultInputIr::Find { find_index } = &view.input else {
+            let ExploreResultInputIr::Find { find_index, .. } = &view.input else {
                 return Err(RelationalPublicationError::PlanIdentityMismatch);
             };
             let question_id = checked
@@ -1365,7 +1405,7 @@ fn checked_case_id_publication_authorization(
             };
             (matches!(
                 &view.input,
-                ExploreResultInputIr::Find { find_index }
+                ExploreResultInputIr::Find { find_index, .. }
                     if checked.find_question_id(*find_index) == Some(question_id)
             ) && matches!(&view.grain, ExploreResultGrainIr::EachCase { .. })
                 && view.aggregates.is_empty()
@@ -4179,7 +4219,7 @@ fn record_at(
                 view_id,
                 select_names,
                 source: ResultPublicationSource::EarlyEachCase,
-                input: ResultPublicationInput::Find { question_id },
+                input: ResultPublicationInput::Find { question_id, .. },
                 ..
             },
             ArtifactSourceCursor::Flat {
@@ -6163,6 +6203,27 @@ fn public_mechanism_target_id(target: &PublicationMechanismTarget) -> JsonValue 
     }
 }
 
+fn public_result_input(input: &ResultPublicationInput, relation_id: RelationId) -> JsonValue {
+    match input {
+        ResultPublicationInput::Sources => json!({
+            "kind": "sources",
+            "relation_id": hex(relation_id.bytes()),
+        }),
+        ResultPublicationInput::Find {
+            question_id,
+            authored_name,
+        } => json!({
+            "kind": "find",
+            "name": authored_name,
+            "question_id": hex(question_id.bytes()),
+        }),
+        ResultPublicationInput::MechanismIncidence { request_id } => json!({
+            "kind": "mechanism_incidence",
+            "request_id": hex(request_id.bytes()),
+        }),
+    }
+}
+
 fn case_support_record(
     artifact: &PublicationArtifactPlan,
     projection: Option<&PublicationCaseSupportProjection<'_>>,
@@ -7032,7 +7093,7 @@ fn public_case_support_frontier(frontier: RelationalCaseSupportProjectionFrontie
 
 fn mechanism_result_input_coverage(
     journal: &RelationalJournal,
-    input: ResultPublicationInput,
+    input: &ResultPublicationInput,
 ) -> Result<Option<MechanismResultInputCoverage>, RelationalPublicationError> {
     let Some(request_id) = input.mechanism_request_id() else {
         return Ok(None);
@@ -9364,22 +9425,9 @@ fn build_manifest(
             if let PublicationArtifactPlan::Result { input, .. } = artifact {
                 object.insert(
                     "input".into(),
-                    match input {
-                        ResultPublicationInput::Sources => json!({
-                            "kind": "sources",
-                            "relation_id": hex(plan.contract.relation_id().bytes()),
-                        }),
-                        ResultPublicationInput::Find { question_id } => json!({
-                            "kind": "find",
-                            "question_id": hex(question_id.bytes()),
-                        }),
-                        ResultPublicationInput::MechanismIncidence { request_id } => json!({
-                            "kind": "mechanism_incidence",
-                            "request_id": hex(request_id.bytes()),
-                        }),
-                    },
+                    public_result_input(input, plan.contract.relation_id()),
                 );
-                if let Some(coverage) = mechanism_result_input_coverage(journal, *input)? {
+                if let Some(coverage) = mechanism_result_input_coverage(journal, input)? {
                     object.insert(
                         "input_frontier".into(),
                         JsonValue::String(coverage.certainty_frontier().into()),
@@ -10063,7 +10111,7 @@ fn available_source_record_count(
     match artifact {
         PublicationArtifactPlan::Result {
             source: ResultPublicationSource::EarlyEachCase,
-            input: ResultPublicationInput::Find { question_id },
+            input: ResultPublicationInput::Find { question_id, .. },
             ..
         } => Ok(Some(
             journal
@@ -11865,6 +11913,70 @@ mod tests {
         }
     }
 
+    fn result_alias_presentation_test_plan(input_find_name: &str) -> RelationalPublicationPlan {
+        let relation_id = super::super::RelationId::from_canonical_semantic_preimage(b"relation");
+        let admission_id =
+            super::super::AdmissionId::from_canonical_admission_preimage(relation_id, b"admission");
+        let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
+        let schemas = TransitionSchemaIdentities::derive_checked_relational(
+            &Ty::Unit,
+            &Ty::Unit,
+            &BTreeMap::new(),
+        )
+        .expect("derive test schemas");
+        let contract = RelationalJournalContract::new(
+            relation_id,
+            admission_id,
+            [question_id],
+            schemas.state_schema_id(),
+            schemas.context_schema_id(),
+            schemas.transition_type_id(),
+            [0x31; 32],
+        );
+        let finds = vec![
+            PublicationFindPlan {
+                name: "increases".into(),
+                question_id,
+            },
+            PublicationFindPlan {
+                name: "increases_alias".into(),
+                question_id,
+            },
+        ]
+        .into_boxed_slice();
+        let view_id = ViewId::from_journal_codec_bytes([0x41; 32]);
+        let artifacts = vec![PublicationArtifactPlan::Result {
+            key: format!("view:{}", hex(view_id.bytes())).into_boxed_str(),
+            name: "rows".into(),
+            path: PathBuf::from("views/rows.ndjson"),
+            view_id,
+            select_names: vec!["before".into()].into_boxed_slice(),
+            source: ResultPublicationSource::EarlyEachCase,
+            input: ResultPublicationInput::Find {
+                question_id,
+                authored_name: input_find_name.into(),
+            },
+        }]
+        .into_boxed_slice();
+        let query_name: Box<str> = "result_alias_presentation".into();
+        let presentation_plan_digest =
+            derive_publication_presentation_plan_digest(&query_name, &finds, &artifacts)
+                .expect("derive presentation plan digest");
+        RelationalPublicationPlan {
+            query_name,
+            checked_program: "11".repeat(32).into_boxed_str(),
+            presentation_plan_digest,
+            journal_id: contract.id().bytes(),
+            contract,
+            source_coverage_manifest_digest: [0x51; 32],
+            support_observation_demand_set_id: [0x61; 32],
+            starter_consumer_set_id: [0x71; 32],
+            transition_graph_consumer_set_id: [0x81; 32],
+            finds,
+            artifacts,
+        }
+    }
+
     #[cfg(unix)]
     #[test]
     fn publication_cursor_binds_find_and_mechanism_target_addresses_but_allows_fresh_output() {
@@ -11930,6 +12042,77 @@ mod tests {
         )
         .expect("renamed presentation is valid in fresh output");
         validate_cursor_plan(&fresh_cursor, &renamed).expect("validate fresh renamed cursor");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn result_find_alias_is_visible_and_bound_into_publication_resume_identity() {
+        let direct = result_alias_presentation_test_plan("increases");
+        let alias = result_alias_presentation_test_plan("increases_alias");
+        assert_eq!(direct.journal_id(), alias.journal_id());
+        assert_eq!(direct.artifacts[0].key(), alias.artifacts[0].key());
+        assert_ne!(
+            artifact_presentation_digest(&direct.artifacts[0]).expect("direct result presentation"),
+            artifact_presentation_digest(&alias.artifacts[0]).expect("alias result presentation"),
+            "the authored FIND input is part of the result artifact presentation identity"
+        );
+        assert_ne!(
+            direct.presentation_plan_digest(),
+            alias.presentation_plan_digest(),
+            "switching between semantic FIND aliases changes the immutable public plan"
+        );
+
+        let PublicationArtifactPlan::Result {
+            input: direct_input,
+            ..
+        } = &direct.artifacts[0]
+        else {
+            panic!("test plan must contain one result artifact")
+        };
+        let PublicationArtifactPlan::Result {
+            input: alias_input, ..
+        } = &alias.artifacts[0]
+        else {
+            panic!("test plan must contain one result artifact")
+        };
+        assert_eq!(
+            public_result_input(direct_input, direct.contract.relation_id()),
+            json!({
+                "kind": "find",
+                "name": "increases",
+                "question_id": "21".repeat(32),
+            })
+        );
+        assert_eq!(
+            public_result_input(alias_input, alias.contract.relation_id()),
+            json!({
+                "kind": "find",
+                "name": "increases_alias",
+                "question_id": "21".repeat(32),
+            })
+        );
+
+        let current = RelationalPublicationCheckpoint::new(0, [0x91; 32]);
+        let output = PermissionTestDirectory::new();
+        let cursor_path = output.path().join(CURSOR_FILE);
+        load_or_create_cursor(
+            &cursor_path,
+            output.path(),
+            &direct,
+            current,
+            RelationalPublicationLimits::default(),
+        )
+        .expect("install direct-alias publication cursor");
+        assert!(matches!(
+            load_or_create_cursor(
+                &cursor_path,
+                output.path(),
+                &alias,
+                current,
+                RelationalPublicationLimits::default(),
+            ),
+            Err(RelationalPublicationError::CursorIdentityMismatch)
+        ));
     }
 
     #[test]
