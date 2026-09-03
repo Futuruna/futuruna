@@ -185,11 +185,16 @@ and profile counts are available in the run report and structural artifacts,
 but authored result expressions over the two quotient IDs remain an
 implementation target.
 
-The current first execution path supports selected and chosen-view targets.
-Until the admission-scoped target seal and admitted-case materializer land, a
-separate `find all` question is the exact executable spelling for a complete
-admitted mechanism landscape because `S_Q = D_A` in that query. This is a
-staged implementation limit, not a competing semantic definition.
+The current first execution path supports `selected` targets. A `view NAME
+chosen` target already has checked syntax, lowering, sealed-`ViewId`
+mechanism-request identity and a durable plan representation, but its
+replay/incidence scheduler path remains deferred. The chosen-view semantics in
+this RFC are therefore the implementation target, not a claim of current
+end-to-end execution. Until the admission-scoped target seal and admitted-case
+materializer land, a separate `find all` question is the exact executable
+spelling for a complete admitted mechanism landscape because `S_Q = D_A` in
+that query. These are staged implementation limits, not competing semantic
+definitions.
 
 The grammar is intentionally one language, not a compatibility adapter:
 
@@ -216,15 +221,60 @@ SQL `LATERAL`. Each expression may refer only to earlier bindings. Auxiliary
 bindings are authenticated producer lineage, not hidden case-identity fields.
 Alpha-renaming a resolved local binder does not change semantics.
 
+Global parsing, type checking and checked name/type resolution precede query
+selection; a failure in those program-wide authorities is global. Successful
+checking eagerly creates one lightweight artifact slot per named query, and
+the caller selects a slot by query name before any request-scoped proof is
+attempted. Access to the selected slot then lazily materializes that query's
+expensive checked artifact, identity ladder and, when it is mechanism-bearing,
+endpoint-totality certificates. A query-local artifact or certificate failure
+is retained on that slot and does not poison a valid sibling slot, although
+selecting the failed slot reports its failure. This ordering avoids proving
+every query merely to select one without weakening global program checking.
+
 A mechanism observer has checked shape `(State, Context) -> Observation`.
-Static totality proof is sufficient but not required: over a finite closed
-target, one complete fresh replay at every Before and After endpoint is also a
-definedness witness. A failed deterministic replay becomes a typed unavailable
-terminal. Invocation time, cancellation and host-resource pauses remain open;
-a fixed replay-ABI evaluation or trace capacity is instead typed unavailable,
-because retrying the same ABI cannot cross the same deterministic boundary.
-Mechanism and downstream result certainty MUST degrade whenever any target
-lacks a complete signature.
+Before a mechanism-bearing run-state journal is created, or an existing
+journal is resumed to execute mechanism work, every mechanism request MUST
+carry a query-relative, request-scoped endpoint-totality certificate. The query
+supplies the domain and the request supplies the observer: the certificate
+proves that the observer returns an `Observation` independently at every exact
+Before endpoint and every `to`-derived exact After endpoint. It may establish
+that claim over sound finite over-approximations of the Before and After
+endpoint marginals induced by the query's exact bounded `from`/`to` relation—for
+example, separate State and Context marginals whose Cartesian product contains
+the correlated endpoint population. The `RelationId` retains the exact
+correlated `(Context, Before)` starter relation and its conditional successor
+fibers; the certificate instead commits the possibly larger Before and After
+proof-marginal roots. This is a stronger totality claim, but those roots are not
+mislabeled as an exact starter-support projection or successor materialization.
+It is not a universal proof over every theoretical value of `State` or
+`Context`, and it need not enumerate the endpoints. Admission, `find` and
+chosen-view processing only narrow this proved domain; none is allowed to
+broaden it.
+
+The certificate follows the exact checked observer call and rule closure. It
+MUST discharge every reachable partiality obligation, including partial
+dispatch, integer overflow, zero division, effects, recursion and unresolved
+calls. Failure to prove one of those obligations rejects the checked execution
+plan before journal genesis or resume; it is not a replay-unavailable result.
+Fresh replay remains the sole source of concrete endpoint traces and
+signatures, but replay is never a definedness witness and is not an alternate
+route to totality.
+
+After a valid certificate has authorized the canonical evaluator, failure of
+the observer's certified language semantics at an endpoint inside the
+certified domain is an integrity failure: the invocation MUST reject the replay
+event and make no exact downstream mechanism claim. The durable journal remains
+unchanged at its preceding valid head and therefore resumable after the
+implementation defect is corrected; no poisoned semantic event is appended.
+The invocation MUST NOT recast that failure as an ordinary unavailable
+signature. Invocation time, cancellation and transient host CPU or memory
+pressure instead leave the work frontier open and may pause the run. A
+deterministic operational boundary of the replay ABI, such as unsupported
+instrumentation or a fixed evaluator-step, trace or event capacity, MAY close
+that replay obligation with a typed unavailable terminal. Such an operational
+terminal still degrades mechanism and downstream result certainty whenever the
+target then lacks a complete signature.
 
 An exact-finite producer may be a list, end-exclusive range, finite enum,
 dependent join, indexed relation or certified symbolic cell. Its checked
@@ -311,10 +361,14 @@ Source and successor collections have set semantics. Equal canonical
 values under one source do the same. Producer-path counts remain useful
 diagnostics, but they are not case counts.
 
-`S(q,m)` is the complete case-support fiber, `P(q,m)` is its distinct starter
-support and `A(q,m,s)` is the dependent successor fiber at starter `s`.
-Projection can collapse several supported cases onto one starter, so these
-populations have separate closure and count evidence. In particular,
+`S(q,m)` is the complete correlated case-support relation over source and
+successor coordinates, `P(q,m)` is only its distinct `(Context, Before)`
+starter-set projection, and `A(q,m,s)` is the dependent After-successor fiber
+beneath one starter `s`. `S` therefore retains the correlation which `P`
+deliberately projects away; `A` is a fiber of `S`, not an independently widened
+After marginal. Projection can collapse several supported cases onto one
+starter, so these populations have separate closure and count evidence. In
+particular,
 `|S(q,m)| = sum(s in P(q,m), |A(q,m,s)|)`; neither a starter count nor marginal
 field bounds can be substituted for the case count.
 
@@ -371,13 +425,39 @@ The following layers MUST remain distinct:
   canonical endpoint observer, reachable dependency closure and signature
   normalization. A view-chosen target seals the resolved `ViewId`.
 
+**`EndpointTotalityCertificateId`**
+: Evidence-authorization identity of one request's checked endpoint-totality
+  proof. It binds the certificate-schema version, `MechanismRequestId`,
+  `RelationId`, Before and After marginal-overapproximation roots, canonical
+  abstract-proof root and checked obligation count. `RelationId` retains the
+  exact correlated relation semantics; the request ID transitively seals the
+  observer call/rule closure. The certificate does not rename that semantic
+  request identity.
+
 **Durable-evidence identity**
 : Immutable relation, admission, question, requested view/mechanism DAG,
-  evaluator, retention authorization and journal/serialization contracts.
+  endpoint-totality authorization set sealed by the checked analysis graph and
+  transitively by the analysis-plan root, evaluator, retention authorization
+  and journal/serialization contracts.
 
 **Operational records**
 : Run-state path, worker count, time and resource limits, scheduler decisions,
   pressure events, pauses and resumes. They never redefine the bounded question.
+
+The selected mechanism-bearing query MUST seal the canonical sorted set of
+`(MechanismRequestId, EndpointTotalityCertificateId)` pairs in its checked
+analysis graph, and its `RelationalAnalysisPlanRoot` MUST commit that graph.
+The journal contract stores the checked analysis-graph digest. Genesis commits
+the journal-contract ID, and therefore transitively the graph, request and
+certificate identities; it does not directly commit the plan root. The first
+semantic event registers the complete plan and its root. Resume MUST revalidate
+the journal contract and registered plan/root before accepting or scheduling
+further work; a missing, invalid or mismatched certificate fails before replay
+rather than being reconstructed from prior runtime successes. Operational
+limits and scheduler policy remain outside these semantic identities. This gate
+sits after query selection, target, `ViewId`, `MechanismRequestId` and
+observer-closure resolution, but before replay and scheduler execution; it adds
+no field to raw signatures or structural mechanism identity.
 
 Query, view and mechanism request names are unique source addresses, not
 semantic hash inputs. Renaming a node and updating its references preserves its
@@ -454,7 +534,7 @@ depend on quotient assignment and closure. Before any confirmed replay evidence
 the honest value at each grain may be unknown rather than zero.
 
 For a mechanism request, successful replay defines a partial explanation map
-`mu: target cases -> signature`. The support fiber of signature `m` is
+`mu: target cases -> signature`. The case-support fiber of signature `m` is
 `S_m = { case | mu(case) = m }`. One confirmed incidence proves
 `lower_bound(1)` for that fiber; `exact(1)` additionally requires every target
 case or certified weighted cell to be terminal and no second member of `S_m`.
@@ -485,11 +565,11 @@ is therefore scoped by the mechanism request and raw signature or structural
 subject. Starter values MUST NOT be hashed into a mechanism node merely to
 encode support; a value which changes rule selection will already change the
 checked differential signature, while a value which does not may legitimately
-enlarge the same support fiber.
+enlarge the same case-support fiber.
 
-Every published starter region MUST retain the source manifest's distinction
-between varied, derived, explicitly conditioned, proved-irrelevant and
-unsupported dimensions. If a request fixes `commune = Copenhagen`, that
+Every published starter-support projection MUST retain the source manifest's
+distinction between varied, derived, explicitly conditioned, proved-irrelevant
+and unsupported dimensions. If a request fixes `commune = Copenhagen`, that
 singleton is evidence about the question's conditioning, not proof that the
 mechanism cannot occur in another commune. Only variation or a checked theorem
 over a wider declared source relation can establish such an exclusion.
@@ -570,39 +650,45 @@ identity. An overlay MUST NOT clone the subject merely because another starter
 reaches it.
 
 The bounds on a subject are set bounds before they are scalar count bounds.
-For any structural subject `x`, let `C_x` be its true target-case support,
-`I_x` the disjoint case atoms already proved to contain `x`, and `O_x` the
-concrete atoms already known to be possible support because they have not been
-proved unable to contain `x`. `I_x` and `O_x` below denote the unions of those
-atoms' case-set denotations, not merely their cell descriptors.
+For any structural subject `x`, let `S_x` be its true correlated target-case
+support, `S_x^-` the union of disjoint case atoms already proved to contain
+`x`, and `S_x,known^+` the union of concrete atoms still able to contain `x`.
+Those symbols denote case-set denotations over `(Context, Before, After)`, not
+merely their cell descriptors and not independent endpoint marginals.
 
 An open target may additionally have an opaque undiscovered-target obligation
 `omega`. That token is not itself a case set. Treat the upper bound as the
-abstract value `Uhat_x = (O_x, omega)` with a concretization `gamma(Uhat_x)`:
+abstract value `Uhat_x = (S_x,known^+, omega)` with a concretization
+`gamma(Uhat_x)`:
 the family of concrete case relations consistent with the known outer atoms
 and the still-undiscovered target. The sound open statement is therefore
 
 ```text
-I_x subseteq C_x
-C_x in gamma(Uhat_x)
-P_x^- = distinct projection_(Context, Before)(I_x)
-P_x   = distinct projection_(Context, Before)(C_x)
+S_x^- subseteq S_x
+S_x in gamma(Uhat_x)
+P_x^- = distinct projection_(Context, Before)(S_x^-)
+P_x   = distinct projection_(Context, Before)(S_x)
+A_x^-(source) = { after | (source.context, source.before, after) in S_x^- }
+A_x(source)   = { after | (source.context, source.before, after) in S_x }
 
 P_x^- subseteq P_x
+A_x^-(source) subseteq A_x(source)
 ```
 
 Projection and deduplication happen after case-space bounds are derived. An
 exact case-atom weight therefore does not by itself establish an exact starter
-weight. When `omega` is absent and `O_x` is a concrete envelope, define
-`P_x^+ = distinct projection_(Context, Before)(O_x)` and the corresponding
-per-source `A_x^+`; projection monotonicity then gives
+weight. When `omega` is absent, write `S_x^+ = S_x,known^+`, define
+`P_x^+ = distinct projection_(Context, Before)(S_x^+)` and derive the
+corresponding per-source `A_x^+` from that same correlated case relation.
+Projection monotonicity then gives
+`S_x^- subseteq S_x subseteq S_x^+`,
 `P_x^- subseteq P_x subseteq P_x^+` and
 `A_x^-(source) subseteq A_x(source) subseteq A_x^+(source)`. These are
 correlated regions or checked predicates, not independent per-field boxes.
 When `omega` is present, projection is lifted through `gamma`: the upper
-starter region, successor fibers and their counts are `top`/unknown unless a
-separate checked concrete envelope exists. An empty currently discovered
-residual does not discharge that obligation.
+starter-support projection, successor fibers and their counts are `top`/unknown
+unless a separate checked concrete envelope exists. An empty currently
+discovered residual does not discharge that obligation.
 
 A shared `StructuralNodeId` view intentionally unions support across every
 structural mechanism containing that node. A presentation which asks for the
@@ -613,9 +699,9 @@ a complete fixed execution graph it may coincide with the whole mechanism's
 support; the explicit intersection becomes important when explaining a shared
 node across several mechanisms.
 
-The total support of a node or edge and its route-conditioned fibers are
-different views over the same case authority. Let `c` be a checked structural
-condition such as an owning `StructuralMechanismId`, one incident
+The total case support of a node or edge and its route-conditioned case-support
+fibers are different views over the same case authority. Let `c` be a checked
+structural condition such as an owning `StructuralMechanismId`, one incident
 `StructuralEdgeId`, or one canonical structural path segment. Then
 
 ```text
@@ -629,12 +715,13 @@ A_f(r,t,x | c,s) = { after | (s.context, s.before, after)
 `S_f(r,t,x)` is the total subject support, while the conditioned relations
 explain which incident edge, enclosing mechanism or path brought cases to that
 subject. A complete family of route conditions unions to the total support, but
-its fibers are not necessarily disjoint: one case may contain several incident
-edges or paths reaching the same shared node. Their starter projections can
-overlap even when their case fibers do not. Implementations MUST therefore
-deduplicate a requested union and MUST NOT sum edge/path-conditioned counts
-without a checked partition proof. Route conditions remain support-overlay
-keys; they never clone or rename the structural node.
+its case-support fibers are not necessarily disjoint: one case may contain
+several incident edges or paths reaching the same shared node. Their starter
+projections can overlap even when their case-support fibers do not.
+Implementations MUST therefore deduplicate a requested union and MUST NOT sum
+edge/path-conditioned counts without a checked partition proof. Route
+conditions remain support-overlay keys; they never clone or rename the
+structural node.
 
 The resulting scalar populations must be named by grain:
 
@@ -692,16 +779,34 @@ bound. One point scans at most 256 canonical fiber summaries; a capped scan
 widens bounds and MUST NOT fall back to a full union.
 
 The point MUST label its starter projection `not_materialized`; a factorized
-summary root is not a materialized correlated-content root. It also publishes
-authenticated inner and outer **fiber-expression identities** whose coordinate
-contract is `SourceKey<(Context, Before)> -> Set<SuccessorKey<After>>`. The
-inner expression commits the contributing signature-fiber union. The outer
-expression commits that inner expression plus the shared possible-support
-residual and any opaque target obligation; it normalizes to the inner identity
-only when neither can add support. These identities preserve correlation
-semantics without exposing typed values or authorizing cells. The point
-separately names an authorization-neutral `projection_plan_id`, not a public
-cell job.
+summary root is not a materialized correlated-content root. Its compact schema
+publishes two independently domain-separated inner/outer root pairs:
+
+- `case_support.inner_root` and `case_support.outer_root` denote `S_x^-` and
+  the corresponding concrete `S_x^+` or opaque upper-support expression. Their
+  coordinate contract is
+  `SourceKey<(Context, Before)> -> Set<SuccessorKey<After>>`, so each source's
+  `A_x(source)` remains a dependent successor fiber rather than an After
+  marginal.
+- `starter_support.inner_root` and `starter_support.outer_root` denote the
+  canonical distinct-source projection `P_x^-` and the projection expression
+  over the corresponding concrete or opaque case-support upper. The latter is
+  `P_x^+` only when it denotes a concrete envelope. Both are expression
+  identities even when no starter rows are materialized; they MUST NOT alias
+  the case-support roots or be replaced by per-field minima/maxima.
+
+An outer root may commit a shared possible-support residual and an opaque target
+obligation; it is then a stable expression identity, not a claim that a finite
+outer set has been enumerated. Within each domain the outer expression may
+normalize to the inner identity only when neither residual can add support.
+The point also publishes `starter_set_status` and
+`correlated_support_status`. The former may become `exact_starter_set` once
+`P_x^- = P_x^+`; the latter may become `exact_correlated_support` only when
+`S_x` and every dependent `A_x(source)` are closed. These statuses are explicit
+and MUST NOT be inferred from root equality or scalar counts alone. The roots
+preserve correlation semantics without exposing typed values or authorizing
+cells. The point separately names an authorization-neutral
+`projection_plan_id`, not a public cell job.
 
 Once request support closes, the automatic scheduler performs a lazy canonical
 seal sweep. The core support receipt is withheld until its registered, observed
@@ -764,11 +869,13 @@ subject IDs remain unchanged. Two route slices may overlap; their counts MUST
 NOT be added without a checked disjointness proof.
 
 The qualified artifact uses subject-starter record schema v2 and adds the
-route to its cursor identity. The optional cursor field is omitted for an
-unqualified consumer. Publication v9 first established the additive consumer
-model; under the current Experimental v12 plan, either form still attaches
-without renaming or reopening the core analysis, but historical v9 bytes are
-not a compatibility target.
+route to its cursor identity. Despite that historical schema name, each member
+is an `S` case-support member carrying one source/successor pair; a `P` starter
+member contains only the deduplicated `SourceKey`. The optional cursor field is
+omitted for an unqualified consumer. Publication v9 first established the
+additive consumer model; under the current Experimental v12 plan, either form
+still attaches without renaming or reopening the core analysis, but historical
+v9 bytes are not a compatibility target.
 
 The selector is exactly one structural mechanism, activation/differential
 node, or activation/differential edge, optionally refined by one enclosing
@@ -809,14 +916,17 @@ very many contributing signatures.
 
 The compact observation lane and the typed materializer close independently;
 each authored typed subject artifact has its own resumable cursor and closure at
-`starters/<consumer>.ndjson`. Its header binds the request, target, exact
-subject/facet, projection plan/job, authorization and structural/support roots;
-bounded typed pages retain the correlated values above; its closure certifies
-the exact case count, distinct-starter count and content root. Compact scheduled
-observation points continue to label their correlated projection
-`not_materialized`: authoring one selected consumer does not turn every node
-and edge into an eager artifact. Arbitrary path-conditioned selectors remain
-future work.
+`starters/<consumer>.ndjson`. Its header binds the request, relation, admission,
+question and resolved target identities; exact subject/facet and optional
+route; checked State, Context and transition schema identities; FROM-coverage
+manifest digest; projection plan/job; value authorization; and the separate
+case-support and starter-projection roots. Bounded typed pages retain the
+correlated values above. Its closure certifies the exact case count,
+distinct-starter count, typed content root, `starter_set_status` and
+`correlated_support_status`. Compact scheduled observation points continue to
+label `starter_support.materialization` as `not_materialized`: authoring one
+selected consumer does not turn every node and edge into an eager artifact.
+Arbitrary path-conditioned selectors remain future work.
 
 Those signature leaves form a disjoint target-partition atom set: an atom is
 either one concrete CaseId singleton or one certified uniform `SupportCell`,
@@ -858,7 +968,10 @@ Proof states MUST therefore distinguish `exact_starter_set` from
 `exact_correlated_support`. Target-starter saturation may establish the former
 while unresolved cases can still add successors beneath already-known
 starters. Only closure of those successor obligations can label the correlated
-`(Context, Before) -> After` root exact.
+`(Context, Before) -> Set<After>` case-support root exact. Public records MUST
+carry that distinction in the separate `starter_set_status` and
+`correlated_support_status` fields rather than asking consumers to infer it
+from counts.
 
 The concrete residual SHOULD remain factorized as pending cases, unavailable
 cases and a manifest of complete signature fibers whose structural assignment
@@ -872,8 +985,8 @@ resumable union obligation over the relevant source fibers. Until that
 obligation closes, a view may publish a conservative finite upper bound from
 the sealed target's distinct starters. That value MUST be labeled a
 `conservative_target_projection_upper`: it is an envelope around `P_x^+`, not
-an exact materialization of the possible-starter region, and it MUST NOT make
-the projected region exact.
+an exact materialization of the possible starter-support set, and it MUST NOT
+make the projected set exact.
 
 Distributed merges union stable terminal, signature-fiber and membership facts
 idempotently and reject conflicting terminals or quotient roots. They recompute
@@ -881,7 +994,8 @@ outer bounds from the merged unresolved partition; they do not add serialized
 lower bounds or union independently projected scalar summaries. A compact
 structural-quotient closure binds the raw incidence root, quotient version,
 signature-to-quotient root and structural membership root. A support-view
-closure additionally binds its case/starter projection roots.
+closure additionally binds both inner/outer case-support roots, both
+inner/outer starter-projection roots, and the two explicit support statuses.
 
 Operational support-frontier checkpoints SHOULD be sparse—at pause, explicit
 checkpoint or report boundaries—rather than emitted after every case. Their
@@ -934,7 +1048,10 @@ Mechanism structure, incidence and support region are likewise separate record
 families. A signature-definition record contains only normalized causal
 structure. An incidence assigns one exact case to that signature. A
 request-local mechanism-support record may then bind disjoint case cells,
-starter projections, projection receipts and count intervals to the signature.
+separate inner/outer `S` case-support roots, separate inner/outer `P`
+starter-projection roots, dependent `A(source)` fiber semantics, projection
+receipts, explicit starter-set/correlated-support statuses and count intervals
+to the signature.
 The mechanism-support frontier belongs to the analysis layer: it MUST NOT
 reopen the base relation/classification support catalog after that catalog has
 sealed, and base-support closure MUST NOT require a future mechanism assignment.
@@ -1278,6 +1395,19 @@ sidecar publishes assignments, structural closure and at most one automatic
 support receipt; it MUST NOT duplicate those point records or emit one support
 row for every structural node and edge at closure.
 
+Every support-observation point and typed subject header MUST expose enough
+audit lineage to interpret its source coordinates without following an
+implementation-private object graph: `mechanism_request_id`, `relation_id`, the
+applicable `admission_id` and `question_id`, `target_id`, structural
+`subject`/`facet` and optional `route`, `state_schema_id`, `context_schema_id`,
+`transition_type_id`, and `source_coverage_manifest_digest`. The compact
+answer's record for each mechanism request MUST directly name its
+structural-definition artifact, support-observation stream, demand ledger and
+any declared typed-subject materializations (or a bounded manifest handle
+containing those links). Discoverability fields are references only: they
+neither inline values nor enter `StructuralMechanismId`, `StructuralNodeId` or
+`StructuralEdgeId`.
+
 Report v7 MUST expose the same partitions rather than one ambiguous total. It
 reports the total shared point count/root; automatic point, registered, dirty,
 observed and sealed counts plus the automatic chain root; and explicit demand
@@ -1312,7 +1442,8 @@ authorized typed Context/Before/After values. Endpoint StateIds are the graph
 nodes, and the existing within-relation CaseId-to-TransitionId injectivity
 still applies; this is not a Cartesian product with mechanism nodes. The same
 `CaseId` and `TransitionId` join this artifact to mechanism incidence, while
-`SourceKey` and `SuccessorKey` join it to conditioned starter fibers.
+`SourceKey` and `SuccessorKey` join it to conditioned starter-support
+projections and successor fibers.
 
 Open rows follow the authenticated selected-discovery order because canonical
 CaseId order is not prefix-stable while FIND is still discovering members.
@@ -1410,7 +1541,12 @@ Implementation proceeds in this dependency order:
    event, and completed work need not remain in the open frontier.
 6. Add named result views, reducers, deterministic choice, endpoint replay and
    exact CaseId/TransitionId/signature incidence as one checked dependency DAG;
-   every layer accepts either concrete rows or certified cells.
+   every layer accepts either concrete rows or certified cells. After selecting
+   a query slot and before enabling mechanism replay, lazily mint every
+   request-scoped endpoint-totality certificate, seal their authorization set
+   into the selected query's checked analysis graph and plan root, store that
+   graph digest in the journal contract, and register the complete plan/root in
+   the first semantic event.
 7. Add the initial optimizer portfolio: dependency slicing, endpoint/delta
    reuse, affine/interval/congruence certificates, guard-driven partitioning
    and canonical concrete residue; then add decision-diagram, Presburger and
@@ -1439,6 +1575,16 @@ The replacement is accepted when:
   helpers;
 - admission, `find` and observer input coverage remains separately bound to
   its owning identity and cannot rename or broaden the source manifest;
+- every selected mechanism-bearing checked graph seals one valid
+  endpoint-totality certificate per request before replay and its plan root
+  commits that graph; journal genesis transitively commits them through its
+  contract's graph digest, the first semantic event registers the complete
+  plan/root, resume revalidates both, and successful runtime replay is never
+  accepted as proof of definedness;
+- semantic evaluation failure after certification is an integrity error, while
+  cancellation and transient host pressure preserve an open resumable frontier
+  and deterministic instrumentation/capacity limits remain explicitly typed
+  unavailable evidence that prevents unsupported exactness;
 - exact behavior quotients preserve disjoint weighted profile/case support,
   while uncertified representatives never stand in for unvisited profiles;
 - explicit source conditioning changes RelationId while equivalent optimizer
@@ -1467,6 +1613,11 @@ The replacement is accepted when:
   envelope permits `interval(lower, upper)`, an opaque target obligation reports
   `unknown(lower)`, and only closed starter and successor obligations permit
   exact correlated support, without multiplying marginal Before-field bounds;
+- each published subject-support point keeps `S` case-support roots distinct
+  from `P` starter-projection roots, derives `A(source)` only as a successor
+  fiber of `S`, reports `starter_set_status` separately from
+  `correlated_support_status`, and links its request/relation/target/schema and
+  source-coverage authority without putting values into structural identity;
 - an empty exact result is complete, not unknown;
 - resource pressure pauses durably rather than crashing or fabricating closure;
   and

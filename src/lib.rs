@@ -23819,8 +23819,12 @@ impl Interpreter {
                 && (!ground_equality_value_within_limit(&l, 512)
                     || !ground_equality_value_within_limit(&r, 512))
             {
-                return self.ground_fail(
-                    "ground equality exceeds the safe structural limit of 512 value nodes; expose the finite choices directly",
+                return self.ground_limit_fail(
+                    ExploreRuntimeResource::CollectionMembers {
+                        operation: "structural equality value nodes".to_string(),
+                    },
+                    512,
+                    513,
                 );
             }
             let checked = match (op, &l, &r) {
@@ -27711,6 +27715,30 @@ pub(crate) struct CheckedRuleFamilyResolution {
     pub(crate) candidates: Box<[CheckedRuleCandidateResolution]>,
 }
 
+/// Type-only contract for one occurrence-identified ordinary callable.
+///
+/// This is deliberately not an Explore-totality certificate.  It records the
+/// explicit signature that ordinary runtime dispatch uses, while the
+/// request-scoped endpoint prover separately establishes whether evaluating
+/// that callable is total on a particular bounded relation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedCallableTypeContract {
+    pub(crate) parameter_types: Box<[Ty]>,
+    pub(crate) result_type: Ty,
+}
+
+/// Type-only contract for one exact rule-dispatch family.
+///
+/// Unknown parameter annotations are retained as `None`; they cannot prove an
+/// argument sort, but neither do they erase the independently inferred,
+/// conflict-free result schema. Totality, runtime eligibility, and miss
+/// behavior remain separate facts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct CheckedRuleDispatchTypeContract {
+    pub(crate) parameter_types: Box<[Option<Ty>]>,
+    pub(crate) result_type: Ty,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 struct CheckedExactObserverRuleCandidateIdentity {
     tier: RuleDispatchTier,
@@ -27953,10 +27981,27 @@ pub(crate) struct CheckedResolutionArtifacts {
         BTreeMap<CheckedModelOwnerKey, CheckedDeclarationOccurrenceId>,
     analysis_occurrence_to_data_owner:
         BTreeMap<CheckedDeclarationOccurrenceId, CheckedModelOwnerKey>,
+    /// Explicit callable signatures keyed by the exact declaration occurrence.
+    /// These carry types only and grant no purity or totality authority.
+    pub(crate) callable_type_contracts: BTreeMap<CheckedCallableId, CheckedCallableTypeContract>,
     pub(crate) rule_families: BTreeMap<RuleDispatchKey, CheckedRuleFamilyResolution>,
+    /// Conflict-free exact-family result schemas and their declared parameter
+    /// sorts. This type carrier grants neither runtime eligibility nor
+    /// totality over a query domain.
+    pub(crate) rule_dispatch_type_contracts:
+        BTreeMap<RuleDispatchKey, CheckedRuleDispatchTypeContract>,
     /// Exact families whose checked runtime miss is the semantic Boolean
     /// fallback rather than the ordinary partial-rule miss value.
     rule_dispatch_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    /// Exact families for which the checked dispatch registry proves a value
+    /// for every runtime argument tuple. Endpoint-totality consumers must use
+    /// this producer-owned fact rather than rediscovering exhaustiveness from
+    /// names or source order.
+    rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
+    /// Exact families with an unconditional runtime-irrefutable candidate.
+    /// This is kept separate from Boolean miss safety because the two close
+    /// different dispatch obligations.
+    rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     pub(crate) opaque_qualified_owners:
         BTreeMap<CheckedDeclarationOccurrenceId, CheckedOpaqueQualifiedOwner>,
     pub(crate) unsupported_sites: CheckedExpressionSiteMap<BTreeSet<CheckedResolutionIssue>>,
@@ -28163,6 +28208,11 @@ pub struct TypeChecker {
     rule_dispatch_return_types: BTreeMap<RuleDispatchKey, String>,
     /// Exact rule identities whose result type is conflicting or unresolved.
     rule_dispatch_return_issues: BTreeMap<RuleDispatchKey, String>,
+    /// Conflict-free result types for exact root and scoped rule families.
+    /// This is a type judgment only: it grants neither runtime eligibility nor
+    /// whole-domain totality, which are carried by separate authorities.
+    rule_dispatch_type_return_types: BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_type_return_issues: BTreeMap<RuleDispatchKey, String>,
     /// Type-consistent result ABIs retained before exact-call consumability
     /// pruning. Ordinary code generation needs this definition contract even
     /// when Explore must refuse to consume the family as total.
@@ -28205,7 +28255,10 @@ pub struct TypeChecker {
     checked_resolution_source_snapshot_coherent: bool,
     /// Exploration rule result types resolved by exact name and arity.
     explore_rule_return_types_by_arity: BTreeMap<(String, usize), Ty>,
-    /// Explicit ordinary-function results used by exploration expressions.
+    /// Explicit ordinary-function signature results used for type resolution.
+    /// Entries remain present when the legacy whole-body Explore eligibility
+    /// pass records an issue; totality consumers must consult the issue map or
+    /// the newer request-scoped proof instead of treating a type as authority.
     explore_function_return_types_by_arity: BTreeMap<(String, usize), Ty>,
     /// Explicit function bodies and signatures retained for return validation.
     explore_function_definitions_by_arity:
@@ -28326,6 +28379,7 @@ pub(crate) enum CheckedExploreAnalysisIdentity {
     Mechanisms {
         request_id: explore::MechanismRequestId,
         observation: explore::MechanismObservationIr,
+        endpoint_totality: explore::RelationalEndpointTotalityCertificate,
     },
 }
 
@@ -28993,9 +29047,9 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// are fixed. Ordering is canonical by ViewId and has no semantic effect.
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
     pub(crate) sites: CheckedExploreQuerySites,
-    /// Index into the public closed-query projection. Access must go through
-    /// `TypeCheckArtifacts::checked_exploration_query`, which revalidates the
-    /// producer digest before exposing the borrowed closed query.
+    /// Index into the public closed-query inspection projection. Access must go
+    /// through `TypeCheckArtifacts::checked_exploration_query`, which checks
+    /// that mirror but exposes only the producer-owned slot snapshot.
     closed_query_index: usize,
 }
 
@@ -29014,8 +29068,30 @@ pub(crate) enum CheckedExploreQueryArtifactIssue {
         site: Option<ExprSiteId>,
     },
     ClassificationProgram(Box<str>),
+    EndpointTotality(explore::RelationalEndpointTotalityIssue),
     RelationalIr(String),
     AnalysisGraph(String),
+}
+
+/// Declaration-aligned result of minting one accepted Explore artifact.
+///
+/// A producer issue belongs to this exact declaration and must not erase or
+/// block artifacts minted for sibling queries. Whole-program shape failures
+/// such as an accepted-query count mismatch remain outside this per-query
+/// sequence and fail the complete artifact boundary closed.
+#[derive(Debug, Clone)]
+pub(crate) struct CheckedExploreQueryArtifactSlot {
+    identity: CheckedExploreQueryId,
+    /// Immutable producer-owned lowering captured before either public query
+    /// projection can be mutated by a caller.  Expensive identity/proof work is
+    /// performed from this snapshot only when the declaration is selected.
+    closed_query: explore::ExploreQueryIr,
+    /// Process-local exact guard for the public inspection projection. This is
+    /// not a durable semantic identity: it simply detects any mutation of the
+    /// complete lowered IR before a checked consumer can select the slot.
+    closed_query_snapshot_root: [u8; 32],
+    closed_query_index: usize,
+    artifact: OnceLock<Result<CheckedExploreQueryArtifact, CheckedExploreQueryArtifactIssue>>,
 }
 
 #[derive(Debug, Clone)]
@@ -29230,13 +29306,17 @@ pub struct TypeCheckArtifacts {
     pub rule_dispatch_total_value_keys: BTreeSet<RuleDispatchKey>,
     pub rule_dispatch_runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     pub exploration_queries: Vec<TypedExploreQuery>,
-    /// Closed relational query descriptors. Solver/executor code must consume
-    /// this layer, never reinterpret the typed source-domain syntax above.
+    /// Public inspection mirrors of the closed relational query descriptors.
+    /// Exact solver/executor code must select the immutable checked-query view,
+    /// which verifies this mirror but never executes through it directly.
     pub exploration_universes: Vec<explore::ExploreQueryIr>,
     /// Declaration-occurrence-bound checked query artifacts. Exact and
     /// proof-producing consumers must use this immutable joined layer rather
     /// than independently pairing the public typed and closed projections.
-    pub(crate) checked_exploration_queries: Vec<CheckedExploreQueryArtifact>,
+    pub(crate) checked_exploration_queries: Vec<CheckedExploreQueryArtifactSlot>,
+    /// Whole-program construction issue. Per-query producer issues are stored
+    /// in the declaration-aligned slot above so one unsupported query cannot
+    /// suppress unrelated checked artifacts.
     pub(crate) checked_exploration_query_issue: Option<CheckedExploreQueryArtifactIssue>,
     pub(crate) analysis_program: CheckedAnalysisProgram,
     pub(crate) resolved_program: CheckedResolvedProgramId,
@@ -30064,17 +30144,17 @@ impl TypeCheckArtifacts {
         let accepted_index = self
             .checked_exploration_queries
             .iter()
-            .position(|query| &query.identity.declaration == declaration)
+            .position(|slot| &slot.identity.declaration == declaration)
             .ok_or_else(|| {
                 CheckedExploreQueryAccessError::SourceDeclarationMissing(declaration.clone())
             })?;
         self.checked_exploration_query(accepted_index)
     }
 
-    /// Select one producer-minted checked query. The public projections are
-    /// independently mutable, so the identity ladder is recomputed before a
-    /// proof consumer receives a reference; stale or caller-modified state is
-    /// rejected rather than rebound to the declaration by spelling.
+    /// Select one producer-minted checked query. The public projection is
+    /// independently mutable, so its complete lowered-IR snapshot and identity
+    /// ladder are rechecked before a proof consumer receives the immutable
+    /// producer-owned query; stale or caller-modified state is rejected.
     pub(crate) fn checked_exploration_query(
         &self,
         accepted_index: usize,
@@ -30091,43 +30171,68 @@ impl TypeCheckArtifacts {
         if let Some(issue) = &self.checked_exploration_query_issue {
             return Err(CheckedExploreQueryAccessError::Producer(issue.clone()));
         }
-        let artifact = self.checked_exploration_queries.get(accepted_index).ok_or(
+        let slot = self.checked_exploration_queries.get(accepted_index).ok_or(
             CheckedExploreQueryAccessError::AcceptedQueryMissing {
                 index: accepted_index,
                 available: self.checked_exploration_queries.len(),
             },
         )?;
-        if artifact.identity.analysis_program != self.analysis_program.id
-            || artifact.identity.analysis_program != self.checked_resolutions.analysis_program
+        if slot.identity.analysis_program != self.analysis_program.id
+            || slot.identity.analysis_program != self.checked_resolutions.analysis_program
         {
             return Err(CheckedExploreQueryAccessError::AnalysisProgramIdentityMismatch);
         }
         if !self.checked_resolutions.source_snapshot_coherent {
             return Err(CheckedExploreQueryAccessError::SourceSnapshotIncoherent);
         }
-        let closed_query = self
-            .exploration_universes
-            .get(artifact.closed_query_index)
-            .ok_or(CheckedExploreQueryAccessError::ArtifactDiverged)?;
         let declaration = self
             .analysis_program
             .declarations
             .iter()
             .find(|declaration| {
                 CheckedDeclarationOccurrenceId::from_sourced(declaration)
-                    == artifact.identity.declaration
+                    == slot.identity.declaration
             })
             .ok_or_else(|| {
                 CheckedExploreQueryAccessError::SourceDeclarationMissing(
-                    artifact.identity.declaration.clone(),
+                    slot.identity.declaration.clone(),
                 )
             })?;
         let Stmt::Explore(source_query) = &*declaration.statement else {
             return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
         };
-        closed_query
+        let public_closed_query = self
+            .exploration_universes
+            .get(slot.closed_query_index)
+            .ok_or(CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        public_closed_query
             .validate()
             .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
+        if checked_explore_query_snapshot_root(public_closed_query)
+            != slot.closed_query_snapshot_root
+        {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
+        let artifact = slot
+            .artifact
+            .get_or_init(|| {
+                build_checked_explore_query_artifact(
+                    &self.analysis_program,
+                    &self.checked_resolutions,
+                    declaration,
+                    &slot.closed_query,
+                    slot.closed_query_index,
+                    semantic_index,
+                )
+            })
+            .as_ref()
+            .map_err(|issue| CheckedExploreQueryAccessError::Producer(issue.clone()))?;
+        if artifact.identity != slot.identity {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
+        if artifact.closed_query_index != slot.closed_query_index {
+            return Err(CheckedExploreQueryAccessError::ArtifactDiverged);
+        }
         let sites = checked_explore_query_sites(&self.analysis_program, declaration, source_query);
         if sites != artifact.sites
             || checked_explore_site_roots(&sites)
@@ -30139,9 +30244,10 @@ impl TypeCheckArtifacts {
         let ladder = checked_explore_identity_ladder_with_index(
             &self.analysis_program,
             &self.checked_resolutions,
-            closed_query,
+            public_closed_query,
             &sites,
             semantic_index,
+            Some(artifact.analysis.as_ref()),
         )
         .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
         if !artifact.source_coverage.validate_identity()
@@ -30173,7 +30279,7 @@ impl TypeCheckArtifacts {
             checked_explore_classification::checked_explore_classification_program(
                 &self.analysis_program,
                 &self.checked_resolutions,
-                closed_query,
+                public_closed_query,
                 &sites,
                 artifact.question_id,
             )
@@ -30206,7 +30312,9 @@ impl TypeCheckArtifacts {
         }
         Ok(CheckedExploreQueryView {
             artifact,
-            closed_query,
+            // Checked execution always receives the producer-owned snapshot,
+            // never the independently public inspection projection.
+            closed_query: &slot.closed_query,
             resolved_program: &self.resolved_program,
         })
     }
@@ -31229,6 +31337,7 @@ impl CheckedInterpreterMechanismCatalog {
                 let body = index.expression(&callable.body_site).ok_or_else(|| {
                     CheckedInterpreterMechanismTraceError::CallableBodyMissing(callable_id.clone())
                 })?;
+                let declares_effects = !callable.effects.is_empty();
                 callables.insert(
                     callable_id.clone(),
                     CheckedInterpreterMechanismCallable {
@@ -31242,6 +31351,17 @@ impl CheckedInterpreterMechanismCatalog {
                         body: (*body).clone(),
                     },
                 );
+                // A declared effect row is already authoritative checked
+                // evidence that this callable cannot enter an endpoint-
+                // totality certificate. Retain its exact callable/body
+                // identity for the prover's source-linked `EffectfulCall`,
+                // but do not demand a replay closure for a body that the
+                // proof must reject before evaluating. An effectless caller
+                // still takes the normal path below and cannot hide an
+                // undeclared effectful operation.
+                if declares_effects {
+                    continue;
+                }
                 let mut discovered_targets = Vec::new();
                 Self::index_traceable_expression_slice(
                     &index,
@@ -34966,6 +35086,21 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
             None => checked_query_hash_component(hasher, "return-type", "inferred"),
         }
         if !descriptor.effects.is_empty() {
+            if self.layer == "mechanism observer" {
+                // Mechanism request identity precedes its query-scoped
+                // endpoint-totality certificate. A checked declared-effect
+                // callable is a decisive proof-bottom: retain its exact
+                // callable/signature dependency, but do not pretend its body
+                // is part of an effect-free executable closure. The endpoint
+                // prover rejects this marker before evaluating that body, so
+                // no invalid request can acquire replay authority.
+                checked_query_hash_component(
+                    hasher,
+                    "effect-semantics",
+                    "declared-effectful-rejected-by-endpoint-totality",
+                );
+                return Ok(());
+            }
             // Explore is pure. Retaining a spelling-only effect row here would
             // pretend that an effect declaration's semantic ABI was sealed.
             return self.unsealed(Some(descriptor.body_site.clone()));
@@ -39169,10 +39304,16 @@ fn checked_explore_analysis_identities(
     sites: &CheckedExploreQuerySites,
     relation_id: explore::RelationId,
     question_id: explore::QuestionId,
+    sealed_analysis: Option<&[CheckedExploreAnalysisIdentity]>,
 ) -> Result<Box<[CheckedExploreAnalysisIdentity]>, CheckedExploreQueryArtifactIssue> {
     if query.analysis.len() != sites.analysis.len() {
         return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
             "analysis node/template site count mismatch".into(),
+        ));
+    }
+    if sealed_analysis.is_some_and(|analysis| analysis.len() != query.analysis.len()) {
+        return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+            "sealed analysis node count mismatch".into(),
         ));
     }
     let mut identities = Vec::<CheckedExploreAnalysisIdentity>::with_capacity(query.analysis.len());
@@ -39323,14 +39464,51 @@ fn checked_explore_analysis_identities(
                     &explore::RELATIONAL_MECHANISM_REPLAY_ABI_VERSION.to_string(),
                 );
                 let normalization_digest = normalization_hasher.finalize().into();
+                // Preserve the established request identity byte-for-byte.
+                // Totality is a separate request-scoped authorization and
+                // therefore cannot feed back into the semantic request ID.
+                let request_id = explore::MechanismRequestId::from_canonical_request_digests(
+                    question_id,
+                    target,
+                    observation_digest,
+                    normalization_digest,
+                );
+                let endpoint_totality = if let Some(sealed_analysis) = sealed_analysis {
+                    match sealed_analysis.get(node_index) {
+                        Some(CheckedExploreAnalysisIdentity::Mechanisms {
+                            request_id: sealed_request_id,
+                            observation: sealed_observation,
+                            endpoint_totality,
+                        }) if *sealed_request_id == request_id
+                            && sealed_observation == &observation
+                            && endpoint_totality.request_id() == request_id
+                            && endpoint_totality.relation_id() == relation_id
+                            && endpoint_totality.validate_identity().is_ok() =>
+                        {
+                            endpoint_totality.clone()
+                        }
+                        _ => {
+                            return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                "mechanism node {node_index} does not match its sealed endpoint-totality authorization"
+                            )))
+                        }
+                    }
+                } else {
+                    explore::prove_relational_endpoint_totality(
+                        index,
+                        resolutions,
+                        query,
+                        sites,
+                        relation_id,
+                        request_id,
+                        &observation,
+                    )
+                    .map_err(CheckedExploreQueryArtifactIssue::EndpointTotality)?
+                };
                 CheckedExploreAnalysisIdentity::Mechanisms {
-                    request_id: explore::MechanismRequestId::from_canonical_request_digests(
-                        question_id,
-                        target,
-                        observation_digest,
-                        normalization_digest,
-                    ),
+                    request_id,
                     observation,
+                    endpoint_totality,
                 }
             }
             _ => {
@@ -39355,7 +39533,7 @@ fn checked_explore_analysis_graph_digest(
         ));
     }
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-analysis-graph.v1\0");
+    hasher.update(b"futuruna.checked-explore-analysis-graph.v2\0");
     hasher.update(question_id.bytes());
     let mut semantic_nodes = BTreeSet::<(u8, [u8; 32])>::new();
     for (node_index, (node, identity)) in query.analysis.iter().zip(identities).enumerate() {
@@ -39368,9 +39546,17 @@ fn checked_explore_analysis_graph_digest(
             }
             (
                 explore::ExploreAnalysisNodeIr::Mechanisms(_),
-                CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
+                CheckedExploreAnalysisIdentity::Mechanisms {
+                    request_id,
+                    endpoint_totality,
+                    ..
+                },
             ) => {
-                semantic_nodes.insert((0x02, request_id.bytes()));
+                let mut node_hasher = Sha256::new();
+                node_hasher.update(b"futuruna.checked-explore-analysis-mechanism-node.v2\0");
+                node_hasher.update(request_id.bytes());
+                node_hasher.update(endpoint_totality.certificate_id().bytes());
+                semantic_nodes.insert((0x02, node_hasher.finalize().into()));
             }
             _ => {
                 return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
@@ -39636,22 +39822,13 @@ fn checked_explore_relation_id(
     ))
 }
 
-fn checked_explore_identity_ladder(
-    program: &CheckedAnalysisProgram,
-    resolutions: &CheckedResolutionArtifacts,
-    query: &explore::ExploreQueryIr,
-    sites: &CheckedExploreQuerySites,
-) -> Result<CheckedExploreIdentityLadder, CheckedExploreQueryArtifactIssue> {
-    let index = CheckedExploreSemanticIndex::build(program);
-    checked_explore_identity_ladder_with_index(program, resolutions, query, sites, &index)
-}
-
 fn checked_explore_identity_ladder_with_index(
     program: &CheckedAnalysisProgram,
     resolutions: &CheckedResolutionArtifacts,
     query: &explore::ExploreQueryIr,
     sites: &CheckedExploreQuerySites,
     index: &CheckedExploreSemanticIndex<'_>,
+    sealed_analysis: Option<&[CheckedExploreAnalysisIdentity]>,
 ) -> Result<CheckedExploreIdentityLadder, CheckedExploreQueryArtifactIssue> {
     query
         .validate()
@@ -39782,6 +39959,7 @@ fn checked_explore_identity_ladder_with_index(
         sites,
         relation_id,
         question_id,
+        sealed_analysis,
     )?;
     let product_rank_grouped_distinct = checked_explore_product_rank_grouped_distinct_certificates(
         resolutions,
@@ -39828,9 +40006,9 @@ fn checked_explore_identity_ladder_with_index(
 
 fn build_checked_explore_query_artifacts(
     program: &CheckedAnalysisProgram,
-    resolutions: &CheckedResolutionArtifacts,
+    _resolutions: &CheckedResolutionArtifacts,
     closed_queries: &[explore::ExploreQueryIr],
-) -> Result<Vec<CheckedExploreQueryArtifact>, CheckedExploreQueryArtifactIssue> {
+) -> Result<Vec<CheckedExploreQueryArtifactSlot>, CheckedExploreQueryArtifactIssue> {
     let declarations = program
         .declarations
         .iter()
@@ -39851,61 +40029,104 @@ fn build_checked_explore_query_artifacts(
     for (closed_query_index, (declaration, closed_query)) in
         declarations.into_iter().zip(closed_queries).enumerate()
     {
-        let Stmt::Explore(source_query) = &*declaration.statement else {
-            unreachable!("filtered Explore declaration")
+        let identity = CheckedExploreQueryId {
+            analysis_program: program.id.clone(),
+            declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
         };
-        let sites = checked_explore_query_sites(program, declaration, source_query);
-        if let Some(missing) = checked_explore_site_roots(&sites)
-            .into_iter()
-            .find(|site| !resolutions.expressions.contains_key(*site))
-        {
-            return Err(CheckedExploreQueryArtifactIssue::QuerySiteMissing(
-                missing.clone(),
-            ));
-        }
-        let ladder = checked_explore_identity_ladder(program, resolutions, closed_query, &sites)?;
-        let classification =
-            checked_explore_classification::checked_explore_classification_program(
-                program,
-                resolutions,
-                closed_query,
-                &sites,
-                ladder.question_id,
-            )
-            .map_err(|error| {
-                CheckedExploreQueryArtifactIssue::ClassificationProgram(
-                    error.to_string().into_boxed_str(),
-                )
-            })?;
-        artifacts.push(CheckedExploreQueryArtifact {
-            identity: CheckedExploreQueryId {
-                analysis_program: program.id.clone(),
-                declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
-            },
-            relation_id: ladder.relation_id,
-            admission_id: ladder.admission_id,
-            question_id: ladder.question_id,
-            classification_program: Arc::new(classification.program),
-            classification_runtime_shapes: Arc::new(classification.runtime_shapes),
-            classifier_reachable_declarations: ladder.classifier_reachable_declarations,
-            classifier_reachable_dependencies: ladder.classifier_reachable_dependencies,
-            transition_schemas: ladder.transition_schemas,
-            analysis: ladder.analysis,
-            analysis_graph_digest: ladder.analysis_graph_digest,
-            observation_demands: ladder.observation_demands,
-            observation_demand_set_id: ladder.observation_demand_set_id,
-            starter_projections: ladder.starter_projections,
-            starter_consumer_set_id: ladder.starter_consumer_set_id,
-            transition_graphs: ladder.transition_graphs,
-            transition_graph_consumer_set_id: ladder.transition_graph_consumer_set_id,
-            source_coverage: ladder.source_coverage,
-            source_image_projection: ladder.source_image_projection,
-            product_rank_grouped_distinct: ladder.product_rank_grouped_distinct,
-            sites,
+        artifacts.push(CheckedExploreQueryArtifactSlot {
+            identity,
+            closed_query: closed_query.clone(),
+            closed_query_snapshot_root: checked_explore_query_snapshot_root(closed_query),
             closed_query_index,
+            artifact: OnceLock::new(),
         });
     }
     Ok(artifacts)
+}
+
+/// Exact, process-local mutation guard for the public closed-query mirror.
+///
+/// The derived Debug form includes every field of the lowered IR, including
+/// executable expressions, names and spans. It is deliberately not persisted
+/// or used as a semantic identity; durable identities continue to use their
+/// versioned canonical encodings.
+fn checked_explore_query_snapshot_root(query: &explore::ExploreQueryIr) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-query-snapshot.v1\0");
+    let snapshot = format!("{query:?}");
+    hasher.update((snapshot.len() as u64).to_le_bytes());
+    hasher.update(snapshot.as_bytes());
+    hasher.finalize().into()
+}
+
+fn build_checked_explore_query_artifact(
+    program: &CheckedAnalysisProgram,
+    resolutions: &CheckedResolutionArtifacts,
+    declaration: &SourcedStmt,
+    closed_query: &explore::ExploreQueryIr,
+    closed_query_index: usize,
+    semantic_index: &CheckedExploreSemanticIndex<'_>,
+) -> Result<CheckedExploreQueryArtifact, CheckedExploreQueryArtifactIssue> {
+    let Stmt::Explore(source_query) = &*declaration.statement else {
+        return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+            "checked Explore slot no longer points at an Explore declaration".into(),
+        ));
+    };
+    let identity = CheckedExploreQueryId {
+        analysis_program: program.id.clone(),
+        declaration: CheckedDeclarationOccurrenceId::from_sourced(declaration),
+    };
+    let sites = checked_explore_query_sites(program, declaration, source_query);
+    if let Some(missing) = checked_explore_site_roots(&sites)
+        .into_iter()
+        .find(|site| !resolutions.expressions.contains_key(*site))
+    {
+        return Err(CheckedExploreQueryArtifactIssue::QuerySiteMissing(
+            missing.clone(),
+        ));
+    }
+    let ladder = checked_explore_identity_ladder_with_index(
+        program,
+        resolutions,
+        closed_query,
+        &sites,
+        semantic_index,
+        None,
+    )?;
+    let classification = checked_explore_classification::checked_explore_classification_program(
+        program,
+        resolutions,
+        closed_query,
+        &sites,
+        ladder.question_id,
+    )
+    .map_err(|error| {
+        CheckedExploreQueryArtifactIssue::ClassificationProgram(error.to_string().into_boxed_str())
+    })?;
+    Ok(CheckedExploreQueryArtifact {
+        identity,
+        relation_id: ladder.relation_id,
+        admission_id: ladder.admission_id,
+        question_id: ladder.question_id,
+        classification_program: Arc::new(classification.program),
+        classification_runtime_shapes: Arc::new(classification.runtime_shapes),
+        classifier_reachable_declarations: ladder.classifier_reachable_declarations,
+        classifier_reachable_dependencies: ladder.classifier_reachable_dependencies,
+        transition_schemas: ladder.transition_schemas,
+        analysis: ladder.analysis,
+        analysis_graph_digest: ladder.analysis_graph_digest,
+        observation_demands: ladder.observation_demands,
+        observation_demand_set_id: ladder.observation_demand_set_id,
+        starter_projections: ladder.starter_projections,
+        starter_consumer_set_id: ladder.starter_consumer_set_id,
+        transition_graphs: ladder.transition_graphs,
+        transition_graph_consumer_set_id: ladder.transition_graph_consumer_set_id,
+        source_coverage: ladder.source_coverage,
+        source_image_projection: ladder.source_image_projection,
+        product_rank_grouped_distinct: ladder.product_rank_grouped_distinct,
+        sites,
+        closed_query_index,
+    })
 }
 
 #[derive(Debug, Clone)]
@@ -39978,6 +40199,41 @@ impl<'a> CheckedResolutionRecorder<'a> {
     fn record(checker: &'a TypeChecker) -> CheckedResolutionArtifacts {
         let program = &checker.analysis_program;
         let expression_site_scope = Arc::new(CheckedExpressionSiteScope::from_program(program));
+        let rule_dispatch_type_contracts = checker
+            .rule_dispatch_type_return_types
+            .iter()
+            .filter_map(|(key, result_type)| {
+                let result_type = parse_type_annotation(result_type).ok()?;
+                // Rule-family generics do not yet carry checked binder
+                // identities. Publishing a name-based open scheme would let
+                // the proof accidentally treat an existential runtime shape
+                // as a universal source contract. Raw generic owners and
+                // holes are likewise not closed ABIs.
+                if TypeChecker::canonical_type_contains_variable(&result_type)
+                    || !checker.checked_type_contract_is_closed_monomorphic(&result_type)
+                {
+                    return None;
+                }
+                let parameter_types = checker.rule_dispatch_parameter_types.get(key)?;
+                if checker.rule_dispatch_parameter_issues.contains(key)
+                    || parameter_types.iter().flatten().any(|parameter| {
+                        TypeChecker::canonical_type_contains_variable(parameter)
+                            || !checker.checked_type_contract_is_closed_monomorphic(parameter)
+                    })
+                {
+                    return None;
+                }
+                (parameter_types.len() == key.arity).then(|| {
+                    (
+                        key.clone(),
+                        CheckedRuleDispatchTypeContract {
+                            parameter_types: parameter_types.clone().into_boxed_slice(),
+                            result_type,
+                        },
+                    )
+                })
+            })
+            .collect();
         let mut active_rule_scope_owners = BTreeMap::new();
         let mut rule_scope_owner_counts = BTreeMap::<String, usize>::new();
         for declaration in program.declarations.iter() {
@@ -40000,8 +40256,13 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     &expression_site_scope,
                 )),
                 unsupported_sites: CheckedExpressionSiteMap::with_scope(expression_site_scope),
+                rule_dispatch_type_contracts,
                 rule_dispatch_boolean_miss_safe_keys: checker
                     .rule_dispatch_boolean_miss_safe_keys
+                    .clone(),
+                rule_dispatch_total_value_keys: checker.rule_dispatch_irrefutable_keys.clone(),
+                rule_dispatch_runtime_irrefutable_keys: checker
+                    .rule_dispatch_runtime_irrefutable_keys
                     .clone(),
                 ..CheckedResolutionArtifacts::default()
             },
@@ -40260,6 +40521,37 @@ impl<'a> CheckedResolutionRecorder<'a> {
         }
     }
 
+    fn index_callable_type_contract(
+        &mut self,
+        callable: &CheckedCallableId,
+        parameters: &[Param],
+        result_type: Option<&Ty>,
+    ) {
+        let closed_type = |ty: &Ty| {
+            !TypeChecker::canonical_type_contains_variable(ty)
+                && self.checker.checked_type_contract_is_closed_monomorphic(ty)
+        };
+        // Checked type schemes do not yet carry binder identities. Until they
+        // do, endpoint proof publishes only closed monomorphic callables.
+        let Some(result_type) = result_type.filter(|ty| closed_type(ty)) else {
+            return;
+        };
+        let Some(parameter_types) = parameters
+            .iter()
+            .map(|parameter| parameter.ty.as_ref().filter(|ty| closed_type(ty)).cloned())
+            .collect::<Option<Vec<_>>>()
+        else {
+            return;
+        };
+        self.artifacts.callable_type_contracts.insert(
+            callable.clone(),
+            CheckedCallableTypeContract {
+                parameter_types: parameter_types.into_boxed_slice(),
+                result_type: result_type.clone(),
+            },
+        );
+    }
+
     fn index_program(&mut self) {
         let program = self.program;
         for declaration in program.declarations.iter() {
@@ -40276,14 +40568,21 @@ impl<'a> CheckedResolutionRecorder<'a> {
                         },
                     );
                 }
-                Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                Stmt::Defn(Defn::Fn {
+                    name,
+                    params,
+                    ret_ty,
+                    ..
+                }) => {
+                    let callable = CheckedCallableId {
+                        declaration: occurrence.clone(),
+                        structural_path: Box::new([]),
+                    };
+                    self.index_callable_type_contract(&callable, params, ret_ty.as_ref());
                     self.callables
                         .entry((None, name.clone(), params.len()))
                         .or_default()
-                        .push(CheckedCallableId {
-                            declaration: occurrence,
-                            structural_path: Box::new([]),
-                        });
+                        .push(callable);
                 }
                 Stmt::Defn(Defn::Module { name, .. }) => {
                     self.qualified_aliases
@@ -40360,15 +40659,22 @@ impl<'a> CheckedResolutionRecorder<'a> {
                             Defn::Fn {
                                 name: method,
                                 params,
+                                ret_ty,
                                 ..
                             } => {
+                                let callable = CheckedCallableId {
+                                    declaration: occurrence.clone(),
+                                    structural_path: vec![child_index].into_boxed_slice(),
+                                };
+                                self.index_callable_type_contract(
+                                    &callable,
+                                    params,
+                                    ret_ty.as_ref(),
+                                );
                                 self.callables
                                     .entry((Some(name.clone()), method.clone(), params.len()))
                                     .or_default()
-                                    .push(CheckedCallableId {
-                                        declaration: occurrence.clone(),
-                                        structural_path: vec![child_index].into_boxed_slice(),
-                                    });
+                                    .push(callable);
                                 child_index += 1;
                             }
                             Defn::Actor { handlers, .. } => {
@@ -40386,14 +40692,25 @@ impl<'a> CheckedResolutionRecorder<'a> {
                     let mut child_index = 0;
                     for method in methods {
                         match method {
-                            Defn::Fn { name, params, .. } => {
+                            Defn::Fn {
+                                name,
+                                params,
+                                ret_ty,
+                                ..
+                            } => {
+                                let callable = CheckedCallableId {
+                                    declaration: occurrence.clone(),
+                                    structural_path: vec![child_index].into_boxed_slice(),
+                                };
+                                self.index_callable_type_contract(
+                                    &callable,
+                                    params,
+                                    ret_ty.as_ref(),
+                                );
                                 self.callables
                                     .entry((Some(for_type.clone()), name.clone(), params.len()))
                                     .or_default()
-                                    .push(CheckedCallableId {
-                                        declaration: occurrence.clone(),
-                                        structural_path: vec![child_index].into_boxed_slice(),
-                                    });
+                                    .push(callable);
                                 child_index += 1;
                             }
                             Defn::Actor { handlers, .. } => {
@@ -40468,19 +40785,26 @@ impl<'a> CheckedResolutionRecorder<'a> {
                             Stmt::Defn(Defn::Fn {
                                 name: member,
                                 params,
+                                ret_ty,
                                 ..
                             }) => {
                                 let effective_arity = params
                                     .iter()
                                     .filter(|parameter| parameter.name.as_str() != "self")
                                     .count();
+                                let callable = CheckedCallableId {
+                                    declaration: occurrence.clone(),
+                                    structural_path: statement_path.clone().into_boxed_slice(),
+                                };
+                                self.index_callable_type_contract(
+                                    &callable,
+                                    params,
+                                    ret_ty.as_ref(),
+                                );
                                 self.callables
                                     .entry((Some(name.clone()), member.clone(), effective_arity))
                                     .or_default()
-                                    .push(CheckedCallableId {
-                                        declaration: occurrence.clone(),
-                                        structural_path: statement_path.into_boxed_slice(),
-                                    });
+                                    .push(callable);
                             }
                             _ => {}
                         }
@@ -40882,59 +41206,25 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 vec![parameter.as_ref().clone()].into_boxed_slice(),
                 result.as_ref().clone(),
             )),
-            (Some(CheckedValueBinding::Callable(callable)), _) => {
-                let arity = self.callable_arities.get(callable).copied()?;
-                if callable.declaration.declaration.kind != DeclarationKind::Function {
-                    return None;
-                }
-                let name = callable.declaration.declaration.name.to_string();
-                let definitions = self
-                    .checker
-                    .explore_function_definitions_by_arity
-                    .get(&(name.clone(), arity))?;
-                let [(parameters, _, _)] = definitions.as_slice() else {
-                    return None;
-                };
-                let parameter_types = parameters
-                    .iter()
-                    .map(|parameter| {
-                        parameter
-                            .ty
-                            .as_ref()
-                            .filter(|ty| !matches!(ty, Ty::Hole))
-                            .cloned()
-                    })
-                    .collect::<Option<Vec<_>>>()?
-                    .into_boxed_slice();
-                let result_type = self
-                    .checker
-                    .explore_function_return_types_by_arity
-                    .get(&(name, arity))?
-                    .clone();
-                Some((parameter_types, result_type))
-            }
+            (Some(CheckedValueBinding::Callable(callable)), _) => self
+                .artifacts
+                .callable_type_contracts
+                .get(callable)
+                .map(|contract| {
+                    (
+                        contract.parameter_types.clone(),
+                        contract.result_type.clone(),
+                    )
+                }),
             (Some(CheckedValueBinding::RuleFamily(family)), _) => {
-                if family.scope.is_some() {
-                    // The legacy parameter-type catalog is name/arity keyed.
-                    // Do not pair a root signature with a same-named scoped
-                    // family; scoped callback signatures need a full
-                    // RuleDispatchKey-indexed catalog before admission.
-                    return None;
-                }
-                let parameter_types = self
-                    .checker
-                    .rule_param_types_by_arity
-                    .get(&(family.name.clone(), family.arity))?
+                let contract = self.artifacts.rule_dispatch_type_contracts.get(family)?;
+                let parameter_types = contract
+                    .parameter_types
                     .iter()
                     .cloned()
                     .collect::<Option<Vec<_>>>()?
                     .into_boxed_slice();
-                let result_type = self
-                    .checker
-                    .rule_dispatch_return_types
-                    .get(family)
-                    .and_then(|type_name| parse_type_annotation(type_name).ok())?;
-                Some((parameter_types, result_type))
+                Some((parameter_types, contract.result_type.clone()))
             }
             _ => None,
         }
@@ -41902,7 +42192,11 @@ impl<'a> CheckedResolutionRecorder<'a> {
             return None;
         }
         Some(match (scoped_functions, has_rule_family) {
-            ([], true) => self.checker.rule_dispatch_return_types.get(&key).cloned(),
+            ([], true) => self
+                .artifacts
+                .rule_dispatch_type_contracts
+                .get(&key)
+                .map(|contract| TypeChecker::canonical_explore_ty_name(&contract.result_type)),
             // Checked function-return metadata is still name/arity keyed, not
             // occurrence keyed. Do not pair it with a scoped function merely
             // because the spelling matches.
@@ -42027,7 +42321,11 @@ impl<'a> CheckedResolutionRecorder<'a> {
                 member,
                 rule_family,
             } => match rule_family {
-                Some(key) => self.checker.rule_dispatch_return_types.get(key).cloned(),
+                Some(key) => self
+                    .artifacts
+                    .rule_dispatch_type_contracts
+                    .get(key)
+                    .map(|contract| TypeChecker::canonical_explore_ty_name(&contract.result_type)),
                 None => self
                     .checker
                     .scoped_member_return_type(owner_type, member, 0),
@@ -43032,35 +43330,21 @@ impl<'a> CheckedResolutionRecorder<'a> {
             CheckedCallTarget::Constructor { owner_type, .. } => {
                 parse_type_annotation(owner_type).ok()
             }
-            CheckedCallTarget::Function { callable, arity }
-                if callable.declaration.declaration.kind == DeclarationKind::Function
-                    && callable.structural_path.is_empty() =>
-            {
-                self.checker
-                    .explore_function_return_types_by_arity
-                    .get(&(callable.declaration.declaration.name.to_string(), *arity))
-                    .cloned()
+            CheckedCallTarget::Function { callable, arity } => {
+                let contract = self.artifacts.callable_type_contracts.get(callable)?;
+                (contract.parameter_types.len() == *arity).then(|| contract.result_type.clone())
             }
-            CheckedCallTarget::Function { .. } => None,
             CheckedCallTarget::BoundCallable { result_type, .. } => {
                 parse_type_annotation(result_type).ok()
             }
-            CheckedCallTarget::RuleFamily(key) => self
-                .checker
-                .rule_dispatch_return_types
-                .get(key)
-                .and_then(|name| parse_type_annotation(name).ok()),
+            CheckedCallTarget::RuleFamily(key) => self.resolved_rule_dispatch_type(key),
             CheckedCallTarget::ScopedMember {
                 owner_type,
                 member,
                 arity,
                 rule_family,
             } => match rule_family {
-                Some(key) => self
-                    .checker
-                    .rule_dispatch_return_types
-                    .get(key)
-                    .and_then(|name| parse_type_annotation(name).ok()),
+                Some(key) => self.resolved_rule_dispatch_type(key),
                 None => self
                     .checker
                     .scoped_member_return_type(owner_type, member, *arity)
@@ -43068,6 +43352,13 @@ impl<'a> CheckedResolutionRecorder<'a> {
             },
             CheckedCallTarget::Builtin { .. } => None,
         }
+    }
+
+    fn resolved_rule_dispatch_type(&self, key: &RuleDispatchKey) -> Option<Ty> {
+        self.artifacts
+            .rule_dispatch_type_contracts
+            .get(key)
+            .map(|contract| contract.result_type.clone())
     }
 
     /// Expected constructor-field types aligned to source argument order.
@@ -43918,6 +44209,8 @@ impl TypeChecker {
             rule_return_types: BTreeMap::new(),
             rule_dispatch_return_types: BTreeMap::new(),
             rule_dispatch_return_issues: BTreeMap::new(),
+            rule_dispatch_type_return_types: BTreeMap::new(),
+            rule_dispatch_type_return_issues: BTreeMap::new(),
             rule_dispatch_backend_return_types: BTreeMap::new(),
             rule_dispatch_backend_return_issues: BTreeMap::new(),
             rule_dispatch_boolean_miss_safe_keys: BTreeSet::new(),
@@ -47568,6 +47861,17 @@ impl TypeChecker {
         self.infer_expr_type_name_with_locals(expr, &BTreeMap::new())
     }
 
+    /// Type-only rule result used by Explore checking and checked-resolution
+    /// recording. Runtime eligibility and endpoint totality are discharged by
+    /// separate authorities; neither is a premise of this type judgment.
+    fn explore_rule_dispatch_result_type(&self, key: &RuleDispatchKey) -> Option<&String> {
+        self.rule_dispatch_type_return_types
+            .get(key)
+            // The frozen type map is itself built by a recursive fixed point;
+            // during that construction, dependencies read its working table.
+            .or_else(|| self.rule_dispatch_return_types.get(key))
+    }
+
     fn is_polymorphic_empty_list_expr(expr: &Expr) -> bool {
         match &expr.kind {
             ExprKind::List(items) => items.is_empty(),
@@ -47616,7 +47920,7 @@ impl TypeChecker {
                         arity,
                     };
                     if self.rule_dispatch_keys.contains(&key) {
-                        return self.rule_dispatch_return_types.get(&key).cloned();
+                        return self.explore_rule_dispatch_result_type(&key).cloned();
                     }
                     if let Some(return_type) = self.scoped_member_return_type(scope, name, arity) {
                         return Some(return_type);
@@ -47636,7 +47940,7 @@ impl TypeChecker {
                             name: name.clone(),
                             arity,
                         };
-                        self.rule_dispatch_return_types.get(&key).cloned()
+                        self.explore_rule_dispatch_result_type(&key).cloned()
                     })
                     .or_else(|| self.rule_return_types.get(name).cloned())
             }
@@ -47976,7 +48280,7 @@ impl TypeChecker {
                             arity: args.len(),
                         };
                         if self.rule_dispatch_keys.contains(&key) {
-                            return self.rule_dispatch_return_types.get(&key).cloned();
+                            return self.explore_rule_dispatch_result_type(&key).cloned();
                         }
                         if let Some(return_type) =
                             self.scoped_member_return_type(scope, name, args.len())
@@ -48002,7 +48306,9 @@ impl TypeChecker {
                         arity: args.len(),
                     };
                     if self.rule_dispatch_keys.contains(&dispatch_key) {
-                        return self.rule_dispatch_return_types.get(&dispatch_key).cloned();
+                        return self
+                            .explore_rule_dispatch_result_type(&dispatch_key)
+                            .cloned();
                     }
                     if (self.inferring_exact_explore_rule_returns || self.checking_explore_query)
                         && self.rule_arities.contains(&(name.clone(), args.len()))
@@ -48026,7 +48332,9 @@ impl TypeChecker {
                         arity: args.len(),
                     };
                     if self.rule_dispatch_keys.contains(&dispatch_key) {
-                        return self.rule_dispatch_return_types.get(&dispatch_key).cloned();
+                        return self
+                            .explore_rule_dispatch_result_type(&dispatch_key)
+                            .cloned();
                     }
                     if let Some(ret) =
                         self.scoped_member_return_type(&base_type, member, args.len())
@@ -48694,6 +49002,45 @@ impl TypeChecker {
             }
             Ty::Unit => true,
             Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    /// Whether a checked callable contract is a closed monomorphic type.
+    /// Unlike the legacy canonical-dispatch capability predicate above, this
+    /// is only a type-schema judgment: closed arrows and the collection types
+    /// modeled by endpoint proof are valid here.
+    fn checked_type_contract_is_closed_monomorphic(&self, schema: &Ty) -> bool {
+        match schema {
+            Ty::Name(name) => {
+                self.types.contains(name) && self.canonical_declared_type_arity(name) == 0
+            }
+            Ty::App(constructor, arguments) => {
+                let Ty::Name(name) = constructor.as_ref() else {
+                    return false;
+                };
+                let arity_matches = match name.as_str() {
+                    "Tuple" => true,
+                    "Set" => arguments.len() == 1,
+                    "Map" => arguments.len() == 2,
+                    _ => {
+                        self.types.contains(name)
+                            && self.canonical_declared_type_arity(name) == arguments.len()
+                    }
+                };
+                arity_matches
+                    && arguments
+                        .iter()
+                        .all(|argument| self.checked_type_contract_is_closed_monomorphic(argument))
+            }
+            Ty::Arrow(parameter, result) => {
+                self.checked_type_contract_is_closed_monomorphic(parameter)
+                    && self.checked_type_contract_is_closed_monomorphic(result)
+            }
+            Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+                self.checked_type_contract_is_closed_monomorphic(inner)
+            }
+            Ty::Unit => true,
+            Ty::Var(_) | Ty::Hole => false,
         }
     }
 
@@ -49553,12 +49900,14 @@ impl TypeChecker {
                 let Some(signatures) = self.constructor_signatures.get(constructor) else {
                     return false;
                 };
+                // Positional patterns destructure fields in declaration order
+                // for both positional and named-field constructors. Runtime
+                // matching has the same cross-layout rule; storage layout is
+                // therefore not part of this pattern's type judgment.
                 let matching = signatures
                     .iter()
                     .filter(|signature| {
-                        signature.positional
-                            && signature.fields.len() == fields.len()
-                            && signature.parent == owner
+                        signature.fields.len() == fields.len() && signature.parent == owner
                     })
                     .collect::<Vec<_>>();
                 let [signature] = matching.as_slice() else {
@@ -50328,6 +50677,8 @@ impl TypeChecker {
 
         self.rule_dispatch_return_types.clear();
         self.rule_dispatch_return_issues.clear();
+        self.rule_dispatch_type_return_types.clear();
+        self.rule_dispatch_type_return_issues.clear();
         self.rule_dispatch_backend_return_types.clear();
         self.rule_dispatch_backend_return_issues.clear();
         self.rule_dispatch_boolean_miss_safe_keys.clear();
@@ -50531,6 +50882,13 @@ impl TypeChecker {
             self.rule_dispatch_backend_return_types.remove(&key);
             self.rule_dispatch_backend_return_issues.insert(key, issue);
         }
+        // Preserve the exact-family type judgment only after intrinsic result
+        // conflicts and parameter-schema conflicts have been rejected, but
+        // before the legacy canonical pass asks the independent question of
+        // whether every runtime tuple is defined. Query-bounded endpoint proof
+        // consumes this map and proves definedness over its finite domain.
+        self.rule_dispatch_type_return_types = self.rule_dispatch_return_types.clone();
+        self.rule_dispatch_type_return_issues = self.rule_dispatch_return_issues.clone();
         for (key, (_, rules)) in &groups {
             if self
                 .rule_dispatch_return_types
@@ -50766,6 +51124,18 @@ impl TypeChecker {
                 break;
             }
         }
+        // The miss certificate is consumed by both endpoint proof and the
+        // ordinary interpreter. Keep it exactly within the backend Bool ABI
+        // that the interpreter checks before materializing `False`, so proof
+        // can never authorize a fallback the runtime would represent as a
+        // partial-rule miss.
+        self.rule_dispatch_boolean_miss_safe_keys.retain(|key| {
+            !self.rule_dispatch_backend_return_issues.contains_key(key)
+                && self
+                    .rule_dispatch_backend_return_types
+                    .get(key)
+                    .is_some_and(|result| Self::canonical_explore_type_name(result) == "Bool")
+        });
         self.rule_dispatch_irrefutable_keys
             .retain(|key| self.rule_dispatch_return_types.contains_key(key));
     }
@@ -50858,7 +51228,6 @@ impl TypeChecker {
                 }
             });
             if let Some(issue) = issue {
-                self.explore_function_return_types_by_arity.remove(key);
                 self.explore_function_return_issues
                     .insert(key.clone(), issue);
             }
@@ -50886,7 +51255,6 @@ impl TypeChecker {
                         .next()
                 });
                 if let Some(issue) = issue {
-                    self.explore_function_return_types_by_arity.remove(key);
                     self.explore_function_return_issues
                         .insert(key.clone(), issue);
                     changed = true;
@@ -52854,7 +53222,7 @@ impl TypeChecker {
             {
                 return None;
             }
-            let return_type = self.rule_dispatch_return_types.get(&receiver_key)?;
+            let return_type = self.explore_rule_dispatch_result_type(&receiver_key)?;
             self.type_has_scoped_members(return_type)
                 .then_some(return_type.clone())?
         };
@@ -54830,13 +55198,6 @@ impl TypeChecker {
                             }
                         }
                     }
-                    if !self.explore_callable_is_pure(&key) {
-                        self.error_at_span(
-                            request.span,
-                            "mechanism observer must be pure and exploration-supported",
-                        );
-                    }
-
                     self.push_scope();
                     self.define_var("state");
                     self.define_var_type("state", &before_ty);
@@ -54852,7 +55213,13 @@ impl TypeChecker {
                         &reserved_names,
                         &observation_available,
                     );
-                    self.check_explore_expression(&request.endpoint_template);
+                    // This synthetic call needs ordinary name/arity checking,
+                    // but not the legacy path-insensitive Explore purity gate.
+                    // Its exact checked closure is authorized later by the
+                    // request-scoped endpoint-totality proof over Before and
+                    // After.  FROM/TO/WHERE/FIND/view expressions continue to
+                    // use `check_explore_expression` and its older global gate.
+                    self.check_expr(&request.endpoint_template, None);
                     self.pop_scope();
 
                     TypedExploreAnalysisNode::Mechanisms(TypedExploreMechanismRequest {
@@ -56148,23 +56515,16 @@ impl TypeChecker {
         collect_all_imported_metadata_bindings: bool,
         extract_calculation_contracts: bool,
     ) -> TypeCheckArtifacts {
-        let check_started = std::time::Instant::now();
-        Self::trace_explore_check_phase(&check_started, "begin");
         let mut tc = TypeChecker::new();
         tc.source_dir = source_dir;
         tc.source_text = source.to_string();
         tc.install_constructor_prepass(stmts);
-        Self::trace_explore_check_phase(&check_started, "constructor prepass");
         tc.collect_declarations(stmts);
-        Self::trace_explore_check_phase(&check_started, "declarations");
         // The same preparation is used by the lightweight runtime installer;
         // neither path may infer a callable contract the other cannot prove.
         tc.prepare_rule_dispatch_metadata(stmts);
-        Self::trace_explore_check_phase(&check_started, "rule fixed point");
         tc.infer_top_level_binding_types(stmts);
-        Self::trace_explore_check_phase(&check_started, "top-level bindings");
         tc.check_program(stmts);
-        Self::trace_explore_check_phase(&check_started, "checked statements");
         let mut calculation_contracts = Vec::new();
         let mut compile_time_metadata_bindings = BTreeSet::new();
         let mut exploration_universes = Vec::new();
@@ -56173,8 +56533,8 @@ impl TypeChecker {
                 stmts,
                 tc.source_dir.as_deref(),
                 &tc.exploration_queries,
-                &tc.rule_dispatch_return_types,
-                &tc.rule_dispatch_return_issues,
+                &tc.rule_dispatch_type_return_types,
+                &tc.rule_dispatch_type_return_issues,
                 &tc.rule_dispatch_boolean_miss_safe_keys,
                 &tc.explore_rule_return_types_by_arity,
                 &tc.explore_rule_return_issues,
@@ -56184,7 +56544,6 @@ impl TypeChecker {
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
-        Self::trace_explore_check_phase(&check_started, "elaborated explorations");
         if extract_calculation_contracts && tc.diagnostics.is_empty() {
             match calculate::extract_calculation_artifacts_with_checker(
                 stmts,
@@ -56200,16 +56559,7 @@ impl TypeChecker {
                 Err(mut diagnostics) => tc.diagnostics.append(&mut diagnostics),
             }
         }
-        Self::trace_explore_check_phase(
-            &check_started,
-            if extract_calculation_contracts {
-                "extracted calculations"
-            } else {
-                "skipped calculation extraction"
-            },
-        );
         let checked_resolutions = CheckedResolutionRecorder::record(&tc);
-        Self::trace_explore_check_phase(&check_started, "recorded resolutions");
         let (checked_exploration_queries, checked_exploration_query_issue) =
             if tc.diagnostics.is_empty() {
                 match build_checked_explore_query_artifacts(
@@ -56223,7 +56573,6 @@ impl TypeChecker {
             } else {
                 (Vec::new(), None)
             };
-        Self::trace_explore_check_phase(&check_started, "minted exploration identities");
         let exploration_queries = if tc.diagnostics.is_empty() {
             tc.exploration_queries
         } else {
@@ -56278,15 +56627,6 @@ impl TypeChecker {
             runtime_root_program,
             runtime_root_source_dir,
             checked_resolutions,
-        }
-    }
-
-    fn trace_explore_check_phase(started: &std::time::Instant, phase: &str) {
-        if env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
-            eprintln!(
-                "Explore typecheck: {phase}; elapsed={}ms",
-                started.elapsed().as_millis()
-            );
         }
     }
 
@@ -56427,6 +56767,152 @@ mod tests {
     fn explore_artifacts_for_source(source: &str) -> TypeCheckArtifacts {
         let statements = parse_test_program(source).expect("parse exploration fixture");
         TypeChecker::check_with_artifacts(&statements, None, source)
+    }
+
+    #[test]
+    fn endpoint_totality_artifact_issues_are_scoped_to_their_query_slot() {
+        let source = r#"
+> query_scoped_division_observer(state: Int, context: Unit) -> Int {
+    100 / state
+}
+
+? explore unproved_endpoint {
+    from {
+        before in [0, 1]
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from query_scoped_division_observer
+}
+
+? explore proved_endpoint {
+    from {
+        before in [1, 2]
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from query_scoped_division_observer
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected source diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        assert_eq!(artifacts.exploration_universes.len(), 2);
+        assert_eq!(artifacts.checked_exploration_queries.len(), 2);
+        assert!(artifacts.checked_exploration_query_issue.is_none());
+
+        match artifacts.checked_exploration_query(0) {
+            Err(CheckedExploreQueryAccessError::Producer(
+                CheckedExploreQueryArtifactIssue::EndpointTotality(issue),
+            )) => {
+                assert_eq!(issue.endpoint(), explore::RelationalEndpointRole::Before);
+                assert_eq!(
+                    issue.reason(),
+                    explore::RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded
+                );
+            }
+            Err(other) => panic!("unexpected first-query issue: {other:?}"),
+            Ok(_) => panic!("the first query must retain its endpoint-totality issue"),
+        }
+
+        let proved = artifacts
+            .checked_exploration_query(1)
+            .expect("a sibling query with a total endpoint must remain accessible");
+        assert_eq!(proved.closed_query.name, "proved_endpoint");
+
+        let declarations = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .filter(|declaration| {
+                matches!(&declaration.import_kind, SourcedImportKind::Root)
+                    && matches!(&*declaration.statement, Stmt::Explore(_))
+            })
+            .map(CheckedDeclarationOccurrenceId::from_sourced)
+            .collect::<Vec<_>>();
+        assert_eq!(declarations.len(), 2);
+        assert!(matches!(
+            artifacts.checked_exploration_query_for_declaration(&declarations[0]),
+            Err(CheckedExploreQueryAccessError::Producer(
+                CheckedExploreQueryArtifactIssue::EndpointTotality(_)
+            ))
+        ));
+        assert_eq!(
+            artifacts
+                .checked_exploration_query_for_declaration(&declarations[1])
+                .expect("declaration lookup must preserve the valid sibling slot")
+                .closed_query
+                .name,
+            "proved_endpoint"
+        );
+
+        assert!(matches!(
+            build_checked_explore_query_artifacts(
+                &artifacts.analysis_program,
+                &artifacts.checked_resolutions,
+                &artifacts.exploration_universes[..1],
+            ),
+            Err(
+                CheckedExploreQueryArtifactIssue::AcceptedQueryCountMismatch {
+                    declarations: 2,
+                    closed_queries: 1,
+                }
+            )
+        ));
+    }
+
+    #[test]
+    fn checked_query_rejects_mutated_public_domain_before_or_after_proof_minting() {
+        let source = r#"
+> guarded_observer(state: Int, context: Unit) -> Int { 100 / state }
+
+? explore guarded_query {
+    from {
+        before in [1, 2]
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from guarded_observer
+}
+"#;
+        let mut artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected source diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        artifacts
+            .checked_exploration_query(0)
+            .expect("the original immutable query must certify");
+
+        let explore::ExploreSourceBindingKindIr::Finite { domain } =
+            &mut artifacts.exploration_universes[0].source.bindings[0].kind
+        else {
+            panic!("expected a finite Before domain")
+        };
+        match domain {
+            explore::ExploreFiniteDomainIr::Collection { expression, .. } => {
+                *expression = Expr::unspanned(ExprKind::List(vec![Expr::unspanned(
+                    ExprKind::Lit(Literal::Int(0)),
+                )]));
+            }
+            explore::ExploreFiniteDomainIr::Exact(explore::ExploreExactDomain::Enumerated {
+                values,
+                ..
+            }) => values[0] = explore::ExploreValue::Int(0),
+            other => panic!("unexpected finite Before domain: {other:?}"),
+        }
+
+        assert!(matches!(
+            artifacts.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::ArtifactDiverged)
+        ));
     }
 
     fn recursive_source_coverage_fixture() -> &'static str {

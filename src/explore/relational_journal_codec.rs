@@ -71,6 +71,7 @@ use super::relational_classified_sweep::{
     RelationalClassifiedChunkTranscriptRoot, RelationalClassifiedRunDescriptor,
     RelationalClassifiedRunId, RelationalClassifiedSweepError,
 };
+use super::relational_endpoint_totality::RelationalEndpointTotalityCertificateId;
 use super::relational_executor::{
     RelationalBindingSelection, RelationalCompletedSource, RelationalFiberMember,
     RelationalSourceAdvance, RelationalSourceContinuation, RelationalSourceCursor,
@@ -171,7 +172,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 14;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 15;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -1644,6 +1645,7 @@ fn encode_analysis_plan(
                     }
                 }
                 encoder.digest(mechanism.observation_id().bytes())?;
+                encoder.digest(mechanism.endpoint_totality_certificate_id().bytes())?;
                 encoder.digest(mechanism.observation_digest().bytes())?;
                 encode_analysis_dependencies(encoder, mechanism.dependencies())?;
             }
@@ -1714,20 +1716,29 @@ fn decode_analysis_plan(
                 };
                 let observation_id =
                     RelationalMechanismObservationId::from_journal_codec_bytes(reader.digest()?);
+                let endpoint_totality_certificate_id =
+                    RelationalEndpointTotalityCertificateId::from_canonical_bytes(reader.digest()?);
                 let observation_digest =
                     RelationalMechanismObservationDigest::from_journal_codec_bytes(
                         reader.digest()?,
                     );
                 let dependencies = decode_analysis_dependencies(reader)?;
-                RelationalAnalysisLayerRegistration::Mechanisms(
-                    RelationalMechanismLayerRegistration::restore_from_journal_codec(
+                let registration = RelationalMechanismLayerRegistration::restore_from_journal_codec(
+                    request_id,
+                    target,
+                    observation_id,
+                    endpoint_totality_certificate_id,
+                    dependencies,
+                );
+                if registration.observation_digest() != observation_digest {
+                    return Err(RelationalAnalysisPlanError::ObservationDigestMismatch {
                         request_id,
-                        target,
-                        observation_id,
-                        observation_digest,
-                        dependencies,
-                    ),
-                )
+                        expected: registration.observation_digest(),
+                        actual: observation_digest,
+                    }
+                    .into());
+                }
+                RelationalAnalysisLayerRegistration::Mechanisms(registration)
             }
             tag => {
                 return Err(RelationalJournalCodecError::UnknownTag {
@@ -7320,6 +7331,116 @@ mod tests {
     use super::super::relation::{AdmissionId, FindPolarity, QuestionId, RelationId};
     use super::super::relational_journal::{RelationalJournal, RelationalJournalContract};
     use super::*;
+    use sha2::{Digest, Sha256};
+
+    fn mechanism_only_analysis_plan(
+        certificate_id: RelationalEndpointTotalityCertificateId,
+    ) -> RelationalAnalysisPlan {
+        let relation_id = RelationId::from_canonical_semantic_preimage(b"analysis codec relation");
+        let admission_id =
+            AdmissionId::from_canonical_admission_preimage(relation_id, b"admission");
+        let question_id =
+            QuestionId::from_canonical_find_preimage(admission_id, b"question", FindPolarity::All);
+        let request_id = MechanismRequestId::from_canonical_request_preimages(
+            question_id,
+            MechanismTargetId::Selected,
+            b"observation",
+            b"normalization",
+        );
+        let registration = RelationalAnalysisLayerRegistration::Mechanisms(
+            RelationalMechanismLayerRegistration::restore_from_journal_codec(
+                request_id,
+                RelationalResolvedMechanismTarget::Selected(question_id),
+                RelationalMechanismObservationId::from_journal_codec_bytes([0x21; 32]),
+                certificate_id,
+                vec![RelationalAnalysisDependencyId::Question(question_id)].into_boxed_slice(),
+            ),
+        );
+
+        // Mirror the producer-owned V2 graph recipe independently so this
+        // codec fixture proves the restored registration retains authorization.
+        let mut mechanism_node_hasher = Sha256::new();
+        mechanism_node_hasher.update(b"futuruna.checked-explore-analysis-mechanism-node.v2\0");
+        mechanism_node_hasher.update(request_id.bytes());
+        mechanism_node_hasher.update(certificate_id.bytes());
+        let mechanism_node_digest: [u8; 32] = mechanism_node_hasher.finalize().into();
+
+        let mut graph_hasher = Sha256::new();
+        graph_hasher.update(b"futuruna.checked-explore-analysis-graph.v2\0");
+        graph_hasher.update(question_id.bytes());
+        let label = b"semantic-node-count";
+        let value = b"1";
+        graph_hasher.update((label.len() as u64).to_le_bytes());
+        graph_hasher.update(label);
+        graph_hasher.update((value.len() as u64).to_le_bytes());
+        graph_hasher.update(value);
+        graph_hasher.update([0x02]);
+        graph_hasher.update(mechanism_node_digest);
+        let graph_digest = RelationalCheckedAnalysisGraphDigest::from_journal_codec_bytes(
+            graph_hasher.finalize().into(),
+        );
+        RelationalAnalysisPlan::restore_from_journal_codec(
+            question_id,
+            graph_digest,
+            vec![registration],
+        )
+        .expect("restore mechanism-only analysis plan")
+    }
+
+    #[test]
+    fn analysis_plan_codec_round_trips_endpoint_totality_authorization() {
+        let certificate_id =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x31; 32]);
+        let plan = mechanism_only_analysis_plan(certificate_id);
+        let limits = RelationalJournalCodecLimits::default();
+        let mut encoder = Encoder::new(limits);
+        encode_analysis_plan(&mut encoder, &plan).expect("encode analysis plan");
+        let bytes = encoder.finish();
+        let mut reader = Reader::new(&bytes, limits);
+        let decoded = decode_analysis_plan(&mut reader).expect("decode analysis plan");
+        reader.finish().expect("consume analysis plan");
+
+        assert_eq!(decoded, plan);
+        let [RelationalAnalysisLayerRegistration::Mechanisms(registration)] =
+            decoded.layer_registrations()
+        else {
+            panic!("expected one mechanism registration")
+        };
+        assert_eq!(
+            registration.endpoint_totality_certificate_id(),
+            certificate_id
+        );
+    }
+
+    #[test]
+    fn endpoint_totality_analysis_plan_codec_rejects_certificate_observation_digest_divergence() {
+        let certificate_id =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x32; 32]);
+        let plan = mechanism_only_analysis_plan(certificate_id);
+        let [RelationalAnalysisLayerRegistration::Mechanisms(registration)] =
+            plan.layer_registrations()
+        else {
+            panic!("expected one mechanism registration")
+        };
+        let encoded_digest = registration.observation_digest().bytes();
+        let limits = RelationalJournalCodecLimits::default();
+        let mut encoder = Encoder::new(limits);
+        encode_analysis_plan(&mut encoder, &plan).expect("encode analysis plan");
+        let mut bytes = encoder.finish();
+        let digest_offset = bytes
+            .windows(encoded_digest.len())
+            .position(|window| window == encoded_digest.as_slice())
+            .expect("encoded observation digest");
+        bytes[digest_offset] ^= 0x01;
+
+        let mut reader = Reader::new(&bytes, limits);
+        assert!(matches!(
+            decode_analysis_plan(&mut reader),
+            Err(RelationalJournalCodecError::AnalysisPlan(
+                RelationalAnalysisPlanError::ObservationDigestMismatch { .. }
+            ))
+        ));
+    }
 
     fn explicit_observation_scheduler_summary(
         root_seed: u8,

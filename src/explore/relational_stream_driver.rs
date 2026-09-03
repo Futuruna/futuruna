@@ -299,6 +299,27 @@ const fn mechanism_support_facet(facet: ExploreMechanismSupportFacetIr) -> Mecha
 }
 
 impl<'query> RelationalStreamDriver<'query> {
+    /// Reject a registered durable plan which is not the plan rebuilt from
+    /// the current checked query. A fresh journal legitimately has no plan
+    /// yet; the first semantic quantum will register it.
+    ///
+    /// This check is intentionally callable before resource/deadline
+    /// admission so an invocation cannot publish a paused report from a
+    /// mismatched resume prefix without taking a semantic scheduler step.
+    pub(crate) fn validate_journal_analysis_plan(
+        &self,
+        journal: &RelationalJournal,
+    ) -> Result<(), RelationalStreamDriverError> {
+        if journal
+            .scheduler_view()?
+            .analysis_plan_root()
+            .is_some_and(|root| root != self.analysis_plan.root())
+        {
+            return Err(RelationalStreamDriverError::AnalysisPlanRootMismatch);
+        }
+        Ok(())
+    }
+
     pub(crate) fn from_checked(
         checked: &'query CheckedExploreQueryView<'_>,
         support_plan: &'query RelationalSupportPlan,
@@ -627,6 +648,7 @@ impl<'query> RelationalStreamDriver<'query> {
         R: RelationalExpressionRuntime + RelationalResultExpressionRuntime,
         M: RelationalMechanismReplayRuntime,
     {
+        self.validate_journal_analysis_plan(journal)?;
         let view = journal.scheduler_view()?;
         match view.analysis_plan_root() {
             None => {
@@ -637,9 +659,6 @@ impl<'query> RelationalStreamDriver<'query> {
                         self.analysis_plan.clone(),
                     )],
                 ));
-            }
-            Some(root) if root != self.analysis_plan.root() => {
-                return Err(RelationalStreamDriverError::AnalysisPlanRootMismatch.into());
             }
             Some(_) => {}
         }

@@ -136,6 +136,18 @@ pub(crate) use relation::{
     RelationalCaseRef, SelectionCounts, SelectionDecision, SourceKey, SourceRow, SuccessorKey,
     SuccessorRow, ViewId, ViewInputId,
 };
+mod relational_endpoint_totality;
+pub(crate) use relational_endpoint_totality::{
+    RelationalEndpointAbstractProofRoot, RelationalEndpointProofDomainRoot, RelationalEndpointRole,
+    RelationalEndpointTotalityCertificate, RelationalEndpointTotalityCertificateError,
+    RelationalEndpointTotalityCertificateId, RelationalEndpointTotalityIssue,
+    RelationalEndpointTotalityIssueReason, RelationalEndpointTotalityObligationCount,
+    RELATIONAL_ENDPOINT_TOTALITY_CERTIFICATE_VERSION,
+};
+mod relational_endpoint_totality_proof;
+pub(crate) use relational_endpoint_totality_proof::prove_relational_endpoint_totality;
+#[cfg(test)]
+mod relational_endpoint_totality_tests;
 mod relational_ir;
 pub(crate) use relational_ir::relational_tys_equivalent;
 pub use relational_ir::{
@@ -6360,6 +6372,7 @@ fn explore_replay_callable_identity_issue(
     definitions: &GroundDefinitions,
     visiting: &mut BTreeSet<(String, usize)>,
     validated: &mut BTreeSet<(String, usize)>,
+    require_legacy_rule_type: bool,
 ) -> Option<String> {
     let key = (name.to_string(), arity);
     if validated.contains(&key) || !visiting.insert(key.clone()) {
@@ -6367,7 +6380,7 @@ fn explore_replay_callable_identity_issue(
     }
 
     let exact_rule = definitions.rule_definitions.contains_key(&key);
-    if exact_rule {
+    if exact_rule && require_legacy_rule_type {
         if let Some(issue) = definitions.explore_rule_return_issues.get(&key) {
             visiting.remove(&key);
             return Some(format!(
@@ -6484,18 +6497,28 @@ fn explore_replay_callable_identity_issue(
             ))
         } else {
             let definition = &exact.expect("one exact helper definition")[0];
-            let bound = definition
-                .params
-                .iter()
-                .map(|param| param.name.clone())
-                .collect::<BTreeSet<_>>();
-            expression_replay_callable_identity_issue(
-                &definition.body,
-                &bound,
-                definitions,
-                visiting,
-                validated,
-            )
+            if !require_legacy_rule_type && !definition.effects.is_empty() {
+                // Mechanism endpoints use the query-scoped totality proof as
+                // their definedness authority. A checked effect row is a
+                // decisive leaf obligation, so preserve this callable for the
+                // prover instead of demanding replay identities inside a body
+                // which cannot be evaluated under a valid certificate.
+                None
+            } else {
+                let bound = definition
+                    .params
+                    .iter()
+                    .map(|param| param.name.clone())
+                    .collect::<BTreeSet<_>>();
+                expression_replay_callable_identity_issue(
+                    &definition.body,
+                    &bound,
+                    definitions,
+                    visiting,
+                    validated,
+                    require_legacy_rule_type,
+                )
+            }
         }
     } else if let Some(rules) = definitions.rule_definitions.get(&key) {
         if definitions.constructors.contains_key(&key) {
@@ -6517,6 +6540,7 @@ fn explore_replay_callable_identity_issue(
                             definitions,
                             visiting,
                             validated,
+                            require_legacy_rule_type,
                         )
                     })
             })
@@ -6558,15 +6582,18 @@ fn expression_replay_callable_identity_issue(
     definitions: &GroundDefinitions,
     visiting: &mut BTreeSet<(String, usize)>,
     validated: &mut BTreeSet<(String, usize)>,
+    require_legacy_rule_type: bool,
 ) -> Option<String> {
     collect_scoped_runtime_calls(expression, bound)
         .into_iter()
         .find_map(|call| {
             if call.lexically_bound {
-                return Some(format!(
-                    "exploration replay call `{}` resolves through a lexical value instead of one exact top-level callable",
-                    call.name
-                ));
+                return require_legacy_rule_type.then(|| {
+                    format!(
+                        "exploration replay call `{}` resolves through a lexical value instead of one exact top-level callable",
+                        call.name
+                    )
+                });
             }
             if matches!(call.name.as_str(), "findall" | "search") {
                 return Some(format!(
@@ -6607,6 +6634,7 @@ fn expression_replay_callable_identity_issue(
                 definitions,
                 visiting,
                 validated,
+                require_legacy_rule_type,
             )
         })
 }
@@ -6621,36 +6649,46 @@ fn validate_query_replay_callable_identities(
         "context".to_string(),
     ]);
     let mut diagnostics = Vec::new();
-    let mut validated = BTreeSet::new();
+    // A mechanism-endpoint validation omits the legacy rule-type premise, so
+    // its success cannot satisfy a later, stricter ordinary-expression check.
+    let mut endpoint_validated = BTreeSet::new();
+    let mut ordinary_validated = BTreeSet::new();
 
-    let mut check_expression = |expression: &Expr, bound: &BTreeSet<String>| {
-        if let Some(message) = expression_replay_callable_identity_issue(
-            expression,
-            bound,
-            definitions,
-            &mut BTreeSet::new(),
-            &mut validated,
-        ) {
-            diagnostics.push(Diagnostic::error_at(expression.span, message));
-        }
-    };
+    let mut check_expression =
+        |expression: &Expr, bound: &BTreeSet<String>, require_legacy_rule_type: bool| {
+            let validated = if require_legacy_rule_type {
+                &mut ordinary_validated
+            } else {
+                &mut endpoint_validated
+            };
+            if let Some(message) = expression_replay_callable_identity_issue(
+                expression,
+                bound,
+                definitions,
+                &mut BTreeSet::new(),
+                validated,
+                require_legacy_rule_type,
+            ) {
+                diagnostics.push(Diagnostic::error_at(expression.span, message));
+            }
+        };
 
     let mut available_source_names = BTreeSet::new();
     for binding in &query.source.bindings {
         match &binding.kind {
             TypedExploreSourceBindingKind::Singleton { value } => {
-                check_expression(value, &available_source_names);
+                check_expression(value, &available_source_names, true);
             }
             TypedExploreSourceBindingKind::Finite { domain } => match domain {
                 TypedExploreDomain::FiniteExpr { expression, .. } => {
-                    check_expression(expression, &available_source_names);
+                    check_expression(expression, &available_source_names, true);
                 }
                 TypedExploreDomain::Range {
                     start,
                     end_exclusive,
                 } => {
-                    check_expression(start, &available_source_names);
-                    check_expression(end_exclusive, &available_source_names);
+                    check_expression(start, &available_source_names, true);
+                    check_expression(end_exclusive, &available_source_names, true);
                 }
                 TypedExploreDomain::Values { .. } => {}
             },
@@ -6660,31 +6698,31 @@ fn validate_query_replay_callable_identities(
 
     match &query.successor.kind {
         TypedExploreSuccessorKind::Singleton { value } => {
-            check_expression(value, &semantic_case_names);
+            check_expression(value, &semantic_case_names, true);
         }
         TypedExploreSuccessorKind::Finite { domain } => match domain {
             TypedExploreDomain::FiniteExpr { expression, .. } => {
-                check_expression(expression, &semantic_case_names);
+                check_expression(expression, &semantic_case_names, true);
             }
             TypedExploreDomain::Range {
                 start,
                 end_exclusive,
             } => {
-                check_expression(start, &semantic_case_names);
-                check_expression(end_exclusive, &semantic_case_names);
+                check_expression(start, &semantic_case_names, true);
+                check_expression(end_exclusive, &semantic_case_names, true);
             }
             TypedExploreDomain::Values { .. } => {}
         },
     }
 
     for admission in &query.admissions {
-        check_expression(&admission.predicate, &semantic_case_names);
+        check_expression(&admission.predicate, &semantic_case_names, true);
     }
     match &query.selection {
         TypedExploreSelection::All { .. } => {}
         TypedExploreSelection::Matches { predicate, .. }
         | TypedExploreSelection::Violations { predicate, .. } => {
-            check_expression(predicate, &semantic_case_names);
+            check_expression(predicate, &semantic_case_names, true);
         }
     }
 
@@ -6713,41 +6751,46 @@ fn validate_query_replay_callable_identities(
                     | TypedExploreResultGrain::GroupAll { .. } => {}
                     TypedExploreResultGrain::GroupBy { fields, .. } => {
                         for field in fields {
-                            check_expression(&field.value, &view_names);
+                            check_expression(&field.value, &view_names, true);
                             view_names.insert(field.name.clone());
                         }
                     }
                 }
                 for field in &view.measures {
-                    check_expression(&field.value, &view_names);
+                    check_expression(&field.value, &view_names, true);
                     view_names.insert(field.name.clone());
                 }
                 for field in &view.aggregates {
                     match &field.reducer {
                         TypedExploreAggregateReducer::CountDistinct { value, .. } => {
-                            check_expression(value, &view_names);
+                            check_expression(value, &view_names, true);
                         }
                     }
                     view_names.insert(field.name.clone());
                 }
                 for field in &view.select {
-                    check_expression(&field.value, &view_names);
+                    check_expression(&field.value, &view_names, true);
                     view_names.insert(field.name.clone());
                 }
                 match &view.choose {
                     None => {}
                     Some(TypedExploreResultChoice::Optimize { objective, .. }) => {
-                        check_expression(objective, &view_names);
+                        check_expression(objective, &view_names, true);
                     }
                     Some(TypedExploreResultChoice::Pareto { objectives, .. }) => {
                         for objective in objectives {
-                            check_expression(&objective.value, &view_names);
+                            check_expression(&objective.value, &view_names, true);
                         }
                     }
                 }
             }
             TypedExploreAnalysisNode::Mechanisms(request) => {
-                check_expression(&request.endpoint_template, &mechanism_names);
+                // Endpoint type and definedness authority comes from the
+                // exact checked-resolution contract and its request-bounded
+                // certificate. This pass still rejects replay collisions and
+                // shadowing, but must not reimpose the root-only legacy type
+                // catalog on mechanism observers.
+                check_expression(&request.endpoint_template, &mechanism_names, false);
             }
         }
     }

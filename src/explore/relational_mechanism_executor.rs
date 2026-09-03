@@ -28,6 +28,7 @@ use super::relation::{
     MechanismTargetId, QuestionId, RelationProvenance, RelationalCaseId, RelationalCaseRef,
     SourceKey, SourceRow, SuccessorKey, SuccessorRow, ViewId,
 };
+use super::relational_endpoint_totality::RelationalEndpointTotalityCertificateId;
 use super::structural_mechanism::{
     derive_structural_signature_quotient_v1, StructuralActivationInputV1,
     StructuralDerivationBudget, StructuralMechanismError, StructuralOccurrenceInputV1,
@@ -752,14 +753,15 @@ pub(crate) enum RelationalMechanismReplayPause {
     RetryableRuntime,
 }
 
-/// Closed permanent replay failures under this replay ABI. A deterministic
-/// checked observer error may close as unavailable; cancellation, resource
-/// pause, timeout, panic, or an integrity disagreement must not use this enum.
+/// Closed permanent instrumentation failures under this replay ABI. Semantic
+/// observer failure after endpoint-totality certification is an integrity
+/// error; cancellation, resource pause, timeout, panic, or an integrity
+/// disagreement must not use this enum.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalMechanismPermanentUnavailable {
+    /// The observer is semantically total, but this replay ABI cannot expose
+    /// one of the required trace events.
     ObservationInstrumentationUnsupported,
-    CheckedCallableNotReplayable,
-    ObserverEvaluationFailed,
     /// Complete deterministic replay exceeded a fixed capacity of this replay
     /// ABI. Retrying the same endpoint under the same ABI cannot make progress.
     ReplayAbiCapacityExceeded,
@@ -769,8 +771,6 @@ impl RelationalMechanismPermanentUnavailable {
     const fn canonical_tag(self) -> u8 {
         match self {
             Self::ObservationInstrumentationUnsupported => 0x01,
-            Self::CheckedCallableNotReplayable => 0x02,
-            Self::ObserverEvaluationFailed => 0x03,
             Self::ReplayAbiCapacityExceeded => 0x04,
         }
     }
@@ -780,8 +780,6 @@ impl RelationalMechanismPermanentUnavailable {
             Self::ObservationInstrumentationUnsupported => {
                 "observation_instrumentation_unsupported"
             }
-            Self::CheckedCallableNotReplayable => "checked_callable_not_replayable",
-            Self::ObserverEvaluationFailed => "observer_evaluation_failed",
             Self::ReplayAbiCapacityExceeded => "replay_abi_capacity_exceeded",
         }
     }
@@ -797,11 +795,14 @@ pub(crate) enum RelationalMechanismEndpointReplayProgress {
     PermanentlyUnavailable(RelationalMechanismPermanentUnavailable),
 }
 
-/// Borrowed replay command for exactly one endpoint. The executor creates a
-/// new command and requires a fresh trace result for each endpoint call.
+/// Borrowed replay command for exactly one endpoint. The executor carries the
+/// plan-authorized totality certificate as a runtime handshake; that
+/// authorization does not enter request, signature, or mechanism identity.
+/// A new command requires a fresh trace result for each endpoint call.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct RelationalMechanismEndpointReplayRequest<'a> {
     scope: MechanismRequestScope,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     observation_id: RelationalMechanismReplayObservationId,
     observation: &'a MechanismObservationIr,
     case_id: RelationalCaseId,
@@ -814,6 +815,12 @@ pub(crate) struct RelationalMechanismEndpointReplayRequest<'a> {
 impl<'a> RelationalMechanismEndpointReplayRequest<'a> {
     pub(crate) const fn scope(self) -> MechanismRequestScope {
         self.scope
+    }
+
+    pub(crate) const fn endpoint_totality_certificate_id(
+        self,
+    ) -> RelationalEndpointTotalityCertificateId {
+        self.endpoint_totality_certificate_id
     }
 
     pub(crate) const fn observation_id(self) -> RelationalMechanismReplayObservationId {
@@ -859,12 +866,13 @@ impl<'a> RelationalMechanismEndpointReplayRequest<'a> {
 
 /// Trusted fresh-replay adapter. Implementations must evaluate the supplied
 /// checked template as `template(state, context)` from empty evaluator and
-/// instrumentation state. They may reuse an immutable complete proposal from
-/// an earlier such evaluation only when checked observation identity and the
-/// canonical state/context values are identical; case, transition and endpoint
-/// role are rebound and validated by this module. They must return `Complete`
-/// only after the originating endpoint evaluation and all instrumentation have
-/// finished.
+/// instrumentation state, and must reject a certificate ID they cannot match
+/// to the request-scoped checked authorization. They may reuse an immutable
+/// complete proposal from an earlier such evaluation only when certificate,
+/// checked observation identity, and canonical state/context values are
+/// identical; case, transition and endpoint role are rebound and validated by
+/// this module. They must return `Complete` only after the originating endpoint
+/// evaluation and all instrumentation have finished.
 pub(crate) trait RelationalMechanismReplayRuntime {
     type Error;
 
@@ -1897,6 +1905,10 @@ impl std::error::Error for RelationalMechanismReplayError {}
 /// Replay one concrete relational case through the same checked endpoint
 /// template at Before and After.
 ///
+/// The supplied certificate ID is authorization metadata only. The runtime
+/// must match it to the checked request before evaluating either endpoint;
+/// signatures remain identities of observed control behavior, not proofs.
+///
 /// A paused second endpoint intentionally discards the completed first trace;
 /// retry starts both endpoint traces fresh. This costs bounded duplicate work
 /// but prevents a partial operational checkpoint from masquerading as a
@@ -1904,6 +1916,7 @@ impl std::error::Error for RelationalMechanismReplayError {}
 pub(crate) fn replay_relational_mechanism_case<R: RelationalMechanismReplayRuntime>(
     runtime: &mut R,
     scope: MechanismRequestScope,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     observation: &MechanismObservationIr,
     schemas: &TransitionSchemaIdentities,
     case: RelationalCaseRef<'_>,
@@ -1919,6 +1932,7 @@ pub(crate) fn replay_relational_mechanism_case<R: RelationalMechanismReplayRunti
 
     let before_request = RelationalMechanismEndpointReplayRequest {
         scope,
+        endpoint_totality_certificate_id,
         observation_id,
         observation,
         case_id: case.case_id(),
@@ -1957,6 +1971,7 @@ pub(crate) fn replay_relational_mechanism_case<R: RelationalMechanismReplayRunti
 
     let after_request = RelationalMechanismEndpointReplayRequest {
         scope,
+        endpoint_totality_certificate_id,
         observation_id,
         observation,
         case_id: case.case_id(),
@@ -4641,8 +4656,6 @@ fn decode_permanent_unavailable(
 ) -> Result<RelationalMechanismPermanentUnavailable, RelationalMechanismReplayError> {
     match tag {
         0x01 => Ok(RelationalMechanismPermanentUnavailable::ObservationInstrumentationUnsupported),
-        0x02 => Ok(RelationalMechanismPermanentUnavailable::CheckedCallableNotReplayable),
-        0x03 => Ok(RelationalMechanismPermanentUnavailable::ObserverEvaluationFailed),
         0x04 => Ok(RelationalMechanismPermanentUnavailable::ReplayAbiCapacityExceeded),
         _ => Err(RelationalMechanismReplayError::InvalidDurablePayload(
             "permanent-unavailability tag",

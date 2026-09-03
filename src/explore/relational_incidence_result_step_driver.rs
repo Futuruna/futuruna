@@ -1598,8 +1598,9 @@ mod tests {
                     CheckedExploreAnalysisIdentity::Mechanisms {
                         request_id,
                         observation,
+                        endpoint_totality,
                     },
-                ) => request = Some((*request_id, observation)),
+                ) => request = Some((*request_id, observation, endpoint_totality.certificate_id())),
                 (
                     ExploreAnalysisNodeIr::Result(result),
                     CheckedExploreAnalysisIdentity::View { view_id },
@@ -1613,7 +1614,8 @@ mod tests {
                 _ => {}
             }
         }
-        let (request_id, observation) = request.expect("mechanism request identity");
+        let (request_id, observation, endpoint_totality_certificate_id) =
+            request.expect("mechanism request identity");
         let view_id = result_view.expect("incidence result identity");
         let driver = RelationalIncidenceResultStepDriver::from_checked(&checked)
             .expect("incidence-result driver");
@@ -1667,6 +1669,7 @@ mod tests {
         let evidence = match replay_relational_mechanism_case(
             &mut EmptyTraceRuntime,
             evidence_contract.scope(),
+            endpoint_totality_certificate_id,
             observation,
             checked.transition_schemas(),
             case,

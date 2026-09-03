@@ -17,7 +17,8 @@ use crate::{
     calculate, walk_ast_stmt, AstChild, CheckedConstructorLayout, CheckedExploreAnalysisIdentity,
     CheckedExploreCoverageBindingRole, CheckedExploreCoverageClassification,
     CheckedExploreCoverageGapReason, CheckedExploreCoverageLiteralKind,
-    CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryView,
+    CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryAccessError,
+    CheckedExploreQueryArtifactIssue, CheckedExploreQueryView,
     CheckedExploreSourceCoverageManifest, Diagnostic, ExploreAdmissionScope, Expr,
     OwnedCheckedExploreQuery, Stmt, Ty, TypeCheckArtifacts, TypeChecker,
 };
@@ -28,7 +29,9 @@ use super::relational_analysis_catalog::{
     RelationalAnalysisLayerSnapshot, RelationalAnalysisLayerStatus,
     RelationalResultLayerSnapshotState, RelationalResultPublication,
 };
-use super::relational_analysis_plan::{RelationalAnalysisLayerId, RelationalAnalysisPlan};
+use super::relational_analysis_plan::{
+    RelationalAnalysisLayerId, RelationalAnalysisPlan, RelationalAnalysisPlanRoot,
+};
 use super::relational_classification_capsule::{
     ClassificationProvenanceRoot, ClassificationSpecializationRoot, RelationalClassificationCapsule,
 };
@@ -133,6 +136,7 @@ pub struct PreparedRelationalExplore {
     support_plan: RelationalSupportPlan,
     region_replay_authority: Arc<RelationalRegionReplayAuthority>,
     contract: RelationalJournalContract,
+    analysis_plan_root: RelationalAnalysisPlanRoot,
     publication_plan: RelationalPublicationPlan,
     expression_runtime: RelationalInterpreterExpressionRuntime,
     mechanism_runtime: RelationalInterpreterMechanismReplayRuntime,
@@ -298,6 +302,7 @@ impl PreparedRelationalExplore {
         let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
             &options.run_state,
             self.contract,
+            self.analysis_plan_root,
             RelationalDurableJournalLimits::default(),
             Arc::clone(&self.region_replay_authority),
         )
@@ -1053,8 +1058,14 @@ pub fn prepare_checked_relational_stream(
     let (checked, observer_memo_plan, mechanism_memo_plan) = artifacts
         .checked_exploration_query_with_memo_plans(selected)
         .map_err(|error| {
+            let detail = match &error {
+                CheckedExploreQueryAccessError::Producer(
+                    CheckedExploreQueryArtifactIssue::EndpointTotality(issue),
+                ) => issue.to_string(),
+                _ => format!("{error:?}"),
+            };
             ExploreStreamPreparationError::Execution(format!(
-                "checked exploration boundary is unavailable: {error:?}"
+                "checked exploration boundary is unavailable: {detail}"
             ))
         })?;
     trace_preparation_phase(started, "validated query and memo plan");
@@ -1141,6 +1152,7 @@ pub fn prepare_checked_relational_stream(
         support_plan,
         region_replay_authority,
         contract,
+        analysis_plan_root: analysis_plan.root(),
         publication_plan,
         expression_runtime,
         mechanism_runtime,
@@ -1176,6 +1188,7 @@ impl RelationalExploreEpoch {
             support_plan,
             region_replay_authority: _,
             contract: _,
+            analysis_plan_root: _,
             publication_plan,
             expression_runtime,
             mechanism_runtime,
@@ -1437,8 +1450,8 @@ fn checked_expression_runtime_inputs(
             .map_err(|errors| ExploreStreamPreparationError::Execution(errors.join("; ")))?;
     let mut definitions = checked_ground_definitions(&artifacts.analysis_program)
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
-    definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
-    definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+    definitions.rule_dispatch_return_types = artifacts.rule_dispatch_backend_return_types.clone();
+    definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
     definitions.rule_dispatch_boolean_miss_safe_keys =
         artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
     Ok((catalog, definitions))
@@ -2739,7 +2752,10 @@ mod regional_stream_acceptance_tests {
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
 
-    use super::super::relational_analysis_plan::RelationalAnalysisPlan;
+    use super::super::relational_analysis_plan::{
+        RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
+        RelationalMechanismLayerRegistration, RelationalMechanismObservationId,
+    };
     use super::super::relational_case_support_projection::{
         derive_relational_case_support_projection, RelationalCaseSupportClosureAuthority,
         RelationalCaseSupportCount, RelationalCaseSupportProjectionFrontier,
@@ -3038,6 +3054,114 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn pre_step_pause_rejects_a_mismatched_registered_analysis_plan_before_publication() {
+        let source = r#"
+> pause_guard_observer(state: Int, context: Unit) -> Int { state }
+
+? explore pause_guard {
+    from {
+        before in [0, 1]
+        context = ()
+    }
+    to after = before
+    find all
+    mechanisms paths for selected from pause_guard_observer
+}
+"#;
+        let prepared = prepare(source);
+        let checked = prepared.checked.view();
+        let fresh_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("build fresh checked plan");
+        let mut changed_observation = false;
+        let registrations = fresh_plan
+            .layer_registrations()
+            .iter()
+            .cloned()
+            .map(|registration| match registration {
+                RelationalAnalysisLayerRegistration::Mechanisms(mechanism)
+                    if !changed_observation =>
+                {
+                    changed_observation = true;
+                    let mut bytes = mechanism.observation_id().bytes();
+                    bytes[0] ^= 1;
+                    RelationalAnalysisLayerRegistration::Mechanisms(
+                        RelationalMechanismLayerRegistration::restore_from_journal_codec(
+                            mechanism.request_id(),
+                            mechanism.target(),
+                            RelationalMechanismObservationId::from_journal_codec_bytes(bytes),
+                            mechanism.endpoint_totality_certificate_id(),
+                            mechanism.dependencies().to_vec().into_boxed_slice(),
+                        ),
+                    )
+                }
+                registration => registration,
+            })
+            .collect::<Vec<_>>();
+        assert!(changed_observation, "fixture must have one mechanism layer");
+        let alternate_plan = RelationalAnalysisPlan::restore_from_journal_codec(
+            fresh_plan.question_id(),
+            fresh_plan.producer_graph_digest(),
+            registrations,
+        )
+        .expect("restore same-graph alternate plan");
+        assert_eq!(
+            alternate_plan.producer_graph_digest(),
+            fresh_plan.producer_graph_digest(),
+            "the fixture isolates plan authority from producer-graph authority"
+        );
+        assert_ne!(alternate_plan.root(), fresh_plan.root());
+
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let output = temp.path().join("output");
+        {
+            let alternate_root = alternate_plan.root();
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract,
+                    alternate_root,
+                    RelationalDurableJournalLimits::default(),
+                    Arc::clone(&prepared.region_replay_authority),
+                )
+                .expect("open alternate-plan seed journal under its own authority");
+            let (sequence, head) = {
+                let journal = durable.journal().expect("inspect seed journal");
+                (journal.next_sequence(), journal.head())
+            };
+            durable
+                .append_events(
+                    sequence,
+                    head,
+                    [RelationalJournalEvent::analysis_plan_registered(
+                        alternate_plan,
+                    )],
+                )
+                .expect("seed alternate registered plan");
+            durable
+                .flush_for_pause()
+                .expect("flush alternate registered plan");
+        }
+
+        let error = match prepare(source).open_epoch(ExploreStreamEpochOptions {
+            run_state,
+            output_directory: Some(output.clone()),
+            outer_containment: None,
+        }) {
+            Err(error) => error,
+            Ok(_) => panic!("mismatched registered plan must fail while opening the journal"),
+        };
+        assert_eq!(
+            error.to_string(),
+            "relational journal analysis plan differs from the freshly checked plan"
+        );
+        assert!(
+            !output.join("manifest.json").exists(),
+            "mismatched plan state must not reach publication"
+        );
+    }
+
+    #[test]
     fn hybrid_stream_resumes_materializes_sparse_selected_and_projects_exact_public_closure() {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
@@ -3059,6 +3183,7 @@ mod regional_stream_acceptance_tests {
                 RelationalDurableJournal::open_or_create_with_region_replay_authority(
                     &run_state,
                     prepared.contract,
+                    prepared.analysis_plan_root,
                     RelationalDurableJournalLimits::default(),
                     Arc::clone(&prepared.region_replay_authority),
                 )
@@ -3132,6 +3257,7 @@ mod regional_stream_acceptance_tests {
         let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
             &run_state,
             prepared.contract,
+            prepared.analysis_plan_root,
             RelationalDurableJournalLimits::default(),
             Arc::clone(&prepared.region_replay_authority),
         )

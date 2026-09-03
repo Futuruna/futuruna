@@ -7016,7 +7016,7 @@ fn relational_explore_report_json(
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v6",
+        "schema": "futuruna.explore.relational-stream.v7",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
         "query": {

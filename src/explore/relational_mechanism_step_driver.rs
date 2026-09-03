@@ -51,6 +51,7 @@ use super::relational_analysis_plan::{
     RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
     RelationalAnalysisPlanError, RelationalAnalysisPlanRoot, RelationalResolvedMechanismTarget,
 };
+use super::relational_endpoint_totality::RelationalEndpointTotalityCertificateId;
 use super::relational_ir::{ExploreAnalysisNodeIr, ExploreMechanismTargetIr};
 use super::relational_journal::{
     RelationalJournal, RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
@@ -172,6 +173,7 @@ pub(crate) enum RelationalMechanismStepOutcome {
 
 struct SelectedMechanismLayer<'ir> {
     observation: &'ir MechanismObservationIr,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     replay_observation_id: RelationalMechanismReplayObservationId,
 }
 
@@ -263,6 +265,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 CheckedExploreAnalysisIdentity::Mechanisms {
                     request_id,
                     observation,
+                    endpoint_totality,
                 },
             ) = (node, identity)
             else {
@@ -283,6 +286,14 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                     RelationalMechanismStepDriverError::AnalysisLayerKindMismatch(layer_id),
                 );
             }
+            if registration.endpoint_totality_certificate_id() != endpoint_totality.certificate_id()
+            {
+                return Err(
+                    RelationalMechanismStepDriverError::EndpointTotalityAuthorizationMismatch(
+                        *request_id,
+                    ),
+                );
+            }
 
             let replay_observation_id =
                 RelationalMechanismReplayObservationId::derive_checked(observation)?;
@@ -299,6 +310,8 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                             *request_id,
                             SelectedMechanismLayer {
                                 observation,
+                                endpoint_totality_certificate_id: endpoint_totality
+                                    .certificate_id(),
                                 replay_observation_id,
                             },
                         )
@@ -904,6 +917,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         let outcome = replay_relational_mechanism_case(
             runtime,
             contract.scope(),
+            layer.endpoint_totality_certificate_id,
             layer.observation,
             self.transition_schemas,
             case,
@@ -1135,6 +1149,7 @@ pub(crate) enum RelationalMechanismStepDriverError {
     AnalysisCatalogMissing,
     AnalysisLayerMissing(RelationalAnalysisLayerId),
     AnalysisLayerKindMismatch(RelationalAnalysisLayerId),
+    EndpointTotalityAuthorizationMismatch(MechanismRequestId),
     DuplicateMechanismRequest(MechanismRequestId),
     SelectedQuestionScopeMismatch,
     MechanismLayerStateMismatch(MechanismRequestId),
@@ -1222,6 +1237,9 @@ impl fmt::Display for RelationalMechanismStepDriverError {
                 .write_str("checked mechanism layer is absent from the analysis catalog"),
             Self::AnalysisLayerKindMismatch(_) => formatter
                 .write_str("checked mechanism layer has a different analysis kind or target"),
+            Self::EndpointTotalityAuthorizationMismatch(_) => formatter.write_str(
+                "checked mechanism endpoint-totality authorization differs from its registered analysis plan",
+            ),
             Self::DuplicateMechanismRequest(_) => {
                 formatter.write_str("checked query repeats a semantic mechanism request")
             }
@@ -1305,6 +1323,7 @@ impl Error for RelationalMechanismStepDriverError {
             | Self::AnalysisCatalogMissing
             | Self::AnalysisLayerMissing(_)
             | Self::AnalysisLayerKindMismatch(_)
+            | Self::EndpointTotalityAuthorizationMismatch(_)
             | Self::DuplicateMechanismRequest(_)
             | Self::SelectedQuestionScopeMismatch
             | Self::MechanismLayerStateMismatch(_)

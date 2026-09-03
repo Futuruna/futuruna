@@ -27,7 +27,7 @@ use super::transition::canonical_explore_value_digest;
 use super::{
     append_required_binding, collect_ground_bindings_inner, expression_query_dependencies,
     runtime_value_from_explore_value, ExploreRuntimeGroundEvaluator, GroundDefinitions,
-    EXPLORE_GROUND_COLLECTION_LIMIT,
+    MechanismRequestId, RelationalEndpointTotalityCertificateId, EXPLORE_GROUND_COLLECTION_LIMIT,
 };
 use crate::{
     AnalysisProgramId, CheckedAnalysisProgram, CheckedCallableId, CheckedExploreAnalysisIdentity,
@@ -49,9 +49,16 @@ const RELATIONAL_INTERPRETER_MECHANISM_STEP_LIMIT: usize = 1_000_000;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct RelationalInterpreterEndpointCacheKey {
+    certificate_id: RelationalEndpointTotalityCertificateId,
     observation_id: RelationalMechanismReplayObservationId,
     state_value_digest: [u8; 32],
     context_value_digest: [u8; 32],
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RelationalEndpointReplayAuthorization {
+    observation_id: RelationalMechanismReplayObservationId,
+    certificate_id: RelationalEndpointTotalityCertificateId,
 }
 
 /// Production fresh-replay adapter backed by one coherent checked program.
@@ -64,6 +71,8 @@ pub(crate) struct RelationalInterpreterMechanismReplayRuntime {
     catalog: Arc<CheckedInterpreterMechanismCatalog>,
     definitions: Arc<GroundDefinitions>,
     mechanism_memo_plan: Option<CheckedMechanismRuleMemoPlan>,
+    endpoint_totality_authorizations:
+        BTreeMap<MechanismRequestId, RelationalEndpointReplayAuthorization>,
     required_binding_orders: BTreeMap<CheckedCallableId, Box<[String]>>,
     /// Exactly one immutable proposal, sufficient for adjacent grid edges:
     /// one edge's After is the next edge's Before. This is deliberately not a
@@ -87,8 +96,10 @@ impl RelationalInterpreterMechanismReplayRuntime {
             .checked_runtime_root_program_v1()
             .map_err(RelationalInterpreterMechanismReplayError::CheckedRuntimeSnapshot)?;
         let mut definitions = checked_ground_definitions(&artifacts.analysis_program)?;
-        definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
-        definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+        definitions.rule_dispatch_return_types =
+            artifacts.rule_dispatch_backend_return_types.clone();
+        definitions.rule_dispatch_return_issues =
+            artifacts.rule_dispatch_backend_return_issues.clone();
         definitions.rule_dispatch_boolean_miss_safe_keys =
             artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
         let mechanism_memo_plan = artifacts.checked_mechanism_rule_memo_plan(checked);
@@ -115,6 +126,56 @@ impl RelationalInterpreterMechanismReplayRuntime {
                 ),
             );
         }
+        let mut endpoint_totality_authorizations = BTreeMap::new();
+        for (_, identity) in checked.analysis_nodes() {
+            let CheckedExploreAnalysisIdentity::Mechanisms {
+                request_id,
+                observation,
+                endpoint_totality,
+            } = identity
+            else {
+                continue;
+            };
+            endpoint_totality.validate_identity().map_err(|error| {
+                RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(
+                    error.to_string(),
+                )
+            })?;
+            if endpoint_totality.request_id() != *request_id
+                || endpoint_totality.relation_id() != checked.relation_id()
+            {
+                return Err(
+                    RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(
+                        "endpoint-totality certificate is outside the checked request or relation"
+                            .into(),
+                    ),
+                );
+            }
+            let observation_id = RelationalMechanismReplayObservationId::derive_checked(
+                observation,
+            )
+            .map_err(|error| {
+                RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(format!(
+                    "mechanism request {request_id:?} has an invalid checked observation: {error}"
+                ))
+            })?;
+            let authorization = RelationalEndpointReplayAuthorization {
+                observation_id,
+                certificate_id: endpoint_totality.certificate_id(),
+            };
+            match endpoint_totality_authorizations.insert(*request_id, authorization) {
+                None => {}
+                Some(existing) if existing == authorization => {}
+                Some(_) => {
+                    return Err(
+                        RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(
+                            "one mechanism request resolves to conflicting totality evidence"
+                                .into(),
+                        ),
+                    )
+                }
+            }
+        }
         let roots = checked
             .analysis_nodes()
             .filter_map(|(_, identity)| match identity {
@@ -133,6 +194,7 @@ impl RelationalInterpreterMechanismReplayRuntime {
             catalog: Arc::new(catalog),
             definitions,
             mechanism_memo_plan,
+            endpoint_totality_authorizations,
             required_binding_orders: BTreeMap::new(),
             last_complete_endpoint: None,
             step_limit: RELATIONAL_INTERPRETER_MECHANISM_STEP_LIMIT,
@@ -185,8 +247,31 @@ impl RelationalInterpreterMechanismReplayRuntime {
     ) -> Result<RelationalMechanismEndpointReplayProgress, RelationalInterpreterMechanismReplayError>
     {
         let observation = request.observation();
+        let authorization = *self
+            .endpoint_totality_authorizations
+            .get(&request.scope().request_id())
+            .ok_or_else(|| {
+                RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(
+                    "mechanism endpoint replay has no request-scoped totality certificate".into(),
+                )
+            })?;
+        let replay_observation_id = RelationalMechanismReplayObservationId::derive_checked(
+            observation,
+        )
+        .map_err(|error| {
+            RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(format!(
+                "mechanism endpoint replay has an invalid observation: {error}"
+            ))
+        })?;
+        require_endpoint_totality_authorization(
+            authorization,
+            request.endpoint_totality_certificate_id(),
+            request.observation_id(),
+            replay_observation_id,
+        )?;
         let cache_key = RelationalInterpreterEndpointCacheKey {
-            observation_id: request.observation_id(),
+            certificate_id: request.endpoint_totality_certificate_id(),
+            observation_id: replay_observation_id,
             state_value_digest: canonical_explore_value_digest(request.state()),
             context_value_digest: canonical_explore_value_digest(request.context()),
         };
@@ -229,27 +314,58 @@ impl RelationalInterpreterMechanismReplayRuntime {
         let progress = match evaluation {
             Ok(trace) => project_checked_trace(&observation.template_site.analysis_program, trace)
                 .map(RelationalMechanismEndpointReplayProgress::Complete),
-            Err(error) => {
-                if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
-                    eprintln!(
-                        "Explore mechanism replay unavailable: endpoint={:?}; case={:?}; error={error}",
-                        request.endpoint(),
-                        request.case_id(),
-                    );
+            Err(error) => match permanent_unavailability(&error) {
+                Some(reason) => {
+                    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                        eprintln!(
+                            "Explore mechanism replay unavailable: endpoint={:?}; case={:?}; error={error}",
+                            request.endpoint(),
+                            request.case_id(),
+                        );
+                    }
+                    Ok(RelationalMechanismEndpointReplayProgress::PermanentlyUnavailable(reason))
                 }
-                match permanent_unavailability(&error) {
-                    Some(reason) => Ok(
-                        RelationalMechanismEndpointReplayProgress::PermanentlyUnavailable(reason),
-                    ),
-                    None => Err(RelationalInterpreterMechanismReplayError::Endpoint(error)),
+                None => {
+                    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                        eprintln!(
+                            "Explore certified mechanism endpoint integrity failure: endpoint={:?}; case={:?}; error={error}",
+                            request.endpoint(),
+                            request.case_id(),
+                        );
+                    }
+                    Err(
+                        RelationalInterpreterMechanismReplayError::CertifiedEndpointIntegrity(
+                            error,
+                        ),
+                    )
                 }
-            }
+            },
         }?;
         if let RelationalMechanismEndpointReplayProgress::Complete(proposal) = &progress {
             self.last_complete_endpoint = Some((cache_key, proposal.clone()));
         }
         Ok(progress)
     }
+}
+
+fn require_endpoint_totality_authorization(
+    authorization: RelationalEndpointReplayAuthorization,
+    requested_certificate_id: RelationalEndpointTotalityCertificateId,
+    requested_observation_id: RelationalMechanismReplayObservationId,
+    replay_observation_id: RelationalMechanismReplayObservationId,
+) -> Result<(), RelationalInterpreterMechanismReplayError> {
+    if replay_observation_id != requested_observation_id
+        || authorization.observation_id != replay_observation_id
+        || authorization.certificate_id != requested_certificate_id
+    {
+        return Err(
+            RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(
+                "mechanism endpoint replay observation or certificate is not authorized by its checked request"
+                    .into(),
+            ),
+        );
+    }
+    Ok(())
 }
 
 /// Reconstruct the interpreter declaration graph from the exact syntax owned
@@ -338,30 +454,20 @@ fn permanent_unavailability(
 ) -> Option<RelationalMechanismPermanentUnavailable> {
     match error {
         CheckedInterpreterMechanismEvaluationError::Runtime(
-            ExploreRuntimeFailure::RuntimeError { .. },
-        ) => Some(RelationalMechanismPermanentUnavailable::ObserverEvaluationFailed),
-        CheckedInterpreterMechanismEvaluationError::Runtime(
             ExploreRuntimeFailure::OperationalLimit { .. },
         )
         | CheckedInterpreterMechanismEvaluationError::Trace(
             CheckedInterpreterMechanismTraceError::TraceCapacity { .. },
         ) => Some(RelationalMechanismPermanentUnavailable::ReplayAbiCapacityExceeded),
-        CheckedInterpreterMechanismEvaluationError::Runtime(
-            ExploreRuntimeFailure::UnsupportedCapability { .. },
-        ) => Some(RelationalMechanismPermanentUnavailable::ObservationInstrumentationUnsupported),
-        CheckedInterpreterMechanismEvaluationError::Trace(
-            CheckedInterpreterMechanismTraceError::CheckedCallableHasEffects(_)
-            | CheckedInterpreterMechanismTraceError::CheckedCallableArity { .. },
-        ) => Some(RelationalMechanismPermanentUnavailable::CheckedCallableNotReplayable),
         CheckedInterpreterMechanismEvaluationError::Trace(
             CheckedInterpreterMechanismTraceError::RuntimeExpressionMissing { .. }
             | CheckedInterpreterMechanismTraceError::AmbiguousRuntimeExpression { .. }
-            | CheckedInterpreterMechanismTraceError::ScopedCallableMissing { .. }
-            | CheckedInterpreterMechanismTraceError::AmbiguousScopedCallable { .. }
-            | CheckedInterpreterMechanismTraceError::ActivationTargetMismatch
-            | CheckedInterpreterMechanismTraceError::MemoizedRuleSelectionMismatch
-            | CheckedInterpreterMechanismTraceError::CallableBodyMismatch(_),
+            | CheckedInterpreterMechanismTraceError::BoundCallableTargetMissing { .. }
+            | CheckedInterpreterMechanismTraceError::AmbiguousBoundCallableTarget { .. },
         ) => Some(RelationalMechanismPermanentUnavailable::ObservationInstrumentationUnsupported),
+        // Every semantic endpoint failure below this boundary contradicts the
+        // request-scoped totality certificate. Surface it as an integrity
+        // error; never mint a durable "unavailable" fact for a semantic miss.
         _ => None,
     }
 }
@@ -564,7 +670,8 @@ pub(crate) enum RelationalInterpreterMechanismReplayError {
     GroundDefinitions(Box<[String]>),
     CheckedTraceCatalog(CheckedInterpreterMechanismTraceError),
     GroundBinding(String),
-    Endpoint(CheckedInterpreterMechanismEvaluationError),
+    EndpointTotalityAuthorization(String),
+    CertifiedEndpointIntegrity(CheckedInterpreterMechanismEvaluationError),
     Projection(RelationalMechanismReplayError),
     TraceIndex {
         relation: &'static str,
@@ -600,10 +707,14 @@ impl fmt::Display for RelationalInterpreterMechanismReplayError {
                 formatter,
                 "checked mechanism immutable binding evaluation failed: {error}"
             ),
-            Self::Endpoint(error) => {
+            Self::EndpointTotalityAuthorization(error) => write!(
+                formatter,
+                "checked mechanism endpoint totality authorization failed: {error}"
+            ),
+            Self::CertifiedEndpointIntegrity(error) => {
                 write!(
                     formatter,
-                    "checked mechanism endpoint evaluation failed: {error}"
+                    "certified mechanism endpoint integrity failure: {error}"
                 )
             }
             Self::Projection(error) => {
@@ -629,11 +740,12 @@ impl std::error::Error for RelationalInterpreterMechanismReplayError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::CheckedTraceCatalog(error) => Some(error),
-            Self::Endpoint(error) => Some(error),
+            Self::CertifiedEndpointIntegrity(error) => Some(error),
             Self::CheckedRuntimeSnapshot(_)
             | Self::CheckedMemoPlan(_)
             | Self::GroundDefinitions(_)
             | Self::GroundBinding(_)
+            | Self::EndpointTotalityAuthorization(_)
             | Self::Projection(_)
             | Self::TraceIndex { .. } => None,
         }
@@ -648,6 +760,61 @@ mod tests {
         CheckedCallTarget, CheckedInterpreterMechanismEvent, Lexer, Parser, Rule, RuleDispatchTier,
         TypeChecker, Value,
     };
+
+    #[test]
+    fn endpoint_totality_replay_requires_the_driver_certificate() {
+        let observation_id =
+            RelationalMechanismReplayObservationId::from_journal_codec_bytes([0x21; 32]);
+        let authorized_certificate =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x31; 32]);
+        let authorization = RelationalEndpointReplayAuthorization {
+            observation_id,
+            certificate_id: authorized_certificate,
+        };
+        require_endpoint_totality_authorization(
+            authorization,
+            authorized_certificate,
+            observation_id,
+            observation_id,
+        )
+        .expect("matching checked authorization");
+
+        let different_certificate =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x32; 32]);
+        assert!(matches!(
+            require_endpoint_totality_authorization(
+                authorization,
+                different_certificate,
+                observation_id,
+                observation_id,
+            ),
+            Err(RelationalInterpreterMechanismReplayError::EndpointTotalityAuthorization(_))
+        ));
+    }
+
+    #[test]
+    fn endpoint_totality_certified_failures_distinguish_instrumentation_from_semantics() {
+        let semantic_failure = CheckedInterpreterMechanismEvaluationError::Runtime(
+            ExploreRuntimeFailure::UnsupportedCapability {
+                message: "effectful observer escaped totality certification".into(),
+            },
+        );
+        let instrumentation_failure = CheckedInterpreterMechanismEvaluationError::Trace(
+            CheckedInterpreterMechanismTraceError::BoundCallableTargetMissing { arity: 1 },
+        );
+        assert_eq!(
+            (
+                permanent_unavailability(&semantic_failure),
+                permanent_unavailability(&instrumentation_failure),
+            ),
+            (
+                None,
+                Some(
+                    RelationalMechanismPermanentUnavailable::ObservationInstrumentationUnsupported,
+                ),
+            ),
+        );
+    }
 
     fn checked_mechanism_trace_artifacts(
         source: &str,
@@ -1168,8 +1335,10 @@ mod tests {
             .expect("fixture declares one mechanism observer");
         let mut definitions = checked_ground_definitions(&artifacts.analysis_program)
             .expect("rebuild checked unresolved-member definitions");
-        definitions.rule_dispatch_return_types = artifacts.rule_dispatch_return_types.clone();
-        definitions.rule_dispatch_return_issues = artifacts.rule_dispatch_return_issues.clone();
+        definitions.rule_dispatch_return_types =
+            artifacts.rule_dispatch_backend_return_types.clone();
+        definitions.rule_dispatch_return_issues =
+            artifacts.rule_dispatch_backend_return_issues.clone();
         definitions.rule_dispatch_boolean_miss_safe_keys =
             artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
         let mut runtime = RelationalInterpreterMechanismReplayRuntime::from_checked_definitions(

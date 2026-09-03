@@ -16,9 +16,10 @@ use std::num::NonZeroU64;
 use std::path::Path;
 use std::sync::Arc;
 
+use super::relational_analysis_plan::RelationalAnalysisPlanRoot;
 use super::relational_journal::{
-    RelationalJournal, RelationalJournalContract, RelationalJournalError, RelationalJournalEvent,
-    RelationalJournalHead,
+    RelationalEvidenceEvent, RelationalJournal, RelationalJournalContract, RelationalJournalError,
+    RelationalJournalEvent, RelationalJournalHead,
 };
 use super::relational_journal_codec::{
     decode_relational_journal_entry, encode_relational_journal_entry, RelationalJournalCodecError,
@@ -197,6 +198,7 @@ impl RelationalDurableJournalFinalized {
 /// meaning of its provisional tail.
 pub(crate) struct RelationalDurableJournal {
     contract: RelationalJournalContract,
+    expected_analysis_plan_root: RelationalAnalysisPlanRoot,
     journal: RelationalJournal,
     store: Option<RelationalJournalSegmentStore>,
     codec_limits: RelationalJournalCodecLimits,
@@ -258,6 +260,7 @@ impl RelationalDurableJournal {
     pub(crate) fn open_or_create(
         directory: impl AsRef<Path>,
         contract: RelationalJournalContract,
+        expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         limits: RelationalDurableJournalLimits,
     ) -> Result<Self, RelationalDurableJournalError> {
         let anchor = journal_store_anchor(contract);
@@ -267,12 +270,19 @@ impl RelationalDurableJournal {
             limits.segment(),
             anchor,
         )?;
-        Self::from_store(contract, limits.codec(), store, None)
+        Self::from_store(
+            contract,
+            expected_analysis_plan_root,
+            limits.codec(),
+            store,
+            None,
+        )
     }
 
     pub(crate) fn open_or_create_with_region_replay_authority(
         directory: impl AsRef<Path>,
         contract: RelationalJournalContract,
+        expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         limits: RelationalDurableJournalLimits,
         authority: Arc<RelationalRegionReplayAuthority>,
     ) -> Result<Self, RelationalDurableJournalError> {
@@ -283,12 +293,19 @@ impl RelationalDurableJournal {
             limits.segment(),
             anchor,
         )?;
-        Self::from_store(contract, limits.codec(), store, Some(authority))
+        Self::from_store(
+            contract,
+            expected_analysis_plan_root,
+            limits.codec(),
+            store,
+            Some(authority),
+        )
     }
 
     pub(crate) fn open(
         directory: impl AsRef<Path>,
         contract: RelationalJournalContract,
+        expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         limits: RelationalDurableJournalLimits,
     ) -> Result<Self, RelationalDurableJournalError> {
         let anchor = journal_store_anchor(contract);
@@ -298,11 +315,18 @@ impl RelationalDurableJournal {
             limits.segment(),
             anchor,
         )?;
-        Self::from_store(contract, limits.codec(), store, None)
+        Self::from_store(
+            contract,
+            expected_analysis_plan_root,
+            limits.codec(),
+            store,
+            None,
+        )
     }
 
     fn from_store(
         contract: RelationalJournalContract,
+        expected_analysis_plan_root: RelationalAnalysisPlanRoot,
         codec_limits: RelationalJournalCodecLimits,
         store: RelationalJournalSegmentStore,
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
@@ -346,6 +370,11 @@ impl RelationalDurableJournal {
                             bytes,
                             codec_limits,
                         )?;
+                        validate_initial_analysis_plan_event(
+                            expected_analysis_plan_root,
+                            entry.sequence(),
+                            entry.event(),
+                        )?;
                         journal.replay_streaming_entry(entry)?;
                         replayed = replayed.checked_add(1).ok_or(
                             RelationalDurableJournalError::ArithmeticOverflow(
@@ -371,6 +400,7 @@ impl RelationalDurableJournal {
         validate_durable_cursor(&journal, &store)?;
         Ok(Self {
             contract,
+            expected_analysis_plan_root,
             durable_next_sequence: journal.next_sequence(),
             durable_head: journal.head(),
             journal,
@@ -436,6 +466,11 @@ impl RelationalDurableJournal {
         let mut physical_frame_count = 0_u64;
         let mut installed_segment_count = 0_u64;
         for event in events {
+            validate_initial_analysis_plan_event(
+                self.expected_analysis_plan_root,
+                self.journal.next_sequence(),
+                &event,
+            )?;
             if self.pending_heads.try_reserve(1).is_err() {
                 self.poisoned = true;
                 return Err(RelationalDurableJournalError::AllocationFailed(
@@ -728,6 +763,32 @@ impl RelationalDurableJournal {
     }
 }
 
+fn validate_initial_analysis_plan_event(
+    expected: RelationalAnalysisPlanRoot,
+    sequence: u64,
+    event: &RelationalJournalEvent,
+) -> Result<(), RelationalDurableJournalError> {
+    if sequence != 0 {
+        return Ok(());
+    }
+    let RelationalJournalEvent::Evidence(RelationalEvidenceEvent::AnalysisPlanRegistered {
+        plan_root,
+        ..
+    }) = event
+    else {
+        return Err(RelationalDurableJournalError::InitialAnalysisPlanMissing);
+    };
+    if *plan_root != expected {
+        return Err(
+            RelationalDurableJournalError::ExpectedAnalysisPlanRootMismatch {
+                expected,
+                actual: *plan_root,
+            },
+        );
+    }
+    Ok(())
+}
+
 impl RelationalPublicationAuthority for RelationalDurableJournal {
     fn journal(&self) -> Result<&RelationalJournal, String> {
         RelationalDurableJournal::journal(self).map_err(|error| error.to_string())
@@ -807,12 +868,27 @@ pub(crate) enum RelationalDurableJournalError {
     SequenceExhausted,
     AllocationFailed(&'static str),
     ArithmeticOverflow(&'static str),
-    StaleBatchSequence { expected: u64, actual: u64 },
+    StaleBatchSequence {
+        expected: u64,
+        actual: u64,
+    },
     StaleBatchHead,
-    FrameSequenceMismatch { expected: u64, actual: u64 },
-    FramePreviousHeadMismatch { sequence: u64 },
-    FrameSemanticEnvelopeMismatch { sequence: u64 },
+    FrameSequenceMismatch {
+        expected: u64,
+        actual: u64,
+    },
+    FramePreviousHeadMismatch {
+        sequence: u64,
+    },
+    FrameSemanticEnvelopeMismatch {
+        sequence: u64,
+    },
     DurableCursorMismatch,
+    InitialAnalysisPlanMissing,
+    ExpectedAnalysisPlanRootMismatch {
+        expected: RelationalAnalysisPlanRoot,
+        actual: RelationalAnalysisPlanRoot,
+    },
     Journal(RelationalJournalError),
     Codec(RelationalJournalCodecError),
     Store(RelationalJournalSegmentStoreError),
@@ -864,6 +940,12 @@ impl fmt::Display for RelationalDurableJournalError {
             Self::DurableCursorMismatch => formatter.write_str(
                 "installed relational segments and the semantic journal disagree at their tail",
             ),
+            Self::InitialAnalysisPlanMissing => formatter.write_str(
+                "relational journal semantic event zero must register the checked analysis plan",
+            ),
+            Self::ExpectedAnalysisPlanRootMismatch { .. } => formatter.write_str(
+                "relational journal analysis plan differs from the freshly checked plan",
+            ),
             Self::Journal(error) => write!(formatter, "relational journal error: {error}"),
             Self::Codec(error) => write!(formatter, "relational journal codec error: {error}"),
             Self::Store(error) => write!(formatter, "relational journal store error: {error}"),
@@ -889,7 +971,9 @@ impl Error for RelationalDurableJournalError {
             | Self::FrameSequenceMismatch { .. }
             | Self::FramePreviousHeadMismatch { .. }
             | Self::FrameSemanticEnvelopeMismatch { .. }
-            | Self::DurableCursorMismatch => None,
+            | Self::DurableCursorMismatch
+            | Self::InitialAnalysisPlanMissing
+            | Self::ExpectedAnalysisPlanRootMismatch { .. } => None,
         }
     }
 }

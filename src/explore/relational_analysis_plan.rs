@@ -14,6 +14,9 @@ use sha2::{Digest, Sha256};
 
 use super::mechanism::{MechanismObservationIr, MechanismSiteId};
 use super::relation::{MechanismRequestId, QuestionId, RelationId, ViewId};
+use super::relational_endpoint_totality::{
+    RelationalEndpointTotalityCertificate, RelationalEndpointTotalityCertificateId,
+};
 use super::relational_ir::{
     ExploreAggregateReducerIr, ExploreAnalysisNodeIr, ExploreMechanismTargetIr,
     ExploreResultChoiceIr, ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr,
@@ -24,13 +27,15 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 2;
 
-const ANALYSIS_PLAN_ROOT_V1: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v1";
+const ANALYSIS_PLAN_ROOT_V2: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v2";
 const RESULT_SPEC_DIGEST_V1: &[u8] = b"futuruna.explore.relational-analysis.result-spec.v1";
 const OBSERVATION_ID_V1: &[u8] = b"futuruna.explore.relational-analysis.observation-id.v1";
-const OBSERVATION_DIGEST_V1: &[u8] = b"futuruna.explore.relational-analysis.observation-digest.v1";
-const CHECKED_ANALYSIS_GRAPH_V1: &[u8] = b"futuruna.checked-explore-analysis-graph.v1\0";
+const OBSERVATION_DIGEST_V2: &[u8] = b"futuruna.explore.relational-analysis.observation-digest.v2";
+const CHECKED_ANALYSIS_GRAPH_V2: &[u8] = b"futuruna.checked-explore-analysis-graph.v2\0";
+const CHECKED_ANALYSIS_MECHANISM_NODE_V2: &[u8] =
+    b"futuruna.checked-explore-analysis-mechanism-node.v2\0";
 
 /// Typed copy of the producer's canonical checked-analysis graph digest.
 /// Keeping this distinct from every other 32-byte commitment prevents journal
@@ -93,8 +98,9 @@ impl RelationalMechanismObservationId {
     }
 }
 
-/// Request-scoped semantic seal for an observation. The request identity is a
-/// producer-minted commitment to its checked closure and normalization.
+/// Request-scoped semantic seal for an authorized observation. V2 binds both
+/// the producer-minted request identity and the endpoint-totality certificate
+/// which must authorize replay under that request.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalMechanismObservationDigest([u8; 32]);
 
@@ -189,6 +195,7 @@ pub(crate) struct RelationalMechanismLayerRegistration {
     request_id: MechanismRequestId,
     target: RelationalResolvedMechanismTarget,
     observation_id: RelationalMechanismObservationId,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     observation_digest: RelationalMechanismObservationDigest,
     dependencies: Box<[RelationalAnalysisDependencyId]>,
 }
@@ -198,13 +205,21 @@ impl RelationalMechanismLayerRegistration {
         request_id: MechanismRequestId,
         target: RelationalResolvedMechanismTarget,
         observation_id: RelationalMechanismObservationId,
-        observation_digest: RelationalMechanismObservationDigest,
+        endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
         dependencies: Box<[RelationalAnalysisDependencyId]>,
     ) -> Self {
+        let observation_digest = derive_observation_digest(
+            request_id,
+            target,
+            observation_id,
+            endpoint_totality_certificate_id,
+            &dependencies,
+        );
         Self {
             request_id,
             target,
             observation_id,
+            endpoint_totality_certificate_id,
             observation_digest,
             dependencies,
         }
@@ -220,6 +235,12 @@ impl RelationalMechanismLayerRegistration {
 
     pub(crate) const fn observation_id(&self) -> RelationalMechanismObservationId {
         self.observation_id
+    }
+
+    pub(crate) const fn endpoint_totality_certificate_id(
+        &self,
+    ) -> RelationalEndpointTotalityCertificateId {
+        self.endpoint_totality_certificate_id
     }
 
     pub(crate) const fn observation_digest(&self) -> RelationalMechanismObservationDigest {
@@ -318,12 +339,15 @@ impl RelationalAnalysisPlan {
                     CheckedExploreAnalysisIdentity::Mechanisms {
                         request_id,
                         observation,
+                        endpoint_totality,
                     },
                 ) => build_mechanism_registration(
                     node_index,
                     request.target.clone(),
                     *request_id,
                     observation,
+                    endpoint_totality,
+                    relation_id,
                     question_id,
                     &checked.closed_query.analysis,
                     &resolved_by_position,
@@ -472,10 +496,37 @@ fn build_mechanism_registration(
     target: ExploreMechanismTargetIr,
     request_id: MechanismRequestId,
     observation: &MechanismObservationIr,
+    endpoint_totality: &RelationalEndpointTotalityCertificate,
+    relation_id: RelationId,
     question_id: QuestionId,
     analysis: &[ExploreAnalysisNodeIr],
     resolved_by_position: &[RelationalAnalysisLayerId],
 ) -> Result<RelationalAnalysisLayerRegistration, RelationalAnalysisPlanError> {
+    endpoint_totality.validate_identity().map_err(|error| {
+        RelationalAnalysisPlanError::InvalidEndpointTotalityCertificate {
+            node_index,
+            message: error.to_string(),
+        }
+    })?;
+    if endpoint_totality.request_id() != request_id {
+        return Err(
+            RelationalAnalysisPlanError::EndpointTotalityRequestScopeMismatch {
+                node_index,
+                expected: request_id,
+                actual: endpoint_totality.request_id(),
+            },
+        );
+    }
+    if endpoint_totality.relation_id() != relation_id {
+        return Err(
+            RelationalAnalysisPlanError::EndpointTotalityRelationScopeMismatch {
+                node_index,
+                expected: relation_id,
+                actual: endpoint_totality.relation_id(),
+            },
+        );
+    }
+    let endpoint_totality_certificate_id = endpoint_totality.certificate_id();
     let target = match target {
         ExploreMechanismTargetIr::SelectedCases => {
             RelationalResolvedMechanismTarget::Selected(question_id)
@@ -525,13 +576,19 @@ fn build_mechanism_registration(
             RelationalAnalysisDependencyId::Result(view_id)
         }
     }]);
-    let (observation_id, observation_digest) =
-        derive_observation_identity(request_id, target, observation, &dependencies)?;
+    let (observation_id, observation_digest) = derive_observation_identity(
+        request_id,
+        target,
+        observation,
+        endpoint_totality_certificate_id,
+        &dependencies,
+    )?;
     Ok(RelationalAnalysisLayerRegistration::Mechanisms(
         RelationalMechanismLayerRegistration {
             request_id,
             target,
             observation_id,
+            endpoint_totality_certificate_id,
             observation_digest,
             dependencies,
         },
@@ -623,6 +680,7 @@ fn derive_observation_identity(
     request_id: MechanismRequestId,
     target: RelationalResolvedMechanismTarget,
     observation: &MechanismObservationIr,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
     dependencies: &[RelationalAnalysisDependencyId],
 ) -> Result<
     (
@@ -638,16 +696,35 @@ fn derive_observation_identity(
     identity_hasher.u32(observation.normalization_version);
     let observation_id = RelationalMechanismObservationId(identity_hasher.finish());
 
-    let mut digest_hasher = AnalysisHasher::new(OBSERVATION_DIGEST_V1);
-    digest_hasher.digest(request_id.bytes());
-    digest_hasher.digest(observation_id.bytes());
-    hash_mechanism_target(&mut digest_hasher, target);
-    hash_dependencies(&mut digest_hasher, dependencies);
-    digest_hasher.u128(observation.dependency_roots.len() as u128);
-    Ok((
+    let observation_digest = derive_observation_digest(
+        request_id,
+        target,
         observation_id,
-        RelationalMechanismObservationDigest(digest_hasher.finish()),
-    ))
+        endpoint_totality_certificate_id,
+        dependencies,
+    );
+    Ok((observation_id, observation_digest))
+}
+
+fn derive_observation_digest(
+    request_id: MechanismRequestId,
+    target: RelationalResolvedMechanismTarget,
+    observation_id: RelationalMechanismObservationId,
+    endpoint_totality_certificate_id: RelationalEndpointTotalityCertificateId,
+    dependencies: &[RelationalAnalysisDependencyId],
+) -> RelationalMechanismObservationDigest {
+    // Every input is persisted in the mechanism registration so journal
+    // decoding can rederive this certificate binding instead of trusting an
+    // opaque digest. The request ID already commits the checked observation
+    // closure; repeating an unpersisted dependency-root count added no
+    // independent authority.
+    let mut hasher = AnalysisHasher::new(OBSERVATION_DIGEST_V2);
+    hasher.digest(request_id.bytes());
+    hasher.digest(observation_id.bytes());
+    hasher.digest(endpoint_totality_certificate_id.bytes());
+    hash_mechanism_target(&mut hasher, target);
+    hash_dependencies(&mut hasher, dependencies);
+    RelationalMechanismObservationDigest(hasher.finish())
 }
 
 fn assemble_plan(
@@ -683,6 +760,22 @@ fn canonicalize_registrations(
     let mut canonical =
         BTreeMap::<RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration>::new();
     for registration in registrations {
+        if let RelationalAnalysisLayerRegistration::Mechanisms(request) = &registration {
+            let expected = derive_observation_digest(
+                request.request_id,
+                request.target,
+                request.observation_id,
+                request.endpoint_totality_certificate_id,
+                &request.dependencies,
+            );
+            if request.observation_digest != expected {
+                return Err(RelationalAnalysisPlanError::ObservationDigestMismatch {
+                    request_id: request.request_id,
+                    expected,
+                    actual: request.observation_digest,
+                });
+            }
+        }
         let layer_id = registration.layer_id();
         match canonical.get(&layer_id) {
             Some(existing) if existing == &registration => {}
@@ -774,26 +867,37 @@ fn derive_checked_analysis_graph_digest(
     question_id: QuestionId,
     registrations: &[RelationalAnalysisLayerRegistration],
 ) -> [u8; 32] {
+    let semantic_nodes = registrations
+        .iter()
+        .map(|registration| match registration {
+            RelationalAnalysisLayerRegistration::Result(result) => (0x01, result.view_id.bytes()),
+            RelationalAnalysisLayerRegistration::Mechanisms(request) => {
+                (0x02, derive_checked_mechanism_node_digest(request))
+            }
+        })
+        .collect::<BTreeSet<_>>();
     let mut hasher = Sha256::new();
-    hasher.update(CHECKED_ANALYSIS_GRAPH_V1);
+    hasher.update(CHECKED_ANALYSIS_GRAPH_V2);
     hasher.update(question_id.bytes());
     checked_hash_component(
         &mut hasher,
         "semantic-node-count",
-        &registrations.len().to_string(),
+        &semantic_nodes.len().to_string(),
     );
-    for registration in registrations {
-        match registration.layer_id() {
-            RelationalAnalysisLayerId::Result(view_id) => {
-                hasher.update([0x01]);
-                hasher.update(view_id.bytes());
-            }
-            RelationalAnalysisLayerId::Mechanisms(request_id) => {
-                hasher.update([0x02]);
-                hasher.update(request_id.bytes());
-            }
-        }
+    for (kind, identity) in semantic_nodes {
+        hasher.update([kind]);
+        hasher.update(identity);
     }
+    hasher.finalize().into()
+}
+
+fn derive_checked_mechanism_node_digest(
+    registration: &RelationalMechanismLayerRegistration,
+) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(CHECKED_ANALYSIS_MECHANISM_NODE_V2);
+    hasher.update(registration.request_id.bytes());
+    hasher.update(registration.endpoint_totality_certificate_id.bytes());
     hasher.finalize().into()
 }
 
@@ -833,7 +937,7 @@ fn hex_nibble(byte: u8) -> u8 {
 fn derive_analysis_plan_root(
     payload: &RelationalAnalysisPlanPayload,
 ) -> RelationalAnalysisPlanRoot {
-    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V1);
+    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V2);
     hasher.u32(RELATIONAL_ANALYSIS_PLAN_VERSION);
     hasher.digest(payload.question_id.bytes());
     hasher.digest(payload.producer_graph_digest.bytes());
@@ -861,6 +965,7 @@ fn hash_registration(
             hasher.digest(request.request_id.bytes());
             hash_mechanism_target(hasher, request.target);
             hasher.digest(request.observation_id.bytes());
+            hasher.digest(request.endpoint_totality_certificate_id.bytes());
             hasher.digest(request.observation_digest.bytes());
             hash_dependencies(hasher, &request.dependencies);
         }
@@ -997,6 +1102,25 @@ pub(crate) enum RelationalAnalysisPlanError {
         node_index: usize,
         view_node_index: usize,
     },
+    InvalidEndpointTotalityCertificate {
+        node_index: usize,
+        message: String,
+    },
+    EndpointTotalityRequestScopeMismatch {
+        node_index: usize,
+        expected: MechanismRequestId,
+        actual: MechanismRequestId,
+    },
+    EndpointTotalityRelationScopeMismatch {
+        node_index: usize,
+        expected: RelationId,
+        actual: RelationId,
+    },
+    ObservationDigestMismatch {
+        request_id: MechanismRequestId,
+        expected: RelationalMechanismObservationDigest,
+        actual: RelationalMechanismObservationDigest,
+    },
     Observation(String),
     LayerIdentityCollision(RelationalAnalysisLayerId),
     DependencyRecipeMismatch(RelationalAnalysisLayerId),
@@ -1062,6 +1186,37 @@ impl fmt::Display for RelationalAnalysisPlanError {
             } => write!(
                 formatter,
                 "mechanism node {node_index} targets result {view_node_index}, which is not a chosen selected-case view"
+            ),
+            Self::InvalidEndpointTotalityCertificate {
+                node_index,
+                message,
+            } => write!(
+                formatter,
+                "mechanism node {node_index} has an invalid endpoint-totality certificate: {message}"
+            ),
+            Self::EndpointTotalityRequestScopeMismatch {
+                node_index,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "mechanism node {node_index} endpoint-totality certificate belongs to request {actual:?}, expected {expected:?}"
+            ),
+            Self::EndpointTotalityRelationScopeMismatch {
+                node_index,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "mechanism node {node_index} endpoint-totality certificate belongs to relation {actual:?}, expected {expected:?}"
+            ),
+            Self::ObservationDigestMismatch {
+                request_id,
+                expected,
+                actual,
+            } => write!(
+                formatter,
+                "mechanism request {request_id:?} observation digest does not match its certificate-bound registration: expected {expected:?}, actual {actual:?}"
             ),
             Self::Observation(message) => {
                 write!(
@@ -1135,6 +1290,18 @@ mod tests {
             b"observation",
             b"normalization",
         );
+        let target = RelationalResolvedMechanismTarget::ChosenView(view_id);
+        let observation_id = RelationalMechanismObservationId([0x22; 32]);
+        let endpoint_totality_certificate_id =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x23; 32]);
+        let dependencies = vec![RelationalAnalysisDependencyId::Result(view_id)].into_boxed_slice();
+        let observation_digest = derive_observation_digest(
+            request_id,
+            target,
+            observation_id,
+            endpoint_totality_certificate_id,
+            &dependencies,
+        );
         let result =
             RelationalAnalysisLayerRegistration::Result(RelationalResultLayerRegistration {
                 view_id,
@@ -1146,11 +1313,11 @@ mod tests {
         let mechanisms =
             RelationalAnalysisLayerRegistration::Mechanisms(RelationalMechanismLayerRegistration {
                 request_id,
-                target: RelationalResolvedMechanismTarget::ChosenView(view_id),
-                observation_id: RelationalMechanismObservationId([0x22; 32]),
-                observation_digest: RelationalMechanismObservationDigest([0x33; 32]),
-                dependencies: vec![RelationalAnalysisDependencyId::Result(view_id)]
-                    .into_boxed_slice(),
+                target,
+                observation_id,
+                endpoint_totality_certificate_id,
+                observation_digest,
+                dependencies,
             });
         (result, mechanisms)
     }
@@ -1202,6 +1369,76 @@ mod tests {
             assemble_plan(question_id, &graph_hash, vec![changed_result, mechanisms]).unwrap();
 
         assert_ne!(original.root(), changed.root());
+    }
+
+    #[test]
+    fn endpoint_totality_authorization_commits_observation_digest_and_plan_root() {
+        let question_id = question();
+        let (result, mechanisms) = registrations(question_id);
+        let graph_hash = producer_hash(question_id, vec![result.clone(), mechanisms.clone()]);
+        let original = assemble_plan(
+            question_id,
+            &graph_hash,
+            vec![result.clone(), mechanisms.clone()],
+        )
+        .unwrap();
+        let RelationalAnalysisLayerRegistration::Mechanisms(mut changed_request) = mechanisms
+        else {
+            unreachable!()
+        };
+        let first_certificate = changed_request.endpoint_totality_certificate_id;
+        let second_certificate =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x24; 32]);
+        let first_observation_digest = derive_observation_digest(
+            changed_request.request_id,
+            changed_request.target,
+            changed_request.observation_id,
+            first_certificate,
+            &changed_request.dependencies,
+        );
+        let second_observation_digest = derive_observation_digest(
+            changed_request.request_id,
+            changed_request.target,
+            changed_request.observation_id,
+            second_certificate,
+            &changed_request.dependencies,
+        );
+        assert_eq!(changed_request.observation_digest, first_observation_digest);
+        assert_ne!(first_observation_digest, second_observation_digest);
+
+        changed_request.endpoint_totality_certificate_id = second_certificate;
+        changed_request.observation_digest = second_observation_digest;
+        let changed_registration = RelationalAnalysisLayerRegistration::Mechanisms(changed_request);
+        let changed_graph_hash = producer_hash(
+            question_id,
+            vec![result.clone(), changed_registration.clone()],
+        );
+        assert_ne!(graph_hash, changed_graph_hash);
+        let changed = assemble_plan(
+            question_id,
+            &changed_graph_hash,
+            vec![result, changed_registration],
+        )
+        .unwrap();
+        assert_ne!(original.root(), changed.root());
+    }
+
+    #[test]
+    fn endpoint_totality_stale_certificate_bound_observation_digest_fails_canonicalization() {
+        let question_id = question();
+        let (_, mechanisms) = registrations(question_id);
+        let RelationalAnalysisLayerRegistration::Mechanisms(mut request) = mechanisms else {
+            unreachable!()
+        };
+        request.endpoint_totality_certificate_id =
+            RelationalEndpointTotalityCertificateId::from_canonical_bytes([0x25; 32]);
+
+        assert!(matches!(
+            canonicalize_registrations(vec![RelationalAnalysisLayerRegistration::Mechanisms(
+                request
+            )]),
+            Err(RelationalAnalysisPlanError::ObservationDigestMismatch { .. })
+        ));
     }
 
     #[test]

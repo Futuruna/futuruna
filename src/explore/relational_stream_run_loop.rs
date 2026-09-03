@@ -329,6 +329,19 @@ where
     R: RelationalExpressionRuntime + RelationalResultExpressionRuntime,
     M: RelationalMechanismReplayRuntime,
 {
+    // Resume authority is checked before any deadline/resource branch can
+    // return an observable paused report. Otherwise a mismatching registered
+    // plan could be reported or published without ever entering `driver.step`.
+    let resume_plan_validation = driver.validate_journal_analysis_plan(durable.journal()?);
+    if let Err(source) = resume_plan_validation {
+        let progress = flush_progress(durable, 0, 0)?;
+        return Err(RelationalStreamSliceError::SemanticRun {
+            source: source.into(),
+            finish_error: None,
+            progress,
+        });
+    }
+
     let started = Instant::now();
     let deadline = match budget.max_runtime() {
         Some(runtime) => Some(
