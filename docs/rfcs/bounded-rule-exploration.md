@@ -885,8 +885,16 @@ request-relative starter projection and a per-starter successor fiber:
 ```text
 P_m          = { (context, before) | exists after: (context, before, after) in S_m }
 A_m(source)  = { after | (source.context, source.before, after) in S_m }
+F_m          : (Context, Before) -> FinSet<After>
+F_m(source)  = A_m(source)
 |S_m|        = sum(source in P_m, |A_m(source)|)
 ```
+
+`F_m` is the authoritative finite partial fiber map: its domain is `P_m`, its
+graph is `S_m`, and its canonical representation uses SourceKey and
+SuccessorKey. This is the correlation-preserving support object. A list of
+independent Context, Before or After marginals is only a projection of `F_m`,
+never an equivalent representation.
 
 `P_m` is the complete raw signature's starter support: the initial worlds from
 which that replay explanation can occur under the declared transition. It MUST
@@ -1285,6 +1293,61 @@ distinct-starter count, typed content root, `starter_set_status` and
 label `starter_support.materialization` as `not_materialized`: authoring one
 selected consumer does not turn every node and edge into an eager artifact.
 Arbitrary path-conditioned selectors remain future work.
+
+#### Typed correlated region index
+
+A typed correlated region index is an authorized publication and navigation
+reader over the canonical `S` materialization. It is not an Analyze node, a
+mechanism-support fact, a structural-identity component or an alternative
+count authority. Its records describe `F : (Context, Before) -> Set<After>`
+and retain an exact filter back to the canonical source/successor pages.
+
+The smallest sound index is a whole-source-fiber v1. It visits `SourceKey`s in
+canonical order and emits one exact typed source predicate with its complete
+dependent After set. A configured compression cap may stop only between
+complete source fibers. The capped closure MUST name the last covered source
+and the canonical projection artifact and job, the source closure-record
+address, and the resume coordinate for the remainder. The source artifact
+streams independently, so this may be a forward reference until that source
+closure is committed. If one source fiber alone cannot fit, the index emits no
+partial exact fiber and falls back before it. Counts continue to come from the
+deduplicated canonical projection closure or a checked disjoint-partition
+receipt; interval widths, marginal products and region display counts are not
+count evidence. V1 also admits a fiber only when its exact record fits a
+protocol-fixed 1 MiB synthetic maximum-width publication envelope; this byte
+policy is part of both the summary root and artifact identity, so operational
+restart limits cannot change the represented prefix. A publication invocation
+whose operational line limit is below that protocol cap is rejected before
+filesystem mutation rather than silently changing the prefix. Once the
+companion has closed, a no-op resume validates and reuses its authenticated
+compact closure receipt instead of rescanning typed support fibers.
+
+Three status axes remain orthogonal:
+
+1. **semantic bounds** name the inner and outer case/starter expressions and
+   the explicit starter-set and correlated-support statuses; an opaque outer
+   obligation stays opaque and MUST NOT be fabricated as a finite typed region;
+2. **region derivation proof** says whether the emitted regions form an
+   `exact_partition` or a `confirmed_subset`; the artifact role remains
+   `navigation_only` in either case; and
+3. **compression coverage** says `complete` or `capped` and, when capped,
+   supplies the canonical-page fallback above.
+
+Every source dimension descriptor binds its role to the authoritative query
+source-coverage entries, which retain the classification `varied`, `derived`,
+`conditioned`, `irrelevant` with a checked certificate, or `coverage_gap`
+separately from the extent observed in this support slice. After values retain
+their transition-successor derivation. A singleton observed on a varied axis
+remains varied; a query-fixed singleton remains conditioned. A value which
+cannot safely be flattened stays an atomic typed equality or uses the page
+fallback rather than disappearing from the region.
+
+A later compression may hash-cons the exact fibers into a reduced ordered
+decision DAG. Its source nodes follow canonical Context/Before field-path
+order, its selectors are disjoint and exact, and each terminal denotes a
+dependent After-set DAG. Missing arcs mean absent, never wildcard; sibling
+selectors may merge only with proof that their explicit union has the same
+child. This changes navigation size, not `F`, its semantic roots or its counts.
 
 Those signature leaves form a disjoint target-partition atom set: an atom is
 either one concrete CaseId singleton or one certified uniform `SupportCell`,
@@ -1838,8 +1901,9 @@ Publication v17 implements independently domain-separated inner/outer
 expression bounds for correlated case support `S` and distinct-starter
 projection `P = distinct_sources(S)`, plus explicit `starter_set_status` and
 `correlated_support_status`. Publication v12 is implementation history, not a
-compatibility target. Typed-region execution and the broad Personskat run
-remain later work.
+compatibility target. The exact whole-source-fiber typed-region v1 is the
+current bounded navigation implementation; reduced decision-DAG compression
+and the broad Personskat run remain later work.
 
 Every support-observation point and typed subject header MUST expose enough
 audit lineage to interpret its source coordinates without following an

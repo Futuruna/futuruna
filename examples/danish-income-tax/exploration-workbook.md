@@ -2930,9 +2930,10 @@ correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
 `P = distinct_sources(S)`. Its append-only observation points also carry
 explicit `starter_set_status` and `correlated_support_status`; neither status
 is inferred from scalar counts or root equality. Publication v12 is
-implementation history, not a compatibility target. Typed-region execution
-and the broad Personskat run remain later work. The structural-definition
-catalog supplies
+implementation history, not a compatibility target. The exact whole-fiber
+typed-region v1 is now the bounded publication/navigation implementation;
+reduced decision-DAG compression and the broad Personskat run remain later
+work. The structural-definition catalog supplies
 stable slice descriptors rather than eagerly publishing one closure-time row
 for every subject. An explicit typed `starters` consumer remains the separate
 authorized materializer for one mechanism, node facet or edge facet; for node
@@ -2953,12 +2954,18 @@ route-bound v2 starter artifact, and a byte-identical no-op resume. This remains
 historical implementation evidence for the typed projection architecture, not
 a new Personskat execution or the current compact-observation layout.
 
-What remains is arbitrary path-conditioned selection and a human-readable
-region compression which labels dimensions as conditioned, explored, derived,
-proved irrelevant or coverage gaps. An undemanded node/edge slice descriptor
-correctly remains an address without an observation or typed materialization,
-rather than implying that opaque roots or per-field marginals are readable
-correlated starter-support set bounds.
+What remains is arbitrary path-conditioned selection and reduced, field-level
+decision-DAG compression of the current human-readable whole-fiber index. The
+index belongs to authorized publication/navigation, not to the semantic
+mechanism DAG: it summarizes canonical support-case fibers without changing
+their roots, counts or structural identities. Its dimension metadata
+preserves the query's `varied`, `derived`, `conditioned`, certified
+`irrelevant` or `coverage_gap` classification separately from the values seen
+in this support slice. In particular, a singleton seen on a varied commune
+axis remains varied, while Copenhagen fixed by the query remains conditioned.
+An undemanded node/edge slice descriptor remains only an address; opaque roots
+and per-field marginals do not become readable correlated support by
+implication.
 
 The starting context is part of every case, not incidental metadata. Write a
 starter as `Source = (Context, Before)` and a case as one supported
@@ -2971,13 +2978,39 @@ support is a subrelation of that mechanism's support; a shared node's total
 support may instead union overlapping routes from several mechanisms.
 
 These starter-support set bounds are request-conditioned overlays, not fields
-of the stable structural node. Their authoritative shape is the correlated
-relation `(Context, Before) -> Set<After>`, with confirmed inner support, an
-outer envelope or open obligation, and independently closed
-case/starter/successor counts. Income ranges, commune lists and other per-field
-bounds are useful projections for browsing, but cannot replace the relation:
-multiplying them would invent starting profiles that were never observed or
-proved reachable.
+of the stable structural node. Write their authoritative finite fiber relation
+as `F : (Context, Before) -> Set<After>`: `domain(F)` is the distinct starter
+projection and the graph of `F` is correlated case support. It carries
+confirmed inner support, a concrete outer envelope or an opaque open
+obligation, and independently closed case/starter/successor counts. Income
+ranges, commune lists and other per-field bounds are useful projections for
+browsing, but cannot replace `F`: interval widths and marginal products would
+invent starting profiles and counts that were never observed or proved.
+
+The first region format should therefore be deliberately plain: one exact
+whole-`SourceKey` fiber at a time, in canonical order, with an exact filter back
+to the typed support pages. A configured cap stops only between fibers and
+closes with the canonical projection job, source closure-record address and
+resume coordinate for the uncovered suffix. Since the source pages stream
+independently, that reference may point forward until the source artifact
+closes. It never widens that suffix into a Cartesian box; if even one fiber
+cannot fit, it falls back before emitting a partial one. Counts remain
+those of deduplicated canonical keys or a checked disjoint partition, not the
+sum of displayed region widths. V1 measures each candidate against a
+protocol-fixed 1 MiB synthetic maximum-width publication envelope and binds
+that byte policy into both summary and artifact identity. An invocation whose
+operational line limit is below the fixed cap is rejected before filesystem
+mutation rather than changing the deterministic represented prefix.
+
+The result reports three independent facts: semantic inner/outer support and
+its starter/correlated closure statuses; whether the region derivation is an
+`exact_partition` or a `confirmed_subset`; and whether compression is
+`complete` or `capped`. The artifact is navigation-only in either case. An
+opaque outer obligation stays opaque rather than being fabricated as a finite
+outer region. Once this exact v1 is trustworthy, equal suffixes may be
+hash-consed into a reduced ordered decision DAG with canonical Context/Before
+field order and dependent After-set terminals. That compression is a smaller
+index over the same `F`, not new evidence.
 
 ### Prefix-native support observations
 

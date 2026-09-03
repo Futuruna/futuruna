@@ -69,6 +69,18 @@ pub(crate) use relational_mechanism_starter_projection::{
     RelationalMechanismStarterProjectionPageManifestRoot,
     RelationalMechanismStarterProjectionPageRoot, RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION,
 };
+mod relational_mechanism_starter_regions;
+pub(crate) use relational_mechanism_starter_regions::{
+    RelationalMechanismStarterFiberId, RelationalMechanismStarterRegion,
+    RelationalMechanismStarterRegionAccept, RelationalMechanismStarterRegionAccumulator,
+    RelationalMechanismStarterRegionCompletion, RelationalMechanismStarterRegionContentRoot,
+    RelationalMechanismStarterRegionCursor, RelationalMechanismStarterRegionError,
+    RelationalMechanismStarterRegionFallback, RelationalMechanismStarterRegionFallbackReason,
+    RelationalMechanismStarterRegionId, RelationalMechanismStarterRegionLimits,
+    RelationalMechanismStarterRegionMemberRef, RelationalMechanismStarterRegionSuccessor,
+    RelationalMechanismStarterRegionSummary, RelationalMechanismStarterRegionSummaryRoot,
+    RELATIONAL_MECHANISM_STARTER_REGION_VERSION,
+};
 mod structural_mechanism;
 pub(crate) use structural_mechanism::{
     ExecutionProfileId, StructuralActivationCallCount, StructuralActivationContextDefinition,

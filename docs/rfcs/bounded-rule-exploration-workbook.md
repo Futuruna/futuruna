@@ -1286,8 +1286,9 @@ The v13 observation schema implements independently domain-separated
 inner/outer expression bounds for correlated case support `S` and
 distinct-starter projection `P = distinct_sources(S)`, with explicit
 `starter_set_status` and `correlated_support_status`. Publication v12 is
-implementation history, not a compatibility target. Typed-region execution
-and the broad Personskat run remain later work.
+implementation history, not a compatibility target. The exact whole-fiber
+typed-region v1 is now the bounded navigation implementation; reduced
+decision-DAG compression and the broad Personskat run remain later work.
 
 The first checked policy target now uses 2,000 coordinates, each representing
 100 DKK, rather than 200,000 one-krone edges. On 2026-08-31 its public stream
@@ -1615,6 +1616,23 @@ skipped cell uniform.
 - Keep value authorization explicit and singular. Do not infer typed values
   from a compact observation or introduce a wildcard `cases × DAG subjects`
   export.
+- Derive a typed correlated-region index only as an additive publication reader
+  over authorized canonical support-case fibers
+  `F : (Context, Before) -> Set<After>`, never as an Analyze node or a new
+  semantic count authority.
+- Make the first index an exact whole-`SourceKey`-fiber v1. Stop a compression
+  cap only between fibers and link the uncovered suffix to its canonical page,
+  projection job and source closure-record address instead of widening it into
+  marginal boxes.
+- Report semantic inner/outer status, region derivation
+  (`exact_partition | confirmed_subset`) and compression coverage
+  (`complete | capped`) independently. The artifact remains navigation-only
+  in either case, and an opaque outer obligation has no invented typed
+  envelope.
+- Preserve each dimension's varied, derived, conditioned, certified-irrelevant
+  or coverage-gap provenance separately from the extent observed in one
+  support slice. Counts come from canonical deduplicated keys or a checked
+  partition receipt, never interval widths or products of marginals.
 - Lower publication-v17 trailing `observations`, `starters` and `transitions`
   declarations only as transitional implementation spellings.
 
@@ -1696,6 +1714,7 @@ personskat-200k-result/
   mechanisms/cliff_paths.support-observations.ndjson
   mechanisms/cliff_paths.support-observation-demands.ndjson
   starters/selected_cliff_node.ndjson
+  starters/selected_cliff_node.regions.ndjson
   graphs/case-support-<question-id-hex>.ndjson
   graphs/case-transitions.ndjson
 ```
@@ -1709,6 +1728,25 @@ Its absence is `not_materialized`, not an empty-support claim. Adding another
 consumer to a completed run is an additive publication operation: it leaves
 the existing journal, analysis roots, and prior artifacts untouched while
 adding its content-addressed artifact and updating cursor/manifest state.
+
+The automatically paired `.regions.ndjson` companion is a bounded navigation
+index over that explicitly authorized artifact, not a second support relation.
+V1 emits complete source fibers in canonical order and records an exact filter
+back to their source/successor pages. A capped index closes with the last
+covered SourceKey and a resume/fallback handle to the canonical projection.
+The source pages stream independently, so such handles may be forward
+references until the source artifact closes. The index never emits half a
+fiber or treats missing records as wildcard support. Its dimension metadata
+keeps query coverage provenance separate from observed support extent, and its
+counts cite the canonical projection closure or checked disjoint-partition
+receipt rather than region arithmetic. A protocol-fixed 1 MiB
+maximum-width-envelope preflight is bound into the summary and artifact
+identities and falls back before an oversized fiber. An invocation with a
+smaller operational line limit is rejected before filesystem mutation rather
+than changing that deterministic prefix. After closure, no-op resumes reuse
+the validated final receipt instead of rebuilding typed regions. Later
+compression may reduce the same exact fibers into an ordered, hash-consed
+decision DAG with disjoint typed selectors; this changes navigation size only.
 
 `graphs/case-transitions.ndjson` is the corresponding case-side semantic
 artifact. It is automatically authorized only when one checked explicit-find

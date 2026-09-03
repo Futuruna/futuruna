@@ -32,8 +32,11 @@
 //! or edge facet, optionally refines a node/edge by one enclosing mechanism,
 //! and names one checked selected-case value view; its independently resumable
 //! sidecar pages exactly that support slice's typed starter relation from
-//! closed support authority. One QuestionId-addressed case/support graph per
-//! canonical semantic question follows its own crash-resumable flat cursor.
+//! closed support authority. A bounded companion index preserves each complete
+//! `(Context, Before) -> Set<After>` source fiber and falls back to those pages
+//! at a source boundary when its cap is reached. One QuestionId-addressed
+//! case/support graph per canonical semantic question follows its own
+//! crash-resumable flat cursor.
 //! Classified support runs
 //! expose the structural path from their bounded partition; a fully
 //! materialized extensional run exposes exact classification regions instead.
@@ -124,6 +127,14 @@ use super::relational_mechanism_starter_projection::{
     RelationalMechanismStarterProjectionPage, RelationalMechanismStarterProjectionPageManifestRoot,
     RELATIONAL_MECHANISM_STARTER_PROJECTION_VERSION,
 };
+use super::relational_mechanism_starter_regions::{
+    RelationalMechanismStarterRegion, RelationalMechanismStarterRegionAccept,
+    RelationalMechanismStarterRegionAccumulator, RelationalMechanismStarterRegionCompletion,
+    RelationalMechanismStarterRegionCursor, RelationalMechanismStarterRegionFallback,
+    RelationalMechanismStarterRegionFallbackReason, RelationalMechanismStarterRegionLimits,
+    RelationalMechanismStarterRegionMemberRef, RelationalMechanismStarterRegionSummary,
+    RELATIONAL_MECHANISM_STARTER_REGION_VERSION,
+};
 use super::relational_public::{
     ExploreStreamCount, ExploreStreamCoverageBindingRole, ExploreStreamCoverageClassification,
     ExploreStreamCoverageConstructorLayout, ExploreStreamCoverageGapReason,
@@ -161,6 +172,9 @@ const ARTIFACT_PRESENTATION_DIGEST_V3: &[u8] =
     b"futuruna.explore.publication-artifact-presentation.v3";
 const RESULT_PREFIX_ROOT_V17: &[u8] = b"futuruna.explore.publication-prefix.v17";
 const RESULT_PREFIX_EXTEND_V17: &[u8] = b"futuruna.explore.publication-prefix-extend.v17";
+const SUBJECT_SUPPORT_REGION_PUBLICATION_ROOT_V1: &[u8] =
+    b"futuruna.explore.subject-support-region-publication-root.v1";
+const SUBJECT_SUPPORT_REGION_RECORD_SCHEMA: &str = "futuruna.relational-subject-support-regions-v1";
 const CASE_SUPPORT_ARTIFACT_KEY_PREFIX: &str = "graph:case-support";
 const CASE_SUPPORT_ARTIFACT_NAME_PREFIX: &str = "case-support";
 const CASE_SUPPORT_ARTIFACT_PATH_PREFIX: &str = "case-support";
@@ -176,6 +190,18 @@ const STRUCTURAL_DEFINITION_CHUNK_ITEMS: usize = 128;
 const STRUCTURAL_DEFINITION_PUBLICATION_SCHEMA_VERSION: u32 = 2;
 const MECHANISM_STARTER_PAGE_MEMBER_LIMIT: NonZeroU16 =
     NonZeroU16::new(64).expect("nonzero constant");
+/// Publication-only region work is deliberately bounded independently from
+/// the authoritative starter stream. One region is one complete SourceKey
+/// fiber, so neither limit can create a partial or Cartesianized region.
+const SUBJECT_SUPPORT_REGION_FIBER_LIMIT: NonZeroUsize =
+    NonZeroUsize::new(1_000).expect("nonzero constant");
+const SUBJECT_SUPPORT_REGION_SUCCESSOR_LIMIT: NonZeroUsize =
+    NonZeroUsize::new(64).expect("nonzero constant");
+/// Stable protocol cap, measured against a synthetic maximum-width public
+/// envelope. It is deliberately independent of an invocation's operational
+/// publication limits so restart cannot change which whole fibers are kept.
+const SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT: NonZeroUsize =
+    NonZeroUsize::new(1 << 20).expect("nonzero constant");
 const CONTROL_TEMP_ATTEMPTS: u64 = 128;
 #[cfg(unix)]
 const OWNER_ONLY_DIRECTORY_MODE: u32 = 0o700;
@@ -518,6 +544,24 @@ enum PublicationArtifactPlan {
         structural_artifact_path: Box<str>,
         audit_lineage: PublicationAuditLineage,
     },
+    /// Bounded, correlation-preserving navigation index paired with one
+    /// explicit typed starter consumer. This is a publication-only view over
+    /// the starter projection: it never becomes mechanism/support authority.
+    SubjectSupportRegions {
+        key: Box<str>,
+        name: Box<str>,
+        path: PathBuf,
+        consumer_id: [u8; 32],
+        request_id: MechanismRequestId,
+        target: PublicationMechanismTarget,
+        subject: MechanismSupportSubject,
+        within_mechanism: Option<StructuralMechanismId>,
+        authorization: RelationalMechanismStarterValueAuthorization,
+        transition_schemas: TransitionSchemaIdentities,
+        source_starters_artifact_key: Box<str>,
+        source_starters_artifact_path: Box<str>,
+        audit_lineage: PublicationAuditLineage,
+    },
     CaseSupport {
         key: Box<str>,
         name: Box<str>,
@@ -549,6 +593,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructural { key, .. }
             | Self::MechanismStructuralDefinitions { key, .. }
             | Self::SubjectStarters { key, .. }
+            | Self::SubjectSupportRegions { key, .. }
             | Self::CaseSupport { key, .. }
             | Self::SemanticTransitionGraph { key, .. } => key,
             Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_KEY,
@@ -565,6 +610,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructural { name, .. }
             | Self::MechanismStructuralDefinitions { name, .. }
             | Self::SubjectStarters { name, .. }
+            | Self::SubjectSupportRegions { name, .. }
             | Self::CaseSupport { name, .. }
             | Self::SemanticTransitionGraph { name, .. } => name,
             Self::CaseTransitions { .. } => CASE_TRANSITIONS_ARTIFACT_NAME,
@@ -581,6 +627,7 @@ impl PublicationArtifactPlan {
             | Self::MechanismStructural { path, .. }
             | Self::MechanismStructuralDefinitions { path, .. }
             | Self::SubjectStarters { path, .. }
+            | Self::SubjectSupportRegions { path, .. }
             | Self::CaseSupport { path, .. }
             | Self::SemanticTransitionGraph { path, .. } => path,
             Self::CaseTransitions { .. } => Path::new(CASE_TRANSITIONS_ARTIFACT_PATH),
@@ -599,6 +646,7 @@ impl PublicationArtifactPlan {
             Self::MechanismStructural { .. } => "mechanism_structural_support",
             Self::MechanismStructuralDefinitions { .. } => "mechanism_structural_definitions",
             Self::SubjectStarters { .. } => "subject_starter_support",
+            Self::SubjectSupportRegions { .. } => "subject_support_regions",
             Self::CaseSupport { .. } => "case_support_graph",
             Self::CaseTransitions { .. } => "selected_case_transition_graph",
             Self::SemanticTransitionGraph { .. } => "semantic_transition_graph",
@@ -612,7 +660,8 @@ impl PublicationArtifactPlan {
             | Self::MechanismSupportObservationDemands { target, .. }
             | Self::MechanismStructural { target, .. }
             | Self::MechanismStructuralDefinitions { target, .. }
-            | Self::SubjectStarters { target, .. } => Some(target),
+            | Self::SubjectStarters { target, .. }
+            | Self::SubjectSupportRegions { target, .. } => Some(target),
             Self::MechanismSupportObservations { audit_lineage, .. } => Some(&audit_lineage.target),
             Self::Result { .. }
             | Self::CaseSupport { .. }
@@ -629,7 +678,8 @@ impl PublicationArtifactPlan {
             | Self::MechanismSupportObservationDemands { request_id, .. }
             | Self::MechanismStructural { request_id, .. }
             | Self::MechanismStructuralDefinitions { request_id, .. }
-            | Self::SubjectStarters { request_id, .. } => Some(*request_id),
+            | Self::SubjectStarters { request_id, .. }
+            | Self::SubjectSupportRegions { request_id, .. } => Some(*request_id),
             Self::Result { .. }
             | Self::CaseSupport { .. }
             | Self::CaseTransitions { .. }
@@ -1052,8 +1102,17 @@ impl RelationalPublicationPlan {
             }
             let safe_name = safe_artifact_name(&projection.name)?;
             let path = PathBuf::from("starters").join(format!("{safe_name}.ndjson"));
+            let source_starters_artifact_key =
+                format!("subject-starters:{}", hex(identity.id.bytes())).into_boxed_str();
+            let source_starters_artifact_path = path_to_manifest_string(&path)?.into_boxed_str();
+            let audit_lineage = PublicationAuditLineage::new(
+                contract.clone(),
+                identity.request_id,
+                target.clone(),
+                source_coverage_manifest_digest,
+            );
             let artifact = PublicationArtifactPlan::SubjectStarters {
-                key: format!("subject-starters:{}", hex(identity.id.bytes())).into_boxed_str(),
+                key: source_starters_artifact_key.clone(),
                 name: projection.name.clone().into_boxed_str(),
                 path,
                 consumer_id: identity.id.bytes(),
@@ -1061,16 +1120,11 @@ impl RelationalPublicationPlan {
                 target: target.clone(),
                 subject: mechanism_support_subject(identity.subject),
                 within_mechanism: identity.within_mechanism,
-                authorization,
+                authorization: authorization.clone(),
                 transition_schemas: checked.transition_schemas().clone(),
                 structural_artifact_key: structural_artifact_key.clone(),
                 structural_artifact_path: structural_artifact_path.clone(),
-                audit_lineage: PublicationAuditLineage::new(
-                    contract.clone(),
-                    identity.request_id,
-                    target.clone(),
-                    source_coverage_manifest_digest,
-                ),
+                audit_lineage: audit_lineage.clone(),
             };
             if !paths.insert(artifact.path().to_path_buf()) {
                 return Err(RelationalPublicationError::ArtifactPathCollision(
@@ -1078,6 +1132,28 @@ impl RelationalPublicationPlan {
                 ));
             }
             artifacts.push(artifact);
+            let regions = PublicationArtifactPlan::SubjectSupportRegions {
+                key: format!("subject-support-regions:{}", hex(identity.id.bytes()))
+                    .into_boxed_str(),
+                name: format!("{}_regions", projection.name).into_boxed_str(),
+                path: PathBuf::from("starters").join(format!("{safe_name}.regions.ndjson")),
+                consumer_id: identity.id.bytes(),
+                request_id: identity.request_id,
+                target: target.clone(),
+                subject: mechanism_support_subject(identity.subject),
+                within_mechanism: identity.within_mechanism,
+                authorization,
+                transition_schemas: checked.transition_schemas().clone(),
+                source_starters_artifact_key,
+                source_starters_artifact_path,
+                audit_lineage,
+            };
+            if !paths.insert(regions.path().to_path_buf()) {
+                return Err(RelationalPublicationError::ArtifactPathCollision(
+                    regions.path().to_path_buf(),
+                ));
+            }
+            artifacts.push(regions);
         }
         for (graph, identity) in checked.transition_graph_consumers() {
             if identity.relation_id != checked.relation_id()
@@ -1315,6 +1391,43 @@ fn artifact_presentation_digest(
         | PublicationArtifactPlan::CaseTransitions { authorization, .. } => {
             hash_authorization_presentation(&mut digest, authorization);
         }
+        PublicationArtifactPlan::SubjectSupportRegions {
+            authorization,
+            source_starters_artifact_key,
+            source_starters_artifact_path,
+            ..
+        } => {
+            hash_authorization_presentation(&mut digest, authorization);
+            digest.text(b"record-schema", SUBJECT_SUPPORT_REGION_RECORD_SCHEMA);
+            digest.count(
+                b"region-algebra-version",
+                RELATIONAL_MECHANISM_STARTER_REGION_VERSION as usize,
+            );
+            digest.bytes(
+                b"region-publication-root-domain",
+                SUBJECT_SUPPORT_REGION_PUBLICATION_ROOT_V1,
+            );
+            digest.text(
+                b"source-starters-artifact-key",
+                source_starters_artifact_key,
+            );
+            digest.text(
+                b"source-starters-artifact-path",
+                source_starters_artifact_path,
+            );
+            digest.count(
+                b"region-fiber-limit",
+                SUBJECT_SUPPORT_REGION_FIBER_LIMIT.get(),
+            );
+            digest.count(
+                b"region-successor-limit",
+                SUBJECT_SUPPORT_REGION_SUCCESSOR_LIMIT.get(),
+            );
+            digest.count(
+                b"region-encoded-line-limit",
+                SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT.get(),
+            );
+        }
         PublicationArtifactPlan::CaseSupport {
             question_id,
             authorization,
@@ -1361,6 +1474,7 @@ fn is_additive_cursor_extension(artifact: &PublicationArtifactPlan) -> bool {
     matches!(
         artifact,
         PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. }
     )
@@ -2072,6 +2186,7 @@ fn source_cursor_matches_artifact(
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
             | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. },
@@ -2123,6 +2238,7 @@ fn pending_source_end_matches_artifact(
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
             | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. },
@@ -2609,7 +2725,105 @@ struct PublicationOrdinalIndex<'journal> {
     case_transitions: Option<RelationalCaseTransitionProjection>,
     semantic_transition_graphs:
         BTreeMap<[u8; 32], RelationalSemanticTransitionGraphProjection<'journal>>,
+    subject_support_regions: BTreeMap<[u8; 32], SubjectSupportRegionPublicationState>,
     mechanisms: BTreeMap<MechanismRequestId, MechanismDefinitionOrdinalIndex>,
+}
+
+/// Invocation-local, hard-bounded navigation index over one already
+/// authorized starter projection. Its summary owns only a canonical prefix;
+/// the complete starter artifact remains the evidence and counting authority.
+struct SubjectSupportRegionPublicationProjection {
+    authority: MechanismClosedSubjectStarterProjectionAuthority,
+    job: RelationalMechanismStarterProjectionJob,
+    summary: RelationalMechanismStarterRegionSummary,
+    root: [u8; 32],
+}
+
+enum SubjectSupportRegionPublicationState {
+    Derived(SubjectSupportRegionPublicationProjection),
+    Published(SubjectSupportRegionPublishedReceipt),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SubjectSupportRegionCompression {
+    Complete,
+    Capped,
+}
+
+/// Compact closure metadata recovered from an already authenticated final
+/// artifact line. Reusing this receipt avoids resolving and cloning the same
+/// bounded typed fibers on every no-op publication resume.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SubjectSupportRegionPublishedReceipt {
+    projection_plan_id: [u8; 32],
+    projection_job_id: [u8; 32],
+    projection_root: [u8; 32],
+    summary_root: [u8; 32],
+    content_root: [u8; 32],
+    structural_root: [u8; 32],
+    support_root: [u8; 32],
+    represented_exact_cases: u128,
+    represented_exact_starters: u128,
+    exact_total_cases: u128,
+    source_record_count: u128,
+    compression: SubjectSupportRegionCompression,
+}
+
+impl SubjectSupportRegionPublicationState {
+    fn available_source_record_count(&self) -> u128 {
+        match self {
+            Self::Derived(projection) => projection.available_source_record_count(),
+            Self::Published(receipt) => receipt.source_record_count,
+        }
+    }
+}
+
+enum SubjectSupportRegionPublicationRecord<'projection> {
+    Header,
+    Region {
+        ordinal: u128,
+        region: &'projection RelationalMechanismStarterRegion,
+    },
+    Fallback(RelationalMechanismStarterRegionFallback),
+    Closure,
+}
+
+impl SubjectSupportRegionPublicationProjection {
+    fn available_source_record_count(&self) -> u128 {
+        let fallback = u128::from(matches!(
+            self.summary.completion(),
+            RelationalMechanismStarterRegionCompletion::Capped(_)
+        ));
+        2u128
+            .checked_add(self.summary.regions().len() as u128)
+            .and_then(|count| count.checked_add(fallback))
+            .expect("bounded region publication count fits u128")
+    }
+
+    fn record_at(&self, source_ordinal: u128) -> Option<SubjectSupportRegionPublicationRecord<'_>> {
+        if source_ordinal >= self.available_source_record_count() {
+            return None;
+        }
+        if source_ordinal == 0 {
+            return Some(SubjectSupportRegionPublicationRecord::Header);
+        }
+        let region_index = usize::try_from(source_ordinal - 1).ok()?;
+        if let Some(region) = self.summary.regions().get(region_index) {
+            return Some(SubjectSupportRegionPublicationRecord::Region {
+                ordinal: source_ordinal - 1,
+                region,
+            });
+        }
+        let after_regions = 1u128.checked_add(self.summary.regions().len() as u128)?;
+        if source_ordinal == after_regions {
+            if let RelationalMechanismStarterRegionCompletion::Capped(fallback) =
+                self.summary.completion()
+            {
+                return Some(SubjectSupportRegionPublicationRecord::Fallback(fallback));
+            }
+        }
+        Some(SubjectSupportRegionPublicationRecord::Closure)
+    }
 }
 
 #[derive(Default)]
@@ -2677,6 +2891,7 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
                 | PublicationArtifactPlan::MechanismStructural { .. }
                 | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
                 | PublicationArtifactPlan::SubjectStarters { .. }
+                | PublicationArtifactPlan::SubjectSupportRegions { .. }
                 | PublicationArtifactPlan::CaseSupport { .. }
                 | PublicationArtifactPlan::SemanticTransitionGraph { .. } => None,
             })
@@ -2723,8 +2938,49 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
             case_support,
             case_transitions,
             semantic_transition_graphs,
+            subject_support_regions: BTreeMap::new(),
             mechanisms: BTreeMap::new(),
         })
+    }
+
+    fn populate_subject_support_regions(
+        &mut self,
+        output_directory: &Path,
+        journal: &RelationalJournal,
+        plan: &RelationalPublicationPlan,
+        cursor: &PublicationCursor,
+    ) -> Result<(), RelationalPublicationError> {
+        for artifact in plan.artifacts.iter() {
+            let PublicationArtifactPlan::SubjectSupportRegions { consumer_id, .. } = artifact
+            else {
+                continue;
+            };
+            let state = cursor
+                .artifacts
+                .get(artifact.key())
+                .ok_or(RelationalPublicationError::CursorArtifactSetMismatch)?;
+            let region_state = match completed_subject_support_region_receipt(
+                output_directory,
+                artifact,
+                state,
+                journal,
+            )? {
+                Some(receipt) => Some(SubjectSupportRegionPublicationState::Published(receipt)),
+                None => derive_subject_support_region_projection(journal, artifact)?
+                    .map(SubjectSupportRegionPublicationState::Derived),
+            };
+            let Some(region_state) = region_state else {
+                continue;
+            };
+            if self
+                .subject_support_regions
+                .insert(*consumer_id, region_state)
+                .is_some()
+            {
+                return Err(RelationalPublicationError::PlanIdentityMismatch);
+            }
+        }
+        Ok(())
     }
 
     fn mechanism_definition(
@@ -2792,6 +3048,339 @@ impl<'journal> PublicationOrdinalIndex<'journal> {
         }
         Ok(payload)
     }
+}
+
+fn derive_subject_support_region_projection(
+    journal: &RelationalJournal,
+    artifact: &PublicationArtifactPlan,
+) -> Result<Option<SubjectSupportRegionPublicationProjection>, RelationalPublicationError> {
+    let PublicationArtifactPlan::SubjectSupportRegions {
+        consumer_id,
+        request_id,
+        target,
+        subject,
+        within_mechanism,
+        authorization,
+        transition_schemas,
+        audit_lineage,
+        ..
+    } = artifact
+    else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    let Some(authority) = subject_starter_publication_authority(
+        journal,
+        *request_id,
+        target.semantic_target(),
+        *subject,
+        *within_mechanism,
+    )?
+    else {
+        return Ok(None);
+    };
+    let job =
+        subject_starter_projection_job(journal, &authority, transition_schemas, authorization)?;
+    let scheduler = journal
+        .scheduler_view()
+        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+    let limits = RelationalMechanismStarterRegionLimits::new(
+        SUBJECT_SUPPORT_REGION_FIBER_LIMIT,
+        SUBJECT_SUPPORT_REGION_SUCCESSOR_LIMIT,
+        SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT,
+    );
+    let mut accumulator = RelationalMechanismStarterRegionAccumulator::new(limits);
+    let mut projection_accumulator = RelationalMechanismStarterProjectionAccumulator::new(job);
+    while !projection_accumulator.exhausted() {
+        let page = job
+            .derive_next_page(
+                authority.support,
+                authority.structural,
+                &projection_accumulator,
+                MECHANISM_STARTER_PAGE_MEMBER_LIMIT,
+                |case_id| scheduler.case(case_id),
+            )
+            .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+        let disposition = accumulator
+            .accept_page(page.members().iter().map(|member| {
+                RelationalMechanismStarterRegionMemberRef::new(
+                    member.source_key(),
+                    member.context(),
+                    member.before(),
+                    member.successor_key(),
+                    member.after(),
+                )
+            }))
+            .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+        if matches!(
+            disposition,
+            RelationalMechanismStarterRegionAccept::Capped(_)
+        ) {
+            break;
+        }
+        projection_accumulator
+            .accept_page(&page)
+            .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+    }
+    let summary = accumulator
+        .finish()
+        .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+    if summary.represented_exact_case_count() > authority.key_authority.exact_case_count()
+        || summary.represented_exact_starter_count() > summary.represented_exact_case_count()
+        || matches!(
+            summary.completion(),
+            RelationalMechanismStarterRegionCompletion::Complete
+        ) && (!projection_accumulator.exhausted()
+            || summary.represented_exact_case_count() != authority.key_authority.exact_case_count())
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let mut projection = SubjectSupportRegionPublicationProjection {
+        authority: authority.key_authority,
+        job,
+        summary,
+        root: [0; 32],
+    };
+    projection.root = derive_subject_support_region_publication_root(
+        *consumer_id,
+        projection.authority,
+        projection.job,
+        &projection.summary,
+        audit_lineage.source_coverage_manifest_digest,
+    );
+    let mut oversized_region_index = None;
+    for region_index in 0..projection.summary.regions().len() {
+        let source_ordinal = 1_u128
+            .checked_add(region_index as u128)
+            .ok_or(RelationalPublicationError::ArithmeticOverflow)?;
+        let PublicationRecord::Emit(value) =
+            subject_support_region_record(artifact, journal, Some(&projection), source_ordinal)?
+        else {
+            return Err(RelationalPublicationError::PlanIdentityMismatch);
+        };
+        let worst_case_line = publication_line_bytes(
+            artifact,
+            PublicationSourceCoordinate::Flat {
+                source_ordinal: u128::MAX,
+            },
+            RelationalPublicationCheckpoint::new(u64::MAX, [0xff; 32]),
+            value,
+        )?;
+        if worst_case_line.len() > SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT.get() {
+            oversized_region_index = Some(region_index);
+            break;
+        }
+    }
+    if let Some(region_index) = oversized_region_index {
+        projection.summary = projection
+            .summary
+            .cap_before_encoded_region(region_index)
+            .map_err(|error| RelationalPublicationError::Analysis(error.to_string()))?;
+        projection.root = derive_subject_support_region_publication_root(
+            *consumer_id,
+            projection.authority,
+            projection.job,
+            &projection.summary,
+            audit_lineage.source_coverage_manifest_digest,
+        );
+    }
+    Ok(Some(projection))
+}
+
+fn derive_subject_support_region_publication_root(
+    consumer_id: [u8; 32],
+    authority: MechanismClosedSubjectStarterProjectionAuthority,
+    job: RelationalMechanismStarterProjectionJob,
+    summary: &RelationalMechanismStarterRegionSummary,
+    source_coverage_manifest_digest: [u8; 32],
+) -> [u8; 32] {
+    derive_subject_support_region_publication_root_from_summary(
+        consumer_id,
+        authority,
+        job,
+        summary.root().bytes(),
+        source_coverage_manifest_digest,
+    )
+}
+
+fn derive_subject_support_region_publication_root_from_summary(
+    consumer_id: [u8; 32],
+    authority: MechanismClosedSubjectStarterProjectionAuthority,
+    job: RelationalMechanismStarterProjectionJob,
+    summary_root: [u8; 32],
+    source_coverage_manifest_digest: [u8; 32],
+) -> [u8; 32] {
+    let mut root = CanonicalPresentationDigest::new(SUBJECT_SUPPORT_REGION_PUBLICATION_ROOT_V1);
+    root.bytes(b"consumer-id", &consumer_id);
+    root.bytes(
+        b"projection-plan-id",
+        &authority.projection_plan_id().bytes(),
+    );
+    root.bytes(b"projection-job-id", &job.id().bytes());
+    root.bytes(b"structural-root", &authority.structural_root().bytes());
+    root.bytes(b"support-root", &authority.support_root().bytes());
+    root.bytes(
+        b"source-coverage-manifest",
+        &source_coverage_manifest_digest,
+    );
+    root.bytes(b"region-summary-root", &summary_root);
+    root.finish()
+}
+
+fn completed_subject_support_region_receipt(
+    output_directory: &Path,
+    artifact: &PublicationArtifactPlan,
+    state: &ArtifactCursor,
+    journal: &RelationalJournal,
+) -> Result<Option<SubjectSupportRegionPublishedReceipt>, RelationalPublicationError> {
+    let PublicationArtifactPlan::SubjectSupportRegions {
+        consumer_id,
+        request_id,
+        target,
+        subject,
+        within_mechanism,
+        authorization,
+        transition_schemas,
+        audit_lineage,
+        ..
+    } = artifact
+    else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    let ArtifactSourceCursor::Flat {
+        next_source_ordinal,
+    } = state.source
+    else {
+        return Err(RelationalPublicationError::CursorArtifactMismatch(
+            artifact.key().into(),
+        ));
+    };
+    if next_source_ordinal == 0 {
+        return Ok(None);
+    }
+    let Some(last) = &state.last_line else {
+        return Err(RelationalPublicationError::LastLineCursorMismatch(
+            output_directory.join(artifact.path()),
+        ));
+    };
+    let line_length =
+        usize::try_from(last.bytes).map_err(|_| RelationalPublicationError::ArithmeticOverflow)?;
+    let mut line = vec![0_u8; line_length];
+    let path = output_directory.join(artifact.path());
+    let mut file = File::open(&path).map_err(|error| io_error(&path, error))?;
+    file.seek(SeekFrom::Start(last.start))
+        .and_then(|_| file.read_exact(&mut line))
+        .map_err(|error| io_error(&path, error))?;
+    let envelope: JsonValue = serde_json::from_slice(&line)
+        .map_err(|error| RelationalPublicationError::Json(error.to_string()))?;
+    let Some(record) = envelope.pointer("/record") else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    if record.pointer("/kind").and_then(JsonValue::as_str)
+        != Some("subject_support_regions_closure")
+    {
+        return Ok(None);
+    }
+    let source_ordinal = required_region_u128(&envelope, "/source_ordinal")?;
+    if envelope
+        .pointer("/schema_version")
+        .and_then(JsonValue::as_u64)
+        != Some(u64::from(RELATIONAL_PUBLICATION_SCHEMA_VERSION))
+        || envelope.pointer("/artifact").and_then(JsonValue::as_str) != Some(artifact.key())
+        || envelope.pointer("/name").and_then(JsonValue::as_str) != Some(artifact.name())
+        || source_ordinal.checked_add(1) != Some(next_source_ordinal)
+        || state.line_count != next_source_ordinal
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let Some(authority) = subject_starter_publication_authority(
+        journal,
+        *request_id,
+        target.semantic_target(),
+        *subject,
+        *within_mechanism,
+    )?
+    else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    let job =
+        subject_starter_projection_job(journal, &authority, transition_schemas, authorization)?;
+    let compression =
+        match required_region_string(record, "/status_axes/compression_coverage/status")? {
+            "complete" => SubjectSupportRegionCompression::Complete,
+            "capped" => SubjectSupportRegionCompression::Capped,
+            _ => return Err(RelationalPublicationError::PlanIdentityMismatch),
+        };
+    let derivation = required_region_string(record, "/status_axes/region_derivation/status")?;
+    if (compression == SubjectSupportRegionCompression::Complete && derivation != "exact_partition")
+        || (compression == SubjectSupportRegionCompression::Capped
+            && derivation != "confirmed_subset")
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let receipt = SubjectSupportRegionPublishedReceipt {
+        projection_plan_id: required_region_digest(record, "/projection_plan_id")?,
+        projection_job_id: required_region_digest(record, "/projection_job_id")?,
+        projection_root: required_region_digest(record, "/region_projection_root")?,
+        summary_root: required_region_digest(record, "/region_summary_root")?,
+        content_root: required_region_digest(record, "/region_content_root")?,
+        structural_root: required_region_digest(record, "/structural_quotient_root")?,
+        support_root: required_region_digest(record, "/mechanism_support_closure_root")?,
+        represented_exact_cases: required_region_u128(record, "/counts/represented_cases/value")?,
+        represented_exact_starters: required_region_u128(
+            record,
+            "/counts/represented_starters/value",
+        )?,
+        exact_total_cases: required_region_u128(record, "/counts/total_cases/value")?,
+        source_record_count: next_source_ordinal,
+        compression,
+    };
+    if receipt.projection_plan_id != authority.key_authority.projection_plan_id().bytes()
+        || receipt.projection_job_id != job.id().bytes()
+        || receipt.projection_root
+            != derive_subject_support_region_publication_root_from_summary(
+                *consumer_id,
+                authority.key_authority,
+                job,
+                receipt.summary_root,
+                audit_lineage.source_coverage_manifest_digest,
+            )
+        || receipt.structural_root != authority.key_authority.structural_root().bytes()
+        || receipt.support_root != authority.key_authority.support_root().bytes()
+        || receipt.exact_total_cases != authority.key_authority.exact_case_count()
+        || receipt.represented_exact_cases > receipt.exact_total_cases
+        || receipt.represented_exact_starters > receipt.represented_exact_cases
+        || (receipt.compression == SubjectSupportRegionCompression::Complete
+            && receipt.represented_exact_cases != receipt.exact_total_cases)
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    Ok(Some(receipt))
+}
+
+fn required_region_string<'value>(
+    value: &'value JsonValue,
+    pointer: &str,
+) -> Result<&'value str, RelationalPublicationError> {
+    value
+        .pointer(pointer)
+        .and_then(JsonValue::as_str)
+        .ok_or(RelationalPublicationError::PlanIdentityMismatch)
+}
+
+fn required_region_digest(
+    value: &JsonValue,
+    pointer: &str,
+) -> Result<[u8; 32], RelationalPublicationError> {
+    decode_hex_digest(required_region_string(value, pointer)?)
+}
+
+fn required_region_u128(
+    value: &JsonValue,
+    pointer: &str,
+) -> Result<u128, RelationalPublicationError> {
+    required_region_string(value, pointer)?
+        .parse()
+        .map_err(|_| RelationalPublicationError::PlanIdentityMismatch)
 }
 
 fn derive_case_support_for_publication<'journal>(
@@ -3041,6 +3630,7 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     let output_directory = output_directory.as_ref();
     validate_output_directory(output_directory)?;
     validate_report(plan, report)?;
+    validate_subject_support_region_line_limit(plan, limits)?;
 
     let journal = authority
         .journal()
@@ -3056,8 +3646,6 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     {
         return Err(RelationalPublicationError::CurrentCheckpointMismatch);
     }
-    let mut ordinal_index = PublicationOrdinalIndex::from_journal(journal, plan)?;
-
     create_owner_only_directory(output_directory)
         .map_err(|error| io_error(output_directory, error))?;
     validate_publication_namespace(
@@ -3076,8 +3664,10 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
     authenticate_cursor(authority, &cursor)?;
     let manifest_path = output_directory.join(MANIFEST_FILE);
     validate_existing_manifest(&manifest_path, plan, authority, limits)?;
-    validate_source_cursors(plan, journal, &mut ordinal_index, &cursor)?;
     validate_committed_files(output_directory, plan, &cursor, limits)?;
+    let mut ordinal_index = PublicationOrdinalIndex::from_journal(journal, plan)?;
+    ordinal_index.populate_subject_support_regions(output_directory, journal, plan, &cursor)?;
+    validate_source_cursors(plan, journal, &mut ordinal_index, &cursor)?;
 
     if cursor.pending.is_some() {
         recover_pending_batch(
@@ -3140,6 +3730,35 @@ pub(crate) fn publish_relational_result_artifacts<A: RelationalPublicationAuthor
         artifact_count,
         artifacts,
     })
+}
+
+fn validate_subject_support_region_line_limit(
+    plan: &RelationalPublicationPlan,
+    limits: RelationalPublicationLimits,
+) -> Result<(), RelationalPublicationError> {
+    let has_regions = plan.artifacts.iter().any(|artifact| {
+        matches!(
+            artifact,
+            PublicationArtifactPlan::SubjectSupportRegions { .. }
+        )
+    });
+    validate_subject_support_region_line_limit_requirement(has_regions, limits.max_line_bytes())
+}
+
+fn validate_subject_support_region_line_limit_requirement(
+    has_regions: bool,
+    actual: usize,
+) -> Result<(), RelationalPublicationError> {
+    let required = SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT.get();
+    if has_regions && actual < required {
+        return Err(
+            RelationalPublicationError::SubjectSupportRegionLineLimitBelowProtocol {
+                actual,
+                required,
+            },
+        );
+    }
+    Ok(())
 }
 
 fn cursor_path_exists(output_directory: &Path) -> bool {
@@ -3547,6 +4166,7 @@ fn initial_artifact_cursor(
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
             | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
             | PublicationArtifactPlan::MechanismStructural { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {
@@ -3731,6 +4351,7 @@ fn validate_source_cursors(
                 | PublicationArtifactPlan::MechanismSupportObservations { .. }
                 | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
                 | PublicationArtifactPlan::MechanismStructural { .. }
+                | PublicationArtifactPlan::SubjectSupportRegions { .. }
                 | PublicationArtifactPlan::CaseSupport { .. }
                 | PublicationArtifactPlan::CaseTransitions { .. }
                 | PublicationArtifactPlan::SemanticTransitionGraph { .. },
@@ -4433,6 +5054,21 @@ fn record_at(
             artifact,
             next_source_ordinal,
             structural_sidecar_record(artifact, journal, *request_id, next_source_ordinal)?,
+        ),
+        (
+            PublicationArtifactPlan::SubjectSupportRegions { consumer_id, .. },
+            ArtifactSourceCursor::Flat {
+                next_source_ordinal,
+            },
+        ) => address_flat_record(
+            artifact,
+            next_source_ordinal,
+            subject_support_region_state_record(
+                artifact,
+                journal,
+                ordinal_index.subject_support_regions.get(consumer_id),
+                next_source_ordinal,
+            )?,
         ),
         (
             PublicationArtifactPlan::CaseSupport { question_id, .. },
@@ -6038,6 +6674,328 @@ fn public_mechanism_starter_key_cursor(cursor: Option<MechanismSupportStarterCur
             "successor_key": hex(cursor.successor_key().bytes()),
         })
     })
+}
+
+fn subject_support_region_state_record(
+    artifact: &PublicationArtifactPlan,
+    journal: &RelationalJournal,
+    state: Option<&SubjectSupportRegionPublicationState>,
+    source_ordinal: u128,
+) -> Result<PublicationRecord, RelationalPublicationError> {
+    match state {
+        Some(SubjectSupportRegionPublicationState::Derived(projection)) => {
+            subject_support_region_record(artifact, journal, Some(projection), source_ordinal)
+        }
+        Some(SubjectSupportRegionPublicationState::Published(receipt)) => {
+            if source_ordinal == receipt.source_record_count {
+                Ok(PublicationRecord::Exhausted)
+            } else {
+                Err(RelationalPublicationError::PublicationSourceAhead {
+                    artifact: artifact.key().into(),
+                    next_source_ordinal: source_ordinal,
+                    available: receipt.source_record_count,
+                })
+            }
+        }
+        None => subject_support_region_record(artifact, journal, None, source_ordinal),
+    }
+}
+
+fn subject_support_region_record(
+    artifact: &PublicationArtifactPlan,
+    journal: &RelationalJournal,
+    projection: Option<&SubjectSupportRegionPublicationProjection>,
+    source_ordinal: u128,
+) -> Result<PublicationRecord, RelationalPublicationError> {
+    let PublicationArtifactPlan::SubjectSupportRegions {
+        consumer_id,
+        request_id,
+        target,
+        subject,
+        within_mechanism,
+        authorization,
+        transition_schemas,
+        source_starters_artifact_key,
+        source_starters_artifact_path,
+        audit_lineage,
+        ..
+    } = artifact
+    else {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    };
+    let Some(projection) = projection else {
+        return Ok(PublicationRecord::NotReady);
+    };
+    if projection.authority.subject() != *subject
+        || projection.authority.key().request_id() != *request_id
+        || projection.authority.key().target() != target.semantic_target()
+        || projection.authority.question_id() != target.question_id()
+        || projection.authority.enclosing_mechanism() != *within_mechanism
+        || projection.job.authority() != projection.authority
+        || projection.job.relation_id() != journal.contract().relation_id()
+        || projection.job.authorizing_question_id() != authorization.question_id()
+        || projection.job.authorizing_view_id() != authorization.view_id()
+        || authorization.authorization_id() != projection.job.authorization_id()
+        || audit_lineage.target != *target
+    {
+        return Err(RelationalPublicationError::PlanIdentityMismatch);
+    }
+    let Some(record) = projection.record_at(source_ordinal) else {
+        return Ok(PublicationRecord::Exhausted);
+    };
+    let lineage = public_mechanism_support_audit_lineage(
+        journal,
+        audit_lineage,
+        projection.authority.slice(),
+    )?;
+    let source_reference = json!({
+        "artifact_key": source_starters_artifact_key,
+        "path": source_starters_artifact_path,
+        "record_schema": "futuruna.relational-subject-starters-v3",
+        "projection_job_id": hex(projection.job.id().bytes()),
+        "closure_record_kind": "subject_starters_closure",
+        "availability": "independently_streamed_may_be_forward_reference_until_source_closure",
+    });
+    let mut value = match record {
+        SubjectSupportRegionPublicationRecord::Header => json!({
+            "kind": "subject_support_regions_header",
+            "region_schema_version": RELATIONAL_MECHANISM_STARTER_REGION_VERSION,
+            "consumer_id": hex(*consumer_id),
+            "request_id": hex(request_id.bytes()),
+            "target": public_mechanism_target_id(target),
+            "subject": public_mechanism_support_subject(*subject),
+            "audit_lineage": lineage,
+            "projection_plan_id": hex(projection.authority.projection_plan_id().bytes()),
+            "projection_job_id": hex(projection.job.id().bytes()),
+            "region_projection_root": hex(projection.root),
+            "authorization_id": hex(authorization.authorization_id().bytes()),
+            "denotation": {
+                "kind": "source_fiber_relation",
+                "mapping": "(Context, Before) -> Set<After>",
+                "canonical_keys": ["source_key", "successor_key"],
+                "missing_arc_semantics": "absent_not_wildcard",
+            },
+            "dimensions": [
+                {
+                    "id": "context",
+                    "role": "context",
+                    "selector": "exact_typed_value_v1",
+                    "schema_id": hex(transition_schemas.context_schema_id().bytes()),
+                    "provenance": {
+                        "kind": "query_source_coverage_role",
+                        "entries_pointer": "../manifest.json#/source_coverage/entries",
+                        "subject_role": "context",
+                    },
+                },
+                {
+                    "id": "before",
+                    "role": "before",
+                    "selector": "exact_typed_value_v1",
+                    "schema_id": hex(transition_schemas.state_schema_id().bytes()),
+                    "provenance": {
+                        "kind": "query_source_coverage_role",
+                        "entries_pointer": "../manifest.json#/source_coverage/entries",
+                        "subject_role": "before",
+                    },
+                },
+                {
+                    "id": "after",
+                    "role": "after_dependent_fiber",
+                    "selector": "exact_typed_value_v1",
+                    "schema_id": hex(transition_schemas.state_schema_id().bytes()),
+                    "provenance": {
+                        "kind": "derived_transition_successor",
+                        "relation_id": hex(projection.job.relation_id().bytes()),
+                    },
+                },
+            ],
+            "query_coverage": {
+                "manifest_digest": hex(audit_lineage.source_coverage_manifest_digest),
+                "manifest_pointer": "../manifest.json#/source_coverage",
+                "entries_pointer": "../manifest.json#/source_coverage/entries",
+                "classification_vocabulary": ["varied_finite_dimension", "derived_from_declared_dimensions", "conditioned_singleton_or_source_restriction", "exact_irrelevance_certificate", "coverage_gap"],
+                "source_roles_resolve_context_and_before_entries": true,
+                "classifications_are_resolved_from_entries": true,
+                "observed_extent_is_not_provenance": true,
+            },
+            "region_proof": {
+                "kind": "exact_whole_source_fibers",
+                "v1_shape": "degenerate_ordered_decision_dag",
+                "cartesian_widening": false,
+            },
+            "compression_policy": {
+                "unit": "complete_source_fiber",
+                "maximum_fibers": SUBJECT_SUPPORT_REGION_FIBER_LIMIT.get().to_string(),
+                "maximum_successors_per_fiber": SUBJECT_SUPPORT_REGION_SUCCESSOR_LIMIT.get().to_string(),
+                "maximum_encoded_region_line_bytes": SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT.get().to_string(),
+                "encoded_size_basis": "synthetic_maximum_width_publication_envelope",
+                "on_cap": "canonical_paged_evidence",
+            },
+            "source_starters": source_reference,
+        }),
+        SubjectSupportRegionPublicationRecord::Region { ordinal, region } => json!({
+            "kind": "subject_support_region",
+            "region_ordinal": ordinal.to_string(),
+            "region_id": hex(region.id().bytes()),
+            "successor_fiber_id": hex(region.fiber_id().bytes()),
+            "bound_membership": ["inner", "outer"],
+            "proof": "exact_disjoint_source_fiber",
+            "source": {
+                "source_key": hex(region.source_key().bytes()),
+                "context": public_explore_value(region.context()),
+                "before": public_explore_value(region.before()),
+            },
+            "after_fiber": {
+                "exact_case_count": region.successors().len().to_string(),
+                "members": region.successors().iter().map(|successor| json!({
+                    "successor_key": hex(successor.successor_key().bytes()),
+                    "after": public_explore_value(successor.after()),
+                })).collect::<Vec<_>>(),
+            },
+            "evidence_filter": {
+                "artifact_key": source_starters_artifact_key,
+                "path": source_starters_artifact_path,
+                "source_key": hex(region.source_key().bytes()),
+                "successor_keys": region.successors().iter().map(|successor| {
+                    hex(successor.successor_key().bytes())
+                }).collect::<Vec<_>>(),
+            },
+        }),
+        SubjectSupportRegionPublicationRecord::Fallback(fallback) => {
+            let (reason, limit) = public_region_fallback_reason(fallback);
+            json!({
+                "kind": "subject_support_regions_fallback",
+                "reason": reason,
+                "limit": limit.to_string(),
+                "first_omitted_source_key": hex(fallback.source_key().bytes()),
+                "represented_through": public_region_cursor(fallback.start_after()),
+                "canonical_paged_evidence": {
+                    "artifact_key": source_starters_artifact_key,
+                    "path": source_starters_artifact_path,
+                    "projection_job_id": hex(projection.job.id().bytes()),
+                    "closure_record_kind": "subject_starters_closure",
+                    "resume_after": public_region_cursor(fallback.start_after()),
+                    "includes_first_omitted_source_in_region_index": false,
+                },
+            })
+        }
+        SubjectSupportRegionPublicationRecord::Closure => {
+            let (derivation, compression, fallback) = match projection.summary.completion() {
+                RelationalMechanismStarterRegionCompletion::Complete => {
+                    ("exact_partition", "complete", JsonValue::Null)
+                }
+                RelationalMechanismStarterRegionCompletion::Capped(fallback) => {
+                    ("confirmed_subset", "capped", {
+                        let (reason, limit) = public_region_fallback_reason(fallback);
+                        json!({
+                            "first_omitted_source_key": hex(fallback.source_key().bytes()),
+                            "resume_after": public_region_cursor(fallback.start_after()),
+                            "reason": reason,
+                            "limit": limit.to_string(),
+                        })
+                    })
+                }
+            };
+            let total_distinct_starters = match projection.summary.completion() {
+                RelationalMechanismStarterRegionCompletion::Complete => json!({
+                    "status": "exact",
+                    "value": projection.summary.represented_exact_starter_count().to_string(),
+                    "authority": "complete_disjoint_region_partition",
+                }),
+                RelationalMechanismStarterRegionCompletion::Capped(_) => json!({
+                    "status": "deferred_exact",
+                    "artifact_key": source_starters_artifact_key,
+                    "path": source_starters_artifact_path,
+                    "record_kind": "subject_starters_closure",
+                    "available_when": "source_artifact_closes",
+                }),
+            };
+            json!({
+                "kind": "subject_support_regions_closure",
+                "region_projection_root": hex(projection.root),
+                "region_summary_root": hex(projection.summary.root().bytes()),
+                "region_content_root": hex(projection.summary.content_root().bytes()),
+                "projection_plan_id": hex(projection.authority.projection_plan_id().bytes()),
+                "projection_job_id": hex(projection.job.id().bytes()),
+                "structural_quotient_root": hex(projection.authority.structural_root().bytes()),
+                "mechanism_support_closure_root": hex(projection.authority.support_root().bytes()),
+                "status_axes": {
+                    "semantic_bounds": {
+                        "case_fiber_inner_root": hex(projection.authority.support_expression_bounds().case_inner_root().bytes()),
+                        "case_fiber_outer_root": hex(projection.authority.support_expression_bounds().case_outer_root().bytes()),
+                        "starter_inner_root": hex(projection.authority.support_expression_bounds().starter_inner_root().bytes()),
+                        "starter_outer_root": hex(projection.authority.support_expression_bounds().starter_outer_root().bytes()),
+                        "starter_set_status": public_mechanism_starter_set_status(projection.authority.support_expression_bounds().starter_set_status()),
+                        "correlated_support_status": public_mechanism_correlated_support_status(projection.authority.support_expression_bounds().correlated_support_status()),
+                    },
+                    "region_derivation": {
+                        "status": derivation,
+                    },
+                    "compression_coverage": {
+                        "status": compression,
+                        "fallback": fallback,
+                    },
+                },
+                "counts": {
+                    "represented_cases": {
+                        "status": "exact",
+                        "value": projection.summary.represented_exact_case_count().to_string(),
+                        "authority": "disjoint_canonical_region_prefix",
+                    },
+                    "represented_starters": {
+                        "status": "exact",
+                        "value": projection.summary.represented_exact_starter_count().to_string(),
+                        "authority": "deduplicated_source_keys",
+                    },
+                    "total_cases": {
+                        "status": "exact",
+                        "value": projection.authority.exact_case_count().to_string(),
+                        "authority": "closed_subject_starter_projection",
+                    },
+                    "total_distinct_starters": total_distinct_starters,
+                    "region_width_arithmetic_used": false,
+                },
+                "source_starters": source_reference,
+            })
+        }
+    };
+    insert_public_mechanism_support_expression_bounds(
+        &mut value,
+        projection.authority.support_expression_bounds(),
+        Some(MechanismSupportCount::Exact(
+            projection.authority.exact_case_count(),
+        )),
+        None,
+        None,
+        "external_subject_starters",
+    );
+    insert_public_mechanism_support_slice(&mut value, *within_mechanism);
+    Ok(PublicationRecord::Emit(value))
+}
+
+fn public_region_cursor(cursor: Option<RelationalMechanismStarterRegionCursor>) -> JsonValue {
+    cursor.map_or(JsonValue::Null, |cursor| {
+        json!({
+            "source_key": hex(cursor.source_key().bytes()),
+            "successor_key": hex(cursor.successor_key().bytes()),
+        })
+    })
+}
+
+fn public_region_fallback_reason(
+    fallback: RelationalMechanismStarterRegionFallback,
+) -> (&'static str, usize) {
+    match fallback.reason() {
+        RelationalMechanismStarterRegionFallbackReason::CommittedFiberLimit { limit } => {
+            ("committed_fiber_limit", limit.get())
+        }
+        RelationalMechanismStarterRegionFallbackReason::SuccessorsPerFiberLimit { limit } => {
+            ("successors_per_fiber_limit", limit.get())
+        }
+        RelationalMechanismStarterRegionFallbackReason::EncodedRegionByteLimit { limit } => {
+            ("encoded_region_byte_limit", limit.get())
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -7725,6 +8683,7 @@ fn pending_source_end(
         | PublicationArtifactPlan::MechanismSupportObservations { .. }
         | PublicationArtifactPlan::MechanismSupportObservationDemands { .. }
         | PublicationArtifactPlan::MechanismStructural { .. }
+        | PublicationArtifactPlan::SubjectSupportRegions { .. }
         | PublicationArtifactPlan::CaseSupport { .. }
         | PublicationArtifactPlan::CaseTransitions { .. }
         | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {
@@ -9485,6 +10444,7 @@ fn build_manifest_answer_index(
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
             | PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {}
@@ -9625,6 +10585,7 @@ fn build_manifest_answer_index(
             | PublicationArtifactPlan::MechanismStructural { .. }
             | PublicationArtifactPlan::MechanismStructuralDefinitions { .. }
             | PublicationArtifactPlan::SubjectStarters { .. }
+            | PublicationArtifactPlan::SubjectSupportRegions { .. }
             | PublicationArtifactPlan::CaseSupport { .. }
             | PublicationArtifactPlan::CaseTransitions { .. }
             | PublicationArtifactPlan::SemanticTransitionGraph { .. } => {}
@@ -10281,6 +11242,73 @@ fn build_manifest(
                     }),
                 );
             }
+            if let PublicationArtifactPlan::SubjectSupportRegions {
+                consumer_id,
+                source_starters_artifact_key,
+                source_starters_artifact_path,
+                ..
+            } = artifact
+            {
+                object.insert(
+                    "record_schema".into(),
+                    JsonValue::String(SUBJECT_SUPPORT_REGION_RECORD_SCHEMA.into()),
+                );
+                object.insert(
+                    "record_schema_version".into(),
+                    JsonValue::Number(RELATIONAL_MECHANISM_STARTER_REGION_VERSION.into()),
+                );
+                object.insert(
+                    "consumer_id".into(),
+                    JsonValue::String(hex(*consumer_id)),
+                );
+                object.insert(
+                    "availability".into(),
+                    if ordinal_index.subject_support_regions.contains_key(consumer_id) {
+                        json!({ "status": "exact_support_navigation_available" })
+                    } else {
+                        json!({
+                            "status": "awaiting_exact_support",
+                            "typed_regions": null,
+                            "outer_support": "expression_only_or_opaque",
+                        })
+                    },
+                );
+                object.insert(
+                    "source_order".into(),
+                    json!([
+                        "subject_support_regions_header",
+                        "subject_support_region*",
+                        "subject_support_regions_fallback?",
+                        "subject_support_regions_closure",
+                    ]),
+                );
+                object.insert(
+                    "denotation".into(),
+                    JsonValue::String("(Context, Before) -> Set<After>".into()),
+                );
+                object.insert(
+                    "status_axes".into(),
+                    json!([
+                        "semantic_bounds",
+                        "region_derivation",
+                        "compression_coverage"
+                    ]),
+                );
+                object.insert(
+                    "source_starters".into(),
+                    json!({
+                        "artifact_key": source_starters_artifact_key,
+                        "path": source_starters_artifact_path,
+                        "count_authority": "subject_starters_closure",
+                    }),
+                );
+                object.insert("contains_typed_values".into(), JsonValue::Bool(true));
+                object.insert("navigation_only".into(), JsonValue::Bool(true));
+                object.insert(
+                    "confidentiality".into(),
+                    JsonValue::String("same_as_source_starters".into()),
+                );
+            }
             if let PublicationArtifactPlan::MechanismStructuralDefinitions {
                 structural_artifact_key,
                 structural_artifact_path,
@@ -10575,6 +11603,7 @@ fn build_manifest(
                 "The structural sidecar contains assignments, structural closure, and at most one constant-size support closure receipt; support-slice summaries live in the observation artifact.",
                 "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet, optionally within one enclosing mechanism, through its named checked value view.",
                 "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
+                "Each typed subject-support region companion contains the same confidential values as its source starter artifact; it is a bounded navigation index over complete correlated source fibers, and any capped suffix remains available only through the canonical starter pages.",
                 "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
                 "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
                 "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
@@ -10626,6 +11655,12 @@ fn available_source_record_count(
         PublicationArtifactPlan::SemanticTransitionGraph { consumer_id, .. } => Ok(Some(
             ordinal_index
                 .semantic_transition_graphs
+                .get(consumer_id)
+                .map_or(0, |projection| projection.available_source_record_count()),
+        )),
+        PublicationArtifactPlan::SubjectSupportRegions { consumer_id, .. } => Ok(Some(
+            ordinal_index
+                .subject_support_regions
                 .get(consumer_id)
                 .map_or(0, |projection| projection.available_source_record_count()),
         )),
@@ -11320,6 +12355,43 @@ fn artifact_layer_roots(
             insert_public_mechanism_support_slice(&mut roots, *within_mechanism);
             Ok(roots)
         }
+        PublicationArtifactPlan::SubjectSupportRegions { consumer_id, .. } => {
+            let Some(state) = ordinal_index.subject_support_regions.get(consumer_id) else {
+                return Ok(JsonValue::Null);
+            };
+            Ok(match state {
+                SubjectSupportRegionPublicationState::Derived(projection) => json!({
+                    "consumer_id": hex(*consumer_id),
+                    "projection_plan_id": hex(projection.authority.projection_plan_id().bytes()),
+                    "projection_job_id": hex(projection.job.id().bytes()),
+                    "region_projection_root": hex(projection.root),
+                    "region_summary_root": hex(projection.summary.root().bytes()),
+                    "region_content_root": hex(projection.summary.content_root().bytes()),
+                    "represented_exact_cases": projection.summary.represented_exact_case_count().to_string(),
+                    "represented_exact_starters": projection.summary.represented_exact_starter_count().to_string(),
+                    "compression": match projection.summary.completion() {
+                        RelationalMechanismStarterRegionCompletion::Complete => "complete",
+                        RelationalMechanismStarterRegionCompletion::Capped(_) => "capped",
+                    },
+                    "receipt_source": "derived_bounded_projection",
+                }),
+                SubjectSupportRegionPublicationState::Published(receipt) => json!({
+                    "consumer_id": hex(*consumer_id),
+                    "projection_plan_id": hex(receipt.projection_plan_id),
+                    "projection_job_id": hex(receipt.projection_job_id),
+                    "region_projection_root": hex(receipt.projection_root),
+                    "region_summary_root": hex(receipt.summary_root),
+                    "region_content_root": hex(receipt.content_root),
+                    "represented_exact_cases": receipt.represented_exact_cases.to_string(),
+                    "represented_exact_starters": receipt.represented_exact_starters.to_string(),
+                    "compression": match receipt.compression {
+                        SubjectSupportRegionCompression::Complete => "complete",
+                        SubjectSupportRegionCompression::Capped => "capped",
+                    },
+                    "receipt_source": "authenticated_artifact_closure",
+                }),
+            })
+        }
         PublicationArtifactPlan::CaseSupport { .. } => {
             unreachable!("case-support roots return before consulting the analysis catalog")
         }
@@ -11913,6 +12985,10 @@ fn io_error(path: impl AsRef<Path>, error: std::io::Error) -> RelationalPublicat
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalPublicationError {
     InvalidLimits,
+    SubjectSupportRegionLineLimitBelowProtocol {
+        actual: usize,
+        required: usize,
+    },
     EmptyOutputDirectory,
     UnsafeOutputPath(PathBuf),
     UnsafeArtifactName(String),
@@ -12047,6 +13123,10 @@ impl fmt::Display for RelationalPublicationError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidLimits => formatter.write_str("invalid relational publication limits"),
+            Self::SubjectSupportRegionLineLimitBelowProtocol { actual, required } => write!(
+                formatter,
+                "subject-support-region publication needs a maximum line limit of at least {required} bytes; configured limit is {actual}"
+            ),
             Self::EmptyOutputDirectory => {
                 formatter.write_str("relational publication output path must not be empty")
             }
@@ -12298,6 +13378,28 @@ impl Error for RelationalPublicationError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn subject_support_regions_require_the_fixed_protocol_line_envelope() {
+        let required = SUBJECT_SUPPORT_REGION_ENCODED_LINE_LIMIT.get();
+        assert_eq!(
+            validate_subject_support_region_line_limit_requirement(true, required - 1),
+            Err(
+                RelationalPublicationError::SubjectSupportRegionLineLimitBelowProtocol {
+                    actual: required - 1,
+                    required,
+                }
+            )
+        );
+        assert!(
+            validate_subject_support_region_line_limit_requirement(true, required).is_ok(),
+            "the protocol cap itself is a valid operational line limit"
+        );
+        assert!(
+            validate_subject_support_region_line_limit_requirement(false, 1).is_ok(),
+            "plans without region companions retain their existing operational limits"
+        );
+    }
 
     #[test]
     fn public_mechanism_targets_preserve_authored_addresses_and_question_identity() {
@@ -12830,6 +13932,7 @@ mod tests {
                 ("view:core".to_string(), false),
                 ("subject-starters:old".to_string(), true),
                 ("subject-starters:new".to_string(), true),
+                ("subject-support-regions:new".to_string(), true),
                 (CASE_TRANSITIONS_ARTIFACT_KEY.to_string(), true),
                 ("semantic-transition-graph:new".to_string(), true),
             ],
@@ -12840,6 +13943,7 @@ mod tests {
             missing,
             BTreeSet::from([
                 "subject-starters:new".to_string(),
+                "subject-support-regions:new".to_string(),
                 CASE_TRANSITIONS_ARTIFACT_KEY.to_string(),
                 "semantic-transition-graph:new".to_string(),
             ])
