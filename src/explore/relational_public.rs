@@ -20,7 +20,7 @@ use crate::{
     CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryAccessError,
     CheckedExploreQueryArtifactIssue, CheckedExploreQueryView,
     CheckedExploreSourceCoverageManifest, Diagnostic, ExploreAdmissionScope, Expr,
-    OwnedCheckedExploreQuery, Stmt, Ty, TypeCheckArtifacts, TypeChecker,
+    OwnedCheckedExploreQuery, RuleDispatchKey, Stmt, Ty, TypeCheckArtifacts, TypeChecker,
 };
 
 use super::mechanism_incidence::MechanismCountEvidence;
@@ -207,6 +207,26 @@ pub enum ExploreNativeClassifierSourceBindingKindV2 {
     Singleton { value: Expr },
 }
 
+/// Producer-minted RuleDispatch type contracts for the frozen classifier slice.
+///
+/// Rechecking a pruned declaration graph can lose whole-program type evidence
+/// even though every retained occurrence came from the same checked program.
+/// These contracts deliberately grant no universal dispatch-totality claim:
+/// the native classifier turns an actual partial miss into process failure and
+/// the coordinator retries the whole batch through the checked interpreter.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct ExploreNativeClassifierRuleMetadataV2 {
+    pub checked_program: [u8; 32],
+    pub return_types: BTreeMap<RuleDispatchKey, String>,
+    pub return_issues: BTreeMap<RuleDispatchKey, String>,
+    pub parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    pub parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    pub parameter_issues: BTreeSet<RuleDispatchKey>,
+    pub boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    pub runtime_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+}
+
 /// Classification-only compiler input for native classifier V2.
 ///
 /// V2 accepts one or more independent, statically bounded `Int` ranges mixed
@@ -231,6 +251,7 @@ pub struct ExploreNativeClassifierPlanV2 {
     /// must consume this snapshot and must not resolve authored imports again.
     pub checked_declarations: Box<[Stmt]>,
     pub compile_time_metadata_bindings: BTreeSet<String>,
+    pub rule_metadata: ExploreNativeClassifierRuleMetadataV2,
 }
 
 impl PreparedRelationalExplore {
@@ -334,6 +355,7 @@ fn native_classifier_plan_v2_from_checked(
     checked: &CheckedExploreQueryView<'_>,
     checked_declarations: Box<[Stmt]>,
     compile_time_metadata_bindings: BTreeSet<String>,
+    rule_metadata: ExploreNativeClassifierRuleMetadataV2,
 ) -> Option<ExploreNativeClassifierPlanV2> {
     let query = checked.closed_query;
     query.validate().ok()?;
@@ -413,6 +435,9 @@ fn native_classifier_plan_v2_from_checked(
         },
     };
     let checked_program = decode_lowercase_sha256(checked.program_hash())?;
+    if rule_metadata.checked_program != checked_program {
+        return None;
+    }
 
     Some(ExploreNativeClassifierPlanV2 {
         identity: ExploreNativeClassifierIdentityV2 {
@@ -439,7 +464,58 @@ fn native_classifier_plan_v2_from_checked(
         find,
         checked_declarations,
         compile_time_metadata_bindings,
+        rule_metadata,
     })
+}
+
+fn native_classifier_rule_metadata_v2(
+    artifacts: &TypeCheckArtifacts,
+    checked_program: [u8; 32],
+) -> ExploreNativeClassifierRuleMetadataV2 {
+    let return_types = artifacts
+        .checked_resolutions
+        .rule_dispatch_type_contracts
+        .iter()
+        .map(|(key, contract)| (key.clone(), contract.result_type.to_string()))
+        .collect::<BTreeMap<_, _>>();
+    let parameter_types = artifacts
+        .checked_resolutions
+        .rule_dispatch_type_contracts
+        .iter()
+        .map(|(key, contract)| {
+            (
+                key.clone(),
+                contract
+                    .parameter_types
+                    .iter()
+                    .map(|parameter| parameter.as_ref().map(ToString::to_string))
+                    .collect(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let return_issues = artifacts
+        .checked_resolutions
+        .rule_families
+        .keys()
+        .filter(|key| !return_types.contains_key(*key))
+        .cloned()
+        .map(|key| {
+            (
+                key,
+                "checked RuleDispatch family has no conflict-free type contract".to_string(),
+            )
+        })
+        .collect();
+    ExploreNativeClassifierRuleMetadataV2 {
+        checked_program,
+        return_types,
+        return_issues,
+        parameter_types,
+        parameter_names: artifacts.rule_dispatch_parameter_names.clone(),
+        parameter_issues: artifacts.rule_dispatch_parameter_issues.clone(),
+        boolean_miss_safe_keys: artifacts.rule_dispatch_boolean_miss_safe_keys.clone(),
+        runtime_irrefutable_keys: artifacts.rule_dispatch_runtime_irrefutable_keys.clone(),
+    }
 }
 
 /// Clone only the compiler-proven declaration occurrences reachable from this
@@ -1167,10 +1243,12 @@ pub fn prepare_checked_relational_stream(
     trace_preparation_phase(started, "built request mechanism catalog");
     let native_classifier_plan = native_classifier_checked_declarations(&artifacts, &checked)
         .and_then(|checked_declarations| {
+            let checked_program = decode_lowercase_sha256(checked.program_hash())?;
             native_classifier_plan_v2_from_checked(
                 &checked,
                 checked_declarations,
                 artifacts.compile_time_metadata_bindings.clone(),
+                native_classifier_rule_metadata_v2(&artifacts, checked_program),
             )
         });
     let native_classifier_shape_v2 = native_classifier_plan.is_some();

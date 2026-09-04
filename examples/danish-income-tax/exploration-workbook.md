@@ -110,6 +110,16 @@ is a separately checked relation with a different identity; coarse evidence
 can nominate its bounds but does not count as its coverage unless a future
 checked bridge proves that transfer.
 
+The current-contract execution of this target closed exactly on 2026-09-04:
+all 2,000 transitions were admitted and classified, none satisfied
+`cliff_cases`, and the selected mechanism and 50-DKK loss-bin layers therefore
+closed at exact zero. This is the first Personskat result produced by the
+current first-class `? explore` path. Its declared profile and source-coverage
+gaps remain part of the answer, so the result is not generalized beyond this
+coarse conditioned relation. Selected identities and timings are recorded in
+section 9 below; the external manifest is the complete index of artifact and
+evidence roots.
+
 An earlier version of the same file declared all 200,000 adjacent 1-DKK
 transitions. Its durable prefix remains useful performance evidence, but the
 new 100-DKK relation has a different checked identity and must use a fresh run
@@ -2547,13 +2557,15 @@ cases and performs no journal, scheduler, endpoint-replay, incidence or
 publication work; this is admission evidence for those query-relative proof
 domains, not an exploration result or broad Personskat profile closure.
 
-All completed 2,000- and 10,500-edge Personskat streams described below predate
-the obligation-bearing target graph and the current static-proof authorization
-seam. Their results remain historical evidence under their then-current
-declared relations and journal contracts, but their journals and artifacts
-cannot be resumed or accepted as authority by the current contract. A current
-execution must begin with a new obligation-bearing genesis and whatever valid
-totality evidence its implementation supports.
+The completed 2,000- and 10,500-edge Personskat streams from 2026-08-31
+described below predate the obligation-bearing target graph and the current
+static-proof authorization seam. Their results remain historical evidence
+under their then-current declared relations and journal contracts, but their
+journals and artifacts cannot be resumed or accepted as authority by the
+current contract. The current obligation-bearing execution recorded later in
+this section has its own genesis, checked identity and totality evidence; it
+supersedes those runs as implementation evidence for today's contract without
+rewriting their historical claims.
 
 The historical first complete Personskat stream closed on 2026-08-31. Its
 result was authenticated and exact for its then-current declared relation:
@@ -3244,14 +3256,52 @@ external evidence bundle is
 `.output`; it is diagnostic execution evidence, not a tracked fixture or a
 wider tax result.
 
-The exact native classifier was compiled from a compiler-proven 9,275-statement
-dependency slice. Its first installation was the expensive step; the resumed
-epoch regenerated the content hash in about 4.5 seconds, reused the cached
-executable, classified the remaining coordinates and closed every downstream
-empty frontier. The ordinary interpreter remains the atomic whole-batch
-fallback, and the first native batch must agree with it before native results
-are trusted. Resource containment is a passive ceiling around this path, not a
-separate exploration phase.
+Native classification now carries the frontend's checked `RuleDispatch` ABI
+snapshot across dependency slicing. That snapshot deliberately separates
+return/parameter type evidence from terminal-miss evidence: a value-typed
+partial dispatch may be compiled inside the isolated classifier, but a genuine
+miss aborts that process and causes the coordinator to discard and re-evaluate
+the whole batch through the checked interpreter. A certified global predicate
+miss and a `RuleScope` predicate miss remain `False`. A third case must not be
+conflated with either: when a clause head matches and its Boolean body is
+`False`, generated code records that match, tries later clauses, lets an
+applicable unconditional default win, and otherwise returns `False`. Only a
+true zero-candidate unsafe miss reaches the process trap. This mirrors the
+checked interpreter's `matched_false_clause` dispatch algebra and removes the
+Personskat-specific failure without weakening global miss safety.
+
+The first current-contract Personskat audit closed on 2026-09-04. The exact
+native classifier was compiled from the compiler-proven 9,275-statement
+dependency slice and completed the declared 2,000 coordinates. Its first
+checked one-coordinate parity canary took 25.381 seconds; the native scheduler
+then ramped to 256-coordinate batches, whose final full chunks took roughly
+1.9--2.1 seconds each. Source checking, slice construction, native generation,
+compilation, classification and publication completed in 618.869 seconds. The
+stream closed at sequence 86, journal head
+`1f07c035374a7316a262dcb8a646086d039cfe12f5276720e13a499c18e91fd8`,
+with all 13 declared artifacts caught up. Its checked program identity is
+`f525a3697ccd952b4ff053772ea9794d79995028b6628d1190885973958d0ff8`;
+the local operator-selected evidence bundle is
+`personskat-200k-coarse-v1.run` with sibling
+`personskat-200k-coarse-v1.result`.
+
+The exact result is 2,000 sources, 2,000 cases and 2,000 admitted transitions;
+all 2,000 were classified as not selected by `cliff_cases`. Consequently the
+selected case count, structural-mechanism count, raw-signature count,
+execution-profile count and explained-case count are exactly zero; the 50-DKK
+loss-bin view is exactly empty. Relation, FIND, mechanism and analysis
+frontiers are closed.
+This is a result only for the declared `+100 DKK`, 0-through-200,000-DKK
+relation and its conditioned 2026 Copenhagen/no-church-tax profile. The source
+coverage manifest still reports schema-composition gaps, so neither the empty
+answer nor the zero-mechanism graph may be generalized to other profiles,
+1-DKK transitions or Danish tax law as a whole.
+
+The ordinary interpreter remains the atomic whole-batch fallback, and the
+first successful native batch must agree with it before any native outcome is
+trusted. Resource containment is a passive ceiling around this path, not a
+separate exploration phase. The content-addressed executable can be reused by
+an unchanged checked query, so later resumes do not repay compilation.
 
 This result is not an exact-empty certificate for 1-DKK transitions or other
 profiles. It also revealed one provenance debt in the audit source: the

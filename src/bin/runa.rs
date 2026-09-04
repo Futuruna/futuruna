@@ -8049,7 +8049,7 @@ fn run_relational_explore_stream(
 const EXPLORE_NATIVE_CLASSIFIER_CACHE_VERSION_V2: u32 = 2;
 const EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2: i32 = 70;
 
-fn explore_native_classifier_collect_pattern_names_v2(pattern: &Pat, names: &mut BTreeSet<String>) {
+fn collect_generated_rust_pattern_names(pattern: &Pat, names: &mut BTreeSet<String>) {
     match pattern {
         Pat::Var(name) => {
             names.insert(name.clone());
@@ -8057,27 +8057,24 @@ fn explore_native_classifier_collect_pattern_names_v2(pattern: &Pat, names: &mut
         Pat::Con(name, children) => {
             names.insert(name.clone());
             for child in children {
-                explore_native_classifier_collect_pattern_names_v2(child, names);
+                collect_generated_rust_pattern_names(child, names);
             }
         }
         Pat::NamedCon(name, fields) => {
             names.insert(name.clone());
             for (_, child) in fields {
-                explore_native_classifier_collect_pattern_names_v2(child, names);
+                collect_generated_rust_pattern_names(child, names);
             }
         }
         Pat::As(inner, name) => {
             names.insert(name.clone());
-            explore_native_classifier_collect_pattern_names_v2(inner, names);
+            collect_generated_rust_pattern_names(inner, names);
         }
         Pat::Wild | Pat::Lit(_) => {}
     }
 }
 
-fn explore_native_classifier_collect_expr_names_v2(
-    expression: &Expr,
-    names: &mut BTreeSet<String>,
-) {
+fn collect_generated_rust_expr_names(expression: &Expr, names: &mut BTreeSet<String>) {
     walk_ast_expr(expression, &mut |child| match child {
         AstChild::Expr(expression) => match &expression.kind {
             ExprKind::Var(name) => {
@@ -8088,7 +8085,7 @@ fn explore_native_classifier_collect_expr_names_v2(
             }
             ExprKind::Match(_, arms) => {
                 for arm in arms {
-                    explore_native_classifier_collect_pattern_names_v2(&arm.pat, names);
+                    collect_generated_rust_pattern_names(&arm.pat, names);
                 }
             }
             ExprKind::Handle {
@@ -8103,15 +8100,12 @@ fn explore_native_classifier_collect_expr_names_v2(
             _ => {}
         },
         AstChild::Stmt(statement) => {
-            explore_native_classifier_collect_direct_stmt_names_v2(statement, names);
+            collect_generated_rust_direct_stmt_names(statement, names);
         }
     });
 }
 
-fn explore_native_classifier_collect_direct_stmt_names_v2(
-    statement: &Stmt,
-    names: &mut BTreeSet<String>,
-) {
+fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeSet<String>) {
     match statement {
         Stmt::Defn(Defn::Fn { name, params, .. }) => {
             names.insert(name.clone());
@@ -8125,7 +8119,7 @@ fn explore_native_classifier_collect_direct_stmt_names_v2(
             names.insert(name.clone());
             names.insert(state_param.name.clone());
             for handler in handlers {
-                explore_native_classifier_collect_pattern_names_v2(&handler.msg_pat, names);
+                collect_generated_rust_pattern_names(&handler.msg_pat, names);
             }
         }
         Stmt::Defn(Defn::Module { name, .. }) => {
@@ -8204,14 +8198,14 @@ fn explore_native_classifier_collect_direct_stmt_names_v2(
             names.insert(name.clone());
         }
         Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
-            explore_native_classifier_collect_pattern_names_v2(pattern, names);
+            collect_generated_rust_pattern_names(pattern, names);
         }
         Stmt::For(name, _, _) | Stmt::StreamBind(name, _) => {
             names.insert(name.clone());
         }
         Stmt::StreamSub(_, arms) => {
             for arm in arms {
-                explore_native_classifier_collect_pattern_names_v2(&arm.pat, names);
+                collect_generated_rust_pattern_names(&arm.pat, names);
             }
         }
         Stmt::Invariant { name, .. } => {
@@ -8265,7 +8259,7 @@ fn explore_native_classifier_reachable_names_v2(
                 }
                 ExprKind::Match(_, arms) => {
                     for arm in arms {
-                        explore_native_classifier_collect_pattern_names_v2(&arm.pat, &mut names);
+                        collect_generated_rust_pattern_names(&arm.pat, &mut names);
                     }
                 }
                 ExprKind::Handle {
@@ -8280,7 +8274,7 @@ fn explore_native_classifier_reachable_names_v2(
                 _ => {}
             },
             AstChild::Stmt(statement) => {
-                explore_native_classifier_collect_direct_stmt_names_v2(statement, &mut names);
+                collect_generated_rust_direct_stmt_names(statement, &mut names);
             }
         });
     }
@@ -8289,19 +8283,19 @@ fn explore_native_classifier_reachable_names_v2(
         if let explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } =
             &binding.kind
         {
-            explore_native_classifier_collect_expr_names_v2(value, &mut names);
+            collect_generated_rust_expr_names(value, &mut names);
         }
     }
     names.insert(plan.after_binding_name.clone());
-    explore_native_classifier_collect_expr_names_v2(&plan.successor_value, &mut names);
+    collect_generated_rust_expr_names(&plan.successor_value, &mut names);
     for admission in plan.admissions.iter() {
-        explore_native_classifier_collect_expr_names_v2(&admission.predicate, &mut names);
+        collect_generated_rust_expr_names(&admission.predicate, &mut names);
     }
     match &plan.find {
         explore::ExploreNativeClassifierFindV2::All => {}
         explore::ExploreNativeClassifierFindV2::Matches { predicate }
         | explore::ExploreNativeClassifierFindV2::Violations { predicate } => {
-            explore_native_classifier_collect_expr_names_v2(predicate, &mut names);
+            collect_generated_rust_expr_names(predicate, &mut names);
         }
     }
     names
@@ -8556,6 +8550,14 @@ fn build_explore_native_classifier_v2(
 ) -> Option<PathBuf> {
     let started = std::time::Instant::now();
     trace_explore_native_classifier_build_v2("begin", started, None);
+    if plan.rule_metadata.checked_program != plan.identity.checked_program {
+        trace_explore_native_classifier_build_v2(
+            "RuleDispatch metadata does not match checked program",
+            started,
+            None,
+        );
+        return None;
+    }
     if plan.source_bindings.is_empty()
         || plan.finite_input_binding_indices.is_empty()
         || plan.finite_input_binding_indices.len()
@@ -8591,8 +8593,10 @@ fn build_explore_native_classifier_v2(
     let mut codegen = RustCodegen::new();
     codegen.lib_mode = true;
     codegen.int_arithmetic_mode = RustCodegenIntArithmeticMode::ExploreClassifierExact;
+    codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
     codegen.types.exact_ambiguous_constructor_fallbacks = true;
     codegen.compile_time_metadata_bindings = plan.compile_time_metadata_bindings;
+    codegen.install_explore_native_classifier_rule_metadata(&plan.rule_metadata);
 
     let mut generated = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         codegen.emit_program(&classifier_program)
@@ -25267,6 +25271,19 @@ enum StaticRuleCallResolution {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RustCodegenRuleDispatchMissMode {
+    /// Ordinary generated programs may consume only a statically total or
+    /// checked-False-miss RuleDispatch family.
+    RequireStaticTotality,
+    /// Explore's classifier is an isolated accelerator. A partial value miss
+    /// aborts its process, after which the coordinator retries the whole batch
+    /// through the checked interpreter. A typed RuleScope Bool miss retains
+    /// the interpreter's predicate-False semantics rather than inventing a
+    /// value for a partial non-Bool family.
+    ProcessFailure,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StaticRuleParamRelation {
     CompatibleOrUnknown,
     NominallyDisjoint,
@@ -26108,6 +26125,7 @@ struct RustCodegen {
     canonical_rule_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
     runtime_rule_irrefutable_keys: BTreeSet<RuleDispatchKey>,
     canonical_rule_metadata_installed: bool,
+    rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -31229,6 +31247,7 @@ impl RustCodegen {
             canonical_rule_boolean_miss_safe_keys: BTreeSet::new(),
             runtime_rule_irrefutable_keys: BTreeSet::new(),
             canonical_rule_metadata_installed: false,
+            rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -31289,6 +31308,20 @@ impl RustCodegen {
             artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
         self.runtime_rule_irrefutable_keys =
             artifacts.rule_dispatch_runtime_irrefutable_keys.clone();
+        self.canonical_rule_metadata_installed = true;
+    }
+
+    fn install_explore_native_classifier_rule_metadata(
+        &mut self,
+        metadata: &explore::ExploreNativeClassifierRuleMetadataV2,
+    ) {
+        self.canonical_rule_return_types = metadata.return_types.clone();
+        self.canonical_rule_return_issues = metadata.return_issues.clone();
+        self.canonical_rule_parameter_types = metadata.parameter_types.clone();
+        self.canonical_rule_parameter_names = metadata.parameter_names.clone();
+        self.canonical_rule_parameter_issues = metadata.parameter_issues.clone();
+        self.canonical_rule_boolean_miss_safe_keys = metadata.boolean_miss_safe_keys.clone();
+        self.runtime_rule_irrefutable_keys = metadata.runtime_irrefutable_keys.clone();
         self.canonical_rule_metadata_installed = true;
     }
 
@@ -39538,7 +39571,9 @@ impl RustCodegen {
         let bool_miss_is_safe = !canonical_contract_applies
             || self
                 .canonical_rule_boolean_miss_safe_keys
-                .contains(&canonical_key);
+                .contains(&canonical_key)
+            || (self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
+                && matches!(ret_ty, FirTy::Bool));
         let mut sig_params = vec!["&self".to_string()];
         let uses_binary_global_env = !self.lib_mode
             && self.rule_scope_method_uses_binary_global_env(scope_name, method_name);
@@ -39677,6 +39712,21 @@ impl RustCodegen {
                 .map(|parameter| sanitize_name(parameter))
                 .collect::<Vec<_>>();
             let borrowed_strings = vec![false; actuals.len()];
+            let matched_false_clause_name = (ret_type == "bool"
+                && !bool_miss_is_safe
+                && dispatch.clauses.iter().any(|candidate| {
+                    matches!(candidate.rule, Rule::Clause { body: Some(_), .. })
+                }))
+            .then(|| {
+                Self::fresh_rule_dispatch_state_name(
+                    rules,
+                    &all_names,
+                    "__fut_matched_false_clause",
+                )
+            });
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("        let mut {name} = false;\n"));
+            }
 
             // Same-tier rules retain source order; the first applicable exception wins.
             for candidate in &dispatch.exceptions {
@@ -39770,7 +39820,15 @@ impl RustCodegen {
                             &[body],
                             "        ",
                             |cg, indent| {
-                                format!("{indent}if {} {{ return true; }}\n", cg.emit_expr(body))
+                                let predicate = cg.emit_expr(body);
+                                matched_false_clause_name.as_deref().map_or_else(
+                                    || format!("{indent}if {predicate} {{ return true; }}\n"),
+                                    |name| {
+                                        format!(
+                                            "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                        )
+                                    },
+                                )
                             },
                         ) {
                             Ok(candidate) => out.push_str(&candidate),
@@ -39867,6 +39925,9 @@ impl RustCodegen {
                 }
             }
 
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("        if {name} {{ return false; }}\n"));
+            }
             if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("        false\n");
             } else {
@@ -42299,6 +42360,38 @@ impl RustCodegen {
         }
     }
 
+    fn fresh_rule_dispatch_state_name(rules: &[&Rule], occupied: &[String], base: &str) -> String {
+        let mut used = occupied
+            .iter()
+            .map(|name| sanitize_name(name))
+            .collect::<BTreeSet<_>>();
+        let mut rule_names = BTreeSet::new();
+        for rule in rules {
+            if let Some(head) = rule.head() {
+                collect_generated_rust_expr_names(head, &mut rule_names);
+            }
+            match rule {
+                Rule::Clause {
+                    body: Some(body), ..
+                } => collect_generated_rust_expr_names(body, &mut rule_names),
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => {
+                    collect_generated_rust_expr_names(value, &mut rule_names);
+                    if let Some(condition) = condition {
+                        collect_generated_rust_expr_names(condition, &mut rule_names);
+                    }
+                }
+                Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => {}
+            }
+        }
+        used.extend(rule_names.into_iter().map(|name| sanitize_name(&name)));
+        fresh_generated_rust_name(base, &mut used)
+    }
+
     fn fresh_rule_head_temporary(state: &mut RustRuleHeadPatternState) -> String {
         loop {
             let candidate = format!("__fut_rule_head_{}", state.next_temporary);
@@ -43572,6 +43665,17 @@ impl RustCodegen {
             .map(|parameter| parameter == "String")
             .collect::<Vec<_>>();
         let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+        let matched_false_clause_name = (!bool_miss_is_safe
+            && dispatch
+                .clauses
+                .iter()
+                .any(|candidate| matches!(candidate.rule, Rule::Clause { body: Some(_), .. })))
+        .then(|| {
+            Self::fresh_rule_dispatch_state_name(rules, &param_names, "__fut_matched_false_clause")
+        });
+        if let Some(name) = &matched_false_clause_name {
+            out.push_str(&format!("    let mut {name} = false;\n"));
+        }
 
         for candidate in &dispatch.exceptions {
             let Rule::Exception {
@@ -43665,13 +43769,27 @@ impl RustCodegen {
                     Some(Expr {
                         kind: ExprKind::Conjunction(goals),
                         ..
-                    }) if Self::prolog_clause_has_existential(goals, &head_bindings) => cg
-                        .emit_prolog_existential_clause_body(goals, &head_bindings, indent)
-                        .unwrap_or_else(|error| {
-                            Self::emit_rule_head_compile_error(indent, fn_name, arity, &error)
-                        }),
+                    }) if Self::prolog_clause_has_existential(goals, &head_bindings) => {
+                        let mut emitted = cg
+                            .emit_prolog_existential_clause_body(goals, &head_bindings, indent)
+                            .unwrap_or_else(|error| {
+                                Self::emit_rule_head_compile_error(indent, fn_name, arity, &error)
+                            });
+                        if let Some(name) = &matched_false_clause_name {
+                            emitted.push_str(&format!("{indent}{name} = true;\n"));
+                        }
+                        emitted
+                    }
                     Some(body) => {
-                        format!("{indent}if {} {{ return true; }}\n", cg.emit_expr(body))
+                        let predicate = cg.emit_expr(body);
+                        matched_false_clause_name.as_deref().map_or_else(
+                            || format!("{indent}if {predicate} {{ return true; }}\n"),
+                            |name| {
+                                format!(
+                                    "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                )
+                            },
+                        )
                     }
                 },
             ) {
@@ -43705,6 +43823,9 @@ impl RustCodegen {
                     "    ", fn_name, arity, &error,
                 )),
             }
+        }
+        if let Some(name) = &matched_false_clause_name {
+            out.push_str(&format!("    if {name} {{ return false; }}\n"));
         }
         if bool_miss_is_safe {
             out.push_str("    false\n}\n");
@@ -44823,6 +44944,24 @@ impl RustCodegen {
                 .collect::<Vec<_>>();
             let borrowed_strings = vec![false; actuals.len()];
 
+            let matched_false_clause_name = (ret_type == "bool"
+                && !bool_miss_is_safe
+                && dispatch.clauses.iter().any(|candidate| {
+                    matches!(candidate.rule, Rule::Clause { body: Some(_), .. })
+                }))
+            .then(|| {
+                let mut occupied = params.clone();
+                occupied.extend(cg.local_bindings.iter().cloned());
+                Self::fresh_rule_dispatch_state_name(
+                    rules,
+                    &occupied,
+                    "__fut_matched_false_clause",
+                )
+            });
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("    let mut {name} = false;\n"));
+            }
+
             // Pass 1: exceptions (highest priority). Within the tier, the first
             // applicable rule in source order wins.
             for candidate in &dispatch.exceptions {
@@ -44913,9 +45052,18 @@ impl RustCodegen {
                             "    ",
                             |cg, indent| {
                                 if ret_type == "bool" {
-                                    format!(
-                                        "{indent}if {} {{ return true; }}\n",
-                                        cg.emit_expr(body)
+                                    let predicate = cg.emit_expr(body);
+                                    matched_false_clause_name.as_deref().map_or_else(
+                                        || {
+                                            format!(
+                                                "{indent}if {predicate} {{ return true; }}\n"
+                                            )
+                                        },
+                                        |name| {
+                                            format!(
+                                                "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                            )
+                                        },
                                     )
                                 } else {
                                     format!(
@@ -44982,6 +45130,9 @@ impl RustCodegen {
                 }
             }
 
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("    if {name} {{ return false; }}\n"));
+            }
             if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("    false\n");
             } else {
@@ -51267,14 +51418,18 @@ impl RustCodegen {
                 }
                 _ => None,
             };
-            if let Some(key) = canonical_key {
-                if self.canonical_rule_return_types.contains_key(&key)
-                    && !self.runtime_rule_irrefutable_keys.contains(&key)
-                    && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
-                {
-                    return StaticRuleCallResolution::Unsupported(
-                        "RuleDispatch cannot be consumed without a canonical total/miss-safe contract",
-                    );
+            if self.rule_dispatch_miss_mode
+                == RustCodegenRuleDispatchMissMode::RequireStaticTotality
+            {
+                if let Some(key) = canonical_key {
+                    if self.canonical_rule_return_types.contains_key(&key)
+                        && !self.runtime_rule_irrefutable_keys.contains(&key)
+                        && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
+                    {
+                        return StaticRuleCallResolution::Unsupported(
+                            "RuleDispatch cannot be consumed without a canonical total/miss-safe contract",
+                        );
+                    }
                 }
             }
         }
@@ -51368,7 +51523,57 @@ impl RustCodegen {
             .map(|value| format!("let _ = {};", value))
             .collect::<Vec<_>>()
             .join(" ");
-        format!("{{ {} false }}", evaluations)
+        let scoped_predicate = match &func.kind {
+            ExprKind::Var(name) => {
+                self.current_rule_scope_name.is_some()
+                    && self.current_rule_scope_methods.get(name) == Some(&args.len())
+            }
+            ExprKind::Field(obj, method)
+                if self
+                    .qualified_module_callable_key(func, args.len())
+                    .is_none() =>
+            {
+                match self.infer_expr_fir_ty(obj) {
+                    FirTy::Named(scope) => [
+                        Some(scope.clone()),
+                        self.types.type_rename.get(&scope).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|scope| {
+                        self.canonical_rule_return_types
+                            .contains_key(&RuleDispatchKey {
+                                scope: Some(scope),
+                                name: method.clone(),
+                                arity: args.len(),
+                            })
+                    }),
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        let safe_global_predicate = match &func.kind {
+            ExprKind::Var(name) if !scoped_predicate => self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: args.len(),
+                }),
+            _ => false,
+        };
+        if self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
+            && !scoped_predicate
+            && !safe_global_predicate
+        {
+            format!(
+                "{{ {} panic!(\"native classifier reached a partial global RuleDispatch miss\") }}",
+                evaluations
+            )
+        } else {
+            format!("{{ {} false }}", evaluations)
+        }
     }
 
     fn emit_expr(&mut self, expr: &Expr) -> String {
@@ -52665,6 +52870,8 @@ impl RustCodegen {
                     if self.canonical_rule_metadata_installed
                         && self.current_module_path.is_empty()
                         && !is_qualified_module_call
+                        && self.rule_dispatch_miss_mode
+                            == RustCodegenRuleDispatchMissMode::RequireStaticTotality
                     {
                         let ExprKind::Var(name) = &func.as_ref().kind else {
                             return "compile_error!(\"canonical Prolog value target is not a root named rule\")".to_string();
@@ -69380,6 +69587,415 @@ routes <- "b"
         assert!(
             !floats.contains("fact.0 != probe"),
             "native Float inequality is NaN-incompatible with interpreter matching: {floats}"
+        );
+    }
+
+    #[test]
+    fn native_classifier_codegen_preserves_producer_rule_metadata_across_pruned_slice() {
+        let source = r#"
+# ClassifierScope(input: Int) {
+    | kept() -> input + 1
+    | result() -> kept()
+    | partial(0) -> input
+    | partial_bool() -> input > 0
+}
+
+| partial_value(0) -> 7
+
+? explore classifier_metadata_slice {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = ClassifierScope(before).result()
+    find cases = matches of after > before
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("classifier_metadata_slice"),
+        )
+        .expect("prepare native classifier fixture");
+        let plan = prepared
+            .take_native_classifier_plan_v2()
+            .expect("fixture has the native classifier V2 shape");
+
+        let retained_rule_names = plan
+            .checked_declarations
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, body, .. })
+                    if name == "ClassifierScope" =>
+                {
+                    Some(
+                        body.iter()
+                            .filter_map(|statement| match statement {
+                                Stmt::Rule(rule) => {
+                                    rule.callable_name_arity().map(|(name, _)| name)
+                                }
+                                _ => None,
+                            })
+                            .collect::<BTreeSet<_>>(),
+                    )
+                }
+                _ => None,
+            })
+            .expect("classifier slice retains its RuleScope shell");
+        assert_eq!(
+            retained_rule_names,
+            BTreeSet::from(["kept".to_string(), "result".to_string()]),
+            "the fixture must exercise a genuinely pruned RuleScope"
+        );
+
+        let key = |name: &str, arity| RuleDispatchKey {
+            scope: Some("ClassifierScope".to_string()),
+            name: name.to_string(),
+            arity,
+        };
+        let partial_key = key("partial", 1);
+        let partial_bool_key = key("partial_bool", 0);
+        assert_eq!(
+            plan.rule_metadata.return_types.get(&partial_key),
+            Some(&"Int".to_string()),
+            "the producer snapshot must retain the pruned family's ABI"
+        );
+        assert!(!plan
+            .rule_metadata
+            .runtime_irrefutable_keys
+            .contains(&partial_key));
+        assert!(!plan
+            .rule_metadata
+            .boolean_miss_safe_keys
+            .contains(&partial_key));
+        assert_eq!(
+            plan.rule_metadata.return_types.get(&partial_bool_key),
+            Some(&"Bool".to_string()),
+            "the producer snapshot must retain the scoped predicate ABI"
+        );
+        assert!(!plan
+            .rule_metadata
+            .boolean_miss_safe_keys
+            .contains(&partial_bool_key));
+        for total_key in [key("kept", 0), key("result", 0)] {
+            assert!(
+                plan.rule_metadata
+                    .runtime_irrefutable_keys
+                    .contains(&total_key),
+                "missing producer totality proof for {total_key:?}"
+            );
+        }
+
+        let metadata = plan.rule_metadata.clone();
+        let mut reachable_names = explore_native_classifier_reachable_names_v2(&plan);
+        let function_name = fresh_generated_rust_name(
+            &explore_native_classifier_function_name_v2(&plan),
+            &mut reachable_names,
+        );
+        let classifier = synthesize_explore_native_classifier_function_v2(
+            &function_name,
+            &plan,
+            &mut reachable_names,
+        )
+        .expect("synthesize native classifier");
+        let mut classifier_program = plan.checked_declarations.into_vec();
+        classifier_program.push(classifier);
+
+        let mut codegen = RustCodegen::new();
+        codegen.lib_mode = true;
+        codegen.int_arithmetic_mode = RustCodegenIntArithmeticMode::ExploreClassifierExact;
+        codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
+        codegen.types.exact_ambiguous_constructor_fallbacks = true;
+        codegen.compile_time_metadata_bindings = plan.compile_time_metadata_bindings;
+        codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let generated = codegen.emit_program(&classifier_program);
+        assert!(
+            !generated.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "valid total dispatch lost its producer contract: {generated}"
+        );
+        assert_eq!(codegen.canonical_rule_return_types, metadata.return_types);
+        assert_eq!(codegen.canonical_rule_return_issues, metadata.return_issues);
+        assert_eq!(
+            codegen.canonical_rule_parameter_types,
+            metadata.parameter_types
+        );
+        assert_eq!(
+            codegen.canonical_rule_parameter_names,
+            metadata.parameter_names
+        );
+        assert_eq!(
+            codegen.canonical_rule_parameter_issues,
+            metadata.parameter_issues
+        );
+        assert_eq!(
+            codegen.canonical_rule_boolean_miss_safe_keys,
+            metadata.boolean_miss_safe_keys
+        );
+        assert_eq!(
+            codegen.runtime_rule_irrefutable_keys,
+            metadata.runtime_irrefutable_keys
+        );
+
+        let probe_source = "= partial_probe = ClassifierScope(1).partial(2)";
+        let [partial_probe] = parse_test_program(probe_source)
+            .try_into()
+            .expect("one partial-dispatch statement");
+        let mut partial_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        partial_program.push(partial_probe);
+        let mut partial_codegen = RustCodegen::new();
+        partial_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let rejected = partial_codegen.emit_program(&partial_program);
+        assert!(rejected.contains("compile_error!"), "{rejected}");
+        assert!(
+            rejected.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "ordinary codegen must still reject a typed but partial family: {rejected}"
+        );
+
+        let mut process_failure_codegen = RustCodegen::new();
+        process_failure_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        process_failure_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let trapped = process_failure_codegen.emit_program(&partial_program);
+        assert!(
+            !trapped.contains("compile_error!"),
+            "classifier codegen must lower a typed partial miss to process failure: {trapped}"
+        );
+        assert!(
+            trapped.contains("panic!(\"no scoped | rule matched for 'partial'\")"),
+            "classifier codegen must preserve bottom as a trapped miss: {trapped}"
+        );
+
+        let [bool_probe] = parse_test_program("= bool_probe = ClassifierScope(0).partial_bool()")
+            .try_into()
+            .expect("one scoped Bool probe statement");
+        let mut bool_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        bool_program.push(bool_probe);
+        let mut strict_bool_codegen = RustCodegen::new();
+        strict_bool_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let rejected_bool = strict_bool_codegen.emit_program(&bool_program);
+        assert!(
+            rejected_bool.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "ordinary codegen must reject the context-dependent Bool call: {rejected_bool}"
+        );
+        let mut classifier_bool_codegen = RustCodegen::new();
+        classifier_bool_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        classifier_bool_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let predicate_false = classifier_bool_codegen.emit_program(&bool_program);
+        assert!(
+            !predicate_false.contains("compile_error!"),
+            "classifier codegen must admit a typed scoped Bool predicate: {predicate_false}"
+        );
+        assert!(
+            !predicate_false.contains("no scoped | rule matched for 'partial_bool'"),
+            "a typed RuleScope Bool miss must retain interpreter False semantics: {predicate_false}"
+        );
+
+        let [prolog_probe] = parse_test_program("= prolog_probe = partial_value(1)")
+            .try_into()
+            .expect("one Prolog value probe statement");
+        let mut prolog_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        prolog_program.push(prolog_probe);
+        let mut prolog_codegen = RustCodegen::new();
+        prolog_codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
+        prolog_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let trapped_value = prolog_codegen.emit_program(&prolog_program);
+        assert!(
+            !trapped_value.contains("compile_error!"),
+            "classifier codegen must admit a typed partial Prolog value: {trapped_value}"
+        );
+        assert!(
+            trapped_value.contains(".expect(\"irrefutable RuleDispatch returned no value\")"),
+            "a partial Prolog value must preserve bottom as a trapped miss: {trapped_value}"
+        );
+
+        let safe_global_source = r#"
+# Left = Left
+# Right = Right
+| safe_global(value: Left) -> True
+= safe_probe = safe_global(Right)
+"#;
+        let safe_global_program = parse_test_program(safe_global_source);
+        let safe_global_artifacts =
+            TypeChecker::check_with_artifacts(&safe_global_program, None, safe_global_source);
+        assert!(
+            safe_global_artifacts.diagnostics.is_empty(),
+            "unexpected safe-global diagnostics: {:?}",
+            safe_global_artifacts.diagnostics
+        );
+        let safe_global_key = RuleDispatchKey {
+            scope: None,
+            name: "safe_global".to_string(),
+            arity: 1,
+        };
+        assert!(safe_global_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&safe_global_key));
+        let mut safe_global_codegen = RustCodegen::new();
+        safe_global_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        safe_global_codegen.install_canonical_rule_metadata(&safe_global_artifacts);
+        let safe_global = safe_global_codegen.emit_program(&safe_global_program);
+        assert!(
+            !safe_global.contains("native classifier reached a partial global RuleDispatch miss"),
+            "a universally safe global predicate miss must remain False: {safe_global}"
+        );
+
+        let unsafe_global_source = r#"
+# Left = Left
+# Right = Right
+= flag = False
+| unsafe_global(value: Left) -> flag
+= unsafe_probe = unsafe_global(Right)
+= unsafe_matched_probe = unsafe_global(Left)
+"#;
+        let unsafe_global_program = parse_test_program(unsafe_global_source);
+        let unsafe_global_artifacts =
+            TypeChecker::check_with_artifacts(&unsafe_global_program, None, unsafe_global_source);
+        assert!(
+            unsafe_global_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-global diagnostics: {:?}",
+            unsafe_global_artifacts.diagnostics
+        );
+        let unsafe_global_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_global".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_global_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_global_key));
+        let mut unsafe_global_codegen = RustCodegen::new();
+        unsafe_global_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_global_codegen.install_canonical_rule_metadata(&unsafe_global_artifacts);
+        let unsafe_global = unsafe_global_codegen.emit_program(&unsafe_global_program);
+        assert!(
+            unsafe_global.contains("native classifier reached a partial global RuleDispatch miss"),
+            "an unsafe global predicate miss must abort the classifier: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("let mut __fut_matched_false_clause = false;"),
+            "a matched false typed-head clause needs explicit interpreter-parity state: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("__fut_matched_false_clause = true;"),
+            "a false typed-head body must record its matched head: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("if __fut_matched_false_clause { return false; }"),
+            "a matched false typed-head clause must win before a genuine-miss trap: {unsafe_global}"
+        );
+
+        let unsafe_original_source = r#"
+| __fut_matched_false_clause() -> False
+# Switch = Off | On
+| unsafe_original(value: Switch) -> match value {
+    | Off -> __fut_matched_false_clause()
+    | On -> True
+}
+= unsafe_original_probe = unsafe_original(Off)
+"#;
+        let unsafe_original_program = parse_test_program(unsafe_original_source);
+        let unsafe_original_artifacts = TypeChecker::check_with_artifacts(
+            &unsafe_original_program,
+            None,
+            unsafe_original_source,
+        );
+        assert!(
+            unsafe_original_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-original diagnostics: {:?}",
+            unsafe_original_artifacts.diagnostics
+        );
+        let unsafe_original_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_original".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_original_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_original_key));
+        let mut unsafe_original_codegen = RustCodegen::new();
+        unsafe_original_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_original_codegen.install_canonical_rule_metadata(&unsafe_original_artifacts);
+        let unsafe_original = unsafe_original_codegen.emit_program(&unsafe_original_program);
+        assert!(
+            unsafe_original.contains("let mut __fut_matched_false_clause_2 = false;"),
+            "dispatch state must be fresh against callable names in the clause body: {unsafe_original}"
+        );
+        assert!(
+            unsafe_original.contains("__fut_matched_false_clause_2 = true;"),
+            "a false ordinary body must record its matched head: {unsafe_original}"
+        );
+        let matched_false = unsafe_original
+            .find("if __fut_matched_false_clause_2 { return false; }")
+            .expect("ordinary matched-false return");
+        let genuine_miss = unsafe_original
+            .find("no | rule matched for 'unsafe_original'")
+            .expect("ordinary genuine-miss trap");
+        assert!(
+            matched_false < genuine_miss,
+            "a matched false ordinary clause must win before a genuine-miss trap: {unsafe_original}"
+        );
+
+        let unsafe_prolog_source = r#"
+= flag = False
+| unsafe_prolog(0) -> flag
+= unsafe_prolog_hit = unsafe_prolog(0)
+"#;
+        let unsafe_prolog_program = parse_test_program(unsafe_prolog_source);
+        let unsafe_prolog_artifacts =
+            TypeChecker::check_with_artifacts(&unsafe_prolog_program, None, unsafe_prolog_source);
+        assert!(
+            unsafe_prolog_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-Prolog diagnostics: {:?}",
+            unsafe_prolog_artifacts.diagnostics
+        );
+        let unsafe_prolog_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_prolog".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_prolog_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_prolog_key));
+        let mut unsafe_prolog_codegen = RustCodegen::new();
+        unsafe_prolog_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_prolog_codegen.install_canonical_rule_metadata(&unsafe_prolog_artifacts);
+        let unsafe_prolog = unsafe_prolog_codegen.emit_program(&unsafe_prolog_program);
+        assert!(
+            unsafe_prolog.contains("let mut __fut_matched_false_clause = false;"),
+            "a ground-head Prolog clause needs explicit interpreter-parity state: {unsafe_prolog}"
+        );
+        assert!(
+            unsafe_prolog.contains("__fut_matched_false_clause = true;"),
+            "a false Prolog body must record its matched head: {unsafe_prolog}"
+        );
+        assert!(
+            unsafe_prolog.contains("if __fut_matched_false_clause { return false; }"),
+            "a matched false Prolog clause must win before a genuine-miss trap: {unsafe_prolog}"
         );
     }
 
