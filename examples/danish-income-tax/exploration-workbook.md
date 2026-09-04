@@ -4014,33 +4014,67 @@ is itself completely covered, or when a future explicit checked bridge proves
 which coarse regions transfer. Resolution is an operational search strategy;
 coverage remains tied to the declared relation identity.
 
-The next widening keeps the same income horizon but replaces the conditioned
-profile with a genuinely multidimensional coherent profile relation. It comes
-before the all-admitted mechanism-landscape audit: widening starter structure
-can validate profile grouping and sparse selected-only mechanism/support paths
-without first tracing every admitted edge. It must additionally publish profile
-counts and 50-DKK loss-bin views. The all-admitted question remains a later
+The first widening now lives in
+[`personskat-income-cliffs-200k-profiles.explore.runa`](personskat-income-cliffs-200k-profiles.explore.runa).
+It keeps the same income horizon while replacing the conditioned profile with
+a genuinely multidimensional coherent profile relation. This comes before the
+all-admitted mechanism-landscape audit: widening starter structure validates
+profile grouping and sparse selected-only mechanism/support paths without first
+tracing every admitted edge. The all-admitted question remains a later
 shared-relation consumer when signature-change discovery justifies its replay
 cost. This is still a system audit rather than a claim that the model covers
-every real Danish taxpayer; any profile-model gaps remain explicit output.
+every real Danish taxpayer; profiles outside the declared relation remain out
+of scope.
 
-Its first bounded form is deliberately algebraic rather than a bag of
-independent switches. One exact finite `Personskat200kProfile` has only church
-tax status and the relevant two-case age-status enum, so `values(Profile)`
-contains four coherent members. Cross those four members with the existing
-2,000 income coordinates and the declared relation has **8,000 exact cases**
-and four exact profile groups of 2,000. A typed scope inside `Before` carries
-year, municipality and every remaining conditioned fact; `Context` carries
-only the 100-DKK promotion. Source-image proof must certify the structured
-profile's direct identity path into `Before.profile`, and native execution must
-transport its authenticated finite ordinal before this run is launched. The
-8,000 relation size is an input theorem; selected cases, mechanisms and loss
-bins remain outputs and must not be guessed into acceptance.
+The bounded form is deliberately algebraic rather than a bag of independent
+switches. One exact finite `Personskat200kProfile` has only church-tax status
+and the relevant two-case age-status enum, so `values(Profile)` contains four
+coherent members. The adult and under-18 representative birth dates are both
+explicit conditioned fields in `Before.scope`; the profile selects the
+applicable date inside evaluation. Crossing those four profiles with 2,000
+income coordinates creates **8,000 exact cases** and four exact profile groups
+of 2,000. `Context` contains only the 100-DKK promotion. Source-image proof
+certifies the profile's direct identity path into `Before.profile`, the income
+coordinate's affine `* 100` path, and native execution transports both
+authenticated ordinals.
 
-That historical conditioned Personskat relation had no selected coarse cliff
-in that horizon, and every declared source, successor, classification
-obligation and downstream empty frontier closed under its then-current
-contract. The separate small synthetic query with
+The first complete run closed across two bounded resumable epochs. Its final
+manifest reports:
+
+- lifecycle `complete`, with both relation and analysis closure `exact`;
+- exactly 8,000 sources, 8,000 cases, 8,000 classified and admitted cases, and
+  zero rejected cases;
+- exactly four declared profile groups, each with 2,000 distinct salary
+  coordinates;
+- exactly zero selected income-cliff cases, zero affected profiles and zero
+  affected starting states;
+- exactly zero structural mechanisms, execution profiles and raw signatures,
+  so the 50-DKK mechanism/loss histogram is exact-empty; and
+- a source-coverage v4 manifest with 78 entries and no gaps.
+
+The durable journal closed at sequence 164 in 11 segments, with head
+`1035a470e7cac1af71e48bb896d897fd4eb7bdfcfd12bc259f101856b4f42fb3`.
+The private generated run and result directories use the basename
+`personskat-200k-four-profiles-100dkk-v1`; they remain outside the repository.
+This exact-empty result applies only to the declared 100-DKK endpoint edges
+from 0 through 200,000 DKK. It does not prove the absence of a narrower
+within-bin cliff, a cliff above 200,000 DKK, or a cliff in an undeclared
+profile.
+
+The first attempted epoch also exposed a general proof issue before creating a
+journal. The endpoint-totality BDD treated `status == Fyldt18EllerGift` and
+`status == Under18Ugift` as unrelated predicates, despite the source proof
+showing that those are the only reachable constructors. Rewriting the tax rule
+as a `match` would have changed its mechanism trace and hidden the Explore bug.
+Instead, totality now canonicalizes nullary constructors and seeds rule
+dispatch with the disjunction of every reachable constructor. Exhaustive enum
+guards therefore close, while a missing guard remains a typed partial-dispatch
+refusal. Focused positive and negative regressions cover that distinction.
+
+Both the historical single-profile relation and the completed four-profile
+relation had no selected coarse cliff in that horizon, and every declared
+source, successor, classification obligation and downstream empty frontier
+closed under its respective contract. The separate small synthetic query with
 an intentional shared mechanism supplied the nonempty integration signal, so
 this quiet Personskat range does not leave mechanism incidence and
 post-mechanism grouping structurally unexercised.
@@ -4085,11 +4119,11 @@ result.
 
 ## Reading the result responsibly
 
-The hand-written audit is executable evidence about the checked-in Futuruna
-model and its narrow declared domain. The broad exploration becomes
-evidence only after its declared world is actually run or exactly closed; the
-first-class surface is implemented experimentally, but that is not a broad
-Personskat result. Neither is an individual tax determination.
+The hand-written audits are executable evidence about the checked-in Futuruna
+model and their narrow declared domains. The completed 8,000-case exploration
+is an exact Personskat result for its declared world, not a universal survey of
+Personskat profiles or one-kroner transitions. The first-class surface remains
+Experimental. Neither result is an individual tax determination.
 Verify the facts and the encoded phase-out interpretation before relying on a
 witness outside research or model review.
 
