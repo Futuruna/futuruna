@@ -63,22 +63,23 @@ PUBLISH CONTRACT
 There is no public probe phase. Regional certificates and concrete/classified
 fallback advance as ordinary prioritized work in one resumable stream. The
 live candidate scheduler now visits canonical bounded chunks out of ordinal
-order using two kinds of input: the finite range's lower/upper endpoints and
-boundaries extracted from direct checked affine admission/FIND guards. A guard
-boundary is lifted into case-chunk coordinates only for the conservative exact
-single-axis shapes whose source interval and case interval coincide. Both
-sides of an interior boundary are nominated; every un-nominated canonical
-chunk remains explicit residual exact work.
+order using finite-range endpoints, direct checked affine admission/FIND
+guards, compiler-minted scalar root-rule source events, and affine formulas
+lifted through frozen acyclic pure callables. A boundary is lifted into
+case-chunk coordinates only for the conservative exact single-axis shapes
+whose source interval and case interval coincide. Both sides of an interior
+boundary are nominated; every un-nominated canonical chunk remains explicit
+residual exact work.
 
-Source-event cuts and proof-certificate piece boundaries or authorized
-midpoints are typed producer seams, not live discovery inputs yet. Ranked
-products, plural axes and other unproved lifts therefore keep endpoint-first
-plus canonical-residual scheduling. Candidate exhaustion never proves the
-complement. Accepted candidate chunks occupy durable sparse slots so their
-selected cases can flow immediately; a separate one-slot checkpoint promotes
-only the next occupied canonical ordinal into the root cursor. Reopening the
-journal resumes an in-flight concrete slice first, otherwise skips every
-already accepted slot and continues the same exact cover. There is also no
+Proof-certificate piece boundaries and authorized midpoints remain typed
+future producer seams. Ranked products, plural axes and other unproved lifts
+therefore keep endpoint-first plus canonical-residual scheduling. Candidate
+exhaustion never proves the complement. Accepted candidate chunks occupy
+durable sparse slots, so selected cases can flow immediately. A separate
+one-slot checkpoint promotes only the next occupied canonical ordinal into the
+root cursor. Reopening the journal resumes an in-flight concrete slice first,
+otherwise skips every already accepted slot and continues the same exact
+cover. There is also no
 implicit `selected` relation in the target surface: every view, choice and
 explanation names the `find` relation it consumes.
 
@@ -342,36 +343,30 @@ suspected threshold. This is a planned audit contract: no broad run has begun,
 and this paragraph makes no claim that the target Explore/Analyze/Publish
 surface can execute it yet.
 
-The first honest runnable Personskat audit may be a **conditioned bootstrap**:
-choose one source-backed coherent profile explicitly, vary lower annual income
-coordinates over `0..<200_000` DKK and let the final `+1 DKK` successor reach
-exactly 200,000 DKK. Its source-coverage manifest must report every singleton
-and restriction. Completion then means exact over that declared one-profile
-relation; it does not mean exact over all persons, municipalities or profile
-constructors. This is a legitimate first audit of the durable pipeline, not a
-population result. In the transitional parser the bootstrap binds `before in
-range(0, 200_000)` directly after its singleton context. It does not introduce
-an auxiliary `income` dimension merely to copy it into `before`: that redundant
-dependent singleton would add roughly one source fiber, receipt and traversal
-edge per income without adding a case or proving anything new.
+The first completed runnable Personskat audit is a **conditioned 100-DKK
+endpoint screen**. It binds one source-backed coherent profile explicitly,
+varies 2,000 lower step coordinates, maps each coordinate to annual DKK, and
+compares `g -> g + 100 DKK` through exactly 200,000 DKK. Its source-coverage
+manifest reports every singleton and restriction. The stream closed with
+exactly 2,000 cases and no selected cliff case in that declared relation. This
+is exact for those 100-DKK transitions under that one conditioned profile; it
+is neither a statement about other profiles nor coverage of the 200,000
+adjacent `+1 DKK` transitions.
 
-An earlier **small population calibration** at the same income horizon remains
-a separate useful step, but it is not the first broad audit defined above. It
-ranges over a declared genuinely multidimensional coherent profile relation,
-publishes its coverage manifest and closes every source, successor, admission
-and FIND frontier. Either calibration may produce an exact empty cliff relation
-in the current model. Empty is useful evidence only when all frontiers required
-by that audit close; it is never inferred from seeing no sampled case. A
-separate tiny synthetic fixture deliberately contains a shared nonempty
-mechanism so the integration milestone exercises case-to-mechanism incidence
-and a post-mechanism view even when Personskat below 200,000 DKK is empty.
+A second completed calibration ranges over four declared coherent profile
+constructors and the same 2,000 income steps. It closed 8,000 exact cases and
+again selected no cliff. Empty is useful evidence here only because every
+source, successor, admission and FIND frontier of each declared audit closed;
+it is not inferred from sampling. A separate 10,500-case commuter calibration
+later exercised nonempty case-to-mechanism incidence. Synthetic fixtures still
+cover shared mechanisms independently of Personskat outcomes.
 
-Those components are now connected for the conditioned bootstrap; its first
-attempt nevertheless stopped during preparation before semantic replay. The
-conditioned bootstrap may use concrete enumeration if it fits the resource
-envelope. Any multidimensional calibration remains gated on the proof portfolio
-so it does not blindly multiply profiles by income where exact cells are
-available.
+The `0..<200_000` adjacent `+1 DKK` one-profile relation remains a separate
+future exact-case audit. Candidate information may improve its discovery order,
+but the coarse screen transfers no coverage: that audit must close its own
+residual frontier. Multidimensional widening likewise remains gated on the
+proof/search portfolio so execution does not blindly multiply profiles by
+income where exact cells can be discharged symbolically.
 
 `transition after in successors(before, context)` is the target multivalued
 form. A household planning query uses it when one coherent source has zero, one
@@ -814,7 +809,7 @@ Current hot paths are:
 | keyed source/case/classification/work/evidence insert | normally `O(log X)` plus payload validation | one canonical record; singleton successor and provenance collections stay inline and promote only when they actually branch |
 | resume a depth-`d` source prefix | `O(d)` fiber evaluations and set normalization | current prefix plus one materialized fiber |
 | enumerate one configured quantum | `O(k)` evaluator steps after the fiber opens | `O(k)` unapplied events; production fused work cold-starts at `k = 1`, then adapts toward five seconds with `k <= 256` |
-| reconstruct the verified case-chunk partition | `O(H)` once per cold journal replay; later slices/chunks/runs use indexed lookup in the replay-derived opaque authority | one `O(H)` partition/binding cache, currently `H = 782` for the 200k audit |
+| reconstruct the verified case-chunk partition | `O(H)` once per cold journal replay; later slices/chunks/runs use indexed lookup in the replay-derived opaque authority | one `O(H)` partition/binding cache; the current 2,000-coordinate screen has `H = 8`, while `H = 782` belonged to the retired 200,000-coordinate bootstrap |
 | choose classified recovery or selected-run work | `O(log H)` / `O(log R)` replay-derived pending-key lookup plus one addressed artifact validation | `O(H + R)` sparse slots and pending indexes; no per-invocation partition scan |
 | choose the next candidate/residual chunk | `O(K_n)` nomination check plus residual lookup from the committed prefix; active nominated-slice resume is `O(log K_n)` | `O(K_n)` immutable nomination/provenance indexes; residual chunks remain implicit |
 | accept one classified chunk | `O(rq log C)` worst-case keyed validation/append for `r <= 256` joint-outcome runs, including one admission item per run, one selection item per admitted run/question, causal roots and bounded addressed-chunk reverification | `O(rq)` exact-key undo/validation state; the durable outcome masks use `O(r ceil(q / 8))` plus `O(q)` counts, with no accumulated support-catalog clone, proof scan or whole-partition rebuild |
@@ -976,16 +971,28 @@ artifact is not authority by itself: revalidation against the same checked
 query and support plan is the only route to verifier-gated proof receipts.
 The live strategy derives split coordinates from direct checked affine guards
 and retains the structural interval plan, but split candidates carry no
-classification authority by themselves. Its current scheduler adapter passes
-no interval-certificate obligation: certificate piece boundaries and balanced
+classification authority by themselves. It now also expands affine guards
+through the frozen acyclic pure-callable graph and consumes a compiler-minted,
+versioned source-event inventory. That first checked-rule fragment substitutes
+root rule-head binders over exact integer-range sources, canonicalizes named
+arguments, emits stable affine event/occurrence identities, and records
+nonlinear, plural-axis, scoped, recursive or otherwise unsupported paths as
+residuals rather than cuts; effectful Explore calls are rejected at the earlier
+checked-purity boundary. Compiler-time mining is itself bounded: the current
+producer permits 65,536 semantic visits and 8,192 pre-dedup outputs, reserving
+one output slot for a stable terminal residual if either limit is exhausted.
+The optimizer then stops; complete residual execution remains available. Its
+current scheduler adapter passes no
+interval-certificate obligation: certificate piece boundaries and balanced
 midpoints exist as typed planning inputs for a later proof producer, not as
-facts discovered by today's stream. Likewise, source events are a planned
-candidate source rather than a populated inventory.
+facts discovered by today's stream.
 
-The conditioned Personskat query is outside that first theorem: its Context is
-structured and FIND crosses checked helper/rule calls and field projections.
-Personskat therefore still needs a checked rule-graph normalizer and proof
-producer for piecewise arithmetic, rounding, caps and rule dispatch. There is
+The conditioned Personskat query is outside that first theorem and source-event
+fragment: its Context is structured and FIND crosses field projections,
+constructed values, scoped rule families, piecewise arithmetic, rounding and
+caps. Personskat therefore still needs typed value-path propagation and proof
+producers for those shapes; merely discovering a rule boundary is not a proof
+of the surrounding region. There is
 no current LP, MILP, SMT, Presburger, decision-diagram or
 proved-monotonicity backend wired to discharge those obligations, and binary
 search without such a proof is only scheduling. Residual support must remain
@@ -1728,7 +1735,8 @@ reasoning proves the skipped cell uniform.
 
 - Keep the implemented candidate inputs narrow and explicit: both finite-range
   endpoints plus truth-change boundaries from direct checked affine
-  admission/FIND atoms.
+  admission/FIND atoms, compiler-minted source events and frozen acyclic
+  pure-callable formulas.
 - Lift those source coordinates only through the current exact single-axis
   interval correspondence. Ranked products and plural axes require a real
   slab/mixed-radix proof and meanwhile retain endpoint plus residual order.
@@ -1738,9 +1746,9 @@ reasoning proves the skipped cell uniform.
   contiguous root prefix per checkpoint.
 - Preserve the complete canonical partition as residual exact work. Neither a
   candidate miss nor exhaustion of all nominations closes the complement.
-- Add source-event extraction and accepted proof-certificate boundaries as
-  typed future producers feeding the same scheduler; do not describe their
-  existing data types as live discovery.
+- Extend the live source-event producer from scalar root-rule bindings to typed
+  structured value paths and scoped rule families. Add accepted
+  proof-certificate boundaries as another producer feeding the same scheduler.
 - Certify interval, congruence and relevance cells.
 - Cache reconstructed fibers by the support plan's declared dependency tuple.
 - Add a checked Personskat rule-graph normalization/proof producer; do not

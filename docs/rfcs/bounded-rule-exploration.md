@@ -1783,22 +1783,36 @@ There is no authored probe block, probe-complete state or global probe phase.
 Candidate producers, when enabled, MUST lower endpoints, source events,
 certificate-authorized midpoints and lifted candidates into ordinary
 dependency-linked work in the same stream, with a complete residual cover.
-Current v1 actively schedules regional certificates and concrete/classified
-fallback, visits lower/upper range endpoints first, and conservatively lifts
-direct checked affine admission/FIND boundaries when one exact integer source
-axis coincides with the case-coordinate interval. Source-event and
-certificate-boundary/midpoint producers are performance follow-ups, never
-hidden completeness assumptions. Ranked products, plural axes and any other
-unproved coordinate lift retain endpoint-first plus canonical residual work.
+Current scheduler policy v3 actively schedules regional certificates and
+concrete/classified fallback, visits lower/upper range endpoints, lifts direct
+checked affine admission/FIND boundaries, expands affine comparisons through
+frozen acyclic pure callables, and consumes compiler-minted checked-rule source
+events when one exact integer source axis coincides with the case-coordinate
+interval. The first source-event producer follows root rule families through
+checked argument order and rule-head binder identity, emits normalized affine
+comparisons, and retains unsupported finite domains and failed
+boundary-producing paths as explicit residuals; effectful Explore calls fail at
+the earlier checked-purity boundary. The producer has deterministic semantic-
+visit and pre-dedup output budgets; exhausting either budget appends one
+explicit terminal residual and stops mining further cuts. Source-event and
+lifted-candidate exhaustion never closes that residual. Certificate-boundary/midpoint producers
+remain performance follow-ups, never hidden completeness assumptions. Ranked
+products, plural axes and any other unproved coordinate lift retain
+endpoint-first plus canonical residual work.
 
 Every emitted coordinator batch begins with an authenticated
-`SchedulerDecisionRecorded` checkpoint carrying the scheduler-policy version
-and selected priority reason, plus a canonical fingerprint of the complete ordered
-work batch. A crash may retain only that attempted-dispatch record; it still
-identifies exactly what was selected without claiming the work completed.
-Replay may select the still-open work again. These records affect the
-append-only journal head, but not the arrival-order-independent semantic
-evidence roots. Scheduling policy is
+`SchedulerDecisionRecorded` checkpoint carrying the scheduler-policy version,
+selected priority reason and, for candidate work, a nomination root beside the
+canonical fingerprint of the complete ordered work batch. The nomination root
+commits the policy and nomination schema, exact partition and chunk descriptor,
+and the complete sorted reason, side, coordinate and semantic-origin records.
+For source events those origins bind the checked inventory, semantic rule event
+and source-linked occurrence; for lifted callables they bind the frozen graph,
+lane and formula path. A crash may retain only that attempted-dispatch record;
+it still identifies exactly what was selected without claiming the work
+completed. Replay may select the still-open work again and reconstructs the
+same root. These records affect the append-only journal head, but not the
+arrival-order-independent semantic evidence roots. Scheduling policy is
 therefore observable operational provenance and is absent from RelationId,
 AdmissionId, QuestionId, ViewId, ChoiceId and AnalyzeGraphId.
 

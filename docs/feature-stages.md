@@ -28,20 +28,30 @@ a shared compact classified-sweep implementation: one pass binds the full
 canonical ordered question set and run-length encodes packed joint decisions;
 per-question counts and projections read that shared evidence, while selected
 cases are materialized once for the any-selected union. Native v2 and regional-
-proof accelerators remain exact-one and never nominate a primary find. Nested
-`choose` now lowers at the checked boundary to a canonical choice relation with
-its own membership-only `ChoiceId`; the downstream display keeps a separate
-`ViewId`, and mechanisms target the `ChoiceId`. Choice objectives may use
-candidate, partition, and measure values, but fail closed if they depend on an
-aggregate or `SELECT` display alias. Choice membership has its own journaled
-frontier and authenticated content root. After closure, the display iterates
-only canonical Choice members and applies its row-local `SELECT` only there; it does
-not rescan FIND candidates or repeat the choice policy. Aggregate-backed Choice
-display projection fails closed until the member relation carries sufficient
-closed-group evidence. A
-focused audit paused at transition 17, reopened, and completed one shared 300-
-transition sweep with independent exact selected counts of 20 and 10 and one
-20-case any-selected materialization; it used neither accelerator.
+proof accelerators remain exact-one and never nominate a primary find.
+
+For unary exact-integer scheduling, candidate discovery can use direct checked
+affine guards, compiler-minted scalar root-rule source events, and affine
+candidates lifted through frozen acyclic pure callables. Policy-versioned
+authenticated nomination roots explain why each candidate chunk received
+priority. Compiler mining has deterministic work/output limits and records
+budget exhaustion as a terminal residual. These inputs affect scheduling only:
+residual exact work remains mandatory for an exact result.
+
+Nested `choose` now lowers at the checked boundary to a canonical choice
+relation with its own membership-only `ChoiceId`; the downstream display keeps
+a separate `ViewId`, and mechanisms target the `ChoiceId`. Choice objectives
+may use candidate, partition, and measure values, but fail closed if they
+depend on an aggregate or `SELECT` display alias. Choice membership has its own
+journaled frontier and authenticated content root. After closure, the display
+iterates only canonical Choice members and applies its row-local `SELECT` only
+there; it does not rescan FIND candidates or repeat the choice policy.
+Aggregate-backed Choice display projection fails closed until the member
+relation carries sufficient
+closed-group evidence. A focused audit paused at transition 17, reopened, and
+completed one shared 300-transition sweep with independent exact selected
+counts of 20 and 10 and one 20-case any-selected materialization; it used
+neither accelerator.
 Compact support observations implement independently domain-separated
 inner/outer expression bounds for correlated case support `S` and distinct-
 starter projection `P = distinct_sources(S)`, together with explicit starter-

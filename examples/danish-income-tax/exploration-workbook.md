@@ -810,8 +810,9 @@ with stable per-source support, not an ordinal Cartesian generator.
 Likewise, a boundary is normally a finding, not a source-supplied search hint.
 The 1-DKK update belongs to the income-cliff question; a suspected threshold
 does not. The checked planner can recognize its currently supported affine
-structure, and a future typed adapter can contribute source events, without
-making `boundaries` the semantic definition of the query.
+structure, and its compiler-minted source-event inventory can contribute
+checked rule boundaries without making `boundaries` the semantic definition
+of the query.
 
 The target relational spelling is deliberately explicit about which values are
 conditioned, enumerated and derived:
@@ -1230,27 +1231,36 @@ relevant branches or dependencies differ.
 An earlier design exposed probes as a special initial plan and lifecycle
 milestone. That distinction is no longer useful. Once the run has an
 authoritative journal and exact open frontier, every enabled candidate or
-proof producer joins the same dependency-linked work graph. Current v1
-actively dispatches regional certificates and concrete/classified fallback,
-and now orders the fixed canonical chunks candidate-first. Its live candidate
-inputs are the lower and upper finite-range endpoints plus boundaries from
-direct checked affine admission/FIND guards. Those source coordinates reach
-the case partition only through a conservative exact single-axis lift whose
+proof producer joins the same dependency-linked work graph. Current scheduler
+policy v3 actively dispatches regional certificates and concrete/classified
+fallback, and orders the fixed canonical chunks candidate-first. Its live
+candidate inputs are the lower and upper finite-range endpoints, boundaries
+from direct checked affine admission/FIND guards, affine formulas lifted
+through frozen acyclic pure callables, and compiler-minted source events
+reached through checked root rule families. Those source coordinates reach the
+case partition only through a conservative exact single-axis lift whose
 coordinate interval matches a bare or product-factor case interval. Both
 adjacent sides of an interior boundary are nominated. Every other canonical
 chunk remains implicit residual exact work, so candidate exhaustion is never a
 completeness claim.
 
-Source-event cuts and proof-certificate piece boundaries or authorized
-midpoints remain typed future producer seams. The current stream does not
-populate either source, and its live proof-strategy call supplies no
-certificate obligation. Product-rank and plural-axis shapes therefore use
-endpoint-first plus canonical residual order rather than guessing a lift.
+The first live source-event fragment substitutes checked rule-head binders over
+exact scalar integer ranges, follows canonical named-argument order, and gives
+each rule event and source-linked occurrence a stable identity. Unsupported
+domains, nonlinear or plural-axis atoms, scoped receivers, recursion and other
+unhandled shapes remain explicit residuals and contribute no cut. Effectful
+Explore calls fail at the earlier checked-purity boundary. Proof-certificate
+piece boundaries and authorized midpoints remain typed future producer seams;
+the live proof-strategy call supplies no certificate obligation. Product-rank
+and plural-axis shapes therefore use endpoint-first plus canonical residual
+order rather than guessing a lift.
 The regional prover can still certify an already selected canonical child; it
-does not currently mine that proof for another candidate boundary. Likewise,
-Personskat helper/rule calls are not direct affine guard atoms, so without a
-checked rule-graph normalizer they contribute no hidden tax-threshold
-nominations—the honest order is range endpoints followed by residual chunks.
+does not currently mine that proof for another candidate boundary. Personskat
+field projections, constructed values, scoped families, rounding and piecewise
+arithmetic still exceed the scalar source-event fragment. Those paths
+contribute no invented tax-threshold nomination: they remain residual work
+until typed value-path propagation or another checked producer can justify a
+cut.
 Completed out-of-order chunks occupy durable sparse ordinal slots, allowing a
 selected run and its mechanism work to emerge before lower ordinals finish. A
 separate bounded checkpoint promotes only the next occupied ordinal into the
@@ -1280,14 +1290,14 @@ The implementation scheduler now follows that contract directly. At each
 durable base prefix it catches selected-case result evidence, post-mechanism
 incidence-result evidence and direct FIND-target mechanism work up to the
 currently known discovery ordinals, then grants one more base quantum. Those
-consumers can stream while FIND remains open. A chosen-result mechanism target
-instead waits for its choosing result to become exact and published, then
-walks that immutable projection in bounded chunks; each target event binds its
-CaseId to the exact projection ordinal and the target seal binds the result
-root. The ordinals are replay-built scheduling indexes only—CaseId remains a
-content hash and answer roots remain arrival-order independent. Exact FIND
-closure is required only where a downstream operation actually needs an exact
-input, not as a universal gate in front of useful evidence.
+consumers can stream while FIND remains open. A choice-target mechanism instead
+waits for its independent choice relation to close, then walks the canonical
+members committed by `ChoiceId` and `ChoiceContentRoot` in bounded chunks. It
+neither waits for a display view to be published nor binds a presentation
+result root. The member ordinals are replay-built scheduling indexes only—CaseId
+remains a content hash and answer roots remain arrival-order independent. Exact
+FIND closure is required only where a downstream operation actually needs an
+exact input, not as a universal gate in front of useful evidence.
 
 Execution, semantic certainty and artifact availability are orthogonal:
 
@@ -2504,7 +2514,8 @@ The three most easily confused counts stay visibly different:
 - a **structural mechanism** is one normalized differential explanation shared
   by any number of cases and starters.
 
-For an exact result, illustrative public wording is:
+For an exact result, the following is deliberately **synthetic wording**; its
+numbers are not the observed outcome of the one-profile 2,000-edge screen:
 
 > **Question.** Find 100-DKK salary transitions whose modeled after-tax
 > resources decrease. **Declared universe.** Exactly 2,000 lower endpoints
@@ -2534,7 +2545,7 @@ For one shared explanation:
 > support is exact. Correlated case/successor support is open, so 84 is a lower
 > bound rather than an inferred total.
 
-The concrete numbers above are examples of wording, not new Personskat audit
+The concrete numbers above are examples of wording, not Personskat audit
 results. A real report may also say that `Z` raw-signature supports are at
 least `c` because their support-counting cap was reached, followed by an exact
 or lower-bound 50-DKK **structural-mechanism** histogram and links to the
