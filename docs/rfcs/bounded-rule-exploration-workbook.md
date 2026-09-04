@@ -1714,11 +1714,14 @@ questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 Explore block while publication v19 is completed. Nested `choose` now lowers
 to a canonical membership-only `ChoiceId` plus a separate display `ViewId`;
 an independently journaled choice relation commits its candidate seal, member
-prefix and content root before the existing driver may project a display.
-Choice objectives
+prefix and content root before the display iterates those exact members. The
+display applies row-local `SELECT` only to them, without scanning excluded FIND candidates or
+repeating choice policy. Choice objectives
 currently fail closed on aggregate or `SELECT` aliases so display-only changes
-cannot silently rename the choice relation. Those spellings are a transitional
-lowering boundary, not another public language design.
+cannot silently rename the choice relation; aggregate-backed Choice displays
+also fail closed until the member relation carries sufficient closed-group
+evidence. Those spellings are a transitional lowering boundary, not another
+public language design.
 
 ```text
 personskat-200k-result/

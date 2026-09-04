@@ -28,11 +28,11 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 5;
+pub(crate) const RELATIONAL_ANALYSIS_PLAN_VERSION: u32 = 6;
 
-const ANALYSIS_PLAN_ROOT_V5: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v5";
+const ANALYSIS_PLAN_ROOT_V6: &[u8] = b"futuruna.explore.relational-analysis.plan-root.v6";
 const CHOICE_SPEC_DIGEST_V1: &[u8] = b"futuruna.explore.relational-analysis.choice-spec.v1";
-const RESULT_SPEC_DIGEST_V1: &[u8] = b"futuruna.explore.relational-analysis.result-spec.v1";
+const RESULT_SPEC_DIGEST_V2: &[u8] = b"futuruna.explore.relational-analysis.result-spec.v2";
 const OBSERVATION_ID_V1: &[u8] = b"futuruna.explore.relational-analysis.observation-id.v1";
 const OBSERVATION_DIGEST_V2: &[u8] = b"futuruna.explore.relational-analysis.observation-digest.v2";
 const CHECKED_ANALYSIS_GRAPH_V4: &[u8] = b"futuruna.checked-explore-analysis-graph.v4\0";
@@ -88,7 +88,7 @@ impl RelationalResultSpecDigest {
 
 /// Opaque planner seal for one canonical semantic choice relation. ChoiceId
 /// already binds checked expressions and types; this digest additionally
-/// commits the name/span-free IR shape used by the fused physical reducer.
+/// commits the name/span-free IR shape used by the journaled Choice reducer.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationalChoiceSpecDigest([u8; 32]);
 
@@ -907,10 +907,21 @@ fn derive_result_spec_digest(
     dependencies: &[RelationalAnalysisDependencyId],
     view: &ExploreResultViewIr,
 ) -> RelationalResultSpecDigest {
-    let mut hasher = AnalysisHasher::new(RESULT_SPEC_DIGEST_V1);
+    let mut hasher = AnalysisHasher::new(RESULT_SPEC_DIGEST_V2);
     hasher.digest(view_id.bytes());
     hash_result_input(&mut hasher, input);
     hash_dependencies(&mut hasher, dependencies);
+    if matches!(input, RelationalResolvedResultInput::Choice(_)) {
+        // GROUP/MEASURE/HAVING/CHOOSE are committed by the ChoiceId input.
+        // The downstream display is an each-member public projection only.
+        hasher.u8(0x01);
+        hasher.u128(0);
+        hasher.u128(0);
+        hasher.u8(0x01);
+        hasher.u128(view.select.len() as u128);
+        hasher.u8(0x01);
+        return RelationalResultSpecDigest(hasher.finish());
+    }
     match &view.grain {
         ExploreResultGrainIr::EachCase { .. } => hasher.u8(0x01),
         ExploreResultGrainIr::EachIncidence { .. } => hasher.u8(0x02),
@@ -1323,7 +1334,7 @@ fn hex_nibble(byte: u8) -> u8 {
 fn derive_analysis_plan_root(
     payload: &RelationalAnalysisPlanPayload,
 ) -> RelationalAnalysisPlanRoot {
-    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V5);
+    let mut hasher = AnalysisHasher::new(ANALYSIS_PLAN_ROOT_V6);
     hasher.u32(RELATIONAL_ANALYSIS_PLAN_VERSION);
     hasher.u128(payload.question_ids.len() as u128);
     for question_id in &payload.question_ids {

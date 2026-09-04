@@ -889,7 +889,11 @@ impl RelationalPublicationPlan {
                         name: view.name.clone().into_boxed_str(),
                         path: PathBuf::from("views").join(format!("{safe_name}.ndjson")),
                         view_id: *view_id,
-                        grain: PublicationResultGrain::from_checked(&view.grain),
+                        grain: if choice_id.is_some() {
+                            PublicationResultGrain::EachCase
+                        } else {
+                            PublicationResultGrain::from_checked(&view.grain)
+                        },
                         select_columns: view
                             .select
                             .iter()
@@ -899,8 +903,9 @@ impl RelationalPublicationPlan {
                             })
                             .collect::<Vec<_>>()
                             .into_boxed_slice(),
-                        group_key_columns: match &view.grain {
-                            ExploreResultGrainIr::GroupBy { fields, .. } => fields
+                        group_key_columns: match (*choice_id, &view.grain) {
+                            (Some(_), _) => Box::new([]),
+                            (None, ExploreResultGrainIr::GroupBy { fields, .. }) => fields
                                 .iter()
                                 .map(|field| PublicationResultColumn {
                                     name: field.name.clone().into_boxed_str(),
@@ -908,9 +913,12 @@ impl RelationalPublicationPlan {
                                 })
                                 .collect::<Vec<_>>()
                                 .into_boxed_slice(),
-                            ExploreResultGrainIr::EachCase { .. }
-                            | ExploreResultGrainIr::EachIncidence { .. }
-                            | ExploreResultGrainIr::GroupAll { .. } => Box::new([]),
+                            (
+                                None,
+                                ExploreResultGrainIr::EachCase { .. }
+                                | ExploreResultGrainIr::EachIncidence { .. }
+                                | ExploreResultGrainIr::GroupAll { .. },
+                            ) => Box::new([]),
                         },
                         source,
                         input,

@@ -348,14 +348,16 @@ The existing engine's `results` maps toward target `view`; embedded `choose`
 now lowers to a canonical typed choice relation with a membership-only
 `ChoiceId`; and `mechanisms` maps toward target `explain ... using`. The
 downstream display keeps a separate `ViewId`. A mechanism request hashes the
-`ChoiceId`, while its analysis plan also retains the checked display view that
-physically materializes the chosen CaseIds. The current concrete reducer
-executes those two semantic nodes as one fused stage, rather than introducing a
-parallel evaluator. Choice objectives may use candidate, partition, and measure
-values; aggregate and `SELECT` aliases fail closed until the frontend can lower
-their transitive semantics without making display-only fields part of choice
-identity. Placement-order dependency remains implementation history, not the
-target order-independent analysis semantics.
+`ChoiceId`. The current concrete display consumes only the closed canonical
+Choice members, uses their authenticated partition/measure payload, and applies
+row-local `SELECT` only to members, without rescanning FIND or running the
+choice policy again.
+Choice objectives may use candidate, partition, and measure values; aggregate
+and `SELECT` aliases fail closed until the frontend can lower their transitive
+semantics without making display-only fields part of choice identity.
+Aggregate-backed Choice displays likewise fail closed until member evidence is
+sufficient for direct projection. Placement-order dependency remains
+implementation history, not the target order-independent analysis semantics.
 
 Most importantly, the v14 executable `starters NAME ... using values from VIEW`
 consumer publishes correlated `S` case-support members, not deduplicated `P`

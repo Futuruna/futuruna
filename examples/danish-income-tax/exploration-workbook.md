@@ -1588,11 +1588,14 @@ lowers this same membership concept to a canonical `ChoiceId` and a separate
 display `ViewId`. Choice candidates, the exact input seal, canonical member
 prefix and `ChoiceContentRoot` are journaled independently. Mechanisms consume
 those members by ordinal and close against the choice root without a `ViewId`;
-only then may the fused physical driver project a display. Adding or changing
-an unused `SELECT` field therefore cannot rename or roll back what was chosen.
+only then does the display iterate those exact members and apply its row-local
+`SELECT` only to them. It does not revisit excluded FIND candidates or repeat the choice
+policy. Adding or changing an unused `SELECT` field therefore cannot rename or
+roll back what was chosen.
 Until explicit `choice` syntax lands, choice objectives may name candidate,
 partition, and measure values; aggregate or `SELECT` aliases fail closed rather
-than leaking display policy into membership identity.
+than leaking display policy into membership identity. Aggregate-backed displays
+over Choice also fail closed until member evidence can support them directly.
 
 If the encoded model has no municipality-dependent result, exact closure proves
 zero spread and publishes no “best municipality” recommendation. The

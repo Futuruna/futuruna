@@ -1199,9 +1199,9 @@ impl RelationalAnalysisCatalogBuilder {
     }
 
     /// Seal a choice-backed display only after the independent semantic
-    /// choice relation is closed. The fused physical projector consumes the
-    /// candidate payload to reproduce grouped display shape, but its authority
-    /// is the ChoiceId/content root, never a ViewId.
+    /// choice relation is closed. The display input is exactly the canonical
+    /// member set committed by ChoiceId/content root; excluded candidates are
+    /// not part of this result relation.
     pub(crate) fn seal_result_input_from_choice(
         &mut self,
         view_id: ViewId,
@@ -1219,7 +1219,7 @@ impl RelationalAnalysisCatalogBuilder {
         let seal = RelationalResultInputSeal::from_choice(
             choice_id,
             content_root,
-            choice.candidates().map(ChoiceCandidate::case_id),
+            choice.members().iter().map(ChoiceMember::case_id),
         )
         .map_err(RelationalAnalysisCatalogError::ResultEvidence)?;
         self.registered_result_mut(view_id)?

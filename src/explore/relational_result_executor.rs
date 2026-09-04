@@ -15,7 +15,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
-use super::choice_relation::ChoiceCandidate;
+use super::choice_relation::{ChoiceCandidate, ChoiceMember};
 use super::mechanism_incidence::MechanismSignatureId;
 use super::relation::{ChoiceId, RelationalCaseRef, SourceKey, SourceRow, ViewId};
 use super::relational_ir::{
@@ -106,18 +106,33 @@ impl<'ir> RelationalResultExecutor<'ir> {
         view_id: ViewId,
         view: &'ir ExploreResultViewIr,
     ) -> Result<Self, RelationalResultExecutorError> {
+        let is_choice_display = view.choose.is_some();
+        if is_choice_display && !view.aggregates.is_empty() {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice-backed display aggregation is not supported until the closed Choice relation carries the required aggregate evidence"
+                    .into(),
+            ));
+        }
         let input_kind = match &view.input {
             ExploreResultInputIr::Sources => ResultViewInputKind::Source,
             ExploreResultInputIr::Find { .. } => ResultViewInputKind::Case,
             ExploreResultInputIr::MechanismIncidence { .. } => ResultViewInputKind::Incidence,
         };
-        let grain = match &view.grain {
-            ExploreResultGrainIr::EachCase { .. } => ResultViewGrain::EachCase,
-            ExploreResultGrainIr::EachIncidence { .. } => ResultViewGrain::EachIncidence,
-            ExploreResultGrainIr::GroupAll { .. } => ResultViewGrain::GroupAll,
-            ExploreResultGrainIr::GroupBy { fields, .. } => ResultViewGrain::GroupBy {
-                field_names: field_names(fields),
-            },
+        // In the transitional nested spelling, GROUP/MEASURE/HAVING/CHOOSE
+        // lower to the independently journaled Choice relation.  Its display
+        // is a row-preserving projection over the closed members, not another
+        // grouped reducer over the FIND candidates.
+        let grain = if is_choice_display {
+            ResultViewGrain::EachCase
+        } else {
+            match &view.grain {
+                ExploreResultGrainIr::EachCase { .. } => ResultViewGrain::EachCase,
+                ExploreResultGrainIr::EachIncidence { .. } => ResultViewGrain::EachIncidence,
+                ExploreResultGrainIr::GroupAll { .. } => ResultViewGrain::GroupAll,
+                ExploreResultGrainIr::GroupBy { fields, .. } => ResultViewGrain::GroupBy {
+                    field_names: field_names(fields),
+                },
+            }
         };
         let having = match &view.having {
             None => None,
@@ -142,38 +157,27 @@ impl<'ir> RelationalResultExecutor<'ir> {
                 })
             }
         };
-        let choice = view.choose.as_ref().map(|choice| match choice {
-            ExploreResultChoiceIr::Optimize {
-                cardinality,
-                direction,
-                ..
-            } => super::result_view::ResultViewChoice::Optimize {
-                cardinality: *cardinality,
-                direction: *direction,
-            },
-            ExploreResultChoiceIr::Pareto { objectives, .. } => {
-                super::result_view::ResultViewChoice::Pareto {
-                    directions: objectives
-                        .iter()
-                        .map(|objective| objective.direction)
-                        .collect::<Vec<_>>()
-                        .into_boxed_slice(),
-                }
-            }
-        });
         let spec = ResultViewSpec::new(
             view_id,
             input_kind,
             grain,
-            field_names(&view.measures),
-            view.aggregates
-                .iter()
-                .map(|field| Box::<str>::from(field.name.as_str()))
-                .collect::<Vec<_>>()
-                .into_boxed_slice(),
+            if is_choice_display {
+                Box::new([])
+            } else {
+                field_names(&view.measures)
+            },
+            if is_choice_display {
+                Box::new([])
+            } else {
+                view.aggregates
+                    .iter()
+                    .map(|field| Box::<str>::from(field.name.as_str()))
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice()
+            },
             field_names(&view.select),
-            having,
-            choice,
+            if is_choice_display { None } else { having },
+            None,
         )
         .map_err(RelationalResultExecutorError::Reducer)?;
 
@@ -343,6 +347,11 @@ impl<'ir> RelationalResultExecutor<'ir> {
         case: RelationalCaseRef<'_>,
         runtime: &mut R,
     ) -> Result<RelationalResultEvidence, RelationalResultExecutorError> {
+        if self.view.choose.is_some() {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice-backed displays must be evaluated from closed Choice members".into(),
+            ));
+        }
         if self.spec.input_kind() != ResultViewInputKind::Case {
             return Err(RelationalResultExecutorError::WrongConcreteInput {
                 expected: self.spec.input_kind(),
@@ -362,7 +371,7 @@ impl<'ir> RelationalResultExecutor<'ir> {
         case: RelationalCaseRef<'_>,
         runtime: &mut R,
     ) -> Result<ChoiceCandidate, RelationalResultExecutorError> {
-        if self.spec.input_kind() != ResultViewInputKind::Case || self.spec.choice().is_none() {
+        if self.spec.input_kind() != ResultViewInputKind::Case || self.view.choose.is_none() {
             return Err(RelationalResultExecutorError::InvalidView(
                 "choice candidate evaluation requires a chosen case-input view".into(),
             ));
@@ -409,6 +418,102 @@ impl<'ir> RelationalResultExecutor<'ir> {
             measures,
             objectives,
         ))
+    }
+
+    /// Project one canonical member of an already closed Choice relation.
+    /// Partition keys and measures are consumed from the authenticated member
+    /// payload; neither the FIND population nor the choice policy is
+    /// evaluated on this display path.
+    pub(crate) fn evaluate_choice_member<R: RelationalResultExpressionRuntime>(
+        &self,
+        choice_id: ChoiceId,
+        member: &ChoiceMember,
+        case: RelationalCaseRef<'_>,
+        runtime: &mut R,
+    ) -> Result<RelationalResultEvidence, RelationalResultExecutorError> {
+        if self.spec.input_kind() != ResultViewInputKind::Case
+            || self.view.choose.is_none()
+            || self.spec.grain() != &ResultViewGrain::EachCase
+            || self.spec.choice().is_some()
+            || self.spec.having().is_some()
+            || !self.spec.measure_names().is_empty()
+            || !self.spec.aggregate_names().is_empty()
+        {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice-member projection requires a row-preserving display spec".into(),
+            ));
+        }
+        let candidate = member.candidate();
+        if candidate.choice_id() != choice_id || candidate.case_id() != case.case_id() {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice member does not match its display input".into(),
+            ));
+        }
+        if candidate.partition_values().len() != group_fields(&self.view.grain).len()
+            || candidate.measures().len() != self.view.measures.len()
+            || candidate.objectives().len() != self.objectives.len()
+        {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice member payload does not match the checked choice schema".into(),
+            ));
+        }
+
+        let row_id = ResultViewInputRowId::Case(case.case_id());
+        let mut member_bindings = concrete_case_bindings(case, row_id, None);
+        for (field, value) in group_fields(&self.view.grain)
+            .iter()
+            .zip(candidate.partition_values())
+        {
+            member_bindings.push(RelationalResultBinding::new(
+                field.name.as_str(),
+                value.clone(),
+            ));
+        }
+        for (field, value) in self.view.measures.iter().zip(candidate.measures()) {
+            member_bindings.push(RelationalResultBinding::new(
+                field.name.as_str(),
+                value.clone(),
+            ));
+        }
+
+        let mut bindings = member_bindings.clone();
+        let mut early_select = Vec::with_capacity(self.view.select.len());
+        for (field, stage) in self.view.select.iter().zip(self.select_stages.iter()) {
+            if !matches!(stage, ProjectionStage::RowLocal) {
+                return Err(RelationalResultExecutorError::InvalidView(
+                    "choice-backed display SELECT requires unavailable group-closed evidence"
+                        .into(),
+                ));
+            }
+            let value = evaluate_field(runtime, field, &bindings, "choice display selected field")?;
+            bindings.push(RelationalResultBinding::new(
+                field.name.as_str(),
+                value.clone(),
+            ));
+            early_select.push(Some(value));
+        }
+
+        Ok(RelationalResultEvidence {
+            contribution: EvaluatedResultContribution::new(
+                self.spec.view_id(),
+                row_id,
+                Box::<[ResultValue]>::default(),
+                Box::<[ResultValue]>::default(),
+                Box::<[ResultValue]>::default(),
+            ),
+            state: RelationalResultRowState {
+                row_id,
+                base_bindings: member_bindings.into_boxed_slice(),
+                early_select: early_select.into_boxed_slice(),
+                early_objectives: candidate
+                    .objectives()
+                    .iter()
+                    .copied()
+                    .map(Some)
+                    .collect::<Vec<_>>()
+                    .into_boxed_slice(),
+            },
+        })
     }
 
     pub(crate) fn evaluate_concrete_source<R: RelationalResultExpressionRuntime>(
@@ -1537,7 +1642,7 @@ mod tests {
     }
 
     #[test]
-    fn municipality_choose_all_keeps_distinct_tied_cases_after_projection() {
+    fn choice_member_display_projects_only_authenticated_tied_members() {
         let (relation_id, question_id, _) = identities("municipality-ties");
         let mut catalog = RelationCatalogBuilder::new(relation_id);
         let copenhagen = insert_case(
@@ -1587,29 +1692,56 @@ mod tests {
             choose: Some(ExploreResultChoiceIr::Optimize {
                 cardinality: ExploreChooseCardinality::All,
                 direction: ExploreOptimizeDirection::Minimize,
-                objective: var("payable"),
+                objective: var("tax_ore"),
                 objective_ty: int_ty(),
                 span: Span::dummy(),
             }),
             span: Span::dummy(),
         };
+        let choice_id = ChoiceId::from_canonical_choice_preimage(question_id, b"lowest-tax");
         let view_id =
-            ViewId::from_canonical_view_preimage(ViewInputId::Selected(question_id), b"lowest-tax");
+            ViewId::from_canonical_view_preimage(ViewInputId::Choice(choice_id), b"display");
         let executor = RelationalResultExecutor::lower(view_id, &view).unwrap();
+        assert_eq!(executor.spec().grain(), &ResultViewGrain::EachCase);
+        assert!(executor.spec().choice().is_none());
+        assert!(executor.spec().having().is_none());
         let mut runtime = FixtureRuntime;
+        let candidates = [copenhagen, aarhus, odense]
+            .into_iter()
+            .map(|case_id| {
+                executor
+                    .evaluate_choice_candidate(
+                        choice_id,
+                        catalog.case(case_id).unwrap(),
+                        &mut runtime,
+                    )
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
         let mut execution = executor.execution();
-        for case_id in [copenhagen, aarhus, odense] {
+        for (ordinal, candidate) in candidates
+            .into_iter()
+            .filter(|candidate| candidate.objectives() == [100_000])
+            .enumerate()
+        {
+            let member = ChoiceMember::restore_from_journal_codec(ordinal as u128, candidate);
+            let case_id = member.case_id();
             execution
                 .insert(
                     executor
-                        .evaluate_concrete_case(catalog.case(case_id).unwrap(), &mut runtime)
+                        .evaluate_choice_member(
+                            choice_id,
+                            &member,
+                            catalog.case(case_id).unwrap(),
+                            &mut runtime,
+                        )
                         .unwrap(),
                 )
                 .unwrap();
         }
         execution.seal_input();
         let closed = execution.finish(&mut runtime).unwrap();
-        let chosen = closed.snapshot().output().groups().unwrap()[0].chosen_rows();
+        let chosen = closed.snapshot().output().rows().unwrap();
         assert_eq!(chosen.len(), 2);
         assert_eq!(
             chosen

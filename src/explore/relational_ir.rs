@@ -302,7 +302,7 @@ pub enum ExploreResultChoiceIr {
 
 /// Canonical partition of a semantic choice relation. The transitional
 /// nested result spelling maps both `each case` and `group all` to one global
-/// partition; display grain remains a property of the downstream view.
+/// partition; the downstream Choice display is row-preserving in either case.
 #[derive(Debug, Clone)]
 pub enum ExploreChoicePartitionIr {
     All {
@@ -316,9 +316,8 @@ pub enum ExploreChoicePartitionIr {
 
 /// Typed semantic choice relation lowered from the current nested `choose`
 /// spelling. It deliberately owns no aggregate, SELECT, display, or privacy
-/// fields. The existing concrete result reducer may execute this relation and
-/// its display view as one fused physical stage without creating a second
-/// evaluator.
+/// fields. The concrete display consumes only this relation's closed members;
+/// it never repeats membership policy over the FIND candidates.
 #[derive(Debug, Clone)]
 pub struct ExploreChoiceRelationIr {
     pub find_name: String,

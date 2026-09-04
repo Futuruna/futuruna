@@ -218,16 +218,14 @@ impl RelationalResultInputSeal {
     pub(crate) fn from_choice(
         choice_id: ChoiceId,
         content_root: ChoiceContentRoot,
-        candidate_case_ids: impl IntoIterator<Item = RelationalCaseId>,
+        member_case_ids: impl IntoIterator<Item = RelationalCaseId>,
     ) -> Result<Self, ResultEvidenceError> {
         Self::derive(
             ResultEvidenceUpstreamRoot::Choice {
                 choice_id,
                 content_root,
             },
-            candidate_case_ids
-                .into_iter()
-                .map(ResultViewInputRowId::Case),
+            member_case_ids.into_iter().map(ResultViewInputRowId::Case),
         )
     }
 

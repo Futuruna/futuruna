@@ -2632,13 +2632,21 @@ fn result_layer(
         },
         None => public_result_input(checked, node_index, &view.input)?,
     };
-    let grain = public_result_grain(&view.grain);
+    let grain = if choice_id.is_some() {
+        ExploreStreamResultGrain::EachCase
+    } else {
+        public_result_grain(&view.grain)
+    };
     let columns = public_result_columns(&view.select);
-    let group_keys = match &view.grain {
-        ExploreResultGrainIr::GroupBy { fields, .. } => public_result_columns(fields),
-        ExploreResultGrainIr::EachCase { .. }
-        | ExploreResultGrainIr::EachIncidence { .. }
-        | ExploreResultGrainIr::GroupAll { .. } => Vec::new(),
+    let group_keys = match (choice_id, &view.grain) {
+        (Some(_), _) => Vec::new(),
+        (None, ExploreResultGrainIr::GroupBy { fields, .. }) => public_result_columns(fields),
+        (
+            None,
+            ExploreResultGrainIr::EachCase { .. }
+            | ExploreResultGrainIr::EachIncidence { .. }
+            | ExploreResultGrainIr::GroupAll { .. },
+        ) => Vec::new(),
     };
     let absent = || ExploreStreamResultLayer {
         name: view.name.clone(),
@@ -4745,164 +4753,189 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
-    fn failing_display_cannot_rollback_shared_choice_or_choice_target_mechanism() {
+    fn excluded_candidates_never_reach_shared_choice_display_select() {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
-        let (choice_id, request_id, content_root) = {
-            let mut prepared = prepare(SHARED_CHOICE_DISPLAY_FAILURE);
-            let checked = prepared.checked.view();
-            let views = checked
-                .analysis_nodes()
-                .filter_map(|(node, identity)| match (node, identity) {
-                    (
-                        ExploreAnalysisNodeIr::Result(_),
-                        CheckedExploreAnalysisIdentity::View {
-                            view_id,
-                            choice_id: Some(choice_id),
-                        },
-                    ) => Some((*view_id, *choice_id)),
+        let output = temp.path().join("output");
+        let mut epoch = prepare(SHARED_CHOICE_DISPLAY_FAILURE)
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: Some(output.clone()),
+                outer_containment: None,
+            })
+            .expect("open shared-choice display epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic shared-choice resource envelope");
+        let report = epoch
+            .run_slice(None)
+            .expect("excluded candidate must not execute either display SELECT");
+        assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert!(report.analysis_closed);
+
+        let choice = report
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                ExploreStreamLayer::Choice(choice) => Some(choice),
+                _ => None,
+            })
+            .expect("shared choice layer");
+        assert_eq!(choice.status, ExploreStreamLayerStatus::ChoiceClosed);
+        assert_eq!(choice.candidates, ExploreStreamCount::Exact(4));
+        assert_eq!(choice.members, ExploreStreamCount::Exact(2));
+
+        for name in ["good_display", "bad_display"] {
+            let result = report
+                .layers
+                .iter()
+                .find_map(|layer| match layer {
+                    ExploreStreamLayer::Result(result) if result.name == name => Some(result),
                     _ => None,
                 })
-                .collect::<Vec<_>>();
-            assert_eq!(views.len(), 2);
-            assert_ne!(views[0].0, views[1].0, "SELECT owns display identity");
-            assert_eq!(views[0].1, views[1].1, "choice semantics are shared");
-            let choice_id = views[0].1;
-            let request_id = checked
-                .analysis_nodes()
-                .find_map(|(_, identity)| match identity {
-                    CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. } => {
-                        Some(*request_id)
-                    }
-                    _ => None,
-                })
-                .expect("fixture mechanism identity");
-            let limits = RelationalStreamDriverLimits::new(
-                NonZeroU16::new(2).unwrap(),
-                NonZeroU16::new(2).unwrap(),
-                NonZeroU16::new(2).unwrap(),
-            );
-            let driver =
-                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
-                    &checked,
-                    &prepared.support_plan,
-                    limits,
-                    None,
-                    Some(&prepared.classification_evaluator),
-                )
-                .expect("build shared-choice failure scheduler");
-            let mut durable =
-                RelationalDurableJournal::open_or_create_with_region_replay_authority(
-                    &run_state,
-                    prepared.contract.clone(),
-                    prepared.analysis_plan_root,
-                    RelationalDurableJournalLimits::default(),
-                    exact_one_region_replay_authority(&prepared),
-                )
-                .expect("open shared-choice failure journal");
+                .expect("shared choice display layer");
+            assert_eq!(result.status, ExploreStreamLayerStatus::ResultPublished);
+            assert_eq!(result.grain, ExploreStreamResultGrain::EachCase);
+            assert_eq!(result.choice_id.as_deref(), Some(choice.choice_id.as_str()));
+            assert_eq!(result.input_rows, ExploreStreamCount::Exact(2));
+            assert_eq!(result.output_rows, ExploreStreamCount::Exact(2));
+            assert_eq!(result.projection_records, ExploreStreamCount::Exact(2));
+        }
 
-            let mut display_error = None;
-            for _ in 0..512 {
-                match driver.step_with_base_member_limit(
-                    durable
-                        .journal_mut_for_event_planning()
-                        .expect("borrow shared-choice planning journal"),
-                    &mut prepared.expression_runtime,
-                    &mut prepared.mechanism_runtime,
-                    NonZeroU16::new(2).unwrap(),
-                ) {
-                    Ok(RelationalStreamStepOutcome::Emitted(batch)) => {
-                        durable
-                            .append_events(
-                                batch.expected_sequence(),
-                                batch.expected_head(),
-                                batch.into_events(),
-                            )
-                            .expect("append shared-choice setup batch");
-                    }
-                    Ok(RelationalStreamStepOutcome::Complete) => {
-                        panic!("failing SELECT unexpectedly completed")
-                    }
-                    Ok(RelationalStreamStepOutcome::Quiescent(reason)) => {
-                        panic!("shared-choice fixture quiesced before display failure: {reason:?}")
-                    }
-                    Err(error) => {
-                        display_error = Some(error.to_string());
-                        break;
-                    }
-                }
-            }
-            let display_error = display_error.expect("fixture did not reach failing SELECT");
-            assert!(
-                display_error.contains("division by zero")
-                    || display_error.contains("result selected field"),
-                "unexpected display failure: {display_error}"
-            );
+        let mechanism = report
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                ExploreStreamLayer::Mechanisms(mechanism) => Some(mechanism),
+                _ => None,
+            })
+            .expect("shared choice mechanism layer");
+        assert_eq!(mechanism.status, ExploreStreamLayerStatus::MechanismClosed);
+        assert_eq!(mechanism.target_cases, ExploreStreamCount::Exact(2));
 
-            let content_root = {
-                let journal = durable.journal().expect("inspect failed display journal");
-                let analysis = journal.analysis_state().expect("analysis state");
-                assert!(!analysis.is_closed());
-                let catalog = analysis.open_catalog().expect("open analysis catalog");
-                assert_eq!(
-                    catalog.layer_status(RelationalAnalysisLayerId::Choice(choice_id)),
-                    Some(RelationalAnalysisLayerStatus::ChoiceClosed)
-                );
-                assert_eq!(
-                    catalog.layer_status(RelationalAnalysisLayerId::Mechanisms(request_id)),
-                    Some(RelationalAnalysisLayerStatus::MechanismClosed)
-                );
-                let content_root = catalog
-                    .choice_content_root(choice_id)
-                    .expect("choice root lookup")
-                    .expect("closed choice content root");
-                let target_seal = catalog
-                    .mechanism_incidence(request_id)
-                    .expect("closed choice mechanism")
-                    .target_seal()
-                    .expect("choice mechanism target seal");
-                assert_eq!(
-                    target_seal.upstream(),
-                    super::super::mechanism_incidence::MechanismTargetSealUpstream::Choice {
-                        choice_id,
-                        content_root,
-                    }
-                );
-                content_root
-            };
-            durable
-                .flush_for_pause()
-                .expect("flush semantic closures after display failure");
-            (choice_id, request_id, content_root)
-        };
-
-        let prepared = prepare(SHARED_CHOICE_DISPLAY_FAILURE);
-        let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
-            &run_state,
-            prepared.contract.clone(),
-            prepared.analysis_plan_root,
-            RelationalDurableJournalLimits::default(),
-            exact_one_region_replay_authority(&prepared),
+        let publication = report
+            .publication
+            .as_ref()
+            .expect("shared choice publication summary");
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&publication.manifest_path).expect("read shared choice manifest"),
         )
-        .expect("reopen display-failure journal");
-        let analysis = durable
+        .expect("parse shared choice manifest");
+        let views = manifest["answer"]["result_views"]
+            .as_array()
+            .expect("shared choice result views");
+        for (name, expected_shown) in [
+            ("good_display", [2_i64, 3_i64]),
+            ("bad_display", [33_i64, 50_i64]),
+        ] {
+            let descriptor = views
+                .iter()
+                .find(|view| view["name"].as_str() == Some(name))
+                .expect("shared choice view descriptor");
+            assert_eq!(descriptor["grain"].as_str(), Some("each_case"));
+            assert_eq!(
+                descriptor["counts"]["input_rows"]["value"].as_str(),
+                Some("2")
+            );
+            let path = output.join(
+                descriptor["artifact"]["path"]
+                    .as_str()
+                    .expect("shared choice artifact path"),
+            );
+            let rows = fs::read_to_string(path)
+                .expect("read shared choice display")
+                .lines()
+                .map(|line| serde_json::from_str::<serde_json::Value>(line).expect("parse row"))
+                .filter(|line| line["record"]["kind"] == "result_row")
+                .collect::<Vec<_>>();
+            assert_eq!(rows.len(), 2);
+            let shown = rows
+                .iter()
+                .map(|row| {
+                    row["record"]["values"]["shown"]
+                        .as_i64()
+                        .expect("integer shown value")
+                })
+                .collect::<std::collections::BTreeSet<_>>();
+            assert_eq!(shown, expected_shown.into_iter().collect());
+        }
+    }
+
+    #[test]
+    fn choice_and_mechanisms_remain_closed_when_member_display_select_fails() {
+        let source = SHARED_CHOICE_DISPLAY_FAILURE.replacen("100 / value", "100 / (value - 2)", 1);
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let prepared = prepare(&source);
+        let checked = prepared.checked.view();
+        let choice_id = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::View {
+                    choice_id: Some(choice_id),
+                    ..
+                } => Some(*choice_id),
+                _ => None,
+            })
+            .expect("member-failure choice identity");
+        let request_id = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. } => Some(*request_id),
+                _ => None,
+            })
+            .expect("member-failure mechanism identity");
+        let mut epoch = prepared
+            .open_epoch(ExploreStreamEpochOptions {
+                run_state,
+                output_directory: None,
+                outer_containment: None,
+            })
+            .expect("open member-failure choice epoch");
+        epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+            .expect("create deterministic member-failure resource envelope");
+        let error = epoch
+            .run_slice(None)
+            .expect_err("SELECT must fail on the chosen before=2 member")
+            .to_string();
+        assert!(
+            error.contains("division by zero") || error.contains("choice display selected field"),
+            "unexpected member display failure: {error}"
+        );
+
+        let journal = epoch
+            .durable
             .journal()
-            .expect("inspect reopened display-failure journal")
+            .expect("inspect member-failure choice journal");
+        let analysis = journal
             .analysis_state()
-            .expect("reopened analysis state");
+            .expect("member-failure analysis state");
         assert!(!analysis.is_closed());
-        let catalog = analysis.open_catalog().expect("reopened analysis catalog");
+        let catalog = analysis
+            .open_catalog()
+            .expect("open member-failure catalog");
         assert_eq!(
             catalog.layer_status(RelationalAnalysisLayerId::Choice(choice_id)),
             Some(RelationalAnalysisLayerStatus::ChoiceClosed)
         );
         assert_eq!(
-            catalog.choice_content_root(choice_id).unwrap(),
-            Some(content_root)
-        );
-        assert_eq!(
             catalog.layer_status(RelationalAnalysisLayerId::Mechanisms(request_id)),
             Some(RelationalAnalysisLayerStatus::MechanismClosed)
+        );
+        let content_root = catalog
+            .choice_content_root(choice_id)
+            .expect("choice root lookup")
+            .expect("closed choice content root");
+        assert_eq!(
+            catalog
+                .mechanism_incidence(request_id)
+                .expect("closed choice mechanism")
+                .target_seal()
+                .expect("choice mechanism target seal")
+                .upstream(),
+            super::super::mechanism_incidence::MechanismTargetSealUpstream::Choice {
+                choice_id,
+                content_root,
+            }
         );
     }
 

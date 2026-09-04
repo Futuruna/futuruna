@@ -39757,45 +39757,11 @@ fn checked_explore_choice_display_view_semantic_digest(
     semantic_closure_digest: [u8; 32],
 ) -> Result<[u8; 32], CheckedExploreQueryArtifactIssue> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-choice-display-view-semantics.v1\0");
-    // The fused physical reducer still emits the authored row/group shape.
-    // Hash that display shape, but never re-import measures, HAVING, or the
-    // choice policy already sealed by the ViewInputId::Choice.
-    match &view.grain {
-        explore::ExploreResultGrainIr::EachCase { .. } => {
-            checked_query_hash_component(&mut hasher, "display-grain", "each-case");
-        }
-        explore::ExploreResultGrainIr::EachIncidence { .. } => {
-            checked_query_hash_component(&mut hasher, "display-grain", "each-incidence");
-        }
-        explore::ExploreResultGrainIr::GroupAll { .. } => {
-            checked_query_hash_component(&mut hasher, "display-grain", "group-all");
-        }
-        explore::ExploreResultGrainIr::GroupBy { fields, .. } => {
-            checked_query_hash_component(&mut hasher, "display-grain", "group-by");
-            checked_query_hash_component(
-                &mut hasher,
-                "display-group-field-count",
-                &fields.len().to_string(),
-            );
-            for field in fields {
-                hash_checked_explore_result_field_ir(
-                    &mut hasher,
-                    resolutions,
-                    "display-group-field",
-                    field,
-                )?;
-            }
-        }
-    }
-    checked_query_hash_component(
-        &mut hasher,
-        "aggregate-count",
-        &view.aggregates.len().to_string(),
-    );
-    for field in &view.aggregates {
-        hash_checked_explore_aggregate_field_ir(&mut hasher, resolutions, field)?;
-    }
+    hasher.update(b"futuruna.checked-explore-choice-display-view-semantics.v2\0");
+    // The nested GROUP/MEASURE/HAVING/CHOOSE spelling belongs wholly to the
+    // ChoiceId. Its display is the row-preserving projection of that Choice
+    // relation, so no partition or policy shape is re-imported here.
+    checked_query_hash_component(&mut hasher, "display-grain", "choice-members");
     checked_query_hash_component(&mut hasher, "select-count", &view.select.len().to_string());
     for field in &view.select {
         hash_checked_explore_result_field_ir(&mut hasher, resolutions, "select", field)?;
@@ -40054,16 +40020,14 @@ fn checked_explore_analysis_identities(
                         },
                     }
                 };
+                if choice_id.is_some() && !view.aggregates.is_empty() {
+                    return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                        "result view `{}` cannot aggregate a Choice relation until member evidence carries the required closed-group inputs",
+                        view.name
+                    )));
+                }
                 let (expression_roots, mut type_roots) = if choice_id.is_some() {
-                    (
-                        result_sites
-                            .aggregates
-                            .iter()
-                            .chain(result_sites.select.iter())
-                            .cloned()
-                            .collect::<Vec<_>>(),
-                        Vec::new(),
-                    )
+                    (result_sites.select.to_vec(), Vec::new())
                 } else {
                     (
                         result_sites
@@ -60721,6 +60685,27 @@ __FINDS__
                 .contains("referenced before its bound or shown value is available")),
             "a choice objective may not silently acquire a SELECT/display dependency: {:?}",
             invalid.diagnostics
+        );
+
+        let aggregate_display = source("before", "score").replacen(
+            "select [case_id, shown = before]",
+            "aggregate [cases = count_distinct(case_id)]\n        select [case_id, shown = before]",
+            1,
+        );
+        let invalid = explore_artifacts_for_source(&aggregate_display);
+        let issue = match invalid.checked_exploration_query(0) {
+            Err(issue) => issue,
+            Ok(_) => panic!("aggregate-backed Choice displays must fail before driver setup"),
+        };
+        let CheckedExploreQueryAccessError::Producer(
+            CheckedExploreQueryArtifactIssue::AnalysisGraph(message),
+        ) = issue
+        else {
+            panic!("unexpected aggregate-backed Choice display issue: {issue:?}")
+        };
+        assert!(
+            message.contains("cannot aggregate a Choice relation"),
+            "{message}"
         );
     }
 

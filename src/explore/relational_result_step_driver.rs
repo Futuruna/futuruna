@@ -54,7 +54,7 @@ use super::result_evidence::{
 };
 use super::result_projection::{
     IndexedResultProjectionRecord, ResultProjectionCatalogBuilder, ResultProjectionError,
-    ResultProjectionRecord, ValidatedResultProjectionPrefix,
+    ValidatedResultProjectionPrefix,
 };
 use super::result_view::{ResultViewInputRowId, ResultViewRoot};
 
@@ -110,6 +110,13 @@ pub(crate) enum RelationalResultStepQuantum {
     EvaluateSelectedRows {
         view_id: ViewId,
         first_case_id: RelationalCaseId,
+        row_count: NonZeroU16,
+        seals_input: bool,
+    },
+    EvaluateChoiceDisplayRows {
+        view_id: ViewId,
+        choice_id: ChoiceId,
+        first_member_ordinal: u128,
         row_count: NonZeroU16,
         seals_input: bool,
     },
@@ -674,14 +681,20 @@ impl<'query> RelationalResultStepDriver<'query> {
                 }
                 RelationalAnalysisLayerStatus::ResultInputOpen => {
                     self.require_registered_spec(catalog, *view_id, layer)?;
-                    if let Some(outcome) = self.step_selected_rows(
-                        view,
-                        catalog,
-                        *view_id,
-                        layer,
-                        question_seal,
-                        runtime,
-                    )? {
+                    let outcome = match layer.choice_id {
+                        Some(choice_id) => self.step_choice_display_rows(
+                            view, catalog, *view_id, layer, choice_id, runtime,
+                        )?,
+                        None => self.step_selected_rows(
+                            view,
+                            catalog,
+                            *view_id,
+                            layer,
+                            question_seal,
+                            runtime,
+                        )?,
+                    };
+                    if let Some(outcome) = outcome {
                         return Ok(outcome);
                     }
                     first_awaiting_selected_question.get_or_insert(layer.question_id);
@@ -1164,6 +1177,170 @@ impl<'query> RelationalResultStepDriver<'query> {
         )))
     }
 
+    fn step_choice_display_rows<R: RelationalResultExpressionRuntime>(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        view_id: ViewId,
+        layer: &SelectedResultLayer<'_>,
+        choice_id: ChoiceId,
+        runtime: &mut R,
+    ) -> Result<Option<RelationalResultStepOutcome>, RelationalResultStepDriverError> {
+        let evidence = catalog.result_evidence(view_id)?;
+        if evidence.input_is_sealed() {
+            return Err(RelationalResultStepDriverError::ResultLayerStateMismatch(
+                view_id,
+            ));
+        }
+        let choice = catalog.choice_relation(choice_id)?;
+        if choice.content_root().is_none() {
+            return Ok(None);
+        }
+        let expected_rows = choice.members().len() as u128;
+        let mut members =
+            self.missing_choice_display_chunk(catalog, view_id, choice_id, evidence)?;
+        if members.is_empty() && evidence.len() as u128 != expected_rows {
+            self.selected_discovery_cursors
+                .borrow_mut()
+                .insert(view_id, 0);
+            members = self.missing_choice_display_chunk(catalog, view_id, choice_id, evidence)?;
+        }
+
+        if members.is_empty() {
+            self.validate_terminal_choice_display_coverage(
+                catalog,
+                choice_id,
+                evidence,
+                expected_rows,
+                0,
+            )?;
+            let content_root = choice
+                .content_root()
+                .expect("closed choice has a content root");
+            return Ok(Some(self.batch(
+                view,
+                RelationalResultStepQuantum::SealSelectedInput { view_id },
+                vec![RelationalJournalEvent::analysis(
+                    RelationalAnalysisEvidenceEvent::result_input_sealed_from_choice(
+                        view_id,
+                        choice_id,
+                        content_root,
+                    ),
+                )],
+            )));
+        }
+
+        let first_member_ordinal = members[0].0;
+        let row_count = NonZeroU16::new(
+            u16::try_from(members.len())
+                .map_err(|_| RelationalResultStepDriverError::ChunkRowCountOverflow)?,
+        )
+        .ok_or(RelationalResultStepDriverError::ChunkMadeNoProgress)?;
+        let mut events = Vec::with_capacity(members.len() + 1);
+        for (ordinal, case_id) in members {
+            let member = choice.member(ordinal).ok_or(
+                RelationalResultStepDriverError::ChoiceLayerStateMismatch(choice_id),
+            )?;
+            if member.case_id() != case_id {
+                return Err(RelationalResultStepDriverError::ChoiceLayerStateMismatch(
+                    choice_id,
+                ));
+            }
+            let case =
+                view.case(case_id)
+                    .ok_or(RelationalResultStepDriverError::UnknownSelectedCase(
+                        case_id,
+                    ))?;
+            let evaluated = layer
+                .executor
+                .evaluate_choice_member(choice_id, member, case, runtime)?;
+            events.push(RelationalJournalEvent::analysis(
+                RelationalAnalysisEvidenceEvent::result_evidence_accepted(
+                    RelationalResultEvidenceRecord::from_evaluated(&evaluated),
+                ),
+            ));
+        }
+
+        let projected_rows = (evidence.len() as u128)
+            .checked_add(u128::from(row_count.get()))
+            .ok_or(RelationalResultStepDriverError::SelectedRowCountOverflow)?;
+        if projected_rows > expected_rows {
+            return Err(
+                RelationalResultStepDriverError::SelectedCoverageCountMismatch {
+                    expected: expected_rows,
+                    actual: projected_rows,
+                },
+            );
+        }
+        let seals_input = projected_rows == expected_rows;
+        if seals_input {
+            self.validate_terminal_choice_display_coverage(
+                catalog,
+                choice_id,
+                evidence,
+                expected_rows,
+                u128::from(row_count.get()),
+            )?;
+            let content_root = choice
+                .content_root()
+                .expect("closed choice has a content root");
+            events.push(RelationalJournalEvent::analysis(
+                RelationalAnalysisEvidenceEvent::result_input_sealed_from_choice(
+                    view_id,
+                    choice_id,
+                    content_root,
+                ),
+            ));
+        }
+
+        Ok(Some(self.batch(
+            view,
+            RelationalResultStepQuantum::EvaluateChoiceDisplayRows {
+                view_id,
+                choice_id,
+                first_member_ordinal,
+                row_count,
+                seals_input,
+            },
+            events,
+        )))
+    }
+
+    fn missing_choice_display_chunk(
+        &self,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        view_id: ViewId,
+        choice_id: ChoiceId,
+        evidence: &RelationalResultEvidenceCatalogBuilder,
+    ) -> Result<Vec<(u128, RelationalCaseId)>, RelationalResultStepDriverError> {
+        let choice = catalog.choice_relation(choice_id)?;
+        let member_count = choice.members().len();
+        let mut cursors = self.selected_discovery_cursors.borrow_mut();
+        let cursor = cursors.entry(view_id).or_default();
+        if *cursor > member_count || evidence.len() < *cursor {
+            *cursor = 0;
+        }
+        let mut durable_prefix = 0usize;
+        let mut members = Vec::with_capacity(usize::from(self.max_rows_per_quantum.get()));
+        for member in choice.members().iter().skip(*cursor) {
+            if evidence
+                .record(ResultViewInputRowId::Case(member.case_id()))
+                .is_some()
+            {
+                if members.is_empty() {
+                    durable_prefix += 1;
+                }
+            } else {
+                members.push((member.ordinal(), member.case_id()));
+                if members.len() == usize::from(self.max_rows_per_quantum.get()) {
+                    break;
+                }
+            }
+        }
+        *cursor += durable_prefix;
+        Ok(members)
+    }
+
     fn selected_input_seal_event(
         &self,
         catalog: &RelationalAnalysisCatalogBuilder,
@@ -1282,26 +1459,55 @@ impl<'query> RelationalResultStepDriver<'query> {
             } else {
                 0
             });
+            let choice_members = layer
+                .choice_id
+                .map(|choice_id| {
+                    catalog.choice_relation(choice_id).map(|choice| {
+                        choice
+                            .members()
+                            .iter()
+                            .map(|member| (member.case_id(), member))
+                            .collect::<BTreeMap<_, _>>()
+                    })
+                })
+                .transpose()?;
             for record in evidence.records() {
                 let ResultViewInputRowId::Case(case_id) = record.row_id() else {
                     return Err(RelationalResultStepDriverError::UnexpectedResultRowKind(
                         view_id,
                     ));
                 };
-                if view.question_decision(layer.question_id, case_id)?
-                    != Some(SelectionDecision::Selected)
-                {
-                    return Err(
-                        RelationalResultStepDriverError::ResultEvidenceOutsideSelectedPopulation {
-                            view_id,
-                            case_id,
-                        },
-                    );
-                }
                 let case = view.case(case_id).ok_or(
                     RelationalResultStepDriverError::UnknownSelectedCase(case_id),
                 )?;
-                let mut evaluated = layer.executor.evaluate_concrete_case(case, runtime)?;
+                let mut evaluated = match (layer.choice_id, choice_members.as_ref()) {
+                    (Some(choice_id), Some(members)) => {
+                        let member = members.get(&case_id).ok_or(
+                            RelationalResultStepDriverError::ChoiceProjectionMismatch(choice_id),
+                        )?;
+                        layer
+                            .executor
+                            .evaluate_choice_member(choice_id, member, case, runtime)?
+                    }
+                    (None, None) => {
+                        if view.question_decision(layer.question_id, case_id)?
+                            != Some(SelectionDecision::Selected)
+                        {
+                            return Err(
+                                RelationalResultStepDriverError::ResultEvidenceOutsideSelectedPopulation {
+                                    view_id,
+                                    case_id,
+                                },
+                            );
+                        }
+                        layer.executor.evaluate_concrete_case(case, runtime)?
+                    }
+                    _ => {
+                        return Err(RelationalResultStepDriverError::ResultLayerStateMismatch(
+                            view_id,
+                        ));
+                    }
+                };
                 let rehydrated = RelationalResultEvidenceRecord::from_evaluated(&evaluated);
                 if &rehydrated != record {
                     return Err(RelationalResultStepDriverError::DurableEvidenceMismatch {
@@ -1336,9 +1542,6 @@ impl<'query> RelationalResultStepDriver<'query> {
                 let records = ResultProjectionCatalogBuilder::records_from_closed(&closed)?;
                 (closed.root(), records)
             };
-            if let Some(choice_id) = layer.choice_id {
-                self.validate_choice_projection(catalog, choice_id, &records)?;
-            }
             self.publication_cache.borrow_mut().insert(
                 view_id,
                 CachedSelectedProjection {
@@ -1676,40 +1879,6 @@ impl<'query> RelationalResultStepDriver<'query> {
         }
     }
 
-    fn validate_choice_projection(
-        &self,
-        catalog: &RelationalAnalysisCatalogBuilder,
-        choice_id: ChoiceId,
-        records: &[IndexedResultProjectionRecord],
-    ) -> Result<(), RelationalResultStepDriverError> {
-        let expected = catalog
-            .choice_relation(choice_id)?
-            .members()
-            .iter()
-            .map(|member| member.case_id())
-            .collect::<BTreeSet<_>>();
-        let mut actual = BTreeSet::new();
-        for record in records {
-            let row = match record.record() {
-                ResultProjectionRecord::Row(row)
-                | ResultProjectionRecord::ChosenRow { row, .. } => row,
-                ResultProjectionRecord::Group(_) => continue,
-            };
-            let ResultViewInputRowId::Case(case_id) = row.row_id() else {
-                return Err(RelationalResultStepDriverError::ChoiceProjectionMismatch(
-                    choice_id,
-                ));
-            };
-            actual.insert(case_id);
-        }
-        if actual != expected {
-            return Err(RelationalResultStepDriverError::ChoiceProjectionMismatch(
-                choice_id,
-            ));
-        }
-        Ok(())
-    }
-
     fn validate_terminal_source_coverage(
         &self,
         view: RelationalSchedulerView<'_>,
@@ -1774,6 +1943,46 @@ impl<'query> RelationalResultStepDriver<'query> {
                         case_id,
                     },
                 );
+            }
+        }
+        Ok(())
+    }
+
+    fn validate_terminal_choice_display_coverage(
+        &self,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        choice_id: ChoiceId,
+        evidence: &RelationalResultEvidenceCatalogBuilder,
+        expected_rows: u128,
+        pending_rows: u128,
+    ) -> Result<(), RelationalResultStepDriverError> {
+        let actual_rows = (evidence.len() as u128)
+            .checked_add(pending_rows)
+            .ok_or(RelationalResultStepDriverError::SelectedRowCountOverflow)?;
+        if actual_rows != expected_rows {
+            return Err(
+                RelationalResultStepDriverError::SelectedCoverageCountMismatch {
+                    expected: expected_rows,
+                    actual: actual_rows,
+                },
+            );
+        }
+        let members = catalog
+            .choice_relation(choice_id)?
+            .members()
+            .iter()
+            .map(|member| member.case_id())
+            .collect::<BTreeSet<_>>();
+        for record in evidence.records() {
+            let ResultViewInputRowId::Case(case_id) = record.row_id() else {
+                return Err(RelationalResultStepDriverError::UnexpectedResultRowKind(
+                    evidence.view_id(),
+                ));
+            };
+            if !members.contains(&case_id) {
+                return Err(RelationalResultStepDriverError::ChoiceProjectionMismatch(
+                    choice_id,
+                ));
             }
         }
         Ok(())
