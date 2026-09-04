@@ -20,7 +20,7 @@ use std::fmt;
 use sha2::{Digest, Sha256};
 
 use super::relation::{
-    AdmissionId, MechanismRequestId, QuestionId, RelationId, ViewId, ViewInputId,
+    AdmissionId, ChoiceId, MechanismRequestId, QuestionId, RelationId, ViewId, ViewInputId,
 };
 use super::support_cell::{
     AdmissionClassificationClaim, ExactCardinalityClaim, InjectiveMappingClaim,
@@ -32,11 +32,11 @@ use super::support_cell::{
     SupportProofObligationId, UniformMechanismClaim, UniformValueClaim,
 };
 
-const SUPPORT_EVIDENCE_ROOT_HASH_V2: &[u8] = b"futuruna.explore.support-evidence-root.v2";
+const SUPPORT_EVIDENCE_ROOT_HASH_V3: &[u8] = b"futuruna.explore.support-evidence-root.v3";
 const SUPPORT_OBLIGATION_REFINEMENT_HASH_V1: &[u8] =
     b"futuruna.explore.support-obligation-refinement.v1";
 
-pub(crate) const SUPPORT_EVIDENCE_SNAPSHOT_VERSION: u32 = 2;
+pub(crate) const SUPPORT_EVIDENCE_SNAPSHOT_VERSION: u32 = 3;
 
 /// Canonical commitment to support and accepted evidence at one frontier.
 ///
@@ -589,6 +589,7 @@ pub(crate) struct SupportEvidenceCatalogBuilder {
     retained_examples: BTreeMap<SupportCellId, RetainedExampleState>,
     admissions: BTreeMap<AdmissionId, RelationId>,
     questions: BTreeMap<QuestionId, AdmissionId>,
+    choices: BTreeMap<ChoiceId, QuestionId>,
     mechanism_requests: BTreeMap<MechanismRequestId, QuestionId>,
     views: BTreeMap<ViewId, ViewInputId>,
     observers: BTreeMap<SupportObserverId, SupportObserverLayerScope>,
@@ -2054,6 +2055,20 @@ impl SupportEvidenceCatalogBuilder {
         )
     }
 
+    pub(crate) fn register_choice(
+        &mut self,
+        choice_id: ChoiceId,
+        question_id: QuestionId,
+    ) -> Result<bool, SupportEvidenceError> {
+        insert_scoped_registration(
+            &mut self.choices,
+            choice_id,
+            question_id,
+            self.catalog_sealed,
+            SupportEvidenceError::ChoiceLayerCollision { choice_id },
+        )
+    }
+
     pub(crate) fn register_view(
         &mut self,
         view_id: ViewId,
@@ -2175,6 +2190,7 @@ impl SupportEvidenceCatalogBuilder {
             retained_examples,
             admissions: self.admissions.clone(),
             questions: self.questions.clone(),
+            choices: self.choices.clone(),
             mechanism_requests: self.mechanism_requests.clone(),
             views: self.views.clone(),
             observers: self.observers.clone(),
@@ -3231,7 +3247,7 @@ fn derive_obligation_refinement_id(
 }
 
 fn support_evidence_root(catalog: &SupportEvidenceCatalogBuilder) -> SupportEvidenceRoot {
-    let mut hasher = SupportEvidenceHasher::new(SUPPORT_EVIDENCE_ROOT_HASH_V2);
+    let mut hasher = SupportEvidenceHasher::new(SUPPORT_EVIDENCE_ROOT_HASH_V3);
     hasher.u32(SUPPORT_EVIDENCE_SNAPSHOT_VERSION);
     hasher.boolean(catalog.catalog_sealed);
     hasher.boolean(catalog.root_frontier_sealed);
@@ -3316,20 +3332,27 @@ fn support_evidence_root(catalog: &SupportEvidenceCatalogBuilder) -> SupportEvid
     }
 
     hasher.tag(0x0b);
+    hasher.len(catalog.choices.len());
+    for (choice_id, question_id) in &catalog.choices {
+        hasher.digest(choice_id.bytes());
+        hasher.digest(question_id.bytes());
+    }
+
+    hasher.tag(0x0c);
     hasher.len(catalog.mechanism_requests.len());
     for (request_id, question_id) in &catalog.mechanism_requests {
         hasher.digest(request_id.bytes());
         hasher.digest(question_id.bytes());
     }
 
-    hasher.tag(0x0c);
+    hasher.tag(0x0d);
     hasher.len(catalog.views.len());
     for (view_id, input) in &catalog.views {
         hasher.digest(view_id.bytes());
         hash_view_input(&mut hasher, *input);
     }
 
-    hasher.tag(0x0d);
+    hasher.tag(0x0e);
     hasher.len(catalog.observers.len());
     for (observer_id, scope) in &catalog.observers {
         hasher.digest(observer_id.bytes());
@@ -3469,6 +3492,7 @@ pub(crate) struct SupportEvidenceSnapshot {
     retained_examples: BTreeMap<SupportCellId, SupportRetainedExamplesSnapshot>,
     admissions: BTreeMap<AdmissionId, RelationId>,
     questions: BTreeMap<QuestionId, AdmissionId>,
+    choices: BTreeMap<ChoiceId, QuestionId>,
     mechanism_requests: BTreeMap<MechanismRequestId, QuestionId>,
     views: BTreeMap<ViewId, ViewInputId>,
     observers: BTreeMap<SupportObserverId, SupportObserverLayerScope>,
@@ -3713,6 +3737,10 @@ impl SupportEvidenceSnapshot {
         self.mechanism_requests.get(&request_id).copied()
     }
 
+    pub(crate) fn choice_question(&self, choice_id: ChoiceId) -> Option<QuestionId> {
+        self.choices.get(&choice_id).copied()
+    }
+
     pub(crate) fn view_input(&self, view_id: ViewId) -> Option<ViewInputId> {
         self.views.get(&view_id).copied()
     }
@@ -3741,6 +3769,7 @@ pub(crate) enum SupportReferenceKind {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SupportLayerReference {
     Question(QuestionId),
+    Choice(ChoiceId),
     MechanismRequest(MechanismRequestId),
     View(ViewId),
     Observer(SupportObserverId),
@@ -3947,6 +3976,9 @@ pub(crate) enum SupportEvidenceError {
     MechanismLayerCollision {
         request_id: MechanismRequestId,
     },
+    ChoiceLayerCollision {
+        choice_id: ChoiceId,
+    },
     ViewLayerCollision {
         view_id: ViewId,
     },
@@ -3959,6 +3991,10 @@ pub(crate) enum SupportEvidenceError {
     },
     UnknownQuestionLayer {
         question_id: QuestionId,
+        referenced_by: SupportLayerReference,
+    },
+    UnknownChoiceLayer {
+        choice_id: ChoiceId,
         referenced_by: SupportLayerReference,
     },
     UnknownMechanismLayer {
@@ -4143,12 +4179,14 @@ impl fmt::Display for SupportEvidenceError {
             Error::AdmissionLayerCollision { .. }
             | Error::QuestionLayerCollision { .. }
             | Error::MechanismLayerCollision { .. }
+            | Error::ChoiceLayerCollision { .. }
             | Error::ViewLayerCollision { .. }
             | Error::ObserverLayerCollision { .. } => {
                 formatter.write_str("support layer ID has conflicting registration")
             }
             Error::UnknownAdmissionLayer { .. }
             | Error::UnknownQuestionLayer { .. }
+            | Error::UnknownChoiceLayer { .. }
             | Error::UnknownMechanismLayer { .. }
             | Error::UnknownViewLayer { .. }
             | Error::UnknownObserverLayer { .. } => {
@@ -4530,9 +4568,23 @@ impl SupportEvidenceCatalogBuilder {
                 });
             }
         }
+        for (choice_id, question_id) in &self.choices {
+            if !self.questions.contains_key(question_id) {
+                return Err(SupportEvidenceError::UnknownQuestionLayer {
+                    question_id: *question_id,
+                    referenced_by: SupportLayerReference::Choice(*choice_id),
+                });
+            }
+        }
         for (view_id, input) in &self.views {
             match input {
-                ViewInputId::Sources(_) | ViewInputId::Choice(_) => {}
+                ViewInputId::Sources(_) => {}
+                ViewInputId::Choice(choice_id) if !self.choices.contains_key(choice_id) => {
+                    return Err(SupportEvidenceError::UnknownChoiceLayer {
+                        choice_id: *choice_id,
+                        referenced_by: SupportLayerReference::View(*view_id),
+                    });
+                }
                 ViewInputId::Selected(question_id) if !self.questions.contains_key(question_id) => {
                     return Err(SupportEvidenceError::UnknownQuestionLayer {
                         question_id: *question_id,
@@ -4841,14 +4893,16 @@ impl SupportEvidenceCatalogBuilder {
         self.relation_for_question(question_id)
     }
 
+    fn relation_for_choice(&self, choice_id: ChoiceId) -> Option<RelationId> {
+        let question_id = *self.choices.get(&choice_id)?;
+        self.relation_for_question(question_id)
+    }
+
     fn relation_for_view(&self, view_id: ViewId) -> Option<RelationId> {
         match *self.views.get(&view_id)? {
             ViewInputId::Sources(relation_id) => Some(relation_id),
             ViewInputId::Selected(question_id) => self.relation_for_question(question_id),
-            // The legacy support-evidence registry does not carry the new
-            // ChoiceId -> QuestionId plan relation. Refuse to invent lineage;
-            // canonical relational analysis resolves it from the plan.
-            ViewInputId::Choice(_) => None,
+            ViewInputId::Choice(choice_id) => self.relation_for_choice(choice_id),
             ViewInputId::MechanismIncidence(request_id) => self.relation_for_mechanism(request_id),
         }
     }

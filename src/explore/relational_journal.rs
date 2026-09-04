@@ -34,7 +34,7 @@ use super::relation::{
     RelationClassificationError, RelationContentRoot, RelationCountEvidence, RelationFrontierRoot,
     RelationId, RelationProvenance, RelationalCaseId, RelationalCaseRef, SelectedCaseBatchError,
     SelectedCaseBatchRow, SelectionCounts, SelectionDecision, SourceKey, SourceRow, SuccessorKey,
-    SuccessorRow,
+    SuccessorRow, ViewInputId,
 };
 use super::relational_analysis_catalog::{
     RelationalAnalysisCatalogRoot, RelationalAnalysisCatalogSnapshot,
@@ -47,6 +47,7 @@ use super::relational_analysis_journal::{
 };
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanRoot,
+    RelationalResolvedMechanismTarget, RelationalResolvedResultInput,
 };
 use super::relational_bounded_chunk_partition::{
     reverify_relational_case_chunk_partition_artifact, RelationalCaseChunkId,
@@ -2684,6 +2685,45 @@ impl RelationalEvidenceState {
             }),
             None => {
                 let analysis = RelationalAnalysisJournalState::new(plan)?;
+                let mut support = self.support.clone();
+                for choice in plan.choice_registrations() {
+                    support.register_choice(choice.choice_id(), choice.input_question_id())?;
+                }
+                for registration in plan.layer_registrations() {
+                    match registration {
+                        RelationalAnalysisLayerRegistration::Result(result) => {
+                            let input = match result.input() {
+                                RelationalResolvedResultInput::Sources(relation_id) => {
+                                    ViewInputId::Sources(relation_id)
+                                }
+                                RelationalResolvedResultInput::Selected(question_id) => {
+                                    ViewInputId::Selected(question_id)
+                                }
+                                RelationalResolvedResultInput::Choice(choice_id) => {
+                                    ViewInputId::Choice(choice_id)
+                                }
+                                RelationalResolvedResultInput::MechanismIncidence(request_id) => {
+                                    ViewInputId::MechanismIncidence(request_id)
+                                }
+                            };
+                            support.register_view(result.view_id(), input)?;
+                        }
+                        RelationalAnalysisLayerRegistration::Mechanisms(mechanism) => {
+                            let question_id = match mechanism.target() {
+                                RelationalResolvedMechanismTarget::Selected(question_id) => {
+                                    question_id
+                                }
+                                RelationalResolvedMechanismTarget::Choice(choice_id) => plan
+                                    .choice_registration(choice_id)
+                                    .ok_or(RelationalJournalError::AnalysisPlanScopeMismatch)?
+                                    .input_question_id(),
+                            };
+                            support
+                                .register_mechanism_request(mechanism.request_id(), question_id)?;
+                        }
+                    }
+                }
+                self.support = support;
                 self.analysis_plan = Some(plan.clone());
                 self.analysis = Some(analysis);
                 Ok(())

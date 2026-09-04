@@ -24,6 +24,7 @@ use std::num::NonZeroU16;
 
 use sha2::{Digest, Sha256};
 
+use super::choice_relation::{ChoiceCandidate, ChoiceContentRoot, ChoiceInputSeal, ChoiceMember};
 use super::mechanism_incidence::{
     MechanismIncidenceRoot, MechanismPublicationDiscovery, MechanismPublicationDiscoveryRef,
     MechanismSignatureDefinition, MechanismSignatureId, MechanismTargetCaseSetCommitment,
@@ -39,8 +40,8 @@ use super::mechanism_support::{
     MechanismSupportError, MechanismSupportFrontierSummary, MechanismSupportSlice,
 };
 use super::relation::{
-    ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
-    RelationalCaseId, RelationalCaseRef, ViewId,
+    ChoiceId, ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot,
+    QuestionId, RelationalCaseId, RelationalCaseRef, ViewId,
 };
 use super::relational_analysis_catalog::{
     ClosedRelationalAnalysisCatalog, RelationalAnalysisCatalogBuilder,
@@ -85,7 +86,7 @@ use super::structural_mechanism::{
 };
 use super::transition::TransitionId;
 
-pub(crate) const RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION: u32 = 9;
+pub(crate) const RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION: u32 = 10;
 pub(crate) const RELATIONAL_SELECTED_QUESTION_SEAL_VERSION: u32 = 2;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_VERSION: u32 = 1;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_DEFAULT_CHUNK_BYTES: usize = 32 << 10;
@@ -93,7 +94,7 @@ pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNK_BYTES: usize = 64 << 10
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNKS: usize = 65_536;
 pub(crate) const RELATIONAL_MECHANISM_ARTIFACT_MAX_BYTES: usize = 512 << 20;
 
-const ANALYSIS_EVENT_HASH_V9: &[u8] = b"futuruna.explore.relational-analysis-event.v9";
+const ANALYSIS_EVENT_HASH_V10: &[u8] = b"futuruna.explore.relational-analysis-event.v10";
 const ANALYSIS_SCOPE_ROOT_HASH_V2: &[u8] = b"futuruna.explore.relational-analysis-journal-scope.v2";
 const ANALYSIS_CLOSURE_SET_ROOT_HASH_V1: &[u8] =
     b"futuruna.explore.relational-analysis-closure-set-root.v1";
@@ -780,6 +781,24 @@ pub(crate) enum RelationalAnalysisEvidenceEvent {
         seal_id: RelationalSelectedQuestionSealId,
         seal: RelationalSelectedQuestionSeal,
     },
+    ChoiceCandidateAccepted {
+        choice_id: ChoiceId,
+        case_id: RelationalCaseId,
+        candidate: ChoiceCandidate,
+    },
+    ChoiceInputSealed {
+        choice_id: ChoiceId,
+        question_seal_id: RelationalSelectedQuestionSealId,
+    },
+    ChoiceMemberAccepted {
+        choice_id: ChoiceId,
+        member_ordinal: u128,
+        member: ChoiceMember,
+    },
+    ChoiceClosed {
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
+    },
     ResultSpecRegistered {
         view_id: ViewId,
         resolved_input: RelationalResolvedResultInput,
@@ -805,6 +824,11 @@ pub(crate) enum RelationalAnalysisEvidenceEvent {
     ResultInputSealedFromSelected {
         view_id: ViewId,
         question_seal_id: RelationalSelectedQuestionSealId,
+    },
+    ResultInputSealedFromChoice {
+        view_id: ViewId,
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
     },
     ResultInputSealedFromMechanisms {
         view_id: ViewId,
@@ -834,20 +858,20 @@ pub(crate) enum RelationalAnalysisEvidenceEvent {
     /// One chosen target member, bound to the exact durable result-projection
     /// record that selected it. This keeps replay validation constant-work per
     /// accepted case instead of rematerializing the complete result view.
-    MechanismChosenTargetCaseAccepted {
+    MechanismChoiceTargetCaseAccepted {
         request_id: MechanismRequestId,
-        view_id: ViewId,
-        projection_ordinal: u128,
+        choice_id: ChoiceId,
+        member_ordinal: u128,
         case_id: RelationalCaseId,
     },
     MechanismTargetSealedFromSelected {
         request_id: MechanismRequestId,
         question_seal_id: RelationalSelectedQuestionSealId,
     },
-    MechanismTargetSealedFromResult {
+    MechanismTargetSealedFromChoice {
         request_id: MechanismRequestId,
-        view_id: ViewId,
-        result_root: ResultViewRoot,
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
     },
     MechanismArtifactOpened {
         header: RelationalMechanismArtifactHeader,
@@ -881,6 +905,42 @@ impl RelationalAnalysisEvidenceEvent {
         Self::SelectedQuestionBound {
             seal_id: seal.id(),
             seal,
+        }
+    }
+
+    pub(crate) fn choice_candidate_accepted(candidate: ChoiceCandidate) -> Self {
+        Self::ChoiceCandidateAccepted {
+            choice_id: candidate.choice_id(),
+            case_id: candidate.case_id(),
+            candidate,
+        }
+    }
+
+    pub(crate) const fn choice_input_sealed(
+        choice_id: ChoiceId,
+        question: RelationalSelectedQuestionSeal,
+    ) -> Self {
+        Self::ChoiceInputSealed {
+            choice_id,
+            question_seal_id: question.id(),
+        }
+    }
+
+    pub(crate) fn choice_member_accepted(choice_id: ChoiceId, member: ChoiceMember) -> Self {
+        Self::ChoiceMemberAccepted {
+            choice_id,
+            member_ordinal: member.ordinal(),
+            member,
+        }
+    }
+
+    pub(crate) const fn choice_closed(
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
+    ) -> Self {
+        Self::ChoiceClosed {
+            choice_id,
+            content_root,
         }
     }
 
@@ -928,6 +988,18 @@ impl RelationalAnalysisEvidenceEvent {
         Self::ResultInputSealedFromSelected {
             view_id,
             question_seal_id: question.id(),
+        }
+    }
+
+    pub(crate) const fn result_input_sealed_from_choice(
+        view_id: ViewId,
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
+    ) -> Self {
+        Self::ResultInputSealedFromChoice {
+            view_id,
+            choice_id,
+            content_root,
         }
     }
 
@@ -1023,16 +1095,16 @@ impl RelationalAnalysisEvidenceEvent {
         }
     }
 
-    pub(crate) const fn mechanism_chosen_target_case_accepted(
+    pub(crate) const fn mechanism_choice_target_case_accepted(
         request_id: MechanismRequestId,
-        view_id: ViewId,
-        projection_ordinal: u128,
+        choice_id: ChoiceId,
+        member_ordinal: u128,
         case_id: RelationalCaseId,
     ) -> Self {
-        Self::MechanismChosenTargetCaseAccepted {
+        Self::MechanismChoiceTargetCaseAccepted {
             request_id,
-            view_id,
-            projection_ordinal,
+            choice_id,
+            member_ordinal,
             case_id,
         }
     }
@@ -1047,26 +1119,15 @@ impl RelationalAnalysisEvidenceEvent {
         }
     }
 
-    pub(crate) const fn mechanism_target_sealed_from_result(
+    pub(crate) const fn mechanism_target_sealed_from_choice(
         request_id: MechanismRequestId,
-        view: &ClosedResultView,
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
     ) -> Self {
-        Self::mechanism_target_sealed_from_result_claim(request_id, view.view_id(), view.root())
-    }
-
-    /// Build the same replay-validated chosen-result seal from the compact
-    /// claim retained by the published projection. Event application compares
-    /// the immutable result root and exact chosen count; each preceding target
-    /// admission independently names and validates its projection record.
-    pub(crate) const fn mechanism_target_sealed_from_result_claim(
-        request_id: MechanismRequestId,
-        view_id: ViewId,
-        result_root: ResultViewRoot,
-    ) -> Self {
-        Self::MechanismTargetSealedFromResult {
+        Self::MechanismTargetSealedFromChoice {
             request_id,
-            view_id,
-            result_root,
+            choice_id,
+            content_root,
         }
     }
 
@@ -1230,12 +1291,48 @@ impl RelationalAnalysisEvidenceEvent {
     /// independently collision-checkable; their compact header binds the full
     /// typed payload digest while their closure binds the exact chunk stream.
     pub(crate) fn digest(&self) -> RelationalAnalysisEvidenceEventDigest {
-        let mut hasher = AnalysisEventHasher::new(ANALYSIS_EVENT_HASH_V9);
+        let mut hasher = AnalysisEventHasher::new(ANALYSIS_EVENT_HASH_V10);
         hasher.u32(RELATIONAL_ANALYSIS_EVENT_SCHEMA_VERSION);
         match self {
             Self::SelectedQuestionBound { seal_id, .. } => {
                 hasher.tag(0x00);
                 hasher.digest(seal_id.bytes());
+            }
+            Self::ChoiceCandidateAccepted {
+                choice_id,
+                case_id,
+                candidate,
+            } => {
+                hasher.tag(0x14);
+                hasher.digest(choice_id.bytes());
+                hasher.digest(case_id.bytes());
+                hasher.digest(candidate.canonical_digest());
+            }
+            Self::ChoiceInputSealed {
+                choice_id,
+                question_seal_id,
+            } => {
+                hasher.tag(0x15);
+                hasher.digest(choice_id.bytes());
+                hasher.digest(question_seal_id.bytes());
+            }
+            Self::ChoiceMemberAccepted {
+                choice_id,
+                member_ordinal,
+                member,
+            } => {
+                hasher.tag(0x16);
+                hasher.digest(choice_id.bytes());
+                hasher.u128(*member_ordinal);
+                hasher.digest(member.canonical_digest());
+            }
+            Self::ChoiceClosed {
+                choice_id,
+                content_root,
+            } => {
+                hasher.tag(0x17);
+                hasher.digest(choice_id.bytes());
+                hasher.digest(content_root.bytes());
             }
             Self::ResultSpecRegistered {
                 view_id,
@@ -1278,6 +1375,16 @@ impl RelationalAnalysisEvidenceEvent {
                 hasher.tag(0x03);
                 hasher.digest(view_id.bytes());
                 hasher.digest(question_seal_id.bytes());
+            }
+            Self::ResultInputSealedFromChoice {
+                view_id,
+                choice_id,
+                content_root,
+            } => {
+                hasher.tag(0x18);
+                hasher.digest(view_id.bytes());
+                hasher.digest(choice_id.bytes());
+                hasher.digest(content_root.bytes());
             }
             Self::ResultInputSealedFromMechanisms {
                 view_id,
@@ -1329,16 +1436,16 @@ impl RelationalAnalysisEvidenceEvent {
                 hasher.digest(request_id.bytes());
                 hasher.digest(case_id.bytes());
             }
-            Self::MechanismChosenTargetCaseAccepted {
+            Self::MechanismChoiceTargetCaseAccepted {
                 request_id,
-                view_id,
-                projection_ordinal,
+                choice_id,
+                member_ordinal,
                 case_id,
             } => {
                 hasher.tag(0x13);
                 hasher.digest(request_id.bytes());
-                hasher.digest(view_id.bytes());
-                hasher.u128(*projection_ordinal);
+                hasher.digest(choice_id.bytes());
+                hasher.u128(*member_ordinal);
                 hasher.digest(case_id.bytes());
             }
             Self::MechanismTargetSealedFromSelected {
@@ -1349,15 +1456,15 @@ impl RelationalAnalysisEvidenceEvent {
                 hasher.digest(request_id.bytes());
                 hasher.digest(question_seal_id.bytes());
             }
-            Self::MechanismTargetSealedFromResult {
+            Self::MechanismTargetSealedFromChoice {
                 request_id,
-                view_id,
-                result_root,
+                choice_id,
+                content_root,
             } => {
                 hasher.tag(0x08);
                 hasher.digest(request_id.bytes());
-                hasher.digest(view_id.bytes());
-                hasher.digest(result_root.bytes());
+                hasher.digest(choice_id.bytes());
+                hasher.digest(content_root.bytes());
             }
             Self::MechanismArtifactOpened { header } => {
                 hasher.tag(0x09);
@@ -1418,6 +1525,24 @@ impl RelationalAnalysisEvidenceEvent {
             Self::SelectedQuestionBound { seal_id, seal } if *seal_id != seal.id() => Err(
                 RelationalAnalysisJournalError::EventClaimMismatch("selected-question seal"),
             ),
+            Self::ChoiceCandidateAccepted {
+                choice_id,
+                case_id,
+                candidate,
+            } if *choice_id != candidate.choice_id() || *case_id != candidate.case_id() => Err(
+                RelationalAnalysisJournalError::EventClaimMismatch("choice candidate"),
+            ),
+            Self::ChoiceMemberAccepted {
+                choice_id,
+                member_ordinal,
+                member,
+            } if *choice_id != member.candidate().choice_id()
+                || *member_ordinal != member.ordinal() =>
+            {
+                Err(RelationalAnalysisJournalError::EventClaimMismatch(
+                    "choice member",
+                ))
+            }
             Self::ResultSpecRegistered {
                 view_id,
                 spec_root,
@@ -1488,7 +1613,7 @@ impl RelationalAnalysisEvidenceEvent {
 /// Causal replay state for one plan and independently closing FIND questions.
 ///
 /// Bounded projection records remain in their plan-bound catalog so a later
-/// chosen-view target and final report are reconstructed from exact durable
+/// semantic-choice target and final report are reconstructed from exact durable
 /// output rather than a caller count. Completed mechanism payload remains in
 /// the live catalog until final closure; only compact closure receipts are
 /// retained beside it.
@@ -2936,6 +3061,41 @@ impl RelationalAnalysisJournalState {
         }
         let changed = match event {
             RelationalAnalysisEvidenceEvent::SelectedQuestionBound { .. } => unreachable!(),
+            RelationalAnalysisEvidenceEvent::ChoiceCandidateAccepted {
+                choice_id,
+                candidate,
+                ..
+            } => self
+                .open_catalog_mut_or_error()?
+                .accept_choice_candidate(*choice_id, candidate.clone())?,
+            RelationalAnalysisEvidenceEvent::ChoiceInputSealed {
+                choice_id,
+                question_seal_id,
+            } => {
+                let selected = self.selected_question_for_choice(*choice_id)?;
+                if selected.id() != *question_seal_id {
+                    return Err(RelationalAnalysisJournalError::SelectedQuestionSealMismatch);
+                }
+                self.open_catalog_mut_or_error()?.seal_choice_input(
+                    *choice_id,
+                    ChoiceInputSeal::new(
+                        selected.question_id(),
+                        selected.id(),
+                        selected.mechanism_target(),
+                    ),
+                )?
+            }
+            RelationalAnalysisEvidenceEvent::ChoiceMemberAccepted {
+                choice_id, member, ..
+            } => self
+                .open_catalog_mut_or_error()?
+                .accept_choice_member(*choice_id, member.clone())?,
+            RelationalAnalysisEvidenceEvent::ChoiceClosed {
+                choice_id,
+                content_root,
+            } => self
+                .open_catalog_mut_or_error()?
+                .close_choice(*choice_id, *content_root)?,
             RelationalAnalysisEvidenceEvent::ResultSpecRegistered {
                 view_id,
                 resolved_input,
@@ -2971,6 +3131,13 @@ impl RelationalAnalysisJournalState {
                 self.open_catalog_mut_or_error()?
                     .seal_result_input_with_receipt(*view_id, seal)?
             }
+            RelationalAnalysisEvidenceEvent::ResultInputSealedFromChoice {
+                view_id,
+                choice_id,
+                content_root,
+            } => self
+                .open_catalog_mut_or_error()?
+                .seal_result_input_from_choice(*view_id, *choice_id, *content_root)?,
             RelationalAnalysisEvidenceEvent::ResultInputSealedFromMechanisms {
                 view_id,
                 request_id,
@@ -3063,19 +3230,14 @@ impl RelationalAnalysisJournalState {
             } => self
                 .open_catalog_mut_or_error()?
                 .insert_mechanism_target_case(*request_id, *case_id)?,
-            RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+            RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
                 request_id,
-                view_id,
-                projection_ordinal,
+                choice_id,
+                member_ordinal,
                 case_id,
             } => self
                 .open_catalog_mut_or_error()?
-                .accept_published_chosen_target_case(
-                    *request_id,
-                    *view_id,
-                    *projection_ordinal,
-                    *case_id,
-                )?,
+                .accept_choice_target_case(*request_id, *choice_id, *member_ordinal, *case_id)?,
             RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromSelected {
                 request_id,
                 question_seal_id,
@@ -3109,21 +3271,13 @@ impl RelationalAnalysisJournalState {
                         )?,
                 }
             }
-            RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromResult {
+            RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromChoice {
                 request_id,
-                view_id,
-                result_root,
-            } => {
-                let open = self
-                    .open
-                    .as_mut()
-                    .ok_or(RelationalAnalysisJournalError::EventAfterAnalysisClosure)?;
-                open.seal_mechanism_target_from_published_result_claim(
-                    *request_id,
-                    *view_id,
-                    *result_root,
-                )?
-            }
+                choice_id,
+                content_root,
+            } => self
+                .open_catalog_mut_or_error()?
+                .seal_mechanism_target_from_choice(*request_id, *choice_id, *content_root)?,
             RelationalAnalysisEvidenceEvent::MechanismArtifactOpened { header } => {
                 self.open_mechanism_artifact(*header)?;
                 true
@@ -3380,7 +3534,7 @@ impl RelationalAnalysisJournalState {
     ) -> Result<(), RelationalAnalysisJournalError> {
         let request_payload = match event {
             RelationalAnalysisEvidenceEvent::MechanismTargetCaseAccepted { request_id, .. }
-            | RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+            | RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
                 request_id,
                 ..
             }
@@ -3388,7 +3542,7 @@ impl RelationalAnalysisJournalState {
                 request_id,
                 ..
             }
-            | RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromResult {
+            | RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromChoice {
                 request_id, ..
             } => Some((*request_id, false)),
             RelationalAnalysisEvidenceEvent::MechanismArtifactOpened { header } => Some((
@@ -3877,6 +4031,7 @@ impl RelationalAnalysisJournalState {
                 match registration.input() {
                     RelationalResolvedResultInput::Selected(question_id) => question_id,
                     RelationalResolvedResultInput::Sources(_)
+                    | RelationalResolvedResultInput::Choice(_)
                     | RelationalResolvedResultInput::MechanismIncidence(_) => {
                         return Err(RelationalAnalysisJournalError::EventClaimMismatch(
                             "selected result question dependency",
@@ -3894,6 +4049,21 @@ impl RelationalAnalysisJournalState {
             .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)
     }
 
+    fn selected_question_for_choice(
+        &self,
+        choice_id: ChoiceId,
+    ) -> Result<RelationalSelectedQuestionSeal, RelationalAnalysisJournalError> {
+        let choice = self
+            .open_catalog_or_error()?
+            .plan()
+            .choice_registration(choice_id)
+            .ok_or(RelationalAnalysisJournalError::EventClaimMismatch(
+                "choice question dependency",
+            ))?;
+        self.selected_question(choice.input_question_id())
+            .ok_or(RelationalAnalysisJournalError::SelectedQuestionSealMissing)
+    }
+
     fn selected_question_for_mechanism(
         &self,
         request_id: MechanismRequestId,
@@ -3906,7 +4076,7 @@ impl RelationalAnalysisJournalState {
             Some(RelationalAnalysisLayerRegistration::Mechanisms(registration)) => {
                 match registration.target() {
                     RelationalResolvedMechanismTarget::Selected(question_id) => question_id,
-                    RelationalResolvedMechanismTarget::Choice { .. } => {
+                    RelationalResolvedMechanismTarget::Choice(_) => {
                         return Err(RelationalAnalysisJournalError::EventClaimMismatch(
                             "selected mechanism question dependency",
                         ));
@@ -4185,9 +4355,6 @@ pub(crate) enum RelationalAnalysisJournalError {
     MechanismArtifactResumeMismatch,
     MechanismArtifactPending,
     EventClaimMismatch(&'static str),
-    PublishedViewMissing {
-        view_id: ViewId,
-    },
     PublishedViewConflict {
         view_id: ViewId,
     },
@@ -4353,9 +4520,6 @@ impl fmt::Display for RelationalAnalysisJournalError {
             Self::EventClaimMismatch(component) => write!(
                 formatter,
                 "analysis journal {component} claim does not match its complete payload"
-            ),
-            Self::PublishedViewMissing { .. } => formatter.write_str(
-                "chosen-view mechanism target arrived before its result publication event",
             ),
             Self::PublishedViewConflict { .. } => formatter
                 .write_str("result view was republished with a different immutable payload"),
@@ -4734,6 +4898,14 @@ fn hash_result_input_seal(hasher: &mut AnalysisEventHasher, seal: RelationalResu
             hasher.digest(completed_root.bytes());
             hasher.digest(structural_root.bytes());
         }
+        ResultEvidenceUpstreamRoot::Choice {
+            choice_id,
+            content_root,
+        } => {
+            hasher.tag(0x07);
+            hasher.digest(choice_id.bytes());
+            hasher.digest(content_root.bytes());
+        }
     }
     let coverage = seal.coverage();
     hash_input_kind(hasher, coverage.input_kind());
@@ -4770,6 +4942,10 @@ fn hash_result_input(hasher: &mut AnalysisEventHasher, input: RelationalResolved
         RelationalResolvedResultInput::Selected(question_id) => {
             hasher.tag(0x01);
             hasher.digest(question_id.bytes());
+        }
+        RelationalResolvedResultInput::Choice(choice_id) => {
+            hasher.tag(0x04);
+            hasher.digest(choice_id.bytes());
         }
         RelationalResolvedResultInput::MechanismIncidence(request_id) => {
             hasher.tag(0x02);

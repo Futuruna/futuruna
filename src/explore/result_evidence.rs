@@ -18,13 +18,14 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
+use super::choice_relation::ChoiceContentRoot;
 use super::mechanism_incidence::{
     ClosedMechanismIncidence, MechanismCaseTerminal, MechanismCaseTerminalRecord,
     MechanismIncidenceRoot,
 };
 use super::relation::{
-    ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot, QuestionId,
-    RelationId, RelationalCaseId, SourceKey, SourceKeySetRoot, ViewId,
+    ChoiceId, ClosedQuestionCatalogRef, MechanismRequestId, QuestionCatalog, QuestionContentRoot,
+    QuestionId, RelationId, RelationalCaseId, SourceKey, SourceKeySetRoot, ViewId,
 };
 use super::relational_certified_source_summary::{
     RelationalCertifiedSourceSummaryArtifact, RelationalCertifiedSourceSummaryArtifactId,
@@ -119,6 +120,10 @@ pub(crate) enum ResultEvidenceUpstreamRoot {
         population_root: CertifiedSelectedPopulationRoot,
         exact_cardinality: u128,
     },
+    Choice {
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
+    },
     MechanismIncidence {
         request_id: MechanismRequestId,
         completed_root: MechanismIncidenceRoot,
@@ -137,7 +142,7 @@ impl ResultEvidenceUpstreamRoot {
     pub(crate) const fn input_kind(self) -> ResultViewInputKind {
         match self {
             Self::Sources { .. } | Self::CertifiedSources { .. } => ResultViewInputKind::Source,
-            Self::Selected { .. } | Self::CertifiedSelectedSupport { .. } => {
+            Self::Selected { .. } | Self::CertifiedSelectedSupport { .. } | Self::Choice { .. } => {
                 ResultViewInputKind::Case
             }
             Self::MechanismIncidence { .. } | Self::StructuralMechanismIncidence { .. } => {
@@ -207,6 +212,22 @@ impl RelationalResultInputSeal {
         Self::derive(
             upstream,
             question.selected_case_ids().map(ResultViewInputRowId::Case),
+        )
+    }
+
+    pub(crate) fn from_choice(
+        choice_id: ChoiceId,
+        content_root: ChoiceContentRoot,
+        candidate_case_ids: impl IntoIterator<Item = RelationalCaseId>,
+    ) -> Result<Self, ResultEvidenceError> {
+        Self::derive(
+            ResultEvidenceUpstreamRoot::Choice {
+                choice_id,
+                content_root,
+            },
+            candidate_case_ids
+                .into_iter()
+                .map(ResultViewInputRowId::Case),
         )
     }
 
@@ -1406,6 +1427,14 @@ fn hash_input_seal(hasher: &mut CanonicalHasher, seal: RelationalResultInputSeal
             hasher.digest(question_id.bytes());
             hasher.digest(population_root.bytes());
             hasher.u128(exact_cardinality);
+        }
+        ResultEvidenceUpstreamRoot::Choice {
+            choice_id,
+            content_root,
+        } => {
+            hasher.tag(0x07);
+            hasher.digest(choice_id.bytes());
+            hasher.digest(content_root.bytes());
         }
         ResultEvidenceUpstreamRoot::MechanismIncidence {
             request_id,

@@ -15,8 +15,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use super::choice_relation::ChoiceCandidate;
 use super::mechanism_incidence::MechanismSignatureId;
-use super::relation::{RelationalCaseRef, SourceKey, SourceRow, ViewId};
+use super::relation::{ChoiceId, RelationalCaseRef, SourceKey, SourceRow, ViewId};
 use super::relational_ir::{
     ExploreAggregateReducerIr, ExploreResultChoiceIr, ExploreResultFieldIr, ExploreResultGrainIr,
     ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
@@ -350,6 +351,64 @@ impl<'ir> RelationalResultExecutor<'ir> {
         }
         let row_id = ResultViewInputRowId::Case(case.case_id());
         self.evaluate_concrete(concrete_case_bindings(case, row_id, None), row_id, runtime)
+    }
+
+    /// Evaluate only semantic choice inputs. Public SELECT fields and
+    /// aggregates are intentionally unreachable from this path, so their
+    /// failure cannot prevent candidate accumulation or membership closure.
+    pub(crate) fn evaluate_choice_candidate<R: RelationalResultExpressionRuntime>(
+        &self,
+        choice_id: ChoiceId,
+        case: RelationalCaseRef<'_>,
+        runtime: &mut R,
+    ) -> Result<ChoiceCandidate, RelationalResultExecutorError> {
+        if self.spec.input_kind() != ResultViewInputKind::Case || self.spec.choice().is_none() {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice candidate evaluation requires a chosen case-input view".into(),
+            ));
+        }
+        if self
+            .objective_stages
+            .iter()
+            .any(|stage| !matches!(stage, ProjectionStage::RowLocal))
+        {
+            return Err(RelationalResultExecutorError::InvalidView(
+                "choice membership cannot depend on group-closed display state".into(),
+            ));
+        }
+
+        let mut bindings =
+            concrete_case_bindings(case, ResultViewInputRowId::Case(case.case_id()), None);
+        let mut partition_values = Vec::new();
+        for field in group_fields(&self.view.grain) {
+            let value = evaluate_field(runtime, field, &bindings, "choice partition")?;
+            bindings.push(RelationalResultBinding::new(
+                field.name.as_str(),
+                value.clone(),
+            ));
+            partition_values.push(value);
+        }
+        let mut measures = Vec::with_capacity(self.view.measures.len());
+        for field in self.view.measures.iter() {
+            let value = evaluate_field(runtime, field, &bindings, "choice measure")?;
+            bindings.push(RelationalResultBinding::new(
+                field.name.as_str(),
+                value.clone(),
+            ));
+            measures.push(value);
+        }
+        let objectives = self
+            .objectives
+            .iter()
+            .map(|objective| evaluate_objective(runtime, *objective, &bindings))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(ChoiceCandidate::new(
+            choice_id,
+            case.case_id(),
+            partition_values,
+            measures,
+            objectives,
+        ))
     }
 
     pub(crate) fn evaluate_concrete_source<R: RelationalResultExpressionRuntime>(

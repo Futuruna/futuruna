@@ -366,7 +366,10 @@ impl<'query> RelationalIncidenceResultStepDriver<'query> {
                 }
                 RelationalAnalysisLayerStatus::MechanismTargetOpen
                 | RelationalAnalysisLayerStatus::MechanismTerminalOpen
-                | RelationalAnalysisLayerStatus::MechanismClosed => {
+                | RelationalAnalysisLayerStatus::MechanismClosed
+                | RelationalAnalysisLayerStatus::ChoiceInputOpen
+                | RelationalAnalysisLayerStatus::ChoiceMembersOpen
+                | RelationalAnalysisLayerStatus::ChoiceClosed => {
                     return Err(
                         RelationalIncidenceResultStepDriverError::AnalysisLayerKindMismatch(
                             layer_id,

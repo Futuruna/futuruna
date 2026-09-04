@@ -217,9 +217,9 @@ pub(crate) enum RelationalStreamQuiescence {
         endpoint: RelationalMechanismEndpoint,
         reason: RelationalMechanismReplayPause,
     },
-    AwaitingChosenViewMechanisms {
+    AwaitingChoiceMechanisms {
         request_id: MechanismRequestId,
-        view_id: ViewId,
+        choice_id: super::relation::ChoiceId,
     },
     AwaitingMechanismIncidenceResult {
         view_id: ViewId,
@@ -1006,14 +1006,14 @@ impl<'query> RelationalStreamDriver<'query> {
                     },
                 ));
             }
-            RelationalMechanismStepQuiescence::AwaitingChosenView {
+            RelationalMechanismStepQuiescence::AwaitingChoice {
                 request_id,
-                view_id,
+                choice_id,
             } => {
                 return Ok(RelationalStreamStepOutcome::Quiescent(
-                    RelationalStreamQuiescence::AwaitingChosenViewMechanisms {
+                    RelationalStreamQuiescence::AwaitingChoiceMechanisms {
                         request_id,
-                        view_id,
+                        choice_id,
                     },
                 ));
             }
@@ -1040,6 +1040,7 @@ impl<'query> RelationalStreamDriver<'query> {
             result_quiescence,
             RelationalResultStepQuiescence::SelectedResultsComplete
                 | RelationalResultStepQuiescence::DeferredMechanismIncidence { .. }
+                | RelationalResultStepQuiescence::AwaitingChoiceMechanisms { .. }
         ) {
             return Err(RelationalStreamDriverError::ResultDriverQuiescenceMismatch.into());
         }

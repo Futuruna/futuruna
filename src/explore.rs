@@ -50,6 +50,12 @@ pub(crate) use mechanism_support::{
     MECHANISM_STARTER_PROJECTION_EXPR_VERSION, MECHANISM_SUPPORT_VERSION,
     MECHANISM_SUPPORT_VIEW_VERSION,
 };
+mod choice_relation;
+pub(crate) use choice_relation::{
+    ChoiceCandidate, ChoiceContentRoot, ChoiceCount, ChoiceFrontierRoot, ChoiceInputSeal,
+    ChoiceMember, ChoiceRelationBuilder, ChoiceRelationCounts, ChoiceRelationError,
+    ChoiceRelationSnapshot, ChoiceRelationSpec, ChoiceRelationStatus, CHOICE_RELATION_VERSION,
+};
 mod relational_mechanism_starter_authorization;
 pub(crate) use relational_mechanism_starter_authorization::{
     find_relational_mechanism_starter_value_authorization,
@@ -190,12 +196,13 @@ pub(crate) use relational_analysis_plan::{
 };
 mod relational_analysis_catalog;
 pub(crate) use relational_analysis_catalog::{
-    ClosedRelationalAnalysisCatalog, RelationalAnalysisCatalogBuilder,
+    ChoiceTargetCase, ClosedRelationalAnalysisCatalog, RelationalAnalysisCatalogBuilder,
     RelationalAnalysisCatalogError, RelationalAnalysisCatalogRoot,
     RelationalAnalysisCatalogSnapshot, RelationalAnalysisLayerSnapshot,
-    RelationalAnalysisLayerStatus, RelationalMechanismLayerSnapshot, RelationalResultLayerSnapshot,
-    RelationalResultLayerSnapshotState, RelationalResultPublication, RelationalResultPublicationId,
-    RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION, RELATIONAL_RESULT_PUBLICATION_VERSION,
+    RelationalAnalysisLayerStatus, RelationalChoiceLayerSnapshot, RelationalMechanismLayerSnapshot,
+    RelationalResultLayerSnapshot, RelationalResultLayerSnapshotState, RelationalResultPublication,
+    RelationalResultPublicationId, RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION,
+    RELATIONAL_RESULT_PUBLICATION_VERSION,
 };
 mod relational_analysis_journal;
 pub(crate) use relational_analysis_journal::{

@@ -1113,8 +1113,9 @@ FIND-target mechanism work up to the current authenticated prefix before grantin
 one more base quantum. Their result evidence and mechanism target/replay events
 therefore appear while FIND is open; only input/target seals, publications and
 global closure wait for exact FIND closure. A choice-target mechanism is
-different: its current fused materializer waits for the exact choosing result
-to publish before admitting its winners in bounded resumable chunks. One quirky profile case may be
+different: it waits for the independently journaled choice relation to close,
+then admits its members by ordinal in bounded resumable chunks without depending
+on display publication. One quirky profile case may be
 admitted, selected, shown and replayed while the same source or successor
 enumerator continues finding other cases.
 
@@ -1231,7 +1232,7 @@ now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
 The four-transition `relational-explore-stream-smoke.runa` query now closes
-through report v10 and publication v18 with two named questions over one shared
+through report v11 and publication v19 with two named questions over one shared
 relation and admission. `all_cases` closes at exactly four cases;
 `interesting` closes at exactly two. The latter two cases share one raw
 signature, structural mechanism and execution profile. Its identity-only
@@ -1244,12 +1245,10 @@ first proof-bearing case-image artifact now installs
 root injectivity and optional exact cardinality atomically, with checked durable
 restoration and proper-prefix recovery for both resolver completions; positive
 weighted SupportCells still cannot feed result reducers. Exact FIND-backed
-choice-target mechanisms now wait for the fused result publication, admit its
-chosen CaseIds from authenticated projection ordinals in bounded resumable
-chunks, and seal against both ChoiceId and result root. This avoids rebuilding or copying the full
-result during downstream scheduling. A replay-built operational chosen-output
-index jumps over grouped headers in O(1) per chosen row and remains outside
-snapshots and semantic identity. The unified scheduler now joins
+choice-target mechanisms now wait for the independent Choice relation to close,
+admit its members by canonical choice ordinal in bounded resumable chunks, and
+seal against ChoiceId and ChoiceContentRoot without a ViewId. This avoids making
+display publication an authority for membership. The unified scheduler now joins
 readiness-driven selected results, mechanism-incidence results, selected-target
 replay and base enumeration. The production checked
 interpreter supplies fresh Before/After rule and branch traces from the
@@ -1259,7 +1258,7 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v18 is the current artifact plan and report v10 is the current
+Publication v19 is the current artifact plan and report v11 is the current
 compact report. Every named result now has a bounded self-describing entry even
 when it is ungrouped, open, or exact-empty. The entry names its resolved input,
 grain, ordered selected schema, group keys, output-row and projection-record
@@ -1712,9 +1711,11 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v18 is completed. Nested `choose` now lowers
+Explore block while publication v19 is completed. Nested `choose` now lowers
 to a canonical membership-only `ChoiceId` plus a separate display `ViewId`;
-the existing reducer materializes both in one fused stage. Choice objectives
+an independently journaled choice relation commits its candidate seal, member
+prefix and content root before the existing driver may project a display.
+Choice objectives
 currently fail closed on aggregate or `SELECT` aliases so display-only changes
 cannot silently rename the choice relation. Those spellings are a transitional
 lowering boundary, not another public language design.

@@ -71,7 +71,7 @@ use super::{
     RelationalInterpreterExpressionRuntime, RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 10;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 11;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -801,7 +801,6 @@ pub enum ExploreStreamMechanismTarget {
         name: String,
         question_id: String,
         choice_id: String,
-        materializing_view_id: String,
     },
 }
 
@@ -962,9 +961,9 @@ pub enum ExploreStreamPauseReason {
         endpoint: String,
         reason: String,
     },
-    AwaitingChosenViewMechanisms {
+    AwaitingChoiceMechanisms {
         request_id: String,
-        view_id: String,
+        choice_id: String,
     },
     AwaitingSourceResult {
         view_id: String,
@@ -1009,6 +1008,9 @@ pub struct ExploreStreamFind {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExploreStreamLayerStatus {
+    ChoiceInputOpen,
+    ChoiceMembersOpen,
+    ChoiceClosed,
     ResultUnregistered,
     ResultInputOpen,
     ResultAwaitingPublication,
@@ -1082,7 +1084,20 @@ pub struct ExploreStreamResultColumn {
 pub enum ExploreStreamResultInput {
     Sources { relation_id: String },
     Find { name: String, question_id: String },
+    Choice { choice_id: String },
     MechanismIncidence { name: String, request_id: String },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExploreStreamChoiceLayer {
+    pub name: String,
+    pub choice_id: String,
+    pub question_id: String,
+    pub status: ExploreStreamLayerStatus,
+    pub candidates: ExploreStreamCount,
+    pub members: ExploreStreamCount,
+    pub frontier_root: Option<String>,
+    pub content_root: Option<String>,
 }
 
 /// Checked output grain of one named result view.
@@ -1234,6 +1249,7 @@ pub struct ExploreStreamObserverMemoStats {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExploreStreamLayer {
+    Choice(ExploreStreamChoiceLayer),
     Result(ExploreStreamResultLayer),
     Mechanisms(ExploreStreamMechanismLayer),
 }
@@ -1791,6 +1807,7 @@ fn projection_lengths(
                                 .state()
                                 .projection()
                                 .map(|projection| projection.records().len()),
+                            RelationalAnalysisLayerSnapshot::Choice(_) => None,
                             RelationalAnalysisLayerSnapshot::Mechanisms(_) => None,
                         })
                         .ok_or_else(|| {
@@ -2280,39 +2297,48 @@ fn analysis_layers(
 ) -> Result<Vec<ExploreStreamLayer>, ExploreStreamPreparationError> {
     let analysis = journal.analysis_state();
     let mut layers = Vec::new();
+    let mut emitted_choices = BTreeSet::new();
     let mut preview_budget = ExploreStreamPreviewBudget::default();
     for (index, (node, identity)) in checked.analysis_nodes().enumerate() {
         let name = node.name().to_string();
-        let layer = match (node, identity) {
+        match (node, identity) {
             (
                 ExploreAnalysisNodeIr::Result(view),
                 CheckedExploreAnalysisIdentity::View { view_id, choice_id },
-            ) => ExploreStreamLayer::Result(result_layer(
-                analysis,
-                checked,
-                index,
-                view,
-                *view_id,
-                *choice_id,
-                projection_starts.get(index).copied().unwrap_or(0),
-                &mut preview_budget,
-            )?),
+            ) => {
+                if let Some(choice_id) = choice_id {
+                    if emitted_choices.insert(*choice_id) {
+                        layers.push(ExploreStreamLayer::Choice(choice_layer(
+                            analysis, checked, view, *choice_id,
+                        )?));
+                    }
+                }
+                layers.push(ExploreStreamLayer::Result(result_layer(
+                    analysis,
+                    checked,
+                    index,
+                    view,
+                    *view_id,
+                    *choice_id,
+                    projection_starts.get(index).copied().unwrap_or(0),
+                    &mut preview_budget,
+                )?));
+            }
             (
                 ExploreAnalysisNodeIr::Mechanisms(request),
                 CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. },
-            ) => ExploreStreamLayer::Mechanisms(mechanism_layer(
+            ) => layers.push(ExploreStreamLayer::Mechanisms(mechanism_layer(
                 journal,
                 name,
                 *request_id,
                 public_mechanism_target(checked, &request.target)?,
-            )?),
+            )?)),
             _ => {
                 return Err(ExploreStreamPreparationError::Execution(format!(
                     "checked analysis identity kind diverged at node {index}"
                 )))
             }
-        };
-        layers.push(layer);
+        }
     }
     Ok(layers)
 }
@@ -2353,7 +2379,11 @@ fn public_mechanism_target(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
             };
-            let CheckedExploreAnalysisIdentity::View { view_id, choice_id } = identity else {
+            let CheckedExploreAnalysisIdentity::View {
+                view_id: _,
+                choice_id,
+            } = identity
+            else {
                 return Err(ExploreStreamPreparationError::Execution(format!(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
@@ -2377,7 +2407,6 @@ fn public_mechanism_target(
                 name: view.name.clone(),
                 question_id: hex(question_id.bytes()),
                 choice_id: hex(choice_id.bytes()),
-                materializing_view_id: hex(view_id.bytes()),
             })
         }
     }
@@ -2458,6 +2487,108 @@ fn public_result_input(
     }
 }
 
+fn choice_layer(
+    analysis: Option<&super::RelationalAnalysisJournalState>,
+    checked: &CheckedExploreQueryView<'_>,
+    view: &ExploreResultViewIr,
+    choice_id: super::ChoiceId,
+) -> Result<ExploreStreamChoiceLayer, ExploreStreamPreparationError> {
+    let ExploreResultInputIr::Find {
+        find_name: _,
+        find_index,
+    } = &view.input
+    else {
+        return Err(ExploreStreamPreparationError::Execution(
+            "a checked Choice relation is not FIND-backed".into(),
+        ));
+    };
+    let question_id = checked.find_question_id(*find_index).ok_or_else(|| {
+        ExploreStreamPreparationError::Execution(format!(
+            "choice for result {} has no aligned QuestionId",
+            view.name
+        ))
+    })?;
+    let absent = || ExploreStreamChoiceLayer {
+        name: view.name.clone(),
+        choice_id: hex(choice_id.bytes()),
+        question_id: hex(question_id.bytes()),
+        status: ExploreStreamLayerStatus::ChoiceInputOpen,
+        candidates: ExploreStreamCount::LowerBound(0),
+        members: ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        },
+        frontier_root: None,
+        content_root: None,
+    };
+    let Some(analysis) = analysis else {
+        return Ok(absent());
+    };
+    match (analysis.open_catalog(), analysis.closed_catalog()) {
+        (Some(open), None) => {
+            let relation = open
+                .choice_relation(choice_id)
+                .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+            let counts = relation.counts();
+            Ok(ExploreStreamChoiceLayer {
+                name: view.name.clone(),
+                choice_id: hex(choice_id.bytes()),
+                question_id: hex(question_id.bytes()),
+                status: layer_status(
+                    open.layer_status(RelationalAnalysisLayerId::Choice(choice_id))
+                        .ok_or_else(|| {
+                            ExploreStreamPreparationError::Execution(
+                                "analysis omitted a declared choice layer".into(),
+                            )
+                        })?,
+                ),
+                candidates: public_choice_count(counts.candidates()),
+                members: public_choice_count(counts.members()),
+                frontier_root: Some(hex(relation.frontier_root().bytes())),
+                content_root: relation.content_root().map(|root| hex(root.bytes())),
+            })
+        }
+        (None, Some(closed)) => {
+            let layer = closed
+                .snapshot()
+                .layer(RelationalAnalysisLayerId::Choice(choice_id))
+                .ok_or_else(|| {
+                    ExploreStreamPreparationError::Execution(
+                        "closed analysis omitted a declared choice layer".into(),
+                    )
+                })?;
+            let RelationalAnalysisLayerSnapshot::Choice(choice) = layer else {
+                return Err(ExploreStreamPreparationError::Execution(
+                    "closed analysis choice identity names another layer kind".into(),
+                ));
+            };
+            let relation = choice.relation();
+            Ok(ExploreStreamChoiceLayer {
+                name: view.name.clone(),
+                choice_id: hex(choice_id.bytes()),
+                question_id: hex(question_id.bytes()),
+                status: layer_status(choice.status()),
+                candidates: ExploreStreamCount::Exact(relation.candidates().len() as u128),
+                members: ExploreStreamCount::Exact(relation.members().len() as u128),
+                frontier_root: Some(hex(relation.frontier_root().bytes())),
+                content_root: relation.content_root().map(|root| hex(root.bytes())),
+            })
+        }
+        _ => Err(ExploreStreamPreparationError::Execution(
+            "analysis state does not own exactly one catalog".into(),
+        )),
+    }
+}
+
+const fn public_choice_count(count: super::ChoiceCount) -> ExploreStreamCount {
+    match count {
+        super::ChoiceCount::LowerBound(value) => ExploreStreamCount::LowerBound(value),
+        super::ChoiceCount::Provisional(value) => ExploreStreamCount::Unknown {
+            confirmed_lower_bound: value,
+        },
+        super::ChoiceCount::Exact(value) => ExploreStreamCount::Exact(value),
+    }
+}
+
 const fn public_result_grain(grain: &ExploreResultGrainIr) -> ExploreStreamResultGrain {
     match grain {
         ExploreResultGrainIr::EachCase { .. } => ExploreStreamResultGrain::EachCase,
@@ -2495,7 +2626,12 @@ fn result_layer(
     start: usize,
     preview_budget: &mut ExploreStreamPreviewBudget,
 ) -> Result<ExploreStreamResultLayer, ExploreStreamPreparationError> {
-    let input = public_result_input(checked, node_index, &view.input)?;
+    let input = match choice_id {
+        Some(choice_id) => ExploreStreamResultInput::Choice {
+            choice_id: hex(choice_id.bytes()),
+        },
+        None => public_result_input(checked, node_index, &view.input)?,
+    };
     let grain = public_result_grain(&view.grain);
     let columns = public_result_columns(&view.select);
     let group_keys = match &view.grain {
@@ -3184,12 +3320,12 @@ fn public_pause_reason(reason: RelationalStreamSlicePauseReason) -> ExploreStrea
                 endpoint: format!("{endpoint:?}"),
                 reason: format!("{reason:?}"),
             },
-            RelationalStreamQuiescence::AwaitingChosenViewMechanisms {
+            RelationalStreamQuiescence::AwaitingChoiceMechanisms {
                 request_id,
-                view_id,
-            } => ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+                choice_id,
+            } => ExploreStreamPauseReason::AwaitingChoiceMechanisms {
                 request_id: hex(request_id.bytes()),
-                view_id: hex(view_id.bytes()),
+                choice_id: hex(choice_id.bytes()),
             },
             RelationalStreamQuiescence::AwaitingSourceResult { view_id } => {
                 ExploreStreamPauseReason::AwaitingSourceResult {
@@ -3214,6 +3350,11 @@ fn public_pause_reason(reason: RelationalStreamSlicePauseReason) -> ExploreStrea
 
 const fn layer_status(status: RelationalAnalysisLayerStatus) -> ExploreStreamLayerStatus {
     match status {
+        RelationalAnalysisLayerStatus::ChoiceInputOpen => ExploreStreamLayerStatus::ChoiceInputOpen,
+        RelationalAnalysisLayerStatus::ChoiceMembersOpen => {
+            ExploreStreamLayerStatus::ChoiceMembersOpen
+        }
+        RelationalAnalysisLayerStatus::ChoiceClosed => ExploreStreamLayerStatus::ChoiceClosed,
         RelationalAnalysisLayerStatus::ResultUnregistered => {
             ExploreStreamLayerStatus::ResultUnregistered
         }
@@ -3507,7 +3648,7 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find all_cases = all
+    find all_cases = matches of before * before >= 0
     results winner from find all_cases {
         group all
         measure [score = before / 2]
@@ -3515,6 +3656,39 @@ mod regional_stream_acceptance_tests {
         choose all maximizing score
     }
     mechanisms winner_path from view winner chosen using chosen_target_observer
+}
+"#;
+
+    const SHARED_CHOICE_DISPLAY_FAILURE: &str = r#"
+> chosen_target_observer(state: Int, context: Unit) -> Int {
+    if state < 2 { 0 } else { 1 }
+}
+
+> fail_display(value: Int) -> Int {
+    100 / value
+}
+
+? explore shared_choice_display_failure {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find all_cases = all
+    results good_display from find all_cases {
+        group all
+        measure [score = before / 2]
+        select [case_id, shown = before]
+        choose all maximizing score
+    }
+    results bad_display from find all_cases {
+        group all
+        measure [score = before / 2]
+        select [case_id, shown = fail_display(before)]
+        choose all maximizing score
+    }
+    mechanisms winner_path from view good_display chosen using chosen_target_observer
 }
 "#;
 
@@ -3969,7 +4143,7 @@ mod regional_stream_acceptance_tests {
             .run_slice(None)
             .expect("complete tiny plural publication fixture");
 
-        assert_eq!(report.schema_version, 9);
+        assert_eq!(report.schema_version, 11);
         assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
         assert_eq!(report.counts.cases, ExploreStreamCount::Exact(2));
         assert_eq!(report.counts.admitted, ExploreStreamCount::Exact(2));
@@ -4027,7 +4201,7 @@ mod regional_stream_acceptance_tests {
                 .expect("read plural publication manifest"),
         )
         .expect("parse plural publication manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(17));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
         assert_eq!(
             manifest["identity"]["question_ids"]
                 .as_array()
@@ -4106,6 +4280,7 @@ mod regional_stream_acceptance_tests {
         let cold_results = cold_layers
             .iter()
             .filter_map(|layer| match layer {
+                ExploreStreamLayer::Choice(_) => None,
                 ExploreStreamLayer::Result(result) => Some(result),
                 ExploreStreamLayer::Mechanisms(_) => None,
             })
@@ -4134,13 +4309,14 @@ mod regional_stream_acceptance_tests {
         let report = epoch
             .run_slice(None)
             .expect("complete tiny self-describing answer fixture");
-        assert_eq!(report.schema_version, 9);
+        assert_eq!(report.schema_version, 11);
         assert_eq!(report.lifecycle, ExploreStreamLifecycle::Complete);
 
         let results = report
             .layers
             .iter()
             .filter_map(|layer| match layer {
+                ExploreStreamLayer::Choice(_) => None,
                 ExploreStreamLayer::Result(result) => Some(result),
                 ExploreStreamLayer::Mechanisms(_) => None,
             })
@@ -4170,7 +4346,7 @@ mod regional_stream_acceptance_tests {
             &fs::read_to_string(&publication.manifest_path).expect("read answer manifest"),
         )
         .expect("parse answer manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(17));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
         assert_eq!(manifest["answer"]["rows_inlined"].as_bool(), Some(false));
         let views = manifest["answer"]["result_views"]
             .as_array()
@@ -4295,21 +4471,29 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
-    fn chosen_view_mechanism_target_resumes_from_its_exact_published_case_set() {
+    fn choice_candidate_prefix_resumes_before_question_seal_and_mechanisms_consume_closed_choice() {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
         let output = temp.path().join("output");
 
-        // Stop halfway through the two-row chosen-target batch. Reopening
-        // below must recover the durable proper prefix and replay exactly the
-        // two winners rather than rebuilding an ambient selected population.
-        {
+        let (choice_id, question_id, paused_sequence, paused_head, paused_frontier) = {
             let mut prepared = prepare(CHOSEN_MECHANISM_PUBLICATION);
             let checked = prepared.checked.view();
+            let question_id = checked.question_ids()[0];
+            let choice_id = checked
+                .analysis_nodes()
+                .find_map(|(_, identity)| match identity {
+                    CheckedExploreAnalysisIdentity::View {
+                        choice_id: Some(choice_id),
+                        ..
+                    } => Some(*choice_id),
+                    _ => None,
+                })
+                .expect("fixture choice identity");
             let limits = RelationalStreamDriverLimits::new(
-                NonZeroU16::new(4).unwrap(),
-                NonZeroU16::new(4).unwrap(),
-                NonZeroU16::new(2).unwrap(),
+                NonZeroU16::new(1).unwrap(),
+                NonZeroU16::new(1).unwrap(),
+                NonZeroU16::new(1).unwrap(),
             );
             let driver =
                 RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
@@ -4329,7 +4513,7 @@ mod regional_stream_acceptance_tests {
                     exact_one_region_replay_authority(&prepared),
                 )
                 .expect("open chosen-target durable journal");
-            let mut admitted_chosen_target = false;
+            let mut paused_prefix = None;
             for _ in 0..512 {
                 let outcome = driver
                     .step_with_base_member_limit(
@@ -4338,56 +4522,117 @@ mod regional_stream_acceptance_tests {
                             .expect("borrow chosen-target planning journal"),
                         &mut prepared.expression_runtime,
                         &mut prepared.mechanism_runtime,
-                        NonZeroU16::new(4).unwrap(),
+                        NonZeroU16::new(1).unwrap(),
                     )
-                    .expect("advance chosen-target prefix");
+                    .expect("advance choice-candidate prefix");
                 let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
-                    panic!("chosen-target stream quiesced before target admission");
+                    panic!("choice stream quiesced before candidate admission");
                 };
                 let quantum = batch.quantum();
-                let chosen_batch = matches!(
+                let candidate_batch = matches!(
                     quantum,
-                    RelationalStreamQuantum::Mechanism(
-                        RelationalMechanismStepQuantum::AdmitChosenTargetCases {
-                            case_count,
+                    RelationalStreamQuantum::Result(
+                        super::super::relational_result_step_driver::RelationalResultStepQuantum::EvaluateChoiceCandidates {
+                            choice_id: actual,
+                            row_count,
                             ..
                         }
-                    ) if case_count.get() == 2
+                    ) if actual == choice_id && row_count.get() == 1
                 );
                 let expected_sequence = batch.expected_sequence();
                 let expected_head = batch.expected_head();
                 let events = batch.into_events().into_vec();
-                let append_count = if chosen_batch {
-                    assert_eq!(events.len(), 2);
-                    1
-                } else {
-                    events.len()
-                };
                 durable
-                    .append_events(
-                        expected_sequence,
-                        expected_head,
-                        events.into_iter().take(append_count),
-                    )
-                    .expect("append chosen-target prefix batch");
-                if chosen_batch {
-                    admitted_chosen_target = true;
+                    .append_events(expected_sequence, expected_head, events)
+                    .expect("append choice-candidate prefix batch");
+                if candidate_batch {
+                    let prefix = {
+                        let journal = durable.journal().expect("inspect candidate prefix");
+                        let analysis = journal.analysis_state().expect("analysis state");
+                        assert!(
+                            analysis.selected_question(question_id).is_none(),
+                            "candidate evidence must be resumable before exact question closure"
+                        );
+                        let choice = analysis
+                            .open_catalog()
+                            .expect("open analysis catalog")
+                            .choice_relation(choice_id)
+                            .expect("choice relation");
+                        assert_eq!(
+                            choice.status(),
+                            super::super::choice_relation::ChoiceRelationStatus::InputOpen
+                        );
+                        assert_eq!(
+                            choice.counts().candidates(),
+                            super::super::choice_relation::ChoiceCount::LowerBound(1)
+                        );
+                        assert_eq!(
+                            choice.counts().members(),
+                            super::super::choice_relation::ChoiceCount::Provisional(0)
+                        );
+                        assert!(choice.content_root().is_none());
+                        (
+                            journal.next_sequence(),
+                            journal.head(),
+                            choice.frontier_root(),
+                        )
+                    };
                     durable
                         .flush_for_pause()
-                        .expect("flush chosen-target crash prefix");
+                        .expect("flush choice-candidate crash prefix");
+                    paused_prefix = Some(prefix);
                     break;
                 }
             }
-            assert!(
-                admitted_chosen_target,
-                "fixture did not stop inside its two-case chosen target batch"
+            let (paused_sequence, paused_head, paused_frontier) =
+                paused_prefix.expect("fixture did not stop after its first choice candidate");
+            (
+                choice_id,
+                question_id,
+                paused_sequence,
+                paused_head,
+                paused_frontier,
+            )
+        };
+
+        {
+            let prepared = prepare(CHOSEN_MECHANISM_PUBLICATION);
+            let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                &run_state,
+                prepared.contract.clone(),
+                prepared.analysis_plan_root,
+                RelationalDurableJournalLimits::default(),
+                exact_one_region_replay_authority(&prepared),
+            )
+            .expect("reopen choice-candidate journal");
+            let journal = durable
+                .journal()
+                .expect("inspect reopened candidate prefix");
+            assert_eq!(journal.next_sequence(), paused_sequence);
+            assert_eq!(journal.head(), paused_head);
+            let analysis = journal.analysis_state().expect("reopened analysis state");
+            assert!(analysis.selected_question(question_id).is_none());
+            let choice = analysis
+                .open_catalog()
+                .expect("reopened analysis catalog")
+                .choice_relation(choice_id)
+                .expect("reopened choice relation");
+            assert_eq!(choice.frontier_root(), paused_frontier);
+            assert_eq!(
+                choice.counts().candidates(),
+                super::super::choice_relation::ChoiceCount::LowerBound(1)
             );
+            assert_eq!(
+                choice.counts().members(),
+                super::super::choice_relation::ChoiceCount::Provisional(0)
+            );
+            assert!(choice.content_root().is_none());
         }
 
         let mut epoch = prepare(CHOSEN_MECHANISM_PUBLICATION)
             .open_epoch(ExploreStreamEpochOptions {
                 run_state,
-                output_directory: Some(output),
+                output_directory: Some(output.clone()),
                 outer_containment: None,
             })
             .expect("reopen chosen-target stream epoch");
@@ -4415,6 +4660,19 @@ mod regional_stream_acceptance_tests {
             .choice_id
             .as_ref()
             .expect("choice materializer exposes ChoiceId");
+        let choice = report
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                ExploreStreamLayer::Choice(choice) => Some(choice),
+                _ => None,
+            })
+            .expect("independent choice layer");
+        assert_eq!(choice.choice_id, *winner_choice_id);
+        assert_eq!(choice.status, ExploreStreamLayerStatus::ChoiceClosed);
+        assert_eq!(choice.candidates, ExploreStreamCount::Exact(4));
+        assert_eq!(choice.members, ExploreStreamCount::Exact(2));
+        assert!(choice.content_root.is_some());
 
         let mechanism = report
             .layers
@@ -4433,11 +4691,9 @@ mod regional_stream_acceptance_tests {
                 name,
                 question_id,
                 choice_id,
-                materializing_view_id,
             } if name == "winner"
                 && question_id == &report.finds[0].question_id
                 && choice_id == winner_choice_id
-                && materializing_view_id == &winner.view_id
         ));
         assert_eq!(mechanism.target_cases, ExploreStreamCount::Exact(2));
         assert_eq!(mechanism.terminal_cases, ExploreStreamCount::Exact(2));
@@ -4450,10 +4706,208 @@ mod regional_stream_acceptance_tests {
         );
         assert!(mechanism.raw_closure_root.is_some());
         assert!(mechanism.structural_closure_root.is_some());
+
+        let publication = report
+            .publication
+            .as_ref()
+            .expect("choice run publication summary");
+        let manifest: serde_json::Value = serde_json::from_str(
+            &fs::read_to_string(&publication.manifest_path).expect("read choice manifest"),
+        )
+        .expect("parse choice manifest");
+        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
+        assert_eq!(manifest["answer"]["schema_version"].as_u64(), Some(2));
+        let choices = manifest["answer"]["choices"]
+            .as_array()
+            .expect("choice answer index");
+        assert_eq!(choices.len(), 1);
+        assert_eq!(
+            choices[0]["choice_id"].as_str(),
+            Some(winner_choice_id.as_str())
+        );
+        assert_eq!(
+            choices[0]["result_artifact_keys"]
+                .as_array()
+                .expect("choice display consumers")
+                .len(),
+            1
+        );
+        assert_eq!(
+            choices[0]["mechanism_request_ids"][0].as_str(),
+            Some(mechanism.request_id.as_str())
+        );
+        let published_target = &manifest["answer"]["mechanisms"][0]["target"];
+        assert_eq!(
+            published_target["choice_id"].as_str(),
+            Some(winner_choice_id.as_str())
+        );
+        assert!(published_target.get("materializing_view_id").is_none());
     }
 
     #[test]
-    fn chosen_view_mechanism_target_rejects_tampered_projection_provenance() {
+    fn failing_display_cannot_rollback_shared_choice_or_choice_target_mechanism() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let (choice_id, request_id, content_root) = {
+            let mut prepared = prepare(SHARED_CHOICE_DISPLAY_FAILURE);
+            let checked = prepared.checked.view();
+            let views = checked
+                .analysis_nodes()
+                .filter_map(|(node, identity)| match (node, identity) {
+                    (
+                        ExploreAnalysisNodeIr::Result(_),
+                        CheckedExploreAnalysisIdentity::View {
+                            view_id,
+                            choice_id: Some(choice_id),
+                        },
+                    ) => Some((*view_id, *choice_id)),
+                    _ => None,
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(views.len(), 2);
+            assert_ne!(views[0].0, views[1].0, "SELECT owns display identity");
+            assert_eq!(views[0].1, views[1].1, "choice semantics are shared");
+            let choice_id = views[0].1;
+            let request_id = checked
+                .analysis_nodes()
+                .find_map(|(_, identity)| match identity {
+                    CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. } => {
+                        Some(*request_id)
+                    }
+                    _ => None,
+                })
+                .expect("fixture mechanism identity");
+            let limits = RelationalStreamDriverLimits::new(
+                NonZeroU16::new(2).unwrap(),
+                NonZeroU16::new(2).unwrap(),
+                NonZeroU16::new(2).unwrap(),
+            );
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    limits,
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build shared-choice failure scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open shared-choice failure journal");
+
+            let mut display_error = None;
+            for _ in 0..512 {
+                match driver.step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow shared-choice planning journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(2).unwrap(),
+                ) {
+                    Ok(RelationalStreamStepOutcome::Emitted(batch)) => {
+                        durable
+                            .append_events(
+                                batch.expected_sequence(),
+                                batch.expected_head(),
+                                batch.into_events(),
+                            )
+                            .expect("append shared-choice setup batch");
+                    }
+                    Ok(RelationalStreamStepOutcome::Complete) => {
+                        panic!("failing SELECT unexpectedly completed")
+                    }
+                    Ok(RelationalStreamStepOutcome::Quiescent(reason)) => {
+                        panic!("shared-choice fixture quiesced before display failure: {reason:?}")
+                    }
+                    Err(error) => {
+                        display_error = Some(error.to_string());
+                        break;
+                    }
+                }
+            }
+            let display_error = display_error.expect("fixture did not reach failing SELECT");
+            assert!(
+                display_error.contains("division by zero")
+                    || display_error.contains("result selected field"),
+                "unexpected display failure: {display_error}"
+            );
+
+            let content_root = {
+                let journal = durable.journal().expect("inspect failed display journal");
+                let analysis = journal.analysis_state().expect("analysis state");
+                assert!(!analysis.is_closed());
+                let catalog = analysis.open_catalog().expect("open analysis catalog");
+                assert_eq!(
+                    catalog.layer_status(RelationalAnalysisLayerId::Choice(choice_id)),
+                    Some(RelationalAnalysisLayerStatus::ChoiceClosed)
+                );
+                assert_eq!(
+                    catalog.layer_status(RelationalAnalysisLayerId::Mechanisms(request_id)),
+                    Some(RelationalAnalysisLayerStatus::MechanismClosed)
+                );
+                let content_root = catalog
+                    .choice_content_root(choice_id)
+                    .expect("choice root lookup")
+                    .expect("closed choice content root");
+                let target_seal = catalog
+                    .mechanism_incidence(request_id)
+                    .expect("closed choice mechanism")
+                    .target_seal()
+                    .expect("choice mechanism target seal");
+                assert_eq!(
+                    target_seal.upstream(),
+                    super::super::mechanism_incidence::MechanismTargetSealUpstream::Choice {
+                        choice_id,
+                        content_root,
+                    }
+                );
+                content_root
+            };
+            durable
+                .flush_for_pause()
+                .expect("flush semantic closures after display failure");
+            (choice_id, request_id, content_root)
+        };
+
+        let prepared = prepare(SHARED_CHOICE_DISPLAY_FAILURE);
+        let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .expect("reopen display-failure journal");
+        let analysis = durable
+            .journal()
+            .expect("inspect reopened display-failure journal")
+            .analysis_state()
+            .expect("reopened analysis state");
+        assert!(!analysis.is_closed());
+        let catalog = analysis.open_catalog().expect("reopened analysis catalog");
+        assert_eq!(
+            catalog.layer_status(RelationalAnalysisLayerId::Choice(choice_id)),
+            Some(RelationalAnalysisLayerStatus::ChoiceClosed)
+        );
+        assert_eq!(
+            catalog.choice_content_root(choice_id).unwrap(),
+            Some(content_root)
+        );
+        assert_eq!(
+            catalog.layer_status(RelationalAnalysisLayerId::Mechanisms(request_id)),
+            Some(RelationalAnalysisLayerStatus::MechanismClosed)
+        );
+    }
+
+    #[test]
+    fn choice_mechanism_target_rejects_tampered_member_provenance() {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("run-state");
         let mut prepared = prepare(CHOSEN_MECHANISM_PUBLICATION);
@@ -4500,7 +4954,7 @@ mod regional_stream_acceptance_tests {
             let is_chosen_batch = matches!(
                 batch.quantum(),
                 RelationalStreamQuantum::Mechanism(
-                    RelationalMechanismStepQuantum::AdmitChosenTargetCases {
+                    RelationalMechanismStepQuantum::AdmitChoiceTargetCases {
                         case_count,
                         ..
                     }
@@ -4517,28 +4971,28 @@ mod regional_stream_acceptance_tests {
             assert_eq!(events.len(), 2);
             let chosen_claim = |event: &RelationalJournalEvent| match event {
                 RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
-                    RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+                    RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
                         request_id,
-                        view_id,
-                        projection_ordinal,
+                        choice_id,
+                        member_ordinal,
                         case_id,
                     },
-                )) => (*request_id, *view_id, *projection_ordinal, *case_id),
+                )) => (*request_id, *choice_id, *member_ordinal, *case_id),
                 _ => panic!("chosen-target batch contained a non-provenance event"),
             };
-            let (request_id, view_id, projection_ordinal, first_case_id) = chosen_claim(&events[0]);
-            let (second_request_id, second_view_id, second_ordinal, second_case_id) =
+            let (request_id, choice_id, member_ordinal, first_case_id) = chosen_claim(&events[0]);
+            let (second_request_id, second_choice_id, second_ordinal, second_case_id) =
                 chosen_claim(&events[1]);
             assert_eq!(second_request_id, request_id);
-            assert_eq!(second_view_id, view_id);
-            assert_ne!(second_ordinal, projection_ordinal);
+            assert_eq!(second_choice_id, choice_id);
+            assert_ne!(second_ordinal, member_ordinal);
             assert_ne!(second_case_id, first_case_id);
 
             let tampered = RelationalJournalEvent::analysis(
-                RelationalAnalysisEvidenceEvent::mechanism_chosen_target_case_accepted(
+                RelationalAnalysisEvidenceEvent::mechanism_choice_target_case_accepted(
                     request_id,
-                    view_id,
-                    projection_ordinal,
+                    choice_id,
+                    member_ordinal,
                     second_case_id,
                 ),
             );
@@ -4549,11 +5003,12 @@ mod regional_stream_acceptance_tests {
                 error,
                 RelationalDurableJournalError::Journal(RelationalJournalError::Analysis(
                     RelationalAnalysisJournalError::Catalog(
-                        RelationalAnalysisCatalogError::ResultProjection(
-                            ResultProjectionError::ExpectedRecordMismatch { ordinal }
-                        )
+                        RelationalAnalysisCatalogError::ChoiceMemberMismatch {
+                            choice_id: rejected_choice_id,
+                            member_ordinal: ordinal,
+                        }
                     )
-                )) if ordinal == projection_ordinal
+                )) if rejected_choice_id == choice_id && ordinal == member_ordinal
             ));
             rejected_tamper = true;
             break;

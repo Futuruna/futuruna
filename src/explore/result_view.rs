@@ -219,7 +219,7 @@ pub(crate) enum ResultViewChoice {
 }
 
 impl ResultViewChoice {
-    fn objective_count(&self) -> usize {
+    pub(crate) fn objective_count(&self) -> usize {
         match self {
             Self::Optimize { .. } => 1,
             Self::Pareto { directions } => directions.len(),

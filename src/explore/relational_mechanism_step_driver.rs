@@ -40,11 +40,11 @@ use super::mechanism_incidence::{
 };
 use super::relation::{
     AdmissionId, ChoiceId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId,
-    SelectionDecision, ViewId,
+    SelectionDecision,
 };
 use super::relational_analysis_catalog::{
-    PublishedChosenResultSummary, PublishedChosenTargetCase, RelationalAnalysisCatalogBuilder,
-    RelationalAnalysisCatalogError, RelationalAnalysisLayerStatus,
+    ChoiceTargetCase, RelationalAnalysisCatalogBuilder, RelationalAnalysisCatalogError,
+    RelationalAnalysisLayerStatus,
 };
 use super::relational_analysis_journal::{
     RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
@@ -88,15 +88,15 @@ pub(crate) enum RelationalMechanismStepQuantum {
         request_id: MechanismRequestId,
         exact_case_count: u128,
     },
-    AdmitChosenTargetCases {
+    AdmitChoiceTargetCases {
         request_id: MechanismRequestId,
-        view_id: ViewId,
+        choice_id: ChoiceId,
         first_case_id: RelationalCaseId,
         case_count: NonZeroU16,
     },
-    SealChosenTarget {
+    SealChoiceTarget {
         request_id: MechanismRequestId,
-        view_id: ViewId,
+        choice_id: ChoiceId,
         exact_case_count: u128,
     },
     ReplayObserved {
@@ -161,7 +161,7 @@ impl RelationalMechanismStepBatch {
 }
 
 /// Honest non-progress states. In particular, `ReplayPaused` records no
-/// terminal and chosen-view targets are explicit rather than guessed from a
+/// terminal and semantic-choice targets are explicit rather than guessed from a
 /// selected population.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalMechanismStepQuiescence {
@@ -175,9 +175,9 @@ pub(crate) enum RelationalMechanismStepQuiescence {
         reason: RelationalMechanismReplayPause,
     },
     MechanismsComplete,
-    AwaitingChosenView {
+    AwaitingChoice {
         request_id: MechanismRequestId,
-        view_id: ViewId,
+        choice_id: ChoiceId,
     },
     AnalysisAlreadyClosed,
 }
@@ -196,7 +196,6 @@ enum MechanismLayerTarget {
     Choice {
         question_id: QuestionId,
         choice_id: ChoiceId,
-        materializing_view_id: ViewId,
     },
 }
 
@@ -223,10 +222,9 @@ struct MechanismLayer<'ir> {
 struct MechanismDiscoveryCursor {
     /// Durable selected-question prefix already checked for target evidence.
     target_ordinal: usize,
-    /// Durable chosen-output prefix already checked for target evidence. The
-    /// result projection maps this directly to its possibly noncontiguous
-    /// record ordinals, so excluded group headers require no scheduler scan.
-    chosen_output_ordinal: u128,
+    /// Durable semantic-choice member prefix already checked for target
+    /// evidence.
+    choice_member_ordinal: u128,
     terminal_ordinal: usize,
     signature_ordinal: usize,
 }
@@ -416,19 +414,16 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 }
                 (
                     ExploreMechanismTargetIr::ViewChosen { view_node_index },
-                    RelationalResolvedMechanismTarget::Choice {
-                        choice_id,
-                        materializing_view_id: view_id,
-                    },
+                    RelationalResolvedMechanismTarget::Choice(choice_id),
                 ) => {
                     let Some(CheckedExploreAnalysisIdentity::View {
-                        view_id: checked_view_id,
+                        view_id: _,
                         choice_id: Some(checked_choice_id),
                     }) = checked.artifact.analysis.get(*view_node_index)
                     else {
                         return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
                     };
-                    if *checked_view_id != view_id || *checked_choice_id != choice_id {
+                    if *checked_choice_id != choice_id {
                         return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
                     }
                     let question_id = match checked.closed_query.analysis.get(*view_node_index) {
@@ -448,7 +443,6 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                                 target: MechanismLayerTarget::Choice {
                                     question_id,
                                     choice_id,
-                                    materializing_view_id: view_id,
                                 },
                                 observation,
                                 endpoint_totality_certificate_id: endpoint_totality
@@ -530,7 +524,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
 
         let pending_request_id = analysis.pending_mechanism_artifact_request_id();
         let mut first_awaiting_selected_question = None;
-        let mut first_awaiting_chosen_view = None;
+        let mut first_awaiting_choice = None;
         for (request_id, layer) in &self.layers {
             let question_seal = match layer.target {
                 MechanismLayerTarget::Selected { question_id } => {
@@ -678,16 +672,14 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         MechanismLayerTarget::Choice {
                             question_id,
                             choice_id,
-                            materializing_view_id,
                         } => self
-                            .step_chosen_target(
+                            .step_choice_target(
                                 view,
                                 catalog,
                                 incidence,
                                 *request_id,
                                 question_id,
                                 choice_id,
-                                materializing_view_id,
                             )
                             .map_err(RelationalMechanismStepRunError::from)?,
                     };
@@ -708,12 +700,8 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         MechanismLayerTarget::Selected { question_id } => {
                             first_awaiting_selected_question.get_or_insert(question_id);
                         }
-                        MechanismLayerTarget::Choice {
-                            materializing_view_id,
-                            ..
-                        } => {
-                            first_awaiting_chosen_view
-                                .get_or_insert((*request_id, materializing_view_id));
+                        MechanismLayerTarget::Choice { choice_id, .. } => {
+                            first_awaiting_choice.get_or_insert((*request_id, choice_id));
                         }
                     }
                     continue;
@@ -759,7 +747,10 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         )],
                     ));
                 }
-                RelationalAnalysisLayerStatus::ResultUnregistered
+                RelationalAnalysisLayerStatus::ChoiceInputOpen
+                | RelationalAnalysisLayerStatus::ChoiceMembersOpen
+                | RelationalAnalysisLayerStatus::ChoiceClosed
+                | RelationalAnalysisLayerStatus::ResultUnregistered
                 | RelationalAnalysisLayerStatus::ResultInputOpen
                 | RelationalAnalysisLayerStatus::ResultAwaitingPublication
                 | RelationalAnalysisLayerStatus::ResultPublished => {
@@ -781,14 +772,14 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         }
 
         Ok(RelationalMechanismStepOutcome::Quiescent(
-            match (first_awaiting_selected_question, first_awaiting_chosen_view) {
+            match (first_awaiting_selected_question, first_awaiting_choice) {
                 (Some(question_id), _) => {
                     RelationalMechanismStepQuiescence::AwaitingSelectedQuestion { question_id }
                 }
-                (None, Some((request_id, view_id))) => {
-                    RelationalMechanismStepQuiescence::AwaitingChosenView {
+                (None, Some((request_id, choice_id))) => {
+                    RelationalMechanismStepQuiescence::AwaitingChoice {
                         request_id,
-                        view_id,
+                        choice_id,
                     }
                 }
                 (None, None) => RelationalMechanismStepQuiescence::MechanismsComplete,
@@ -1038,7 +1029,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         Ok(missing)
     }
 
-    fn step_chosen_target(
+    fn step_choice_target(
         &self,
         view: RelationalSchedulerView<'_>,
         catalog: &RelationalAnalysisCatalogBuilder,
@@ -1046,39 +1037,41 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         request_id: MechanismRequestId,
         question_id: QuestionId,
         choice_id: ChoiceId,
-        view_id: ViewId,
     ) -> Result<Option<RelationalMechanismStepOutcome>, RelationalMechanismStepDriverError> {
-        let result_layer_id = RelationalAnalysisLayerId::Result(view_id);
-        let Some(result_status) = catalog.layer_status(result_layer_id) else {
+        let choice_layer_id = RelationalAnalysisLayerId::Choice(choice_id);
+        let Some(choice_status) = catalog.layer_status(choice_layer_id) else {
             return Err(RelationalMechanismStepDriverError::AnalysisLayerMissing(
-                result_layer_id,
+                choice_layer_id,
             ));
         };
-        if result_status != RelationalAnalysisLayerStatus::ResultPublished {
-            return match result_status {
-                RelationalAnalysisLayerStatus::ResultUnregistered
-                | RelationalAnalysisLayerStatus::ResultInputOpen
-                | RelationalAnalysisLayerStatus::ResultAwaitingPublication => Ok(None),
+        if choice_status != RelationalAnalysisLayerStatus::ChoiceClosed {
+            return match choice_status {
+                RelationalAnalysisLayerStatus::ChoiceInputOpen
+                | RelationalAnalysisLayerStatus::ChoiceMembersOpen => Ok(None),
                 RelationalAnalysisLayerStatus::MechanismTargetOpen
                 | RelationalAnalysisLayerStatus::MechanismTerminalOpen
                 | RelationalAnalysisLayerStatus::MechanismClosed
+                | RelationalAnalysisLayerStatus::ResultUnregistered
+                | RelationalAnalysisLayerStatus::ResultInputOpen
+                | RelationalAnalysisLayerStatus::ResultAwaitingPublication
                 | RelationalAnalysisLayerStatus::ResultPublished => Err(
-                    RelationalMechanismStepDriverError::AnalysisLayerKindMismatch(result_layer_id),
+                    RelationalMechanismStepDriverError::AnalysisLayerKindMismatch(choice_layer_id),
                 ),
+                RelationalAnalysisLayerStatus::ChoiceClosed => unreachable!(),
             };
         }
 
-        let chosen = catalog.published_chosen_result_summary(view_id)?;
-        if chosen.choice_id() != choice_id {
-            return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
-        }
-        let expected_cases = chosen.exact_chosen_count();
+        let relation = catalog.choice_relation(choice_id)?;
+        let content_root = relation.content_root().ok_or(
+            RelationalMechanismStepDriverError::AnalysisLayerKindMismatch(choice_layer_id),
+        )?;
+        let expected_cases = relation.members().len() as u128;
         let durable_cases = incidence.target_case_count() as u128;
         if durable_cases > expected_cases {
             return Err(
                 RelationalMechanismStepDriverError::ChosenTargetCountMismatch {
                     request_id,
-                    view_id,
+                    choice_id,
                     expected: expected_cases,
                     actual: durable_cases,
                 },
@@ -1087,23 +1080,28 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         if durable_cases == expected_cases {
             return Ok(Some(self.batch(
                 view,
-                RelationalMechanismStepQuantum::SealChosenTarget {
+                RelationalMechanismStepQuantum::SealChoiceTarget {
                     request_id,
-                    view_id,
+                    choice_id,
                     exact_case_count: expected_cases,
                 },
                 vec![RelationalJournalEvent::analysis(
-                    RelationalAnalysisEvidenceEvent::mechanism_target_sealed_from_result_claim(
+                    RelationalAnalysisEvidenceEvent::mechanism_target_sealed_from_choice(
                         request_id,
-                        view_id,
-                        chosen.result_root(),
+                        choice_id,
+                        content_root,
                     ),
                 )],
             )));
         }
 
-        let cases =
-            self.missing_chosen_target_chunk(catalog, incidence, request_id, view_id, chosen)?;
+        let cases = self.missing_choice_target_chunk(
+            catalog,
+            incidence,
+            request_id,
+            choice_id,
+            expected_cases,
+        )?;
         if cases.is_empty() {
             return Err(
                 RelationalMechanismStepDriverError::NonCanonicalTargetPrefix {
@@ -1121,7 +1119,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             return Err(
                 RelationalMechanismStepDriverError::ChosenTargetCountMismatch {
                     request_id,
-                    view_id,
+                    choice_id,
                     expected: expected_cases,
                     actual: projected_cases,
                 },
@@ -1145,19 +1143,19 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 );
             }
             events.push(RelationalJournalEvent::analysis(
-                RelationalAnalysisEvidenceEvent::mechanism_chosen_target_case_accepted(
+                RelationalAnalysisEvidenceEvent::mechanism_choice_target_case_accepted(
                     request_id,
-                    view_id,
-                    chosen_case.projection_ordinal(),
+                    choice_id,
+                    chosen_case.member_ordinal(),
                     case_id,
                 ),
             ));
         }
         Ok(Some(self.batch(
             view,
-            RelationalMechanismStepQuantum::AdmitChosenTargetCases {
+            RelationalMechanismStepQuantum::AdmitChoiceTargetCases {
                 request_id,
-                view_id,
+                choice_id,
                 first_case_id,
                 case_count,
             },
@@ -1165,32 +1163,32 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         )))
     }
 
-    fn missing_chosen_target_chunk(
+    fn missing_choice_target_chunk(
         &self,
         catalog: &RelationalAnalysisCatalogBuilder,
         incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
         request_id: MechanismRequestId,
-        view_id: ViewId,
-        summary: PublishedChosenResultSummary,
-    ) -> Result<Vec<PublishedChosenTargetCase>, RelationalMechanismStepDriverError> {
+        choice_id: ChoiceId,
+        exact_member_count: u128,
+    ) -> Result<Vec<ChoiceTargetCase>, RelationalMechanismStepDriverError> {
         let mut cursors = self.discovery_cursors.borrow_mut();
         let cursor = cursors.entry(request_id).or_default();
-        if cursor.chosen_output_ordinal > summary.exact_chosen_count()
-            || (incidence.target_case_count() as u128) < cursor.chosen_output_ordinal
+        if cursor.choice_member_ordinal > exact_member_count
+            || (incidence.target_case_count() as u128) < cursor.choice_member_ordinal
         {
-            cursor.chosen_output_ordinal = 0;
+            cursor.choice_member_ordinal = 0;
         }
 
-        let mut scan_ordinal = cursor.chosen_output_ordinal;
-        let mut durable_output_ordinal = cursor.chosen_output_ordinal;
+        let mut scan_ordinal = cursor.choice_member_ordinal;
+        let mut durable_output_ordinal = cursor.choice_member_ordinal;
         let mut missing = Vec::with_capacity(usize::from(self.max_target_cases_per_quantum.get()));
-        while scan_ordinal < summary.exact_chosen_count() {
+        while scan_ordinal < exact_member_count {
             let chosen_case = catalog
-                .published_chosen_target_case_at(view_id, scan_ordinal)?
+                .choice_target_case_at(choice_id, scan_ordinal)?
                 .ok_or(
                     RelationalMechanismStepDriverError::NonCanonicalTargetPrefix {
                         request_id,
-                        expected: summary.exact_chosen_count(),
+                        expected: exact_member_count,
                         actual: scan_ordinal,
                     },
                 )?;
@@ -1211,7 +1209,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         // Advance only across the already-durable prefix. Planned admissions
         // remain visible until their journal events have actually appended,
         // preserving exact retries after stale-head rejection or a crash.
-        cursor.chosen_output_ordinal = durable_output_ordinal;
+        cursor.choice_member_ordinal = durable_output_ordinal;
         Ok(missing)
     }
 
@@ -1547,7 +1545,7 @@ pub(crate) enum RelationalMechanismStepDriverError {
     },
     ChosenTargetCountMismatch {
         request_id: MechanismRequestId,
-        view_id: ViewId,
+        choice_id: ChoiceId,
         expected: u128,
         actual: u128,
     },

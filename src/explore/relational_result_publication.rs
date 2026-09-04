@@ -136,10 +136,11 @@ use super::relational_mechanism_starter_regions::{
     RELATIONAL_MECHANISM_STARTER_REGION_VERSION,
 };
 use super::relational_public::{
-    ExploreStreamCount, ExploreStreamCoverageBindingRole, ExploreStreamCoverageClassification,
-    ExploreStreamCoverageConstructorLayout, ExploreStreamCoverageGapReason,
-    ExploreStreamCoverageLiteralKind, ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject,
-    ExploreStreamFind, ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
+    ExploreStreamChoiceLayer, ExploreStreamCount, ExploreStreamCoverageBindingRole,
+    ExploreStreamCoverageClassification, ExploreStreamCoverageConstructorLayout,
+    ExploreStreamCoverageGapReason, ExploreStreamCoverageLiteralKind,
+    ExploreStreamCoverageRootRole, ExploreStreamCoverageSubject, ExploreStreamFind,
+    ExploreStreamLayer, ExploreStreamLayerStatus, ExploreStreamLifecycle,
     ExploreStreamMechanismLayer, ExploreStreamMechanismTarget, ExploreStreamPauseReason,
     ExploreStreamResultLayer, ExploreStreamSliceReport, EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
 };
@@ -163,9 +164,9 @@ use super::{
     TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 18;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 19;
 
-const CURSOR_FILE: &str = ".publication-cursor-v18.json";
+const CURSOR_FILE: &str = ".publication-cursor-v19.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
 const PRESENTATION_PLAN_DIGEST_V3: &[u8] = b"futuruna.explore.publication-presentation-plan.v3";
@@ -349,6 +350,10 @@ enum ResultPublicationInput {
         question_id: QuestionId,
         authored_name: Box<str>,
     },
+    Choice {
+        choice_id: ChoiceId,
+        question_id: QuestionId,
+    },
     MechanismIncidence {
         request_id: MechanismRequestId,
     },
@@ -357,7 +362,7 @@ enum ResultPublicationInput {
 impl ResultPublicationInput {
     const fn mechanism_request_id(&self) -> Option<MechanismRequestId> {
         match self {
-            Self::Sources | Self::Find { .. } => None,
+            Self::Sources | Self::Find { .. } | Self::Choice { .. } => None,
             Self::MechanismIncidence { request_id } => Some(*request_id),
         }
     }
@@ -409,9 +414,6 @@ impl PublicationResultGrain {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PublicationMechanismTarget {
     target: MechanismTargetId,
-    /// The fused result view that currently materializes a choice relation.
-    /// This is an execution/publication address, never mechanism identity.
-    materializing_view_id: Option<ViewId>,
     question_id: QuestionId,
     authored_name: Box<str>,
 }
@@ -423,10 +425,6 @@ impl PublicationMechanismTarget {
 
     const fn question_id(&self) -> QuestionId {
         self.question_id
-    }
-
-    const fn materializing_view_id(&self) -> Option<ViewId> {
-        self.materializing_view_id
     }
 }
 
@@ -813,14 +811,29 @@ impl RelationalPublicationPlan {
             let artifact = match (node, identity) {
                 (
                     ExploreAnalysisNodeIr::Result(view),
-                    CheckedExploreAnalysisIdentity::View { view_id, .. },
+                    CheckedExploreAnalysisIdentity::View { view_id, choice_id },
                 ) => {
-                    let input = match &view.input {
-                        ExploreResultInputIr::Sources => ResultPublicationInput::Sources,
-                        ExploreResultInputIr::Find {
-                            find_name,
-                            find_index,
-                        } => {
+                    let input = match (*choice_id, &view.input) {
+                        (Some(choice_id), ExploreResultInputIr::Find { find_index, .. }) => {
+                            let question_id = checked
+                                .find_question_id(*find_index)
+                                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                            ResultPublicationInput::Choice {
+                                choice_id,
+                                question_id,
+                            }
+                        }
+                        (Some(_), _) => {
+                            return Err(RelationalPublicationError::PlanIdentityMismatch);
+                        }
+                        (None, ExploreResultInputIr::Sources) => ResultPublicationInput::Sources,
+                        (
+                            None,
+                            ExploreResultInputIr::Find {
+                                find_name,
+                                find_index,
+                            },
+                        ) => {
                             let find = checked
                                 .closed_query
                                 .finds
@@ -837,9 +850,12 @@ impl RelationalPublicationPlan {
                                 authored_name: find_name.as_str().into(),
                             }
                         }
-                        super::relational_ir::ExploreResultInputIr::MechanismIncidence {
-                            request_node_index,
-                        } => {
+                        (
+                            None,
+                            super::relational_ir::ExploreResultInputIr::MechanismIncidence {
+                                request_node_index,
+                            },
+                        ) => {
                             if *request_node_index >= node_index {
                                 return Err(RelationalPublicationError::PlanIdentityMismatch);
                             }
@@ -1342,13 +1358,6 @@ fn artifact_presentation_digest(
             MechanismTargetId::Choice(choice_id) => {
                 digest.text(b"target-kind", "choice");
                 digest.bytes(b"target-choice-id", &choice_id.bytes());
-                let materializing_view_id = target
-                    .materializing_view_id()
-                    .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
-                digest.bytes(
-                    b"target-materializing-view-id",
-                    &materializing_view_id.bytes(),
-                );
             }
         }
     } else {
@@ -1371,6 +1380,14 @@ fn artifact_presentation_digest(
                 } => {
                     digest.text(b"result-input-kind", "find");
                     digest.text(b"result-input-name", authored_name);
+                    digest.bytes(b"result-input-question-id", &question_id.bytes());
+                }
+                ResultPublicationInput::Choice {
+                    choice_id,
+                    question_id,
+                } => {
+                    digest.text(b"result-input-kind", "choice");
+                    digest.bytes(b"result-input-choice-id", &choice_id.bytes());
                     digest.bytes(b"result-input-question-id", &question_id.bytes());
                 }
                 ResultPublicationInput::MechanismIncidence { request_id } => {
@@ -1555,7 +1572,6 @@ fn checked_mechanism_target_at(
                 .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
             Ok(PublicationMechanismTarget {
                 target: MechanismTargetId::Selected,
-                materializing_view_id: None,
                 question_id,
                 authored_name: find.name.as_str().into(),
             })
@@ -1567,7 +1583,7 @@ fn checked_mechanism_target_at(
             let (
                 Some(ExploreAnalysisNodeIr::Result(view)),
                 Some(CheckedExploreAnalysisIdentity::View {
-                    view_id,
+                    view_id: _,
                     choice_id: Some(choice_id),
                 }),
             ) = (
@@ -1585,7 +1601,6 @@ fn checked_mechanism_target_at(
                 .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
             Ok(PublicationMechanismTarget {
                 target: MechanismTargetId::Choice(*choice_id),
-                materializing_view_id: Some(*view_id),
                 question_id,
                 authored_name: view.name.as_str().into(),
             })
@@ -7323,7 +7338,6 @@ fn public_mechanism_target_id(target: &PublicationMechanismTarget) -> JsonValue 
             "name": target.authored_name,
             "question_id": hex(target.question_id().bytes()),
             "choice_id": hex(choice_id.bytes()),
-            "materializing_view_id": target.materializing_view_id().map(|view_id| hex(view_id.bytes())),
         }),
     }
 }
@@ -7340,6 +7354,14 @@ fn public_result_input(input: &ResultPublicationInput, relation_id: RelationId) 
         } => json!({
             "kind": "find",
             "name": authored_name,
+            "question_id": hex(question_id.bytes()),
+        }),
+        ResultPublicationInput::Choice {
+            choice_id,
+            question_id,
+        } => json!({
+            "kind": "choice",
+            "choice_id": hex(choice_id.bytes()),
             "question_id": hex(question_id.bytes()),
         }),
         ResultPublicationInput::MechanismIncidence { request_id } => json!({
@@ -10379,6 +10401,7 @@ fn build_manifest_answer_index(
     }
 
     let mut find_by_address = BTreeMap::<(String, String), &ExploreStreamFind>::new();
+    let mut choice_by_id = BTreeMap::<String, &ExploreStreamChoiceLayer>::new();
     let mut result_by_view = BTreeMap::<String, &ExploreStreamResultLayer>::new();
     let mut mechanism_by_request = BTreeMap::<String, &ExploreStreamMechanismLayer>::new();
     for find in &report.finds {
@@ -10391,6 +10414,14 @@ fn build_manifest_answer_index(
     }
     for layer in &report.layers {
         match layer {
+            ExploreStreamLayer::Choice(choice) => {
+                if choice_by_id
+                    .insert(choice.choice_id.clone(), choice)
+                    .is_some()
+                {
+                    return Err(RelationalPublicationError::PlanIdentityMismatch);
+                }
+            }
             ExploreStreamLayer::Result(result) => {
                 if result_by_view
                     .insert(result.view_id.clone(), result)
@@ -10420,7 +10451,26 @@ fn build_manifest_answer_index(
         .iter()
         .filter(|artifact| matches!(artifact, PublicationArtifactPlan::Mechanism { .. }))
         .count();
+    let planned_choice_ids = plan
+        .artifacts
+        .iter()
+        .filter_map(|artifact| match artifact {
+            PublicationArtifactPlan::Result {
+                input: ResultPublicationInput::Choice { choice_id, .. },
+                ..
+            } => Some(*choice_id),
+            PublicationArtifactPlan::Mechanism { target, .. } => match target.semantic_target() {
+                MechanismTargetId::Choice(choice_id) => Some(choice_id),
+                MechanismTargetId::Selected => None,
+            },
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
     if find_by_address.len() != plan.finds.len()
+        || choice_by_id.len() != planned_choice_ids.len()
+        || planned_choice_ids
+            .iter()
+            .any(|choice_id| !choice_by_id.contains_key(&hex(choice_id.bytes())))
         || result_by_view.len() != result_plan_count
         || mechanism_by_request.len() != mechanism_plan_count
     {
@@ -10428,8 +10478,9 @@ fn build_manifest_answer_index(
     }
 
     let mut result_keys_by_find = BTreeMap::<(QuestionId, String), Vec<String>>::new();
+    let mut result_keys_by_choice = BTreeMap::<ChoiceId, Vec<String>>::new();
     let mut mechanism_requests_by_find = BTreeMap::<(QuestionId, String), Vec<String>>::new();
-    let mut mechanism_requests_by_view = BTreeMap::<ViewId, Vec<String>>::new();
+    let mut mechanism_requests_by_choice = BTreeMap::<ChoiceId, Vec<String>>::new();
     let mut result_keys_by_mechanism = BTreeMap::<MechanismRequestId, Vec<String>>::new();
     let mut artifact_keys_by_mechanism = BTreeMap::<MechanismRequestId, Vec<String>>::new();
     for artifact in plan.artifacts.iter() {
@@ -10454,6 +10505,12 @@ fn build_manifest_answer_index(
                         .or_default()
                         .push(key.to_string());
                 }
+                ResultPublicationInput::Choice { choice_id, .. } => {
+                    result_keys_by_choice
+                        .entry(*choice_id)
+                        .or_default()
+                        .push(key.to_string());
+                }
                 ResultPublicationInput::Sources => {}
             },
             PublicationArtifactPlan::Mechanism {
@@ -10464,11 +10521,11 @@ fn build_manifest_answer_index(
                     .or_default()
                     .push(hex(request_id.bytes())),
                 MechanismTargetId::Choice(_) => {
-                    let view_id = target
-                        .materializing_view_id()
-                        .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
-                    mechanism_requests_by_view
-                        .entry(view_id)
+                    let MechanismTargetId::Choice(choice_id) = target.semantic_target() else {
+                        unreachable!();
+                    };
+                    mechanism_requests_by_choice
+                        .entry(choice_id)
                         .or_default()
                         .push(hex(request_id.bytes()));
                 }
@@ -10516,6 +10573,41 @@ fn build_manifest_answer_index(
         })
         .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
 
+    let choices = planned_choice_ids
+        .iter()
+        .map(|choice_id| {
+            let layer = choice_by_id
+                .get(&hex(choice_id.bytes()))
+                .copied()
+                .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+            Ok(json!({
+                "name": layer.name,
+                "choice_id": layer.choice_id,
+                "question_id": layer.question_id,
+                "status": layer_status_name(layer.status),
+                "frontier": if matches!(layer.status, ExploreStreamLayerStatus::ChoiceClosed) {
+                    "exact"
+                } else {
+                    "open"
+                },
+                "counts": {
+                    "candidates": public_count_json(layer.candidates),
+                    "members": public_count_json(layer.members),
+                },
+                "frontier_root": layer.frontier_root,
+                "content_root": layer.content_root,
+                "result_artifact_keys": result_keys_by_choice
+                    .get(choice_id)
+                    .cloned()
+                    .unwrap_or_default(),
+                "mechanism_request_ids": mechanism_requests_by_choice
+                    .get(choice_id)
+                    .cloned()
+                    .unwrap_or_default(),
+            }))
+        })
+        .collect::<Result<Vec<_>, RelationalPublicationError>>()?;
+
     let mut result_views = Vec::with_capacity(result_plan_count);
     let mut mechanisms = Vec::with_capacity(mechanism_plan_count);
     for artifact in plan.artifacts.iter() {
@@ -10542,6 +10634,17 @@ fn build_manifest_answer_index(
                     .get(key.as_ref())
                     .copied()
                     .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                let mechanism_request_ids = match input {
+                    ResultPublicationInput::Choice { choice_id, .. } => {
+                        mechanism_requests_by_choice
+                            .get(choice_id)
+                            .cloned()
+                            .unwrap_or_default()
+                    }
+                    ResultPublicationInput::Sources
+                    | ResultPublicationInput::Find { .. }
+                    | ResultPublicationInput::MechanismIncidence { .. } => Vec::new(),
+                };
                 result_views.push(json!({
                     "name": layer.name,
                     "view_id": layer.view_id,
@@ -10562,10 +10665,7 @@ fn build_manifest_answer_index(
                         "projection_records": public_count_json(layer.projection_records),
                     },
                     "artifact": answer_result_artifact_reference(descriptor)?,
-                    "mechanism_request_ids": mechanism_requests_by_view
-                        .get(view_id)
-                        .cloned()
-                        .unwrap_or_default(),
+                    "mechanism_request_ids": mechanism_request_ids,
                 }));
             }
             PublicationArtifactPlan::Mechanism {
@@ -10629,10 +10729,11 @@ fn build_manifest_answer_index(
     }
 
     Ok(json!({
-        "schema_version": 1,
+        "schema_version": 2,
         "materialization": "declaration_index",
         "rows_inlined": false,
         "finds": finds,
+        "choices": choices,
         "result_views": result_views,
         "mechanisms": mechanisms,
     }))
@@ -12573,13 +12674,13 @@ fn public_pause_reason_json(reason: &ExploreStreamPauseReason) -> JsonValue {
             "endpoint": endpoint,
             "reason": reason,
         }),
-        ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+        ExploreStreamPauseReason::AwaitingChoiceMechanisms {
             request_id,
-            view_id,
+            choice_id,
         } => json!({
-            "kind": "awaiting_chosen_view_mechanisms",
+            "kind": "awaiting_choice_mechanisms",
             "request_id": request_id,
-            "view_id": view_id,
+            "choice_id": choice_id,
         }),
         ExploreStreamPauseReason::AwaitingSourceResult { view_id } => json!({
             "kind": "awaiting_source_result",
@@ -12602,6 +12703,17 @@ fn public_pause_reason_json(reason: &ExploreStreamPauseReason) -> JsonValue {
 
 fn public_layer_json(layer: &ExploreStreamLayer) -> JsonValue {
     match layer {
+        ExploreStreamLayer::Choice(choice) => json!({
+            "kind": "choice",
+            "name": choice.name,
+            "choice_id": choice.choice_id,
+            "question_id": choice.question_id,
+            "status": layer_status_name(choice.status),
+            "candidates": public_count_json(choice.candidates),
+            "members": public_count_json(choice.members),
+            "frontier_root": choice.frontier_root,
+            "content_root": choice.content_root,
+        }),
         ExploreStreamLayer::Result(result) => json!({
             "kind": "result",
             "name": result.name,
@@ -12650,19 +12762,20 @@ fn public_mechanism_target_json(target: &ExploreStreamMechanismTarget) -> JsonVa
             name,
             question_id,
             choice_id,
-            materializing_view_id,
         } => json!({
             "kind": "choice",
             "name": name,
             "question_id": question_id,
             "choice_id": choice_id,
-            "materializing_view_id": materializing_view_id,
         }),
     }
 }
 
 const fn layer_status_name(status: ExploreStreamLayerStatus) -> &'static str {
     match status {
+        ExploreStreamLayerStatus::ChoiceInputOpen => "choice_input_open",
+        ExploreStreamLayerStatus::ChoiceMembersOpen => "choice_members_open",
+        ExploreStreamLayerStatus::ChoiceClosed => "choice_closed",
         ExploreStreamLayerStatus::ResultUnregistered => "result_unregistered",
         ExploreStreamLayerStatus::ResultInputOpen => "result_input_open",
         ExploreStreamLayerStatus::ResultAwaitingPublication => "result_awaiting_publication",
@@ -13526,7 +13639,6 @@ mod tests {
         let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
         let find_target = PublicationMechanismTarget {
             target: MechanismTargetId::Selected,
-            materializing_view_id: None,
             question_id,
             authored_name: "interesting".into(),
         };
@@ -13541,7 +13653,6 @@ mod tests {
 
         let chosen_target = PublicationMechanismTarget {
             target: MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes([0x31; 32])),
-            materializing_view_id: Some(ViewId::from_journal_codec_bytes([0x32; 32])),
             question_id,
             authored_name: "worst_case".into(),
         };
@@ -13552,7 +13663,6 @@ mod tests {
                 "name": "worst_case",
                 "question_id": "21".repeat(32),
                 "choice_id": "31".repeat(32),
-                "materializing_view_id": "32".repeat(32),
             })
         );
     }
@@ -13593,7 +13703,6 @@ mod tests {
             request_id,
             target: PublicationMechanismTarget {
                 target: MechanismTargetId::Selected,
-                materializing_view_id: None,
                 question_id,
                 authored_name: find_name.into(),
             },

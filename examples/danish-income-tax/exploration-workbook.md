@@ -56,14 +56,16 @@ result chose the two tied maximum-score cases (`before = 2` and `before = 3`),
 admitted exactly those two CaseIds into `winner_path`, and closed with one
 shared structural mechanism.
 Its downstream grouped result is exactly `{ cases: 2, mechanisms: 1 }`; all
-nine artifacts caught up at sequence 116. A focused crash test stopped after
-only the first of the two projection-backed target events and resumed to the
-same exact closure. The scheduler addresses the authenticated result projection
-incrementally by ordinal; it does not rematerialize or copy the full result
-before mechanism replay. This remains a kernel audit, not a Personskat result.
+declared artifacts caught up to the final journal head. A focused crash test
+paused after the first Choice candidate while its FIND input was still open,
+reopened the identical frontier, and resumed to the same exact closure. The
+scheduler addresses the independently authenticated Choice relation
+incrementally by member ordinal; it does not wait for, rematerialize, or copy a
+display result before mechanism replay. This remains a kernel audit, not a
+Personskat result.
 
 The compact answer is now shaped for the policy result rather than only for
-engine inspection. Report v10 and publication v18 list every named result,
+engine inspection. Report v11 and publication v19 list every named result,
 including an ungrouped configuration ledger and an exact-empty view, with its
 resolved input, row grain, ordered typed columns, group keys, exact or open row
 count, evidence roots, and resumable NDJSON path. The manifest joins those
@@ -1583,12 +1585,14 @@ fixed.
 
 The current executable nested `results { ... choose ... }` checkpoint now
 lowers this same membership concept to a canonical `ChoiceId` and a separate
-display `ViewId`. A mechanism hashes the `ChoiceId`, so adding or changing an
-unused `SELECT` field cannot rename what was chosen. Until explicit `choice`
-syntax lands, the existing reducer materializes choice and display together in
-one fused stage. Choice objectives may name candidate, partition, and measure
-values; aggregate or `SELECT` aliases fail closed rather than leaking display
-policy into membership identity.
+display `ViewId`. Choice candidates, the exact input seal, canonical member
+prefix and `ChoiceContentRoot` are journaled independently. Mechanisms consume
+those members by ordinal and close against the choice root without a `ViewId`;
+only then may the fused physical driver project a display. Adding or changing
+an unused `SELECT` field therefore cannot rename or roll back what was chosen.
+Until explicit `choice` syntax lands, choice objectives may name candidate,
+partition, and measure values; aggregate or `SELECT` aliases fail closed rather
+than leaking display policy into membership identity.
 
 If the encoded model has no municipality-dependent result, exact closure proves
 zero spread and publishes no “best municipality” recommendation. The

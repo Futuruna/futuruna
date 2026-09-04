@@ -21,8 +21,8 @@ use std::num::NonZeroU16;
 use crate::{CheckedExploreAnalysisIdentity, CheckedExploreQueryView};
 
 use super::relation::{
-    AdmissionId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId, SelectionDecision,
-    SourceKey, ViewId,
+    AdmissionId, ChoiceId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId,
+    SelectionDecision, SourceKey, ViewId,
 };
 use super::relational_analysis_catalog::{
     RelationalAnalysisCatalogBuilder, RelationalAnalysisCatalogError, RelationalAnalysisLayerStatus,
@@ -32,7 +32,8 @@ use super::relational_analysis_journal::{
 };
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
-    RelationalAnalysisPlanError, RelationalAnalysisPlanRoot, RelationalResolvedResultInput,
+    RelationalAnalysisPlanError, RelationalAnalysisPlanRoot, RelationalResolvedMechanismTarget,
+    RelationalResolvedResultInput,
 };
 use super::relational_certified_source_summary::{
     certify_relational_source_summary, RelationalCertifiedSourceSummaryArtifact,
@@ -53,7 +54,7 @@ use super::result_evidence::{
 };
 use super::result_projection::{
     IndexedResultProjectionRecord, ResultProjectionCatalogBuilder, ResultProjectionError,
-    ValidatedResultProjectionPrefix,
+    ResultProjectionRecord, ValidatedResultProjectionPrefix,
 };
 use super::result_view::{ResultViewInputRowId, ResultViewRoot};
 
@@ -61,6 +62,23 @@ use super::result_view::{ResultViewInputRowId, ResultViewRoot};
 /// fields participates in semantic identities.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalResultStepQuantum {
+    EvaluateChoiceCandidates {
+        choice_id: ChoiceId,
+        first_case_id: RelationalCaseId,
+        row_count: NonZeroU16,
+    },
+    SealChoiceInput {
+        choice_id: ChoiceId,
+    },
+    PublishChoiceMembers {
+        choice_id: ChoiceId,
+        first_ordinal: u128,
+        member_count: NonZeroU16,
+    },
+    CloseChoice {
+        choice_id: ChoiceId,
+        content_root: super::choice_relation::ChoiceContentRoot,
+    },
     RegisterSourceSpec {
         view_id: ViewId,
     },
@@ -152,6 +170,9 @@ pub(crate) enum RelationalResultStepQuiescence {
     AwaitingSourceMaterialization {
         view_id: ViewId,
     },
+    AwaitingChoiceMechanisms {
+        choice_id: ChoiceId,
+    },
     SelectedResultsComplete,
     DeferredMechanismIncidence {
         view_id: ViewId,
@@ -168,6 +189,12 @@ pub(crate) enum RelationalResultStepOutcome {
 
 struct SelectedResultLayer<'ir> {
     input: RelationalResolvedResultInput,
+    question_id: QuestionId,
+    choice_id: Option<ChoiceId>,
+    executor: RelationalResultExecutor<'ir>,
+}
+
+struct ChoiceResultLayer<'ir> {
     question_id: QuestionId,
     executor: RelationalResultExecutor<'ir>,
 }
@@ -192,6 +219,7 @@ pub(crate) struct RelationalResultStepDriver<'query> {
     question_ids: Box<[QuestionId]>,
     analysis_plan_root: RelationalAnalysisPlanRoot,
     sources: BTreeMap<ViewId, SourceResultLayer<'query>>,
+    choices: BTreeMap<ChoiceId, ChoiceResultLayer<'query>>,
     selected: BTreeMap<ViewId, SelectedResultLayer<'query>>,
     first_deferred_incidence: Option<(ViewId, MechanismRequestId)>,
     /// Purely operational CPU bound; absent from every spec, event identity,
@@ -205,6 +233,7 @@ pub(crate) struct RelationalResultStepDriver<'query> {
     /// index. Durable evidence remains the resume authority; these offsets
     /// merely prevent each open-prefix turn from rescanning all earlier rows.
     selected_discovery_cursors: RefCell<BTreeMap<ViewId, usize>>,
+    choice_discovery_cursors: RefCell<BTreeMap<ChoiceId, usize>>,
     source_cursors: RefCell<BTreeMap<ViewId, usize>>,
     /// Invocation-local cold-replay gate. A durable summary artifact is not
     /// consumed merely because its self-authenticating bytes replayed: once
@@ -226,13 +255,14 @@ impl<'query> RelationalResultStepDriver<'query> {
     ) -> Result<Self, RelationalResultStepDriverError> {
         let plan = RelationalAnalysisPlan::from_checked(checked)?;
         let mut sources = BTreeMap::new();
+        let mut choices = BTreeMap::<ChoiceId, ChoiceResultLayer<'query>>::new();
         let mut selected = BTreeMap::new();
         let mut deferred = BTreeMap::new();
 
         for (node, identity) in checked.analysis_nodes() {
             let (
                 ExploreAnalysisNodeIr::Result(result),
-                CheckedExploreAnalysisIdentity::View { view_id, .. },
+                CheckedExploreAnalysisIdentity::View { view_id, choice_id },
             ) = (node, identity)
             else {
                 continue;
@@ -276,12 +306,47 @@ impl<'query> RelationalResultStepDriver<'query> {
                     let layer = SelectedResultLayer {
                         input,
                         question_id,
+                        choice_id: None,
                         executor: RelationalResultExecutor::lower(*view_id, result)?,
                     };
                     if selected.insert(*view_id, layer).is_some() {
                         return Err(RelationalResultStepDriverError::DuplicateResultView(
                             *view_id,
                         ));
+                    }
+                }
+                (
+                    ExploreResultInputIr::Find { find_index, .. },
+                    input @ RelationalResolvedResultInput::Choice(resolved_choice_id),
+                ) => {
+                    if *choice_id != Some(resolved_choice_id) {
+                        return Err(RelationalResultStepDriverError::JournalScopeMismatch);
+                    }
+                    let question_id = *checked
+                        .find_question_ids()
+                        .get(*find_index)
+                        .ok_or(RelationalResultStepDriverError::JournalScopeMismatch)?;
+                    let selected_layer = SelectedResultLayer {
+                        input,
+                        question_id,
+                        choice_id: Some(resolved_choice_id),
+                        executor: RelationalResultExecutor::lower(*view_id, result)?,
+                    };
+                    if selected.insert(*view_id, selected_layer).is_some() {
+                        return Err(RelationalResultStepDriverError::DuplicateResultView(
+                            *view_id,
+                        ));
+                    }
+                    let choice_layer = ChoiceResultLayer {
+                        question_id,
+                        executor: RelationalResultExecutor::lower(*view_id, result)?,
+                    };
+                    if let Some(existing) = choices.get(&resolved_choice_id) {
+                        if existing.question_id != question_id {
+                            return Err(RelationalResultStepDriverError::JournalScopeMismatch);
+                        }
+                    } else {
+                        choices.insert(resolved_choice_id, choice_layer);
                     }
                 }
                 (
@@ -305,11 +370,13 @@ impl<'query> RelationalResultStepDriver<'query> {
             question_ids: plan.question_ids().to_vec().into_boxed_slice(),
             analysis_plan_root: plan.root(),
             sources,
+            choices,
             selected,
             first_deferred_incidence: deferred.into_iter().next(),
             max_rows_per_quantum,
             publication_cache: RefCell::new(BTreeMap::new()),
             selected_discovery_cursors: RefCell::new(BTreeMap::new()),
+            choice_discovery_cursors: RefCell::new(BTreeMap::new()),
             source_cursors: RefCell::new(BTreeMap::new()),
             rebound_certified_source_summaries: RefCell::new(BTreeSet::new()),
         })
@@ -425,6 +492,96 @@ impl<'query> RelationalResultStepDriver<'query> {
             });
         }
 
+        for (choice_id, layer) in &self.choices {
+            let layer_id = RelationalAnalysisLayerId::Choice(*choice_id);
+            let status = catalog.layer_status(layer_id).ok_or(
+                RelationalResultStepDriverError::AnalysisLayerMissing(layer_id),
+            )?;
+            match status {
+                RelationalAnalysisLayerStatus::ChoiceInputOpen => {
+                    let question_seal = analysis.selected_question(layer.question_id);
+                    if let Some(outcome) = self.step_choice_candidates(
+                        view,
+                        catalog,
+                        *choice_id,
+                        layer,
+                        question_seal,
+                        runtime,
+                    )? {
+                        return Ok(outcome);
+                    }
+                }
+                RelationalAnalysisLayerStatus::ChoiceMembersOpen => {
+                    let relation = catalog.choice_relation(*choice_id)?;
+                    let expected = relation
+                        .expected_members()
+                        .map_err(RelationalAnalysisCatalogError::Choice)?;
+                    let first = relation.members().len();
+                    if first < expected.len() {
+                        let end = first
+                            .saturating_add(usize::from(self.max_rows_per_quantum.get()))
+                            .min(expected.len());
+                        let chunk = &expected[first..end];
+                        let member_count =
+                            NonZeroU16::new(u16::try_from(chunk.len()).map_err(|_| {
+                                RelationalResultStepDriverError::ChunkRowCountOverflow
+                            })?)
+                            .ok_or(RelationalResultStepDriverError::ChunkMadeNoProgress)?;
+                        let events = chunk
+                            .iter()
+                            .cloned()
+                            .map(|member| {
+                                RelationalJournalEvent::analysis(
+                                    RelationalAnalysisEvidenceEvent::choice_member_accepted(
+                                        *choice_id, member,
+                                    ),
+                                )
+                            })
+                            .collect();
+                        return Ok(self.batch(
+                            view,
+                            RelationalResultStepQuantum::PublishChoiceMembers {
+                                choice_id: *choice_id,
+                                first_ordinal: first as u128,
+                                member_count,
+                            },
+                            events,
+                        ));
+                    }
+                    let content_root = relation
+                        .prepare_content_root()
+                        .map_err(RelationalAnalysisCatalogError::Choice)?;
+                    return Ok(self.batch(
+                        view,
+                        RelationalResultStepQuantum::CloseChoice {
+                            choice_id: *choice_id,
+                            content_root,
+                        },
+                        vec![RelationalJournalEvent::analysis(
+                            RelationalAnalysisEvidenceEvent::choice_closed(
+                                *choice_id,
+                                content_root,
+                            ),
+                        )],
+                    ));
+                }
+                RelationalAnalysisLayerStatus::ChoiceClosed => {
+                    self.choice_discovery_cursors.borrow_mut().remove(choice_id);
+                }
+                RelationalAnalysisLayerStatus::ResultUnregistered
+                | RelationalAnalysisLayerStatus::ResultInputOpen
+                | RelationalAnalysisLayerStatus::ResultAwaitingPublication
+                | RelationalAnalysisLayerStatus::ResultPublished
+                | RelationalAnalysisLayerStatus::MechanismTargetOpen
+                | RelationalAnalysisLayerStatus::MechanismTerminalOpen
+                | RelationalAnalysisLayerStatus::MechanismClosed => {
+                    return Err(RelationalResultStepDriverError::AnalysisLayerKindMismatch(
+                        layer_id,
+                    ));
+                }
+            }
+        }
+
         let mut first_awaiting_source_materialization = None;
         for (view_id, layer) in &self.sources {
             let layer_id = RelationalAnalysisLayerId::Result(*view_id);
@@ -469,7 +626,10 @@ impl<'query> RelationalResultStepDriver<'query> {
                     self.publication_cache.borrow_mut().remove(view_id);
                     self.source_cursors.borrow_mut().remove(view_id);
                 }
-                RelationalAnalysisLayerStatus::MechanismTargetOpen
+                RelationalAnalysisLayerStatus::ChoiceInputOpen
+                | RelationalAnalysisLayerStatus::ChoiceMembersOpen
+                | RelationalAnalysisLayerStatus::ChoiceClosed
+                | RelationalAnalysisLayerStatus::MechanismTargetOpen
                 | RelationalAnalysisLayerStatus::MechanismTerminalOpen
                 | RelationalAnalysisLayerStatus::MechanismClosed => {
                     return Err(RelationalResultStepDriverError::AnalysisLayerKindMismatch(
@@ -480,8 +640,21 @@ impl<'query> RelationalResultStepDriver<'query> {
         }
 
         let mut first_awaiting_selected_question = None;
+        let mut first_awaiting_choice_mechanisms = None;
         for (view_id, layer) in &self.selected {
             let question_seal = analysis.selected_question(layer.question_id);
+            if let Some(choice_id) = layer.choice_id {
+                if catalog.layer_status(RelationalAnalysisLayerId::Choice(choice_id))
+                    != Some(RelationalAnalysisLayerStatus::ChoiceClosed)
+                {
+                    first_awaiting_selected_question.get_or_insert(layer.question_id);
+                    continue;
+                }
+                if self.choice_has_open_mechanisms(catalog, choice_id)? {
+                    first_awaiting_choice_mechanisms.get_or_insert(choice_id);
+                    continue;
+                }
+            }
             let layer_id = RelationalAnalysisLayerId::Result(*view_id);
             let status = catalog.layer_status(layer_id).ok_or(
                 RelationalResultStepDriverError::AnalysisLayerMissing(layer_id),
@@ -532,7 +705,10 @@ impl<'query> RelationalResultStepDriver<'query> {
                     self.publication_cache.borrow_mut().remove(view_id);
                     self.selected_discovery_cursors.borrow_mut().remove(view_id);
                 }
-                RelationalAnalysisLayerStatus::MechanismTargetOpen
+                RelationalAnalysisLayerStatus::ChoiceInputOpen
+                | RelationalAnalysisLayerStatus::ChoiceMembersOpen
+                | RelationalAnalysisLayerStatus::ChoiceClosed
+                | RelationalAnalysisLayerStatus::MechanismTargetOpen
                 | RelationalAnalysisLayerStatus::MechanismTerminalOpen
                 | RelationalAnalysisLayerStatus::MechanismClosed => {
                     return Err(RelationalResultStepDriverError::AnalysisLayerKindMismatch(
@@ -540,6 +716,12 @@ impl<'query> RelationalResultStepDriver<'query> {
                     ));
                 }
             }
+        }
+
+        if let Some(choice_id) = first_awaiting_choice_mechanisms {
+            return Ok(RelationalResultStepOutcome::Quiescent(
+                RelationalResultStepQuiescence::AwaitingChoiceMechanisms { choice_id },
+            ));
         }
 
         if let Some(question_id) = first_awaiting_selected_question {
@@ -564,6 +746,29 @@ impl<'query> RelationalResultStepDriver<'query> {
                 None => RelationalResultStepQuiescence::SelectedResultsComplete,
             },
         ))
+    }
+
+    fn choice_has_open_mechanisms(
+        &self,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        choice_id: ChoiceId,
+    ) -> Result<bool, RelationalResultStepDriverError> {
+        for registration in catalog.plan().layer_registrations() {
+            let RelationalAnalysisLayerRegistration::Mechanisms(mechanism) = registration else {
+                continue;
+            };
+            if mechanism.target() != RelationalResolvedMechanismTarget::Choice(choice_id) {
+                continue;
+            }
+            let layer_id = RelationalAnalysisLayerId::Mechanisms(mechanism.request_id());
+            let status = catalog.layer_status(layer_id).ok_or(
+                RelationalResultStepDriverError::AnalysisLayerMissing(layer_id),
+            )?;
+            if status != RelationalAnalysisLayerStatus::MechanismClosed {
+                return Ok(true);
+            }
+        }
+        Ok(false)
     }
 
     fn step_source_rows<R>(
@@ -697,6 +902,115 @@ impl<'query> RelationalResultStepDriver<'query> {
         )))
     }
 
+    fn step_choice_candidates<R: RelationalResultExpressionRuntime>(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        choice_id: ChoiceId,
+        layer: &ChoiceResultLayer<'_>,
+        question_seal: Option<RelationalSelectedQuestionSeal>,
+        runtime: &mut R,
+    ) -> Result<Option<RelationalResultStepOutcome>, RelationalResultStepDriverError> {
+        let relation = catalog.choice_relation(choice_id)?;
+        if relation.input_seal().is_some() {
+            return Err(RelationalResultStepDriverError::ChoiceLayerStateMismatch(
+                choice_id,
+            ));
+        }
+        let expected_rows = question_seal.map(|seal| seal.mechanism_target().count());
+        let mut cases = self.missing_choice_chunk(view, choice_id, layer.question_id, relation)?;
+        if cases.is_empty()
+            && expected_rows.is_some_and(|expected| relation.candidates().len() as u128 != expected)
+        {
+            self.choice_discovery_cursors
+                .borrow_mut()
+                .insert(choice_id, 0);
+            cases = self.missing_choice_chunk(view, choice_id, layer.question_id, relation)?;
+        }
+        if !cases.is_empty() {
+            let first_case_id = cases[0];
+            let row_count = NonZeroU16::new(
+                u16::try_from(cases.len())
+                    .map_err(|_| RelationalResultStepDriverError::ChunkRowCountOverflow)?,
+            )
+            .ok_or(RelationalResultStepDriverError::ChunkMadeNoProgress)?;
+            let mut events = Vec::with_capacity(cases.len());
+            for case_id in cases {
+                let case = view.case(case_id).ok_or(
+                    RelationalResultStepDriverError::UnknownSelectedCase(case_id),
+                )?;
+                let candidate = layer
+                    .executor
+                    .evaluate_choice_candidate(choice_id, case, runtime)?;
+                events.push(RelationalJournalEvent::analysis(
+                    RelationalAnalysisEvidenceEvent::choice_candidate_accepted(candidate),
+                ));
+            }
+            return Ok(Some(self.batch(
+                view,
+                RelationalResultStepQuantum::EvaluateChoiceCandidates {
+                    choice_id,
+                    first_case_id,
+                    row_count,
+                },
+                events,
+            )));
+        }
+        let Some(question_seal) = question_seal else {
+            return Ok(None);
+        };
+        if relation.candidates().len() as u128 != question_seal.mechanism_target().count() {
+            return Err(
+                RelationalResultStepDriverError::SelectedCoverageCountMismatch {
+                    expected: question_seal.mechanism_target().count(),
+                    actual: relation.candidates().len() as u128,
+                },
+            );
+        }
+        Ok(Some(self.batch(
+            view,
+            RelationalResultStepQuantum::SealChoiceInput { choice_id },
+            vec![RelationalJournalEvent::analysis(
+                RelationalAnalysisEvidenceEvent::choice_input_sealed(choice_id, question_seal),
+            )],
+        )))
+    }
+
+    fn missing_choice_chunk(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        choice_id: ChoiceId,
+        question_id: QuestionId,
+        relation: &super::choice_relation::ChoiceRelationBuilder,
+    ) -> Result<Vec<RelationalCaseId>, RelationalResultStepDriverError> {
+        let selected_count = view.selected_count(question_id)?;
+        let mut cursors = self.choice_discovery_cursors.borrow_mut();
+        let cursor = cursors.entry(choice_id).or_default();
+        if *cursor > selected_count || relation.candidates().len() < *cursor {
+            *cursor = 0;
+        }
+        let mut durable_prefix = 0usize;
+        let mut cases = Vec::with_capacity(usize::from(self.max_rows_per_quantum.get()));
+        for case_id in view
+            .selected_discovery_suffix(question_id, *cursor)?
+            .iter()
+            .copied()
+        {
+            if relation.candidate(case_id).is_some() {
+                if cases.is_empty() {
+                    durable_prefix += 1;
+                }
+            } else {
+                cases.push(case_id);
+                if cases.len() == usize::from(self.max_rows_per_quantum.get()) {
+                    break;
+                }
+            }
+        }
+        *cursor += durable_prefix;
+        Ok(cases)
+    }
+
     fn missing_source_chunk(
         &self,
         view: RelationalSchedulerView<'_>,
@@ -780,10 +1094,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                 view,
                 RelationalResultStepQuantum::SealSelectedInput { view_id },
                 vec![RelationalJournalEvent::analysis(
-                    RelationalAnalysisEvidenceEvent::result_input_sealed_from_selected(
-                        view_id,
-                        question_seal,
-                    ),
+                    self.selected_input_seal_event(catalog, view_id, layer, question_seal)?,
                 )],
             )));
         }
@@ -837,10 +1148,7 @@ impl<'query> RelationalResultStepDriver<'query> {
                 u128::from(row_count.get()),
             )?;
             events.push(RelationalJournalEvent::analysis(
-                RelationalAnalysisEvidenceEvent::result_input_sealed_from_selected(
-                    view_id,
-                    question_seal,
-                ),
+                self.selected_input_seal_event(catalog, view_id, layer, question_seal)?,
             ));
         }
 
@@ -854,6 +1162,35 @@ impl<'query> RelationalResultStepDriver<'query> {
             },
             events,
         )))
+    }
+
+    fn selected_input_seal_event(
+        &self,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        view_id: ViewId,
+        layer: &SelectedResultLayer<'_>,
+        question_seal: RelationalSelectedQuestionSeal,
+    ) -> Result<RelationalAnalysisEvidenceEvent, RelationalResultStepDriverError> {
+        match layer.choice_id {
+            None => Ok(
+                RelationalAnalysisEvidenceEvent::result_input_sealed_from_selected(
+                    view_id,
+                    question_seal,
+                ),
+            ),
+            Some(choice_id) => {
+                let content_root = catalog.choice_content_root(choice_id)?.ok_or(
+                    RelationalResultStepDriverError::ChoiceLayerStateMismatch(choice_id),
+                )?;
+                Ok(
+                    RelationalAnalysisEvidenceEvent::result_input_sealed_from_choice(
+                        view_id,
+                        choice_id,
+                        content_root,
+                    ),
+                )
+            }
+        }
     }
 
     fn missing_selected_chunk(
@@ -908,7 +1245,19 @@ impl<'query> RelationalResultStepDriver<'query> {
         runtime: &mut R,
     ) -> Result<RelationalResultStepOutcome, RelationalResultStepDriverError> {
         let evidence = catalog.result_evidence(view_id)?;
-        if evidence.input_seal() != Some(question_seal.result_input_seal()) {
+        let valid_seal = match (layer.choice_id, evidence.input_seal()) {
+            (None, Some(seal)) => seal == question_seal.result_input_seal(),
+            (Some(choice_id), Some(seal)) => matches!(
+                seal.upstream(),
+                super::result_evidence::ResultEvidenceUpstreamRoot::Choice {
+                    choice_id: actual,
+                    content_root,
+                } if actual == choice_id
+                    && catalog.choice_content_root(choice_id)? == Some(content_root)
+            ),
+            (_, None) => false,
+        };
+        if !valid_seal {
             return Err(RelationalResultStepDriverError::ResultInputSealMismatch(
                 view_id,
             ));
@@ -987,6 +1336,9 @@ impl<'query> RelationalResultStepDriver<'query> {
                 let records = ResultProjectionCatalogBuilder::records_from_closed(&closed)?;
                 (closed.root(), records)
             };
+            if let Some(choice_id) = layer.choice_id {
+                self.validate_choice_projection(catalog, choice_id, &records)?;
+            }
             self.publication_cache.borrow_mut().insert(
                 view_id,
                 CachedSelectedProjection {
@@ -1324,6 +1676,40 @@ impl<'query> RelationalResultStepDriver<'query> {
         }
     }
 
+    fn validate_choice_projection(
+        &self,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        choice_id: ChoiceId,
+        records: &[IndexedResultProjectionRecord],
+    ) -> Result<(), RelationalResultStepDriverError> {
+        let expected = catalog
+            .choice_relation(choice_id)?
+            .members()
+            .iter()
+            .map(|member| member.case_id())
+            .collect::<BTreeSet<_>>();
+        let mut actual = BTreeSet::new();
+        for record in records {
+            let row = match record.record() {
+                ResultProjectionRecord::Row(row)
+                | ResultProjectionRecord::ChosenRow { row, .. } => row,
+                ResultProjectionRecord::Group(_) => continue,
+            };
+            let ResultViewInputRowId::Case(case_id) = row.row_id() else {
+                return Err(RelationalResultStepDriverError::ChoiceProjectionMismatch(
+                    choice_id,
+                ));
+            };
+            actual.insert(case_id);
+        }
+        if actual != expected {
+            return Err(RelationalResultStepDriverError::ChoiceProjectionMismatch(
+                choice_id,
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_terminal_source_coverage(
         &self,
         view: RelationalSchedulerView<'_>,
@@ -1480,6 +1866,8 @@ pub(crate) enum RelationalResultStepDriverError {
     DuplicateResultView(ViewId),
     RegisteredSpecMismatch(ViewId),
     ResultLayerStateMismatch(ViewId),
+    ChoiceLayerStateMismatch(ChoiceId),
+    ChoiceProjectionMismatch(ChoiceId),
     ResultInputSealMismatch(ViewId),
     UnknownSource(SourceKey),
     UnknownSelectedCase(RelationalCaseId),
@@ -1574,6 +1962,12 @@ impl fmt::Display for RelationalResultStepDriverError {
             Self::ResultLayerStateMismatch(_) => {
                 formatter.write_str("result layer status and evidence frontier disagree")
             }
+            Self::ChoiceLayerStateMismatch(_) => {
+                formatter.write_str("choice layer status and durable frontier disagree")
+            }
+            Self::ChoiceProjectionMismatch(_) => formatter.write_str(
+                "display projection chosen CaseIds differ from the closed Choice relation",
+            ),
             Self::ResultInputSealMismatch(_) => {
                 formatter.write_str("result input does not match its exact upstream seal")
             }
@@ -1661,6 +2055,8 @@ impl Error for RelationalResultStepDriverError {
             | Self::DuplicateResultView(_)
             | Self::RegisteredSpecMismatch(_)
             | Self::ResultLayerStateMismatch(_)
+            | Self::ChoiceLayerStateMismatch(_)
+            | Self::ChoiceProjectionMismatch(_)
             | Self::ResultInputSealMismatch(_)
             | Self::UnknownSource(_)
             | Self::UnknownSelectedCase(_)

@@ -6291,6 +6291,9 @@ fn relational_explore_lifecycle_name(lifecycle: explore::ExploreStreamLifecycle)
 
 fn relational_explore_layer_status_name(status: explore::ExploreStreamLayerStatus) -> &'static str {
     match status {
+        explore::ExploreStreamLayerStatus::ChoiceInputOpen => "choice_input_open",
+        explore::ExploreStreamLayerStatus::ChoiceMembersOpen => "choice_members_open",
+        explore::ExploreStreamLayerStatus::ChoiceClosed => "choice_closed",
         explore::ExploreStreamLayerStatus::ResultUnregistered => "result_unregistered",
         explore::ExploreStreamLayerStatus::ResultInputOpen => "result_input_open",
         explore::ExploreStreamLayerStatus::ResultAwaitingPublication => {
@@ -6317,13 +6320,11 @@ fn relational_explore_mechanism_target_json(
             name,
             question_id,
             choice_id,
-            materializing_view_id,
         } => serde_json::json!({
             "kind": "choice",
             "name": name,
             "question_id": question_id,
             "choice_id": choice_id,
-            "materializing_view_id": materializing_view_id,
         }),
     }
 }
@@ -6612,11 +6613,11 @@ fn relational_explore_pause_text(reason: &explore::ExploreStreamPauseReason) -> 
         } => format!(
             "mechanism replay paused for request {request_id}, case {case_id}, {endpoint} ({reason})"
         ),
-        explore::ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+        explore::ExploreStreamPauseReason::AwaitingChoiceMechanisms {
             request_id,
-            view_id,
+            choice_id,
         } => {
-            format!("mechanism request {request_id} is waiting for chosen rows from view {view_id}")
+            format!("mechanism request {request_id} is waiting for choice {choice_id}")
         }
         explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => {
             format!("result view {view_id} is waiting for source materialization")
@@ -6652,13 +6653,13 @@ fn relational_explore_pause_json(reason: &explore::ExploreStreamPauseReason) -> 
             "endpoint": endpoint,
             "reason": reason,
         }),
-        explore::ExploreStreamPauseReason::AwaitingChosenViewMechanisms {
+        explore::ExploreStreamPauseReason::AwaitingChoiceMechanisms {
             request_id,
-            view_id,
+            choice_id,
         } => serde_json::json!({
-            "kind": "awaiting_chosen_view_mechanisms",
+            "kind": "awaiting_choice_mechanisms",
             "request_id": request_id,
-            "view_id": view_id,
+            "choice_id": choice_id,
         }),
         explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => serde_json::json!({
             "kind": "awaiting_source_result",
@@ -6693,6 +6694,10 @@ fn relational_explore_result_input_json(
             "kind": "find",
             "name": name,
             "question_id": question_id,
+        }),
+        explore::ExploreStreamResultInput::Choice { choice_id } => serde_json::json!({
+            "kind": "choice",
+            "choice_id": choice_id,
         }),
         explore::ExploreStreamResultInput::MechanismIncidence { name, request_id } => {
             serde_json::json!({
@@ -6744,6 +6749,19 @@ fn relational_explore_result_evidence_json(
 
 fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_json::Value {
     match layer {
+        explore::ExploreStreamLayer::Choice(choice) => serde_json::json!({
+            "kind": "choice",
+            "name": choice.name,
+            "choice_id": choice.choice_id,
+            "question_id": choice.question_id,
+            "status": relational_explore_layer_status_name(choice.status),
+            "counts": {
+                "candidates": relational_explore_count_json(choice.candidates),
+                "members": relational_explore_count_json(choice.members),
+            },
+            "frontier_root": choice.frontier_root,
+            "content_root": choice.content_root,
+        }),
         explore::ExploreStreamLayer::Result(result) => serde_json::json!({
             "kind": "result",
             "name": result.name,
@@ -7119,6 +7137,24 @@ fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) ->
             "frontier_closed": find.closed,
             "selected_cases": relational_explore_count_json(find.selected),
         })).collect::<Vec<_>>(),
+        "choices": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Choice(choice) => Some(serde_json::json!({
+                    "name": choice.name,
+                    "choice_id": choice.choice_id,
+                    "question_id": choice.question_id,
+                    "status": relational_explore_layer_status_name(choice.status),
+                    "candidates": relational_explore_count_json(choice.candidates),
+                    "members": relational_explore_count_json(choice.members),
+                    "frontier_root": choice.frontier_root,
+                    "content_root": choice.content_root,
+                })),
+                explore::ExploreStreamLayer::Result(_)
+                | explore::ExploreStreamLayer::Mechanisms(_) => None,
+            })
+            .collect::<Vec<_>>(),
         "result_views": report
             .layers
             .iter()
@@ -7131,6 +7167,7 @@ fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) ->
                     ))
                 }
                 explore::ExploreStreamLayer::Mechanisms(_) => None,
+                explore::ExploreStreamLayer::Choice(_) => None,
             })
             .collect::<Vec<_>>(),
         "mechanism_requests": report
@@ -7141,6 +7178,7 @@ fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) ->
                     Some(relational_explore_answer_mechanism_json(mechanism))
                 }
                 explore::ExploreStreamLayer::Result(_) => None,
+                explore::ExploreStreamLayer::Choice(_) => None,
             })
             .collect::<Vec<_>>(),
     })
@@ -7151,7 +7189,7 @@ fn relational_explore_report_json(
     run_state: &Path,
 ) -> serde_json::Value {
     serde_json::json!({
-        "schema": "futuruna.explore.relational-stream.v9",
+        "schema": "futuruna.explore.relational-stream.v11",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
         "query": {
@@ -7264,6 +7302,9 @@ fn relational_explore_result_input_text(input: &explore::ExploreStreamResultInpu
         }
         explore::ExploreStreamResultInput::Find { name, question_id } => {
             format!("FIND `{name}` ({question_id})")
+        }
+        explore::ExploreStreamResultInput::Choice { choice_id } => {
+            format!("choice relation {choice_id}")
         }
         explore::ExploreStreamResultInput::MechanismIncidence { name, request_id } => {
             format!("mechanism request `{name}` ({request_id})")
@@ -7680,6 +7721,18 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
     }
     for layer in &report.layers {
         match layer {
+            explore::ExploreStreamLayer::Choice(choice) => {
+                println!(
+                    "  choice `{}` [{}]: candidates {}, members {}",
+                    choice.name,
+                    relational_explore_layer_status_name(choice.status),
+                    relational_explore_count_text(choice.candidates),
+                    relational_explore_count_text(choice.members),
+                );
+                if let Some(content_root) = &choice.content_root {
+                    println!("    content root: {content_root}");
+                }
+            }
             explore::ExploreStreamLayer::Result(result) => println!(
                 "  result `{}` [{}]: inputs {}, projection records {} (+{} this invocation)",
                 result.name,

@@ -17,6 +17,9 @@ use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU128, NonZeroU32};
 
+use super::choice_relation::{
+    ChoiceCandidate, ChoiceContentRoot, ChoiceMember, ChoiceRelationSpec,
+};
 use super::mechanism_incidence::{
     MechanismIncidenceRoot, MechanismSignatureId, MechanismTargetCaseSetCommitment,
     MechanismUnavailableReasonId,
@@ -176,7 +179,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 19;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 20;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -1639,6 +1642,107 @@ fn decode_question_ids(
     Ok(question_ids.into_boxed_slice())
 }
 
+fn encode_choice_relation_spec(
+    encoder: &mut Encoder,
+    spec: &ChoiceRelationSpec,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.collection_len(spec.partition_value_count())?;
+    encoder.collection_len(spec.measure_count())?;
+    match spec.having() {
+        None => encoder.tag(0x00)?,
+        Some(ResultViewHaving::Varies { measure_index }) => {
+            encoder.tag(0x01)?;
+            encoder.collection_len(measure_index)?;
+        }
+    }
+    match spec.policy() {
+        ResultViewChoice::Optimize {
+            cardinality,
+            direction,
+        } => {
+            encoder.tag(0x01)?;
+            encoder.tag(match cardinality {
+                ExploreChooseCardinality::One => 0x01,
+                ExploreChooseCardinality::All => 0x02,
+            })?;
+            encode_direction(encoder, *direction)?;
+        }
+        ResultViewChoice::Pareto { directions } => {
+            encoder.tag(0x02)?;
+            encoder.collection_len(directions.len())?;
+            for direction in directions.iter().copied() {
+                encode_direction(encoder, direction)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn decode_choice_relation_spec(
+    reader: &mut Reader<'_>,
+    choice_id: ChoiceId,
+) -> Result<ChoiceRelationSpec, RelationalJournalCodecError> {
+    let partition_value_count = reader.collection_len("choice partition values")?;
+    let measure_count = reader.collection_len("choice measures")?;
+    let having = match reader.tag()? {
+        0x00 => None,
+        0x01 => Some(ResultViewHaving::Varies {
+            measure_index: reader.collection_len("choice HAVING measure index")?,
+        }),
+        tag => {
+            return Err(RelationalJournalCodecError::UnknownTag {
+                component: "choice HAVING",
+                tag,
+            });
+        }
+    };
+    let policy = match reader.tag()? {
+        0x01 => {
+            let cardinality = match reader.tag()? {
+                0x01 => ExploreChooseCardinality::One,
+                0x02 => ExploreChooseCardinality::All,
+                tag => {
+                    return Err(RelationalJournalCodecError::UnknownTag {
+                        component: "choice cardinality",
+                        tag,
+                    });
+                }
+            };
+            ResultViewChoice::Optimize {
+                cardinality,
+                direction: decode_direction(reader)?,
+            }
+        }
+        0x02 => {
+            let count = reader.collection_len("choice Pareto directions")?;
+            let mut directions = Vec::new();
+            directions
+                .try_reserve_exact(count)
+                .map_err(|_| RelationalJournalCodecError::AllocationFailed { requested: count })?;
+            for _ in 0..count {
+                directions.push(decode_direction(reader)?);
+            }
+            ResultViewChoice::Pareto {
+                directions: directions.into_boxed_slice(),
+            }
+        }
+        tag => {
+            return Err(RelationalJournalCodecError::UnknownTag {
+                component: "choice policy",
+                tag,
+            });
+        }
+    };
+    ChoiceRelationSpec::restore_from_journal_codec(
+        choice_id,
+        partition_value_count,
+        measure_count,
+        having,
+        policy,
+    )
+    .map_err(|error| RelationalAnalysisPlanError::InvalidChoiceSpec(error.to_string()).into())
+}
+
 fn encode_analysis_plan(
     encoder: &mut Encoder,
     plan: &RelationalAnalysisPlan,
@@ -1650,6 +1754,7 @@ fn encode_analysis_plan(
         encoder.digest(choice.choice_id().bytes())?;
         encoder.digest(choice.input_question_id().bytes())?;
         encoder.digest(choice.semantic_spec_digest().bytes())?;
+        encode_choice_relation_spec(encoder, choice.spec())?;
         encode_analysis_dependencies(encoder, choice.dependencies())?;
     }
     encoder.collection_len(plan.layer_registrations().len())?;
@@ -1674,6 +1779,10 @@ fn encode_analysis_plan(
                         encoder.tag(0x01)?;
                         encoder.digest(question_id.bytes())?;
                     }
+                    RelationalResolvedResultInput::Choice(choice_id) => {
+                        encoder.tag(0x04)?;
+                        encoder.digest(choice_id.bytes())?;
+                    }
                     RelationalResolvedResultInput::MechanismIncidence(request_id) => {
                         encoder.tag(0x02)?;
                         encoder.digest(request_id.bytes())?;
@@ -1690,13 +1799,9 @@ fn encode_analysis_plan(
                         encoder.tag(0x01)?;
                         encoder.digest(question_id.bytes())?;
                     }
-                    RelationalResolvedMechanismTarget::Choice {
-                        choice_id,
-                        materializing_view_id,
-                    } => {
+                    RelationalResolvedMechanismTarget::Choice(choice_id) => {
                         encoder.tag(0x02)?;
                         encoder.digest(choice_id.bytes())?;
-                        encoder.digest(materializing_view_id.bytes())?;
                     }
                 }
                 encoder.digest(mechanism.observation_id().bytes())?;
@@ -1727,11 +1832,13 @@ fn decode_analysis_plan(
         let input_question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
         let semantic_spec_digest =
             RelationalChoiceSpecDigest::from_journal_codec_bytes(reader.digest()?);
+        let spec = decode_choice_relation_spec(reader, choice_id)?;
         let dependencies = decode_analysis_dependencies(reader)?;
         choices.push(RelationalChoiceRegistration::restore_from_journal_codec(
             choice_id,
             input_question_id,
             semantic_spec_digest,
+            spec,
             dependencies,
         ));
     }
@@ -1760,6 +1867,9 @@ fn decode_analysis_plan(
                     ),
                     0x01 => RelationalResolvedResultInput::Selected(
                         QuestionId::from_journal_codec_bytes(reader.digest()?),
+                    ),
+                    0x04 => RelationalResolvedResultInput::Choice(
+                        ChoiceId::from_journal_codec_bytes(reader.digest()?),
                     ),
                     0x02 => RelationalResolvedResultInput::MechanismIncidence(
                         MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
@@ -1790,10 +1900,9 @@ fn decode_analysis_plan(
                     0x01 => RelationalResolvedMechanismTarget::Selected(
                         QuestionId::from_journal_codec_bytes(reader.digest()?),
                     ),
-                    0x02 => RelationalResolvedMechanismTarget::Choice {
-                        choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
-                        materializing_view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
-                    },
+                    0x02 => RelationalResolvedMechanismTarget::Choice(
+                        ChoiceId::from_journal_codec_bytes(reader.digest()?),
+                    ),
                     tag => {
                         return Err(RelationalJournalCodecError::UnknownTag {
                             component: "resolved mechanism target",
@@ -4835,6 +4944,62 @@ fn decode_result_values(
     Ok(values.into_boxed_slice())
 }
 
+fn encode_choice_candidate(
+    encoder: &mut Encoder,
+    candidate: &ChoiceCandidate,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.digest(candidate.choice_id().bytes())?;
+    encoder.digest(candidate.case_id().bytes())?;
+    encode_result_values(encoder, candidate.partition_values())?;
+    encode_result_values(encoder, candidate.measures())?;
+    encoder.collection_len(candidate.objectives().len())?;
+    for objective in candidate.objectives().iter().copied() {
+        encoder.i64(objective)?;
+    }
+    Ok(())
+}
+
+fn decode_choice_candidate(
+    reader: &mut Reader<'_>,
+) -> Result<ChoiceCandidate, RelationalJournalCodecError> {
+    let choice_id = ChoiceId::from_journal_codec_bytes(reader.digest()?);
+    let case_id = RelationalCaseId::from_journal_codec_bytes(reader.digest()?);
+    let partition_values = decode_result_values(reader, "choice candidate partitions")?;
+    let measures = decode_result_values(reader, "choice candidate measures")?;
+    let count = reader.collection_len("choice candidate objectives")?;
+    let mut objectives = Vec::new();
+    objectives
+        .try_reserve_exact(count)
+        .map_err(|_| RelationalJournalCodecError::AllocationFailed { requested: count })?;
+    for _ in 0..count {
+        objectives.push(reader.i64()?);
+    }
+    Ok(ChoiceCandidate::new(
+        choice_id,
+        case_id,
+        partition_values,
+        measures,
+        objectives,
+    ))
+}
+
+fn encode_choice_member(
+    encoder: &mut Encoder,
+    member: &ChoiceMember,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.u128(member.ordinal())?;
+    encode_choice_candidate(encoder, member.candidate())
+}
+
+fn decode_choice_member(
+    reader: &mut Reader<'_>,
+) -> Result<ChoiceMember, RelationalJournalCodecError> {
+    Ok(ChoiceMember::restore_from_journal_codec(
+        reader.u128()?,
+        decode_choice_candidate(reader)?,
+    ))
+}
+
 fn encode_certified_source_summary_artifact(
     encoder: &mut Encoder,
     artifact: &RelationalCertifiedSourceSummaryArtifact,
@@ -5693,6 +5858,14 @@ fn encode_result_upstream(
             encoder.digest(population_root.bytes())?;
             encoder.u128(exact_cardinality)
         }
+        ResultEvidenceUpstreamRoot::Choice {
+            choice_id,
+            content_root,
+        } => {
+            encoder.tag(0x07)?;
+            encoder.digest(choice_id.bytes())?;
+            encoder.digest(content_root.bytes())
+        }
         ResultEvidenceUpstreamRoot::MechanismIncidence {
             request_id,
             completed_root,
@@ -5746,6 +5919,10 @@ fn decode_result_upstream(
                 reader.digest()?,
             ),
             exact_cardinality: reader.u128()?,
+        }),
+        0x07 => Ok(ResultEvidenceUpstreamRoot::Choice {
+            choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+            content_root: ChoiceContentRoot::from_journal_codec_bytes(reader.digest()?),
         }),
         0x03 => Ok(ResultEvidenceUpstreamRoot::MechanismIncidence {
             request_id: MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
@@ -6060,6 +6237,10 @@ fn encode_resolved_result_input(
             encoder.tag(0x01)?;
             encoder.digest(question_id.bytes())
         }
+        RelationalResolvedResultInput::Choice(choice_id) => {
+            encoder.tag(0x04)?;
+            encoder.digest(choice_id.bytes())
+        }
         RelationalResolvedResultInput::MechanismIncidence(request_id) => {
             encoder.tag(0x02)?;
             encoder.digest(request_id.bytes())
@@ -6076,6 +6257,9 @@ fn decode_resolved_result_input(
         )),
         0x01 => Ok(RelationalResolvedResultInput::Selected(
             QuestionId::from_journal_codec_bytes(reader.digest()?),
+        )),
+        0x04 => Ok(RelationalResolvedResultInput::Choice(
+            ChoiceId::from_journal_codec_bytes(reader.digest()?),
         )),
         0x02 => Ok(RelationalResolvedResultInput::MechanismIncidence(
             MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
@@ -6095,6 +6279,30 @@ fn encode_analysis_event(
         RelationalAnalysisEvidenceEvent::SelectedQuestionBound { seal, .. } => {
             encoder.tag(0x01)?;
             encode_selected_question_seal(encoder, *seal)
+        }
+        RelationalAnalysisEvidenceEvent::ChoiceCandidateAccepted { candidate, .. } => {
+            encoder.tag(0x15)?;
+            encode_choice_candidate(encoder, candidate)
+        }
+        RelationalAnalysisEvidenceEvent::ChoiceInputSealed {
+            choice_id,
+            question_seal_id,
+        } => {
+            encoder.tag(0x16)?;
+            encoder.digest(choice_id.bytes())?;
+            encoder.digest(question_seal_id.bytes())
+        }
+        RelationalAnalysisEvidenceEvent::ChoiceMemberAccepted { member, .. } => {
+            encoder.tag(0x17)?;
+            encode_choice_member(encoder, member)
+        }
+        RelationalAnalysisEvidenceEvent::ChoiceClosed {
+            choice_id,
+            content_root,
+        } => {
+            encoder.tag(0x18)?;
+            encoder.digest(choice_id.bytes())?;
+            encoder.digest(content_root.bytes())
         }
         RelationalAnalysisEvidenceEvent::ResultSpecRegistered {
             resolved_input,
@@ -6125,6 +6333,16 @@ fn encode_analysis_event(
             encoder.tag(0x04)?;
             encoder.digest(view_id.bytes())?;
             encoder.digest(question_seal_id.bytes())
+        }
+        RelationalAnalysisEvidenceEvent::ResultInputSealedFromChoice {
+            view_id,
+            choice_id,
+            content_root,
+        } => {
+            encoder.tag(0x19)?;
+            encoder.digest(view_id.bytes())?;
+            encoder.digest(choice_id.bytes())?;
+            encoder.digest(content_root.bytes())
         }
         RelationalAnalysisEvidenceEvent::ResultInputSealedFromMechanisms {
             view_id,
@@ -6169,16 +6387,16 @@ fn encode_analysis_event(
             encoder.digest(request_id.bytes())?;
             encoder.digest(case_id.bytes())
         }
-        RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+        RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
             request_id,
-            view_id,
-            projection_ordinal,
+            choice_id,
+            member_ordinal,
             case_id,
         } => {
             encoder.tag(0x14)?;
             encoder.digest(request_id.bytes())?;
-            encoder.digest(view_id.bytes())?;
-            encoder.u128(*projection_ordinal)?;
+            encoder.digest(choice_id.bytes())?;
+            encoder.u128(*member_ordinal)?;
             encoder.digest(case_id.bytes())
         }
         RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromSelected {
@@ -6189,15 +6407,15 @@ fn encode_analysis_event(
             encoder.digest(request_id.bytes())?;
             encoder.digest(question_seal_id.bytes())
         }
-        RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromResult {
+        RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromChoice {
             request_id,
-            view_id,
-            result_root,
+            choice_id,
+            content_root,
         } => {
             encoder.tag(0x09)?;
             encoder.digest(request_id.bytes())?;
-            encoder.digest(view_id.bytes())?;
-            encoder.digest(result_root.bytes())
+            encoder.digest(choice_id.bytes())?;
+            encoder.digest(content_root.bytes())
         }
         RelationalAnalysisEvidenceEvent::MechanismArtifactOpened { header } => {
             encoder.tag(0x0a)?;
@@ -6253,6 +6471,26 @@ fn decode_analysis_event(
         0x01 => Ok(RelationalAnalysisEvidenceEvent::selected_question_bound(
             decode_selected_question_seal(reader)?,
         )),
+        0x15 => Ok(RelationalAnalysisEvidenceEvent::choice_candidate_accepted(
+            decode_choice_candidate(reader)?,
+        )),
+        0x16 => Ok(RelationalAnalysisEvidenceEvent::ChoiceInputSealed {
+            choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+            question_seal_id: RelationalSelectedQuestionSealId::from_journal_codec_bytes(
+                reader.digest()?,
+            ),
+        }),
+        0x17 => {
+            let member = decode_choice_member(reader)?;
+            Ok(RelationalAnalysisEvidenceEvent::choice_member_accepted(
+                member.candidate().choice_id(),
+                member,
+            ))
+        }
+        0x18 => Ok(RelationalAnalysisEvidenceEvent::ChoiceClosed {
+            choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+            content_root: ChoiceContentRoot::from_journal_codec_bytes(reader.digest()?),
+        }),
         0x02 => Ok(RelationalAnalysisEvidenceEvent::result_spec_registered(
             decode_resolved_result_input(reader)?,
             decode_result_spec(reader)?,
@@ -6277,6 +6515,13 @@ fn decode_analysis_event(
                 question_seal_id: RelationalSelectedQuestionSealId::from_journal_codec_bytes(
                     reader.digest()?,
                 ),
+            },
+        ),
+        0x19 => Ok(
+            RelationalAnalysisEvidenceEvent::ResultInputSealedFromChoice {
+                view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
+                choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+                content_root: ChoiceContentRoot::from_journal_codec_bytes(reader.digest()?),
             },
         ),
         0x05 => Ok(
@@ -6309,10 +6554,10 @@ fn decode_analysis_event(
             },
         ),
         0x14 => Ok(
-            RelationalAnalysisEvidenceEvent::MechanismChosenTargetCaseAccepted {
+            RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
                 request_id: MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
-                view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
-                projection_ordinal: reader.u128()?,
+                choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+                member_ordinal: reader.u128()?,
                 case_id: RelationalCaseId::from_journal_codec_bytes(reader.digest()?),
             },
         ),
@@ -6325,10 +6570,10 @@ fn decode_analysis_event(
             },
         ),
         0x09 => Ok(
-            RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromResult {
+            RelationalAnalysisEvidenceEvent::MechanismTargetSealedFromChoice {
                 request_id: MechanismRequestId::from_journal_codec_bytes(reader.digest()?),
-                view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
-                result_root: ResultViewRoot::from_journal_codec_bytes(reader.digest()?),
+                choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+                content_root: ChoiceContentRoot::from_journal_codec_bytes(reader.digest()?),
             },
         ),
         0x0a => Ok(RelationalAnalysisEvidenceEvent::MechanismArtifactOpened {
