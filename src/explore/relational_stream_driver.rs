@@ -16,6 +16,7 @@ use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU16, NonZeroU32};
+use std::sync::Arc;
 
 use crate::CheckedExploreQueryView;
 
@@ -50,6 +51,7 @@ use super::relational_mechanism_step_driver::{
     RelationalMechanismStepDriver, RelationalMechanismStepDriverError,
     RelationalMechanismStepOutcome, RelationalMechanismStepQuantum,
     RelationalMechanismStepQuiescence, RelationalMechanismStepRunError,
+    RelationalStructuralArtifactCache,
 };
 use super::relational_native_classifier::RelationalNativeClassifierV2;
 use super::relational_result_executor::RelationalResultExpressionRuntime;
@@ -361,6 +363,24 @@ impl<'query> RelationalStreamDriver<'query> {
         native_classifier: Option<RelationalNativeClassifierV2>,
         classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
     ) -> Result<Self, RelationalStreamDriverError> {
+        Self::from_checked_with_limits_classification_backends_and_structural_cache(
+            checked,
+            support_plan,
+            limits,
+            native_classifier,
+            classification_evaluator,
+            Arc::new(RelationalStructuralArtifactCache::default()),
+        )
+    }
+
+    pub(crate) fn from_checked_with_limits_classification_backends_and_structural_cache(
+        checked: &'query CheckedExploreQueryView<'_>,
+        support_plan: &'query RelationalSupportPlan,
+        limits: RelationalStreamDriverLimits,
+        native_classifier: Option<RelationalNativeClassifierV2>,
+        classification_evaluator: Option<&'query RefCell<RelationalClassificationEvaluatorBackend>>,
+        structural_artifact_cache: Arc<RelationalStructuralArtifactCache>,
+    ) -> Result<Self, RelationalStreamDriverError> {
         let analysis_plan = RelationalAnalysisPlan::from_checked(checked)?;
         let base = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
             checked,
@@ -378,11 +398,13 @@ impl<'query> RelationalStreamDriver<'query> {
                 checked,
                 limits.result_rows_per_quantum,
             )?;
-        let mechanisms = RelationalMechanismStepDriver::from_checked_with_limits(
-            checked,
-            limits.mechanism_target_cases_per_quantum,
-            limits.mechanism_artifact_chunk_bytes,
-        )?;
+        let mechanisms =
+            RelationalMechanismStepDriver::from_checked_with_limits_and_structural_cache(
+                checked,
+                limits.mechanism_target_cases_per_quantum,
+                limits.mechanism_artifact_chunk_bytes,
+                structural_artifact_cache,
+            )?;
         let support_requests = analysis_plan
             .layer_registrations()
             .iter()

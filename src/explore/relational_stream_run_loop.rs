@@ -13,6 +13,8 @@
 use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU16;
+#[cfg(test)]
+use std::num::NonZeroU64;
 use std::time::{Duration, Instant};
 
 use super::relational_durable_journal::{
@@ -185,6 +187,8 @@ fn expensive_base_member_count(quantum: RelationalStreamQuantum) -> Option<NonZe
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) struct RelationalStreamSliceBudget {
     max_runtime: Option<Duration>,
+    #[cfg(test)]
+    max_semantic_batches: Option<NonZeroU64>,
 }
 
 impl RelationalStreamSliceBudget {
@@ -194,11 +198,26 @@ impl RelationalStreamSliceBudget {
         if max_runtime.is_some_and(|runtime| runtime.is_zero()) {
             return Err(RelationalStreamSliceBudgetError::ZeroRuntimeLimit);
         }
-        Ok(Self { max_runtime })
+        Ok(Self {
+            max_runtime,
+            #[cfg(test)]
+            max_semantic_batches: None,
+        })
     }
 
     pub(super) const fn max_runtime(self) -> Option<Duration> {
         self.max_runtime
+    }
+
+    #[cfg(test)]
+    pub(super) const fn with_max_semantic_batches(mut self, limit: NonZeroU64) -> Self {
+        self.max_semantic_batches = Some(limit);
+        self
+    }
+
+    #[cfg(test)]
+    const fn max_semantic_batches(self) -> Option<NonZeroU64> {
+        self.max_semantic_batches
     }
 }
 
@@ -363,6 +382,18 @@ where
     let mut semantic_events_appended = 0_u64;
 
     loop {
+        #[cfg(test)]
+        if budget
+            .max_semantic_batches()
+            .is_some_and(|limit| semantic_batches_appended >= limit.get())
+        {
+            return pause(
+                durable,
+                semantic_batches_appended,
+                semantic_events_appended,
+                RelationalStreamSlicePauseReason::RuntimeLimit,
+            );
+        }
         if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
             // This is an observable slice boundary, not the end of the warm
             // epoch. No permit is outstanding here. Retaining the governor's

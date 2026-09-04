@@ -29,12 +29,14 @@ use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 use std::num::{NonZeroU16, NonZeroU32};
+use std::sync::{Arc, Mutex};
 
 use crate::{CheckedExploreAnalysisIdentity, CheckedExploreQueryView};
 
 use super::mechanism::MechanismObservationIr;
 use super::mechanism_incidence::{
-    MechanismIncidenceRoot, MechanismSignatureId, MechanismUnavailableReasonId,
+    MechanismIncidenceRoot, MechanismRequestScope, MechanismSignatureId,
+    MechanismUnavailableReasonId,
 };
 use super::relation::{
     AdmissionId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId, SelectionDecision,
@@ -228,6 +230,40 @@ struct MechanismDiscoveryCursor {
     signature_ordinal: usize,
 }
 
+/// Query-bound operational ownership for the expensive structural producer.
+///
+/// The durable journal remains the sole resume authority. Sharing this cache
+/// only lets successive warm slice drivers reuse an already authenticated,
+/// deterministic quotient payload; a new process starts empty and rederives
+/// the pending artifact once before the journal accepts another chunk.
+#[derive(Debug, Default)]
+pub(crate) struct RelationalStructuralArtifactCache {
+    artifact: Mutex<Option<CachedStructuralArtifact>>,
+    #[cfg(test)]
+    successful_derivations: std::sync::atomic::AtomicU64,
+}
+
+#[derive(Debug)]
+struct CachedStructuralArtifact {
+    analysis_plan_root: RelationalAnalysisPlanRoot,
+    scope: MechanismRequestScope,
+    artifact: StructuralSignatureQuotientArtifact,
+}
+
+impl RelationalStructuralArtifactCache {
+    #[cfg(test)]
+    pub(crate) fn successful_derivations(&self) -> u64 {
+        self.successful_derivations
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    #[cfg(test)]
+    fn record_successful_derivation(&self) {
+        self.successful_derivations
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 /// Checked-query-bound scheduler for case-backed mechanism layers.
 pub(crate) struct RelationalMechanismStepDriver<'query> {
     relation_id: RelationId,
@@ -249,7 +285,7 @@ pub(crate) struct RelationalMechanismStepDriver<'query> {
     /// rederiving a complete canonical payload for every bounded chunk; a
     /// fresh driver rederives and authenticates it once against the durable
     /// pending prefix before continuing.
-    structural_artifact_cache: RefCell<Option<StructuralSignatureQuotientArtifact>>,
+    structural_artifact_cache: Arc<RelationalStructuralArtifactCache>,
 }
 
 impl<'query> RelationalMechanismStepDriver<'query> {
@@ -280,6 +316,20 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         checked: &'query CheckedExploreQueryView<'_>,
         max_target_cases_per_quantum: NonZeroU16,
         mechanism_artifact_chunk_bytes: NonZeroU32,
+    ) -> Result<Self, RelationalMechanismStepDriverError> {
+        Self::from_checked_with_limits_and_structural_cache(
+            checked,
+            max_target_cases_per_quantum,
+            mechanism_artifact_chunk_bytes,
+            Arc::new(RelationalStructuralArtifactCache::default()),
+        )
+    }
+
+    pub(crate) fn from_checked_with_limits_and_structural_cache(
+        checked: &'query CheckedExploreQueryView<'_>,
+        max_target_cases_per_quantum: NonZeroU16,
+        mechanism_artifact_chunk_bytes: NonZeroU32,
+        structural_artifact_cache: Arc<RelationalStructuralArtifactCache>,
     ) -> Result<Self, RelationalMechanismStepDriverError> {
         let max_artifact_chunk =
             super::relational_analysis_journal::RELATIONAL_MECHANISM_ARTIFACT_MAX_CHUNK_BYTES;
@@ -418,7 +468,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
             max_target_cases_per_quantum,
             mechanism_artifact_chunk_bytes,
             discovery_cursors: RefCell::new(BTreeMap::new()),
-            structural_artifact_cache: RefCell::new(None),
+            structural_artifact_cache,
         })
     }
 
@@ -535,7 +585,13 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 if analysis.structural_quotient_closure(*request_id).is_some() {
                     continue;
                 }
-                self.structural_artifact_cache.borrow_mut().take();
+                self.structural_artifact_cache
+                    .artifact
+                    .lock()
+                    .map_err(|_| {
+                        RelationalMechanismStepDriverError::StructuralArtifactCachePoisoned
+                    })?
+                    .take();
                 let closure_event = analysis.structural_quotient_closure_event(*request_id)?;
                 let RelationalAnalysisEvidenceEvent::StructuralQuotientClosed {
                     structural_root,
@@ -762,30 +818,41 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         request_id: MechanismRequestId,
         signature_id: MechanismSignatureId,
     ) -> Result<RelationalMechanismStepOutcome, RelationalMechanismStepDriverError> {
-        let mut cached = self.structural_artifact_cache.borrow_mut();
-        if cached
-            .as_ref()
-            .map(StructuralSignatureQuotientArtifact::signature_id)
-            != Some(signature_id)
-        {
+        let expected_scope = catalog.mechanism_evidence_contract(request_id)?.scope();
+        let mut cached = self
+            .structural_artifact_cache
+            .artifact
+            .lock()
+            .map_err(|_| RelationalMechanismStepDriverError::StructuralArtifactCachePoisoned)?;
+        if cached.as_ref().is_none_or(|cached| {
+            cached.analysis_plan_root != self.analysis_plan_root
+                || cached.scope != expected_scope
+                || cached.artifact.signature_id() != signature_id
+        }) {
             let definition = incidence.signature_definition(signature_id).ok_or(
                 RelationalMechanismStepDriverError::MissingStructuralSignatureDefinition {
                     request_id,
                     signature_id,
                 },
             )?;
-            let expected_scope = catalog.mechanism_evidence_contract(request_id)?.scope();
-            *cached = Some(
-                derive_relational_structural_mechanism_v1(
-                    definition,
-                    expected_scope,
-                    relational_structural_derivation_budget(),
-                )
-                .map_err(RelationalAnalysisJournalError::from)?,
-            );
+            let artifact = derive_relational_structural_mechanism_v1(
+                definition,
+                expected_scope,
+                relational_structural_derivation_budget(),
+            )
+            .map_err(RelationalAnalysisJournalError::from)?;
+            #[cfg(test)]
+            self.structural_artifact_cache
+                .record_successful_derivation();
+            *cached = Some(CachedStructuralArtifact {
+                analysis_plan_root: self.analysis_plan_root,
+                scope: expected_scope,
+                artifact,
+            });
         }
         let artifact = cached
             .as_ref()
+            .map(|cached| &cached.artifact)
             .expect("the structural producer cache was just initialized");
         let structural_mechanism_id = artifact.mechanism().id();
         let execution_profile_id = artifact.profile().id();
@@ -1494,6 +1561,7 @@ pub(crate) enum RelationalMechanismStepDriverError {
     PendingArtifactRequestUnsupported {
         request_id: MechanismRequestId,
     },
+    StructuralArtifactCachePoisoned,
     ArtifactChunkBytesTooLarge {
         actual: u32,
         limit: u32,
@@ -1598,6 +1666,9 @@ impl fmt::Display for RelationalMechanismStepDriverError {
             Self::PendingArtifactRequestUnsupported { .. } => formatter.write_str(
                 "durable open mechanism artifact belongs to a request this driver cannot resume",
             ),
+            Self::StructuralArtifactCachePoisoned => {
+                formatter.write_str("structural mechanism producer cache is poisoned")
+            }
             Self::ArtifactChunkBytesTooLarge { actual, limit } => write!(
                 formatter,
                 "mechanism artifact chunk size {actual} exceeds protocol limit {limit}"
@@ -1642,6 +1713,7 @@ impl Error for RelationalMechanismStepDriverError {
             | Self::ReplayEvidenceScopeMismatch { .. }
             | Self::MissingStructuralSignatureDefinition { .. }
             | Self::PendingArtifactRequestUnsupported { .. }
+            | Self::StructuralArtifactCachePoisoned
             | Self::ArtifactChunkBytesTooLarge { .. }
             | Self::ChunkCaseCountOverflow
             | Self::ChunkMadeNoProgress => None,

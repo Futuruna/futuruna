@@ -43,6 +43,7 @@ use super::relational_interpreter_mechanism::{
     checked_ground_definitions, RelationalInterpreterMechanismReplayRuntime,
 };
 use super::relational_journal::{RelationalJournal, RelationalJournalContract};
+use super::relational_mechanism_step_driver::RelationalStructuralArtifactCache;
 use super::relational_native_classifier::{
     RelationalNativeClassifierProtocolV2, RelationalNativeClassifierV2,
 };
@@ -151,6 +152,10 @@ pub struct PreparedRelationalExplore {
     native_classifier_plan: Option<ExploreNativeClassifierPlanV2>,
     native_classifier_shape_v2: bool,
     native_classifier: Option<RelationalNativeClassifierV2>,
+    /// Query-bound deterministic structural producer retained across warm
+    /// slice-driver reconstruction. Durable journal evidence remains the
+    /// authority for every resume and cold invocation.
+    structural_artifact_cache: Arc<RelationalStructuralArtifactCache>,
     preparation_wall_time: Duration,
 }
 
@@ -347,6 +352,7 @@ impl PreparedRelationalExplore {
             options,
             base_quantum_controller: RelationalBaseQuantumController::default(),
             resources,
+            driver_limits: RelationalStreamDriverLimits::default(),
         })
     }
 }
@@ -641,6 +647,9 @@ pub struct RelationalExploreEpoch {
     /// it at each observable slice would discard the checked stable window and
     /// repeatedly spend semantic time re-establishing the same host facts.
     resources: ExactStreamOneWorkerEnvelope,
+    /// Operational only. Production epochs use the stable default; focused
+    /// protocol tests may shrink artifact chunks without changing identity.
+    driver_limits: RelationalStreamDriverLimits,
 }
 
 /// A cardinality at the current durable frontier.
@@ -1321,6 +1330,7 @@ pub fn prepare_checked_relational_stream(
         native_classifier_plan,
         native_classifier_shape_v2,
         native_classifier: None,
+        structural_artifact_cache: Arc::new(RelationalStructuralArtifactCache::default()),
         preparation_wall_time: started.elapsed(),
     })
 }
@@ -1343,7 +1353,23 @@ impl RelationalExploreEpoch {
     ) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
         let budget = RelationalStreamSliceBudget::new(max_runtime)
             .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        self.run_slice_with_budget(budget)
+    }
 
+    #[cfg(test)]
+    fn run_one_batch_slice_for_test(
+        &mut self,
+    ) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
+        let budget = RelationalStreamSliceBudget::new(None)
+            .expect("unlimited test slice budget is valid")
+            .with_max_semantic_batches(NonZeroU64::MIN);
+        self.run_slice_with_budget(budget)
+    }
+
+    fn run_slice_with_budget(
+        &mut self,
+        budget: RelationalStreamSliceBudget,
+    ) -> Result<ExploreStreamSliceReport, ExploreStreamPreparationError> {
         let PreparedRelationalExplore {
             checked,
             support_plan,
@@ -1357,17 +1383,19 @@ impl RelationalExploreEpoch {
             native_classifier_plan: _,
             native_classifier_shape_v2: _,
             native_classifier,
+            structural_artifact_cache,
             preparation_wall_time: _,
         } = &mut self.prepared;
         let checked = checked.view();
-        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
-            &checked,
-            support_plan,
-            RelationalStreamDriverLimits::default(),
-            native_classifier.clone(),
-            Some(classification_evaluator),
-        )
-        .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
+        let driver = RelationalStreamDriver::from_checked_with_limits_classification_backends_and_structural_cache(
+                &checked,
+                support_plan,
+                self.driver_limits,
+                native_classifier.clone(),
+                Some(classification_evaluator),
+                Arc::clone(structural_artifact_cache),
+            )
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
         let projection_starts = projection_lengths(
             self.durable
                 .journal()
@@ -3209,7 +3237,7 @@ fn hex(bytes: [u8; 32]) -> String {
 #[cfg(test)]
 mod regional_stream_acceptance_tests {
     use std::fs;
-    use std::num::NonZeroU16;
+    use std::num::{NonZeroU16, NonZeroU32};
     use std::path::{Path, PathBuf};
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
@@ -3218,6 +3246,7 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_analysis_catalog::RelationalAnalysisCatalogError;
     use super::super::relational_analysis_journal::{
         RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
+        RelationalMechanismArtifactClaim,
     };
     use super::super::relational_analysis_plan::{
         RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
@@ -4056,6 +4085,88 @@ mod regional_stream_acceptance_tests {
             fs::read(&empty_artifact).expect("read materialized exact-empty result artifact"),
             b""
         );
+    }
+
+    #[test]
+    fn warm_epoch_reuses_one_structural_derivation_across_chunk_slices() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let options = || ExploreStreamEpochOptions {
+            run_state: run_state.clone(),
+            output_directory: None,
+            outer_containment: None,
+        };
+        let configure = |epoch: &mut RelationalExploreEpoch| {
+            epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test()
+                .expect("create deterministic structural-cache resource envelope");
+            epoch.driver_limits = RelationalStreamDriverLimits::default()
+                .with_mechanism_artifact_chunk_bytes(NonZeroU32::MIN);
+        };
+
+        let mut epoch = prepare(CHOSEN_MECHANISM_PUBLICATION)
+            .open_epoch(options())
+            .expect("open warm structural-cache epoch");
+        configure(&mut epoch);
+        let cache = Arc::clone(&epoch.prepared.structural_artifact_cache);
+        let mut structural_sequences = Vec::new();
+        for _ in 0..128 {
+            let report = epoch
+                .run_one_batch_slice_for_test()
+                .expect("advance one warm structural-cache batch");
+            let pending_structural = epoch
+                .durable
+                .journal()
+                .expect("inspect warm structural-cache journal")
+                .analysis_state()
+                .and_then(|analysis| analysis.pending_mechanism_artifact_claim())
+                .is_some_and(|claim| {
+                    matches!(
+                        claim,
+                        RelationalMechanismArtifactClaim::StructuralQuotient { .. }
+                    )
+                });
+            if pending_structural && cache.successful_derivations() == 1 {
+                assert_eq!(report.semantic_batches_appended, 1);
+                assert_eq!(report.semantic_events_appended, 1);
+                structural_sequences.push(report.checkpoint.next_sequence);
+                if structural_sequences.len() == 3 {
+                    break;
+                }
+            }
+        }
+        assert_eq!(
+            structural_sequences.len(),
+            3,
+            "fixture must span the structural open and at least two chunk slices"
+        );
+        assert_eq!(structural_sequences[1], structural_sequences[0] + 1);
+        assert_eq!(structural_sequences[2], structural_sequences[1] + 1);
+        assert_eq!(cache.successful_derivations(), 1);
+
+        let warm_next_sequence = structural_sequences[2];
+        drop(epoch);
+
+        let mut cold_epoch = prepare(CHOSEN_MECHANISM_PUBLICATION)
+            .open_epoch(options())
+            .expect("reopen cold structural-cache epoch");
+        configure(&mut cold_epoch);
+        let cold_cache = Arc::clone(&cold_epoch.prepared.structural_artifact_cache);
+        assert_eq!(cold_cache.successful_derivations(), 0);
+        let first_cold = cold_epoch
+            .run_one_batch_slice_for_test()
+            .expect("authenticate and continue the cold pending artifact");
+        assert_eq!(first_cold.semantic_events_appended, 1);
+        assert_eq!(first_cold.checkpoint.next_sequence, warm_next_sequence + 1);
+        assert_eq!(cold_cache.successful_derivations(), 1);
+        let second_cold = cold_epoch
+            .run_one_batch_slice_for_test()
+            .expect("reuse the cold epoch's authenticated structural artifact");
+        assert_eq!(second_cold.semantic_events_appended, 1);
+        assert_eq!(
+            second_cold.checkpoint.next_sequence,
+            first_cold.checkpoint.next_sequence + 1
+        );
+        assert_eq!(cold_cache.successful_derivations(), 1);
     }
 
     #[test]
