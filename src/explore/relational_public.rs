@@ -19,8 +19,9 @@ use crate::{
     CheckedExploreCoverageGapReason, CheckedExploreCoverageLiteralKind,
     CheckedExploreCoverageRootRole, CheckedExploreCoverageSubject, CheckedExploreQueryAccessError,
     CheckedExploreQueryArtifactIssue, CheckedExploreQueryView,
-    CheckedExploreSourceCoverageManifest, Diagnostic, ExploreAdmissionScope, Expr,
-    OwnedCheckedExploreQuery, RuleDispatchKey, Stmt, Ty, TypeCheckArtifacts, TypeChecker,
+    CheckedExploreSourceCoverageManifest, CheckedExploreSourceProjectionFactorKind, Diagnostic,
+    ExploreAdmissionScope, Expr, OwnedCheckedExploreQuery, RuleDispatchKey, Stmt, Ty,
+    TypeCheckArtifacts, TypeChecker,
 };
 
 use super::mechanism_incidence::MechanismCountEvidence;
@@ -64,10 +65,10 @@ use super::result_projection::{IndexedResultProjectionRecord, ResultProjectionRe
 use super::result_view::{ResultGroupDisposition, ResultValue, ResultViewCount, ResultViewSpec};
 use super::stream_resource::ExactStreamOneWorkerEnvelope;
 use super::{
-    ExploreAnalysisNodeIr, ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismTargetIr,
-    ExploreResultGrainIr, ExploreResultInputIr, ExploreResultViewIr, ExploreSourceBindingKindIr,
-    ExploreSuccessorKindIr, RelationalInterpreterExpressionRuntime, RelationalSupportPlan,
-    RelationalSupportPlanner,
+    relational_tys_equivalent, ExploreAnalysisNodeIr, ExploreExactDomain, ExploreFindIr,
+    ExploreFiniteDomainIr, ExploreFiniteTypePlan, ExploreMechanismTargetIr, ExploreResultGrainIr,
+    ExploreResultInputIr, ExploreResultViewIr, ExploreSourceBindingKindIr, ExploreSuccessorKindIr,
+    RelationalInterpreterExpressionRuntime, RelationalSupportPlan, RelationalSupportPlanner,
 };
 
 pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 9;
@@ -251,10 +252,12 @@ pub enum ExploreNativeClassifierFindV2 {
 
 /// One checked source binding reconstructed by native classifier V2.
 ///
-/// Independent finite integer ranges become function inputs. Singleton
-/// bindings retain their checked expression and are replayed in authored
-/// source order, so derived records such as a profile and composite `Before`
-/// state retain exactly the checked relation semantics.
+/// Independent finite integer ranges and one bounded exact finite-type factor
+/// become scalar function inputs. The structured factor is represented by its
+/// producer-issued canonical ordinal and reconstructed inside the classifier.
+/// Singleton bindings retain their checked expression and are replayed in
+/// authored source order, so derived records such as a profile and composite
+/// `Before` state retain exactly the checked relation semantics.
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub struct ExploreNativeClassifierSourceBindingV2 {
@@ -268,7 +271,14 @@ pub struct ExploreNativeClassifierSourceBindingV2 {
 #[derive(Clone, Debug)]
 pub enum ExploreNativeClassifierSourceBindingKindV2 {
     FiniteIntInput,
-    Singleton { value: Expr },
+    ExactFiniteOrdinalInput {
+        plan: ExploreFiniteTypePlan,
+        exact_cardinality: u128,
+        plan_digest: [u8; 32],
+    },
+    Singleton {
+        value: Expr,
+    },
 }
 
 /// Producer-minted RuleDispatch type contracts for the frozen classifier slice.
@@ -293,11 +303,12 @@ pub struct ExploreNativeClassifierRuleMetadataV2 {
 
 /// Classification-only compiler input for native classifier V2.
 ///
-/// V2 accepts one or more independent, statically bounded `Int` ranges mixed
-/// with ordered singleton/derived source bindings, followed by a singleton
-/// successor, scoped admissions, and All/Matches/Violations FIND. Finite
-/// values are operational accelerator inputs only: they never become CaseIds,
-/// source identities, transcript coordinates, or journal evidence.
+/// V2 accepts one or more independent, statically bounded `Int` ranges and at
+/// most one bounded exact finite-type factor, mixed with ordered
+/// singleton/derived source bindings, followed by a singleton successor,
+/// scoped admissions, and All/Matches/Violations FIND. Finite scalars are
+/// operational accelerator inputs only: they never become CaseIds, source
+/// identities, transcript coordinates, or journal evidence.
 #[doc(hidden)]
 #[derive(Clone, Debug)]
 pub struct ExploreNativeClassifierPlanV2 {
@@ -431,29 +442,68 @@ fn native_classifier_plan_v2_from_checked(
     let mut source_bindings = Vec::with_capacity(query.source.bindings.len());
     let mut finite_input_binding_indices = Vec::new();
     let mut finite_coordinate_count = 1u128;
+    let source_projection = checked.source_image_projection();
+    let mut structured_factor_count = 0usize;
     for (position, binding) in query.source.bindings.iter().enumerate() {
         if binding.binding_index != position || binding.name.is_empty() {
             return None;
         }
         let kind = match &binding.kind {
-            ExploreSourceBindingKindIr::Finite { domain } => {
-                if !binding.dependencies.is_empty()
-                    || !native_classifier_int_ty(&binding.value_ty)
-                    || !matches!(domain, ExploreFiniteDomainIr::IntRange { .. })
-                {
-                    return None;
+            ExploreSourceBindingKindIr::Finite { domain } => match domain {
+                ExploreFiniteDomainIr::IntRange { .. } => {
+                    if !binding.dependencies.is_empty()
+                        || !native_classifier_int_ty(&binding.value_ty)
+                    {
+                        return None;
+                    }
+                    let cardinality = statically_evaluate_checked_int_range(domain)
+                        .ok()
+                        .flatten()?
+                        .cardinality();
+                    if cardinality == 0 {
+                        return None;
+                    }
+                    finite_coordinate_count = finite_coordinate_count.checked_mul(cardinality)?;
+                    finite_input_binding_indices.push(binding.binding_index);
+                    ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput
                 }
-                let cardinality = statically_evaluate_checked_int_range(domain)
-                    .ok()
-                    .flatten()?
-                    .cardinality();
-                if cardinality == 0 {
-                    return None;
+                ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { ty, plan }) => {
+                    if !binding.dependencies.is_empty()
+                        || !relational_tys_equivalent(ty, &binding.value_ty)
+                        || structured_factor_count != 0
+                    {
+                        return None;
+                    }
+                    let exact_cardinality = plan.cardinality().exact()?;
+                    if exact_cardinality == 0 || exact_cardinality > i64::MAX as u128 {
+                        return None;
+                    }
+                    let plan_digest = crate::checked_explore_finite_plan_digest(plan);
+                    let projection_factor = source_projection?.factors.iter().find(|factor| {
+                        usize::try_from(factor.binding_index).ok() == Some(binding.binding_index)
+                    })?;
+                    if projection_factor.exact_cardinality != exact_cardinality
+                        || !matches!(
+                            projection_factor.kind,
+                            CheckedExploreSourceProjectionFactorKind::ExactFinite {
+                                plan_digest: certified_plan_digest,
+                            } if certified_plan_digest == plan_digest
+                        )
+                    {
+                        return None;
+                    }
+                    structured_factor_count += 1;
+                    finite_coordinate_count =
+                        finite_coordinate_count.checked_mul(exact_cardinality)?;
+                    finite_input_binding_indices.push(binding.binding_index);
+                    ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                        plan: plan.clone(),
+                        exact_cardinality,
+                        plan_digest,
+                    }
                 }
-                finite_coordinate_count = finite_coordinate_count.checked_mul(cardinality)?;
-                finite_input_binding_indices.push(binding.binding_index);
-                ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput
-            }
+                _ => return None,
+            },
             ExploreSourceBindingKindIr::Singleton { value } => {
                 ExploreNativeClassifierSourceBindingKindV2::Singleton {
                     value: value.clone(),

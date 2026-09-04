@@ -39348,7 +39348,9 @@ fn hash_checked_explore_finite_plan(hasher: &mut Sha256, plan: &explore::Explore
     }
 }
 
-fn checked_explore_finite_plan_digest(plan: &explore::ExploreFiniteTypePlan) -> [u8; 32] {
+pub(crate) fn checked_explore_finite_plan_digest(
+    plan: &explore::ExploreFiniteTypePlan,
+) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(b"futuruna.checked-explore-finite-type-plan.v1\0");
     hash_checked_explore_finite_plan(&mut hasher, plan);

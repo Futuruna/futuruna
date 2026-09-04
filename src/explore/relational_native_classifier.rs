@@ -1,7 +1,8 @@
 //! Fail-closed process boundary for a query-bound native classifier.
 //!
 //! V2 classifies one ordered batch from the checked source enumerator's finite
-//! integer-factor values. Derived singleton bindings, composite Context/Before
+//! integer values and bounded canonical finite-type ordinals. Derived
+//! singleton bindings, structured finite values, composite Context/Before
 //! values and the singleton successor are reconstructed inside the query-bound
 //! executable. These inputs are operational only: the host retains every
 //! semantic value and remains the sole producer of IDs and journal evidence.
@@ -12,7 +13,9 @@
 //!
 //! Canonical request framing (all integers big-endian):
 //! `request-magic | version | 4 * digest | factors:u32 | count:u32 |
-//! count * factors * value:i64`.
+//! count * factors * scalar:i64`. A scalar is either an integer factor value
+//! or a producer-issued finite-type ordinal, according to the query-bound
+//! executable plan.
 //! The response mirrors that header and ends with exactly `count` outcome tags.
 //! Digest order is program, relation, admission, then question.
 //! Outcome tags are `1 = rejected`, `2 = admitted/not-selected`, and
@@ -28,7 +31,7 @@ use std::sync::{mpsc, Arc};
 use std::time::{Duration, Instant};
 use std::{cmp, thread};
 
-use crate::{CheckedExploreQueryView, Ty};
+use crate::{CheckedExploreQueryView, CheckedExploreSourceProjectionFactorKind, Ty};
 
 use super::relational_bounded_chunk_partition::RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1;
 use super::relational_classified_sweep::{
@@ -38,7 +41,8 @@ use super::relational_classified_sweep::{
 };
 use super::relational_executor::RelationalExpressionRuntime;
 use super::{
-    ExploreFiniteDomainIr, ExploreSourceBindingKindIr, ExploreSuccessorKindIr, ExploreValue,
+    relational_tys_equivalent, ExploreExactDomain, ExploreFiniteDomainIr,
+    ExploreSourceBindingKindIr, ExploreSuccessorKindIr, ExploreValue,
 };
 
 /// Frozen wire constants shared with a generated V2 sidecar executable.
@@ -121,9 +125,24 @@ impl RelationalNativeClassifierIdentityV2 {
     }
 }
 
-fn finite_input_binding_indices_from_checked(
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RelationalNativeClassifierFiniteInputKindV2 {
+    IntValue,
+    ExactFiniteOrdinal {
+        exact_cardinality: u128,
+        plan_digest: [u8; 32],
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct RelationalNativeClassifierFiniteInputV2 {
+    binding_index: usize,
+    kind: RelationalNativeClassifierFiniteInputKindV2,
+}
+
+fn finite_inputs_from_checked(
     checked: &CheckedExploreQueryView<'_>,
-) -> Result<Box<[usize]>, RelationalNativeClassifierUnavailable> {
+) -> Result<Box<[RelationalNativeClassifierFiniteInputV2]>, RelationalNativeClassifierUnavailable> {
     checked
         .closed_query
         .validate()
@@ -134,27 +153,70 @@ fn finite_input_binding_indices_from_checked(
     ) {
         return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
     }
-    let mut indices = Vec::new();
+    let source_projection = checked.source_image_projection();
+    let mut inputs = Vec::new();
+    let mut structured_factor_count = 0usize;
     for (position, binding) in checked.closed_query.source.bindings.iter().enumerate() {
         if binding.binding_index != position {
             return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
         }
         if let ExploreSourceBindingKindIr::Finite { domain } = &binding.kind {
-            if !binding.dependencies.is_empty()
-                || !matches!(domain, ExploreFiniteDomainIr::IntRange { .. })
-                || !matches!(&binding.value_ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Heltal"))
-            {
-                return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
-            }
-            indices.push(position);
+            let kind = match domain {
+                ExploreFiniteDomainIr::IntRange { .. }
+                    if binding.dependencies.is_empty()
+                        && matches!(&binding.value_ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Heltal")) =>
+                {
+                    RelationalNativeClassifierFiniteInputKindV2::IntValue
+                }
+                ExploreFiniteDomainIr::Exact(ExploreExactDomain::FiniteType { ty, plan })
+                    if binding.dependencies.is_empty()
+                        && relational_tys_equivalent(ty, &binding.value_ty)
+                        && structured_factor_count == 0 =>
+                {
+                    let exact_cardinality = plan
+                        .cardinality()
+                        .exact()
+                        .filter(|count| *count > 0 && *count <= i64::MAX as u128)
+                        .ok_or(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape)?;
+                    let plan_digest = crate::checked_explore_finite_plan_digest(plan);
+                    let projection_factor = source_projection
+                        .ok_or(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape)?
+                        .factors
+                        .iter()
+                        .find(|factor| usize::try_from(factor.binding_index).ok() == Some(position))
+                        .ok_or(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape)?;
+                    if projection_factor.exact_cardinality != exact_cardinality
+                        || !matches!(
+                            projection_factor.kind,
+                            CheckedExploreSourceProjectionFactorKind::ExactFinite {
+                                plan_digest: certified_plan_digest,
+                            } if certified_plan_digest == plan_digest
+                        )
+                    {
+                        return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
+                    }
+                    structured_factor_count += 1;
+                    RelationalNativeClassifierFiniteInputKindV2::ExactFiniteOrdinal {
+                        exact_cardinality,
+                        plan_digest,
+                    }
+                }
+                _ => {
+                    return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
+                }
+            };
+            inputs.push(RelationalNativeClassifierFiniteInputV2 {
+                binding_index: position,
+                kind,
+            });
         }
     }
-    if indices.is_empty()
-        || indices.len() > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
+    if inputs.is_empty()
+        || inputs.len() > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
     {
         return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
     }
-    Ok(indices.into_boxed_slice())
+    Ok(inputs.into_boxed_slice())
 }
 
 /// One query-bound executable speaking the strict native-classifier V2 frame.
@@ -162,7 +224,7 @@ fn finite_input_binding_indices_from_checked(
 pub(crate) struct RelationalNativeClassifierV2 {
     executable: PathBuf,
     identity: RelationalNativeClassifierIdentityV2,
-    finite_input_binding_indices: Arc<[usize]>,
+    finite_inputs: Arc<[RelationalNativeClassifierFiniteInputV2]>,
     enabled: Arc<AtomicBool>,
     parity_checked: Arc<AtomicBool>,
 }
@@ -172,11 +234,11 @@ impl RelationalNativeClassifierV2 {
         executable: impl Into<PathBuf>,
         checked: &CheckedExploreQueryView<'_>,
     ) -> Result<Self, RelationalNativeClassifierUnavailable> {
-        let finite_input_binding_indices = finite_input_binding_indices_from_checked(checked)?;
+        let finite_inputs = finite_inputs_from_checked(checked)?;
         Ok(Self {
             executable: executable.into(),
             identity: RelationalNativeClassifierIdentityV2::from_checked(checked)?,
-            finite_input_binding_indices: finite_input_binding_indices.into(),
+            finite_inputs: finite_inputs.into(),
             enabled: Arc::new(AtomicBool::new(true)),
             parity_checked: Arc::new(AtomicBool::new(false)),
         })
@@ -203,7 +265,7 @@ impl RelationalNativeClassifierV2 {
         if !self.is_enabled() {
             return Err(RelationalNativeClassifierUnavailable::DisabledAfterUnavailable);
         }
-        let request = encode_request(self.identity, &self.finite_input_binding_indices, subjects)?;
+        let request = encode_request(self.identity, &self.finite_inputs, subjects)?;
         let response = invoke_once(&self.executable, &request)?;
         decode_response(self.identity, subjects.len(), &response)
     }
@@ -371,7 +433,7 @@ fn trace_native_classifier_unavailable(unavailable: &RelationalNativeClassifierU
 
 fn encode_request(
     identity: RelationalNativeClassifierIdentityV2,
-    finite_input_binding_indices: &[usize],
+    finite_inputs: &[RelationalNativeClassifierFiniteInputV2],
     subjects: &[RelationalOrderedClassificationSubject<'_>],
 ) -> Result<Vec<u8>, RelationalNativeClassifierUnavailable> {
     if subjects.len() > RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2 {
@@ -380,12 +442,11 @@ fn encode_request(
             maximum: RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2,
         });
     }
-    if finite_input_binding_indices.is_empty()
-        || finite_input_binding_indices.len()
-            > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
-        || finite_input_binding_indices
+    if finite_inputs.is_empty()
+        || finite_inputs.len() > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
+        || finite_inputs
             .windows(2)
-            .any(|pair| pair[0] >= pair[1])
+            .any(|pair| pair[0].binding_index >= pair[1].binding_index)
     {
         return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
     }
@@ -395,7 +456,7 @@ fn encode_request(
             maximum: RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2,
         }
     })?;
-    let factor_count = u32::try_from(finite_input_binding_indices.len())
+    let factor_count = u32::try_from(finite_inputs.len())
         .map_err(|_| RelationalNativeClassifierUnavailable::InvalidFiniteInputShape)?;
     let mut request = Vec::with_capacity(MAX_REQUEST_BYTES_V2);
     request.extend_from_slice(REQUEST_MAGIC_V2);
@@ -404,14 +465,50 @@ fn encode_request(
     request.extend_from_slice(&factor_count.to_be_bytes());
     request.extend_from_slice(&count.to_be_bytes());
     for (subject_index, subject) in subjects.iter().copied().enumerate() {
-        for &binding_index in finite_input_binding_indices {
-            let Some(ExploreValue::Int(value)) = subject.source_binding(binding_index) else {
-                return Err(
-                    RelationalNativeClassifierUnavailable::UnsupportedFiniteInputValue {
-                        subject_index,
-                        binding_index,
-                    },
-                );
+        for input in finite_inputs {
+            let value = match input.kind {
+                RelationalNativeClassifierFiniteInputKindV2::IntValue => {
+                    let Some(ExploreValue::Int(value)) =
+                        subject.source_binding(input.binding_index)
+                    else {
+                        return Err(
+                            RelationalNativeClassifierUnavailable::UnsupportedFiniteInputValue {
+                                subject_index,
+                                binding_index: input.binding_index,
+                            },
+                        );
+                    };
+                    *value
+                }
+                RelationalNativeClassifierFiniteInputKindV2::ExactFiniteOrdinal {
+                    exact_cardinality,
+                    ..
+                } => {
+                    let Some(ordinal) =
+                        subject.source_binding_canonical_ordinal(input.binding_index)
+                    else {
+                        return Err(
+                            RelationalNativeClassifierUnavailable::UnsupportedFiniteInputValue {
+                                subject_index,
+                                binding_index: input.binding_index,
+                            },
+                        );
+                    };
+                    if ordinal >= exact_cardinality {
+                        return Err(
+                            RelationalNativeClassifierUnavailable::UnsupportedFiniteInputValue {
+                                subject_index,
+                                binding_index: input.binding_index,
+                            },
+                        );
+                    }
+                    i64::try_from(ordinal).map_err(|_| {
+                        RelationalNativeClassifierUnavailable::UnsupportedFiniteInputValue {
+                            subject_index,
+                            binding_index: input.binding_index,
+                        }
+                    })?
+                }
             };
             request.extend_from_slice(&value.to_be_bytes());
         }

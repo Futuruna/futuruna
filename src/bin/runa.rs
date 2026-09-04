@@ -8234,11 +8234,23 @@ fn explore_native_classifier_derivation_cache_key_v3(
         explore_native_classifier_cache_hash_usize_v3(&mut hasher, binding.binding_index)?;
         cache_hash_segment(&mut hasher, binding.name.as_bytes());
         explore_native_classifier_cache_hash_ty_v3(&mut hasher, &binding.ty)?;
-        let kind = match &binding.kind {
-            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => 0,
-            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => 1,
-        };
-        cache_hash_segment(&mut hasher, &[kind]);
+        match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => {
+                cache_hash_segment(&mut hasher, &[0]);
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => {
+                cache_hash_segment(&mut hasher, &[1]);
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                exact_cardinality,
+                plan_digest,
+                ..
+            } => {
+                cache_hash_segment(&mut hasher, &[2]);
+                cache_hash_segment(&mut hasher, &exact_cardinality.to_le_bytes());
+                cache_hash_segment(&mut hasher, plan_digest);
+            }
+        }
     }
     explore_native_classifier_cache_hash_usize_v3(
         &mut hasher,
@@ -9082,6 +9094,164 @@ fn explore_native_classifier_function_name_v2(
     format!("__futuruna_explore_native_classifier_v2_{digest}")
 }
 
+fn explore_native_classifier_finite_cardinality_v2(
+    plan: &explore::ExploreFiniteTypePlan,
+) -> Option<i64> {
+    let cardinality = plan.cardinality().exact()?;
+    (cardinality > 0 && cardinality <= i64::MAX as u128)
+        .then(|| i64::try_from(cardinality).ok())
+        .flatten()
+}
+
+fn explore_native_classifier_int_literal_v2(value: i64) -> Expr {
+    Expr::unspanned(ExprKind::Lit(Literal::Int(value)))
+}
+
+fn explore_native_classifier_binary_v2(operator: &str, left: Expr, right: Expr) -> Expr {
+    Expr::unspanned(ExprKind::BinOp(
+        operator.to_string(),
+        Box::new(left),
+        Box::new(right),
+    ))
+}
+
+/// Decode one mixed-radix component from a canonical product ordinal. The
+/// rightmost component changes fastest, matching the checked source producer.
+fn explore_native_classifier_component_ordinal_v2(
+    ordinal: &Expr,
+    cardinalities: &[i64],
+    component: usize,
+) -> Option<Expr> {
+    let cardinality = *cardinalities.get(component)?;
+    let suffix = cardinalities
+        .get(component + 1..)?
+        .iter()
+        .try_fold(1_i64, |product, value| product.checked_mul(*value))?;
+    let quotient = if suffix == 1 {
+        ordinal.clone()
+    } else {
+        explore_native_classifier_binary_v2(
+            "/",
+            ordinal.clone(),
+            explore_native_classifier_int_literal_v2(suffix),
+        )
+    };
+    Some(if cardinality == 1 {
+        explore_native_classifier_int_literal_v2(0)
+    } else {
+        explore_native_classifier_binary_v2(
+            "%",
+            quotient,
+            explore_native_classifier_int_literal_v2(cardinality),
+        )
+    })
+}
+
+/// Synthesize a pure structural decoder for the exact finite plan. Its size is
+/// proportional to the type plan, never to the number of inhabitants.
+fn explore_native_classifier_decode_finite_plan_v2(
+    plan: &explore::ExploreFiniteTypePlan,
+    ordinal: Expr,
+) -> Option<Expr> {
+    match plan {
+        explore::ExploreFiniteTypePlan::Unit => Some(Expr::unspanned(ExprKind::Unit)),
+        explore::ExploreFiniteTypePlan::Bool => Some(explore_native_classifier_binary_v2(
+            "==",
+            ordinal,
+            explore_native_classifier_int_literal_v2(1),
+        )),
+        explore::ExploreFiniteTypePlan::Tuple { elements, .. } => {
+            let cardinalities = elements
+                .iter()
+                .map(explore_native_classifier_finite_cardinality_v2)
+                .collect::<Option<Vec<_>>>()?;
+            let elements = elements
+                .iter()
+                .enumerate()
+                .map(|(index, plan)| {
+                    let component = explore_native_classifier_component_ordinal_v2(
+                        &ordinal,
+                        &cardinalities,
+                        index,
+                    )?;
+                    explore_native_classifier_decode_finite_plan_v2(plan, component)
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(Expr::unspanned(ExprKind::Tuple(elements)))
+        }
+        explore::ExploreFiniteTypePlan::Sum { variants, .. } => {
+            let mut cumulative = 0_i64;
+            let mut branches = Vec::<(i64, Expr)>::new();
+            for variant in variants {
+                let cardinalities = variant
+                    .fields
+                    .iter()
+                    .map(|field| explore_native_classifier_finite_cardinality_v2(&field.plan))
+                    .collect::<Option<Vec<_>>>()?;
+                let variant_cardinality = cardinalities
+                    .iter()
+                    .try_fold(1_i64, |product, value| product.checked_mul(*value))?;
+                if variant_cardinality == 0 {
+                    continue;
+                }
+                let local_ordinal = if cumulative == 0 {
+                    ordinal.clone()
+                } else {
+                    explore_native_classifier_binary_v2(
+                        "-",
+                        ordinal.clone(),
+                        explore_native_classifier_int_literal_v2(cumulative),
+                    )
+                };
+                let arguments = variant
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(index, field)| {
+                        let component = explore_native_classifier_component_ordinal_v2(
+                            &local_ordinal,
+                            &cardinalities,
+                            index,
+                        )?;
+                        let value = explore_native_classifier_decode_finite_plan_v2(
+                            &field.plan,
+                            component,
+                        )?;
+                        Some(if variant.positional {
+                            value
+                        } else {
+                            named_arg_expr(field.name.clone(), value)
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                let constructor = if arguments.is_empty() {
+                    Expr::unspanned(ExprKind::Var(variant.name.clone()))
+                } else {
+                    Expr::unspanned(ExprKind::App(
+                        Box::new(Expr::unspanned(ExprKind::Var(variant.name.clone()))),
+                        arguments,
+                    ))
+                };
+                cumulative = cumulative.checked_add(variant_cardinality)?;
+                branches.push((cumulative, constructor));
+            }
+            let (_, mut decoded) = branches.pop()?;
+            while let Some((upper_bound, constructor)) = branches.pop() {
+                decoded = Expr::unspanned(ExprKind::If(
+                    Box::new(explore_native_classifier_binary_v2(
+                        "<",
+                        ordinal.clone(),
+                        explore_native_classifier_int_literal_v2(upper_bound),
+                    )),
+                    Box::new(constructor),
+                    Box::new(decoded),
+                ));
+            }
+            Some(decoded)
+        }
+    }
+}
+
 fn synthesize_explore_native_classifier_function_v2(
     function_name: &str,
     plan: &explore::ExploreNativeClassifierPlanV2,
@@ -9169,6 +9339,45 @@ fn synthesize_explore_native_classifier_function_v2(
                 ));
                 finite_ordinal += 1;
             }
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                plan: finite_plan,
+                exact_cardinality,
+                ..
+            } => {
+                if finite_plan
+                    .cardinality()
+                    .exact()
+                    .filter(|cardinality| cardinality == exact_cardinality)
+                    .and_then(|cardinality| i64::try_from(cardinality).ok())
+                    .is_none()
+                    || plan
+                        .finite_input_binding_indices
+                        .get(finite_ordinal)
+                        .copied()
+                        != Some(binding.binding_index)
+                {
+                    return None;
+                }
+                let parameter_name = fresh_generated_rust_name(
+                    &format!("__futuruna_explore_native_v2_factor_{finite_ordinal}"),
+                    reachable_names,
+                );
+                params.push(Param {
+                    name: parameter_name.clone(),
+                    ty: Some(classifier_int_ty.clone()),
+                    inout: false,
+                });
+                let decoded = explore_native_classifier_decode_finite_plan_v2(
+                    finite_plan,
+                    Expr::unspanned(ExprKind::Var(parameter_name)),
+                )?;
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    decoded,
+                ));
+                finite_ordinal += 1;
+            }
             explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } => {
                 body_statements.push(Stmt::Bind(
                     Pat::Var(binding.name.clone()),
@@ -9217,11 +9426,29 @@ fn render_explore_native_classifier_protocol_main_v2(
         + Protocol::COUNT_BYTES;
     let max_response_bytes =
         fixed_response_bytes + Protocol::MAX_BATCH_SUBJECTS * Protocol::OUTCOME_BYTES;
-    let factor_reads = (0..factor_count)
-        .map(|factor| {
-            format!(
+    let finite_kinds = plan
+        .source_bindings
+        .iter()
+        .filter_map(|binding| match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => Some(None),
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                exact_cardinality,
+                ..
+            } => i64::try_from(*exact_cardinality).ok().map(Some),
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    debug_assert_eq!(finite_kinds.len(), factor_count);
+    let factor_reads = finite_kinds
+        .iter()
+        .enumerate()
+        .map(|(factor, exact_cardinality)| match exact_cardinality {
+            None => format!(
                 "        let factor_{factor} = i64::from_be_bytes(request[cursor..cursor + 8].try_into().unwrap());\n        cursor += 8;"
-            )
+            ),
+            Some(exact_cardinality) => format!(
+                "        let factor_{factor} = i64::from_be_bytes(request[cursor..cursor + 8].try_into().unwrap());\n        cursor += 8;\n        if factor_{factor} < 0 || factor_{factor} >= {exact_cardinality} {{\n            std::process::exit(FAILURE);\n        }}"
+            ),
         })
         .collect::<Vec<_>>()
         .join("\n");
@@ -69938,6 +70165,166 @@ routes <- "b"
         prepared
             .take_native_classifier_plan_v2()
             .expect("fixture has the native classifier V2 shape")
+    }
+
+    #[test]
+    fn native_classifier_exact_finite_decoder_preserves_unit_tuple_radix_order() {
+        let finite_plan = explore::ExploreFiniteTypePlan::Tuple {
+            elements: vec![
+                explore::ExploreFiniteTypePlan::Unit,
+                explore::ExploreFiniteTypePlan::Bool,
+            ],
+            cardinality: explore::ExploreCardinality::Exact(2),
+        };
+        for (ordinal, expected_boolean) in [(0, false), (1, true)] {
+            let decoded = explore_native_classifier_decode_finite_plan_v2(
+                &finite_plan,
+                explore_native_classifier_int_literal_v2(ordinal),
+            )
+            .expect("decode bounded Unit/Bool tuple");
+            let value = Interpreter::new().eval(&decoded, &Env::new());
+            let Value::Tuple(elements) = value else {
+                panic!("finite tuple decoder returned a non-tuple value")
+            };
+            assert!(
+                matches!(elements.as_slice(), [Value::Unit, Value::Bool(actual)] if *actual == expected_boolean)
+            );
+        }
+    }
+
+    #[test]
+    fn native_classifier_decodes_exact_finite_profile_ordinals_in_producer_order() {
+        use std::io::Write as _;
+
+        let source = r#"
+# NativeAge = WorkingAge | Senior
+# NativeProfile(church: Bool, age: NativeAge)
+# NativeState(profile: NativeProfile, ordinal: Int)
+
+? explore native_exact_finite_profile {
+    from {
+        vary profile in values(NativeProfile)
+        vary ordinal in range(0, 4)
+        let before = NativeState(profile = profile, ordinal = ordinal)
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of (
+        (before.ordinal == 0 && before.profile == NativeProfile(church = False, age = WorkingAge))
+        || (before.ordinal == 1 && before.profile == NativeProfile(church = False, age = Senior))
+        || (before.ordinal == 2 && before.profile == NativeProfile(church = True, age = WorkingAge))
+        || (before.ordinal == 3 && before.profile == NativeProfile(church = True, age = Senior))
+    )
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("native_exact_finite_profile"),
+        )
+        .expect("prepare exact-finite native classifier fixture");
+        let plan = prepared
+            .take_native_classifier_plan_v2()
+            .expect("exact finite profile and integer range have the native classifier V2 shape");
+        assert_eq!(plan.finite_input_binding_indices.as_ref(), [0, 1]);
+        assert_eq!(plan.finite_coordinate_count, 16);
+
+        let explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+            plan: finite_plan,
+            exact_cardinality,
+            plan_digest: _,
+        } = &plan.source_bindings[0].kind
+        else {
+            panic!("profile must be carried as one exact finite ordinal input")
+        };
+        assert_eq!(*exact_cardinality, 4);
+        let explore::ExploreFiniteTypePlan::Sum { variants, .. } = finite_plan else {
+            panic!("named profile must retain its finite sum plan")
+        };
+        let [profile] = variants.as_slice() else {
+            panic!("record profile must have one constructor")
+        };
+        assert!(matches!(
+            profile.fields[0].plan,
+            explore::ExploreFiniteTypePlan::Bool
+        ));
+        assert!(matches!(
+            profile.fields[1].plan,
+            explore::ExploreFiniteTypePlan::Sum { .. }
+        ));
+
+        let identity = plan.identity;
+        let temp_dir = unique_temp_workspace("futuruna-explore-native-exact-finite");
+        let target = explore_native_classifier_cache_target_v3(&temp_dir, "profile-ordinal");
+        let executable =
+            build_explore_native_classifier_v2_cache_miss(plan, &target, std::time::Instant::now())
+                .expect("compile exact-finite native classifier");
+        // SAFETY: this executable was generated immediately above from the
+        // exact plan taken from this same prepared query.
+        unsafe { prepared.install_native_classifier_executable_v2(executable.clone()) }
+            .expect("runtime accepts the same certified exact-finite input shape");
+
+        let coordinates = (0_i64..4)
+            .flat_map(|profile_ordinal| {
+                (0_i64..4).map(move |expected_ordinal| (profile_ordinal, expected_ordinal))
+            })
+            .collect::<Vec<_>>();
+        let mut request = Vec::new();
+        request.extend_from_slice(explore::RelationalNativeClassifierProtocolV2::REQUEST_MAGIC);
+        request.extend_from_slice(
+            &explore::RelationalNativeClassifierProtocolV2::VERSION.to_be_bytes(),
+        );
+        request.extend_from_slice(&identity.checked_program);
+        request.extend_from_slice(&identity.relation_id);
+        request.extend_from_slice(&identity.admission_id);
+        request.extend_from_slice(&identity.question_id);
+        request.extend_from_slice(&2_u32.to_be_bytes());
+        request.extend_from_slice(&(coordinates.len() as u32).to_be_bytes());
+        for (profile_ordinal, expected_ordinal) in &coordinates {
+            request.extend_from_slice(&profile_ordinal.to_be_bytes());
+            request.extend_from_slice(&expected_ordinal.to_be_bytes());
+        }
+
+        let mut child = std::process::Command::new(&executable)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn exact-finite native classifier");
+        let mut stdin = child.stdin.take().expect("classifier stdin");
+        stdin.write_all(&request).expect("write classifier request");
+        drop(stdin);
+        let output = child.wait_with_output().expect("read classifier response");
+        assert!(
+            output.status.success(),
+            "exact-finite classifier exited with {:?}",
+            output.status.code()
+        );
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(explore::RelationalNativeClassifierProtocolV2::RESPONSE_MAGIC);
+        expected.extend_from_slice(
+            &explore::RelationalNativeClassifierProtocolV2::VERSION.to_be_bytes(),
+        );
+        expected.extend_from_slice(&identity.checked_program);
+        expected.extend_from_slice(&identity.relation_id);
+        expected.extend_from_slice(&identity.admission_id);
+        expected.extend_from_slice(&identity.question_id);
+        expected.extend_from_slice(&(coordinates.len() as u32).to_be_bytes());
+        expected.extend(
+            coordinates
+                .iter()
+                .map(|(profile_ordinal, expected_ordinal)| {
+                    if profile_ordinal == expected_ordinal {
+                        explore::RelationalNativeClassifierProtocolV2::OUTCOME_ADMITTED_SELECTED
+                    } else {
+                        explore::RelationalNativeClassifierProtocolV2::OUTCOME_ADMITTED_NOT_SELECTED
+                    }
+                }),
+        );
+        assert_eq!(output.stdout, expected);
+        std::fs::remove_dir_all(temp_dir).expect("remove exact-finite classifier fixture");
     }
 
     #[test]

@@ -204,6 +204,16 @@ impl<'a> RelationalOrderedClassificationSubject<'a> {
     pub(crate) fn source_binding(self, binding_index: usize) -> Option<&'a super::ExploreValue> {
         self.source.prefix().values.get(binding_index)
     }
+
+    /// Return the canonical producer-issued ordinal for one source binding.
+    /// This is authenticated as part of the completed prefix and lets an
+    /// accelerator consume a finite typed coordinate without re-ranking its
+    /// semantic value through a second implementation.
+    pub(crate) fn source_binding_canonical_ordinal(self, binding_index: usize) -> Option<u128> {
+        let selection = self.source.prefix().selections.get(binding_index)?;
+        (usize::try_from(selection.binding_index).ok() == Some(binding_index))
+            .then_some(selection.canonical_ordinal)
+    }
 }
 
 /// Ordered classification boundary beneath the canonical sweep host.
