@@ -3516,7 +3516,8 @@ mod regional_stream_acceptance_tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
-    use super::super::relation::SelectionDecision;
+    use super::super::mechanism_incidence::MechanismTargetCaseSetCommitment;
+    use super::super::relation::{AdmissionDecision, RelationalCaseId, SelectionDecision};
     use super::super::relational_analysis_catalog::RelationalAnalysisCatalogError;
     use super::super::relational_analysis_journal::{
         RelationalAnalysisEvidenceEvent, RelationalAnalysisJournalError,
@@ -3527,6 +3528,7 @@ mod regional_stream_acceptance_tests {
         RelationalMechanismLayerRegistration, RelationalMechanismObservationId,
     };
     use super::super::relational_candidate_schedule::RelationalCandidateScheduleReason;
+    use super::super::relational_case_executor::RelationalCaseExecutor;
     use super::super::relational_case_support_projection::{
         derive_relational_case_support_projection, relational_case_support_active_set_root,
         RelationalCaseSupportClosureAuthority, RelationalCaseSupportCount,
@@ -3540,6 +3542,7 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_durable_journal::{
         RelationalDurableJournal, RelationalDurableJournalError, RelationalDurableJournalLimits,
     };
+    use super::super::relational_executor::RelationalSourceEnumerator;
     use super::super::relational_frontier::{WorkCompletionRef, WorkNodeSpec};
     use super::super::relational_journal::{
         RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
@@ -3638,6 +3641,18 @@ mod regional_stream_acceptance_tests {
         each case
         select [before, after]
     }
+}
+"#;
+
+    const THREE_CHUNK_CANDIDATE_RESIDUAL: &str = r#"
+? explore three_chunk_candidate_residual {
+    from {
+        vary before in range(0, 700)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find cases = matches of before >= 680
 }
 "#;
 
@@ -3834,6 +3849,85 @@ mod regional_stream_acceptance_tests {
                 }
             })
             .collect()
+    }
+
+    #[derive(Debug, Eq, PartialEq)]
+    struct CanonicalExhaustiveCounts {
+        candidates: u128,
+        rejected: u128,
+        admitted: u128,
+        admitted_not_selected: u128,
+        admitted_selected: u128,
+        selected_case_ids: BTreeSet<RelationalCaseId>,
+    }
+
+    fn canonical_exhaustive_three_chunk_oracle() -> CanonicalExhaustiveCounts {
+        let mut prepared = prepare(THREE_CHUNK_CANDIDATE_RESIDUAL);
+        let checked = prepared.checked.view();
+        let question_id = checked.question_ids()[0];
+        let source =
+            RelationalSourceEnumerator::new(checked.relation_id(), &checked.closed_query.source)
+                .expect("build independent canonical source enumerator");
+        let cases = RelationalCaseExecutor::new(checked.relation_id(), checked.closed_query)
+            .expect("build independent canonical case executor");
+        let questions = cases
+            .checked_question_evaluation_plan(&checked)
+            .expect("bind independent canonical FIND evaluator");
+        let mut oracle = CanonicalExhaustiveCounts {
+            candidates: 0,
+            rejected: 0,
+            admitted: 0,
+            admitted_not_selected: 0,
+            admitted_selected: 0,
+            selected_case_ids: BTreeSet::new(),
+        };
+
+        for coordinate in 0..700 {
+            let completed = source
+                .completed_source_at_independent_finite_ordinals(
+                    &[coordinate],
+                    &mut prepared.expression_runtime,
+                )
+                .expect("enumerate independent canonical source coordinate");
+            let transition = cases
+                .statically_singleton_transition(
+                    completed.source_key(),
+                    completed.row(),
+                    &mut prepared.expression_runtime,
+                )
+                .expect("evaluate independent canonical transition")
+                .expect("fixture transition is statically singleton");
+            let (case, _) = transition.into_parts();
+            let classification = cases
+                .classify(
+                    completed.row(),
+                    &case,
+                    &questions,
+                    &mut prepared.expression_runtime,
+                )
+                .expect("classify independent canonical case");
+            oracle.candidates += 1;
+            match classification.admission() {
+                AdmissionDecision::Rejected => {
+                    oracle.rejected += 1;
+                    assert_eq!(classification.question_decision(question_id), None);
+                }
+                AdmissionDecision::Admitted => {
+                    oracle.admitted += 1;
+                    match classification
+                        .question_decision(question_id)
+                        .expect("admitted oracle case has FIND evidence")
+                    {
+                        SelectionDecision::NotSelected => oracle.admitted_not_selected += 1,
+                        SelectionDecision::Selected => {
+                            oracle.admitted_selected += 1;
+                            assert!(oracle.selected_case_ids.insert(classification.case_id()));
+                        }
+                    }
+                }
+            }
+        }
+        oracle
     }
 
     fn first_classification_quantum(source: &str) -> RelationalStepQuantum {
@@ -6025,6 +6119,162 @@ mod regional_stream_acceptance_tests {
         assert_eq!(seeded, [true, true]);
         assert!(compactions >= 4, "both two-node target pairs were peeled");
         assert_eq!(journal.scheduler_view().unwrap().work_node_count(), 0);
+    }
+
+    #[test]
+    fn candidate_guard_endpoint_and_residual_match_canonical_exhaustive_oracle() {
+        let oracle = canonical_exhaustive_three_chunk_oracle();
+        assert_eq!(
+            (
+                oracle.candidates,
+                oracle.rejected,
+                oracle.admitted,
+                oracle.admitted_not_selected,
+                oracle.admitted_selected,
+            ),
+            (700, 0, 700, 680, 20),
+            "the independent exhaustive oracle anchors the fixture semantics"
+        );
+
+        let mut prepared = prepare(THREE_CHUNK_CANDIDATE_RESIDUAL);
+        let checked = prepared.checked.view();
+        let question_id = checked.question_ids()[0];
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build three-chunk candidate stream scheduler");
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            prepared.contract.clone(),
+            exact_one_region_replay_authority(&prepared),
+        );
+        let mut scheduled = Vec::new();
+        let mut completed = false;
+
+        for _ in 0..256 {
+            match driver
+                .step_with_base_member_limit(
+                    &mut journal,
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(256).unwrap(),
+                )
+                .expect("advance three-chunk candidate stream")
+            {
+                RelationalStreamStepOutcome::Emitted(batch) => {
+                    if let RelationalStreamQuantum::Base(
+                        RelationalStepQuantum::SeedClassifiedTargetWork {
+                            chunk_ordinal,
+                            schedule_reason,
+                            ..
+                        },
+                    ) = batch.quantum()
+                    {
+                        let expected_decision = match schedule_reason {
+                            RelationalCandidateScheduleReason::CheckedGuardBoundary => {
+                                RelationalSchedulerDecision::BaseCandidateCheckedGuard
+                            }
+                            RelationalCandidateScheduleReason::LowerRangeEndpoint => {
+                                RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
+                            }
+                            RelationalCandidateScheduleReason::ResidualFallback => {
+                                RelationalSchedulerDecision::BaseCandidateResidual
+                            }
+                            other => panic!(
+                                "three-chunk fixture emitted unexpected candidate reason: {other:?}"
+                            ),
+                        };
+                        assert!(matches!(
+                            batch.events().first(),
+                            Some(RelationalJournalEvent::Checkpoint(
+                                RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                                    decision,
+                                    ..
+                                }
+                            )) if *decision == expected_decision
+                        ));
+                        scheduled.push((chunk_ordinal, schedule_reason));
+                    }
+                    for event in batch.into_events() {
+                        journal
+                            .append(event)
+                            .expect("append three-chunk candidate batch event");
+                    }
+                }
+                RelationalStreamStepOutcome::Complete => {
+                    completed = true;
+                    break;
+                }
+                RelationalStreamStepOutcome::Quiescent(quiescence) => {
+                    panic!("three-chunk candidate stream quiesced before closure: {quiescence:?}");
+                }
+            }
+        }
+        assert!(
+            completed,
+            "three-chunk candidate stream exceeded its compact fixture bound"
+        );
+        assert_eq!(
+            scheduled,
+            vec![
+                (2, RelationalCandidateScheduleReason::CheckedGuardBoundary),
+                (0, RelationalCandidateScheduleReason::LowerRangeEndpoint),
+                (1, RelationalCandidateScheduleReason::ResidualFallback),
+            ],
+            "live scheduling must exercise candidate, endpoint, then residual work"
+        );
+
+        let view = journal
+            .scheduler_view()
+            .expect("inspect completed three-chunk candidate journal");
+        assert_eq!(
+            view.verified_case_chunk_partition()
+                .unwrap()
+                .expect("three-chunk canonical partition")
+                .partition()
+                .chunks()
+                .len(),
+            3
+        );
+        assert_eq!(view.accepted_classified_fragment_count(), 3);
+        let counts = view
+            .classification_progress_counts(question_id)
+            .expect("derive candidate-run classification counts")
+            .expect("candidate-run root cardinality is exact");
+        assert!(counts.is_complete());
+        assert_eq!(
+            (
+                counts.candidates(),
+                counts.rejected(),
+                counts.admitted(),
+                counts.admitted_not_selected(),
+                counts.admitted_selected(),
+            ),
+            (
+                oracle.candidates,
+                oracle.rejected,
+                oracle.admitted,
+                oracle.admitted_not_selected,
+                oracle.admitted_selected,
+            )
+        );
+
+        let materialized_selected = view
+            .materialized_selected_case_ids(question_id)
+            .expect("read candidate-run selected CaseIds")
+            .collect::<BTreeSet<_>>();
+        assert_eq!(materialized_selected, oracle.selected_case_ids);
+        let oracle_commitment =
+            MechanismTargetCaseSetCommitment::from_cases(oracle.selected_case_ids.iter().copied());
+        let candidate_commitment = journal
+            .analysis_state()
+            .and_then(|analysis| analysis.selected_question(question_id))
+            .expect("completed candidate run has an exact selected-question seal")
+            .mechanism_target();
+        assert_eq!(candidate_commitment, oracle_commitment);
     }
 
     #[test]
