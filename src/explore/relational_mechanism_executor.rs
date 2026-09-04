@@ -25,8 +25,8 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonId,
 };
 use super::relation::{
-    MechanismTargetId, QuestionId, RelationProvenance, RelationalCaseId, RelationalCaseRef,
-    SourceKey, SourceRow, SuccessorKey, SuccessorRow, ViewId,
+    ChoiceId, MechanismTargetId, QuestionId, RelationProvenance, RelationalCaseId,
+    RelationalCaseRef, SourceKey, SourceRow, SuccessorKey, SuccessorRow,
 };
 use super::relational_endpoint_totality::RelationalEndpointTotalityCertificateId;
 use super::structural_mechanism::{
@@ -4356,9 +4356,9 @@ fn encode_scope(encoder: &mut Encoder, scope: MechanismRequestScope) {
     encoder.digest(scope.question_id().bytes());
     match scope.target() {
         MechanismTargetId::Selected => encoder.tag(0x01),
-        MechanismTargetId::ChosenView(view_id) => {
+        MechanismTargetId::Choice(choice_id) => {
             encoder.tag(0x02);
-            encoder.digest(view_id.bytes());
+            encoder.digest(choice_id.bytes());
         }
     }
 }
@@ -4631,7 +4631,7 @@ fn decode_scope(
     let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
     let target = match reader.tag()? {
         0x01 => MechanismTargetId::Selected,
-        0x02 => MechanismTargetId::ChosenView(ViewId::from_journal_codec_bytes(reader.digest()?)),
+        0x02 => MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes(reader.digest()?)),
         _ => {
             return Err(RelationalMechanismReplayError::InvalidDurablePayload(
                 "mechanism target tag",

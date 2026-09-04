@@ -985,9 +985,9 @@ fn encode_support_key(encoder: &mut ProjectionEncoder, key: MechanismSupportKey)
     encoder.digest(key.request_id().bytes());
     match key.target() {
         MechanismTargetId::Selected => encoder.u8(0x01),
-        MechanismTargetId::ChosenView(view_id) => {
+        MechanismTargetId::Choice(choice_id) => {
             encoder.u8(0x02);
-            encoder.digest(view_id.bytes());
+            encoder.digest(choice_id.bytes());
         }
     }
     match key.subject() {

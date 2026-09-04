@@ -213,7 +213,7 @@ impl<'query> RelationalIncidenceResultStepDriver<'query> {
         for (node, identity) in checked.analysis_nodes() {
             let (
                 ExploreAnalysisNodeIr::Result(result),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, .. },
             ) = (node, identity)
             else {
                 continue;
@@ -1605,7 +1605,7 @@ mod tests {
                 ) => request = Some((*request_id, observation, endpoint_totality.certificate_id())),
                 (
                     ExploreAnalysisNodeIr::Result(result),
-                    CheckedExploreAnalysisIdentity::View { view_id },
+                    CheckedExploreAnalysisIdentity::View { view_id, .. },
                 ) if matches!(
                     result.input,
                     ExploreResultInputIr::MechanismIncidence { .. }

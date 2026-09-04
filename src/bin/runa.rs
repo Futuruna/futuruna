@@ -6313,15 +6313,17 @@ fn relational_explore_mechanism_target_json(
             "name": name,
             "question_id": question_id,
         }),
-        explore::ExploreStreamMechanismTarget::ChosenView {
+        explore::ExploreStreamMechanismTarget::Choice {
             name,
             question_id,
-            view_id,
+            choice_id,
+            materializing_view_id,
         } => serde_json::json!({
-            "kind": "chosen_view",
+            "kind": "choice",
             "name": name,
             "question_id": question_id,
-            "view_id": view_id,
+            "choice_id": choice_id,
+            "materializing_view_id": materializing_view_id,
         }),
     }
 }
@@ -6333,8 +6335,8 @@ fn relational_explore_mechanism_target_text(
         explore::ExploreStreamMechanismTarget::Find { name, .. } => {
             format!("cases selected by find `{name}`")
         }
-        explore::ExploreStreamMechanismTarget::ChosenView { name, .. } => {
-            format!("cases chosen by view `{name}`")
+        explore::ExploreStreamMechanismTarget::Choice { name, .. } => {
+            format!("cases selected by choice `{name}`")
         }
     }
 }
@@ -6746,6 +6748,7 @@ fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_j
             "kind": "result",
             "name": result.name,
             "view_id": result.view_id,
+            "choice_id": result.choice_id,
             "input": relational_explore_result_input_json(&result.input),
             "grain": relational_explore_result_grain_name(result.grain),
             "columns": relational_explore_result_columns_json(&result.columns),
@@ -7063,6 +7066,7 @@ fn relational_explore_answer_result_json(
     let mut answer = serde_json::json!({
         "name": result.name,
         "view_id": result.view_id,
+        "choice_id": result.choice_id,
         "input": relational_explore_result_input_json(&result.input),
         "grain": relational_explore_result_grain_name(result.grain),
         "columns": relational_explore_result_columns_json(&result.columns),

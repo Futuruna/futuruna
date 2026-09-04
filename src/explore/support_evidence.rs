@@ -3349,6 +3349,10 @@ fn hash_view_input(hasher: &mut SupportEvidenceHasher, input: ViewInputId) {
             hasher.tag(0x01);
             hasher.digest(question_id.bytes());
         }
+        ViewInputId::Choice(choice_id) => {
+            hasher.tag(0x04);
+            hasher.digest(choice_id.bytes());
+        }
         ViewInputId::MechanismIncidence(request_id) => {
             hasher.tag(0x02);
             hasher.digest(request_id.bytes());
@@ -4528,7 +4532,7 @@ impl SupportEvidenceCatalogBuilder {
         }
         for (view_id, input) in &self.views {
             match input {
-                ViewInputId::Sources(_) => {}
+                ViewInputId::Sources(_) | ViewInputId::Choice(_) => {}
                 ViewInputId::Selected(question_id) if !self.questions.contains_key(question_id) => {
                     return Err(SupportEvidenceError::UnknownQuestionLayer {
                         question_id: *question_id,
@@ -4841,6 +4845,10 @@ impl SupportEvidenceCatalogBuilder {
         match *self.views.get(&view_id)? {
             ViewInputId::Sources(relation_id) => Some(relation_id),
             ViewInputId::Selected(question_id) => self.relation_for_question(question_id),
+            // The legacy support-evidence registry does not carry the new
+            // ChoiceId -> QuestionId plan relation. Refuse to invent lineage;
+            // canonical relational analysis resolves it from the plan.
+            ViewInputId::Choice(_) => None,
             ViewInputId::MechanismIncidence(request_id) => self.relation_for_mechanism(request_id),
         }
     }

@@ -28544,6 +28544,9 @@ pub(crate) struct CheckedExploreQuerySites {
 pub(crate) enum CheckedExploreAnalysisIdentity {
     View {
         view_id: explore::ViewId,
+        /// Present when the transitional nested `choose` spelling lowered to
+        /// a semantic choice relation consumed by this display view.
+        choice_id: Option<explore::ChoiceId>,
     },
     Mechanisms {
         request_id: explore::MechanismRequestId,
@@ -38021,7 +38024,7 @@ fn checked_explore_product_rank_grouped_distinct_certificates(
         let (
             explore::ExploreAnalysisNodeIr::Result(view),
             CheckedExploreAnalysisNodeSites::Result(result_sites),
-            CheckedExploreAnalysisIdentity::View { view_id },
+            CheckedExploreAnalysisIdentity::View { view_id, .. },
         ) = (node, node_sites, identity)
         else {
             continue;
@@ -39644,6 +39647,163 @@ fn hash_checked_explore_aggregate_field_ir(
     Ok(())
 }
 
+fn checked_explore_choice_semantic_digest(
+    resolutions: &CheckedResolutionArtifacts,
+    choice: &explore::ExploreChoiceRelationIr,
+    semantic_closure_digest: [u8; 32],
+) -> Result<[u8; 32], CheckedExploreQueryArtifactIssue> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-choice-semantics.v1\0");
+    match &choice.partition {
+        explore::ExploreChoicePartitionIr::All { .. } => {
+            checked_query_hash_component(&mut hasher, "choice-partition", "all");
+        }
+        explore::ExploreChoicePartitionIr::By { fields, .. } => {
+            checked_query_hash_component(&mut hasher, "choice-partition", "by");
+            checked_query_hash_component(
+                &mut hasher,
+                "partition-field-count",
+                &fields.len().to_string(),
+            );
+            for field in fields {
+                hash_checked_explore_result_field_ir(
+                    &mut hasher,
+                    resolutions,
+                    "partition-field",
+                    field,
+                )?;
+            }
+        }
+    }
+    checked_query_hash_component(
+        &mut hasher,
+        "choice-measure-count",
+        &choice.measures.len().to_string(),
+    );
+    for field in &choice.measures {
+        hash_checked_explore_result_field_ir(&mut hasher, resolutions, "choice-measure", field)?;
+    }
+    match &choice.having {
+        None => checked_query_hash_component(&mut hasher, "choice-having", "none"),
+        Some(explore::ExploreResultHavingIr::Varies {
+            measure_name,
+            measure_index,
+            ..
+        }) => {
+            checked_query_hash_component(&mut hasher, "choice-having", "varies");
+            checked_query_hash_component(&mut hasher, "choice-having-measure-name", measure_name);
+            checked_query_hash_component(
+                &mut hasher,
+                "choice-having-measure-index",
+                &measure_index.to_string(),
+            );
+        }
+    }
+    match &choice.policy {
+        explore::ExploreResultChoiceIr::Optimize {
+            cardinality,
+            direction,
+            objective_ty,
+            ..
+        } => {
+            checked_query_hash_component(&mut hasher, "choice-kind", "optimize");
+            checked_query_hash_component(
+                &mut hasher,
+                "choice-cardinality",
+                match cardinality {
+                    ExploreChooseCardinality::One => "one",
+                    ExploreChooseCardinality::All => "all",
+                },
+            );
+            checked_query_hash_component(
+                &mut hasher,
+                "choice-direction",
+                match direction {
+                    ExploreOptimizeDirection::Minimize => "minimize",
+                    ExploreOptimizeDirection::Maximize => "maximize",
+                },
+            );
+            hash_checked_explore_type_schema(&mut hasher, resolutions, objective_ty)?;
+        }
+        explore::ExploreResultChoiceIr::Pareto { objectives, .. } => {
+            checked_query_hash_component(&mut hasher, "choice-kind", "pareto");
+            checked_query_hash_component(
+                &mut hasher,
+                "pareto-objective-count",
+                &objectives.len().to_string(),
+            );
+            for objective in objectives {
+                checked_query_hash_component(
+                    &mut hasher,
+                    "pareto-direction",
+                    match objective.direction {
+                        ExploreOptimizeDirection::Minimize => "minimize",
+                        ExploreOptimizeDirection::Maximize => "maximize",
+                    },
+                );
+                hash_checked_explore_type_schema(&mut hasher, resolutions, &objective.ty)?;
+            }
+        }
+    }
+    checked_query_hash_component(&mut hasher, "choice-comparison-semantics", "exact-int-v1");
+    checked_query_hash_component(&mut hasher, "choice-tie-ordering", "canonical-row-id-v1");
+    hasher.update(semantic_closure_digest);
+    Ok(hasher.finalize().into())
+}
+
+fn checked_explore_choice_display_view_semantic_digest(
+    resolutions: &CheckedResolutionArtifacts,
+    view: &explore::ExploreResultViewIr,
+    semantic_closure_digest: [u8; 32],
+) -> Result<[u8; 32], CheckedExploreQueryArtifactIssue> {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-choice-display-view-semantics.v1\0");
+    // The fused physical reducer still emits the authored row/group shape.
+    // Hash that display shape, but never re-import measures, HAVING, or the
+    // choice policy already sealed by the ViewInputId::Choice.
+    match &view.grain {
+        explore::ExploreResultGrainIr::EachCase { .. } => {
+            checked_query_hash_component(&mut hasher, "display-grain", "each-case");
+        }
+        explore::ExploreResultGrainIr::EachIncidence { .. } => {
+            checked_query_hash_component(&mut hasher, "display-grain", "each-incidence");
+        }
+        explore::ExploreResultGrainIr::GroupAll { .. } => {
+            checked_query_hash_component(&mut hasher, "display-grain", "group-all");
+        }
+        explore::ExploreResultGrainIr::GroupBy { fields, .. } => {
+            checked_query_hash_component(&mut hasher, "display-grain", "group-by");
+            checked_query_hash_component(
+                &mut hasher,
+                "display-group-field-count",
+                &fields.len().to_string(),
+            );
+            for field in fields {
+                hash_checked_explore_result_field_ir(
+                    &mut hasher,
+                    resolutions,
+                    "display-group-field",
+                    field,
+                )?;
+            }
+        }
+    }
+    checked_query_hash_component(
+        &mut hasher,
+        "aggregate-count",
+        &view.aggregates.len().to_string(),
+    );
+    for field in &view.aggregates {
+        hash_checked_explore_aggregate_field_ir(&mut hasher, resolutions, field)?;
+    }
+    checked_query_hash_component(&mut hasher, "select-count", &view.select.len().to_string());
+    for field in &view.select {
+        hash_checked_explore_result_field_ir(&mut hasher, resolutions, "select", field)?;
+    }
+    hasher.update(semantic_closure_digest);
+    Ok(hasher.finalize().into())
+}
+
 fn checked_explore_view_semantic_digest(
     resolutions: &CheckedResolutionArtifacts,
     view: &explore::ExploreResultViewIr,
@@ -39803,49 +39963,128 @@ fn checked_explore_analysis_identities(
                 explore::ExploreAnalysisNodeIr::Result(view),
                 CheckedExploreAnalysisNodeSites::Result(result_sites),
             ) => {
-                let input = match &view.input {
-                    explore::ExploreResultInputIr::Sources => {
-                        explore::ViewInputId::Sources(relation_id)
+                let choice = view.canonical_choice_relation().map_err(|error| {
+                    CheckedExploreQueryArtifactIssue::AnalysisGraph(error.into())
+                })?;
+                let choice_id = if let Some(choice) = choice.as_ref() {
+                    let question_id = find_question_ids
+                        .get(choice.find_index)
+                        .copied()
+                        .ok_or_else(|| {
+                            CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                "result node {node_index} references absent FIND index {}",
+                                choice.find_index
+                            ))
+                        })?;
+                    let expression_roots = result_sites
+                        .group_fields
+                        .iter()
+                        .chain(result_sites.measures.iter())
+                        .chain(result_sites.choice_objectives.iter())
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    let mut type_roots = Vec::new();
+                    if let explore::ExploreChoicePartitionIr::By { fields, .. } = &choice.partition
+                    {
+                        type_roots.extend(fields.iter().map(|field| field.ty.clone()));
                     }
-                    explore::ExploreResultInputIr::Find { find_index, .. } => {
-                        let question_id = find_question_ids.get(*find_index).copied().ok_or_else(
-                            || {
-                                CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
-                                    "result node {node_index} references absent FIND index {find_index}"
-                                ))
-                            },
-                        )?;
-                        explore::ViewInputId::Selected(question_id)
+                    type_roots.extend(choice.measures.iter().map(|field| field.ty.clone()));
+                    match &choice.policy {
+                        explore::ExploreResultChoiceIr::Optimize { objective_ty, .. } => {
+                            type_roots.push(objective_ty.clone());
+                        }
+                        explore::ExploreResultChoiceIr::Pareto { objectives, .. } => {
+                            type_roots
+                                .extend(objectives.iter().map(|objective| objective.ty.clone()));
+                        }
                     }
-                    explore::ExploreResultInputIr::MechanismIncidence {
-                        request_node_index,
-                    } => match identities.get(*request_node_index) {
-                        Some(CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. })
-                            if *request_node_index < node_index =>
-                        {
-                            explore::ViewInputId::MechanismIncidence(*request_id)
-                        }
-                        _ => {
-                            return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
-                                "result node {node_index} does not resolve prior mechanism node {request_node_index}"
-                            )))
-                        }
-                    },
+                    let closure_digest = checked_explore_semantic_dependency_digest(
+                        index,
+                        resolutions,
+                        semantic_binders,
+                        "choice relation",
+                        &expression_roots,
+                        &type_roots,
+                    )?;
+                    let choice_digest = checked_explore_choice_semantic_digest(
+                        resolutions,
+                        choice,
+                        closure_digest,
+                    )?;
+                    Some(explore::ChoiceId::from_canonical_choice_digest(
+                        question_id,
+                        choice_digest,
+                    ))
+                } else {
+                    None
                 };
-                let expression_roots = result_sites
-                    .group_fields
-                    .iter()
-                    .chain(result_sites.measures.iter())
-                    .chain(result_sites.aggregates.iter())
-                    .chain(result_sites.select.iter())
-                    .chain(result_sites.choice_objectives.iter())
-                    .cloned()
-                    .collect::<Vec<_>>();
-                let mut type_roots = Vec::new();
-                if let explore::ExploreResultGrainIr::GroupBy { fields, .. } = &view.grain {
-                    type_roots.extend(fields.iter().map(|field| field.ty.clone()));
+                let input = if let Some(choice_id) = choice_id {
+                    explore::ViewInputId::Choice(choice_id)
+                } else {
+                    match &view.input {
+                        explore::ExploreResultInputIr::Sources => {
+                            explore::ViewInputId::Sources(relation_id)
+                        }
+                        explore::ExploreResultInputIr::Find { find_index, .. } => {
+                            let question_id = find_question_ids
+                                .get(*find_index)
+                                .copied()
+                                .ok_or_else(|| {
+                                    CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
+                                        "result node {node_index} references absent FIND index {find_index}"
+                                    ))
+                                })?;
+                            explore::ViewInputId::Selected(question_id)
+                        }
+                        explore::ExploreResultInputIr::MechanismIncidence {
+                            request_node_index,
+                        } => match identities.get(*request_node_index) {
+                            Some(CheckedExploreAnalysisIdentity::Mechanisms {
+                                request_id, ..
+                            }) if *request_node_index < node_index => {
+                                explore::ViewInputId::MechanismIncidence(*request_id)
+                            }
+                            _ => {
+                                return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
+                                    format!(
+                                        "result node {node_index} does not resolve prior mechanism node {request_node_index}"
+                                    ),
+                                ));
+                            }
+                        },
+                    }
+                };
+                let (expression_roots, mut type_roots) = if choice_id.is_some() {
+                    (
+                        result_sites
+                            .aggregates
+                            .iter()
+                            .chain(result_sites.select.iter())
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                        Vec::new(),
+                    )
+                } else {
+                    (
+                        result_sites
+                            .group_fields
+                            .iter()
+                            .chain(result_sites.measures.iter())
+                            .chain(result_sites.aggregates.iter())
+                            .chain(result_sites.select.iter())
+                            .cloned()
+                            .collect::<Vec<_>>(),
+                        match &view.grain {
+                            explore::ExploreResultGrainIr::GroupBy { fields, .. } => {
+                                fields.iter().map(|field| field.ty.clone()).collect()
+                            }
+                            _ => Vec::new(),
+                        },
+                    )
+                };
+                if choice_id.is_none() {
+                    type_roots.extend(view.measures.iter().map(|field| field.ty.clone()));
                 }
-                type_roots.extend(view.measures.iter().map(|field| field.ty.clone()));
                 for aggregate in &view.aggregates {
                     type_roots.push(aggregate.ty.clone());
                     match &aggregate.reducer {
@@ -39855,15 +40094,6 @@ fn checked_explore_analysis_identities(
                     }
                 }
                 type_roots.extend(view.select.iter().map(|field| field.ty.clone()));
-                match &view.choose {
-                    None => {}
-                    Some(explore::ExploreResultChoiceIr::Optimize { objective_ty, .. }) => {
-                        type_roots.push(objective_ty.clone());
-                    }
-                    Some(explore::ExploreResultChoiceIr::Pareto { objectives, .. }) => {
-                        type_roots.extend(objectives.iter().map(|objective| objective.ty.clone()));
-                    }
-                }
                 let closure_digest = checked_explore_semantic_dependency_digest(
                     index,
                     resolutions,
@@ -39872,10 +40102,18 @@ fn checked_explore_analysis_identities(
                     &expression_roots,
                     &type_roots,
                 )?;
-                let view_digest =
-                    checked_explore_view_semantic_digest(resolutions, view, closure_digest)?;
+                let view_digest = if choice_id.is_some() {
+                    checked_explore_choice_display_view_semantic_digest(
+                        resolutions,
+                        view,
+                        closure_digest,
+                    )?
+                } else {
+                    checked_explore_view_semantic_digest(resolutions, view, closure_digest)?
+                };
                 CheckedExploreAnalysisIdentity::View {
                     view_id: explore::ViewId::from_canonical_view_digest(input, view_digest),
+                    choice_id,
                 }
             }
             (
@@ -39894,12 +40132,11 @@ fn checked_explore_analysis_identities(
                         (explore::MechanismTargetId::Selected, question_id)
                     }
                     explore::ExploreMechanismTargetIr::ViewChosen { view_node_index } => {
-                        let view_id = match identities.get(*view_node_index) {
-                            Some(CheckedExploreAnalysisIdentity::View { view_id })
-                                if *view_node_index < node_index =>
-                            {
-                                *view_id
-                            }
+                        let choice_id = match identities.get(*view_node_index) {
+                            Some(CheckedExploreAnalysisIdentity::View {
+                                choice_id: Some(choice_id),
+                                ..
+                            }) if *view_node_index < node_index => *choice_id,
                             _ => {
                                 return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(
                                     format!(
@@ -39930,7 +40167,7 @@ fn checked_explore_analysis_identities(
                                 ))
                             },
                         )?;
-                        (explore::MechanismTargetId::ChosenView(view_id), question_id)
+                        (explore::MechanismTargetId::Choice(choice_id), question_id)
                     }
                 };
                 let observation = explore::MechanismObservationIr::derive_checked(
@@ -40040,7 +40277,7 @@ fn checked_explore_analysis_identities(
             }
         };
         match &identity {
-            CheckedExploreAnalysisIdentity::View { view_id } => {
+            CheckedExploreAnalysisIdentity::View { view_id, .. } => {
                 if let Some((first_index, first_name)) =
                     result_consumers.insert(*view_id, (node_index, node.name()))
                 {
@@ -40067,15 +40304,18 @@ fn checked_explore_analysis_graph_digest(
         ));
     }
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-analysis-graph.v3\0");
+    hasher.update(b"futuruna.checked-explore-analysis-graph.v4\0");
     let mut semantic_nodes = BTreeSet::<(u8, [u8; 32])>::new();
     for (node_index, (node, identity)) in query.analysis.iter().zip(identities).enumerate() {
         match (node, identity) {
             (
                 explore::ExploreAnalysisNodeIr::Result(_),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, choice_id },
             ) => {
                 semantic_nodes.insert((0x01, view_id.bytes()));
+                if let Some(choice_id) = choice_id {
+                    semantic_nodes.insert((0x02, choice_id.bytes()));
+                }
             }
             (
                 explore::ExploreAnalysisNodeIr::Mechanisms(_),
@@ -40089,7 +40329,7 @@ fn checked_explore_analysis_graph_digest(
                 node_hasher.update(b"futuruna.checked-explore-analysis-mechanism-node.v2\0");
                 node_hasher.update(request_id.bytes());
                 node_hasher.update(endpoint_totality.certificate_id().bytes());
-                semantic_nodes.insert((0x02, node_hasher.finalize().into()));
+                semantic_nodes.insert((0x03, node_hasher.finalize().into()));
             }
             _ => {
                 return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
@@ -40256,7 +40496,7 @@ fn checked_explore_starter_projection_identities(
             }
         };
         let authorizing_view_id = match analysis.get(projection.value_view_node_index) {
-            Some(CheckedExploreAnalysisIdentity::View { view_id }) => *view_id,
+            Some(CheckedExploreAnalysisIdentity::View { view_id, .. }) => *view_id,
             _ => {
                 return Err(CheckedExploreQueryArtifactIssue::AnalysisGraph(format!(
                     "starter projection `{}` does not resolve checked value-view node index {}",
@@ -55465,6 +55705,11 @@ impl TypeChecker {
                     {
                         self.error_at_span(result.span, "aggregate requires group all or group by");
                     }
+                    if result.choose.is_some()
+                        && !matches!(&result.input, ExploreResultInput::Find { .. })
+                    {
+                        self.error_at_span(result.span, "choose requires a named-find case input");
+                    }
 
                     self.push_scope();
                     // A normalized source row contains exactly the canonical
@@ -55572,6 +55817,11 @@ impl TypeChecker {
                         result_available.insert(typed.name.clone());
                         typed_measures.push(typed);
                     }
+                    // Choice identity may not acquire a dependency on a
+                    // display projection. Preserve the exact candidate-row,
+                    // partition-field, and measure environment before
+                    // aggregate and SELECT aliases are introduced.
+                    let choice_available = result_available.clone();
 
                     let mut typed_aggregates = Vec::with_capacity(result.aggregates.len());
                     for field in &result.aggregates {
@@ -55651,7 +55901,7 @@ impl TypeChecker {
                         checker.check_explore_available_references(
                             value,
                             &result_reserved_names,
-                            &result_available,
+                            &choice_available,
                         );
                         checker.check_explore_role_environment(
                             value,
@@ -57679,6 +57929,7 @@ mod tests {
         ));
         let [CheckedExploreAnalysisIdentity::View {
             view_id: alias_view_id,
+            ..
         }] = checked.artifact.analysis.as_ref()
         else {
             panic!("expected the result view identity")
@@ -57711,6 +57962,7 @@ mod tests {
         ));
         let [CheckedExploreAnalysisIdentity::View {
             view_id: direct_view_id,
+            ..
         }] = direct.artifact.analysis.as_ref()
         else {
             panic!("expected the direct result view identity")
@@ -60296,7 +60548,7 @@ __FINDS__
         aggregate [profiles = count_distinct(before)]
         having varies(measure)
         select [shown = after, profiles]
-        choose all maximizing shown
+        choose all maximizing measure
     }}
 }}
 | always: True -> True
@@ -60367,7 +60619,7 @@ __FINDS__
             ),
             (
                 "choice",
-                baseline_source.replacen("maximizing shown", "minimizing shown", 1),
+                baseline_source.replacen("maximizing measure", "minimizing measure", 1),
             ),
         ] {
             assert_ne!(
@@ -60380,6 +60632,95 @@ __FINDS__
             baseline,
             identity(&source("second")),
             "proof presentation continuations do not rename Explore sites"
+        );
+    }
+
+    #[test]
+    fn choice_identity_excludes_unused_display_projection_and_rejects_display_dependencies() {
+        let source = |shown: &str, objective: &str| {
+            format!(
+                r#"
+> observe(state: Int, context: Unit) -> Int {{ state }}
+
+? explore choice_identity {{
+    from {{
+        vary before in [1, 2]
+        given context = ()
+    }}
+    transition after = before + 1
+    find all_cases = all
+    results winner from find all_cases {{
+        group all
+        measure [score = before]
+        select [case_id, shown = {shown}]
+        choose all maximizing {objective}
+    }}
+    mechanisms winner_paths from view winner chosen using observe
+}}
+"#
+            )
+        };
+        let identities = |source: String| {
+            let artifacts = explore_artifacts_for_source(&source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "unexpected ChoiceId fixture diagnostics: {:?}",
+                artifacts.diagnostics
+            );
+            let checked = artifacts
+                .checked_exploration_query(0)
+                .expect("checked ChoiceId fixture");
+            let [CheckedExploreAnalysisIdentity::View {
+                view_id,
+                choice_id: Some(choice_id),
+            }, CheckedExploreAnalysisIdentity::Mechanisms { request_id, .. }] =
+                checked.artifact.analysis.as_ref()
+            else {
+                panic!("expected one choice view followed by its mechanism request")
+            };
+            (*choice_id, *view_id, *request_id)
+        };
+
+        let before_display = identities(source("before", "score"));
+        let after_display = identities(source("after", "score"));
+        assert_eq!(
+            before_display.0, after_display.0,
+            "ChoiceId is membership-only"
+        );
+        assert_ne!(
+            before_display.1, after_display.1,
+            "ViewId owns SELECT display"
+        );
+        assert_eq!(
+            before_display.2, after_display.2,
+            "mechanisms target ChoiceId rather than the materializing ViewId"
+        );
+        let minimizing = identities(source("before", "score").replacen(
+            "choose all maximizing score",
+            "choose all minimizing score",
+            1,
+        ));
+        assert_ne!(
+            before_display.0, minimizing.0,
+            "objective policy belongs to ChoiceId"
+        );
+        let having = identities(source("before", "score").replacen(
+            "select [case_id, shown = before]",
+            "having varies(score)\n        select [case_id, shown = before]",
+            1,
+        ));
+        assert_ne!(
+            before_display.0, having.0,
+            "choice eligibility belongs to ChoiceId"
+        );
+
+        let invalid = explore_artifacts_for_source(&source("before", "shown"));
+        assert!(
+            invalid.diagnostics.iter().any(|diagnostic| diagnostic
+                .message
+                .contains("referenced before its bound or shown value is available")),
+            "a choice objective may not silently acquire a SELECT/display dependency: {:?}",
+            invalid.diagnostics
         );
     }
 

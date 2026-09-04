@@ -338,15 +338,23 @@ semantic node IDs.
 ### Current Experimental executable boundary
 
 The separated target syntax above is not yet a complete implementation claim.
-Publication v17 and report v9 execute the nested checkpoint with ordered
+Publication v18 and report v10 execute the nested checkpoint with ordered
 `from` bindings, `transition after`, scoped `where`, zero or more
 `find NAME = all|matches|violations` declarations, explicit
 `results ... from find NAME`, `mechanisms ... from find NAME using OBSERVER`,
 and `mechanisms ... from view VIEW chosen using OBSERVER` consumers,
 `observations`, `starters` and `transitions`.
 The existing engine's `results` maps toward target `view`; embedded `choose`
-maps toward target `choice`; and `mechanisms` maps toward target `explain ...
-using`. Its placement-order dependency rule is implementation history, not the
+now lowers to a canonical typed choice relation with a membership-only
+`ChoiceId`; and `mechanisms` maps toward target `explain ... using`. The
+downstream display keeps a separate `ViewId`. A mechanism request hashes the
+`ChoiceId`, while its analysis plan also retains the checked display view that
+physically materializes the chosen CaseIds. The current concrete reducer
+executes those two semantic nodes as one fused stage, rather than introducing a
+parallel evaluator. Choice objectives may use candidate, partition, and measure
+values; aggregate and `SELECT` aliases fail closed until the frontend can lower
+their transitive semantics without making display-only fields part of choice
+identity. Placement-order dependency remains implementation history, not the
 target order-independent analysis semantics.
 
 Most importantly, the v14 executable `starters NAME ... using values from VIEW`
@@ -372,17 +380,18 @@ Native-classifier v2 and regional-proof accelerators remain exact-one and use
 the checked plural sweep as their fallback without choosing a primary. A
 pause/reopen audit over 300 transitions and two overlapping predicates closes
 after 300 classifications with independent exact selected counts of 20 and 10
-and one 20-case concrete union. A chosen-view mechanism
-target must name an earlier FIND-backed result containing `choose`. Execution
-waits for that exact result to publish, scans its authenticated projection in
+and one 20-case concrete union. A choice-target mechanism currently names an
+earlier FIND-backed result containing `choose`. Execution waits for that fused
+materializing view to publish, scans its authenticated projection in
 bounded resumable chunks, and admits each CaseId with its exact projection
-ordinal as durable provenance. The target seal binds the immutable result root,
-and only those chosen cases enter the ordinary bounded incidence scheduler. A
+ordinal as durable provenance. The target seal binds the `ChoiceId` and the
+immutable result root, and only those chosen cases enter the ordinary bounded
+incidence scheduler. A
 complete admitted mechanism landscape can now be another named
 `find NAME = all` in the same relation as a cliff question. These are staged
 implementation limits, not competing semantic definitions.
 
-Report v9 and publication v17 add one bounded answer index over that staged
+Report v10 and publication v18 add one bounded answer index over that staged
 graph. Every declared result appears even when it is ungrouped, still open, or
 exactly empty. Its descriptor names the resolved input relation, grain,
 ordered selected columns and types, group keys, output-row and
@@ -574,7 +583,7 @@ view, choice or explanation binds exactly the coverage components reachable
 from its typed input edges plus its own AnalysisNodeCoverageId; unrelated
 questions or analysis nodes do not contaminate its bundle.
 
-This composed bundle is the normative target. Publication v17 currently emits
+This composed bundle is the normative target. Publication v18 currently emits
 the RelationId-scoped source manifest and carries admission/question/request
 identities, but does not yet emit every sibling coverage artifact or the
 composed bundle. Current artifacts MUST describe that boundary rather than
@@ -1199,7 +1208,7 @@ projects only `P` from that exact correlated source. They have different member
 schemas, counts, roots, cursors and materialization statuses even when every
 starter happens to have one successor.
 
-Publication v17 does not implement that target split. It retains the explicit
+Publication v18 does not implement that target split. It retains the explicit
 single-subject `starters` consumer introduced in publication v9 as transitional
 historical executable syntax:
 
@@ -1249,7 +1258,7 @@ authorize a DAG-wide case-by-subject export. `using values from` is mandatory
 and must name
 a prior compatible lossless selected-input, each-case view which directly
 exposes `case_id`, `context`, `before` and `after` without aggregation,
-`having`, or choice. For a chosen-view mechanism request, that receipt
+`having`, or choice. For a choice-target mechanism request, that receipt
 authorizes the selected population from which the same `QuestionId`'s chosen
 target was derived; the choosing view itself need not be lossless.
 
@@ -1885,7 +1894,7 @@ NDJSON); a renderer MUST NOT require one in-memory JSON array merely to save an
 otherwise durable exact answer. Only fields authorized by a view's
 `select` schema may enter its public configuration export.
 
-Publication v17 gives every mechanism request two support-observation
+Publication v18 gives every mechanism request two support-observation
 artifacts. `mechanisms/<request>.support-observations.ndjson` is the one shared
 append-only point stream for automatic and explicit slices.
 `mechanisms/<request>.support-observation-demands.ndjson` is the durable demand
@@ -1897,7 +1906,7 @@ sidecar publishes assignments, structural closure and at most one automatic
 support receipt; it MUST NOT duplicate those point records or emit one support
 row for every structural node and edge at closure.
 
-Publication v17 implements independently domain-separated inner/outer
+Publication v18 implements independently domain-separated inner/outer
 expression bounds for correlated case support `S` and distinct-starter
 projection `P = distinct_sources(S)`, plus explicit `starter_set_status` and
 `correlated_support_status`. Publication v12 is implementation history, not a
@@ -1918,7 +1927,7 @@ containing those links). Discoverability fields are references only: they
 neither inline values nor enter `StructuralMechanismId`, `StructuralNodeId` or
 `StructuralEdgeId`.
 
-Report v9 MUST expose the same partitions rather than one ambiguous total. It
+Report v10 MUST expose the same partitions rather than one ambiguous total. It
 reports the total shared point count/root; automatic point, registered, dirty,
 observed and sealed counts plus the automatic chain root; and explicit demand
 registrations, point count, registered, ready, pending-backfill, dirty,

@@ -537,7 +537,9 @@ where
         .find_map(|(node, identity)| match (node, identity) {
             (
                 ExploreAnalysisNodeIr::Result(view),
-                CheckedExploreAnalysisIdentity::View { view_id: candidate },
+                CheckedExploreAnalysisIdentity::View {
+                    view_id: candidate, ..
+                },
             ) if *candidate == view_id => Some(view),
             _ => None,
         })

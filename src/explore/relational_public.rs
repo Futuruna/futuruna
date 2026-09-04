@@ -71,7 +71,7 @@ use super::{
     RelationalInterpreterExpressionRuntime, RelationalSupportPlan, RelationalSupportPlanner,
 };
 
-pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 9;
+pub const EXPLORE_RELATIONAL_STREAM_REPORT_VERSION: u32 = 10;
 
 const RESULT_PREVIEW_ROWS_PER_VIEW: usize = 16;
 const RESULT_PREVIEW_ROWS_PER_REPORT: usize = 64;
@@ -797,10 +797,11 @@ pub enum ExploreStreamMechanismTarget {
         name: String,
         question_id: String,
     },
-    ChosenView {
+    Choice {
         name: String,
         question_id: String,
-        view_id: String,
+        choice_id: String,
+        materializing_view_id: String,
     },
 }
 
@@ -1113,6 +1114,10 @@ pub struct ExploreStreamGroupedResultPreview {
 pub struct ExploreStreamResultLayer {
     pub name: String,
     pub view_id: String,
+    /// Stable membership identity when this display view materializes a
+    /// canonical choice relation. Display-only SELECT/privacy changes may
+    /// change `view_id` without changing this identity.
+    pub choice_id: Option<String>,
     pub input: ExploreStreamResultInput,
     pub grain: ExploreStreamResultGrain,
     pub columns: Vec<ExploreStreamResultColumn>,
@@ -1763,7 +1768,7 @@ fn projection_lengths(
     checked
         .analysis_nodes()
         .map(|(_, identity)| match identity {
-            CheckedExploreAnalysisIdentity::View { view_id } => match analysis {
+            CheckedExploreAnalysisIdentity::View { view_id, .. } => match analysis {
                 None => Ok(0),
                 Some(state) => match (state.open_catalog(), state.closed_catalog()) {
                     (Some(open), None) => open
@@ -2281,13 +2286,14 @@ fn analysis_layers(
         let layer = match (node, identity) {
             (
                 ExploreAnalysisNodeIr::Result(view),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, choice_id },
             ) => ExploreStreamLayer::Result(result_layer(
                 analysis,
                 checked,
                 index,
                 view,
                 *view_id,
+                *choice_id,
                 projection_starts.get(index).copied().unwrap_or(0),
                 &mut preview_budget,
             )?),
@@ -2347,7 +2353,7 @@ fn public_mechanism_target(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
             };
-            let CheckedExploreAnalysisIdentity::View { view_id } = identity else {
+            let CheckedExploreAnalysisIdentity::View { view_id, choice_id } = identity else {
                 return Err(ExploreStreamPreparationError::Execution(format!(
                     "mechanism target analysis node {view_node_index} is not a result view"
                 )));
@@ -2362,10 +2368,16 @@ fn public_mechanism_target(
                     "mechanism target view {view_node_index} has no aligned QuestionId"
                 ))
             })?;
-            Ok(ExploreStreamMechanismTarget::ChosenView {
+            let choice_id = choice_id.ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(format!(
+                    "mechanism target analysis node {view_node_index} has no canonical ChoiceId"
+                ))
+            })?;
+            Ok(ExploreStreamMechanismTarget::Choice {
                 name: view.name.clone(),
                 question_id: hex(question_id.bytes()),
-                view_id: hex(view_id.bytes()),
+                choice_id: hex(choice_id.bytes()),
+                materializing_view_id: hex(view_id.bytes()),
             })
         }
     }
@@ -2479,6 +2491,7 @@ fn result_layer(
     node_index: usize,
     view: &ExploreResultViewIr,
     view_id: super::ViewId,
+    choice_id: Option<super::ChoiceId>,
     start: usize,
     preview_budget: &mut ExploreStreamPreviewBudget,
 ) -> Result<ExploreStreamResultLayer, ExploreStreamPreparationError> {
@@ -2494,6 +2507,7 @@ fn result_layer(
     let absent = || ExploreStreamResultLayer {
         name: view.name.clone(),
         view_id: hex(view_id.bytes()),
+        choice_id: choice_id.map(|choice_id| hex(choice_id.bytes())),
         input: input.clone(),
         grain,
         columns: columns.clone(),
@@ -2558,6 +2572,7 @@ fn result_layer(
             Ok(ExploreStreamResultLayer {
                 name: view.name.clone(),
                 view_id: hex(view_id.bytes()),
+                choice_id: choice_id.map(|choice_id| hex(choice_id.bytes())),
                 input: input.clone(),
                 grain,
                 columns: columns.clone(),
@@ -2622,6 +2637,7 @@ fn result_layer(
             Ok(ExploreStreamResultLayer {
                 name: view.name.clone(),
                 view_id: hex(view_id.bytes()),
+                choice_id: choice_id.map(|choice_id| hex(choice_id.bytes())),
                 input: input.clone(),
                 grain,
                 columns: columns.clone(),
@@ -4387,6 +4403,19 @@ mod regional_stream_acceptance_tests {
         assert_eq!(report.finds.len(), 1);
         assert_eq!(report.finds[0].selected, ExploreStreamCount::Exact(4));
 
+        let winner = report
+            .layers
+            .iter()
+            .find_map(|layer| match layer {
+                ExploreStreamLayer::Result(result) if result.name == "winner" => Some(result),
+                _ => None,
+            })
+            .expect("choice materializing result layer");
+        let winner_choice_id = winner
+            .choice_id
+            .as_ref()
+            .expect("choice materializer exposes ChoiceId");
+
         let mechanism = report
             .layers
             .iter()
@@ -4400,11 +4429,15 @@ mod regional_stream_acceptance_tests {
         assert_eq!(mechanism.status, ExploreStreamLayerStatus::MechanismClosed);
         assert!(matches!(
             &mechanism.target,
-            ExploreStreamMechanismTarget::ChosenView {
+            ExploreStreamMechanismTarget::Choice {
                 name,
                 question_id,
-                ..
-            } if name == "winner" && question_id == &report.finds[0].question_id
+                choice_id,
+                materializing_view_id,
+            } if name == "winner"
+                && question_id == &report.finds[0].question_id
+                && choice_id == winner_choice_id
+                && materializing_view_id == &winner.view_id
         ));
         assert_eq!(mechanism.target_cases, ExploreStreamCount::Exact(2));
         assert_eq!(mechanism.terminal_cases, ExploreStreamCount::Exact(2));
@@ -4614,6 +4647,7 @@ mod regional_stream_acceptance_tests {
         let alternate_plan = RelationalAnalysisPlan::restore_from_journal_codec(
             fresh_plan.question_ids().to_vec().into_boxed_slice(),
             fresh_plan.producer_graph_digest(),
+            fresh_plan.choice_registrations().to_vec(),
             registrations,
         )
         .expect("restore same-graph alternate plan");
@@ -5553,8 +5587,10 @@ mod regional_stream_acceptance_tests {
             "the closed selected population must be exactly one case"
         );
 
-        let [(ExploreAnalysisNodeIr::Result(_), CheckedExploreAnalysisIdentity::View { view_id })] =
-            checked.analysis_nodes().collect::<Vec<_>>().as_slice()
+        let [(
+            ExploreAnalysisNodeIr::Result(_),
+            CheckedExploreAnalysisIdentity::View { view_id, .. },
+        )] = checked.analysis_nodes().collect::<Vec<_>>().as_slice()
         else {
             panic!("shared namespace exploration must have one result layer");
         };

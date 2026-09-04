@@ -1112,9 +1112,9 @@ yielded it. The unified scheduler now catches selected-result and direct
 FIND-target mechanism work up to the current authenticated prefix before granting
 one more base quantum. Their result evidence and mechanism target/replay events
 therefore appear while FIND is open; only input/target seals, publications and
-global closure wait for exact FIND closure. A chosen-view mechanism target is
-different: it waits for the exact choosing result to publish before admitting
-its winners in bounded resumable chunks. One quirky profile case may be
+global closure wait for exact FIND closure. A choice-target mechanism is
+different: its current fused materializer waits for the exact choosing result
+to publish before admitting its winners in bounded resumable chunks. One quirky profile case may be
 admitted, selected, shown and replayed while the same source or successor
 enumerator continues finding other cases.
 
@@ -1231,7 +1231,7 @@ now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
 The four-transition `relational-explore-stream-smoke.runa` query now closes
-through report v9 and publication v17 with two named questions over one shared
+through report v10 and publication v18 with two named questions over one shared
 relation and admission. `all_cases` closes at exactly four cases;
 `interesting` closes at exactly two. The latter two cases share one raw
 signature, structural mechanism and execution profile. Its identity-only
@@ -1244,9 +1244,9 @@ first proof-bearing case-image artifact now installs
 root injectivity and optional exact cardinality atomically, with checked durable
 restoration and proper-prefix recovery for both resolver completions; positive
 weighted SupportCells still cannot feed result reducers. Exact FIND-backed
-chosen-view mechanisms now wait for the result publication, admit its chosen
-CaseIds from authenticated projection ordinals in bounded resumable chunks,
-and seal against that result root. This avoids rebuilding or copying the full
+choice-target mechanisms now wait for the fused result publication, admit its
+chosen CaseIds from authenticated projection ordinals in bounded resumable
+chunks, and seal against both ChoiceId and result root. This avoids rebuilding or copying the full
 result during downstream scheduling. A replay-built operational chosen-output
 index jumps over grouped headers in O(1) per chosen row and remains outside
 snapshots and semantic identity. The unified scheduler now joins
@@ -1259,7 +1259,7 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v17 is the current artifact plan and report v9 is the current
+Publication v18 is the current artifact plan and report v10 is the current
 compact report. Every named result now has a bounded self-describing entry even
 when it is ungrouped, open, or exact-empty. The entry names its resolved input,
 grain, ordered selected schema, group keys, output-row and projection-record
@@ -1712,8 +1712,12 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v17 is completed. Those spellings are a
-transitional lowering boundary, not another public language design.
+Explore block while publication v18 is completed. Nested `choose` now lowers
+to a canonical membership-only `ChoiceId` plus a separate display `ViewId`;
+the existing reducer materializes both in one fused stage. Choice objectives
+currently fail closed on aggregate or `SELECT` aliases so display-only changes
+cannot silently rename the choice relation. Those spellings are a transitional
+lowering boundary, not another public language design.
 
 ```text
 personskat-200k-result/
@@ -1735,7 +1739,7 @@ personskat-200k-result/
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v17 retains
+The `starters/` lane is explicit and single-subject. Publication v18 retains
 the materializer first introduced in v9 and schedules one artifact only for an
 authored transitional `starters NAME from mechanisms REQUEST ...` consumer
 whose `using values from VIEW` reference names a checked lossless
@@ -1789,7 +1793,7 @@ require building one giant array. Grouped views use the same NDJSON envelope,
 one authenticated projection record per line, so a large histogram also stays
 bounded and resumable.
 
-Report v9 partitions support observation state explicitly. The request layer
+Report v10 partitions support observation state explicitly. The request layer
 contains the total shared observation point count/root; automatic point,
 registered, dirty, observed and sealed counts plus its closure-authority chain
 root; and explicit registration, point, registered, ready, pending-backfill,
@@ -1871,7 +1875,7 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-Publication v17 replaces the old eager all-subject structural rows with
+Publication v18 replaces the old eager all-subject structural rows with
 scheduled compact observations. The structural-definition catalog advertises
 stable descriptors for every whole mechanism and activation/differential node
 or edge, but a descriptor is only an address. Every discovered whole mechanism
@@ -2044,7 +2048,7 @@ context values.
 Each canonical question's automatic
 `graphs/case-support-<question-id-hex>.ndjson` artifact is the complementary
 public reflection of its projection from the shared authenticated case/support
-prefix. Publication v17 gives every `QuestionId` its own key, path, cursor and
+prefix. Publication v18 gives every `QuestionId` its own key, path, cursor and
 manifest descriptor; aliases share that artifact and no find is primary. The
 artifact has two honest projection shapes rather than pretending every
 scheduler path creates the same proof artifact. A partitioned classified run emits a root, then complete chunk
@@ -2085,7 +2089,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v17 treats this lane as an additive
+case-by-node table. Publication v18 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -2287,7 +2291,7 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest. Report v9 may inline a schema-capped prefix of a small exact grouped
+manifest. Report v10 may inline a schema-capped prefix of a small exact grouped
 view directly from its authenticated projection journal; its evidence roots
 and truncation cursor make that preview auditable. The operational artifact
 index names the corresponding full NDJSON plus every case, mechanism, compact

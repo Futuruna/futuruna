@@ -268,7 +268,7 @@ pub(crate) fn relational_mechanism_starter_value_authorization_for_view(
                 (node, identity),
                 (
                     ExploreAnalysisNodeIr::Result(_),
-                    CheckedExploreAnalysisIdentity::View { view_id }
+                    CheckedExploreAnalysisIdentity::View { view_id, .. }
                 ) if *view_id == requested_view_id
             )
         });
@@ -300,7 +300,7 @@ fn compatible_candidates(
         match (node, identity) {
             (
                 ExploreAnalysisNodeIr::Result(view),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, .. },
             ) => {
                 if let Some(authorization) = compatible_authorization(checked, view, *view_id) {
                     candidates.push(AuthorizationCandidate {
@@ -598,7 +598,7 @@ mod tests {
 
     fn only_view_id(checked: CheckedExploreQueryView<'_>) -> ViewId {
         let (_, identity) = checked.analysis_nodes().next().expect("one result view");
-        let CheckedExploreAnalysisIdentity::View { view_id } = identity else {
+        let CheckedExploreAnalysisIdentity::View { view_id, .. } = identity else {
             panic!("expected result-view identity");
         };
         *view_id

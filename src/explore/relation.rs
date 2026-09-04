@@ -16,8 +16,11 @@ use super::{transition::canonical_explore_value_digest, ExploreValue};
 const RELATION_ID_HASH_V1: &[u8] = b"futuruna.explore.relation-id.v1";
 const ADMISSION_ID_HASH_V1: &[u8] = b"futuruna.explore.admission-id.v1";
 const QUESTION_ID_HASH_V1: &[u8] = b"futuruna.explore.question-id.v1";
+const CHOICE_ID_HASH_V1: &[u8] = b"futuruna.explore.choice-id.v1";
 const VIEW_ID_HASH_V1: &[u8] = b"futuruna.explore.view-id.v1";
 const MECHANISM_REQUEST_ID_HASH_V1: &[u8] = b"futuruna.explore.mechanism-request-id.v1";
+const CHOICE_MECHANISM_REQUEST_ID_HASH_V1: &[u8] =
+    b"futuruna.explore.choice-mechanism-request-id.v1";
 const SOURCE_KEY_HASH_V1: &[u8] = b"futuruna.explore.source-key.v1";
 const SOURCE_KEY_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.source-key-set-root.v1";
 const SUCCESSOR_KEY_HASH_V1: &[u8] = b"futuruna.explore.successor-key.v1";
@@ -37,6 +40,8 @@ const ADMISSION_SEMANTIC_DIGEST_ROLE: u8 = 0x02;
 const QUESTION_ADMISSION_ROLE: u8 = 0x01;
 const QUESTION_FIND_SEMANTIC_DIGEST_ROLE: u8 = 0x02;
 const QUESTION_FIND_POLARITY_ROLE: u8 = 0x03;
+const CHOICE_QUESTION_ROLE: u8 = 0x01;
+const CHOICE_SEMANTIC_DIGEST_ROLE: u8 = 0x02;
 const VIEW_INPUT_ROLE: u8 = 0x01;
 const VIEW_SEMANTIC_DIGEST_ROLE: u8 = 0x02;
 const MECHANISM_QUESTION_ROLE: u8 = 0x01;
@@ -280,6 +285,7 @@ impl QuestionContentRoot {
 pub(crate) enum ViewInputId {
     Sources(RelationId),
     Selected(QuestionId),
+    Choice(ChoiceId),
     MechanismIncidence(MechanismRequestId),
 }
 
@@ -294,6 +300,10 @@ impl ViewInputId {
                 hasher.bytes(&[0x01]);
                 hasher.digest(question_id.0);
             }
+            Self::Choice(choice_id) => {
+                hasher.bytes(&[0x04]);
+                hasher.digest(choice_id.0);
+            }
             Self::MechanismIncidence(request_id) => {
                 hasher.bytes(&[0x02]);
                 hasher.digest(request_id.0);
@@ -302,12 +312,50 @@ impl ViewInputId {
     }
 }
 
+/// Identity of one deterministic choice relation over a closed FIND relation.
+///
+/// The supplied semantic digest seals partitioning, measures, eligibility,
+/// objective policy, tie cardinality and deterministic comparison semantics.
+/// Display projection and privacy fields belong to a downstream [`ViewId`]
+/// and deliberately cannot rename this relation.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct ChoiceId([u8; 32]);
+
+impl ChoiceId {
+    pub(super) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) fn from_canonical_choice_preimage(
+        question_id: QuestionId,
+        choice_preimage: &[u8],
+    ) -> Self {
+        Self::from_canonical_choice_digest(question_id, Sha256::digest(choice_preimage).into())
+    }
+
+    pub(crate) fn from_canonical_choice_digest(
+        question_id: QuestionId,
+        choice_digest: [u8; 32],
+    ) -> Self {
+        let mut hasher = IdentityHasher::new(CHOICE_ID_HASH_V1);
+        hasher.tag(CHOICE_QUESTION_ROLE);
+        hasher.digest(question_id.0);
+        hasher.tag(CHOICE_SEMANTIC_DIGEST_ROLE);
+        hasher.digest(choice_digest);
+        Self(hasher.finish())
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
+
 /// Identity of one typed result view over a resolved input relation.
 ///
-/// The supplied semantic digest seals the view's grain, measures, closed
-/// reducers, `having`, public projection, deterministic choice and privacy
-/// policy. The source-level view name and declaration position are addresses,
-/// not semantic identity.
+/// The supplied semantic digest seals the view's relational/display operators
+/// and public projection/privacy policy. Deterministic choice membership is a
+/// separate [`ChoiceId`] input and never enters this digest. The source-level
+/// view name and declaration position are addresses, not semantic identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct ViewId([u8; 32]);
 
@@ -339,17 +387,17 @@ impl ViewId {
 pub(crate) enum MechanismTargetId {
     /// Every case selected by the request's [`QuestionId`].
     Selected,
-    /// The deterministically chosen case set of a resolved case view.
-    ChosenView(ViewId),
+    /// The deterministically chosen case set of a semantic choice relation.
+    Choice(ChoiceId),
 }
 
 impl MechanismTargetId {
     fn hash_into(self, hasher: &mut IdentityHasher) {
         match self {
             Self::Selected => hasher.bytes(&[0x01]),
-            Self::ChosenView(view_id) => {
+            Self::Choice(choice_id) => {
                 hasher.bytes(&[0x02]);
-                hasher.digest(view_id.0);
+                hasher.digest(choice_id.0);
             }
         }
     }
@@ -389,7 +437,14 @@ impl MechanismRequestId {
         observation_digest: [u8; 32],
         normalization_digest: [u8; 32],
     ) -> Self {
-        let mut hasher = IdentityHasher::new(MECHANISM_REQUEST_ID_HASH_V1);
+        // Preserve the established selected-question identity family while
+        // domain-separating semantic ChoiceIds from historical display-view
+        // target bytes.
+        let domain = match target {
+            MechanismTargetId::Selected => MECHANISM_REQUEST_ID_HASH_V1,
+            MechanismTargetId::Choice(_) => CHOICE_MECHANISM_REQUEST_ID_HASH_V1,
+        };
+        let mut hasher = IdentityHasher::new(domain);
         hasher.tag(MECHANISM_QUESTION_ROLE);
         hasher.digest(question_id.0);
         hasher.tag(MECHANISM_TARGET_ROLE);
@@ -3534,9 +3589,13 @@ mod tests {
             b"resources-never-fall",
             FindPolarity::Violations,
         );
-        let chosen_view = ViewId::from_canonical_view_preimage(
-            ViewInputId::Selected(question_id),
+        let choice_id = ChoiceId::from_canonical_choice_preimage(
+            question_id,
             b"group-by=income;choose=max-loss",
+        );
+        let chosen_view = ViewId::from_canonical_view_preimage(
+            ViewInputId::Choice(choice_id),
+            b"select=case-id,loss",
         );
 
         let selected = MechanismRequestId::from_canonical_request_preimages(
@@ -3558,7 +3617,7 @@ mod tests {
             selected,
             MechanismRequestId::from_canonical_request_preimages(
                 question_id,
-                MechanismTargetId::ChosenView(chosen_view),
+                MechanismTargetId::Choice(choice_id),
                 b"assess-personskat",
                 b"differential-signature-v1",
             )

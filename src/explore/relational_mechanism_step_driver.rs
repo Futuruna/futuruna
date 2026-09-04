@@ -4,8 +4,8 @@
 //! an execution loop: an outer durable coordinator owns append, retry,
 //! deadlines, and resource policy. The analysis catalog itself is the durable
 //! progress frontier. Named-FIND targets may replay their already-selected
-//! prefix while FIND remains open. Chosen-view targets wait for the exact
-//! upstream result publication, then admit its deterministic chosen CaseIds.
+//! prefix while FIND remains open. Choice targets wait for the exact fused
+//! materializing-view publication, then admit their deterministic CaseIds.
 //! A signature definition is journaled once before compact per-case replay
 //! receipts may reference it; and request closure is emitted only after the
 //! exact target seals and every durable target member has one observed or
@@ -39,8 +39,8 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonId,
 };
 use super::relation::{
-    AdmissionId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId, SelectionDecision,
-    ViewId,
+    AdmissionId, ChoiceId, MechanismRequestId, QuestionId, RelationId, RelationalCaseId,
+    SelectionDecision, ViewId,
 };
 use super::relational_analysis_catalog::{
     PublishedChosenResultSummary, PublishedChosenTargetCase, RelationalAnalysisCatalogBuilder,
@@ -193,16 +193,17 @@ enum MechanismLayerTarget {
     Selected {
         question_id: QuestionId,
     },
-    ChosenView {
+    Choice {
         question_id: QuestionId,
-        view_id: ViewId,
+        choice_id: ChoiceId,
+        materializing_view_id: ViewId,
     },
 }
 
 impl MechanismLayerTarget {
     const fn question_id(self) -> QuestionId {
         match self {
-            Self::Selected { question_id } | Self::ChosenView { question_id, .. } => question_id,
+            Self::Selected { question_id } | Self::Choice { question_id, .. } => question_id,
         }
     }
 }
@@ -415,8 +416,21 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 }
                 (
                     ExploreMechanismTargetIr::ViewChosen { view_node_index },
-                    RelationalResolvedMechanismTarget::ChosenView(view_id),
+                    RelationalResolvedMechanismTarget::Choice {
+                        choice_id,
+                        materializing_view_id: view_id,
+                    },
                 ) => {
+                    let Some(CheckedExploreAnalysisIdentity::View {
+                        view_id: checked_view_id,
+                        choice_id: Some(checked_choice_id),
+                    }) = checked.artifact.analysis.get(*view_node_index)
+                    else {
+                        return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
+                    };
+                    if *checked_view_id != view_id || *checked_choice_id != choice_id {
+                        return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
+                    }
                     let question_id = match checked.closed_query.analysis.get(*view_node_index) {
                         Some(ExploreAnalysisNodeIr::Result(result)) => match &result.input {
                             super::relational_ir::ExploreResultInputIr::Find {
@@ -431,9 +445,10 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         .insert(
                             *request_id,
                             MechanismLayer {
-                                target: MechanismLayerTarget::ChosenView {
+                                target: MechanismLayerTarget::Choice {
                                     question_id,
-                                    view_id,
+                                    choice_id,
+                                    materializing_view_id: view_id,
                                 },
                                 observation,
                                 endpoint_totality_certificate_id: endpoint_totality
@@ -521,7 +536,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                 MechanismLayerTarget::Selected { question_id } => {
                     analysis.selected_question(question_id)
                 }
-                MechanismLayerTarget::ChosenView { .. } => None,
+                MechanismLayerTarget::Choice { .. } => None,
             };
             if let Some(question_seal) = question_seal {
                 question_seal
@@ -660,9 +675,10 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                                 question_seal,
                             )
                             .map_err(RelationalMechanismStepRunError::from)?,
-                        MechanismLayerTarget::ChosenView {
+                        MechanismLayerTarget::Choice {
                             question_id,
-                            view_id,
+                            choice_id,
+                            materializing_view_id,
                         } => self
                             .step_chosen_target(
                                 view,
@@ -670,7 +686,8 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                                 incidence,
                                 *request_id,
                                 question_id,
-                                view_id,
+                                choice_id,
+                                materializing_view_id,
                             )
                             .map_err(RelationalMechanismStepRunError::from)?,
                     };
@@ -691,8 +708,12 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                         MechanismLayerTarget::Selected { question_id } => {
                             first_awaiting_selected_question.get_or_insert(question_id);
                         }
-                        MechanismLayerTarget::ChosenView { view_id, .. } => {
-                            first_awaiting_chosen_view.get_or_insert((*request_id, view_id));
+                        MechanismLayerTarget::Choice {
+                            materializing_view_id,
+                            ..
+                        } => {
+                            first_awaiting_chosen_view
+                                .get_or_insert((*request_id, materializing_view_id));
                         }
                     }
                     continue;
@@ -1024,6 +1045,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         incidence: &super::mechanism_incidence::MechanismIncidenceCatalogBuilder,
         request_id: MechanismRequestId,
         question_id: QuestionId,
+        choice_id: ChoiceId,
         view_id: ViewId,
     ) -> Result<Option<RelationalMechanismStepOutcome>, RelationalMechanismStepDriverError> {
         let result_layer_id = RelationalAnalysisLayerId::Result(view_id);
@@ -1047,6 +1069,9 @@ impl<'query> RelationalMechanismStepDriver<'query> {
         }
 
         let chosen = catalog.published_chosen_result_summary(view_id)?;
+        if chosen.choice_id() != choice_id {
+            return Err(RelationalMechanismStepDriverError::CheckedPlanScopeMismatch);
+        }
         let expected_cases = chosen.exact_chosen_count();
         let durable_cases = incidence.target_case_count() as u128;
         if durable_cases > expected_cases {
@@ -1432,7 +1457,7 @@ impl<'query> RelationalMechanismStepDriver<'query> {
                     cursor.terminal_ordinal += 1;
                 }
             }
-            MechanismLayerTarget::ChosenView { .. } => {
+            MechanismLayerTarget::Choice { .. } => {
                 let target_count = incidence.target_discovery_count();
                 if cursor.terminal_ordinal > target_count
                     || incidence.terminal_case_count() < cursor.terminal_ordinal

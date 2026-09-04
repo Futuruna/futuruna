@@ -158,13 +158,14 @@ use super::structural_mechanism::{
     STRUCTURAL_DEFINITION_CATALOG_VERSION, STRUCTURAL_MECHANISM_QUOTIENT_VERSION,
 };
 use super::{
-    ExploreValue, MechanismRequestId, MechanismTargetId, QuestionId, RelationId, RelationalCaseId,
-    RelationalTransitionSupportCounts, SourceKey, SuccessorKey, TransitionSchemaIdentities, ViewId,
+    ChoiceId, ExploreValue, MechanismRequestId, MechanismTargetId, QuestionId, RelationId,
+    RelationalCaseId, RelationalTransitionSupportCounts, SourceKey, SuccessorKey,
+    TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 17;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 18;
 
-const CURSOR_FILE: &str = ".publication-cursor-v17.json";
+const CURSOR_FILE: &str = ".publication-cursor-v18.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
 const PRESENTATION_PLAN_DIGEST_V3: &[u8] = b"futuruna.explore.publication-presentation-plan.v3";
@@ -408,6 +409,9 @@ impl PublicationResultGrain {
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct PublicationMechanismTarget {
     target: MechanismTargetId,
+    /// The fused result view that currently materializes a choice relation.
+    /// This is an execution/publication address, never mechanism identity.
+    materializing_view_id: Option<ViewId>,
     question_id: QuestionId,
     authored_name: Box<str>,
 }
@@ -419,6 +423,10 @@ impl PublicationMechanismTarget {
 
     const fn question_id(&self) -> QuestionId {
         self.question_id
+    }
+
+    const fn materializing_view_id(&self) -> Option<ViewId> {
+        self.materializing_view_id
     }
 }
 
@@ -805,7 +813,7 @@ impl RelationalPublicationPlan {
             let artifact = match (node, identity) {
                 (
                     ExploreAnalysisNodeIr::Result(view),
-                    CheckedExploreAnalysisIdentity::View { view_id },
+                    CheckedExploreAnalysisIdentity::View { view_id, .. },
                 ) => {
                     let input = match &view.input {
                         ExploreResultInputIr::Sources => ResultPublicationInput::Sources,
@@ -1086,7 +1094,7 @@ impl RelationalPublicationPlan {
             if &resolved_target != target
                 || !matches!(
                     checked.artifact.analysis.get(projection.value_view_node_index),
-                    Some(CheckedExploreAnalysisIdentity::View { view_id })
+                    Some(CheckedExploreAnalysisIdentity::View { view_id, .. })
                         if *view_id == identity.authorizing_view_id
                 )
             {
@@ -1331,9 +1339,16 @@ fn artifact_presentation_digest(
         digest.bytes(b"target-question-id", &target.question_id().bytes());
         match target.semantic_target() {
             MechanismTargetId::Selected => digest.text(b"target-kind", "find"),
-            MechanismTargetId::ChosenView(view_id) => {
-                digest.text(b"target-kind", "chosen-view");
-                digest.bytes(b"target-view-id", &view_id.bytes());
+            MechanismTargetId::Choice(choice_id) => {
+                digest.text(b"target-kind", "choice");
+                digest.bytes(b"target-choice-id", &choice_id.bytes());
+                let materializing_view_id = target
+                    .materializing_view_id()
+                    .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                digest.bytes(
+                    b"target-materializing-view-id",
+                    &materializing_view_id.bytes(),
+                );
             }
         }
     } else {
@@ -1540,6 +1555,7 @@ fn checked_mechanism_target_at(
                 .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
             Ok(PublicationMechanismTarget {
                 target: MechanismTargetId::Selected,
+                materializing_view_id: None,
                 question_id,
                 authored_name: find.name.as_str().into(),
             })
@@ -1550,7 +1566,10 @@ fn checked_mechanism_target_at(
             }
             let (
                 Some(ExploreAnalysisNodeIr::Result(view)),
-                Some(CheckedExploreAnalysisIdentity::View { view_id }),
+                Some(CheckedExploreAnalysisIdentity::View {
+                    view_id,
+                    choice_id: Some(choice_id),
+                }),
             ) = (
                 checked.closed_query.analysis.get(*view_node_index),
                 checked.artifact.analysis.get(*view_node_index),
@@ -1565,7 +1584,8 @@ fn checked_mechanism_target_at(
                 .find_question_id(*find_index)
                 .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
             Ok(PublicationMechanismTarget {
-                target: MechanismTargetId::ChosenView(*view_id),
+                target: MechanismTargetId::Choice(*choice_id),
+                materializing_view_id: Some(*view_id),
                 question_id,
                 authored_name: view.name.as_str().into(),
             })
@@ -1613,7 +1633,7 @@ fn checked_case_id_publication_authorization(
         .filter_map(|(node, identity)| {
             let (
                 ExploreAnalysisNodeIr::Result(view),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, .. },
             ) = (node, identity)
             else {
                 return None;
@@ -1770,15 +1790,15 @@ impl CursorDigest {
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum SubjectStarterTargetCursor {
     Selected,
-    ChosenView { view_id: CursorDigest },
+    Choice { choice_id: CursorDigest },
 }
 
 impl SubjectStarterTargetCursor {
     const fn from_semantic(target: MechanismTargetId) -> Self {
         match target {
             MechanismTargetId::Selected => Self::Selected,
-            MechanismTargetId::ChosenView(view_id) => Self::ChosenView {
-                view_id: CursorDigest::new(view_id.bytes()),
+            MechanismTargetId::Choice(choice_id) => Self::Choice {
+                choice_id: CursorDigest::new(choice_id.bytes()),
             },
         }
     }
@@ -7298,11 +7318,12 @@ fn public_mechanism_target_id(target: &PublicationMechanismTarget) -> JsonValue 
             "name": target.authored_name,
             "question_id": hex(target.question_id().bytes()),
         }),
-        MechanismTargetId::ChosenView(view_id) => json!({
-            "kind": "chosen_view",
+        MechanismTargetId::Choice(choice_id) => json!({
+            "kind": "choice",
             "name": target.authored_name,
             "question_id": hex(target.question_id().bytes()),
-            "view_id": hex(view_id.bytes()),
+            "choice_id": hex(choice_id.bytes()),
+            "materializing_view_id": target.materializing_view_id().map(|view_id| hex(view_id.bytes())),
         }),
     }
 }
@@ -10442,10 +10463,15 @@ fn build_manifest_answer_index(
                     .entry((target.question_id(), target.authored_name.to_string()))
                     .or_default()
                     .push(hex(request_id.bytes())),
-                MechanismTargetId::ChosenView(view_id) => mechanism_requests_by_view
-                    .entry(view_id)
-                    .or_default()
-                    .push(hex(request_id.bytes())),
+                MechanismTargetId::Choice(_) => {
+                    let view_id = target
+                        .materializing_view_id()
+                        .ok_or(RelationalPublicationError::PlanIdentityMismatch)?;
+                    mechanism_requests_by_view
+                        .entry(view_id)
+                        .or_default()
+                        .push(hex(request_id.bytes()));
+                }
             },
             PublicationArtifactPlan::MechanismDefinitions { .. }
             | PublicationArtifactPlan::MechanismSupportObservations { .. }
@@ -10519,6 +10545,7 @@ fn build_manifest_answer_index(
                 result_views.push(json!({
                     "name": layer.name,
                     "view_id": layer.view_id,
+                    "choice_id": layer.choice_id,
                     "status": layer_status_name(layer.status),
                     "frontier": if matches!(layer.status, ExploreStreamLayerStatus::ResultPublished) {
                         "exact"
@@ -12579,6 +12606,7 @@ fn public_layer_json(layer: &ExploreStreamLayer) -> JsonValue {
             "kind": "result",
             "name": result.name,
             "view_id": result.view_id,
+            "choice_id": result.choice_id,
             "status": layer_status_name(result.status),
             "input_rows": public_count_json(result.input_rows),
             "projection_records": public_count_json(result.projection_records),
@@ -12618,15 +12646,17 @@ fn public_mechanism_target_json(target: &ExploreStreamMechanismTarget) -> JsonVa
             "name": name,
             "question_id": question_id,
         }),
-        ExploreStreamMechanismTarget::ChosenView {
+        ExploreStreamMechanismTarget::Choice {
             name,
             question_id,
-            view_id,
+            choice_id,
+            materializing_view_id,
         } => json!({
-            "kind": "chosen_view",
+            "kind": "choice",
             "name": name,
             "question_id": question_id,
-            "view_id": view_id,
+            "choice_id": choice_id,
+            "materializing_view_id": materializing_view_id,
         }),
     }
 }
@@ -13496,6 +13526,7 @@ mod tests {
         let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
         let find_target = PublicationMechanismTarget {
             target: MechanismTargetId::Selected,
+            materializing_view_id: None,
             question_id,
             authored_name: "interesting".into(),
         };
@@ -13509,17 +13540,19 @@ mod tests {
         );
 
         let chosen_target = PublicationMechanismTarget {
-            target: MechanismTargetId::ChosenView(ViewId::from_journal_codec_bytes([0x31; 32])),
+            target: MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes([0x31; 32])),
+            materializing_view_id: Some(ViewId::from_journal_codec_bytes([0x32; 32])),
             question_id,
             authored_name: "worst_case".into(),
         };
         assert_eq!(
             public_mechanism_target_id(&chosen_target),
             json!({
-                "kind": "chosen_view",
+                "kind": "choice",
                 "name": "worst_case",
                 "question_id": "21".repeat(32),
-                "view_id": "31".repeat(32),
+                "choice_id": "31".repeat(32),
+                "materializing_view_id": "32".repeat(32),
             })
         );
     }
@@ -13560,6 +13593,7 @@ mod tests {
             request_id,
             target: PublicationMechanismTarget {
                 target: MechanismTargetId::Selected,
+                materializing_view_id: None,
                 question_id,
                 authored_name: find_name.into(),
             },
@@ -14106,7 +14140,7 @@ mod tests {
             SubjectStarterCursorIdentity::new(
                 [0x11; 32],
                 request_id,
-                MechanismTargetId::ChosenView(ViewId::from_journal_codec_bytes([0x41; 32])),
+                MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes([0x41; 32])),
                 MechanismSupportSubject::Node {
                     facet: MechanismSupportFacet::Activation,
                     node_id,

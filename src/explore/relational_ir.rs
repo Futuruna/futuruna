@@ -300,6 +300,36 @@ pub enum ExploreResultChoiceIr {
     },
 }
 
+/// Canonical partition of a semantic choice relation. The transitional
+/// nested result spelling maps both `each case` and `group all` to one global
+/// partition; display grain remains a property of the downstream view.
+#[derive(Debug, Clone)]
+pub enum ExploreChoicePartitionIr {
+    All {
+        span: Span,
+    },
+    By {
+        fields: Box<[ExploreResultFieldIr]>,
+        span: Span,
+    },
+}
+
+/// Typed semantic choice relation lowered from the current nested `choose`
+/// spelling. It deliberately owns no aggregate, SELECT, display, or privacy
+/// fields. The existing concrete result reducer may execute this relation and
+/// its display view as one fused physical stage without creating a second
+/// evaluator.
+#[derive(Debug, Clone)]
+pub struct ExploreChoiceRelationIr {
+    pub find_name: String,
+    pub find_index: usize,
+    pub partition: ExploreChoicePartitionIr,
+    pub measures: Box<[ExploreResultFieldIr]>,
+    pub having: Option<ExploreResultHavingIr>,
+    pub policy: ExploreResultChoiceIr,
+    pub span: Span,
+}
+
 /// One named result node over source rows, an explicitly addressed FIND case
 /// relation, or a prior mechanism-incidence relation.
 #[derive(Debug, Clone)]
@@ -314,6 +344,52 @@ pub struct ExploreResultViewIr {
     pub select: Box<[ExploreResultFieldIr]>,
     pub choose: Option<ExploreResultChoiceIr>,
     pub span: Span,
+}
+
+impl ExploreResultViewIr {
+    /// Lower the transitional nested spelling directly to the canonical
+    /// semantic choice relation consumed by identity and planning. Keeping
+    /// this derivation on the typed IR prevents publication or the runtime
+    /// from reconstructing choice semantics from display rows.
+    pub fn canonical_choice_relation(&self) -> Result<Option<ExploreChoiceRelationIr>, String> {
+        let Some(policy) = self.choose.clone() else {
+            return Ok(None);
+        };
+        let ExploreResultInputIr::Find {
+            find_name,
+            find_index,
+        } = &self.input
+        else {
+            return Err(format!(
+                "result view `{}` may choose only from a FIND case relation",
+                self.name
+            ));
+        };
+        let partition = match &self.grain {
+            ExploreResultGrainIr::EachCase { span } | ExploreResultGrainIr::GroupAll { span } => {
+                ExploreChoicePartitionIr::All { span: *span }
+            }
+            ExploreResultGrainIr::GroupBy { fields, span } => ExploreChoicePartitionIr::By {
+                fields: fields.clone(),
+                span: *span,
+            },
+            ExploreResultGrainIr::EachIncidence { .. } => {
+                return Err(format!(
+                    "result view `{}` cannot choose from incidence grain",
+                    self.name
+                ));
+            }
+        };
+        Ok(Some(ExploreChoiceRelationIr {
+            find_name: find_name.clone(),
+            find_index: *find_index,
+            partition,
+            measures: self.measures.clone(),
+            having: self.having.clone(),
+            policy,
+            span: self.span,
+        }))
+    }
 }
 
 /// Resolved case population consumed by a mechanism request.
@@ -639,11 +715,9 @@ impl ExploreQueryIr {
                                 request.name, view_node_index
                             ));
                         };
-                        if !matches!(&view.input, ExploreResultInputIr::Find { .. })
-                            || view.choose.is_none()
-                        {
+                        if view.canonical_choice_relation()?.is_none() {
                             return Err(format!(
-                                "mechanism request `{}` must target a chosen FIND-case view",
+                                "mechanism request `{}` must target a semantic choice relation",
                                 request.name
                             ));
                         }
@@ -747,6 +821,10 @@ impl ExploreQueryIr {
         view: &ExploreResultViewIr,
         node_index: usize,
     ) -> Result<(), String> {
+        // This is also the fail-closed lowering boundary for the transitional
+        // nested syntax: every authored `choose` must denote one canonical
+        // FIND-backed semantic choice relation.
+        view.canonical_choice_relation()?;
         match &view.input {
             ExploreResultInputIr::Find {
                 find_name,

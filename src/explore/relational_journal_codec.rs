@@ -29,10 +29,10 @@ use super::mechanism_support::{
     MechanismSupportKey, MechanismSupportSlice, MechanismSupportSubject,
 };
 use super::relation::{
-    AdmissionDecision, AdmissionId, MechanismRequestId, MechanismTargetId, QuestionContentRoot,
-    QuestionId, RelationId, RelationLineageId, RelationProvenance, RelationSupportId,
-    RelationalCaseId, SelectionDecision, SourceKey, SourceKeySetRoot, SourceRow, SuccessorKey,
-    SuccessorRow, ViewId,
+    AdmissionDecision, AdmissionId, ChoiceId, MechanismRequestId, MechanismTargetId,
+    QuestionContentRoot, QuestionId, RelationId, RelationLineageId, RelationProvenance,
+    RelationSupportId, RelationalCaseId, SelectionDecision, SourceKey, SourceKeySetRoot, SourceRow,
+    SuccessorKey, SuccessorRow, ViewId,
 };
 use super::relational_analysis_catalog::RelationalAnalysisCatalogRoot;
 use super::relational_analysis_journal::{
@@ -46,9 +46,10 @@ use super::relational_analysis_journal::{
 use super::relational_analysis_plan::{
     RelationalAnalysisDependencyId, RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
     RelationalAnalysisPlanError, RelationalAnalysisPlanRoot, RelationalCheckedAnalysisGraphDigest,
-    RelationalMechanismLayerRegistration, RelationalMechanismObservationDigest,
-    RelationalMechanismObservationId, RelationalResolvedMechanismTarget,
-    RelationalResolvedResultInput, RelationalResultLayerRegistration, RelationalResultSpecDigest,
+    RelationalChoiceRegistration, RelationalChoiceSpecDigest, RelationalMechanismLayerRegistration,
+    RelationalMechanismObservationDigest, RelationalMechanismObservationId,
+    RelationalResolvedMechanismTarget, RelationalResolvedResultInput,
+    RelationalResultLayerRegistration, RelationalResultSpecDigest,
 };
 use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkDescriptor, RelationalCaseChunkId, RelationalCaseChunkPartitionArtifact,
@@ -1546,6 +1547,10 @@ fn encode_analysis_dependency(
             encoder.tag(0x01)?;
             encoder.digest(id.bytes())
         }
+        RelationalAnalysisDependencyId::Choice(id) => {
+            encoder.tag(0x05)?;
+            encoder.digest(id.bytes())
+        }
         RelationalAnalysisDependencyId::Result(id) => {
             encoder.tag(0x02)?;
             encoder.digest(id.bytes())
@@ -1566,6 +1571,9 @@ fn decode_analysis_dependency(
         )),
         0x01 => Ok(RelationalAnalysisDependencyId::Question(
             QuestionId::from_journal_codec_bytes(reader.digest()?),
+        )),
+        0x05 => Ok(RelationalAnalysisDependencyId::Choice(
+            ChoiceId::from_journal_codec_bytes(reader.digest()?),
         )),
         0x02 => Ok(RelationalAnalysisDependencyId::Result(
             ViewId::from_journal_codec_bytes(reader.digest()?),
@@ -1637,12 +1645,26 @@ fn encode_analysis_plan(
 ) -> Result<(), RelationalJournalCodecError> {
     encode_question_ids(encoder, plan.question_ids())?;
     encoder.digest(plan.producer_graph_digest().bytes())?;
+    encoder.collection_len(plan.choice_registrations().len())?;
+    for choice in plan.choice_registrations() {
+        encoder.digest(choice.choice_id().bytes())?;
+        encoder.digest(choice.input_question_id().bytes())?;
+        encoder.digest(choice.semantic_spec_digest().bytes())?;
+        encode_analysis_dependencies(encoder, choice.dependencies())?;
+    }
     encoder.collection_len(plan.layer_registrations().len())?;
     for registration in plan.layer_registrations() {
         match registration {
             RelationalAnalysisLayerRegistration::Result(result) => {
                 encoder.tag(0x01)?;
                 encoder.digest(result.view_id().bytes())?;
+                match result.choice_id() {
+                    None => encoder.tag(0x00)?,
+                    Some(choice_id) => {
+                        encoder.tag(0x01)?;
+                        encoder.digest(choice_id.bytes())?;
+                    }
+                }
                 match result.input() {
                     RelationalResolvedResultInput::Sources(relation_id) => {
                         encoder.tag(0x03)?;
@@ -1668,9 +1690,13 @@ fn encode_analysis_plan(
                         encoder.tag(0x01)?;
                         encoder.digest(question_id.bytes())?;
                     }
-                    RelationalResolvedMechanismTarget::ChosenView(view_id) => {
+                    RelationalResolvedMechanismTarget::Choice {
+                        choice_id,
+                        materializing_view_id,
+                    } => {
                         encoder.tag(0x02)?;
-                        encoder.digest(view_id.bytes())?;
+                        encoder.digest(choice_id.bytes())?;
+                        encoder.digest(materializing_view_id.bytes())?;
                     }
                 }
                 encoder.digest(mechanism.observation_id().bytes())?;
@@ -1689,6 +1715,26 @@ fn decode_analysis_plan(
     let question_ids = decode_question_ids(reader, "analysis-plan questions")?;
     let graph_digest =
         RelationalCheckedAnalysisGraphDigest::from_journal_codec_bytes(reader.digest()?);
+    let choice_count = reader.collection_len("analysis choice registrations")?;
+    let mut choices = Vec::new();
+    choices.try_reserve_exact(choice_count).map_err(|_| {
+        RelationalJournalCodecError::AllocationFailed {
+            requested: choice_count,
+        }
+    })?;
+    for _ in 0..choice_count {
+        let choice_id = ChoiceId::from_journal_codec_bytes(reader.digest()?);
+        let input_question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
+        let semantic_spec_digest =
+            RelationalChoiceSpecDigest::from_journal_codec_bytes(reader.digest()?);
+        let dependencies = decode_analysis_dependencies(reader)?;
+        choices.push(RelationalChoiceRegistration::restore_from_journal_codec(
+            choice_id,
+            input_question_id,
+            semantic_spec_digest,
+            dependencies,
+        ));
+    }
     let count = reader.collection_len("analysis registrations")?;
     let mut registrations = Vec::new();
     registrations
@@ -1698,6 +1744,16 @@ fn decode_analysis_plan(
         let registration = match reader.tag()? {
             0x01 => {
                 let view_id = ViewId::from_journal_codec_bytes(reader.digest()?);
+                let choice_id = match reader.tag()? {
+                    0x00 => None,
+                    0x01 => Some(ChoiceId::from_journal_codec_bytes(reader.digest()?)),
+                    tag => {
+                        return Err(RelationalJournalCodecError::UnknownTag {
+                            component: "result choice identity",
+                            tag,
+                        });
+                    }
+                };
                 let input = match reader.tag()? {
                     0x03 => RelationalResolvedResultInput::Sources(
                         RelationId::from_journal_codec_bytes(reader.digest()?),
@@ -1721,6 +1777,7 @@ fn decode_analysis_plan(
                 RelationalAnalysisLayerRegistration::Result(
                     RelationalResultLayerRegistration::restore_from_journal_codec(
                         view_id,
+                        choice_id,
                         input,
                         spec_digest,
                         dependencies,
@@ -1733,9 +1790,10 @@ fn decode_analysis_plan(
                     0x01 => RelationalResolvedMechanismTarget::Selected(
                         QuestionId::from_journal_codec_bytes(reader.digest()?),
                     ),
-                    0x02 => RelationalResolvedMechanismTarget::ChosenView(
-                        ViewId::from_journal_codec_bytes(reader.digest()?),
-                    ),
+                    0x02 => RelationalResolvedMechanismTarget::Choice {
+                        choice_id: ChoiceId::from_journal_codec_bytes(reader.digest()?),
+                        materializing_view_id: ViewId::from_journal_codec_bytes(reader.digest()?),
+                    },
                     tag => {
                         return Err(RelationalJournalCodecError::UnknownTag {
                             component: "resolved mechanism target",
@@ -1781,6 +1839,7 @@ fn decode_analysis_plan(
     Ok(RelationalAnalysisPlan::restore_from_journal_codec(
         question_ids,
         graph_digest,
+        choices,
         registrations,
     )?)
 }
@@ -6640,9 +6699,9 @@ fn encode_mechanism_target(
 ) -> Result<(), RelationalJournalCodecError> {
     match target {
         MechanismTargetId::Selected => encoder.tag(0x01),
-        MechanismTargetId::ChosenView(view_id) => {
+        MechanismTargetId::Choice(choice_id) => {
             encoder.tag(0x02)?;
-            encoder.digest(view_id.bytes())
+            encoder.digest(choice_id.bytes())
         }
     }
 }
@@ -6652,8 +6711,8 @@ fn decode_mechanism_target(
 ) -> Result<MechanismTargetId, RelationalJournalCodecError> {
     match reader.tag()? {
         0x01 => Ok(MechanismTargetId::Selected),
-        0x02 => Ok(MechanismTargetId::ChosenView(
-            ViewId::from_journal_codec_bytes(reader.digest()?),
+        0x02 => Ok(MechanismTargetId::Choice(
+            ChoiceId::from_journal_codec_bytes(reader.digest()?),
         )),
         tag => Err(RelationalJournalCodecError::UnknownTag {
             component: "mechanism support target",
@@ -7580,7 +7639,7 @@ mod tests {
             ),
         );
 
-        // Mirror the producer-owned V3 graph recipe independently so this
+        // Mirror the producer-owned V4 graph recipe independently so this
         // codec fixture proves the restored registration retains authorization.
         let mut mechanism_node_hasher = Sha256::new();
         mechanism_node_hasher.update(b"futuruna.checked-explore-analysis-mechanism-node.v2\0");
@@ -7589,14 +7648,14 @@ mod tests {
         let mechanism_node_digest: [u8; 32] = mechanism_node_hasher.finalize().into();
 
         let mut graph_hasher = Sha256::new();
-        graph_hasher.update(b"futuruna.checked-explore-analysis-graph.v3\0");
+        graph_hasher.update(b"futuruna.checked-explore-analysis-graph.v4\0");
         let label = b"semantic-node-count";
         let value = b"1";
         graph_hasher.update((label.len() as u64).to_le_bytes());
         graph_hasher.update(label);
         graph_hasher.update((value.len() as u64).to_le_bytes());
         graph_hasher.update(value);
-        graph_hasher.update([0x02]);
+        graph_hasher.update([0x03]);
         graph_hasher.update(mechanism_node_digest);
         let graph_digest = RelationalCheckedAnalysisGraphDigest::from_journal_codec_bytes(
             graph_hasher.finalize().into(),
@@ -7604,6 +7663,7 @@ mod tests {
         RelationalAnalysisPlan::restore_from_journal_codec(
             vec![question_id].into_boxed_slice(),
             graph_digest,
+            Vec::new(),
             vec![registration],
         )
         .expect("restore mechanism-only analysis plan")
@@ -7691,7 +7751,7 @@ mod tests {
         let enclosing_mechanism = StructuralMechanismId::from_journal_codec_bytes([0x22; 32]);
         let key = MechanismSupportKey::from_journal_codec_parts(
             request_id,
-            MechanismTargetId::ChosenView(ViewId::from_journal_codec_bytes([0x33; 32])),
+            MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes([0x33; 32])),
             MechanismSupportSubject::Node {
                 facet: MechanismSupportFacet::DifferentialParticipation,
                 node_id: StructuralNodeId::from_journal_codec_bytes([0x44; 32]),

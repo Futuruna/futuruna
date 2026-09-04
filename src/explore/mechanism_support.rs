@@ -20,8 +20,8 @@ use super::mechanism_incidence::{
     MechanismTargetSealId, MechanismTerminalDiscoveryRevision,
 };
 use super::relation::{
-    MechanismRequestId, MechanismTargetId, QuestionId, RelationalCaseId, RelationalCaseRef,
-    SourceKey, SuccessorKey,
+    ChoiceId, MechanismRequestId, MechanismTargetId, QuestionId, RelationalCaseId,
+    RelationalCaseRef, SourceKey, SuccessorKey,
 };
 use super::structural_mechanism::{
     StructuralCatalogRevision, StructuralEdgeId, StructuralMechanismCatalogBuilder,
@@ -7069,9 +7069,9 @@ fn encode_residual_summary(
 fn encode_target(encoder: &mut SupportEncoder, target: MechanismTargetId) {
     match target {
         MechanismTargetId::Selected => encoder.u8(0x01),
-        MechanismTargetId::ChosenView(view_id) => {
+        MechanismTargetId::Choice(choice_id) => {
             encoder.u8(0x02);
-            encoder.digest(view_id.bytes());
+            encoder.digest(choice_id.bytes());
         }
     }
 }
@@ -9127,9 +9127,7 @@ mod tests {
             ..key
         };
         let alternate_target_key = MechanismSupportKey {
-            target: MechanismTargetId::ChosenView(
-                super::super::relation::ViewId::from_journal_codec_bytes([0x72; 32]),
-            ),
+            target: MechanismTargetId::Choice(ChoiceId::from_journal_codec_bytes([0x72; 32])),
             ..key
         };
         let alternate_facet_key = MechanismSupportKey {

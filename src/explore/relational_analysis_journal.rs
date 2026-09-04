@@ -3906,7 +3906,7 @@ impl RelationalAnalysisJournalState {
             Some(RelationalAnalysisLayerRegistration::Mechanisms(registration)) => {
                 match registration.target() {
                     RelationalResolvedMechanismTarget::Selected(question_id) => question_id,
-                    RelationalResolvedMechanismTarget::ChosenView(_) => {
+                    RelationalResolvedMechanismTarget::Choice { .. } => {
                         return Err(RelationalAnalysisJournalError::EventClaimMismatch(
                             "selected mechanism question dependency",
                         ));

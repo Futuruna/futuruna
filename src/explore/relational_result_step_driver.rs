@@ -232,7 +232,7 @@ impl<'query> RelationalResultStepDriver<'query> {
         for (node, identity) in checked.analysis_nodes() {
             let (
                 ExploreAnalysisNodeIr::Result(result),
-                CheckedExploreAnalysisIdentity::View { view_id },
+                CheckedExploreAnalysisIdentity::View { view_id, .. },
             ) = (node, identity)
             else {
                 continue;

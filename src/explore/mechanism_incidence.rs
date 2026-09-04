@@ -15,7 +15,7 @@ use std::sync::OnceLock;
 use sha2::{Digest, Sha256};
 
 use super::relation::{
-    ClosedQuestionCatalogRef, MechanismRequestId, MechanismTargetId, QuestionCatalog,
+    ChoiceId, ClosedQuestionCatalogRef, MechanismRequestId, MechanismTargetId, QuestionCatalog,
     QuestionContentRoot, QuestionId, RelationalCaseId, ViewId,
 };
 use super::relational_population::CertifiedSelectedPopulationRoot;
@@ -31,7 +31,7 @@ const MECHANISM_UNAVAILABLE_REASON_ID_HASH_V1: &[u8] =
     b"futuruna.explore.relational-mechanism-unavailable-reason-id.v1";
 const MECHANISM_TARGET_CASE_SET_ROOT_HASH_V1: &[u8] =
     b"futuruna.explore.mechanism-target-case-set-root.v1";
-const MECHANISM_TARGET_SEAL_ID_HASH_V1: &[u8] = b"futuruna.explore.mechanism-target-seal-id.v1";
+const MECHANISM_TARGET_SEAL_ID_HASH_V2: &[u8] = b"futuruna.explore.mechanism-target-seal-id.v2";
 const MECHANISM_INCIDENCE_ROOT_HASH_V3: &[u8] =
     b"futuruna.explore.relational-mechanism-incidence-root.v3";
 const TERMINAL_DISCOVERY_REVISION_HASH_V1: &[u8] =
@@ -39,7 +39,7 @@ const TERMINAL_DISCOVERY_REVISION_HASH_V1: &[u8] =
 const TARGET_DISCOVERY_REVISION_HASH_V1: &[u8] =
     b"futuruna.explore.mechanism-target-discovery-revision.v1";
 
-pub(crate) const MECHANISM_TARGET_SEAL_VERSION: u32 = 1;
+pub(crate) const MECHANISM_TARGET_SEAL_VERSION: u32 = 2;
 
 const SIGNATURE_REQUEST_ROLE: u8 = 0x01;
 const SIGNATURE_DIFFERENTIAL_DIGEST_ROLE: u8 = 0x02;
@@ -348,6 +348,7 @@ pub(crate) enum MechanismTargetSealUpstream {
         exact_cardinality: u128,
     },
     ChosenResultView {
+        choice_id: ChoiceId,
         view_id: ViewId,
         root: ResultViewRoot,
     },
@@ -1058,20 +1059,19 @@ impl MechanismIncidenceCatalogBuilder {
     /// set; aggregate-only or incidence output fails closed.
     pub(crate) fn seal_chosen_view_target(
         &mut self,
+        choice_id: ChoiceId,
         view: &ClosedResultView,
     ) -> Result<bool, MechanismIncidenceError> {
-        let MechanismTargetId::ChosenView(expected_view_id) = self.scope.target else {
+        let MechanismTargetId::Choice(expected_choice_id) = self.scope.target else {
             return Err(MechanismIncidenceError::TargetScopeMismatch);
         };
-        if view.view_id() != expected_view_id {
-            return Err(MechanismIncidenceError::ChosenViewScopeMismatch {
-                expected: expected_view_id,
-                actual: view.view_id(),
-            });
+        if choice_id != expected_choice_id {
+            return Err(MechanismIncidenceError::TargetScopeMismatch);
         }
         let exact = exact_chosen_case_ids(view)?;
         self.install_target_seal(
             MechanismTargetSealUpstream::ChosenResultView {
+                choice_id,
                 view_id: view.view_id(),
                 root: view.root(),
             },
@@ -1086,18 +1086,16 @@ impl MechanismIncidenceCatalogBuilder {
     /// cardinality before committing the accumulated canonical CaseId set.
     pub(crate) fn seal_chosen_view_target_commitment(
         &mut self,
+        choice_id: ChoiceId,
         view_id: ViewId,
         result_root: ResultViewRoot,
         exact_cardinality: u128,
     ) -> Result<bool, MechanismIncidenceError> {
-        let MechanismTargetId::ChosenView(expected_view_id) = self.scope.target else {
+        let MechanismTargetId::Choice(expected_choice_id) = self.scope.target else {
             return Err(MechanismIncidenceError::TargetScopeMismatch);
         };
-        if view_id != expected_view_id {
-            return Err(MechanismIncidenceError::ChosenViewScopeMismatch {
-                expected: expected_view_id,
-                actual: view_id,
-            });
+        if choice_id != expected_choice_id {
+            return Err(MechanismIncidenceError::TargetScopeMismatch);
         }
         let target = MechanismTargetCaseSetCommitment::from_canonical_cases(&self.target_cases);
         if target.count() != exact_cardinality {
@@ -1105,6 +1103,7 @@ impl MechanismIncidenceCatalogBuilder {
         }
         self.install_prechecked_target_seal(
             MechanismTargetSealUpstream::ChosenResultView {
+                choice_id,
                 view_id,
                 root: result_root,
             },
@@ -2244,9 +2243,9 @@ fn validate_target_upstream_scope(
             | MechanismTargetSealUpstream::CertifiedSelectedSupport { .. },
         ) => Ok(()),
         (
-            MechanismTargetId::ChosenView(expected),
-            MechanismTargetSealUpstream::ChosenResultView { view_id, .. },
-        ) if expected == view_id => Ok(()),
+            MechanismTargetId::Choice(expected),
+            MechanismTargetSealUpstream::ChosenResultView { choice_id, .. },
+        ) if expected == choice_id => Ok(()),
         _ => Err(MechanismIncidenceError::TargetSealScopeMismatch),
     }
 }
@@ -2416,7 +2415,7 @@ fn derive_mechanism_target_seal_id(
     target_case_set_root: MechanismTargetCaseSetRoot,
     target_case_count: u128,
 ) -> MechanismTargetSealId {
-    let mut hasher = CanonicalHasher::new(MECHANISM_TARGET_SEAL_ID_HASH_V1);
+    let mut hasher = CanonicalHasher::new(MECHANISM_TARGET_SEAL_ID_HASH_V2);
     hasher.u32(version);
     hash_request_scope(&mut hasher, scope);
     hash_target_seal_upstream(&mut hasher, upstream);
@@ -2430,9 +2429,9 @@ fn hash_request_scope(hasher: &mut CanonicalHasher, scope: MechanismRequestScope
     hasher.digest(scope.question_id.bytes());
     match scope.target {
         MechanismTargetId::Selected => hasher.tag(0x01),
-        MechanismTargetId::ChosenView(view_id) => {
+        MechanismTargetId::Choice(choice_id) => {
             hasher.tag(0x02);
-            hasher.digest(view_id.bytes());
+            hasher.digest(choice_id.bytes());
         }
     }
 }
@@ -2451,8 +2450,13 @@ fn hash_target_seal_upstream(hasher: &mut CanonicalHasher, upstream: MechanismTa
             hasher.digest(population_root.bytes());
             hasher.u128(exact_cardinality);
         }
-        MechanismTargetSealUpstream::ChosenResultView { view_id, root } => {
+        MechanismTargetSealUpstream::ChosenResultView {
+            choice_id,
+            view_id,
+            root,
+        } => {
             hasher.tag(0x02);
+            hasher.digest(choice_id.bytes());
             hasher.digest(view_id.bytes());
             hasher.digest(root.bytes());
         }
@@ -3235,37 +3239,40 @@ mod tests {
         let higher = case(relation_id, "Higher", 20, 21);
         let (view_id, chosen) =
             closed_case_view(question_id, "chosen", &[(lower, 1), (higher, 2)], true);
+        let choice_id = ChoiceId::from_canonical_choice_preimage(question_id, b"chosen");
         let request_id = MechanismRequestId::from_canonical_request_preimages(
             question_id,
-            MechanismTargetId::ChosenView(view_id),
+            MechanismTargetId::Choice(choice_id),
             b"assess-policy",
             b"dynamic-control-v1",
         );
         let scope = MechanismRequestScope::new(
             request_id,
             question_id,
-            MechanismTargetId::ChosenView(view_id),
+            MechanismTargetId::Choice(choice_id),
         );
         let mut builder = MechanismIncidenceCatalogBuilder::new(scope);
         builder.insert_target_case(lower).unwrap();
-        assert!(builder.seal_chosen_view_target(&chosen).unwrap());
+        assert!(builder.seal_chosen_view_target(choice_id, &chosen).unwrap());
         let seal = builder.target_seal().unwrap();
         assert_eq!(seal.target_case_count(), 1);
         assert_eq!(seal.scope(), scope);
         assert_eq!(
             seal.upstream(),
             MechanismTargetSealUpstream::ChosenResultView {
+                choice_id,
                 view_id,
                 root: chosen.root(),
             }
         );
         seal.validate_identity().unwrap();
 
-        let (unchosen_view_id, unchosen) =
+        let (_unchosen_view_id, unchosen) =
             closed_case_view(question_id, "unchosen", &[(lower, 1)], false);
+        let unchosen_choice_id = ChoiceId::from_canonical_choice_preimage(question_id, b"unchosen");
         let unchosen_request = MechanismRequestId::from_canonical_request_preimages(
             question_id,
-            MechanismTargetId::ChosenView(unchosen_view_id),
+            MechanismTargetId::Choice(unchosen_choice_id),
             b"assess-policy",
             b"dynamic-control-v1",
         );
@@ -3273,12 +3280,12 @@ mod tests {
             MechanismIncidenceCatalogBuilder::new(MechanismRequestScope::new(
                 unchosen_request,
                 question_id,
-                MechanismTargetId::ChosenView(unchosen_view_id),
+                MechanismTargetId::Choice(unchosen_choice_id),
             ));
         unchosen_builder.insert_target_case(lower).unwrap();
         assert_eq!(
             unchosen_builder
-                .seal_chosen_view_target(&unchosen)
+                .seal_chosen_view_target(unchosen_choice_id, &unchosen)
                 .unwrap_err(),
             MechanismIncidenceError::ChosenViewCannotDenoteExactCases
         );

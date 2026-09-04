@@ -27,8 +27,8 @@ use super::mechanism_incidence::{
     MechanismUnavailableReasonDefinition,
 };
 use super::relation::{
-    MechanismRequestId, MechanismTargetId, QuestionCatalog, QuestionContentRoot, QuestionId,
-    RelationalCaseId, ViewId,
+    ChoiceId, MechanismRequestId, MechanismTargetId, QuestionCatalog, QuestionContentRoot,
+    QuestionId, RelationalCaseId, ViewId,
 };
 use super::relational_analysis_plan::{
     RelationalAnalysisDependencyId, RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration,
@@ -57,10 +57,10 @@ use super::result_view::{
 use super::structural_mechanism::StructuralQuotientClosureRoot;
 use super::transition::TransitionId;
 
-pub(crate) const RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION: u32 = 4;
+pub(crate) const RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION: u32 = 5;
 pub(crate) const RELATIONAL_RESULT_PUBLICATION_VERSION: u32 = 1;
 
-const ANALYSIS_CATALOG_ROOT_V4: &[u8] = b"futuruna.explore.relational-analysis.catalog-root.v4";
+const ANALYSIS_CATALOG_ROOT_V5: &[u8] = b"futuruna.explore.relational-analysis.catalog-root.v5";
 const RESULT_PUBLICATION_ID_V1: &[u8] =
     b"futuruna.explore.relational-analysis.result-publication-id.v1";
 
@@ -269,6 +269,7 @@ impl RelationalResultPublication {
 /// a [`ClosedResultView`] or copying its input contributions.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct PublishedChosenResultSummary {
+    choice_id: ChoiceId,
     result_root: ResultViewRoot,
     exact_chosen_count: u128,
     projection_record_count: u128,
@@ -276,6 +277,10 @@ pub(crate) struct PublishedChosenResultSummary {
 }
 
 impl PublishedChosenResultSummary {
+    pub(crate) const fn choice_id(self) -> ChoiceId {
+        self.choice_id
+    }
+
     pub(crate) const fn result_root(self) -> ResultViewRoot {
         self.result_root
     }
@@ -406,6 +411,7 @@ impl RelationalResultLayerSnapshotState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalResultLayerSnapshot {
     view_id: ViewId,
+    choice_id: Option<ChoiceId>,
     input: RelationalResolvedResultInput,
     semantic_spec_digest: RelationalResultSpecDigest,
     state: RelationalResultLayerSnapshotState,
@@ -418,6 +424,10 @@ impl RelationalResultLayerSnapshot {
 
     pub(crate) const fn input(&self) -> RelationalResolvedResultInput {
         self.input
+    }
+
+    pub(crate) const fn choice_id(&self) -> Option<ChoiceId> {
+        self.choice_id
     }
 
     pub(crate) const fn semantic_spec_digest(&self) -> RelationalResultSpecDigest {
@@ -728,6 +738,7 @@ impl AnalysisLayerBuilder {
             Self::Result(result) => {
                 RelationalAnalysisLayerSnapshot::Result(RelationalResultLayerSnapshot {
                     view_id: result.registration.view_id(),
+                    choice_id: result.registration.choice_id(),
                     input: result.registration.input(),
                     semantic_spec_digest: result.registration.semantic_spec_digest(),
                     state: match &result.registered {
@@ -763,6 +774,7 @@ impl AnalysisLayerBuilder {
         match self {
             Self::Result(result) => {
                 let view_id = result.registration.view_id();
+                let choice_id = result.registration.choice_id();
                 let input = result.registration.input();
                 let semantic_spec_digest = result.registration.semantic_spec_digest();
                 let state = match result.registered {
@@ -778,6 +790,7 @@ impl AnalysisLayerBuilder {
                 (
                     RelationalAnalysisLayerSnapshot::Result(RelationalResultLayerSnapshot {
                         view_id,
+                        choice_id,
                         input,
                         semantic_spec_digest,
                         state,
@@ -829,7 +842,7 @@ impl RelationalAnalysisCatalogBuilder {
 
         let mut layers = BTreeMap::new();
         for registration in plan.layer_registrations() {
-            validate_registration(plan.question_ids(), registration)?;
+            validate_registration(plan, registration)?;
             let state = match registration {
                 RelationalAnalysisLayerRegistration::Result(result) => {
                     AnalysisLayerBuilder::Result(ResultLayerBuilder {
@@ -1486,6 +1499,11 @@ impl RelationalAnalysisCatalogBuilder {
             .registered
             .as_ref()
             .ok_or(RelationalAnalysisCatalogError::ResultSpecNotRegistered { view_id })?;
+        let Some(choice_id) = result.registration.choice_id() else {
+            return Err(RelationalAnalysisCatalogError::Mechanism(
+                MechanismIncidenceError::ChosenViewCannotDenoteExactCases,
+            ));
+        };
         if !matches!(
             result.registration.input(),
             RelationalResolvedResultInput::Selected(_)
@@ -1525,6 +1543,7 @@ impl RelationalAnalysisCatalogBuilder {
             ));
         }
         Ok(PublishedChosenResultSummary {
+            choice_id,
             result_root: publication.result_root(),
             exact_chosen_count,
             projection_record_count: validated.closure.record_count(),
@@ -1823,7 +1842,11 @@ impl RelationalAnalysisCatalogBuilder {
         view: &ClosedResultView,
     ) -> Result<bool, RelationalAnalysisCatalogError> {
         let target = self.mechanism_registration(request_id)?.target();
-        let RelationalResolvedMechanismTarget::ChosenView(expected_view_id) = target else {
+        let RelationalResolvedMechanismTarget::Choice {
+            choice_id,
+            materializing_view_id: expected_view_id,
+        } = target
+        else {
             return Err(
                 RelationalAnalysisCatalogError::MechanismTargetDependencyMismatch { request_id },
             );
@@ -1837,7 +1860,7 @@ impl RelationalAnalysisCatalogBuilder {
         self.require_matching_publication(view)?;
         self.mechanism_layer_mut(request_id)?
             .incidence
-            .seal_chosen_view_target(view)
+            .seal_chosen_view_target(choice_id, view)
             .map_err(RelationalAnalysisCatalogError::Mechanism)
     }
 
@@ -1855,13 +1878,25 @@ impl RelationalAnalysisCatalogBuilder {
         result_root: ResultViewRoot,
     ) -> Result<bool, RelationalAnalysisCatalogError> {
         self.validate_chosen_mechanism_target_dependency(request_id, view_id)?;
+        let RelationalResolvedMechanismTarget::Choice { choice_id, .. } =
+            self.mechanism_registration(request_id)?.target()
+        else {
+            return Err(
+                RelationalAnalysisCatalogError::MechanismTargetDependencyMismatch { request_id },
+            );
+        };
         let summary = self.published_chosen_result_summary(view_id)?;
         if summary.result_root() != result_root {
             return Err(RelationalAnalysisCatalogError::PublishedResultRootMismatch { view_id });
         }
         self.mechanism_layer_mut(request_id)?
             .incidence
-            .seal_chosen_view_target_commitment(view_id, result_root, summary.exact_chosen_count())
+            .seal_chosen_view_target_commitment(
+                choice_id,
+                view_id,
+                result_root,
+                summary.exact_chosen_count(),
+            )
             .map_err(RelationalAnalysisCatalogError::Mechanism)
     }
 
@@ -2183,11 +2218,12 @@ impl RelationalAnalysisCatalogBuilder {
         view_id: ViewId,
     ) -> Result<(), RelationalAnalysisCatalogError> {
         match self.mechanism_registration(request_id)?.target() {
-            RelationalResolvedMechanismTarget::ChosenView(expected) if expected == view_id => {
-                Ok(())
-            }
+            RelationalResolvedMechanismTarget::Choice {
+                materializing_view_id: expected,
+                ..
+            } if expected == view_id => Ok(()),
             RelationalResolvedMechanismTarget::Selected(_)
-            | RelationalResolvedMechanismTarget::ChosenView(_) => Err(
+            | RelationalResolvedMechanismTarget::Choice { .. } => Err(
                 RelationalAnalysisCatalogError::MechanismTargetDependencyMismatch { request_id },
             ),
         }
@@ -2304,12 +2340,16 @@ impl RelationalAnalysisCatalogBuilder {
                             | MechanismTargetSealUpstream::CertifiedSelectedSupport { .. },
                         ) => expected == seal.scope().question_id(),
                         (
-                            RelationalResolvedMechanismTarget::ChosenView(expected),
+                            RelationalResolvedMechanismTarget::Choice {
+                                choice_id: expected_choice,
+                                materializing_view_id: expected,
+                            },
                             MechanismTargetSealUpstream::ChosenResultView {
+                                choice_id: actual_choice,
                                 view_id: actual,
                                 root,
                             },
-                        ) if expected == actual => self
+                        ) if expected == actual && expected_choice == actual_choice => self
                             .registered_result(expected)
                             .ok()
                             .and_then(|result| result.publication)
@@ -2334,7 +2374,8 @@ impl RelationalAnalysisCatalogBuilder {
         snapshot: RelationalResultLayerSnapshot,
     ) -> Result<(), RelationalAnalysisCatalogError> {
         let registration = self.result_registration(snapshot.view_id)?.clone();
-        if registration.input() != snapshot.input
+        if registration.choice_id() != snapshot.choice_id
+            || registration.input() != snapshot.input
             || registration.semantic_spec_digest() != snapshot.semantic_spec_digest
         {
             return Err(
@@ -2851,22 +2892,25 @@ fn reject_standalone_structural_result_snapshot(
 }
 
 fn validate_registration(
-    plan_question_ids: &[QuestionId],
+    plan: &RelationalAnalysisPlan,
     registration: &RelationalAnalysisLayerRegistration,
 ) -> Result<(), RelationalAnalysisCatalogError> {
     let (layer_id, expected_dependency) = match registration {
         RelationalAnalysisLayerRegistration::Result(result) => (
             RelationalAnalysisLayerId::Result(result.view_id()),
-            match result.input() {
-                RelationalResolvedResultInput::Sources(relation_id) => {
-                    RelationalAnalysisDependencyId::Relation(relation_id)
-                }
-                RelationalResolvedResultInput::Selected(question_id) => {
-                    RelationalAnalysisDependencyId::Question(question_id)
-                }
-                RelationalResolvedResultInput::MechanismIncidence(request_id) => {
-                    RelationalAnalysisDependencyId::Mechanisms(request_id)
-                }
+            match result.choice_id() {
+                Some(choice_id) => RelationalAnalysisDependencyId::Choice(choice_id),
+                None => match result.input() {
+                    RelationalResolvedResultInput::Sources(relation_id) => {
+                        RelationalAnalysisDependencyId::Relation(relation_id)
+                    }
+                    RelationalResolvedResultInput::Selected(question_id) => {
+                        RelationalAnalysisDependencyId::Question(question_id)
+                    }
+                    RelationalResolvedResultInput::MechanismIncidence(request_id) => {
+                        RelationalAnalysisDependencyId::Mechanisms(request_id)
+                    }
+                },
             },
         ),
         RelationalAnalysisLayerRegistration::Mechanisms(mechanism) => (
@@ -2875,8 +2919,8 @@ fn validate_registration(
                 RelationalResolvedMechanismTarget::Selected(question_id) => {
                     RelationalAnalysisDependencyId::Question(question_id)
                 }
-                RelationalResolvedMechanismTarget::ChosenView(view_id) => {
-                    RelationalAnalysisDependencyId::Result(view_id)
+                RelationalResolvedMechanismTarget::Choice { choice_id, .. } => {
+                    RelationalAnalysisDependencyId::Choice(choice_id)
                 }
             },
         ),
@@ -2886,15 +2930,21 @@ fn validate_registration(
     }
     match expected_dependency {
         RelationalAnalysisDependencyId::Question(actual)
-            if plan_question_ids.binary_search(&actual).is_err() =>
+            if plan.question_ids().binary_search(&actual).is_err() =>
         {
             return Err(RelationalAnalysisCatalogError::ForeignQuestionDependency {
                 layer_id,
                 actual,
             });
         }
+        RelationalAnalysisDependencyId::Choice(choice_id)
+            if plan.choice_registration(choice_id).is_none() =>
+        {
+            return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
+        }
         RelationalAnalysisDependencyId::Relation(_)
         | RelationalAnalysisDependencyId::Question(_)
+        | RelationalAnalysisDependencyId::Choice(_)
         | RelationalAnalysisDependencyId::Result(_)
         | RelationalAnalysisDependencyId::Mechanisms(_) => {}
     }
@@ -2910,16 +2960,25 @@ fn mechanism_scope(
         RelationalResolvedMechanismTarget::Selected(question_id) => {
             (question_id, MechanismTargetId::Selected)
         }
-        RelationalResolvedMechanismTarget::ChosenView(view_id) => {
+        RelationalResolvedMechanismTarget::Choice {
+            choice_id,
+            materializing_view_id,
+        } => {
+            let Some(choice) = plan.choice_registration(choice_id) else {
+                return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
+            };
             let Some(RelationalAnalysisLayerRegistration::Result(result)) =
-                plan.registration(RelationalAnalysisLayerId::Result(view_id))
+                plan.registration(RelationalAnalysisLayerId::Result(materializing_view_id))
             else {
                 return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
             };
-            let RelationalResolvedResultInput::Selected(question_id) = result.input() else {
+            if result.choice_id() != Some(choice_id) {
                 return Err(RelationalAnalysisCatalogError::InvalidPlanDependency { layer_id });
-            };
-            (question_id, MechanismTargetId::ChosenView(view_id))
+            }
+            (
+                choice.input_question_id(),
+                MechanismTargetId::Choice(choice_id),
+            )
         }
     };
     if plan.question_ids().binary_search(&question_id).is_err() {
@@ -3124,7 +3183,7 @@ fn derive_analysis_catalog_root(
     plan_root: RelationalAnalysisPlanRoot,
     layers: &[RelationalAnalysisLayerSnapshot],
 ) -> RelationalAnalysisCatalogRoot {
-    let mut hasher = AnalysisCatalogHasher::new(ANALYSIS_CATALOG_ROOT_V4);
+    let mut hasher = AnalysisCatalogHasher::new(ANALYSIS_CATALOG_ROOT_V5);
     hasher.u32(RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION);
     hasher.digest(plan_root.bytes());
     hasher.u128(layers.len() as u128);
@@ -3138,7 +3197,7 @@ fn derive_analysis_catalog_builder_root(
     plan_root: RelationalAnalysisPlanRoot,
     layers: &BTreeMap<RelationalAnalysisLayerId, AnalysisLayerBuilder>,
 ) -> RelationalAnalysisCatalogRoot {
-    let mut hasher = AnalysisCatalogHasher::new(ANALYSIS_CATALOG_ROOT_V4);
+    let mut hasher = AnalysisCatalogHasher::new(ANALYSIS_CATALOG_ROOT_V5);
     hasher.u32(RELATIONAL_ANALYSIS_CATALOG_SNAPSHOT_VERSION);
     hasher.digest(plan_root.bytes());
     hasher.u128(layers.len() as u128);
@@ -3165,12 +3224,20 @@ enum ResultLayerHashState {
 fn hash_result_layer(
     hasher: &mut AnalysisCatalogHasher,
     view_id: ViewId,
+    choice_id: Option<ChoiceId>,
     input: RelationalResolvedResultInput,
     semantic_spec_digest: RelationalResultSpecDigest,
     state: ResultLayerHashState,
 ) {
     hasher.tag(0x01);
     hasher.digest(view_id.bytes());
+    match choice_id {
+        None => hasher.tag(0x00),
+        Some(choice_id) => {
+            hasher.tag(0x01);
+            hasher.digest(choice_id.bytes());
+        }
+    }
     hash_result_input(hasher, input);
     hasher.digest(semantic_spec_digest.bytes());
     match state {
@@ -3250,6 +3317,7 @@ fn hash_layer_builder(hasher: &mut AnalysisCatalogHasher, layer: &AnalysisLayerB
             hash_result_layer(
                 hasher,
                 result.registration.view_id(),
+                result.registration.choice_id(),
                 result.registration.input(),
                 result.registration.semantic_spec_digest(),
                 state,
@@ -3299,6 +3367,7 @@ fn hash_layer_snapshot(
             hash_result_layer(
                 hasher,
                 result.view_id,
+                result.choice_id,
                 result.input,
                 result.semantic_spec_digest,
                 state,
@@ -3353,9 +3422,13 @@ fn hash_mechanism_target(
             hasher.tag(0x01);
             hasher.digest(question_id.bytes());
         }
-        RelationalResolvedMechanismTarget::ChosenView(view_id) => {
+        RelationalResolvedMechanismTarget::Choice {
+            choice_id,
+            materializing_view_id,
+        } => {
             hasher.tag(0x02);
-            hasher.digest(view_id.bytes());
+            hasher.digest(choice_id.bytes());
+            hasher.digest(materializing_view_id.bytes());
         }
     }
 }

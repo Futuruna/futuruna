@@ -142,13 +142,13 @@ mod relation;
 pub(crate) use relation::{
     AdmissionCatalog, AdmissionCatalogBuilder, AdmissionContentRoot, AdmissionCounts,
     AdmissionDecision, AdmissionFrontierRoot, AdmissionId, CatalogSource, CatalogSuccessor,
-    FindPolarity, MechanismRequestId, MechanismTargetId, QuestionCatalog, QuestionCatalogBuilder,
-    QuestionContentRoot, QuestionFrontierRoot, QuestionId, RelationCatalog, RelationCatalogBuilder,
-    RelationCatalogError, RelationCatalogSnapshot, RelationClassificationError,
-    RelationContentRoot, RelationCountEvidence, RelationEnumerationCounts, RelationFrontierRoot,
-    RelationId, RelationLineageId, RelationProvenance, RelationSupportId, RelationalCaseId,
-    RelationalCaseRef, SelectionCounts, SelectionDecision, SourceKey, SourceRow, SuccessorKey,
-    SuccessorRow, ViewId, ViewInputId,
+    ChoiceId, FindPolarity, MechanismRequestId, MechanismTargetId, QuestionCatalog,
+    QuestionCatalogBuilder, QuestionContentRoot, QuestionFrontierRoot, QuestionId, RelationCatalog,
+    RelationCatalogBuilder, RelationCatalogError, RelationCatalogSnapshot,
+    RelationClassificationError, RelationContentRoot, RelationCountEvidence,
+    RelationEnumerationCounts, RelationFrontierRoot, RelationId, RelationLineageId,
+    RelationProvenance, RelationSupportId, RelationalCaseId, RelationalCaseRef, SelectionCounts,
+    SelectionDecision, SourceKey, SourceRow, SuccessorKey, SuccessorRow, ViewId, ViewInputId,
 };
 mod relational_endpoint_totality;
 pub(crate) use relational_endpoint_totality::{
@@ -166,13 +166,13 @@ mod relational_ir;
 pub(crate) use relational_ir::relational_tys_equivalent;
 pub use relational_ir::{
     ExploreAdmissionIr, ExploreAggregateFieldIr, ExploreAggregateReducerIr, ExploreAnalysisNodeIr,
-    ExploreFindIr, ExploreFiniteDomainIr, ExploreMechanismRequestIr, ExploreMechanismTargetIr,
-    ExploreNamedFindIr, ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr,
-    ExploreResultFieldIr, ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr,
-    ExploreResultViewIr, ExploreSourceBindingIr, ExploreSourceBindingKindIr,
-    ExploreSourceBindingRoleIr, ExploreSourceDependencyIr, ExploreSourceProducerRoleIr,
-    ExploreSourceRelationIr, ExploreSuccessorKindIr, ExploreSuccessorRelationIr,
-    EXPLORE_RELATIONAL_IR_VERSION,
+    ExploreChoicePartitionIr, ExploreChoiceRelationIr, ExploreFindIr, ExploreFiniteDomainIr,
+    ExploreMechanismRequestIr, ExploreMechanismTargetIr, ExploreNamedFindIr,
+    ExploreParetoObjectiveIr, ExploreQueryIr, ExploreResultChoiceIr, ExploreResultFieldIr,
+    ExploreResultGrainIr, ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
+    ExploreSourceBindingIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr,
+    ExploreSourceDependencyIr, ExploreSourceProducerRoleIr, ExploreSourceRelationIr,
+    ExploreSuccessorKindIr, ExploreSuccessorRelationIr, EXPLORE_RELATIONAL_IR_VERSION,
 };
 pub(crate) use relational_ir::{
     ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr, ExploreStarterProjectionIr,
@@ -182,10 +182,10 @@ mod relational_analysis_plan;
 pub(crate) use relational_analysis_plan::{
     RelationalAnalysisDependencyId, RelationalAnalysisLayerId, RelationalAnalysisLayerRegistration,
     RelationalAnalysisPlan, RelationalAnalysisPlanError, RelationalAnalysisPlanRoot,
-    RelationalCheckedAnalysisGraphDigest, RelationalMechanismLayerRegistration,
-    RelationalMechanismObservationDigest, RelationalMechanismObservationId,
-    RelationalResolvedMechanismTarget, RelationalResolvedResultInput,
-    RelationalResultLayerRegistration, RelationalResultSpecDigest,
+    RelationalCheckedAnalysisGraphDigest, RelationalChoiceRegistration, RelationalChoiceSpecDigest,
+    RelationalMechanismLayerRegistration, RelationalMechanismObservationDigest,
+    RelationalMechanismObservationId, RelationalResolvedMechanismTarget,
+    RelationalResolvedResultInput, RelationalResultLayerRegistration, RelationalResultSpecDigest,
     RELATIONAL_ANALYSIS_PLAN_VERSION,
 };
 mod relational_analysis_catalog;
