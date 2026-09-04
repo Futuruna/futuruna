@@ -8290,6 +8290,24 @@ struct ExploreNativeClassifierCacheResolutionV3 {
     cache_hit: bool,
 }
 
+/// The native classifier is an optional compiler artifact, so disabling the
+/// compiler cache declines the entire native path before lookup or generation.
+/// Keeping the policy input explicit also makes this gate testable without
+/// mutating the process-global environment.
+fn explore_native_classifier_with_cache_policy_v3<F>(
+    compiler_cache_disabled: bool,
+    build_or_reuse: F,
+) -> Option<PathBuf>
+where
+    F: FnOnce() -> Option<PathBuf>,
+{
+    if compiler_cache_disabled {
+        None
+    } else {
+        build_or_reuse()
+    }
+}
+
 fn explore_native_classifier_cache_or_build_v3<F>(
     target: ExploreNativeClassifierCacheTargetV3,
     build: F,
@@ -8814,6 +8832,19 @@ fn build_explore_native_classifier_v2(
 ) -> Option<PathBuf> {
     let started = std::time::Instant::now();
     trace_explore_native_classifier_build_v2("begin", started, None);
+    let compiler_cache_disabled = cache_env_enabled("FUTURUNA_DISABLE_COMPILER_CACHE");
+    if compiler_cache_disabled {
+        trace_explore_native_classifier_build_v2("compiler cache disabled", started, None);
+    }
+    explore_native_classifier_with_cache_policy_v3(compiler_cache_disabled, || {
+        build_explore_native_classifier_v2_cache_enabled(plan, started)
+    })
+}
+
+fn build_explore_native_classifier_v2_cache_enabled(
+    plan: explore::ExploreNativeClassifierPlanV2,
+    started: std::time::Instant,
+) -> Option<PathBuf> {
     if plan.rule_metadata.checked_program != plan.identity.checked_program {
         trace_explore_native_classifier_build_v2(
             "RuleDispatch metadata does not match checked program",
@@ -69901,11 +69932,11 @@ routes <- "b"
         let baseline = explore_native_classifier_derivation_cache_key_v3(&plan, &compiler, &rustc)
             .expect("derive baseline native classifier cache key");
 
-        let mut display_equivalent = plan.clone();
-        display_equivalent.successor_value.span = Span::new(10_000, 10_100);
-        display_equivalent.admissions[0].predicate.span = Span::new(20_000, 20_100);
+        let mut source_location_equivalent = plan.clone();
+        source_location_equivalent.successor_value.span = Span::new(10_000, 10_100);
+        source_location_equivalent.admissions[0].predicate.span = Span::new(20_000, 20_100);
         if let explore::ExploreNativeClassifierFindV2::Matches { predicate } =
-            &mut display_equivalent.find
+            &mut source_location_equivalent.find
         {
             predicate.span = Span::new(30_000, 30_100);
         } else {
@@ -69913,11 +69944,11 @@ routes <- "b"
         }
         assert_eq!(
             explore_native_classifier_derivation_cache_key_v3(
-                &display_equivalent,
+                &source_location_equivalent,
                 &compiler,
                 &rustc,
             )
-            .expect("derive display-equivalent cache key"),
+            .expect("derive source-location-equivalent cache key"),
             baseline,
             "source-location-only changes cannot force classifier regeneration"
         );
@@ -69998,13 +70029,31 @@ routes <- "b"
         std::fs::write(&target.executable, b"cached classifier")
             .expect("write cached classifier probe");
 
-        let builds = std::cell::Cell::new(0_u32);
-        let hit = explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
-            builds.set(builds.get() + 1);
-            None
+        let cache_accesses = std::cell::Cell::new(0_u32);
+        let disabled = explore_native_classifier_with_cache_policy_v3(true, || {
+            cache_accesses.set(cache_accesses.get() + 1);
+            explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
+                panic!("a disabled compiler cache must not generate a native classifier")
+            })
+            .executable
         });
-        assert!(hit.cache_hit);
-        assert_eq!(hit.executable, Some(target.executable.clone()));
+        assert_eq!(disabled, None);
+        assert_eq!(
+            cache_accesses.get(),
+            0,
+            "a disabled compiler cache must bypass persistent lookup and generation"
+        );
+
+        let builds = std::cell::Cell::new(0_u32);
+        let hit = explore_native_classifier_with_cache_policy_v3(false, || {
+            let resolution = explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
+                builds.set(builds.get() + 1);
+                None
+            });
+            assert!(resolution.cache_hit);
+            resolution.executable
+        });
+        assert_eq!(hit, Some(target.executable.clone()));
         assert_eq!(builds.get(), 0, "a cache hit must bypass generation");
 
         let miss_target = explore_native_classifier_cache_target_v3(
