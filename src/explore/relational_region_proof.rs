@@ -1,9 +1,11 @@
 //! Exact one-axis region proofs for the relational Explore IR.
 //!
-//! This is a proof producer, not a candidate generator.  It consumes the
-//! immutable [`CheckedExploreQueryView`], its request-bound classification
-//! capsule, the support plan minted from that view, and the solver-neutral
-//! axis inventory.  The first accepted fragment is intentionally narrow:
+//! This is primarily a proof producer. It also exposes the same bounded graph
+//! normalizer to recover scheduling-only candidates, which never carry proof
+//! authority. It consumes the immutable [`CheckedExploreQueryView`], its
+//! request-bound classification capsule, the support plan minted from that
+//! view, and the solver-neutral axis inventory. The first accepted proof
+//! fragment is intentionally narrow:
 //!
 //! - one independent finite `Int` binding is the semantic `Before` value;
 //! - `Context` is the singleton unit value and there are no auxiliary binds;
@@ -43,7 +45,8 @@ use super::relational_ir::{
     ExploreFindIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSuccessorKindIr,
 };
 use super::relational_proof_strategy::{
-    RelationalIntegerAxis, RelationalProofStrategyError, RelationalProofStrategyInventory,
+    RelationalCheckedGuardAtom, RelationalGuardRelation, RelationalIntegerAxis,
+    RelationalProofStrategyError, RelationalProofStrategyInventory,
 };
 use super::relational_support_planner::{
     RelationalBindingStageId, RelationalDimensionId, RelationalObligationActivation,
@@ -59,7 +62,12 @@ use super::support_cell::{
 use super::support_evidence::{SupportEvidenceRecord, SupportObligationRecord};
 use super::support_journal::SupportJournalEvent;
 use super::ExploreExactDomain;
-use crate::{CheckedExploreQueryView, OwnedCheckedExploreQuery};
+use crate::{
+    checked_explore_source_events::{
+        CheckedExploreSourceEventLayer, CheckedExploreSourceEventRelation,
+    },
+    CheckedExploreQueryView, OwnedCheckedExploreQuery,
+};
 
 pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 3;
 
@@ -1166,6 +1174,253 @@ fn required_lane_root(
             .ok_or(RelationalRegionProofResidual::ClassificationLaneMissing { lane }),
         Some(false) => Err(RelationalRegionProofResidual::ClassificationLaneResidual { lane }),
         None => Err(RelationalRegionProofResidual::ClassificationLaneMissing { lane }),
+    }
+}
+
+/// Convert the compiler-minted rule/source inventory into scheduling-only
+/// affine atoms for this exact source axis.
+///
+/// The inventory remains advisory. Invalid inventories, events for another
+/// source factor, FIND events for another current question, and individual
+/// atoms that cannot be represented safely are ignored. Direct checked guards,
+/// endpoints, and the complete residual sweep remain available to the caller.
+pub(crate) fn derive_relational_source_event_guard_atoms(
+    checked: &CheckedExploreQueryView<'_>,
+    axis: &RelationalIntegerAxis,
+) -> Box<[RelationalCheckedGuardAtom]> {
+    let inventory = checked.source_event_inventory();
+    if !inventory.validate_identity()
+        || inventory.relation_id() != checked.relation_id()
+        || inventory.admission_id() != checked.admission_id()
+        || inventory.question_ids() != checked.question_ids()
+    {
+        return Vec::new().into_boxed_slice();
+    }
+    let sole_question = match checked.question_ids() {
+        [question_id] => Some(*question_id),
+        _ => None,
+    };
+    let inventory_root = inventory.inventory_root();
+    let mut atoms = inventory
+        .events()
+        .iter()
+        .filter(|event| event.source_binding_index == axis.binding_index())
+        .filter(|event| match event.layer {
+            CheckedExploreSourceEventLayer::SourceBinding { .. }
+            | CheckedExploreSourceEventLayer::Successor
+            | CheckedExploreSourceEventLayer::Admission { .. } => true,
+            CheckedExploreSourceEventLayer::Find { question_id } => {
+                sole_question == Some(question_id)
+            }
+        })
+        .filter_map(|event| {
+            let relation = match event.relation {
+                CheckedExploreSourceEventRelation::Less => RelationalGuardRelation::Less,
+                CheckedExploreSourceEventRelation::LessOrEqual => {
+                    RelationalGuardRelation::LessOrEqual
+                }
+                CheckedExploreSourceEventRelation::Equal => RelationalGuardRelation::Equal,
+                CheckedExploreSourceEventRelation::NotEqual => RelationalGuardRelation::NotEqual,
+                CheckedExploreSourceEventRelation::GreaterOrEqual => {
+                    RelationalGuardRelation::GreaterOrEqual
+                }
+                CheckedExploreSourceEventRelation::Greater => RelationalGuardRelation::Greater,
+            };
+            RelationalCheckedGuardAtom::from_checked_source_event_normal_form(
+                axis,
+                event.coefficient,
+                event.intercept,
+                relation,
+                inventory_root,
+                event.source_event_id,
+                event.occurrence_id,
+            )
+            .ok()
+        })
+        .collect::<Vec<_>>();
+    atoms.sort_by(|left, right| {
+        (
+            left.dimension_id(),
+            left.coefficient(),
+            left.intercept(),
+            left.relation(),
+            left.origin(),
+        )
+            .cmp(&(
+                right.dimension_id(),
+                right.coefficient(),
+                right.intercept(),
+                right.relation(),
+                right.origin(),
+            ))
+    });
+    atoms.dedup();
+    atoms.into_boxed_slice()
+}
+
+/// Recover exact affine truth-change boundaries from the producer-owned
+/// classification graph for scheduling only.
+///
+/// This first fragment deliberately accepts one exact direct-Before integer
+/// axis and one completely lowered FIND lane. The existing graph normalizer
+/// expands only frozen, acyclic pure callables. Any unsupported node, After
+/// dependency, quantized term, malformed identity, or capacity refusal yields
+/// no lifted candidates; the caller therefore retains endpoint-first plus the
+/// complete canonical residual sweep.
+pub(crate) fn derive_relational_lifted_affine_guard_atoms(
+    checked: &CheckedExploreQueryView<'_>,
+    graph: &FrozenClassificationProgram,
+    axis: &RelationalIntegerAxis,
+) -> Box<[RelationalCheckedGuardAtom]> {
+    try_derive_relational_lifted_affine_guard_atoms(checked, graph, axis)
+        .unwrap_or_else(|| Vec::new().into_boxed_slice())
+}
+
+fn try_derive_relational_lifted_affine_guard_atoms(
+    checked: &CheckedExploreQueryView<'_>,
+    graph: &FrozenClassificationProgram,
+    axis: &RelationalIntegerAxis,
+) -> Option<Box<[RelationalCheckedGuardAtom]>> {
+    if !graph.validate_identity()
+        || graph.graph_root() != checked.classification_program().graph_root()
+    {
+        return None;
+    }
+    let [question_id] = checked.question_ids() else {
+        return None;
+    };
+    let axis_root_id = required_lane_root(
+        graph,
+        ClassificationSemanticLane::SourceBinding(axis.binding_index()),
+    )
+    .ok()?;
+    if !axis_is_direct_before(checked, graph, axis_root_id, axis) {
+        return None;
+    }
+    let find_root_id =
+        required_lane_root(graph, ClassificationSemanticLane::Find(*question_id)).ok()?;
+    let integer_type = classification_node(graph, axis_root_id).ok()?.ty;
+    let boolean_type = classification_node(graph, find_root_id).ok()?.ty;
+    if integer_type == boolean_type {
+        return None;
+    }
+    let formula = RelationalGraphNormalizer::new(
+        graph,
+        axis,
+        RelationalGraphScalarTypes {
+            integer: integer_type,
+            boolean: boolean_type,
+        },
+        RelationalRegionExpressionLayer::Selection,
+        None,
+    )
+    .normalize_boolean(find_root_id)
+    .ok()?;
+
+    let graph_root = graph.graph_root().bytes();
+    let lane_root = find_root_id.bytes();
+    let mut formula_path = Vec::new();
+    let mut atoms = Vec::new();
+    collect_lifted_affine_guard_atoms(
+        &formula,
+        axis,
+        graph_root,
+        lane_root,
+        &mut formula_path,
+        &mut atoms,
+    )
+    .ok()?;
+    atoms.sort_by(|left, right| {
+        (
+            left.dimension_id(),
+            left.coefficient(),
+            left.intercept(),
+            left.relation(),
+            left.origin(),
+        )
+            .cmp(&(
+                right.dimension_id(),
+                right.coefficient(),
+                right.intercept(),
+                right.relation(),
+                right.origin(),
+            ))
+    });
+    atoms.dedup();
+    Some(atoms.into_boxed_slice())
+}
+
+fn collect_lifted_affine_guard_atoms(
+    formula: &RelationalBooleanFormula,
+    axis: &RelationalIntegerAxis,
+    graph_root: [u8; 32],
+    lane_root: [u8; 32],
+    formula_path: &mut Vec<u32>,
+    atoms: &mut Vec<RelationalCheckedGuardAtom>,
+) -> Result<(), ()> {
+    match formula {
+        RelationalBooleanFormula::Constant(_) => Ok(()),
+        RelationalBooleanFormula::Comparison {
+            difference,
+            relation,
+        } => {
+            if !difference.terms.is_empty() {
+                return Err(());
+            }
+            if difference.affine.coefficient == 0 {
+                return Ok(());
+            }
+            let relation = match relation {
+                RelationalRelation::Less => RelationalGuardRelation::Less,
+                RelationalRelation::LessOrEqual => RelationalGuardRelation::LessOrEqual,
+                RelationalRelation::Equal => RelationalGuardRelation::Equal,
+                RelationalRelation::NotEqual => RelationalGuardRelation::NotEqual,
+                RelationalRelation::GreaterOrEqual => RelationalGuardRelation::GreaterOrEqual,
+                RelationalRelation::Greater => RelationalGuardRelation::Greater,
+            };
+            atoms.push(
+                RelationalCheckedGuardAtom::from_frozen_classification_normal_form(
+                    axis,
+                    difference.affine.coefficient,
+                    difference.affine.intercept,
+                    relation,
+                    graph_root,
+                    lane_root,
+                    formula_path.clone(),
+                )
+                .map_err(|_| ())?,
+            );
+            Ok(())
+        }
+        RelationalBooleanFormula::Not(inner) => {
+            formula_path.push(0);
+            let result = collect_lifted_affine_guard_atoms(
+                inner,
+                axis,
+                graph_root,
+                lane_root,
+                formula_path,
+                atoms,
+            );
+            formula_path.pop();
+            result
+        }
+        RelationalBooleanFormula::All(parts) | RelationalBooleanFormula::Any(parts) => {
+            for (index, part) in parts.iter().enumerate() {
+                formula_path.push(u32::try_from(index).map_err(|_| ())?);
+                let result = collect_lifted_affine_guard_atoms(
+                    part,
+                    axis,
+                    graph_root,
+                    lane_root,
+                    formula_path,
+                    atoms,
+                );
+                formula_path.pop();
+                result?;
+            }
+            Ok(())
+        }
     }
 }
 
@@ -2719,6 +2974,9 @@ mod tests {
         decode_relational_journal_entry, encode_relational_journal_entry,
         RelationalJournalCodecLimits,
     };
+    use super::super::relational_proof_strategy::{
+        RelationalGuardOrigin, RelationalSplitOrigin, RelationalSplitPriority,
+    };
     use super::super::relational_support_planner::{
         prove_relational_case_image_injectivity, RelationalBindingStage, RelationalSupportPlanner,
     };
@@ -2767,6 +3025,34 @@ mod tests {
 }
 "#;
 
+    const LIFTED_AFFINE_WRAPPER_SOURCE: &str = r#"
+> above_threshold(x: Int) -> Bool { x >= 680 }
+
+? explore lifted_affine_wrapper {
+    from {
+        vary before in range(0, 700)
+        given context = 7
+    }
+
+    transition after = before + 1
+    find cases = matches of above_threshold(before)
+}
+"#;
+
+    const UNSUPPORTED_AFTER_WRAPPER_SOURCE: &str = r#"
+> above_threshold(x: Int) -> Bool { x >= 680 }
+
+? explore unsupported_after_wrapper {
+    from {
+        vary before in range(0, 700)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find cases = matches of above_threshold(after)
+}
+"#;
+
     fn bind_fixture_capsule(
         checked: &CheckedExploreQueryView<'_>,
         support_plan: &RelationalSupportPlan,
@@ -2791,6 +3077,165 @@ mod tests {
             ClassificationProvenanceRoot::from_checked_source_coverage_digest(provenance_digest),
         )
         .expect("bind the checked fixture classification capsule")
+    }
+
+    #[test]
+    fn callable_graph_lifts_a_stable_candidate_without_weakening_residual_cover() {
+        let mut lexer = Lexer::new(LIFTED_AFFINE_WRAPPER_SOURCE);
+        let statements = Parser::new(lexer.tokenize(), LIFTED_AFFINE_WRAPPER_SOURCE)
+            .parse_program()
+            .expect("parse lifted affine wrapper fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            LIFTED_AFFINE_WRAPPER_SOURCE,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join lifted affine wrapper query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for lifted affine wrapper");
+        let inventory = RelationalProofStrategyInventory::from_checked(&checked, &support_plan)
+            .expect("derive direct-AST strategy inventory");
+        let [axis] = inventory.axes() else {
+            panic!("fixture must expose exactly one independent integer axis")
+        };
+        assert!(
+            inventory.guard_atoms().is_empty(),
+            "the query AST contains a call, not the wrapped affine comparison"
+        );
+
+        let graph = checked.classification_program();
+        let lifted = derive_relational_lifted_affine_guard_atoms(&checked, graph.as_ref(), axis);
+        assert_eq!(
+            lifted,
+            derive_relational_lifted_affine_guard_atoms(&checked, graph.as_ref(), axis),
+            "the producer-owned graph must yield stable scheduling origins"
+        );
+        let [atom] = lifted.as_ref() else {
+            panic!("the pure callable must yield exactly one affine graph atom")
+        };
+        assert_eq!(atom.coefficient(), 1);
+        assert_eq!(atom.intercept(), -680);
+        assert_eq!(atom.relation(), RelationalGuardRelation::GreaterOrEqual);
+        match atom.origin() {
+            RelationalGuardOrigin::FrozenClassification {
+                graph_root,
+                lane_root,
+                ..
+            } => {
+                assert_eq!(*graph_root, graph.graph_root().bytes());
+                assert_eq!(
+                    *lane_root,
+                    required_lane_root(
+                        graph.as_ref(),
+                        ClassificationSemanticLane::Find(checked.question_ids()[0]),
+                    )
+                    .expect("fixture FIND lane is complete")
+                    .bytes()
+                );
+            }
+            origin => panic!("expected frozen-classification origin, found {origin:?}"),
+        }
+
+        let plan = inventory
+            .plan_axis(axis.dimension_id(), &lifted, None)
+            .expect("plan the graph-lifted affine boundary");
+        let [candidate] = plan.candidates() else {
+            panic!("the lifted atom must yield exactly one split candidate")
+        };
+        assert_eq!(candidate.coordinate(), 680);
+        assert_eq!(candidate.value_boundary(), 680);
+        assert_eq!(
+            candidate.priority(),
+            RelationalSplitPriority::LiftedCandidate
+        );
+        assert!(matches!(
+            candidate.origins(),
+            [RelationalSplitOrigin::CheckedGuard(
+                RelationalGuardOrigin::FrozenClassification { .. }
+            )]
+        ));
+
+        let planned_intervals = plan
+            .intervals()
+            .iter()
+            .map(|interval| (interval.start(), interval.end_exclusive()))
+            .collect::<Vec<_>>();
+        let residual_intervals = plan
+            .residual_materialization()
+            .iter()
+            .map(|residual| {
+                residual
+                    .coordinate_interval()
+                    .expect("every lifted interval remains concrete fallback work")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(planned_intervals, [(0, 680), (680, 700)]);
+        assert_eq!(residual_intervals, planned_intervals);
+        assert!(!plan.establishes_complement_closure());
+    }
+
+    #[test]
+    fn after_dependent_callable_fails_closed_to_the_full_residual_axis() {
+        let mut lexer = Lexer::new(UNSUPPORTED_AFTER_WRAPPER_SOURCE);
+        let statements = Parser::new(lexer.tokenize(), UNSUPPORTED_AFTER_WRAPPER_SOURCE)
+            .parse_program()
+            .expect("parse unsupported After wrapper fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            UNSUPPORTED_AFTER_WRAPPER_SOURCE,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join unsupported After wrapper query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for unsupported After wrapper");
+        let inventory = RelationalProofStrategyInventory::from_checked(&checked, &support_plan)
+            .expect("derive fallback strategy inventory");
+        let [axis] = inventory.axes() else {
+            panic!("fixture must expose exactly one independent integer axis")
+        };
+        assert!(inventory.guard_atoms().is_empty());
+        assert!(derive_relational_lifted_affine_guard_atoms(
+            &checked,
+            checked.classification_program().as_ref(),
+            axis,
+        )
+        .is_empty());
+
+        let plan = inventory
+            .plan_axis(axis.dimension_id(), &[], None)
+            .expect("retain the unsupported fixture's full fallback plan");
+        assert!(plan.candidates().is_empty());
+        assert_eq!(
+            plan.intervals()
+                .iter()
+                .map(|interval| (interval.start(), interval.end_exclusive()))
+                .collect::<Vec<_>>(),
+            [(0, 700)]
+        );
+        assert_eq!(
+            plan.residual_materialization()
+                .iter()
+                .map(|residual| residual.coordinate_interval())
+                .collect::<Vec<_>>(),
+            [Some((0, 700))]
+        );
+        assert!(!plan.establishes_complement_closure());
     }
 
     #[test]

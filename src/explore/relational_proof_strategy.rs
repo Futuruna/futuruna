@@ -35,7 +35,12 @@ use super::support_evidence::{
     SupportEvidenceRecord, SupportEvidenceRoot, SupportEvidenceSnapshot, SupportObligationRecord,
 };
 use super::ExploreExactDomain;
-use crate::{CheckedExploreQueryView, Expr, ExprKind, Literal};
+use crate::{
+    checked_explore_source_events::{
+        CheckedExploreBoundaryOccurrenceId, CheckedExploreSourceEventId,
+    },
+    CheckedExploreQueryView, Expr, ExprKind, Literal,
+};
 
 pub(crate) const RELATIONAL_PROOF_STRATEGY_VERSION: u32 = 1;
 
@@ -276,11 +281,23 @@ pub(crate) enum RelationalGuardOrigin {
         question_id: QuestionId,
         ast_path: Box<[u32]>,
     },
-    /// A future checked rule-graph adapter can contribute an exact semantic
-    /// site digest without exposing a backend or source path.
-    CheckedRule {
-        semantic_site_digest: [u8; 32],
-        ast_path: Box<[u32]>,
+    /// An affine comparison recovered from the producer-owned frozen
+    /// classification graph. The graph and semantic-lane roots bind the exact
+    /// checked program meaning; `formula_path` distinguishes comparisons in
+    /// the deterministically normalized Boolean formula without depending on
+    /// source spelling or a runtime trace.
+    FrozenClassification {
+        graph_root: [u8; 32],
+        lane_root: [u8; 32],
+        formula_path: Box<[u32]>,
+    },
+    /// One compiler-minted rule/source boundary occurrence. These identities
+    /// commit the complete checked inventory and its stable semantic event;
+    /// source names and syntax paths remain diagnostic-only elsewhere.
+    SourceEvent {
+        inventory_root: [u8; 32],
+        source_event_id: [u8; 32],
+        occurrence_id: [u8; 32],
     },
 }
 
@@ -299,16 +316,18 @@ pub(crate) struct RelationalCheckedGuardAtom {
 }
 
 impl RelationalCheckedGuardAtom {
-    /// Adapter seam for a future checked rule-normalization pass. Supplying a
-    /// bogus atom can only worsen scheduling: the resulting candidates still
-    /// carry no proof authority and exact fallback remains mandatory.
-    pub(crate) fn from_checked_rule_normal_form(
+    /// Lift one exact affine comparison from the checked classification graph
+    /// into scheduling. This carries no proof authority: it only changes which
+    /// canonical chunk is attempted first, while residual materialization
+    /// remains mandatory.
+    pub(crate) fn from_frozen_classification_normal_form(
         axis: &RelationalIntegerAxis,
         coefficient: i128,
         intercept: i128,
         relation: RelationalGuardRelation,
-        semantic_site_digest: [u8; 32],
-        ast_path: impl Into<Box<[u32]>>,
+        graph_root: [u8; 32],
+        lane_root: [u8; 32],
+        formula_path: impl Into<Box<[u32]>>,
     ) -> Result<Self, RelationalProofStrategyError> {
         if coefficient == 0 {
             return Err(RelationalProofStrategyError::ConstantGuardAtom);
@@ -320,9 +339,40 @@ impl RelationalCheckedGuardAtom {
             coefficient,
             intercept,
             relation,
-            origin: RelationalGuardOrigin::CheckedRule {
-                semantic_site_digest,
-                ast_path: ast_path.into(),
+            origin: RelationalGuardOrigin::FrozenClassification {
+                graph_root,
+                lane_root,
+                formula_path: formula_path.into(),
+            },
+        })
+    }
+
+    /// Adapter from a compiler-minted checked source event. Supplying a bogus
+    /// atom can only worsen scheduling: the resulting candidates still carry
+    /// no proof authority and exact fallback remains mandatory.
+    pub(crate) fn from_checked_source_event_normal_form(
+        axis: &RelationalIntegerAxis,
+        coefficient: i128,
+        intercept: i128,
+        relation: RelationalGuardRelation,
+        inventory_root: [u8; 32],
+        source_event_id: CheckedExploreSourceEventId,
+        occurrence_id: CheckedExploreBoundaryOccurrenceId,
+    ) -> Result<Self, RelationalProofStrategyError> {
+        if coefficient == 0 {
+            return Err(RelationalProofStrategyError::ConstantGuardAtom);
+        }
+        affine_bounds_over_axis(axis, coefficient, intercept)?;
+        Ok(Self {
+            plan_root: axis.plan_root,
+            dimension_id: axis.dimension_id,
+            coefficient,
+            intercept,
+            relation,
+            origin: RelationalGuardOrigin::SourceEvent {
+                inventory_root,
+                source_event_id: source_event_id.bytes(),
+                occurrence_id: occurrence_id.bytes(),
             },
         })
     }
@@ -349,6 +399,18 @@ impl RelationalCheckedGuardAtom {
 
     pub(crate) const fn origin(&self) -> &RelationalGuardOrigin {
         &self.origin
+    }
+
+    const fn split_priority(&self) -> RelationalSplitPriority {
+        match &self.origin {
+            RelationalGuardOrigin::Admission { .. } | RelationalGuardOrigin::Selection { .. } => {
+                RelationalSplitPriority::CheckedGuardBoundary
+            }
+            RelationalGuardOrigin::FrozenClassification { .. } => {
+                RelationalSplitPriority::LiftedCandidate
+            }
+            RelationalGuardOrigin::SourceEvent { .. } => RelationalSplitPriority::SourceEvent,
+        }
     }
 }
 
@@ -756,7 +818,7 @@ impl RelationalProofStrategyInventory {
                     &mut candidates,
                     coordinate,
                     value_boundary,
-                    RelationalSplitPriority::CheckedGuardBoundary,
+                    atom.split_priority(),
                     RelationalSplitOrigin::CheckedGuard(atom.origin.clone()),
                 )?;
             }
@@ -1360,6 +1422,8 @@ impl RelationalIntervalCertificateObligation {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub(crate) enum RelationalSplitPriority {
     CheckedGuardBoundary,
+    SourceEvent,
+    LiftedCandidate,
     CertifiedPieceBoundary,
     CertificateAuthorizedMidpoint,
 }

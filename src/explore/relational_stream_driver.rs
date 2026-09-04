@@ -30,7 +30,9 @@ use super::relational_analysis_journal::RelationalAnalysisJournalError;
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanError,
 };
-use super::relational_candidate_schedule::RelationalCandidateScheduleReason;
+use super::relational_candidate_schedule::{
+    RelationalCandidateNominationRoot, RelationalCandidateScheduleReason,
+};
 use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_incidence_result_step_driver::{
@@ -176,6 +178,15 @@ pub(crate) enum RelationalStreamQuantum {
     CloseAnalysis,
 }
 
+impl RelationalStreamQuantum {
+    const fn candidate_nomination_root(self) -> Option<RelationalCandidateNominationRoot> {
+        match self {
+            Self::Base(quantum) => quantum.candidate_nomination_root(),
+            _ => None,
+        }
+    }
+}
+
 /// Ordered, unapplied frames bound to one exact journal prefix. Construction
 /// is centralized so coordinator batches cannot omit scheduling provenance.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -202,10 +213,17 @@ impl RelationalStreamBatch {
             decision_matches_quantum(decision, quantum),
             "coordinator decision must match its emitted quantum"
         );
+        let nomination_root = quantum.candidate_nomination_root();
+        assert_eq!(
+            decision.requires_candidate_nomination_root(),
+            nomination_root.is_some(),
+            "candidate decisions must carry exactly one nomination root"
+        );
         let mut recorded = Vec::with_capacity(events.len().saturating_add(1));
         let work_fingerprint = relational_scheduler_work_fingerprint(decision, &events);
         recorded.push(RelationalJournalEvent::scheduler_decision_recorded(
             decision,
+            nomination_root,
             work_fingerprint,
         ));
         recorded.extend(events);
@@ -272,6 +290,8 @@ const fn decision_matches_quantum(
         ),
         RelationalSchedulerDecision::BaseFrontier
         | RelationalSchedulerDecision::BaseCandidateCheckedGuard
+        | RelationalSchedulerDecision::BaseCandidateSourceEvent
+        | RelationalSchedulerDecision::BaseCandidateLifted
         | RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
         | RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
         | RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint
@@ -391,6 +411,11 @@ const fn mechanism_support_facet(facet: ExploreMechanismSupportFacetIr) -> Mecha
 }
 
 impl<'query> RelationalStreamDriver<'query> {
+    #[cfg(test)]
+    pub(crate) fn force_canonical_chunk_order_for_test(&mut self) {
+        self.base.force_canonical_chunk_order_for_test();
+    }
+
     /// Reject a registered durable plan which is not the plan rebuilt from
     /// the current checked query. A fresh journal legitimately has no plan
     /// yet; the first semantic quantum will register it.
@@ -1281,6 +1306,12 @@ const fn base_scheduler_decision(quantum: RelationalStepQuantum) -> RelationalSc
         Some(RelationalCandidateScheduleReason::CheckedGuardBoundary) => {
             RelationalSchedulerDecision::BaseCandidateCheckedGuard
         }
+        Some(RelationalCandidateScheduleReason::SourceEvent) => {
+            RelationalSchedulerDecision::BaseCandidateSourceEvent
+        }
+        Some(RelationalCandidateScheduleReason::LiftedCandidate) => {
+            RelationalSchedulerDecision::BaseCandidateLifted
+        }
         Some(RelationalCandidateScheduleReason::CertifiedPieceBoundary) => {
             RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
         }
@@ -1312,6 +1343,12 @@ const fn base_decision_matches_quantum(
         ) | (
             RelationalSchedulerDecision::BaseCandidateCheckedGuard,
             RelationalSchedulerDecision::BaseCandidateCheckedGuard
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateSourceEvent,
+            RelationalSchedulerDecision::BaseCandidateSourceEvent
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateLifted,
+            RelationalSchedulerDecision::BaseCandidateLifted
         ) | (
             RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
             RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
@@ -1346,6 +1383,14 @@ mod tests {
                 RelationalSchedulerDecision::BaseCandidateCheckedGuard,
             ),
             (
+                RelationalCandidateScheduleReason::SourceEvent,
+                RelationalSchedulerDecision::BaseCandidateSourceEvent,
+            ),
+            (
+                RelationalCandidateScheduleReason::LiftedCandidate,
+                RelationalSchedulerDecision::BaseCandidateLifted,
+            ),
+            (
                 RelationalCandidateScheduleReason::CertifiedPieceBoundary,
                 RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
             ),
@@ -1372,6 +1417,9 @@ mod tests {
                 chunk_ordinal: 0,
                 certificate_id: [0; 32],
                 schedule_reason: reason,
+                nomination_root: RelationalCandidateNominationRoot::from_journal_codec_bytes(
+                    [0x44; 32],
+                ),
             });
             assert!(decision_matches_quantum(expected, quantum));
             assert!(!decision_matches_quantum(

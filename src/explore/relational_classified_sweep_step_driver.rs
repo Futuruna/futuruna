@@ -23,7 +23,8 @@ use super::relational_bounded_chunk_partition::{
 use super::relational_candidate_schedule::{
     schedule_relational_candidate_chunks, schedule_relational_endpoint_chunks,
     RelationalCandidateChunkSchedule, RelationalCandidateChunkTarget,
-    RelationalCandidateLiftDisposition, RelationalCandidateScheduleReason,
+    RelationalCandidateLiftDisposition, RelationalCandidateNominationRoot,
+    RelationalCandidateScheduleReason,
 };
 use super::relational_classification_capsule::{
     ClassificationProvenanceRoot, ClassificationSpecializationRoot,
@@ -38,13 +39,16 @@ use super::relational_classified_sweep::{
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_journal::{
     RelationalJournal, RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
-    RelationalSchedulerView,
+    RelationalSchedulerView, RELATIONAL_SCHEDULER_POLICY_VERSION,
 };
 use super::relational_native_classifier::{
     RelationalNativeClassifierFallbackBackendV2, RelationalNativeClassifierV2,
 };
 use super::relational_proof_strategy::{
     RelationalProofStrategyError, RelationalProofStrategyInventory,
+};
+use super::relational_region_proof::{
+    derive_relational_lifted_affine_guard_atoms, derive_relational_source_event_guard_atoms,
 };
 use super::relational_support_planner::{
     prove_relational_case_image_injectivity, RelationalCaseImageInjectivityProofError,
@@ -70,6 +74,7 @@ pub(crate) struct RelationalClassifiedSweepStepQuantum {
     interval_start: u128,
     interval_end_exclusive: u128,
     schedule_reason: RelationalCandidateScheduleReason,
+    nomination_root: RelationalCandidateNominationRoot,
     slice_artifact_id: Option<RelationalClassifiedChunkSliceId>,
     evaluated_member_count: u16,
     classified_artifact_id: Option<RelationalClassifiedChunkArtifactId>,
@@ -98,6 +103,10 @@ impl RelationalClassifiedSweepStepQuantum {
 
     pub(crate) const fn schedule_reason(self) -> RelationalCandidateScheduleReason {
         self.schedule_reason
+    }
+
+    pub(crate) const fn nomination_root(self) -> RelationalCandidateNominationRoot {
+        self.nomination_root
     }
 
     pub(crate) const fn slice_artifact_id(self) -> Option<RelationalClassifiedChunkSliceId> {
@@ -288,14 +297,38 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             let strategy_inventory =
                 RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
             let axis_plans = match strategy_inventory.axes() {
-                [axis] => vec![strategy_inventory.plan_axis(axis.dimension_id(), &[], None)?],
+                [axis] => {
+                    let classification_program = checked.classification_program();
+                    let lifted_atoms = derive_relational_lifted_affine_guard_atoms(
+                        checked,
+                        classification_program.as_ref(),
+                        axis,
+                    );
+                    let mut scheduling_atoms =
+                        derive_relational_source_event_guard_atoms(checked, axis).into_vec();
+                    scheduling_atoms.extend(lifted_atoms.into_vec());
+                    match strategy_inventory.plan_axis(axis.dimension_id(), &scheduling_atoms, None)
+                    {
+                        Ok(plan) => vec![plan],
+                        Err(_) if !scheduling_atoms.is_empty() => {
+                            vec![strategy_inventory.plan_axis(axis.dimension_id(), &[], None)?]
+                        }
+                        Err(error) => return Err(error.into()),
+                    }
+                }
                 _ => Vec::new(),
             };
-            schedule_relational_candidate_chunks(&strategy_inventory, &axis_plans, &partition)
+            schedule_relational_candidate_chunks(
+                &strategy_inventory,
+                &axis_plans,
+                &partition,
+                RELATIONAL_SCHEDULER_POLICY_VERSION,
+            )
         } else {
             schedule_relational_endpoint_chunks(
                 &partition,
                 RelationalCandidateLiftDisposition::QuestionSetNotUnary,
+                RELATIONAL_SCHEDULER_POLICY_VERSION,
             )
         };
         if !candidate_schedule.has_exact_nonoverlapping_cover(&partition)
@@ -353,6 +386,20 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
 
     pub(crate) const fn candidate_schedule(&self) -> &RelationalCandidateChunkSchedule {
         &self.candidate_schedule
+    }
+
+    #[cfg(test)]
+    pub(crate) fn force_canonical_chunk_order_for_test(&mut self) {
+        self.candidate_schedule =
+            super::relational_candidate_schedule::schedule_relational_canonical_chunks_for_test(
+                &self.partition,
+                RELATIONAL_SCHEDULER_POLICY_VERSION,
+            );
+        debug_assert!(
+            self.candidate_schedule
+                .has_exact_nonoverlapping_cover(&self.partition)
+                && !self.candidate_schedule.establishes_complement_closure()
+        );
     }
 
     /// Select candidate-first work from durable sparse completion facts. An
@@ -590,6 +637,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 interval_start: chunk.descriptor().interval_start(),
                 interval_end_exclusive: chunk.descriptor().interval_end_exclusive(),
                 schedule_reason: target.primary_reason(),
+                nomination_root: target.nomination_root(),
                 slice_artifact_id: None,
                 evaluated_member_count: 0,
                 classified_artifact_id: Some(classified_artifact.id()),
@@ -702,6 +750,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             interval_start: chunk.descriptor().interval_start(),
             interval_end_exclusive: chunk.descriptor().interval_end_exclusive(),
             schedule_reason: target.primary_reason(),
+            nomination_root: target.nomination_root(),
             slice_artifact_id: Some(slice_artifact_id),
             evaluated_member_count: evaluated_member_count.get(),
             classified_artifact_id,

@@ -59,6 +59,7 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkPartitionArtifactId, RelationalCaseChunkPartitionError,
     RelationalCaseChunkShape, RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1,
 };
+use super::relational_candidate_schedule::RelationalCandidateNominationRoot;
 use super::relational_case_executor::{
     RelationalCaseExecutorError, SuccessorFiberExhaustionReceipt, SuccessorFiberExhaustionReceiptId,
 };
@@ -180,7 +181,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 22;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 23;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -7345,6 +7346,8 @@ fn decode_scheduler_decision(
         0x0f => Ok(RelationalSchedulerDecision::BaseCandidateCertificateMidpoint),
         0x10 => Ok(RelationalSchedulerDecision::BaseCandidateResidual),
         0x11 => Ok(RelationalSchedulerDecision::BaseClassifiedPrefixAdvance),
+        0x12 => Ok(RelationalSchedulerDecision::BaseCandidateSourceEvent),
+        0x13 => Ok(RelationalSchedulerDecision::BaseCandidateLifted),
         tag => Err(RelationalJournalCodecError::UnknownTag {
             component: "relational scheduler decision",
             tag,
@@ -7360,11 +7363,19 @@ fn encode_checkpoint_event(
         RelationalCheckpointEvent::SchedulerDecisionRecorded {
             policy_version,
             decision,
+            nomination_root,
             work_fingerprint,
         } => {
             encoder.tag(0x0c)?;
             encoder.u32(*policy_version)?;
             encode_scheduler_decision(encoder, *decision)?;
+            match nomination_root {
+                Some(root) => {
+                    encoder.tag(0x01)?;
+                    encoder.digest(root.bytes())?;
+                }
+                None => encoder.tag(0x00)?,
+            }
             encoder.digest(*work_fingerprint)
         }
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
@@ -7454,6 +7465,18 @@ fn decode_checkpoint_event(
         0x0c => Ok(RelationalCheckpointEvent::SchedulerDecisionRecorded {
             policy_version: reader.u32()?,
             decision: decode_scheduler_decision(reader)?,
+            nomination_root: match reader.tag()? {
+                0x00 => None,
+                0x01 => Some(RelationalCandidateNominationRoot::from_journal_codec_bytes(
+                    reader.digest()?,
+                )),
+                tag => {
+                    return Err(RelationalJournalCodecError::UnknownTag {
+                        component: "candidate nomination root option",
+                        tag,
+                    });
+                }
+            },
             work_fingerprint: reader.digest()?,
         }),
         0x01 => {
@@ -8075,6 +8098,8 @@ mod tests {
             (RelationalSchedulerDecision::ReadyMechanism, 6),
             (RelationalSchedulerDecision::BaseFrontier, 7),
             (RelationalSchedulerDecision::BaseCandidateCheckedGuard, 7),
+            (RelationalSchedulerDecision::BaseCandidateSourceEvent, 7),
+            (RelationalSchedulerDecision::BaseCandidateLifted, 7),
             (
                 RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
                 7,
@@ -8102,8 +8127,15 @@ mod tests {
         for (index, (decision, expected_priority)) in decisions.into_iter().enumerate() {
             assert_eq!(decision.priority(), expected_priority);
             assert!(tags.insert(decision.canonical_tag()));
+            let nomination_root = decision.requires_candidate_nomination_root().then(|| {
+                RelationalCandidateNominationRoot::from_journal_codec_bytes([index as u8; 32])
+            });
             let RelationalJournalEvent::Checkpoint(event) =
-                RelationalJournalEvent::scheduler_decision_recorded(decision, [index as u8; 32])
+                RelationalJournalEvent::scheduler_decision_recorded(
+                    decision,
+                    nomination_root,
+                    [index as u8; 32],
+                )
             else {
                 unreachable!("scheduler decisions are checkpoint events")
             };
@@ -8149,6 +8181,7 @@ mod tests {
                     policy_version:
                         super::super::relational_journal::RELATIONAL_SCHEDULER_POLICY_VERSION + 1,
                     decision: RelationalSchedulerDecision::BaseFrontier,
+                    nomination_root: None,
                     work_fingerprint: [0x5a; 32],
                 },
             ))
@@ -8162,6 +8195,112 @@ mod tests {
         ));
         assert_eq!(journal.next_sequence(), expected_sequence);
         assert_eq!(journal.head(), expected_head);
+    }
+
+    #[test]
+    fn journal_fold_rejects_candidate_nomination_root_shape_mismatches() {
+        let relation = RelationId::from_canonical_semantic_preimage(b"nomination-shape relation");
+        let admission =
+            AdmissionId::from_canonical_admission_preimage(relation, b"nomination-shape admission");
+        let question = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"nomination-shape question",
+            FindPolarity::All,
+        );
+        let contract = RelationalJournalContract::new(
+            relation,
+            admission,
+            [question],
+            super::super::StateSchemaId::from_bytes([1; 32]),
+            super::super::ContextSchemaId::from_bytes([2; 32]),
+            super::super::TransitionTypeId::from_bytes([3; 32]),
+            [0; 32],
+        );
+        let nomination_root =
+            RelationalCandidateNominationRoot::from_journal_codec_bytes([0xa5; 32]);
+
+        let mut missing = RelationalJournal::new(contract.clone());
+        assert!(matches!(
+            missing.append(RelationalJournalEvent::scheduler_decision_recorded(
+                RelationalSchedulerDecision::BaseCandidateLifted,
+                None,
+                [0x11; 32],
+            )),
+            Err(RelationalJournalError::CandidateNominationRootMissing {
+                decision: RelationalSchedulerDecision::BaseCandidateLifted,
+            })
+        ));
+
+        let mut unexpected = RelationalJournal::new(contract);
+        assert!(matches!(
+            unexpected.append(RelationalJournalEvent::scheduler_decision_recorded(
+                RelationalSchedulerDecision::BaseFrontier,
+                Some(nomination_root),
+                [0x22; 32],
+            )),
+            Err(RelationalJournalError::UnexpectedCandidateNominationRoot {
+                decision: RelationalSchedulerDecision::BaseFrontier,
+            })
+        ));
+    }
+
+    #[test]
+    fn encoded_candidate_nomination_root_tamper_breaks_the_journal_head() {
+        let relation = RelationId::from_canonical_semantic_preimage(b"nomination-tamper relation");
+        let admission = AdmissionId::from_canonical_admission_preimage(
+            relation,
+            b"nomination-tamper admission",
+        );
+        let question = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"nomination-tamper question",
+            FindPolarity::All,
+        );
+        let contract = RelationalJournalContract::new(
+            relation,
+            admission,
+            [question],
+            super::super::StateSchemaId::from_bytes([1; 32]),
+            super::super::ContextSchemaId::from_bytes([2; 32]),
+            super::super::TransitionTypeId::from_bytes([3; 32]),
+            [0; 32],
+        );
+        let mut journal = RelationalJournal::new(contract.clone());
+        let expected_sequence = journal.next_sequence();
+        let expected_head = journal.head();
+        let root_bytes = [0xa5; 32];
+        let encoded = encode_relational_journal_entry(
+            journal
+                .append(RelationalJournalEvent::scheduler_decision_recorded(
+                    RelationalSchedulerDecision::BaseCandidateLifted,
+                    Some(RelationalCandidateNominationRoot::from_journal_codec_bytes(
+                        root_bytes,
+                    )),
+                    [0x5a; 32],
+                ))
+                .expect("append authenticated candidate checkpoint"),
+            RelationalJournalCodecLimits::default(),
+        )
+        .expect("encode authenticated candidate checkpoint");
+        let mut tampered = encoded;
+        let root_offset = tampered
+            .windows(root_bytes.len())
+            .position(|window| window == root_bytes)
+            .expect("encoded checkpoint contains nomination root");
+        tampered[root_offset] ^= 0x01;
+
+        assert!(matches!(
+            decode_relational_journal_entry(
+                contract,
+                expected_sequence,
+                expected_head,
+                &tampered,
+                RelationalJournalCodecLimits::default(),
+            ),
+            Err(RelationalJournalCodecError::Journal(
+                RelationalJournalError::EntryHeadMismatch { .. }
+            ))
+        ));
     }
 
     #[test]

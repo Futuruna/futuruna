@@ -55,6 +55,7 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkPartitionError, RelationalCaseChunkShape,
     VerifiedRelationalCaseChunkPartition,
 };
+use super::relational_candidate_schedule::RelationalCandidateNominationRoot;
 use super::relational_case_executor::{
     SuccessorFiberExhaustionReceipt, SuccessorFiberExhaustionReceiptId,
 };
@@ -132,13 +133,16 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 27;
-pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 28;
+/// V3 adds distinct authenticated SourceEvent and LiftedCandidate decisions.
+/// The ordering and reason are observable journal policy, even though neither
+/// participates in arrival-order-independent semantic evidence roots.
+pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 3;
 
-const JOURNAL_CONTRACT_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-contract.v27";
-const JOURNAL_GENESIS_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-genesis.v27";
-const JOURNAL_EVENT_HASH_V23: &[u8] = b"futuruna.explore.relational-journal-event.v23";
-const JOURNAL_ENTRY_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-entry.v27";
+const JOURNAL_CONTRACT_HASH_V28: &[u8] = b"futuruna.explore.relational-journal-contract.v28";
+const JOURNAL_GENESIS_HASH_V28: &[u8] = b"futuruna.explore.relational-journal-genesis.v28";
+const JOURNAL_EVENT_HASH_V24: &[u8] = b"futuruna.explore.relational-journal-event.v24";
+const JOURNAL_ENTRY_HASH_V28: &[u8] = b"futuruna.explore.relational-journal-entry.v28";
 const SCHEDULER_WORK_FINGERPRINT_V2: &[u8] =
     b"futuruna.explore.relational-scheduler-work-fingerprint.v2";
 const CORE_EVIDENCE_ROOT_HASH_V6: &[u8] = b"futuruna.explore.relational-core-evidence-root.v6";
@@ -504,7 +508,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(&self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V27);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V28);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -534,7 +538,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V27);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V28);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -1098,6 +1102,8 @@ pub(crate) enum RelationalSchedulerDecision {
     ReadyMechanism,
     BaseFrontier,
     BaseCandidateCheckedGuard,
+    BaseCandidateSourceEvent,
+    BaseCandidateLifted,
     BaseCandidateCertifiedPieceBoundary,
     BaseCandidateLowerRangeEndpoint,
     BaseCandidateUpperRangeEndpoint,
@@ -1120,6 +1126,8 @@ impl RelationalSchedulerDecision {
             Self::ReadyMechanism => 6,
             Self::BaseFrontier
             | Self::BaseCandidateCheckedGuard
+            | Self::BaseCandidateSourceEvent
+            | Self::BaseCandidateLifted
             | Self::BaseCandidateCertifiedPieceBoundary
             | Self::BaseCandidateLowerRangeEndpoint
             | Self::BaseCandidateUpperRangeEndpoint
@@ -1150,7 +1158,23 @@ impl RelationalSchedulerDecision {
             Self::BaseCandidateCertificateMidpoint => 0x0f,
             Self::BaseCandidateResidual => 0x10,
             Self::BaseClassifiedPrefixAdvance => 0x11,
+            Self::BaseCandidateSourceEvent => 0x12,
+            Self::BaseCandidateLifted => 0x13,
         }
+    }
+
+    pub(crate) const fn requires_candidate_nomination_root(self) -> bool {
+        matches!(
+            self,
+            Self::BaseCandidateCheckedGuard
+                | Self::BaseCandidateSourceEvent
+                | Self::BaseCandidateLifted
+                | Self::BaseCandidateCertifiedPieceBoundary
+                | Self::BaseCandidateLowerRangeEndpoint
+                | Self::BaseCandidateUpperRangeEndpoint
+                | Self::BaseCandidateCertificateMidpoint
+                | Self::BaseCandidateResidual
+        )
     }
 }
 
@@ -1166,6 +1190,7 @@ pub(crate) enum RelationalCheckpointEvent {
     SchedulerDecisionRecorded {
         policy_version: u32,
         decision: RelationalSchedulerDecision,
+        nomination_root: Option<RelationalCandidateNominationRoot>,
         /// Canonical digest of the complete ordered work-event batch selected
         /// at this prefix. A decision-only crash prefix therefore still says
         /// exactly what was attempted, without making that work semantic
@@ -1256,11 +1281,13 @@ pub(crate) enum RelationalJournalEvent {
 impl RelationalJournalEvent {
     pub(crate) const fn scheduler_decision_recorded(
         decision: RelationalSchedulerDecision,
+        nomination_root: Option<RelationalCandidateNominationRoot>,
         work_fingerprint: [u8; 32],
     ) -> Self {
         Self::Checkpoint(RelationalCheckpointEvent::SchedulerDecisionRecorded {
             policy_version: RELATIONAL_SCHEDULER_POLICY_VERSION,
             decision,
+            nomination_root,
             work_fingerprint,
         })
     }
@@ -5188,6 +5215,7 @@ impl RelationalEvidenceState {
             RelationalCheckpointEvent::SchedulerDecisionRecorded {
                 policy_version,
                 decision,
+                nomination_root,
                 ..
             } => {
                 if *policy_version != RELATIONAL_SCHEDULER_POLICY_VERSION {
@@ -5195,6 +5223,22 @@ impl RelationalEvidenceState {
                         expected: RELATIONAL_SCHEDULER_POLICY_VERSION,
                         actual: *policy_version,
                     });
+                }
+                match (
+                    decision.requires_candidate_nomination_root(),
+                    nomination_root.is_some(),
+                ) {
+                    (true, false) => {
+                        return Err(RelationalJournalError::CandidateNominationRootMissing {
+                            decision: *decision,
+                        });
+                    }
+                    (false, true) => {
+                        return Err(RelationalJournalError::UnexpectedCandidateNominationRoot {
+                            decision: *decision,
+                        });
+                    }
+                    _ => {}
                 }
                 let count = &mut self.scheduler_decision_counts[usize::from(decision.priority())];
                 *count = count
@@ -9123,6 +9167,12 @@ pub(crate) enum RelationalJournalError {
         expected: u32,
         actual: u32,
     },
+    CandidateNominationRootMissing {
+        decision: RelationalSchedulerDecision,
+    },
+    UnexpectedCandidateNominationRoot {
+        decision: RelationalSchedulerDecision,
+    },
     SupportFrontierRootClaimMismatch {
         request_id: MechanismRequestId,
         claimed: MechanismSupportFrontierRoot,
@@ -9694,6 +9744,14 @@ impl fmt::Display for RelationalJournalError {
                 formatter,
                 "relational scheduler policy version {actual} does not match supported version {expected}",
             ),
+            Self::CandidateNominationRootMissing { decision } => write!(
+                formatter,
+                "relational candidate scheduler decision {decision:?} is missing its nomination root",
+            ),
+            Self::UnexpectedCandidateNominationRoot { decision } => write!(
+                formatter,
+                "non-candidate relational scheduler decision {decision:?} carries a nomination root",
+            ),
             Self::SupportFrontierRootClaimMismatch { .. } => formatter.write_str(
                 "relational journal mechanism-support frontier claim does not match replay state",
             ),
@@ -10161,7 +10219,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V27);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V28);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -10170,7 +10228,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V23);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V24);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -10711,11 +10769,19 @@ fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointE
         RelationalCheckpointEvent::SchedulerDecisionRecorded {
             policy_version,
             decision,
+            nomination_root,
             work_fingerprint,
         } => {
             hasher.tag(0x12);
             hasher.u32(*policy_version);
             hasher.tag(decision.canonical_tag());
+            match nomination_root {
+                Some(root) => {
+                    hasher.tag(0x01);
+                    hasher.digest(root.bytes());
+                }
+                None => hasher.tag(0x00),
+            }
             hasher.digest(*work_fingerprint);
         }
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {

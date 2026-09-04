@@ -15,25 +15,55 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use sha2::{Digest, Sha256};
+
 use super::relational_bounded_chunk_partition::{
     RelationalCaseChunk, RelationalCaseChunkDescriptor, RelationalCaseChunkId,
     RelationalCaseChunkPartition, RelationalCaseChunkPartitionArtifactId, RelationalCaseChunkShape,
 };
 use super::relational_proof_strategy::{
-    RelationalAxisProofPlan, RelationalProofStrategyInventory, RelationalSplitOrigin,
-    RelationalSplitPriority,
+    RelationalAxisProofPlan, RelationalGuardOrigin, RelationalProofStrategyInventory,
+    RelationalSplitOrigin, RelationalSplitPriority,
 };
 use super::relational_support_planner::RelationalDimensionId;
+
+pub(crate) const RELATIONAL_CANDIDATE_NOMINATION_VERSION: u32 = 1;
+
+const CANDIDATE_NOMINATION_ROOT_V1: &[u8] =
+    b"futuruna.explore.relational-candidate-nomination-root.v1";
+
+/// Operational commitment to why one exact canonical chunk was selected.
+///
+/// The root is intentionally absent from semantic answer and proof identities.
+/// It authenticates scheduler provenance only: the policy/schema domain,
+/// partition and complete chunk descriptor, plus every sorted nomination and
+/// semantic origin that contributed to this target.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct RelationalCandidateNominationRoot([u8; 32]);
+
+impl RelationalCandidateNominationRoot {
+    pub(super) const fn from_journal_codec_bytes(bytes: [u8; 32]) -> Self {
+        Self(bytes)
+    }
+
+    pub(crate) const fn bytes(self) -> [u8; 32] {
+        self.0
+    }
+}
 
 /// Stable priority order for why a canonical chunk was nominated.
 ///
 /// Checked boundaries come first because they are direct possible truth-value
-/// changes. Certificate-proposed piece boundaries follow, then the two range
-/// endpoints, and only then a certificate-authorized midpoint. Every other
-/// chunk remains present as residual fallback in canonical ordinal order.
+/// changes. Compiler-minted source events, boundaries lifted from the
+/// producer-owned classification graph, and certificate-proposed piece
+/// boundaries follow, then the two range endpoints, and only then a
+/// certificate-authorized midpoint. Every other chunk remains present as
+/// residual fallback in canonical ordinal order.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) enum RelationalCandidateScheduleReason {
     CheckedGuardBoundary,
+    SourceEvent,
+    LiftedCandidate,
     CertifiedPieceBoundary,
     LowerRangeEndpoint,
     UpperRangeEndpoint,
@@ -45,10 +75,25 @@ impl RelationalCandidateScheduleReason {
     fn from_split_priority(priority: RelationalSplitPriority) -> Self {
         match priority {
             RelationalSplitPriority::CheckedGuardBoundary => Self::CheckedGuardBoundary,
+            RelationalSplitPriority::SourceEvent => Self::SourceEvent,
+            RelationalSplitPriority::LiftedCandidate => Self::LiftedCandidate,
             RelationalSplitPriority::CertifiedPieceBoundary => Self::CertifiedPieceBoundary,
             RelationalSplitPriority::CertificateAuthorizedMidpoint => {
                 Self::CertificateAuthorizedMidpoint
             }
+        }
+    }
+
+    const fn canonical_tag(self) -> u8 {
+        match self {
+            Self::CheckedGuardBoundary => 0x01,
+            Self::SourceEvent => 0x02,
+            Self::LiftedCandidate => 0x03,
+            Self::CertifiedPieceBoundary => 0x04,
+            Self::LowerRangeEndpoint => 0x05,
+            Self::UpperRangeEndpoint => 0x06,
+            Self::CertificateAuthorizedMidpoint => 0x07,
+            Self::ResidualFallback => 0x08,
         }
     }
 }
@@ -60,6 +105,17 @@ pub(crate) enum RelationalCandidateBoundarySide {
     UpperAdjacent,
     ExactEndpoint,
     WholeChunkResidual,
+}
+
+impl RelationalCandidateBoundarySide {
+    const fn canonical_tag(self) -> u8 {
+        match self {
+            Self::LowerAdjacent => 0x01,
+            Self::UpperAdjacent => 0x02,
+            Self::ExactEndpoint => 0x03,
+            Self::WholeChunkResidual => 0x04,
+        }
+    }
 }
 
 /// Operational provenance for one nomination of a canonical chunk.
@@ -196,6 +252,7 @@ impl RelationalCandidateLiftDisposition {
 pub(crate) struct RelationalCandidateChunkTarget {
     descriptor: RelationalCaseChunkDescriptor,
     nominations: Box<[RelationalCandidateChunkNomination]>,
+    nomination_root: RelationalCandidateNominationRoot,
 }
 
 impl RelationalCandidateChunkTarget {
@@ -205,6 +262,10 @@ impl RelationalCandidateChunkTarget {
 
     pub(crate) fn nominations(&self) -> &[RelationalCandidateChunkNomination] {
         &self.nominations
+    }
+
+    pub(crate) const fn nomination_root(&self) -> RelationalCandidateNominationRoot {
+        self.nomination_root
     }
 
     pub(crate) fn primary_reason(&self) -> RelationalCandidateScheduleReason {
@@ -224,6 +285,7 @@ impl RelationalCandidateChunkTarget {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalCandidateChunkSchedule {
     partition_id: RelationalCaseChunkPartitionArtifactId,
+    scheduler_policy_version: u32,
     lift_disposition: RelationalCandidateLiftDisposition,
     nominated: Box<[RelationalCandidateChunkTarget]>,
     /// Immutable ordinal lookup for resuming a multi-slice nominated chunk.
@@ -266,7 +328,9 @@ impl RelationalCandidateChunkSchedule {
                 usize::try_from(chunk_ordinal)
                     .ok()
                     .and_then(|index| partition.chunks().get(index))
-                    .map(residual_target)
+                    .map(|chunk| {
+                        residual_target(self.partition_id, self.scheduler_policy_version, chunk)
+                    })
             })
     }
 
@@ -304,7 +368,9 @@ impl RelationalCandidateChunkSchedule {
                         !self.nominated_ids.contains(&chunk.descriptor().id())
                             && !is_closed(chunk.descriptor().ordinal())
                     })
-                    .map(residual_target)
+                    .map(|chunk| {
+                        residual_target(self.partition_id, self.scheduler_policy_version, chunk)
+                    })
             })
     }
 
@@ -324,7 +390,9 @@ impl RelationalCandidateChunkSchedule {
                 .chunks()
                 .iter()
                 .filter(|chunk| !self.nominated_ids.contains(&chunk.descriptor().id()))
-                .map(residual_target),
+                .map(|chunk| {
+                    residual_target(self.partition_id, self.scheduler_policy_version, chunk)
+                }),
         );
         Some(targets.into_boxed_slice())
     }
@@ -380,6 +448,7 @@ pub(crate) fn schedule_relational_candidate_chunks(
     inventory: &RelationalProofStrategyInventory,
     axis_plans: &[RelationalAxisProofPlan],
     partition: &RelationalCaseChunkPartition,
+    scheduler_policy_version: u32,
 ) -> RelationalCandidateChunkSchedule {
     let mut nominations = BTreeMap::<u128, BTreeSet<RelationalCandidateChunkNomination>>::new();
 
@@ -400,11 +469,17 @@ pub(crate) fn schedule_relational_candidate_chunks(
 
     let lift_disposition =
         nominate_exact_lifted_candidates(inventory, axis_plans, partition, &mut nominations);
-    finish_schedule(partition, lift_disposition, nominations)
+    finish_schedule(
+        partition,
+        scheduler_policy_version,
+        lift_disposition,
+        nominations,
+    )
 }
 
 fn finish_schedule(
     partition: &RelationalCaseChunkPartition,
+    scheduler_policy_version: u32,
     lift_disposition: RelationalCandidateLiftDisposition,
     nominations: BTreeMap<u128, BTreeSet<RelationalCandidateChunkNomination>>,
 ) -> RelationalCandidateChunkSchedule {
@@ -413,12 +488,21 @@ fn finish_schedule(
         .filter_map(|(ordinal, nominations)| {
             let ordinal = usize::try_from(ordinal).ok()?;
             let chunk = partition.chunks().get(ordinal)?;
+            let descriptor = chunk.descriptor().clone();
+            let nominations = nominations
+                .into_iter()
+                .collect::<Vec<_>>()
+                .into_boxed_slice();
+            let nomination_root = derive_candidate_nomination_root(
+                scheduler_policy_version,
+                partition.artifact().id(),
+                &descriptor,
+                &nominations,
+            );
             Some(RelationalCandidateChunkTarget {
-                descriptor: chunk.descriptor().clone(),
-                nominations: nominations
-                    .into_iter()
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice(),
+                descriptor,
+                nominations,
+                nomination_root,
             })
         })
         .collect::<Vec<_>>();
@@ -435,6 +519,7 @@ fn finish_schedule(
 
     RelationalCandidateChunkSchedule {
         partition_id: partition.artifact().id(),
+        scheduler_policy_version,
         lift_disposition,
         nominated: nominated.into_boxed_slice(),
         nominated_index_by_ordinal,
@@ -449,6 +534,7 @@ fn finish_schedule(
 pub(crate) fn schedule_relational_endpoint_chunks(
     partition: &RelationalCaseChunkPartition,
     lift_disposition: RelationalCandidateLiftDisposition,
+    scheduler_policy_version: u32,
 ) -> RelationalCandidateChunkSchedule {
     let mut nominations = BTreeMap::<u128, BTreeSet<RelationalCandidateChunkNomination>>::new();
     nominate_endpoint(
@@ -465,7 +551,28 @@ pub(crate) fn schedule_relational_endpoint_chunks(
             &mut nominations,
         );
     }
-    finish_schedule(partition, lift_disposition, nominations)
+    finish_schedule(
+        partition,
+        scheduler_policy_version,
+        lift_disposition,
+        nominations,
+    )
+}
+
+/// Test-only control used to prove that candidate order cannot change final
+/// semantic evidence. Production has no scheduler toggle: it always uses the
+/// candidate-informed policy above.
+#[cfg(test)]
+pub(crate) fn schedule_relational_canonical_chunks_for_test(
+    partition: &RelationalCaseChunkPartition,
+    scheduler_policy_version: u32,
+) -> RelationalCandidateChunkSchedule {
+    finish_schedule(
+        partition,
+        scheduler_policy_version,
+        RelationalCandidateLiftDisposition::NoIntegerAxis,
+        BTreeMap::new(),
+    )
 }
 
 fn nominate_exact_lifted_candidates(
@@ -591,10 +698,190 @@ fn chunk_containing_coordinate(
         .map(|index| &chunks[index])
 }
 
-fn residual_target(chunk: &RelationalCaseChunk) -> RelationalCandidateChunkTarget {
+fn residual_target(
+    partition_id: RelationalCaseChunkPartitionArtifactId,
+    scheduler_policy_version: u32,
+    chunk: &RelationalCaseChunk,
+) -> RelationalCandidateChunkTarget {
+    let descriptor = chunk.descriptor().clone();
+    let nominations = vec![RelationalCandidateChunkNomination::residual()].into_boxed_slice();
+    let nomination_root = derive_candidate_nomination_root(
+        scheduler_policy_version,
+        partition_id,
+        &descriptor,
+        &nominations,
+    );
     RelationalCandidateChunkTarget {
-        descriptor: chunk.descriptor().clone(),
-        nominations: Box::new([RelationalCandidateChunkNomination::residual()]),
+        descriptor,
+        nominations,
+        nomination_root,
+    }
+}
+
+fn derive_candidate_nomination_root(
+    scheduler_policy_version: u32,
+    partition_id: RelationalCaseChunkPartitionArtifactId,
+    descriptor: &RelationalCaseChunkDescriptor,
+    nominations: &[RelationalCandidateChunkNomination],
+) -> RelationalCandidateNominationRoot {
+    let mut canonical_nominations = nominations.to_vec();
+    for nomination in &mut canonical_nominations {
+        let mut origins = nomination.origins.to_vec();
+        origins.sort();
+        nomination.origins = origins.into_boxed_slice();
+    }
+    canonical_nominations.sort();
+
+    let mut hasher = CandidateNominationHasher::new(CANDIDATE_NOMINATION_ROOT_V1);
+    hasher.u32(RELATIONAL_CANDIDATE_NOMINATION_VERSION);
+    hasher.u32(scheduler_policy_version);
+    hasher.digest(partition_id.bytes());
+    hasher.digest(descriptor.id().bytes());
+    hasher.u128(descriptor.ordinal());
+    hasher.digest(descriptor.cell_id().bytes());
+    hasher.u128(descriptor.interval_start());
+    hasher.u128(descriptor.interval_end_exclusive());
+    hasher.u64(canonical_nominations.len() as u64);
+    for nomination in &canonical_nominations {
+        hasher.u8(nomination.reason.canonical_tag());
+        hasher.u8(nomination.side.canonical_tag());
+        hasher.optional_digest(nomination.dimension_id.map(RelationalDimensionId::bytes));
+        hasher.optional_u128(nomination.split_coordinate);
+        hasher.optional_i128(nomination.value_boundary);
+        hasher.optional_u128(nomination.target_coordinate);
+        hasher.u64(nomination.origins.len() as u64);
+        for origin in &nomination.origins {
+            hash_candidate_origin(&mut hasher, origin);
+        }
+    }
+    RelationalCandidateNominationRoot(hasher.finish())
+}
+
+fn hash_candidate_origin(hasher: &mut CandidateNominationHasher, origin: &RelationalSplitOrigin) {
+    match origin {
+        RelationalSplitOrigin::CheckedGuard(origin) => {
+            hasher.u8(0x01);
+            match origin {
+                RelationalGuardOrigin::Admission {
+                    admission_id,
+                    admission_index,
+                    ast_path,
+                } => {
+                    hasher.u8(0x01);
+                    hasher.digest(admission_id.bytes());
+                    hasher.u32(*admission_index);
+                    hasher.path(ast_path);
+                }
+                RelationalGuardOrigin::Selection {
+                    question_id,
+                    ast_path,
+                } => {
+                    hasher.u8(0x02);
+                    hasher.digest(question_id.bytes());
+                    hasher.path(ast_path);
+                }
+                RelationalGuardOrigin::FrozenClassification {
+                    graph_root,
+                    lane_root,
+                    formula_path,
+                } => {
+                    hasher.u8(0x03);
+                    hasher.digest(*graph_root);
+                    hasher.digest(*lane_root);
+                    hasher.path(formula_path);
+                }
+                RelationalGuardOrigin::SourceEvent {
+                    inventory_root,
+                    source_event_id,
+                    occurrence_id,
+                } => {
+                    hasher.u8(0x04);
+                    hasher.digest(*inventory_root);
+                    hasher.digest(*source_event_id);
+                    hasher.digest(*occurrence_id);
+                }
+            }
+        }
+        RelationalSplitOrigin::CertificateObligation(obligation_id) => {
+            hasher.u8(0x02);
+            hasher.digest(obligation_id.bytes());
+        }
+    }
+}
+
+struct CandidateNominationHasher(Sha256);
+
+impl CandidateNominationHasher {
+    fn new(domain: &[u8]) -> Self {
+        let mut hasher = Self(Sha256::new());
+        hasher.u64(domain.len() as u64);
+        hasher.0.update(domain);
+        hasher
+    }
+
+    fn u8(&mut self, value: u8) {
+        self.0.update([value]);
+    }
+
+    fn u32(&mut self, value: u32) {
+        self.0.update(value.to_be_bytes());
+    }
+
+    fn u64(&mut self, value: u64) {
+        self.0.update(value.to_be_bytes());
+    }
+
+    fn u128(&mut self, value: u128) {
+        self.0.update(value.to_be_bytes());
+    }
+
+    fn i128(&mut self, value: i128) {
+        self.0.update(value.to_be_bytes());
+    }
+
+    fn digest(&mut self, value: [u8; 32]) {
+        self.0.update(value);
+    }
+
+    fn optional_digest(&mut self, value: Option<[u8; 32]>) {
+        match value {
+            Some(value) => {
+                self.u8(0x01);
+                self.digest(value);
+            }
+            None => self.u8(0x00),
+        }
+    }
+
+    fn optional_u128(&mut self, value: Option<u128>) {
+        match value {
+            Some(value) => {
+                self.u8(0x01);
+                self.u128(value);
+            }
+            None => self.u8(0x00),
+        }
+    }
+
+    fn optional_i128(&mut self, value: Option<i128>) {
+        match value {
+            Some(value) => {
+                self.u8(0x01);
+                self.i128(value);
+            }
+            None => self.u8(0x00),
+        }
+    }
+
+    fn path(&mut self, path: &[u32]) {
+        self.u64(path.len() as u64);
+        for component in path {
+            self.u32(*component);
+        }
+    }
+
+    fn finish(self) -> [u8; 32] {
+        self.0.finalize().into()
     }
 }
 
@@ -602,10 +889,29 @@ fn residual_target(chunk: &RelationalCaseChunk) -> RelationalCandidateChunkTarge
 mod tests {
     use super::*;
 
+    fn nomination_fixture_descriptor() -> RelationalCaseChunkDescriptor {
+        RelationalCaseChunkDescriptor::restore_from_canonical_parts(
+            RelationalCaseChunkId::from_canonical_bytes([0x11; 32]),
+            2,
+            super::super::support_cell::SupportCellId::from_journal_codec_bytes([0x22; 32]),
+            512,
+            700,
+        )
+        .expect("restore nomination-root fixture descriptor")
+    }
+
     #[test]
     fn reason_order_is_informative_then_endpoints_then_midpoint_then_residual() {
         assert!(
             RelationalCandidateScheduleReason::CheckedGuardBoundary
+                < RelationalCandidateScheduleReason::SourceEvent
+        );
+        assert!(
+            RelationalCandidateScheduleReason::SourceEvent
+                < RelationalCandidateScheduleReason::LiftedCandidate
+        );
+        assert!(
+            RelationalCandidateScheduleReason::LiftedCandidate
                 < RelationalCandidateScheduleReason::CertifiedPieceBoundary
         );
         assert!(
@@ -637,5 +943,185 @@ mod tests {
             .collect::<BTreeSet<_>>();
         assert_eq!(complete, (0u128..9).collect());
         assert_eq!(nominated.len() + residual.len(), complete.len());
+    }
+
+    #[test]
+    fn nomination_roots_commit_every_reason_origin_subject_and_canonical_order() {
+        let policy_version = 3;
+        let partition_id = RelationalCaseChunkPartitionArtifactId::from_canonical_bytes([0x33; 32]);
+        let descriptor = nomination_fixture_descriptor();
+        let dimension = RelationalDimensionId::from_journal_codec_bytes([0x44; 32]);
+        let relation = super::super::relation::RelationId::from_canonical_semantic_preimage(
+            b"candidate nomination root relation",
+        );
+        let admission = super::super::relation::AdmissionId::from_canonical_admission_preimage(
+            relation,
+            b"candidate nomination root admission",
+        );
+        let question = super::super::relation::QuestionId::from_canonical_find_preimage(
+            admission,
+            b"candidate nomination root question",
+            super::super::relation::FindPolarity::Matches,
+        );
+        let certificate =
+            super::super::support_cell::SupportProofObligationId::from_journal_codec_bytes(
+                [0x55; 32],
+            );
+        let checked_origin =
+            RelationalSplitOrigin::CheckedGuard(RelationalGuardOrigin::Selection {
+                question_id: question,
+                ast_path: Box::new([1, 2]),
+            });
+        let source_origin =
+            RelationalSplitOrigin::CheckedGuard(RelationalGuardOrigin::SourceEvent {
+                inventory_root: [0x65; 32],
+                source_event_id: [0x66; 32],
+                occurrence_id: [0x67; 32],
+            });
+        let lifted_origin =
+            RelationalSplitOrigin::CheckedGuard(RelationalGuardOrigin::FrozenClassification {
+                graph_root: [0x77; 32],
+                lane_root: [0x88; 32],
+                formula_path: Box::new([5, 6]),
+            });
+        let certificate_origin = RelationalSplitOrigin::CertificateObligation(certificate);
+
+        let lifted_nomination = |reason, origin: &RelationalSplitOrigin| {
+            RelationalCandidateChunkNomination::lifted(
+                reason,
+                RelationalCandidateBoundarySide::UpperAdjacent,
+                dimension,
+                680,
+                680,
+                680,
+                std::slice::from_ref(origin),
+            )
+        };
+        let root = |nomination: RelationalCandidateChunkNomination| {
+            derive_candidate_nomination_root(
+                policy_version,
+                partition_id,
+                &descriptor,
+                &[nomination],
+            )
+        };
+        let roots = [
+            root(lifted_nomination(
+                RelationalCandidateScheduleReason::CheckedGuardBoundary,
+                &checked_origin,
+            )),
+            root(lifted_nomination(
+                RelationalCandidateScheduleReason::SourceEvent,
+                &source_origin,
+            )),
+            root(lifted_nomination(
+                RelationalCandidateScheduleReason::LiftedCandidate,
+                &lifted_origin,
+            )),
+            root(lifted_nomination(
+                RelationalCandidateScheduleReason::CertifiedPieceBoundary,
+                &certificate_origin,
+            )),
+            root(RelationalCandidateChunkNomination::endpoint(
+                RelationalCandidateScheduleReason::LowerRangeEndpoint,
+                512,
+            )),
+            root(RelationalCandidateChunkNomination::endpoint(
+                RelationalCandidateScheduleReason::UpperRangeEndpoint,
+                699,
+            )),
+            root(lifted_nomination(
+                RelationalCandidateScheduleReason::CertificateAuthorizedMidpoint,
+                &certificate_origin,
+            )),
+            root(RelationalCandidateChunkNomination::residual()),
+        ];
+        assert_eq!(
+            roots.iter().copied().collect::<BTreeSet<_>>().len(),
+            roots.len()
+        );
+
+        let checked_nomination = lifted_nomination(
+            RelationalCandidateScheduleReason::CheckedGuardBoundary,
+            &checked_origin,
+        );
+        let source_nomination = lifted_nomination(
+            RelationalCandidateScheduleReason::SourceEvent,
+            &source_origin,
+        );
+        let forward = derive_candidate_nomination_root(
+            policy_version,
+            partition_id,
+            &descriptor,
+            &[checked_nomination.clone(), source_nomination.clone()],
+        );
+        let reversed = derive_candidate_nomination_root(
+            policy_version,
+            partition_id,
+            &descriptor,
+            &[source_nomination.clone(), checked_nomination.clone()],
+        );
+        assert_eq!(forward, reversed, "nomination order must be canonical");
+        let origin_forward = RelationalCandidateChunkNomination::lifted(
+            RelationalCandidateScheduleReason::SourceEvent,
+            RelationalCandidateBoundarySide::UpperAdjacent,
+            dimension,
+            680,
+            680,
+            680,
+            &[checked_origin.clone(), source_origin.clone()],
+        );
+        let origin_reversed = RelationalCandidateChunkNomination::lifted(
+            RelationalCandidateScheduleReason::SourceEvent,
+            RelationalCandidateBoundarySide::UpperAdjacent,
+            dimension,
+            680,
+            680,
+            680,
+            &[source_origin, checked_origin.clone()],
+        );
+        assert_eq!(
+            derive_candidate_nomination_root(
+                policy_version,
+                partition_id,
+                &descriptor,
+                &[origin_forward],
+            ),
+            derive_candidate_nomination_root(
+                policy_version,
+                partition_id,
+                &descriptor,
+                &[origin_reversed],
+            ),
+            "origin order must be canonical"
+        );
+        assert_ne!(
+            derive_candidate_nomination_root(
+                policy_version,
+                partition_id,
+                &descriptor,
+                &[checked_nomination.clone(), source_nomination.clone()],
+            ),
+            derive_candidate_nomination_root(
+                policy_version + 1,
+                partition_id,
+                &descriptor,
+                &[checked_nomination, source_nomination],
+            ),
+            "the root must commit scheduler policy"
+        );
+        assert_ne!(
+            roots[2],
+            derive_candidate_nomination_root(
+                policy_version,
+                RelationalCaseChunkPartitionArtifactId::from_canonical_bytes([0x99; 32]),
+                &descriptor,
+                &[lifted_nomination(
+                    RelationalCandidateScheduleReason::LiftedCandidate,
+                    &lifted_origin,
+                )],
+            ),
+            "the root must commit its partition subject"
+        );
     }
 }

@@ -30,7 +30,8 @@ use super::relation::{
     SourceKey,
 };
 use super::relational_candidate_schedule::{
-    RelationalCandidateChunkTarget, RelationalCandidateScheduleReason,
+    RelationalCandidateChunkTarget, RelationalCandidateNominationRoot,
+    RelationalCandidateScheduleReason,
 };
 use super::relational_case_executor::{
     RelationalCaseExecutor, RelationalCaseExecutorError, RelationalQuestionEvaluationPlan,
@@ -108,6 +109,7 @@ pub(crate) enum RelationalStepQuantum {
         chunk_ordinal: u128,
         certificate_id: [u8; 32],
         schedule_reason: RelationalCandidateScheduleReason,
+        nomination_root: RelationalCandidateNominationRoot,
     },
     AdvanceClassifiedPrefix {
         chunk_ordinal: u128,
@@ -116,11 +118,13 @@ pub(crate) enum RelationalStepQuantum {
     SeedClassifiedTargetWork {
         chunk_ordinal: u128,
         schedule_reason: RelationalCandidateScheduleReason,
+        nomination_root: RelationalCandidateNominationRoot,
         work_node_id: WorkNodeId,
     },
     CompleteClassifiedTargetWork {
         chunk_ordinal: u128,
         schedule_reason: RelationalCandidateScheduleReason,
+        nomination_root: RelationalCandidateNominationRoot,
         work_node_id: WorkNodeId,
     },
     SelectedRunMaterialization(RelationalSelectedRunStepQuantum),
@@ -189,6 +193,26 @@ pub(crate) enum RelationalStepQuantum {
         case_id: RelationalCaseId,
         decision: SelectionDecision,
     },
+}
+
+impl RelationalStepQuantum {
+    pub(crate) const fn candidate_nomination_root(
+        self,
+    ) -> Option<RelationalCandidateNominationRoot> {
+        match self {
+            Self::ClassifiedSweep(quantum) => Some(quantum.nomination_root()),
+            Self::CertifiedRegion {
+                nomination_root, ..
+            }
+            | Self::SeedClassifiedTargetWork {
+                nomination_root, ..
+            }
+            | Self::CompleteClassifiedTargetWork {
+                nomination_root, ..
+            } => Some(nomination_root),
+            _ => None,
+        }
+    }
 }
 
 /// A batch is valid only against the journal head from which it was planned.
@@ -264,6 +288,7 @@ pub(crate) enum RelationalStepOutcome {
 struct RelationalClassifiedTargetWork {
     chunk_ordinal: u128,
     schedule_reason: RelationalCandidateScheduleReason,
+    nomination_root: RelationalCandidateNominationRoot,
     cell_id: SupportCellId,
     obligation_id: SupportProofObligationId,
     readiness_spec: WorkNodeSpec,
@@ -317,6 +342,13 @@ pub(crate) struct RelationalStepDriver<'query> {
 }
 
 impl<'query> RelationalStepDriver<'query> {
+    #[cfg(test)]
+    pub(crate) fn force_canonical_chunk_order_for_test(&mut self) {
+        if let Some(classified_sweep) = self.classified_sweep.as_mut() {
+            classified_sweep.force_canonical_chunk_order_for_test();
+        }
+    }
+
     pub(crate) fn from_checked(
         checked: &'query CheckedExploreQueryView<'_>,
         support_plan: &'query RelationalSupportPlan,
@@ -710,6 +742,7 @@ impl<'query> RelationalStepDriver<'query> {
                                             )?,
                                         certificate_id: artifact.certificate_id(),
                                         schedule_reason: target.primary_reason(),
+                                        nomination_root: target.nomination_root(),
                                     },
                                     vec![RelationalJournalEvent::relational_region_proof_accepted(
                                         artifact,
@@ -850,6 +883,7 @@ impl<'query> RelationalStepDriver<'query> {
         Ok(RelationalClassifiedTargetWork {
             chunk_ordinal: target.descriptor().ordinal(),
             schedule_reason: target.primary_reason(),
+            nomination_root: target.nomination_root(),
             cell_id: chunk.cell().id(),
             obligation_id: obligation.id(),
             readiness_spec,
@@ -918,6 +952,7 @@ impl<'query> RelationalStepDriver<'query> {
             RelationalStepQuantum::SeedClassifiedTargetWork {
                 chunk_ordinal: work.chunk_ordinal,
                 schedule_reason: work.schedule_reason,
+                nomination_root: work.nomination_root,
                 work_node_id: work.resolver_id,
             },
             events,
@@ -996,6 +1031,7 @@ impl<'query> RelationalStepDriver<'query> {
             RelationalStepQuantum::CompleteClassifiedTargetWork {
                 chunk_ordinal: work.chunk_ordinal,
                 schedule_reason: work.schedule_reason,
+                nomination_root: work.nomination_root,
                 work_node_id: work.resolver_id,
             },
             vec![RelationalJournalEvent::work_node_completed(

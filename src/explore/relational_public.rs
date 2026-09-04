@@ -3527,7 +3527,9 @@ mod regional_stream_acceptance_tests {
         RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
         RelationalMechanismLayerRegistration, RelationalMechanismObservationId,
     };
-    use super::super::relational_candidate_schedule::RelationalCandidateScheduleReason;
+    use super::super::relational_candidate_schedule::{
+        RelationalCandidateNominationRoot, RelationalCandidateScheduleReason,
+    };
     use super::super::relational_case_executor::RelationalCaseExecutor;
     use super::super::relational_case_support_projection::{
         derive_relational_case_support_projection, relational_case_support_active_set_root,
@@ -3547,9 +3549,15 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_journal::{
         RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
         RelationalJournal, RelationalJournalError, RelationalJournalEvent,
-        RelationalSchedulerDecision,
+        RelationalJournalSnapshot, RelationalSchedulerDecision,
     };
     use super::super::relational_mechanism_step_driver::RelationalMechanismStepQuantum;
+    use super::super::relational_proof_strategy::{
+        RelationalGuardOrigin, RelationalProofStrategyInventory,
+    };
+    use super::super::relational_region_proof::{
+        derive_relational_lifted_affine_guard_atoms, derive_relational_source_event_guard_atoms,
+    };
     use super::super::relational_result_step_driver::RelationalResultStepQuantum;
     use super::super::relational_step_driver::{
         RelationalConcreteQuiescence, RelationalStepDriver, RelationalStepOutcome,
@@ -3645,6 +3653,12 @@ mod regional_stream_acceptance_tests {
 "#;
 
     const THREE_CHUNK_CANDIDATE_RESIDUAL: &str = r#"
+> above_threshold(x: Int) -> Bool { x >= 680 }
+
+> three_chunk_observer(state: Int, context: Unit) -> Int {
+    if state < 690 { 0 } else { 1 }
+}
+
 ? explore three_chunk_candidate_residual {
     from {
         vary before in range(0, 700)
@@ -3652,7 +3666,28 @@ mod regional_stream_acceptance_tests {
     }
 
     transition after = before + 1
-    find cases = matches of before >= 680
+    find cases = matches of above_threshold(before)
+    mechanisms threshold_path from find cases using three_chunk_observer
+}
+"#;
+
+    const THREE_CHUNK_SOURCE_EVENT_RESIDUAL: &str = r#"
+| source_event_rate(value: Int) -> 0
+| exception threshold source_event_rate(value: Int) -> 1 under value >= 680
+
+> three_chunk_observer(state: Int, context: Unit) -> Int {
+    if state < 690 { 0 } else { 1 }
+}
+
+? explore three_chunk_source_event_residual {
+    from {
+        vary before in range(0, 700)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find cases = matches of source_event_rate(before) == 1
+    mechanisms threshold_path from find cases using three_chunk_observer
 }
 "#;
 
@@ -3861,8 +3896,8 @@ mod regional_stream_acceptance_tests {
         selected_case_ids: BTreeSet<RelationalCaseId>,
     }
 
-    fn canonical_exhaustive_three_chunk_oracle() -> CanonicalExhaustiveCounts {
-        let mut prepared = prepare(THREE_CHUNK_CANDIDATE_RESIDUAL);
+    fn canonical_exhaustive_three_chunk_oracle(source_text: &str) -> CanonicalExhaustiveCounts {
+        let mut prepared = prepare(source_text);
         let checked = prepared.checked.view();
         let question_id = checked.question_ids()[0];
         let source =
@@ -6122,8 +6157,66 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
-    fn candidate_guard_endpoint_and_residual_match_canonical_exhaustive_oracle() {
-        let oracle = canonical_exhaustive_three_chunk_oracle();
+    fn lifted_callable_candidate_endpoint_and_residual_match_canonical_exhaustive_oracle() {
+        assert_three_chunk_candidate_matches_canonical_exhaustive_oracle(
+            THREE_CHUNK_CANDIDATE_RESIDUAL,
+            RelationalCandidateScheduleReason::LiftedCandidate,
+        );
+    }
+
+    #[test]
+    fn checked_source_event_leads_live_order_and_preserves_exhaustive_semantics() {
+        let prepared = prepare(THREE_CHUNK_SOURCE_EVENT_RESIDUAL);
+        let checked = prepared.checked.view();
+        let inventory =
+            RelationalProofStrategyInventory::from_checked(&checked, &prepared.support_plan)
+                .expect("derive source-event fixture strategy inventory");
+        let [axis] = inventory.axes() else {
+            panic!("source-event fixture must expose one exact integer axis")
+        };
+        assert!(
+            inventory.guard_atoms().is_empty(),
+            "the direct query AST must not claim the rule condition as its own guard"
+        );
+        assert!(
+            derive_relational_lifted_affine_guard_atoms(
+                &checked,
+                checked.classification_program().as_ref(),
+                axis,
+            )
+            .is_empty(),
+            "the frozen pure-callable graph must fail closed at a rule dispatch"
+        );
+        let source_event_atoms = derive_relational_source_event_guard_atoms(&checked, axis);
+        let [source_event_atom] = source_event_atoms.as_ref() else {
+            panic!("the checked Clause+Exception inventory must yield one scheduler atom")
+        };
+        let checked_source_events = checked.source_event_inventory();
+        let [checked_source_event] = checked_source_events.events() else {
+            panic!("the checked Clause+Exception inventory must retain one source event")
+        };
+        assert!(matches!(
+            source_event_atom.origin(),
+            RelationalGuardOrigin::SourceEvent {
+                inventory_root,
+                source_event_id,
+                occurrence_id,
+            } if *inventory_root == checked_source_events.inventory_root()
+                && *source_event_id == checked_source_event.source_event_id.bytes()
+                && *occurrence_id == checked_source_event.occurrence_id.bytes()
+        ));
+
+        assert_three_chunk_candidate_matches_canonical_exhaustive_oracle(
+            THREE_CHUNK_SOURCE_EVENT_RESIDUAL,
+            RelationalCandidateScheduleReason::SourceEvent,
+        );
+    }
+
+    fn assert_three_chunk_candidate_matches_canonical_exhaustive_oracle(
+        source_text: &str,
+        expected_first_reason: RelationalCandidateScheduleReason,
+    ) {
+        let oracle = canonical_exhaustive_three_chunk_oracle(source_text);
         assert_eq!(
             (
                 oracle.candidates,
@@ -6136,17 +6229,136 @@ mod regional_stream_acceptance_tests {
             "the independent exhaustive oracle anchors the fixture semantics"
         );
 
-        let mut prepared = prepare(THREE_CHUNK_CANDIDATE_RESIDUAL);
+        let candidate = execute_three_chunk_schedule(source_text, false);
+        let canonical = execute_three_chunk_schedule(source_text, true);
+        assert_eq!(
+            candidate
+                .scheduled
+                .iter()
+                .map(|(chunk_ordinal, reason, _)| (*chunk_ordinal, *reason))
+                .collect::<Vec<_>>(),
+            vec![
+                (2, expected_first_reason),
+                (0, RelationalCandidateScheduleReason::LowerRangeEndpoint),
+                (1, RelationalCandidateScheduleReason::ResidualFallback),
+            ],
+            "live scheduling must exercise candidate, endpoint, then residual work"
+        );
+        assert_eq!(
+            candidate
+                .scheduled
+                .iter()
+                .map(|(_, _, root)| *root)
+                .collect::<BTreeSet<_>>()
+                .len(),
+            candidate.scheduled.len(),
+            "candidate, endpoint, and residual targets need distinct authenticated roots"
+        );
+        assert_eq!(
+            canonical
+                .scheduled
+                .iter()
+                .map(|(chunk_ordinal, reason, _)| (*chunk_ordinal, *reason))
+                .collect::<Vec<_>>(),
+            vec![
+                (0, RelationalCandidateScheduleReason::ResidualFallback),
+                (1, RelationalCandidateScheduleReason::ResidualFallback),
+                (2, RelationalCandidateScheduleReason::ResidualFallback),
+            ],
+            "the test control must execute the canonical chunk order"
+        );
+
+        let oracle_counts = (
+            oracle.candidates,
+            oracle.rejected,
+            oracle.admitted,
+            oracle.admitted_not_selected,
+            oracle.admitted_selected,
+        );
+        let oracle_commitment =
+            MechanismTargetCaseSetCommitment::from_cases(oracle.selected_case_ids.iter().copied());
+        for run in [&candidate, &canonical] {
+            assert_eq!(run.chunk_count, 3);
+            assert_eq!(run.accepted_fragment_count, 3);
+            assert_eq!(run.counts, oracle_counts);
+            assert_eq!(run.selected_case_ids, oracle.selected_case_ids);
+            assert_eq!(run.target_commitment, oracle_commitment);
+        }
+        assert_eq!(
+            candidate.snapshot.core_evidence_root(),
+            canonical.snapshot.core_evidence_root(),
+            "candidate order must not change the closed core evidence root"
+        );
+        assert_eq!(
+            candidate.snapshot.exploration_evidence_root(),
+            canonical.snapshot.exploration_evidence_root(),
+            "candidate order must not change the whole-exploration evidence root"
+        );
+        assert_eq!(
+            candidate.snapshot.analysis_terminal_root(),
+            canonical.snapshot.analysis_terminal_root(),
+            "candidate order must not change the closed analysis catalog root"
+        );
+        assert_eq!(
+            candidate.snapshot.analysis_closure_set_root(),
+            canonical.snapshot.analysis_closure_set_root(),
+            "candidate order must not change the closed analysis set root"
+        );
+        assert_eq!(
+            candidate.target_commitment, canonical.target_commitment,
+            "candidate order must not change the selected mechanism-target root"
+        );
+        assert_eq!(
+            candidate.mechanism_closure_roots, canonical.mechanism_closure_roots,
+            "candidate order must not change incidence, structural, or support closure roots"
+        );
+    }
+
+    struct ThreeChunkScheduleRun {
+        scheduled: Vec<(
+            u128,
+            RelationalCandidateScheduleReason,
+            RelationalCandidateNominationRoot,
+        )>,
+        chunk_count: usize,
+        accepted_fragment_count: usize,
+        counts: (u128, u128, u128, u128, u128),
+        selected_case_ids: BTreeSet<RelationalCaseId>,
+        target_commitment: MechanismTargetCaseSetCommitment,
+        mechanism_closure_roots: ([u8; 32], [u8; 32], [u8; 32]),
+        snapshot: RelationalJournalSnapshot,
+    }
+
+    fn execute_three_chunk_schedule(
+        source_text: &str,
+        force_canonical_order: bool,
+    ) -> ThreeChunkScheduleRun {
+        let mut prepared = prepare(source_text);
         let checked = prepared.checked.view();
         let question_id = checked.question_ids()[0];
-        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
-            &checked,
-            &prepared.support_plan,
-            RelationalStreamDriverLimits::default(),
-            None,
-            Some(&prepared.classification_evaluator),
-        )
-        .expect("build three-chunk candidate stream scheduler");
+        let mechanism_request_id = RelationalAnalysisPlan::from_checked(&checked)
+            .expect("plan three-chunk mechanism consumer")
+            .layer_registrations()
+            .iter()
+            .find_map(|registration| match registration {
+                RelationalAnalysisLayerRegistration::Mechanisms(registration) => {
+                    Some(registration.request_id())
+                }
+                _ => None,
+            })
+            .expect("three-chunk fixture retains one mechanism request");
+        let mut driver =
+            RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                &checked,
+                &prepared.support_plan,
+                RelationalStreamDriverLimits::default(),
+                None,
+                Some(&prepared.classification_evaluator),
+            )
+            .expect("build three-chunk candidate stream scheduler");
+        if force_canonical_order {
+            driver.force_canonical_chunk_order_for_test();
+        }
         let mut journal = RelationalJournal::new_with_region_replay_authority(
             prepared.contract.clone(),
             exact_one_region_replay_authority(&prepared),
@@ -6169,6 +6381,7 @@ mod regional_stream_acceptance_tests {
                         RelationalStepQuantum::SeedClassifiedTargetWork {
                             chunk_ordinal,
                             schedule_reason,
+                            nomination_root,
                             ..
                         },
                     ) = batch.quantum()
@@ -6176,6 +6389,12 @@ mod regional_stream_acceptance_tests {
                         let expected_decision = match schedule_reason {
                             RelationalCandidateScheduleReason::CheckedGuardBoundary => {
                                 RelationalSchedulerDecision::BaseCandidateCheckedGuard
+                            }
+                            RelationalCandidateScheduleReason::SourceEvent => {
+                                RelationalSchedulerDecision::BaseCandidateSourceEvent
+                            }
+                            RelationalCandidateScheduleReason::LiftedCandidate => {
+                                RelationalSchedulerDecision::BaseCandidateLifted
                             }
                             RelationalCandidateScheduleReason::LowerRangeEndpoint => {
                                 RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
@@ -6192,11 +6411,13 @@ mod regional_stream_acceptance_tests {
                             Some(RelationalJournalEvent::Checkpoint(
                                 RelationalCheckpointEvent::SchedulerDecisionRecorded {
                                     decision,
+                                    nomination_root: checkpoint_root,
                                     ..
                                 }
                             )) if *decision == expected_decision
+                                && *checkpoint_root == Some(nomination_root)
                         ));
-                        scheduled.push((chunk_ordinal, schedule_reason));
+                        scheduled.push((chunk_ordinal, schedule_reason, nomination_root));
                     }
                     for event in batch.into_events() {
                         journal
@@ -6217,64 +6438,80 @@ mod regional_stream_acceptance_tests {
             completed,
             "three-chunk candidate stream exceeded its compact fixture bound"
         );
-        assert_eq!(
-            scheduled,
-            vec![
-                (2, RelationalCandidateScheduleReason::CheckedGuardBoundary),
-                (0, RelationalCandidateScheduleReason::LowerRangeEndpoint),
-                (1, RelationalCandidateScheduleReason::ResidualFallback),
-            ],
-            "live scheduling must exercise candidate, endpoint, then residual work"
-        );
 
         let view = journal
             .scheduler_view()
             .expect("inspect completed three-chunk candidate journal");
-        assert_eq!(
-            view.verified_case_chunk_partition()
-                .unwrap()
-                .expect("three-chunk canonical partition")
-                .partition()
-                .chunks()
-                .len(),
-            3
-        );
-        assert_eq!(view.accepted_classified_fragment_count(), 3);
+        let chunk_count = view
+            .verified_case_chunk_partition()
+            .unwrap()
+            .expect("three-chunk canonical partition")
+            .partition()
+            .chunks()
+            .len();
+        let accepted_fragment_count = view.accepted_classified_fragment_count();
         let counts = view
             .classification_progress_counts(question_id)
             .expect("derive candidate-run classification counts")
             .expect("candidate-run root cardinality is exact");
         assert!(counts.is_complete());
-        assert_eq!(
-            (
-                counts.candidates(),
-                counts.rejected(),
-                counts.admitted(),
-                counts.admitted_not_selected(),
-                counts.admitted_selected(),
-            ),
-            (
-                oracle.candidates,
-                oracle.rejected,
-                oracle.admitted,
-                oracle.admitted_not_selected,
-                oracle.admitted_selected,
-            )
+        let counts = (
+            counts.candidates(),
+            counts.rejected(),
+            counts.admitted(),
+            counts.admitted_not_selected(),
+            counts.admitted_selected(),
         );
-
-        let materialized_selected = view
+        let selected_case_ids = view
             .materialized_selected_case_ids(question_id)
             .expect("read candidate-run selected CaseIds")
             .collect::<BTreeSet<_>>();
-        assert_eq!(materialized_selected, oracle.selected_case_ids);
-        let oracle_commitment =
-            MechanismTargetCaseSetCommitment::from_cases(oracle.selected_case_ids.iter().copied());
-        let candidate_commitment = journal
+        let target_commitment = journal
             .analysis_state()
             .and_then(|analysis| analysis.selected_question(question_id))
             .expect("completed candidate run has an exact selected-question seal")
             .mechanism_target();
-        assert_eq!(candidate_commitment, oracle_commitment);
+        let analysis = journal
+            .analysis_state()
+            .expect("completed candidate run retains closed analysis state");
+        let incidence_closure = analysis
+            .mechanism_closure(mechanism_request_id)
+            .expect("three-chunk incidence is closed");
+        let structural_closure = analysis
+            .structural_quotient_closure(mechanism_request_id)
+            .expect("three-chunk structural quotient is closed");
+        let support_closure = analysis
+            .mechanism_support_closure(mechanism_request_id)
+            .expect("three-chunk mechanism support is closed");
+        assert_eq!(
+            incidence_closure.counts().target_cases(),
+            MechanismCountEvidence::Exact(20)
+        );
+        assert_eq!(
+            incidence_closure.counts().incidence_cases(),
+            MechanismCountEvidence::Exact(20)
+        );
+        assert!(structural_closure.counts().mechanisms() > 0);
+        assert_eq!(support_closure.successful_case_count(), 20);
+        assert_eq!(support_closure.unavailable_case_count(), 0);
+        let mechanism_closure_roots = (
+            incidence_closure.incidence_root().bytes(),
+            structural_closure.root().bytes(),
+            support_closure.root().bytes(),
+        );
+        let snapshot = journal
+            .snapshot()
+            .expect("snapshot completed three-chunk semantic evidence");
+        ThreeChunkScheduleRun {
+            scheduled,
+            chunk_count,
+            accepted_fragment_count,
+            counts,
+            selected_case_ids,
+            target_commitment,
+            mechanism_closure_roots,
+            snapshot,
+        }
     }
 
     #[test]
@@ -6508,6 +6745,7 @@ mod regional_stream_acceptance_tests {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("candidate-partial-run-state");
         let mut prepared = prepare(HYBRID);
+        let mut paused_nomination_root = None;
 
         {
             let checked = prepared.checked.view();
@@ -6545,6 +6783,15 @@ mod regional_stream_acceptance_tests {
                     panic!("candidate partial fixture quiesced before its first slice");
                 };
                 let quantum = batch.quantum();
+                let checkpoint_nomination_root = match batch.events().first() {
+                    Some(RelationalJournalEvent::Checkpoint(
+                        RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                            nomination_root,
+                            ..
+                        },
+                    )) => *nomination_root,
+                    _ => None,
+                };
                 durable
                     .append_events(
                         batch.expected_sequence(),
@@ -6562,6 +6809,11 @@ mod regional_stream_acceptance_tests {
                         RelationalCandidateScheduleReason::CheckedGuardBoundary
                     );
                     assert!(classified.classified_artifact_id().is_none());
+                    assert_eq!(
+                        checkpoint_nomination_root,
+                        Some(classified.nomination_root())
+                    );
+                    paused_nomination_root = Some(classified.nomination_root());
                     paused = true;
                     break;
                 }
@@ -6587,6 +6839,8 @@ mod regional_stream_acceptance_tests {
                 .flush_for_pause()
                 .expect("flush candidate partial prefix");
         }
+        let paused_nomination_root =
+            paused_nomination_root.expect("paused candidate slice has nomination provenance");
 
         let checked = prepared.checked.view();
         let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
@@ -6624,6 +6878,16 @@ mod regional_stream_acceptance_tests {
                 if classified.chunk_ordinal() == 1
                     && classified.schedule_reason()
                         == RelationalCandidateScheduleReason::CheckedGuardBoundary
+                    && classified.nomination_root() == paused_nomination_root
+        ));
+        assert!(matches!(
+            batch.events().first(),
+            Some(RelationalJournalEvent::Checkpoint(
+                RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                    nomination_root,
+                    ..
+                }
+            )) if *nomination_root == Some(paused_nomination_root)
         ));
     }
 
