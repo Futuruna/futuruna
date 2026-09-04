@@ -90,16 +90,72 @@ const CLASSIFICATION_CALL_CACHE_ENTRIES: usize = 16_384;
 /// the inner one-worker governor charge a bounded stream quantum while the
 /// outer layer independently enforces the epoch-wide Rust-heap ceiling and
 /// retains room for stacks, FFI/mappings, host memory and process-group
-/// containment. Supplying
-/// this value without actually installing and monitoring the described
-/// envelope violates the execution contract; ordinary library callers should
-/// leave `outer_containment` as `None`.
+/// containment. The private fields prevent safe construction from merely
+/// plausible numbers; ordinary library callers leave `outer_containment` as
+/// `None`.
+///
+/// ```compile_fail
+/// use futuruna::explore::ExploreStreamOuterContainment;
+/// use std::num::NonZeroU64;
+///
+/// let gib = NonZeroU64::new(1024 * 1024 * 1024).unwrap();
+/// let _unattested = ExploreStreamOuterContainment {
+///     rust_heap_limit_bytes: gib,
+///     untracked_memory_reserve_bytes: gib,
+///     group_rss_limit_bytes: gib,
+///     available_memory_floor_bytes: gib,
+/// };
+/// ```
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct ExploreStreamOuterContainment {
-    pub rust_heap_limit_bytes: NonZeroU64,
-    pub untracked_memory_reserve_bytes: NonZeroU64,
-    pub group_rss_limit_bytes: NonZeroU64,
-    pub available_memory_floor_bytes: NonZeroU64,
+    rust_heap_limit_bytes: NonZeroU64,
+    untracked_memory_reserve_bytes: NonZeroU64,
+    group_rss_limit_bytes: NonZeroU64,
+    available_memory_floor_bytes: NonZeroU64,
+}
+
+impl ExploreStreamOuterContainment {
+    /// Attest that the current process is already inside the described live
+    /// containment boundary.
+    ///
+    /// # Safety
+    ///
+    /// Before calling this function, the caller must have installed the exact
+    /// Rust-heap cap and arranged for an independently runnable supervisor to
+    /// continuously contain the complete process group at the supplied RSS
+    /// limit, available-memory floor, critical memory pressure, throttled-page
+    /// signal, and telemetry-loss boundaries. That supervisor must outlive
+    /// every Explore epoch receiving this process-local value. The attestation
+    /// must never be persisted or transferred to another process.
+    pub unsafe fn attest_current_process_is_supervised(
+        rust_heap_limit_bytes: NonZeroU64,
+        untracked_memory_reserve_bytes: NonZeroU64,
+        group_rss_limit_bytes: NonZeroU64,
+        available_memory_floor_bytes: NonZeroU64,
+    ) -> Self {
+        Self {
+            rust_heap_limit_bytes,
+            untracked_memory_reserve_bytes,
+            group_rss_limit_bytes,
+            available_memory_floor_bytes,
+        }
+    }
+
+    pub fn rust_heap_limit_bytes(self) -> NonZeroU64 {
+        self.rust_heap_limit_bytes
+    }
+
+    pub fn untracked_memory_reserve_bytes(self) -> NonZeroU64 {
+        self.untracked_memory_reserve_bytes
+    }
+
+    pub fn group_rss_limit_bytes(self) -> NonZeroU64 {
+        self.group_rss_limit_bytes
+    }
+
+    pub fn available_memory_floor_bytes(self) -> NonZeroU64 {
+        self.available_memory_floor_bytes
+    }
 }
 
 /// Operational controls for one append-only Explore invocation.

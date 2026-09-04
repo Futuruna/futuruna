@@ -1584,6 +1584,21 @@ mod tests {
     }
 
     #[test]
+    fn safe_standalone_envelope_keeps_swap_growth_strict() {
+        let envelope = ExactStreamOneWorkerEnvelope::new().unwrap();
+
+        assert_eq!(envelope.outer_containment, None);
+        assert_eq!(
+            envelope.policy.swap_growth_authority,
+            SwapGrowthAuthority::StrictStandalone
+        );
+        assert!(!decision_has_safe_one_worker_capacity(
+            safe_decision(SwapAssessment::Growth),
+            envelope.policy,
+        ));
+    }
+
+    #[test]
     fn outer_contained_swap_growth_keeps_permit_authority_and_never_names_swap_backoff() {
         let decision = safe_decision(SwapAssessment::Growth);
         let advisory = policy(SwapGrowthAuthority::ValidatedOuterContainmentAdvisory);

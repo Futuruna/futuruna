@@ -7825,19 +7825,32 @@ fn run_relational_explore_stream(
         run_state: run_state.to_path_buf(),
         output_directory: output_directory.map(Path::to_path_buf),
         outer_containment: runa_explore_supervisor::validated_exact_stream_containment().map(
-            |receipt| explore::ExploreStreamOuterContainment {
-                rust_heap_limit_bytes: std::num::NonZeroU64::new(receipt.rust_heap_limit_bytes)
-                    .expect("validated Explore Rust-heap limit is positive"),
-                untracked_memory_reserve_bytes: std::num::NonZeroU64::new(
-                    receipt.untracked_memory_reserve_bytes,
-                )
-                .expect("validated Explore untracked-memory reserve is positive"),
-                group_rss_limit_bytes: std::num::NonZeroU64::new(receipt.group_rss_limit_bytes)
-                    .expect("validated Explore process-group RSS limit is positive"),
-                available_memory_floor_bytes: std::num::NonZeroU64::new(
-                    receipt.available_memory_floor_bytes,
-                )
-                .expect("validated Explore available-memory floor is positive"),
+            |receipt| {
+                let rust_heap_limit_bytes =
+                    std::num::NonZeroU64::new(receipt.rust_heap_limit_bytes)
+                        .expect("validated Explore Rust-heap limit is positive");
+                let untracked_memory_reserve_bytes =
+                    std::num::NonZeroU64::new(receipt.untracked_memory_reserve_bytes)
+                        .expect("validated Explore untracked-memory reserve is positive");
+                let group_rss_limit_bytes =
+                    std::num::NonZeroU64::new(receipt.group_rss_limit_bytes)
+                        .expect("validated Explore process-group RSS limit is positive");
+                let available_memory_floor_bytes =
+                    std::num::NonZeroU64::new(receipt.available_memory_floor_bytes)
+                        .expect("validated Explore available-memory floor is positive");
+                // SAFETY: `validated_exact_stream_containment` is populated only
+                // after startup has installed this exact Rust-heap cap, verified
+                // the worker/guardian process shape, crossed the start gate, and
+                // retained the independently runnable guardian and parent
+                // watchdog for the lifetime of this worker process.
+                unsafe {
+                    explore::ExploreStreamOuterContainment::attest_current_process_is_supervised(
+                        rust_heap_limit_bytes,
+                        untracked_memory_reserve_bytes,
+                        group_rss_limit_bytes,
+                        available_memory_floor_bytes,
+                    )
+                }
             },
         ),
     };
@@ -7845,10 +7858,10 @@ fn run_relational_explore_stream(
         if let Some(containment) = epoch_options.outer_containment {
             eprintln!(
                 "Explore containment: rust_heap_limit={}B; untracked_reserve={}B; group_rss_limit={}B; host_available_floor={}B",
-                containment.rust_heap_limit_bytes,
-                containment.untracked_memory_reserve_bytes,
-                containment.group_rss_limit_bytes,
-                containment.available_memory_floor_bytes,
+                containment.rust_heap_limit_bytes(),
+                containment.untracked_memory_reserve_bytes(),
+                containment.group_rss_limit_bytes(),
+                containment.available_memory_floor_bytes(),
             );
         }
     }
