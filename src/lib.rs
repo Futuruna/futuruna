@@ -28689,7 +28689,7 @@ struct CheckedExploreIdentityLadder {
     product_rank_grouped_distinct: Box<[CheckedExploreProductRankGroupedDistinctCertificate]>,
 }
 
-pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 3;
+pub(crate) const CHECKED_EXPLORE_SOURCE_COVERAGE_VERSION: u32 = 4;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum CheckedExploreCoverageRootRole {
@@ -35486,21 +35486,12 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
                         // already-declared type or declares a nullary
                         // constructor. Never hash the marker as a type name.
                         Some("__maybe_include") => {
-                            let includes_existing_type = self
-                                .resolutions
-                                .data_type_identities
-                                .get(variant.name.as_str())
-                                .is_some_and(|owner| match owner {
-                                    CheckedDataTypeId::Intrinsic { .. } => true,
-                                    CheckedDataTypeId::Declared(owner) => self
-                                        .resolutions
-                                        .data_owner_to_analysis_occurrence
-                                        .get(owner)
-                                        .is_some_and(|occurrence| {
-                                            occurrence.normalized_ordinal
-                                                < declaration_id.normalized_ordinal
-                                        }),
-                                });
+                            let includes_existing_type =
+                                checked_explore_maybe_include_resolves_as_type(
+                                    self.resolutions,
+                                    declaration_id,
+                                    &variant.name,
+                                );
                             if includes_existing_type {
                                 checked_query_hash_component(
                                     hasher,
@@ -36546,7 +36537,7 @@ fn checked_explore_source_coverage_manifest_digest(
     entries: &[CheckedExploreCoverageEntry],
 ) -> Box<str> {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v3\0");
+    hasher.update(b"futuruna.checked-explore-source-coverage-manifest.v4\0");
     checked_query_hash_component(&mut hasher, "coverage-version", &version.to_string());
     hasher.update(relation_id.bytes());
     hasher.update(semantic_dependency_digest);
@@ -36606,6 +36597,29 @@ fn checked_explore_intrinsic_schema_is_closed_leaf(canonical_name: &str) -> bool
             | "StructuralMechanismId"
             | "ExecutionProfileId"
     )
+}
+
+/// Resolve the parser's ambiguous uppercase/nullary marker with the same
+/// declaration-order rule used by runtime type registration and semantic
+/// dependency hashing. A later type of the same name cannot retroactively
+/// turn a constructor into an inclusion.
+fn checked_explore_maybe_include_resolves_as_type(
+    resolutions: &CheckedResolutionArtifacts,
+    declaration_id: &CheckedDeclarationOccurrenceId,
+    candidate_name: &str,
+) -> bool {
+    resolutions
+        .data_type_identities
+        .get(candidate_name)
+        .is_some_and(|owner| match owner {
+            CheckedDataTypeId::Intrinsic { .. } => true,
+            CheckedDataTypeId::Declared(owner) => resolutions
+                .data_owner_to_analysis_occurrence
+                .get(owner)
+                .is_some_and(|occurrence| {
+                    occurrence.normalized_ordinal < declaration_id.normalized_ordinal
+                }),
+        })
 }
 
 fn checked_explore_schema_node(
@@ -36671,8 +36685,18 @@ fn checked_explore_schema_node(
             except_from,
             ..
         } => {
-            let composed =
-                except_from.is_some() || variants.iter().any(|variant| variant.from_type.is_some());
+            let composed = except_from.is_some()
+                || variants
+                    .iter()
+                    .any(|variant| match variant.from_type.as_deref() {
+                        Some("__maybe_include") => checked_explore_maybe_include_resolves_as_type(
+                            resolutions,
+                            declaration_id,
+                            &variant.name,
+                        ),
+                        Some(_) => true,
+                        None => false,
+                    });
             for (variant_index, variant) in variants.iter().enumerate() {
                 for (field_index, field) in variant.fields.iter().enumerate() {
                     direct_fields.push(CheckedExploreDirectSchemaField {
@@ -57951,6 +57975,71 @@ __FINDS__
                 CheckedExploreCoverageClassification::ConditionedSingletonOrSourceRestriction,
             ) if value.as_ref() == "2026"
         )));
+    }
+
+    #[test]
+    fn explore_source_coverage_distinguishes_nullary_enums_from_type_inclusions() {
+        let closed_source = r#"
+# ClosedCommune = Copenhagen | Aarhus
+# ClosedAgeStatus = Adult | Child
+# ClosedProfile(commune: ClosedCommune, age_status: ClosedAgeStatus)
+# ClosedState(profile: ClosedProfile)
+
+? explore closed_enum_source_coverage {
+    from {
+        given before = ClosedState(
+            profile = ClosedProfile(commune = Copenhagen, age_status = Adult)
+        )
+        given context = ()
+    }
+    transition after = before
+    find all_cases = all
+}
+"#;
+        let (_, _, closed) = source_coverage_snapshot(closed_source, "closed_enum_source_coverage");
+        assert!(closed.validate_identity());
+        assert!(
+            !closed.has_coverage_gaps(),
+            "ordinary uppercase nullary constructors are a closed schema: {closed:?}"
+        );
+        for path in [
+            "before.profile",
+            "before.profile.commune",
+            "before.profile.age_status",
+        ] {
+            assert!(
+                !matches!(
+                    source_coverage_field(&closed, path).classification,
+                    CheckedExploreCoverageClassification::CoverageGap { .. }
+                ),
+                "closed enum field `{path}` must not inherit a false composition gap"
+            );
+        }
+
+        let included_source = r#"
+# CoverageBase = CoverageA | CoverageB
+# CoverageIncluding = CoverageBase | CoverageExtra
+# CoverageIncludingState(value: CoverageIncluding)
+
+? explore included_type_source_coverage {
+    from {
+        given before = CoverageIncludingState(value = CoverageExtra)
+        given context = ()
+    }
+    transition after = before
+    find all_cases = all
+}
+"#;
+        let (_, _, included) =
+            source_coverage_snapshot(included_source, "included_type_source_coverage");
+        assert!(included.validate_identity());
+        assert!(included.has_coverage_gaps());
+        assert!(matches!(
+            source_coverage_field(&included, "before.value").classification,
+            CheckedExploreCoverageClassification::CoverageGap {
+                reason: CheckedExploreCoverageGapReason::SchemaCompositionUnavailable
+            }
+        ));
     }
 
     #[test]
