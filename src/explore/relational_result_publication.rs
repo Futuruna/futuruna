@@ -88,12 +88,17 @@ use super::relational_analysis_journal::{
 };
 use super::relational_analysis_plan::RelationalAnalysisLayerId;
 use super::relational_case_support_projection::{
-    derive_relational_case_support_projection, RelationalCaseIdPublicationAuthority,
-    RelationalCaseIdPublicationAuthorization, RelationalCaseSupportClosureAuthority,
+    derive_relational_case_support_projection, derive_relational_case_support_projection_id,
+    relational_case_support_row_hash_from_canonical_bytes, RelationalCaseIdPublicationAuthority,
+    RelationalCaseIdPublicationAuthorization, RelationalCaseSupportActiveSetFold,
+    RelationalCaseSupportActiveSetRoot, RelationalCaseSupportClosureAuthority,
     RelationalCaseSupportCount, RelationalCaseSupportOpenReason, RelationalCaseSupportOutcome,
-    RelationalCaseSupportProjection, RelationalCaseSupportProjectionFrontier,
+    RelationalCaseSupportProjection, RelationalCaseSupportProjectionBasis,
+    RelationalCaseSupportProjectionFrontier, RelationalCaseSupportProjectionId,
     RelationalCaseSupportProjectionMetadata, RelationalCaseSupportProjectionRecord,
+    RelationalCaseSupportRecordKey, RelationalCaseSupportRow, RelationalCaseSupportRowHash,
     RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA, RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
+    RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA,
 };
 use super::relational_case_transition_projection::{
     derive_relational_case_transition_projection, RelationalCaseTransitionProjection,
@@ -164,16 +169,18 @@ use super::{
     TransitionSchemaIdentities, ViewId,
 };
 
-pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 19;
+pub(crate) const RELATIONAL_PUBLICATION_SCHEMA_VERSION: u32 = 20;
 
-const CURSOR_FILE: &str = ".publication-cursor-v19.json";
+const CURSOR_FILE: &str = ".publication-cursor-v20.json";
 const MANIFEST_FILE: &str = "manifest.json";
 const MACOS_METADATA_FILE: &str = ".DS_Store";
-const PRESENTATION_PLAN_DIGEST_V3: &[u8] = b"futuruna.explore.publication-presentation-plan.v3";
-const ARTIFACT_PRESENTATION_DIGEST_V3: &[u8] =
-    b"futuruna.explore.publication-artifact-presentation.v3";
-const RESULT_PREFIX_ROOT_V17: &[u8] = b"futuruna.explore.publication-prefix.v17";
-const RESULT_PREFIX_EXTEND_V17: &[u8] = b"futuruna.explore.publication-prefix-extend.v17";
+const PRESENTATION_PLAN_DIGEST_V4: &[u8] = b"futuruna.explore.publication-presentation-plan.v4";
+const ARTIFACT_PRESENTATION_DIGEST_V4: &[u8] =
+    b"futuruna.explore.publication-artifact-presentation.v4";
+const RESULT_PREFIX_ROOT_V18: &[u8] = b"futuruna.explore.publication-prefix.v18";
+const RESULT_PREFIX_EXTEND_V18: &[u8] = b"futuruna.explore.publication-prefix-extend.v18";
+const CLASSIFICATION_SUMMARY_ROW_PAYLOAD_V1: &[u8] =
+    b"futuruna.explore.classification-summary-case-support-row-payload.v1";
 const SUBJECT_SUPPORT_REGION_PUBLICATION_ROOT_V1: &[u8] =
     b"futuruna.explore.subject-support-region-publication-root.v1";
 const SUBJECT_SUPPORT_REGION_RECORD_SCHEMA: &str = "futuruna.relational-subject-support-regions-v1";
@@ -1320,7 +1327,7 @@ fn derive_publication_presentation_plan_digest(
     finds: &[PublicationFindPlan],
     artifacts: &[PublicationArtifactPlan],
 ) -> Result<[u8; 32], RelationalPublicationError> {
-    let mut digest = CanonicalPresentationDigest::new(PRESENTATION_PLAN_DIGEST_V3);
+    let mut digest = CanonicalPresentationDigest::new(PRESENTATION_PLAN_DIGEST_V4);
     digest.text(b"query-name", query_name);
     digest.count(b"find-count", finds.len());
     for (ordinal, find) in finds.iter().enumerate() {
@@ -1353,7 +1360,7 @@ fn derive_publication_presentation_plan_digest(
 fn artifact_presentation_digest(
     artifact: &PublicationArtifactPlan,
 ) -> Result<[u8; 32], RelationalPublicationError> {
-    let mut digest = CanonicalPresentationDigest::new(ARTIFACT_PRESENTATION_DIGEST_V3);
+    let mut digest = CanonicalPresentationDigest::new(ARTIFACT_PRESENTATION_DIGEST_V4);
     digest.text(b"key", artifact.key());
     digest.text(b"kind", artifact.kind());
     digest.text(b"name", artifact.name());
@@ -1474,6 +1481,18 @@ fn artifact_presentation_digest(
             ..
         } => {
             digest.bytes(b"case-support-question-id", &question_id.bytes());
+            digest.text(
+                b"case-support-projection-schema",
+                RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA,
+            );
+            digest.count(
+                b"case-support-projection-version",
+                RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION as usize,
+            );
+            digest.text(
+                b"case-support-update-algebra",
+                RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA,
+            );
             if let Some(authorization) = authorization {
                 match authorization.authority() {
                     RelationalCaseIdPublicationAuthority::ResultView(view_id) => {
@@ -2545,8 +2564,14 @@ enum PublicationCaseSupportProjection<'journal> {
 }
 
 enum PublicationCaseSupportRecord {
-    Partitioned(RelationalCaseSupportProjectionRecord),
-    ClassificationSummary(RelationalClassificationSummaryProjectionRecord),
+    Partitioned {
+        projection_id: RelationalCaseSupportProjectionId,
+        record: RelationalCaseSupportProjectionRecord,
+    },
+    ClassificationSummary {
+        projection_id: RelationalCaseSupportProjectionId,
+        record: RelationalClassificationSummaryProjectionRecord,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2558,6 +2583,8 @@ enum RelationalClassificationSummaryOutcome {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct RelationalClassificationSummaryClosureMetadata {
+    projection_id: RelationalCaseSupportProjectionId,
+    active_set_root: RelationalCaseSupportActiveSetRoot,
     classification_authority: RelationalPublishedClassificationAuthority,
     support_evidence_root: [u8; 32],
     selected_question_seal_id: RelationalSelectedQuestionSealId,
@@ -2566,6 +2593,7 @@ struct RelationalClassificationSummaryClosureMetadata {
     exact_admitted_case_count: u128,
     exact_selected_case_count: u128,
     authorized_case_record_count: u128,
+    active_record_count: u128,
     data_record_count: u128,
 }
 
@@ -2582,7 +2610,8 @@ enum RelationalPublishedSelectedPopulationAuthority {
     CertifiedSupport { population_root: [u8; 32] },
 }
 
-enum RelationalClassificationSummaryProjectionRecord {
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RelationalClassificationSummaryRow {
     Root {
         contract: RelationalJournalContract,
         question_id: QuestionId,
@@ -2595,20 +2624,30 @@ enum RelationalClassificationSummaryProjectionRecord {
     },
     Region {
         question_id: super::relation::QuestionId,
-        region_ordinal: u8,
+        region_ordinal: u16,
         exact_case_count: u128,
         outcome: RelationalClassificationSummaryOutcome,
     },
     AuthorizedCase {
         question_id: super::relation::QuestionId,
-        selected_region_ordinal: u8,
+        selected_region_ordinal: u16,
         case_id: RelationalCaseId,
         authority: RelationalCaseIdPublicationAuthority,
     },
-    Closure(RelationalClassificationSummaryClosureMetadata),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum RelationalClassificationSummaryProjectionRecord {
+    Add {
+        key: RelationalCaseSupportRecordKey,
+        row_hash: RelationalCaseSupportRowHash,
+        row: RelationalClassificationSummaryRow,
+    },
+    Seal(RelationalClassificationSummaryClosureMetadata),
 }
 
 struct RelationalClassificationSummaryProjection<'journal> {
+    projection_id: RelationalCaseSupportProjectionId,
     contract: RelationalJournalContract,
     question_id: QuestionId,
     support_plan_root: [u8; 32],
@@ -2644,18 +2683,30 @@ impl PublicationCaseSupportProjection<'_> {
         match self {
             Self::Partitioned(projection) => projection
                 .record_at(source_ordinal)
-                .map(|record| record.map(PublicationCaseSupportRecord::Partitioned))
+                .map(|record| {
+                    record.map(|record| PublicationCaseSupportRecord::Partitioned {
+                        projection_id: projection.projection_id(),
+                        record,
+                    })
+                })
                 .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string())),
-            Self::ClassificationSummary(projection) => projection
-                .record_at(source_ordinal)
-                .map(|record| record.map(PublicationCaseSupportRecord::ClassificationSummary)),
+            Self::ClassificationSummary(projection) => {
+                projection.record_at(source_ordinal).map(|record| {
+                    record.map(
+                        |record| PublicationCaseSupportRecord::ClassificationSummary {
+                            projection_id: projection.projection_id,
+                            record,
+                        },
+                    )
+                })
+            }
         }
     }
 }
 
 impl RelationalClassificationSummaryProjection<'_> {
     const REGION_COUNT: u128 = 3;
-    const SELECTED_REGION_ORDINAL: u8 = 2;
+    const SELECTED_REGION_ORDINAL: u16 = 2;
 
     fn authorized_case_record_count(&self) -> u128 {
         if self.authorization.is_some() {
@@ -2681,8 +2732,8 @@ impl RelationalClassificationSummaryProjection<'_> {
             return Ok(None);
         }
         if source_ordinal == 0 {
-            return Ok(Some(
-                RelationalClassificationSummaryProjectionRecord::Root {
+            return self
+                .add_record(RelationalClassificationSummaryRow::Root {
                     contract: self.contract.clone(),
                     question_id: self.question_id,
                     support_plan_root: self.support_plan_root,
@@ -2693,8 +2744,8 @@ impl RelationalClassificationSummaryProjection<'_> {
                     case_id_authority: self
                         .authorization
                         .map(RelationalCaseIdPublicationAuthorization::authority),
-                },
-            ));
+                })
+                .map(Some);
         }
         if source_ordinal <= Self::REGION_COUNT {
             let (outcome, exact_case_count) = match source_ordinal {
@@ -2712,15 +2763,15 @@ impl RelationalClassificationSummaryProjection<'_> {
                 ),
                 _ => unreachable!("region ordinal is range checked"),
             };
-            return Ok(Some(
-                RelationalClassificationSummaryProjectionRecord::Region {
+            return self
+                .add_record(RelationalClassificationSummaryRow::Region {
                     question_id: self.question_id,
-                    region_ordinal: u8::try_from(source_ordinal - 1)
+                    region_ordinal: u16::try_from(source_ordinal - 1)
                         .map_err(|_| RelationalPublicationError::ArithmeticOverflow)?,
                     exact_case_count,
                     outcome,
-                },
-            ));
+                })
+                .map(Some);
         }
 
         let case_ordinal = source_ordinal
@@ -2743,23 +2794,172 @@ impl RelationalClassificationSummaryProjection<'_> {
                     "extensional selected-case index disagrees with exact closure".into(),
                 )
             })?;
-            return Ok(Some(
-                RelationalClassificationSummaryProjectionRecord::AuthorizedCase {
+            return self
+                .add_record(RelationalClassificationSummaryRow::AuthorizedCase {
                     question_id: self.question_id,
                     selected_region_ordinal: Self::SELECTED_REGION_ORDINAL,
                     case_id,
                     authority,
-                },
-            ));
+                })
+                .map(Some);
         }
         if source_ordinal == self.closure.data_record_count {
-            return Ok(Some(
-                RelationalClassificationSummaryProjectionRecord::Closure(self.closure),
-            ));
+            return Ok(Some(RelationalClassificationSummaryProjectionRecord::Seal(
+                self.closure,
+            )));
         }
         Err(RelationalPublicationError::CaseSupport(
             "extensional case-support ordinal index disagrees with exact closure".into(),
         ))
+    }
+
+    fn add_record(
+        &self,
+        row: RelationalClassificationSummaryRow,
+    ) -> Result<RelationalClassificationSummaryProjectionRecord, RelationalPublicationError> {
+        let key = classification_summary_record_key(&row);
+        let payload = classification_summary_row_payload(&row);
+        let row_hash = relational_case_support_row_hash_from_canonical_bytes(
+            self.projection_id,
+            key,
+            &payload,
+        )
+        .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+        Ok(RelationalClassificationSummaryProjectionRecord::Add { key, row_hash, row })
+    }
+}
+
+fn classification_summary_record_key(
+    row: &RelationalClassificationSummaryRow,
+) -> RelationalCaseSupportRecordKey {
+    match row {
+        RelationalClassificationSummaryRow::Root { .. } => RelationalCaseSupportRecordKey::Root,
+        RelationalClassificationSummaryRow::Region { region_ordinal, .. } => {
+            RelationalCaseSupportRecordKey::ClassificationRegion {
+                region_ordinal: *region_ordinal,
+            }
+        }
+        RelationalClassificationSummaryRow::AuthorizedCase { case_id, .. } => {
+            RelationalCaseSupportRecordKey::ClassificationAuthorizedCase { case_id: *case_id }
+        }
+    }
+}
+
+/// Typed canonical payload consumed by the common v4 row-hash envelope. This
+/// deliberately hashes fields rather than rendered JSON so whitespace, object
+/// ordering, and the outer journal checkpoint cannot rename a graph row.
+fn classification_summary_row_payload(row: &RelationalClassificationSummaryRow) -> [u8; 32] {
+    let mut payload = CanonicalPresentationDigest::new(CLASSIFICATION_SUMMARY_ROW_PAYLOAD_V1);
+    match row {
+        RelationalClassificationSummaryRow::Root {
+            contract,
+            question_id,
+            support_plan_root,
+            classification_authority,
+            exact_logical_case_count,
+            exact_admitted_case_count,
+            exact_selected_case_count,
+            case_id_authority,
+        } => {
+            payload.text(b"row-kind", "classification-summary-root");
+            payload.bytes(b"relation-id", &contract.relation_id().bytes());
+            payload.bytes(b"admission-id", &contract.admission_id().bytes());
+            payload.bytes(b"question-id", &question_id.bytes());
+            payload.bytes(b"support-plan-root", support_plan_root);
+            hash_classification_summary_authority(&mut payload, *classification_authority);
+            payload.bytes(
+                b"exact-logical-case-count",
+                &exact_logical_case_count.to_be_bytes(),
+            );
+            payload.bytes(
+                b"exact-admitted-case-count",
+                &exact_admitted_case_count.to_be_bytes(),
+            );
+            payload.bytes(
+                b"exact-selected-case-count",
+                &exact_selected_case_count.to_be_bytes(),
+            );
+            payload.bytes(
+                b"classification-region-count",
+                &RelationalClassificationSummaryProjection::REGION_COUNT.to_be_bytes(),
+            );
+            hash_optional_case_id_authority(&mut payload, *case_id_authority);
+        }
+        RelationalClassificationSummaryRow::Region {
+            question_id,
+            region_ordinal,
+            exact_case_count,
+            outcome,
+        } => {
+            payload.text(b"row-kind", "classification-summary-region");
+            payload.bytes(b"question-id", &question_id.bytes());
+            payload.bytes(b"region-ordinal", &region_ordinal.to_be_bytes());
+            payload.bytes(b"exact-case-count", &exact_case_count.to_be_bytes());
+            payload.text(b"outcome", public_classification_summary_outcome(*outcome));
+        }
+        RelationalClassificationSummaryRow::AuthorizedCase {
+            question_id,
+            selected_region_ordinal,
+            case_id,
+            authority,
+        } => {
+            payload.text(b"row-kind", "classification-summary-authorized-case");
+            payload.bytes(b"question-id", &question_id.bytes());
+            payload.bytes(
+                b"selected-region-ordinal",
+                &selected_region_ordinal.to_be_bytes(),
+            );
+            payload.bytes(b"case-id", &case_id.bytes());
+            hash_case_id_authority(&mut payload, *authority);
+        }
+    }
+    payload.finish()
+}
+
+fn classification_summary_row_hash(
+    projection_id: RelationalCaseSupportProjectionId,
+    row: &RelationalClassificationSummaryRow,
+) -> Result<
+    (RelationalCaseSupportRecordKey, RelationalCaseSupportRowHash),
+    RelationalPublicationError,
+> {
+    let key = classification_summary_record_key(row);
+    let payload = classification_summary_row_payload(row);
+    let row_hash =
+        relational_case_support_row_hash_from_canonical_bytes(projection_id, key, &payload)
+            .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+    Ok((key, row_hash))
+}
+
+fn hash_classification_summary_authority(
+    payload: &mut CanonicalPresentationDigest,
+    authority: RelationalPublishedClassificationAuthority,
+) {
+    payload.text(
+        b"classification-authority",
+        public_classification_authority(authority),
+    );
+}
+
+fn hash_optional_case_id_authority(
+    payload: &mut CanonicalPresentationDigest,
+    authority: Option<RelationalCaseIdPublicationAuthority>,
+) {
+    match authority {
+        None => payload.text(b"case-id-authority-kind", "none"),
+        Some(authority) => hash_case_id_authority(payload, authority),
+    }
+}
+
+fn hash_case_id_authority(
+    payload: &mut CanonicalPresentationDigest,
+    authority: RelationalCaseIdPublicationAuthority,
+) {
+    match authority {
+        RelationalCaseIdPublicationAuthority::ResultView(view_id) => {
+            payload.text(b"case-id-authority-kind", "checked-result-view");
+            payload.bytes(b"case-id-authorizing-view", &view_id.bytes());
+        }
     }
 }
 
@@ -3451,13 +3651,10 @@ fn derive_case_support_for_publication<'journal>(
                 projection.map(PublicationCaseSupportProjection::ClassificationSummary)
             });
     };
-    let classified_fragments = scheduler
-        .classified_support_fragments()
-        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let closure_ready = scheduler.support_catalog_is_sealed()
-        && classified_fragments.len() == partition.artifact().chunks().len()
+        && scheduler.accepted_classified_fragment_count() == partition.artifact().chunks().len()
         && scheduler
-            .selected_run_materializations_cover_classified_prefix(question_id)
+            .selected_run_materializations_cover_classified_slots(question_id)
             .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
     let closure_authority = if closure_ready {
         match (
@@ -3493,12 +3690,7 @@ fn derive_case_support_for_publication<'journal>(
     derive_relational_case_support_projection(
         question_id,
         partition,
-        classified_fragments,
-        |cell_id| {
-            scheduler
-                .selected_run_materialization(cell_id)
-                .expect("classified-prefix coverage requires each selected run materialization")
-        },
+        scheduler,
         authorization,
         closure_authority,
     )
@@ -3516,6 +3708,14 @@ fn derive_classification_summary_for_publication<'journal>(
     let scheduler = journal
         .scheduler_view()
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+    // A classification summary is a sealed fallback, not an open projection.
+    // Wait until support can no longer change its evidence root and concrete
+    // traversal has irreversibly selected the non-partitioned branch. Without
+    // both authorities, a later journal prefix could change already-addressed
+    // rows or replace this projection basis with a chunk partition.
+    if !scheduler.support_catalog_is_sealed() || !scheduler.relation_enumeration_is_complete() {
+        return Ok(None);
+    }
     let Some(selected_question) = journal
         .analysis_state()
         .and_then(|analysis| analysis.selected_question(question_id))
@@ -3550,6 +3750,14 @@ fn derive_classification_summary_for_publication<'journal>(
             "classification-summary case-support closure has no support-plan root".into(),
         )
     })?;
+    let projection_id = derive_relational_case_support_projection_id(
+        contract.relation_id(),
+        contract.admission_id(),
+        question_id,
+        support_plan_root.bytes(),
+        RelationalCaseSupportProjectionBasis::ClassificationSummary,
+        authorization,
+    );
     let selected_case_ids = scheduler
         .selected_discovery_suffix(question_id, 0)
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
@@ -3624,7 +3832,74 @@ fn derive_classification_summary_for_publication<'journal>(
     let support_evidence_root = scheduler
         .support_evidence_root()
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+    let mut active_set = RelationalCaseSupportActiveSetFold::new(projection_id, data_record_count);
+    let root_row = RelationalClassificationSummaryRow::Root {
+        contract: contract.clone(),
+        question_id,
+        support_plan_root: support_plan_root.bytes(),
+        classification_authority,
+        exact_logical_case_count,
+        exact_admitted_case_count,
+        exact_selected_case_count,
+        case_id_authority: authorization.map(RelationalCaseIdPublicationAuthorization::authority),
+    };
+    let (key, row_hash) = classification_summary_row_hash(projection_id, &root_row)?;
+    active_set
+        .add_hash(key, row_hash)
+        .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+    for (region_ordinal, exact_case_count, outcome) in [
+        (
+            0_u16,
+            rejected_case_count,
+            RelationalClassificationSummaryOutcome::Rejected,
+        ),
+        (
+            1_u16,
+            admitted_not_selected_case_count,
+            RelationalClassificationSummaryOutcome::AdmittedNotSelected,
+        ),
+        (
+            RelationalClassificationSummaryProjection::SELECTED_REGION_ORDINAL,
+            exact_selected_case_count,
+            RelationalClassificationSummaryOutcome::AdmittedSelected,
+        ),
+    ] {
+        let row = RelationalClassificationSummaryRow::Region {
+            question_id,
+            region_ordinal,
+            exact_case_count,
+            outcome,
+        };
+        let (key, row_hash) = classification_summary_row_hash(projection_id, &row)?;
+        active_set
+            .add_hash(key, row_hash)
+            .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+    }
+    if let Some(authority) = authorization.map(RelationalCaseIdPublicationAuthorization::authority)
+    {
+        for case_id in scheduler
+            .canonical_concrete_selected_case_ids(question_id)
+            .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
+        {
+            let row = RelationalClassificationSummaryRow::AuthorizedCase {
+                question_id,
+                selected_region_ordinal:
+                    RelationalClassificationSummaryProjection::SELECTED_REGION_ORDINAL,
+                case_id,
+                authority,
+            };
+            let (key, row_hash) = classification_summary_row_hash(projection_id, &row)?;
+            active_set
+                .add_hash(key, row_hash)
+                .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+        }
+    }
+    let active_set_root = active_set
+        .finish()
+        .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
     let closure = RelationalClassificationSummaryClosureMetadata {
+        projection_id,
+        active_set_root,
         classification_authority,
         support_evidence_root: support_evidence_root.bytes(),
         selected_question_seal_id: selected_question.id(),
@@ -3633,9 +3908,11 @@ fn derive_classification_summary_for_publication<'journal>(
         exact_admitted_case_count,
         exact_selected_case_count,
         authorized_case_record_count,
+        active_record_count: data_record_count,
         data_record_count,
     };
     Ok(Some(RelationalClassificationSummaryProjection {
+        projection_id,
         contract: contract.clone(),
         question_id,
         support_plan_root: support_plan_root.bytes(),
@@ -7779,20 +8056,98 @@ fn public_case_transition_record(
 
 fn public_case_support_record(record: PublicationCaseSupportRecord) -> JsonValue {
     match record {
-        PublicationCaseSupportRecord::Partitioned(record) => {
-            public_partitioned_case_support_record(record)
-        }
-        PublicationCaseSupportRecord::ClassificationSummary(record) => {
-            public_classification_summary_record(record)
-        }
+        PublicationCaseSupportRecord::Partitioned {
+            projection_id,
+            record,
+        } => public_partitioned_case_support_record(projection_id, record),
+        PublicationCaseSupportRecord::ClassificationSummary {
+            projection_id,
+            record,
+        } => public_classification_summary_record(projection_id, record),
     }
 }
 
 fn public_partitioned_case_support_record(
+    projection_id: RelationalCaseSupportProjectionId,
     record: RelationalCaseSupportProjectionRecord,
 ) -> JsonValue {
     match record {
-        RelationalCaseSupportProjectionRecord::Root {
+        RelationalCaseSupportProjectionRecord::Add { key, row_hash, row } => json!({
+            "kind": "add",
+            "projection_id": hex(projection_id.bytes()),
+            "key": public_case_support_record_key(key),
+            "row_hash": hex(row_hash.bytes()),
+            "row": public_partitioned_case_support_row(row),
+        }),
+        RelationalCaseSupportProjectionRecord::Seal(closure) => json!({
+            "kind": "seal",
+            "projection_id": hex(closure.projection_id.bytes()),
+            "active_set_root": hex(closure.active_set_root.bytes()),
+            "active_record_count": closure.active_record_count.to_string(),
+            "frontier": "exact",
+            "partition_artifact_id": hex(closure.partition_artifact_id.bytes()),
+            "support_evidence_root": hex(closure.support_evidence_root.bytes()),
+            "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
+            "exact_logical_case_count": closure.exact_logical_case_count.to_string(),
+            "exact_selected_case_count": closure.exact_selected_case_count.to_string(),
+            "classified_chunk_count": closure.classified_chunk_count.to_string(),
+            "region_count": closure.region_count.to_string(),
+            "selected_materialization_count": closure.selected_materialization_count.to_string(),
+            "authorized_case_record_count": closure.authorized_case_record_count.to_string(),
+            "data_record_count": closure.data_record_count.to_string(),
+        }),
+    }
+}
+
+fn public_case_support_record_key(key: RelationalCaseSupportRecordKey) -> JsonValue {
+    match key {
+        RelationalCaseSupportRecordKey::Root => json!({
+            "kind": "root",
+        }),
+        RelationalCaseSupportRecordKey::ClassificationRegion { region_ordinal } => json!({
+            "kind": "classification_region",
+            "region_ordinal": region_ordinal,
+        }),
+        RelationalCaseSupportRecordKey::ClassificationAuthorizedCase { case_id } => json!({
+            "kind": "classification_authorized_case",
+            "case_id": hex(case_id.bytes()),
+        }),
+        RelationalCaseSupportRecordKey::Chunk { chunk_ordinal } => json!({
+            "kind": "chunk",
+            "chunk_ordinal": chunk_ordinal.to_string(),
+        }),
+        RelationalCaseSupportRecordKey::Region {
+            chunk_ordinal,
+            run_ordinal,
+        } => json!({
+            "kind": "region",
+            "chunk_ordinal": chunk_ordinal.to_string(),
+            "run_ordinal": run_ordinal,
+        }),
+        RelationalCaseSupportRecordKey::SelectedMaterialization {
+            chunk_ordinal,
+            run_ordinal,
+        } => json!({
+            "kind": "selected_materialization",
+            "chunk_ordinal": chunk_ordinal.to_string(),
+            "run_ordinal": run_ordinal,
+        }),
+        RelationalCaseSupportRecordKey::AuthorizedCase {
+            chunk_ordinal,
+            run_ordinal,
+            case_id,
+        } => json!({
+            "kind": "authorized_case",
+            "chunk_ordinal": chunk_ordinal.to_string(),
+            "run_ordinal": run_ordinal,
+            "case_id": hex(case_id.bytes()),
+        }),
+    }
+}
+
+fn public_partitioned_case_support_row(row: RelationalCaseSupportRow) -> JsonValue {
+    match row {
+        RelationalCaseSupportRow::Root {
             relation_id,
             admission_id,
             question_id,
@@ -7805,6 +8160,7 @@ fn public_partitioned_case_support_record(
             "kind": "root",
             "projection_schema": RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA,
             "projection_version": RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
+            "update_algebra": RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA,
             "relation_id": hex(relation_id.bytes()),
             "admission_id": hex(admission_id.bytes()),
             "question_id": hex(question_id.bytes()),
@@ -7814,7 +8170,7 @@ fn public_partitioned_case_support_record(
             "planned_chunk_count": planned_chunk_count.to_string(),
             "case_id_authority": case_id_authority.map(public_case_id_authority),
         }),
-        RelationalCaseSupportProjectionRecord::Chunk {
+        RelationalCaseSupportRow::Chunk {
             partition_artifact_id,
             classification_authority,
             chunk_ordinal,
@@ -7835,9 +8191,10 @@ fn public_partitioned_case_support_record(
             "admitted_selected_case_count": admitted_selected_case_count.to_string(),
             "region_count": region_count.to_string(),
         }),
-        RelationalCaseSupportProjectionRecord::Region {
+        RelationalCaseSupportRow::Region {
             classification_authority,
             region_authority,
+            chunk_ordinal,
             run_ordinal,
             exact_case_count,
             outcome,
@@ -7848,13 +8205,16 @@ fn public_partitioned_case_support_record(
             "classification_authority": classification_authority.kind(),
             "run_id": hex(region_authority.id()),
             "region_authority": region_authority.kind(),
+            "chunk_ordinal": chunk_ordinal.to_string(),
             "run_ordinal": run_ordinal,
             "exact_case_count": exact_case_count.to_string(),
             "outcome": public_case_support_outcome(outcome),
             "correlated_starter_region_id": correlated_starter_region_id
                 .map(|id| hex(id.bytes())),
         }),
-        RelationalCaseSupportProjectionRecord::SelectedMaterialization {
+        RelationalCaseSupportRow::SelectedMaterialization {
+            chunk_ordinal,
+            run_ordinal,
             run_id,
             artifact_id,
             exact_case_count,
@@ -7862,98 +8222,47 @@ fn public_partitioned_case_support_record(
         } => json!({
             "kind": "selected_materialization",
             "run_id": hex(run_id.bytes()),
+            "chunk_ordinal": chunk_ordinal.to_string(),
+            "run_ordinal": run_ordinal,
             "materialization_artifact_id": hex(artifact_id.bytes()),
             "exact_case_count": exact_case_count.to_string(),
             "materialized_cases_root": hex(materialized_cases_root),
         }),
-        RelationalCaseSupportProjectionRecord::AuthorizedCase {
+        RelationalCaseSupportRow::AuthorizedCase {
+            chunk_ordinal,
+            run_ordinal,
             materialization_artifact_id,
             case_id,
             authority,
         } => json!({
             "kind": "authorized_case",
+            "chunk_ordinal": chunk_ordinal.to_string(),
+            "run_ordinal": run_ordinal,
             "materialization_artifact_id": hex(materialization_artifact_id.bytes()),
             "case_id": hex(case_id.bytes()),
             "authority": public_case_id_authority(authority),
-        }),
-        RelationalCaseSupportProjectionRecord::Closure(closure) => json!({
-            "kind": "closure",
-            "frontier": "exact",
-            "partition_artifact_id": hex(closure.partition_artifact_id.bytes()),
-            "support_evidence_root": hex(closure.support_evidence_root.bytes()),
-            "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
-            "exact_logical_case_count": closure.exact_logical_case_count.to_string(),
-            "exact_selected_case_count": closure.exact_selected_case_count.to_string(),
-            "classified_chunk_count": closure.classified_chunk_count.to_string(),
-            "region_count": closure.region_count.to_string(),
-            "selected_materialization_count": closure.selected_materialization_count.to_string(),
-            "authorized_case_record_count": closure.authorized_case_record_count.to_string(),
-            "data_record_count": closure.data_record_count.to_string(),
         }),
     }
 }
 
 fn public_classification_summary_record(
+    projection_id: RelationalCaseSupportProjectionId,
     record: RelationalClassificationSummaryProjectionRecord,
 ) -> JsonValue {
     match record {
-        RelationalClassificationSummaryProjectionRecord::Root {
-            contract,
-            question_id,
-            support_plan_root,
-            classification_authority,
-            exact_logical_case_count,
-            exact_admitted_case_count,
-            exact_selected_case_count,
-            case_id_authority,
-        } => json!({
-            "kind": "root",
-            "projection_kind": "classification_summary",
-            "classification_authority": public_classification_authority(
-                classification_authority,
-            ),
-            "projection_schema": RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA,
-            "projection_version": RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
-            "relation_id": hex(contract.relation_id().bytes()),
-            "admission_id": hex(contract.admission_id().bytes()),
-            "question_id": hex(question_id.bytes()),
-            "support_plan_root": hex(support_plan_root),
-            "exact_logical_case_count": exact_logical_case_count.to_string(),
-            "exact_admitted_case_count": exact_admitted_case_count.to_string(),
-            "exact_selected_case_count": exact_selected_case_count.to_string(),
-            "classification_region_count": RelationalClassificationSummaryProjection::REGION_COUNT
-                .to_string(),
-            "case_id_authority": case_id_authority.map(public_case_id_authority),
+        RelationalClassificationSummaryProjectionRecord::Add { key, row_hash, row } => json!({
+            "kind": "add",
+            "projection_id": hex(projection_id.bytes()),
+            "key": public_case_support_record_key(key),
+            "row_hash": hex(row_hash.bytes()),
+            "row": public_classification_summary_row(row),
         }),
-        RelationalClassificationSummaryProjectionRecord::Region {
-            question_id,
-            region_ordinal,
-            exact_case_count,
-            outcome,
-        } => json!({
-            "kind": "region",
+        RelationalClassificationSummaryProjectionRecord::Seal(closure) => json!({
+            "kind": "seal",
             "projection_kind": "classification_summary",
-            "parent_question_id": hex(question_id.bytes()),
-            "region_ordinal": region_ordinal,
-            "exact_case_count": exact_case_count.to_string(),
-            "outcome": public_classification_summary_outcome(outcome),
-        }),
-        RelationalClassificationSummaryProjectionRecord::AuthorizedCase {
-            question_id,
-            selected_region_ordinal,
-            case_id,
-            authority,
-        } => json!({
-            "kind": "authorized_case",
-            "projection_kind": "classification_summary",
-            "parent_question_id": hex(question_id.bytes()),
-            "parent_region_ordinal": selected_region_ordinal,
-            "case_id": hex(case_id.bytes()),
-            "authority": public_case_id_authority(authority),
-        }),
-        RelationalClassificationSummaryProjectionRecord::Closure(closure) => json!({
-            "kind": "closure",
-            "projection_kind": "classification_summary",
+            "projection_id": hex(closure.projection_id.bytes()),
+            "active_set_root": hex(closure.active_set_root.bytes()),
+            "active_record_count": closure.active_record_count.to_string(),
             "classification_authority": public_classification_authority(
                 closure.classification_authority,
             ),
@@ -7970,6 +8279,66 @@ fn public_classification_summary_record(
                 .to_string(),
             "authorized_case_record_count": closure.authorized_case_record_count.to_string(),
             "data_record_count": closure.data_record_count.to_string(),
+        }),
+    }
+}
+
+fn public_classification_summary_row(row: RelationalClassificationSummaryRow) -> JsonValue {
+    match row {
+        RelationalClassificationSummaryRow::Root {
+            contract,
+            question_id,
+            support_plan_root,
+            classification_authority,
+            exact_logical_case_count,
+            exact_admitted_case_count,
+            exact_selected_case_count,
+            case_id_authority,
+        } => json!({
+            "kind": "root",
+            "projection_kind": "classification_summary",
+            "classification_authority": public_classification_authority(
+                classification_authority,
+            ),
+            "projection_schema": RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA,
+            "projection_version": RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION,
+            "update_algebra": RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA,
+            "relation_id": hex(contract.relation_id().bytes()),
+            "admission_id": hex(contract.admission_id().bytes()),
+            "question_id": hex(question_id.bytes()),
+            "support_plan_root": hex(support_plan_root),
+            "exact_logical_case_count": exact_logical_case_count.to_string(),
+            "exact_admitted_case_count": exact_admitted_case_count.to_string(),
+            "exact_selected_case_count": exact_selected_case_count.to_string(),
+            "classification_region_count": RelationalClassificationSummaryProjection::REGION_COUNT
+                .to_string(),
+            "case_id_authority": case_id_authority.map(public_case_id_authority),
+        }),
+        RelationalClassificationSummaryRow::Region {
+            question_id,
+            region_ordinal,
+            exact_case_count,
+            outcome,
+        } => json!({
+            "kind": "region",
+            "projection_kind": "classification_summary",
+            "parent_question_id": hex(question_id.bytes()),
+            "region_ordinal": region_ordinal,
+            "exact_case_count": exact_case_count.to_string(),
+            "outcome": public_classification_summary_outcome(outcome),
+        }),
+        RelationalClassificationSummaryRow::AuthorizedCase {
+            question_id,
+            selected_region_ordinal,
+            case_id,
+            authority,
+        } => json!({
+            "kind": "authorized_case",
+            "projection_kind": "classification_summary",
+            "parent_question_id": hex(question_id.bytes()),
+            "parent_region_ordinal": selected_region_ordinal,
+            "case_id": hex(case_id.bytes()),
+            "authority": public_case_id_authority(authority),
         }),
     }
 }
@@ -8034,6 +8403,7 @@ fn public_case_support_outcome(outcome: RelationalCaseSupportOutcome) -> &'stati
 
 fn public_case_support_metadata(metadata: RelationalCaseSupportProjectionMetadata) -> JsonValue {
     json!({
+        "projection_id": hex(metadata.projection_id.bytes()),
         "frontier": public_case_support_frontier(metadata.frontier),
         "counts": {
             "logical_cases": {
@@ -8053,6 +8423,7 @@ fn public_case_support_metadata(metadata: RelationalCaseSupportProjectionMetadat
                 .published_selected_materialization_count
                 .to_string(),
             "authorized_case_records": metadata.authorized_case_record_count.to_string(),
+            "active_records": metadata.active_record_count.to_string(),
             "available_source_records": metadata.available_source_record_count.to_string(),
         },
     })
@@ -8076,8 +8447,12 @@ fn public_case_support_projection_metadata(
             let closure = projection.closure;
             json!({
                 "projection_kind": "classification_summary",
+                "projection_id": hex(closure.projection_id.bytes()),
                 "frontier": {
                     "status": "exact",
+                    "projection_id": hex(closure.projection_id.bytes()),
+                    "active_set_root": hex(closure.active_set_root.bytes()),
+                    "active_record_count": closure.active_record_count.to_string(),
                     "classification_authority": public_classification_authority(
                         closure.classification_authority,
                     ),
@@ -8108,6 +8483,7 @@ fn public_case_support_projection_metadata(
                     "classification_regions": RelationalClassificationSummaryProjection::REGION_COUNT
                         .to_string(),
                     "authorized_case_records": closure.authorized_case_record_count.to_string(),
+                    "active_records": closure.active_record_count.to_string(),
                     "available_source_records": projection.available_source_record_count().to_string(),
                 },
             })
@@ -8225,19 +8601,23 @@ fn public_case_support_frontier(frontier: RelationalCaseSupportProjectionFrontie
         RelationalCaseSupportProjectionFrontier::Open(reason) => json!({
             "status": "open",
             "reason": match reason {
-                RelationalCaseSupportOpenReason::AwaitingClassifiedChunk {
-                    next_chunk_ordinal,
+                RelationalCaseSupportOpenReason::AwaitingClassifiedFragments {
+                    missing_chunk_count,
+                    first_missing_chunk_ordinal,
                 } => json!({
-                    "kind": "awaiting_classified_chunk",
-                    "next_chunk_ordinal": next_chunk_ordinal.to_string(),
+                    "kind": "awaiting_classified_fragments",
+                    "missing_chunk_count": missing_chunk_count.to_string(),
+                    "first_missing_chunk_ordinal": first_missing_chunk_ordinal.to_string(),
                 }),
-                RelationalCaseSupportOpenReason::AwaitingSelectedMaterialization {
-                    chunk_ordinal,
-                    run_ordinal,
+                RelationalCaseSupportOpenReason::AwaitingSelectedMaterializations {
+                    missing_materialization_count,
+                    first_chunk_ordinal,
+                    first_run_ordinal,
                 } => json!({
-                    "kind": "awaiting_selected_materialization",
-                    "chunk_ordinal": chunk_ordinal.to_string(),
-                    "run_ordinal": run_ordinal,
+                    "kind": "awaiting_selected_materializations",
+                    "missing_materialization_count": missing_materialization_count.to_string(),
+                    "first_chunk_ordinal": first_chunk_ordinal.to_string(),
+                    "first_run_ordinal": first_run_ordinal,
                 }),
                 RelationalCaseSupportOpenReason::AwaitingClosureAuthority => json!({
                     "kind": "awaiting_closure_authority",
@@ -8246,6 +8626,9 @@ fn public_case_support_frontier(frontier: RelationalCaseSupportProjectionFrontie
         }),
         RelationalCaseSupportProjectionFrontier::Exact(closure) => json!({
             "status": "exact",
+            "projection_id": hex(closure.projection_id.bytes()),
+            "active_set_root": hex(closure.active_set_root.bytes()),
+            "active_record_count": closure.active_record_count.to_string(),
             "partition_artifact_id": hex(closure.partition_artifact_id.bytes()),
             "support_evidence_root": hex(closure.support_evidence_root.bytes()),
             "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
@@ -11610,6 +11993,10 @@ fn build_manifest(
                     JsonValue::Number(RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION.into()),
                 );
                 object.insert(
+                    "update_algebra".into(),
+                    JsonValue::String(RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA.into()),
+                );
+                object.insert(
                     "case_id_authority".into(),
                     (*authorization)
                         .map(|authorization| public_case_id_authority(authorization.authority()))
@@ -12140,27 +12527,23 @@ fn artifact_layer_roots(
         };
         return match projection {
             PublicationCaseSupportProjection::Partitioned(projection) => {
-                let Some(RelationalCaseSupportProjectionRecord::Root {
-                    partition_artifact_id,
-                    ..
-                }) = projection
-                    .record_at(0)
-                    .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?
-                else {
-                    return Err(RelationalPublicationError::CaseSupport(
-                        "case-support projection omitted its root record".into(),
-                    ));
-                };
+                let projection_id = projection.projection_id();
+                let partition_artifact_id = projection.partition_artifact_id();
                 Ok(match projection.metadata().frontier {
                     RelationalCaseSupportProjectionFrontier::Open(_) => json!({
                         "projection_kind": "partitioned_support",
+                        "projection_id": hex(projection_id.bytes()),
                         "partition_artifact_id": hex(partition_artifact_id.bytes()),
+                        "active_set_root": null,
                         "support_evidence_root": null,
                         "selected_question_seal_id": null,
                     }),
                     RelationalCaseSupportProjectionFrontier::Exact(closure) => json!({
                         "projection_kind": "partitioned_support",
+                        "projection_id": hex(closure.projection_id.bytes()),
                         "partition_artifact_id": hex(partition_artifact_id.bytes()),
+                        "active_set_root": hex(closure.active_set_root.bytes()),
+                        "active_record_count": closure.active_record_count.to_string(),
                         "support_evidence_root": hex(closure.support_evidence_root.bytes()),
                         "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
                     }),
@@ -12168,7 +12551,10 @@ fn artifact_layer_roots(
             }
             PublicationCaseSupportProjection::ClassificationSummary(projection) => Ok(json!({
                 "projection_kind": "classification_summary",
+                "projection_id": hex(projection.closure.projection_id.bytes()),
                 "partition_artifact_id": null,
+                "active_set_root": hex(projection.closure.active_set_root.bytes()),
+                "active_record_count": projection.closure.active_record_count.to_string(),
                 "classification_authority": public_classification_authority(
                     projection.closure.classification_authority,
                 ),
@@ -13166,7 +13552,7 @@ fn path_to_manifest_string(path: &Path) -> Result<String, RelationalPublicationE
 
 fn publication_prefix_genesis(artifact_key: &str, presentation_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_ROOT_V17);
+    hasher.update(RESULT_PREFIX_ROOT_V18);
     hasher.update((artifact_key.len() as u64).to_be_bytes());
     hasher.update(artifact_key.as_bytes());
     hasher.update(presentation_digest);
@@ -13175,7 +13561,7 @@ fn publication_prefix_genesis(artifact_key: &str, presentation_digest: [u8; 32])
 
 fn extend_publication_prefix(prior: [u8; 32], line_digest: [u8; 32]) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(RESULT_PREFIX_EXTEND_V17);
+    hasher.update(RESULT_PREFIX_EXTEND_V18);
     hasher.update(prior);
     hasher.update(line_digest);
     hasher.finalize().into()

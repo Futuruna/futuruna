@@ -65,7 +65,7 @@ display result before mechanism replay. This remains a kernel audit, not a
 Personskat result.
 
 The compact answer is now shaped for the policy result rather than only for
-engine inspection. Report v11 and publication v19 list every named result,
+engine inspection. Report v11 and publication v20 list every named result,
 including an ungrouped configuration ledger and an exact-empty view, with its
 resolved input, row grain, ordered typed columns, group keys, exact or open row
 count, evidence roots, and resumable NDJSON path. The manifest joins those
@@ -1258,11 +1258,15 @@ contiguous root cursor; cold resume first continues any authenticated partial
 concrete slice, then skips accepted slots and reconstructs the same candidate
 and residual order.
 
-The result and mechanism lanes consume those sparse selected cases today. The
-current flat case/support artifact still publishes only its contiguous promoted
-prefix; the intended open case graph needs stable-key sparse updates before it
-can expose later chunks without reordering already appended records. Exact
-closure is already canonical and remains gated on the complete prefix.
+The result and mechanism lanes consume those sparse selected cases, and
+publication v20 exposes the same early evidence through case/support schema v4.
+The NDJSON is a discovery-ordered append-only stream of stable-key `add`
+records: each first accepted sparse fragment publishes its chunk and regions
+immediately, even across lower ordinal gaps, while selected materialization and
+authorized cases append later when they exist. Exact closure remains gated on
+complete classified and materialized coverage, then emits one `seal` committing
+the canonical key-sorted active-set root. Discovery order and the separate
+root-prefix promotion checkpoint therefore cannot rename the exact graph.
 
 The dependency is on content readiness, not producer closure. As soon as one
 coherent profile transition is yielded, its immutable CaseId readiness token
@@ -2137,7 +2141,7 @@ before its target has sealed. At that point undiscovered target cases remain an
 opaque obligation, so the internal count state is `unknown(lower)` rather than
 an invented finite interval. The journal can accept immutable observation
 points for that open state under the stable request/target/subject identity.
-Publication v18 projects those points into a resumable request-local sidecar;
+Publication v20 projects those points into a resumable request-local sidecar;
 it does not wait for closure and then invent an all-subject report. The
 eventual request-level support closure yields a sealed successor for every
 registered mechanism slice; it does not mint a replacement slice identity.
@@ -2209,7 +2213,7 @@ shared unresolved frontier plus the relevant leaves and the requested output.
 The fully deduplicated starter/successor union for a requested node is a bounded,
 evictable hot view, not another durable incidence table. Visiting every node in
 the graph must not leave `cases × nodes` projections resident in memory. A cold
-view is rebuilt from the same authenticated signature leaves. Publication v18
+view is rebuilt from the same authenticated signature leaves. Publication v20
 does not eagerly rebuild those unions or emit closure-time support rows for
 every node and edge. The structural-definition catalog publishes stable
 support-slice descriptors for mechanisms and activation/differential node and
@@ -2264,7 +2268,7 @@ is needed. These frontend and scheduler semantics are integrated through the
 journal, stream driver and publication plan; focused executable verification
 is the next gate before a larger audit run.
 
-Those descriptors are authorization-neutral. Publication v18 retains the
+Those descriptors are authorization-neutral. Publication v20 retains the
 explicit single-subject typed materializer introduced in publication v9 when a
 checked lossless selected-input, each-case view exposes `case_id`, `context`,
 `before` and `after` without aggregation, `having` or choice:
@@ -2297,7 +2301,7 @@ carrying one source/successor pair; the deduplicated source-only population is
 `P`. An unqualified consumer omits the optional route coordinate and retains
 its v1 consumer-local identity and record shape. In the historical
 publication-v9 contract this allowed a qualified consumer to be appended
-without republishing the core exploration. Publication v18 preserves the
+without republishing the core exploration. Publication v20 preserves the
 semantic separation, but has its own Experimental publication plan and cursor.
 
 The subject may instead be one structural mechanism or an
@@ -2844,7 +2848,7 @@ case-support fiber on demand while the other 8,052 nodes and 20,720 edges stayed
 factorized. Publication must never eagerly serialize all of those case-support
 fibers merely because the structural DAG is published.
 
-Publication v18 keeps that typed consumer but removes the eager closure-time
+Publication v20 keeps that typed consumer but removes the eager closure-time
 all-subject `structural_subject_support` row enumeration. Structural
 definitions now carry stable slice descriptors; only scheduled slices
 receive compact, append-only support observations. Thus the old 57,548-row
@@ -2989,7 +2993,7 @@ geometry from an old journal.
 The mechanism-support implementation has the matching authenticated
 origin-preimage foundation today: request/target/subject/facet identity,
 `SourceKey` starter sets, conditional `SuccessorKey` fibers, lazy signature
-unions and honest unknown/interval/exact counts. Publication v18 implements
+unions and honest unknown/interval/exact counts. Publication v20 implements
 independently domain-separated inner/outer expression bounds for `S`, the
 correlated `SourceKey -> Set<SuccessorKey>` case-support contract, and
 `P = distinct_sources(S)`. Its append-only observation points also carry
@@ -3122,7 +3126,7 @@ support-overlay coordinates and references; typed starter values stay
 authorization-gated and structural mechanism/node/edge identities stay
 value-free.
 
-Publication v18 emits one flat observation artifact per mechanism request at
+Publication v20 emits one flat observation artifact per mechanism request at
 `mechanisms/<request>.support-observations.ndjson`. The structural sidecar now
 contains structural assignments, the quotient closure and, only after every
 automatically registered mechanism slice seals, an optional constant-size
@@ -3891,18 +3895,25 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    addressed signature; no fresh process scans every known definition to
    resume one line. The internal case/support DAG now also has a pure public
    question-relative projection attached to the same resumable publisher as
-   `graphs/case-support-<question-id-hex>.ndjson`. A classified partition publishes root → chunk
-   → region → selected materialization → authorized case. A run that closes
-   without ever minting such a partition publishes root → exact classification
-   region → authorized case instead, with one closure naming the actual
-   classification, support-prefix and selected-population authorities. This
+   `graphs/case-support-<question-id-hex>.ndjson`. Publication v20's
+   case/support schema v4 is a discovery-ordered append-only stable-key stream.
+   A classified partition first adds its root; every newly accepted sparse
+   child then adds its chunk and region nodes immediately. Selected-run
+   materialization and authorized-case nodes add later when their own evidence
+   exists, so neither a lower ordinal gap nor missing selected materialization
+   withholds a valid chunk. A run that closes without ever minting such a
+   partition publishes root → exact classification region → authorized case
+   instead. Both shapes end in one exact `seal` naming the actual
+   classification, support and selected-population authorities and committing
+   a canonical key-sorted active-set root independent of discovery order. This
    second shape is essential: a uniform proof or complete concrete path must
    not leave a completed exploration's graph permanently waiting for an
    artifact its scheduler branch cannot create. Neither projection exposes
    coordinates, state/context values, materializer identities or proof
-   payloads. Publication v3 freezes an exact flat source end before a
-   result-view or case/support batch appends, so torn-tail recovery cannot
-   validate later rows under the older pending checkpoint.
+   payloads. The publication cursor freezes a bounded discovery end and any
+   available terminal authority before appending, so torn-tail recovery cannot
+   validate later rows under an older pending checkpoint. Root-prefix promotion
+   remains operational and emits no public graph update.
 
    An earlier focused single-question oracle executed this path. Its sealed
    journal contains four exact cases, two selected cases, one shared mechanism

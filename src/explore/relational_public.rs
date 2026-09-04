@@ -3528,9 +3528,11 @@ mod regional_stream_acceptance_tests {
     };
     use super::super::relational_candidate_schedule::RelationalCandidateScheduleReason;
     use super::super::relational_case_support_projection::{
-        derive_relational_case_support_projection, RelationalCaseSupportClosureAuthority,
-        RelationalCaseSupportCount, RelationalCaseSupportProjectionFrontier,
-        RelationalCaseSupportProjectionRecord,
+        derive_relational_case_support_projection, relational_case_support_active_set_root,
+        RelationalCaseSupportClosureAuthority, RelationalCaseSupportCount,
+        RelationalCaseSupportOpenReason, RelationalCaseSupportProjection,
+        RelationalCaseSupportProjectionFrontier, RelationalCaseSupportProjectionRecord,
+        RelationalCaseSupportRecordKey, RelationalCaseSupportRow, RelationalCaseSupportRowHash,
     };
     use super::super::relational_classified_sweep_step_driver::{
         RelationalClassifiedSweepStepDriver, RelationalClassifiedSweepStepOutcome,
@@ -3813,6 +3815,25 @@ mod regional_stream_acceptance_tests {
         for event in batch.into_events() {
             journal.append(event).expect("append base scheduler event");
         }
+    }
+
+    fn case_support_add_sequence(
+        projection: &RelationalCaseSupportProjection<'_>,
+    ) -> Vec<(RelationalCaseSupportRecordKey, RelationalCaseSupportRowHash)> {
+        (0..projection.available_source_record_count())
+            .filter_map(|ordinal| {
+                match projection
+                    .record_at(ordinal)
+                    .expect("read case/support projection record")
+                    .expect("case/support projection ordinal exists")
+                {
+                    RelationalCaseSupportProjectionRecord::Add { key, row_hash, .. } => {
+                        Some((key, row_hash))
+                    }
+                    RelationalCaseSupportProjectionRecord::Seal(_) => None,
+                }
+            })
+            .collect()
     }
 
     fn first_classification_quantum(source: &str) -> RelationalStepQuantum {
@@ -4238,7 +4259,7 @@ mod regional_stream_acceptance_tests {
                 .expect("read plural publication manifest"),
         )
         .expect("parse plural publication manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(20));
         assert_eq!(
             manifest["identity"]["question_ids"]
                 .as_array()
@@ -4383,7 +4404,7 @@ mod regional_stream_acceptance_tests {
             &fs::read_to_string(&publication.manifest_path).expect("read answer manifest"),
         )
         .expect("parse answer manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(20));
         assert_eq!(manifest["answer"]["rows_inlined"].as_bool(), Some(false));
         let views = manifest["answer"]["result_views"]
             .as_array()
@@ -4897,7 +4918,7 @@ mod regional_stream_acceptance_tests {
             &fs::read_to_string(&publication.manifest_path).expect("read choice manifest"),
         )
         .expect("parse choice manifest");
-        assert_eq!(manifest["schema_version"].as_u64(), Some(19));
+        assert_eq!(manifest["schema_version"].as_u64(), Some(20));
         assert_eq!(manifest["answer"]["schema_version"].as_u64(), Some(2));
         let choices = manifest["answer"]["choices"]
             .as_array()
@@ -5386,6 +5407,7 @@ mod regional_stream_acceptance_tests {
         let mut prepared = prepare(HYBRID);
         let question_id = prepared.checked.view().question_ids()[0];
         let paused_checkpoint;
+        let paused_adds;
 
         {
             let checked = prepared.checked.view();
@@ -5451,44 +5473,89 @@ mod regional_stream_acceptance_tests {
                         batch.into_events(),
                     )
                     .expect("append hybrid prefix batch");
-                if matches!(
-                    quantum,
-                    RelationalStreamQuantum::Base(RelationalStepQuantum::CertifiedRegion {
-                        chunk_ordinal: 0,
-                        ..
-                    })
-                ) {
+                if selected_candidate_materialized {
                     break;
                 }
             }
             assert_eq!(preceding_base_classifications, 1);
             assert!(selected_candidate_materialized);
-            let view = durable
-                .journal()
-                .expect("inspect durable prefix")
-                .scheduler_view()
-                .expect("inspect hybrid prefix");
-            assert!(view.classified_support_fragments().unwrap().is_empty());
-            assert_eq!(view.accepted_classified_fragment_count(), 2);
-            assert!(matches!(
-                view.classified_support_fragment_at(0).unwrap(),
-                Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(
-                    _
-                ))
-            ));
-            assert!(matches!(
-                view.classified_support_fragment_at(1).unwrap(),
-                Some(RelationalClassifiedSupportFragment::Concrete(_))
-            ));
-            assert_eq!(
-                view.selected_run_materializations(question_id)
+            paused_adds = {
+                let view = durable
+                    .journal()
+                    .expect("inspect durable prefix")
+                    .scheduler_view()
+                    .expect("inspect hybrid prefix");
+                assert!(view.classified_support_fragments().unwrap().is_empty());
+                assert_eq!(view.accepted_classified_fragment_count(), 1);
+                assert!(view.classified_support_fragment_at(0).unwrap().is_none());
+                assert!(matches!(
+                    view.classified_support_fragment_at(1).unwrap(),
+                    Some(RelationalClassifiedSupportFragment::Concrete(_))
+                ));
+                assert_eq!(
+                    view.selected_run_materializations(question_id)
+                        .unwrap()
+                        .count(),
+                    1
+                );
+                let partition = view
+                    .verified_case_chunk_partition()
                     .unwrap()
-                    .count(),
-                1
-            );
+                    .expect("hybrid canonical partition before pause");
+                let projection = derive_relational_case_support_projection(
+                    question_id,
+                    partition,
+                    view,
+                    None,
+                    None,
+                )
+                .expect("derive sparse public hybrid prefix");
+                let metadata = projection.metadata();
+                assert_eq!(
+                    metadata.classified_case_count,
+                    RelationalCaseSupportCount::LowerBound(44)
+                );
+                assert_eq!(
+                    metadata.selected_case_count,
+                    RelationalCaseSupportCount::LowerBound(20)
+                );
+                assert_eq!(
+                    metadata.materialized_selected_case_count,
+                    RelationalCaseSupportCount::LowerBound(20)
+                );
+                assert!(matches!(
+                    metadata.frontier,
+                    RelationalCaseSupportProjectionFrontier::Open(
+                        RelationalCaseSupportOpenReason::AwaitingClassifiedFragments {
+                            missing_chunk_count: 1,
+                            first_missing_chunk_ordinal: 0,
+                        }
+                    )
+                ));
+                let adds = case_support_add_sequence(&projection);
+                assert_eq!(
+                    projection.available_source_record_count(),
+                    u128::try_from(adds.len()).expect("bounded sparse add count")
+                );
+                assert!(matches!(
+                    adds.first(),
+                    Some((RelationalCaseSupportRecordKey::Root, _))
+                ));
+                assert!(matches!(
+                    adds.last(),
+                    Some((
+                        RelationalCaseSupportRecordKey::SelectedMaterialization {
+                            chunk_ordinal: 1,
+                            ..
+                        },
+                        _
+                    ))
+                ));
+                adds
+            };
             paused_checkpoint = durable
                 .flush_for_pause()
-                .expect("flush certified hybrid prefix");
+                .expect("flush sparse hybrid prefix");
         }
 
         let checked = prepared.checked.view();
@@ -5508,20 +5575,136 @@ mod regional_stream_acceptance_tests {
             exact_one_region_replay_authority(&prepared),
         )
         .expect("reopen hybrid durable journal");
-        let reopened = durable.journal().expect("inspect reopened hybrid journal");
-        assert_eq!(reopened.next_sequence(), paused_checkpoint.next_sequence());
-        assert_eq!(reopened.head(), paused_checkpoint.head());
-        let reopened_view = reopened
-            .scheduler_view()
-            .expect("inspect replayed hybrid prefix");
-        assert!(reopened_view
-            .classified_support_fragments()
-            .unwrap()
-            .is_empty());
-        assert_eq!(reopened_view.accepted_classified_fragment_count(), 2);
+        {
+            let reopened = durable.journal().expect("inspect reopened hybrid journal");
+            assert_eq!(reopened.next_sequence(), paused_checkpoint.next_sequence());
+            assert_eq!(reopened.head(), paused_checkpoint.head());
+            let reopened_view = reopened
+                .scheduler_view()
+                .expect("inspect replayed hybrid prefix");
+            assert!(reopened_view
+                .classified_support_fragments()
+                .unwrap()
+                .is_empty());
+            assert_eq!(reopened_view.accepted_classified_fragment_count(), 1);
+            assert!(reopened_view
+                .classified_support_fragment_at(0)
+                .unwrap()
+                .is_none());
+            let reopened_partition = reopened_view
+                .verified_case_chunk_partition()
+                .unwrap()
+                .expect("replayed hybrid canonical partition");
+            let reopened_projection = derive_relational_case_support_projection(
+                question_id,
+                reopened_partition,
+                reopened_view,
+                None,
+                None,
+            )
+            .expect("rederive sparse hybrid prefix after reopen");
+            assert_eq!(
+                case_support_add_sequence(&reopened_projection),
+                paused_adds,
+                "replay must preserve the byte-semantic add sequence"
+            );
+        }
+
+        let mut accepted_late_chunk_zero = false;
+        for _ in 0..64 {
+            let outcome = driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow reopened planning journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(256).unwrap(),
+                )
+                .expect("advance hybrid stream to late chunk zero");
+            let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                panic!("hybrid stream quiesced before accepting late chunk zero");
+            };
+            let accepts_chunk_zero = matches!(
+                batch.quantum(),
+                RelationalStreamQuantum::Base(RelationalStepQuantum::CertifiedRegion {
+                    chunk_ordinal: 0,
+                    ..
+                })
+            );
+            durable
+                .append_events(
+                    batch.expected_sequence(),
+                    batch.expected_head(),
+                    batch.into_events(),
+                )
+                .expect("append hybrid batch through late chunk zero");
+            if accepts_chunk_zero {
+                accepted_late_chunk_zero = true;
+                break;
+            }
+        }
+        assert!(accepted_late_chunk_zero);
+
+        let adds_after_chunk_zero = {
+            let view = durable
+                .journal()
+                .expect("inspect late-chunk hybrid journal")
+                .scheduler_view()
+                .expect("inspect late-chunk hybrid view");
+            assert!(view.classified_support_fragments().unwrap().is_empty());
+            assert_eq!(view.accepted_classified_fragment_count(), 2);
+            assert!(matches!(
+                view.classified_support_fragment_at(0).unwrap(),
+                Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                    _
+                ))
+            ));
+            let partition = view
+                .verified_case_chunk_partition()
+                .unwrap()
+                .expect("late-chunk hybrid canonical partition");
+            let projection =
+                derive_relational_case_support_projection(question_id, partition, view, None, None)
+                    .expect("derive hybrid projection after late chunk zero");
+            let metadata = projection.metadata();
+            assert_eq!(
+                metadata.classified_case_count,
+                RelationalCaseSupportCount::Exact(300)
+            );
+            assert_eq!(
+                metadata.selected_case_count,
+                RelationalCaseSupportCount::Exact(20)
+            );
+            assert_eq!(
+                metadata.materialized_selected_case_count,
+                RelationalCaseSupportCount::Exact(20)
+            );
+            assert!(matches!(
+                metadata.frontier,
+                RelationalCaseSupportProjectionFrontier::Open(
+                    RelationalCaseSupportOpenReason::AwaitingClosureAuthority
+                )
+            ));
+            let adds = case_support_add_sequence(&projection);
+            assert!(adds.starts_with(&paused_adds));
+            let appended = &adds[paused_adds.len()..];
+            assert_eq!(appended.len(), 2);
+            assert!(matches!(
+                appended[0].0,
+                RelationalCaseSupportRecordKey::Chunk { chunk_ordinal: 0 }
+            ));
+            assert!(matches!(
+                appended[1].0,
+                RelationalCaseSupportRecordKey::Region {
+                    chunk_ordinal: 0,
+                    run_ordinal: 0,
+                }
+            ));
+            adds
+        };
 
         let mut completed = false;
-        let mut first_resumed_batch = true;
         for _ in 0..128 {
             match driver
                 .step_with_base_member_limit(
@@ -5535,18 +5718,6 @@ mod regional_stream_acceptance_tests {
                 .expect("resume hybrid stream")
             {
                 RelationalStreamStepOutcome::Emitted(batch) => {
-                    if first_resumed_batch {
-                        assert!(matches!(
-                            batch.quantum(),
-                            RelationalStreamQuantum::Base(
-                                RelationalStepQuantum::CompleteClassifiedTargetWork {
-                                    chunk_ordinal: 0,
-                                    ..
-                                }
-                            )
-                        ));
-                        first_resumed_batch = false;
-                    }
                     durable
                         .append_events(
                             batch.expected_sequence(),
@@ -5611,7 +5782,7 @@ mod regional_stream_acceptance_tests {
             1
         );
         assert!(view
-            .selected_run_materializations_cover_classified_prefix(question_id)
+            .selected_run_materializations_cover_classified_slots(question_id)
             .unwrap());
         assert!(view.support_catalog_is_sealed());
         assert!(journal
@@ -5639,8 +5810,7 @@ mod regional_stream_acceptance_tests {
         let projection = derive_relational_case_support_projection(
             question_id,
             partition,
-            fragments,
-            |cell_id| view.selected_run_materialization(cell_id).unwrap(),
+            view,
             None,
             Some(closure_authority),
         )
@@ -5678,8 +5848,12 @@ mod regional_stream_acceptance_tests {
         let chunk_authorities = records
             .iter()
             .filter_map(|record| match record {
-                RelationalCaseSupportProjectionRecord::Chunk {
-                    classification_authority,
+                RelationalCaseSupportProjectionRecord::Add {
+                    row:
+                        RelationalCaseSupportRow::Chunk {
+                            classification_authority,
+                            ..
+                        },
                     ..
                 } => Some(classification_authority.kind()),
                 _ => None,
@@ -5687,13 +5861,16 @@ mod regional_stream_acceptance_tests {
             .collect::<Vec<_>>();
         assert_eq!(
             chunk_authorities,
-            vec!["regional_certificate", "concrete_sweep"]
+            vec!["concrete_sweep", "regional_certificate"]
         );
         assert!(records.iter().any(|record| matches!(
             record,
-            RelationalCaseSupportProjectionRecord::Region {
-                exact_case_count: 256,
-                correlated_starter_region_id: Some(_),
+            RelationalCaseSupportProjectionRecord::Add {
+                row: RelationalCaseSupportRow::Region {
+                    exact_case_count: 256,
+                    correlated_starter_region_id: Some(_),
+                    ..
+                },
                 ..
             }
         )));
@@ -5702,17 +5879,49 @@ mod regional_stream_acceptance_tests {
                 .iter()
                 .filter(|record| matches!(
                     record,
-                    RelationalCaseSupportProjectionRecord::SelectedMaterialization { .. }
+                    RelationalCaseSupportProjectionRecord::Add {
+                        row: RelationalCaseSupportRow::SelectedMaterialization { .. },
+                        ..
+                    }
                 ))
+                .count(),
+            1
+        );
+        assert_eq!(
+            records
+                .iter()
+                .filter(|record| matches!(record, RelationalCaseSupportProjectionRecord::Seal(_)))
                 .count(),
             1
         );
         assert!(matches!(
             records.last(),
-            Some(RelationalCaseSupportProjectionRecord::Closure(closure))
+            Some(RelationalCaseSupportProjectionRecord::Seal(closure))
                 if closure.exact_logical_case_count == 300
                     && closure.exact_selected_case_count == 20
         ));
+
+        let final_adds = case_support_add_sequence(&projection);
+        assert_eq!(final_adds, adds_after_chunk_zero);
+        let mut canonical_adds = final_adds;
+        canonical_adds.sort_unstable_by_key(|(key, _)| *key);
+        let closure = match metadata.frontier {
+            RelationalCaseSupportProjectionFrontier::Exact(closure) => closure,
+            RelationalCaseSupportProjectionFrontier::Open(reason) => {
+                panic!("completed hybrid projection remained open: {reason:?}")
+            }
+        };
+        assert_eq!(
+            closure.active_record_count,
+            u128::try_from(canonical_adds.len()).expect("bounded active add count")
+        );
+        let expected_active_set_root = relational_case_support_active_set_root(
+            projection.projection_id(),
+            closure.active_record_count,
+            canonical_adds,
+        )
+        .expect("fold canonical hybrid active set");
+        assert_eq!(closure.active_set_root, expected_active_set_root);
     }
 
     #[test]
@@ -6500,10 +6709,10 @@ mod regional_stream_acceptance_tests {
         assert!(ten_cases.is_subset(&twenty_cases));
         assert_eq!(twenty_cases.union(&ten_cases).count(), 20);
         assert!(view
-            .selected_run_materializations_cover_classified_prefix(question_twenty_id)
+            .selected_run_materializations_cover_classified_slots(question_twenty_id)
             .expect("verify final-twenty materialization cover"));
         assert!(view
-            .selected_run_materializations_cover_classified_prefix(question_ten_id)
+            .selected_run_materializations_cover_classified_slots(question_ten_id)
             .expect("verify final-ten materialization cover"));
         assert!(view.support_catalog_is_sealed());
         assert!(journal

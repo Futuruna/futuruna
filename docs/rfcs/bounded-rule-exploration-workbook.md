@@ -10,7 +10,7 @@ syntax. The current parser now accepts `from { given/vary/let }`,
 `transition after`, zero or more named `find` questions, and explicit named
 question inputs for `results` and `mechanisms`, including an exact chosen result
 as a mechanism target. Its scoped `where` plus
-publication-v17 `results`/`mechanisms`/`observations`/`starters` and
+publication-v20 `results`/`mechanisms`/`observations`/`starters` and
 `transitions` forms remain transitional implementation spellings that lower
 toward this model.
 They are not a second public dialect and carry no compatibility requirement.
@@ -82,13 +82,16 @@ already accepted slot and continues the same exact cover. There is also no
 implicit `selected` relation in the target surface: every view, choice and
 explanation names the `find` relation it consumes.
 
-Today those sparse selected cases already feed result and mechanism work. The
-flat case/support publication cursor still exposes only the contiguous promoted
-prefix; it cannot safely insert a later-discovered lower-ordinal record into an
-already appended file. The target contract remains a stable-key sparse update
-stream while open followed by a canonical exact snapshot at closure. That
-publisher seam is an explicit implementation gap, not a reason to weaken the
-sparse case-graph model.
+Those sparse selected cases feed result and mechanism work, and publication v20
+now exposes the same early evidence through case/support schema v4. Its
+append-only stream follows replay-derived discovery order, but every immutable
+`add` has a stable graph key: an accepted sparse child publishes its chunk and
+regions immediately, while selected-materialization and authorized-case nodes
+append when they become available. A missing lower ordinal or selected
+materialization no longer withholds an already valid chunk. Exact closure adds
+one terminal `seal` whose active-set root is folded in canonical key order, so
+the semantic graph is independent of scheduling and file order. Root-prefix
+promotion remains an internal checkpoint and contributes no public update.
 
 This distinction does not demote the live regional prover: it may certify one
 already selected canonical child and thereby avoid concrete evaluation of that
@@ -777,8 +780,11 @@ without changing semantic evidence.
 Replay also maintains an `O(1)` occupied-slot count, a canonical pending
 selected-run set and a pending classified-resolver set. One invocation chooses
 only the first pending key rather than scanning all `H` chunks. The sparse slot
-table is the sole owner of each classified artifact; the contiguous public
-prefix borrows those slots and does not allocate a second reference array.
+table is the sole owner of each classified artifact. The contiguous internal
+root prefix borrows those slots without allocating a second reference array,
+while a compact replay-derived discovery-coordinate log lets publication
+address independently accepted fragments and materializations in first-arrival
+order.
 Once a semantic classified artifact is durable, an extant resolver is merely
 the crash-recovery checkpoint that still needs completion. Completed resolver
 and readiness leaves may then be compacted; their absence never recreates
@@ -1299,7 +1305,7 @@ now journals demand registration, bounded structural-prefix backfill and shared
 support-observation points with separate automatic and explicit schedulers.
 
 The four-transition `relational-explore-stream-smoke.runa` query now closes
-through report v11 and publication v19 with two named questions over one shared
+through report v11 and publication v20 with two named questions over one shared
 relation and admission. `all_cases` closes at exactly four cases;
 `interesting` closes at exactly two. The latter two cases share one raw
 signature, structural mechanism and execution profile. Its identity-only
@@ -1325,7 +1331,7 @@ The public selector now routes relational syntax only through this path and
 fails closed rather than falling back to the v0 Cartesian, ordinal or probe-era
 executor.
 
-Publication v19 is the current artifact plan and report v11 is the current
+Publication v20 is the current artifact plan and report v11 is the current
 compact report. Every named result now has a bounded self-describing entry even
 when it is ungrouped, open, or exact-empty. The entry names its resolved input,
 grain, ordered selected schema, group keys, output-row and projection-record
@@ -1715,7 +1721,7 @@ reasoning proves the skipped cell uniform.
   or coverage-gap provenance separately from the extent observed in one
   support slice. Counts come from canonical deduplicated keys or a checked
   partition receipt, never interval widths or products of marginals.
-- Lower publication-v17 trailing `observations`, `starters` and `transitions`
+- Lower publication-v20 trailing `observations`, `starters` and `transitions`
   declarations only as transitional implementation spellings.
 
 ### 6. Proof-oriented search reduction
@@ -1792,7 +1798,7 @@ In the target surface every artifact below is requested by a separate
 `? publish` contract. Publication cannot alter the Explore relation, its named
 questions, a ChoiceId or the analysis DAG. The current parser keeps equivalent
 `results`, `observations`, `starters` and `transitions` declarations inside the
-Explore block while publication v19 is completed. Nested `choose` now lowers
+Explore block while publication v20 is completed. Nested `choose` now lowers
 to a canonical membership-only `ChoiceId` plus a separate display `ViewId`;
 an independently journaled choice relation commits its candidate seal, member
 prefix and content root before the display iterates those exact members. The
@@ -1824,7 +1830,7 @@ personskat-200k-result/
   graphs/case-transitions.ndjson
 ```
 
-The `starters/` lane is explicit and single-subject. Publication v18 retains
+The `starters/` lane is explicit and single-subject. Publication v20 retains
 the materializer first introduced in v9 and schedules one artifact only for an
 authored transitional `starters NAME from mechanisms REQUEST ...` consumer
 whose `using values from VIEW` reference names a checked lossless
@@ -1878,7 +1884,7 @@ require building one giant array. Grouped views use the same NDJSON envelope,
 one authenticated projection record per line, so a large histogram also stays
 bounded and resumable.
 
-Report v10 partitions support observation state explicitly. The request layer
+Report v11 partitions support observation state explicitly. The request layer
 contains the total shared observation point count/root; automatic point,
 registered, dirty, observed and sealed counts plus its closure-authority chain
 root; and explicit registration, point, registered, ready, pending-backfill,
@@ -1960,7 +1966,7 @@ visiting every DAG node cannot accumulate a permanent `cases × nodes` table.
 Sparse pause/report checkpoints bind operational cursors; final structural and
 support closures bind the exact raw-signature set and correlated support roots.
 
-Publication v18 replaces the old eager all-subject structural rows with
+Publication v20 replaces the old eager all-subject structural rows with
 scheduled compact observations. The structural-definition catalog advertises
 stable descriptors for every whole mechanism and activation/differential node
 or edge, but a descriptor is only an address. Every discovered whole mechanism
@@ -1970,7 +1976,7 @@ automatic slice. The core support receipt requires automatic registered,
 observed and sealed counts to equal the exact structural-mechanism count.
 
 Target-conditioned mechanism, node and edge slices are explicit readers. The
-following is the current publication-v17 transitional spelling; its target home
+following is the current publication-v20 transitional spelling; its target home
 is a separate `? publish` declaration:
 
 ```runa
@@ -2038,7 +2044,7 @@ renames the structural node or the core analysis DAG.
 Qualified artifacts use the unified subject-starter record schema v3. The
 optional route field is omitted from unqualified cursors and records.
 Publication v9 established the additive-consumer principle; the current
-Experimental v17 plan
+Experimental v20 plan
 preserves that separation without treating historical v9 bytes as a
 compatibility target.
 
@@ -2052,7 +2058,7 @@ resuming does not re-explore any cases. A fixed-fan-in external merge and
 arbitrary path-conditioned selectors remain future scaling work. The whole
 structural catalog MUST NOT be eagerly materialized merely because it exists.
 
-Publication schema v17 keeps each mechanism request and authored projection in
+Publication schema v20 keeps each mechanism request and authored projection in
 independently resumable artifacts. `mechanisms/<name>.ndjson` is the
 answer lane: its compact
 discovery events name a validated signature descriptor, typed unavailable
@@ -2133,30 +2139,39 @@ context values.
 Each canonical question's automatic
 `graphs/case-support-<question-id-hex>.ndjson` artifact is the complementary
 public reflection of its projection from the shared authenticated case/support
-prefix. Publication v18 gives every `QuestionId` its own key, path, cursor and
+evidence. Publication v20 gives every `QuestionId` its own key, path, cursor and
 manifest descriptor; aliases share that artifact and no find is primary. The
 artifact has two honest projection shapes rather than pretending every
-scheduler path creates the same proof artifact. A partitioned classified run emits a root, then complete chunk
-packages containing structural chunk and homogeneous region records,
-selected-materialization records, and authorized cases. A completed run that
-never mints a chunk partition emits an exact classification-summary root, the
-three mutually exclusive rejected, admitted/not-selected and
-admitted/selected regions, authorized selected cases, and a closure naming the
-actual classification and selected-population authorities. In both shapes a
-case record appears only when a checked ungrouped selected-case view explicitly
+scheduler path creates the same proof artifact. Under case/support schema v4, a
+partitioned run emits a root and then discovery-ordered, stable-key `add`
+records. Each newly accepted sparse classified child makes its chunk and
+homogeneous regions publishable immediately; a selected run's materialization
+and authorized cases append later when they exist. A completed run that never
+mints a chunk partition emits an exact classification-summary root, the three
+mutually exclusive rejected, admitted/not-selected and admitted/selected
+regions, authorized selected cases, and a terminal seal naming the actual
+classification and selected-population authorities. In both shapes a case
+record appears only when a checked ungrouped selected-case view explicitly
 publishes the bare nominal `case_id: CaseId`.
 
 Parent IDs make the projection searchable as root → chunk → region → selected
 materialization → case or root → classification region → case without
 publishing coordinates, state/context values, materializer identities or proof
-payloads. A missing selected materialization holds back its whole partitioned
-chunk, so an open file remains a valid append-only prefix. Partitioned counts
-stay `lower_bound` until exact classified/materialized coverage conserves
-against the root cardinality. A classification summary is emitted only after
-the relation/admission/FIND layers compose to exact counts and the selected
-seal's set commitment matches every authorized CaseId. The publisher must not
-wait forever for a partition that the chosen proof path can never produce, and
-must not synthesize one for presentation symmetry.
+payloads. A missing lower ordinal or selected materialization does not hold
+back an already accepted chunk and its regions. Duplicate stable keys are
+idempotent only for identical payloads, and this immutable projection needs no
+`retract`. Partitioned counts stay `lower_bound` until exact
+classified/materialized coverage conserves against the root cardinality. The
+terminal `seal` commits the canonical key-sorted active-set root and record
+count rather than discovery order; prefix promotion stays operational and
+emits no public graph record. A classification summary is emitted only after
+concrete relation traversal and the support catalog are sealed, the
+relation/admission/FIND layers compose to exact counts, and the selected seal's
+set commitment matches every authorized CaseId. Those two seals make both the
+support-evidence root and the choice of the non-partitioned projection basis
+immutable. The publisher must not wait forever for a partition that the chosen
+proof path can never produce, and must not synthesize one for presentation
+symmetry.
 
 Those opaque artifact IDs and roots are deterministic audit commitments, not
 hiding commitments. The graph does not serialize raw case values without a
@@ -2174,7 +2189,7 @@ authorized CaseId support and the canonical
 typed values. Mechanism incidence already uses the same CaseId and
 TransitionId, while subject starter projections use the same SourceKey and
 SuccessorKey. The three projections therefore meet without duplicating a
-case-by-node table. Publication v18 treats this lane as an additive
+case-by-node table. Publication v20 treats this lane as an additive
 artifact, preserving existing cursor/journal identity when it is attached to
 a completed run. Its V1 in-memory collision index has a hard 65,536-edge
 ceiling; a larger selected population closes the materialization attempt with
@@ -2376,7 +2391,7 @@ closure-aware structural count, and exposes the sealed target's distinct
 starter count separately from cases. The latter is request-wide support, not a
 per-node count. Per-mechanism, node and edge starter conditions remain
 correlated authenticated support overlays referenced through the publication
-manifest. Report v10 may inline a schema-capped prefix of a small exact grouped
+manifest. Report v11 may inline a schema-capped prefix of a small exact grouped
 view directly from its authenticated projection journal; its evidence roots
 and truncation cursor make that preview auditable. The operational artifact
 index names the corresponding full NDJSON plus every case, mechanism, compact

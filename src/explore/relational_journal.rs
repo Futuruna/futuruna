@@ -1853,6 +1853,43 @@ impl RelationalClassifiedSupportFragment {
     }
 }
 
+/// One immutable case/support fact in replay discovery order.
+///
+/// The retained payload remains owned by the journal's canonical sparse
+/// catalogs. This borrowed view adds only the logical coordinates needed by a
+/// publisher to address a bounded package and to filter the artifact's
+/// checked question mask. Discovery order is operational: it is never hashed
+/// into relation, question, support, or closure identity.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RelationalCaseSupportDiscoveryEvent<'a> {
+    ClassifiedFragment {
+        chunk_ordinal: u128,
+        fragment: &'a RelationalClassifiedSupportFragment,
+    },
+    SelectedRunMaterialization {
+        chunk_ordinal: u128,
+        run_ordinal: u16,
+        materialization: &'a RelationalSelectedRunMaterializationArtifact,
+    },
+}
+
+/// Compact coordinate into the canonical sparse catalogs.
+///
+/// Storing coordinates instead of cloning content IDs or artifacts gives the
+/// append-only publisher a replay-stable merge order without retaining a
+/// second copy of semantic evidence. Every coordinate is resolved and checked
+/// again by [`RelationalSchedulerView::case_support_discovery_event_at`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RelationalCaseSupportDiscoveryCoordinate {
+    ClassifiedFragment {
+        chunk_ordinal: usize,
+    },
+    SelectedRunMaterialization {
+        chunk_ordinal: usize,
+        run_ordinal: u16,
+    },
+}
+
 /// Zero-copy borrowed view of the durable contiguous classified prefix.
 ///
 /// The sparse slot table is the replay-derived storage authority and the
@@ -2153,6 +2190,13 @@ struct RelationalEvidenceState {
     /// operational state, excluded from every semantic root, and replaces a
     /// full sparse-table scan in scheduler selection.
     accepted_classified_fragment_count: usize,
+    /// Replay-derived first-arrival order for independently publishable
+    /// case/support packages. Entries are compact logical coordinates into the
+    /// sparse fragment and materialization catalogs; duplicates, prefix
+    /// promotion, and work-frontier compaction never append here. This is
+    /// operational addressing state and is excluded from semantic roots and
+    /// snapshots.
+    case_support_discovery: Vec<RelationalCaseSupportDiscoveryCoordinate>,
     /// Exact canonical child-admission resolver nodes installed by the
     /// partition, indexed back to chunk/cell/obligation. The node identity
     /// includes its readiness dependency, so a same-spec node with different
@@ -2466,6 +2510,7 @@ impl RelationalEvidenceState {
             classified_chunk_accumulator: None,
             classified_support_fragment_slots: Vec::new(),
             accepted_classified_fragment_count: 0,
+            case_support_discovery: Vec::new(),
             classified_child_by_resolver_node: BTreeMap::new(),
             pending_classified_work_completion_ordinals: BTreeSet::new(),
             pending_selected_run_positions: BTreeSet::new(),
@@ -3718,6 +3763,11 @@ impl RelationalEvidenceState {
                 chunk_admission.cell_id(),
                 chunk_admission.id(),
             )?;
+        if retain_new_classified_artifact {
+            self.case_support_discovery
+                .try_reserve(1)
+                .map_err(|_| RelationalJournalError::CaseSupportDiscoveryAllocationFailed)?;
+        }
 
         // Derive every bounded gateway payload before beginning the support
         // transaction. The transaction itself then has only established
@@ -3869,6 +3919,9 @@ impl RelationalEvidenceState {
                 self.pending_selected_run_positions
                     .insert((chunk_ordinal, run.ordinal()));
             }
+            self.case_support_discovery.push(
+                RelationalCaseSupportDiscoveryCoordinate::ClassifiedFragment { chunk_ordinal },
+            );
         }
         // The acceptance path already paid the full structural reverification
         // cost for this exact content-derived artifact. Retain that authority
@@ -4050,6 +4103,11 @@ impl RelationalEvidenceState {
                 chunk_cell_id,
                 chunk_admission_id,
             )?;
+        if retain {
+            self.case_support_discovery
+                .try_reserve(1)
+                .map_err(|_| RelationalJournalError::CaseSupportDiscoveryAllocationFailed)?;
+        }
 
         let undo_capacity = if selection.is_some() { 9 } else { 6 };
         let mut support = self.support.begin_append_transaction(undo_capacity)?;
@@ -4079,6 +4137,11 @@ impl RelationalEvidenceState {
                 self.pending_classified_work_completion_ordinals
                     .insert(chunk_index);
             }
+            self.case_support_discovery.push(
+                RelationalCaseSupportDiscoveryCoordinate::ClassifiedFragment {
+                    chunk_ordinal: chunk_index,
+                },
+            );
         }
         Ok(())
     }
@@ -4426,6 +4489,9 @@ impl RelationalEvidenceState {
                 },
             );
         }
+        self.case_support_discovery
+            .try_reserve(1)
+            .map_err(|_| RelationalJournalError::CaseSupportDiscoveryAllocationFailed)?;
         let retained_artifact = artifact.clone();
 
         // The sparse materializer represents admitted-and-selected cases, so
@@ -4488,6 +4554,12 @@ impl RelationalEvidenceState {
         debug_assert!(previous_id.is_none());
         self.pending_selected_run_positions
             .remove(&(chunk_ordinal, artifact.run_ordinal()));
+        self.case_support_discovery.push(
+            RelationalCaseSupportDiscoveryCoordinate::SelectedRunMaterialization {
+                chunk_ordinal,
+                run_ordinal: artifact.run_ordinal(),
+            },
+        );
         Ok(())
     }
 
@@ -6560,6 +6632,102 @@ impl<'a> RelationalSchedulerView<'a> {
         self.journal.state.accepted_classified_fragment_count
     }
 
+    /// Number of first-arrival case/support facts reconstructed by this exact
+    /// journal prefix. The sequence is an operational publication cursor and
+    /// does not participate in any semantic evidence root.
+    pub(crate) fn case_support_discovery_event_count(self) -> usize {
+        self.journal.state.case_support_discovery.len()
+    }
+
+    /// Resolve one compact discovery coordinate to its immutable retained
+    /// payload. A caller may inspect the classified question mask or the
+    /// materialization's selected-question set and omit records irrelevant to
+    /// its per-question projection without changing this shared order.
+    pub(crate) fn case_support_discovery_event_at(
+        self,
+        event_ordinal: usize,
+    ) -> Result<Option<RelationalCaseSupportDiscoveryEvent<'a>>, RelationalJournalError> {
+        let Some(coordinate) = self
+            .journal
+            .state
+            .case_support_discovery
+            .get(event_ordinal)
+            .copied()
+        else {
+            return Ok(None);
+        };
+        match coordinate {
+            RelationalCaseSupportDiscoveryCoordinate::ClassifiedFragment { chunk_ordinal } => {
+                let fragment = self
+                    .journal
+                    .state
+                    .classified_support_fragment_slots
+                    .get(chunk_ordinal)
+                    .and_then(Option::as_ref)
+                    .ok_or(RelationalJournalError::CaseSupportDiscoveryIndexMismatch {
+                        event_ordinal,
+                    })?;
+                let logical_chunk_ordinal = u128::try_from(chunk_ordinal).map_err(|_| {
+                    RelationalJournalError::CaseSupportDiscoveryIndexMismatch { event_ordinal }
+                })?;
+                if fragment.chunk_ordinal() != logical_chunk_ordinal {
+                    return Err(RelationalJournalError::CaseSupportDiscoveryIndexMismatch {
+                        event_ordinal,
+                    });
+                }
+                Ok(Some(
+                    RelationalCaseSupportDiscoveryEvent::ClassifiedFragment {
+                        chunk_ordinal: logical_chunk_ordinal,
+                        fragment,
+                    },
+                ))
+            }
+            RelationalCaseSupportDiscoveryCoordinate::SelectedRunMaterialization {
+                chunk_ordinal,
+                run_ordinal,
+            } => {
+                let classified = self
+                    .journal
+                    .state
+                    .classified_support_fragment_slots
+                    .get(chunk_ordinal)
+                    .and_then(Option::as_ref)
+                    .and_then(RelationalClassifiedSupportFragment::concrete)
+                    .ok_or(RelationalJournalError::CaseSupportDiscoveryIndexMismatch {
+                        event_ordinal,
+                    })?;
+                let run = classified
+                    .runs()
+                    .get(usize::from(run_ordinal))
+                    .filter(|run| run.ordinal() == run_ordinal)
+                    .ok_or(RelationalJournalError::CaseSupportDiscoveryIndexMismatch {
+                        event_ordinal,
+                    })?;
+                let materialization = self
+                    .journal
+                    .state
+                    .selected_run_materializations
+                    .get(&run.cell_id())
+                    .filter(|materialization| {
+                        materialization.classified_chunk_artifact_id() == classified.id()
+                            && materialization.chunk_ordinal() == classified.chunk_ordinal()
+                            && materialization.run_ordinal() == run_ordinal
+                            && materialization.run_cell_id() == run.cell_id()
+                    })
+                    .ok_or(RelationalJournalError::CaseSupportDiscoveryIndexMismatch {
+                        event_ordinal,
+                    })?;
+                Ok(Some(
+                    RelationalCaseSupportDiscoveryEvent::SelectedRunMaterialization {
+                        chunk_ordinal: classified.chunk_ordinal(),
+                        run_ordinal,
+                        materialization,
+                    },
+                ))
+            }
+        }
+    }
+
     /// Lowest canonical classified child whose semantic artifact is durable
     /// but whose matching resolver completion checkpoint is not. This is a
     /// replay-derived recovery index and never substitutes for work-node or
@@ -6644,9 +6812,10 @@ impl<'a> RelationalSchedulerView<'a> {
 
     /// Whether every admitted+selected run in every occupied classified slot
     /// has exactly one admitted sparse materialization and no other run-cell
-    /// payload is present. Full-population closure additionally requires the
-    /// committed prefix itself to cover the complete canonical partition.
-    pub(crate) fn selected_run_materializations_cover_classified_prefix(
+    /// payload is present. Exact full-population closure separately requires
+    /// every canonical partition slot to be occupied; prefix promotion is only
+    /// an operational checkpoint.
+    pub(crate) fn selected_run_materializations_cover_classified_slots(
         self,
         question_id: QuestionId,
     ) -> Result<bool, RelationalJournalError> {
@@ -8217,6 +8386,7 @@ impl RelationalJournal {
             classified_chunk_accumulator,
             classified_support_fragment_slots: _,
             accepted_classified_fragment_count: _,
+            case_support_discovery: _,
             classified_child_by_resolver_node: _,
             pending_classified_work_completion_ordinals: _,
             pending_selected_run_positions: _,
@@ -8883,6 +9053,10 @@ pub(crate) enum RelationalJournalError {
         chunk_ordinal: u128,
     },
     ClassifiedChunkArtifactRetentionAllocationFailed,
+    CaseSupportDiscoveryAllocationFailed,
+    CaseSupportDiscoveryIndexMismatch {
+        event_ordinal: usize,
+    },
     RegionProofReplayAuthorityMissing,
     RegionProofReplayAuthorityMismatch,
     RegionProofSubjectMismatch,
@@ -9404,6 +9578,13 @@ impl fmt::Display for RelationalJournalError {
             ),
             Self::ClassifiedChunkArtifactRetentionAllocationFailed => formatter.write_str(
                 "classified chunk payload retention exceeded available bounded memory",
+            ),
+            Self::CaseSupportDiscoveryAllocationFailed => formatter.write_str(
+                "case/support publication discovery could not reserve one bounded coordinate",
+            ),
+            Self::CaseSupportDiscoveryIndexMismatch { event_ordinal } => write!(
+                formatter,
+                "case/support publication discovery coordinate {event_ordinal} does not resolve to its retained artifact",
             ),
             Self::RegionProofReplayAuthorityMissing => formatter.write_str(
                 "relational region proof replay has no producer-owned checked authority",

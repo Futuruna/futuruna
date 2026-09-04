@@ -2709,7 +2709,7 @@ mod tests {
     };
     use super::super::relational_case_support_projection::{
         derive_relational_case_support_projection, RelationalCaseSupportCount,
-        RelationalCaseSupportProjectionRecord,
+        RelationalCaseSupportProjectionRecord, RelationalCaseSupportRow,
     };
     use super::super::relational_journal::{
         RelationalClassifiedSupportFragment, RelationalJournal, RelationalJournalContract,
@@ -3107,8 +3107,7 @@ mod tests {
         let projection = derive_relational_case_support_projection(
             question_id,
             &verified_partition,
-            classified_support_fragments,
-            |_| None,
+            view,
             None,
             None,
         )
@@ -3126,9 +3125,12 @@ mod tests {
             projection
                 .record_at(2)
                 .expect("read the certified public region"),
-            Some(RelationalCaseSupportProjectionRecord::Region {
-                exact_case_count: 256,
-                correlated_starter_region_id: Some(starter_region_id),
+            Some(RelationalCaseSupportProjectionRecord::Add {
+                row: RelationalCaseSupportRow::Region {
+                    exact_case_count: 256,
+                    correlated_starter_region_id: Some(starter_region_id),
+                    ..
+                },
                 ..
             }) if starter_region_id == artifact.starter_region_id()
         ));
