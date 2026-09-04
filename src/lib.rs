@@ -58543,7 +58543,7 @@ __FINDS__
         let view_id = checked
             .analysis_nodes()
             .find_map(|(_, identity)| match identity {
-                CheckedExploreAnalysisIdentity::View { view_id } => Some(*view_id),
+                CheckedExploreAnalysisIdentity::View { view_id, .. } => Some(*view_id),
                 CheckedExploreAnalysisIdentity::Mechanisms { .. } => None,
             })
             .expect("profile source view identity");
