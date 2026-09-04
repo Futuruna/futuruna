@@ -3060,7 +3060,34 @@ mod tests {
             .expect("atomically accept the regional child theorem");
         let view = journal
             .scheduler_view()
-            .expect("inspect accepted proof prefix");
+            .expect("inspect accepted sparse proof");
+        assert!(view
+            .classified_support_fragments()
+            .expect("read unpromoted classified prefix")
+            .is_empty());
+        assert!(matches!(
+            view.classified_support_fragment_at(0)
+                .expect("read accepted sparse child"),
+            Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(retained))
+                if retained == artifact
+        ));
+        assert_eq!(
+            view.classified_sweep_progress()
+                .expect("read classified sweep progress")
+                .expect("partition owns classified progress")
+                .next_chunk_ordinal(),
+            0
+        );
+        let (_, _, promotion) = view
+            .next_classified_prefix_advance_event()
+            .expect("derive the first prefix promotion")
+            .expect("the occupied first slot is promotable");
+        journal
+            .append(promotion)
+            .expect("promote the accepted regional child");
+        let view = journal
+            .scheduler_view()
+            .expect("inspect promoted proof prefix");
         let classified_support_fragments = view
             .classified_support_fragments()
             .expect("read classified support fragments");
@@ -3072,7 +3099,7 @@ mod tests {
         ));
         assert_eq!(
             view.classified_sweep_progress()
-                .expect("read classified sweep progress")
+                .expect("read promoted classified sweep progress")
                 .expect("partition owns classified progress")
                 .next_chunk_ordinal(),
             1

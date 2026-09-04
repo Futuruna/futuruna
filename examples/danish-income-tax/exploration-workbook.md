@@ -809,9 +809,9 @@ with stable per-source support, not an ordinal Cartesian generator.
 
 Likewise, a boundary is normally a finding, not a source-supplied search hint.
 The 1-DKK update belongs to the income-cliff question; a suspected threshold
-does not. The compiler can recognize an affine successor, source events and
-other structure without making `boundaries` the semantic definition of the
-query.
+does not. The checked planner can recognize its currently supported affine
+structure, and a future typed adapter can contribute source events, without
+making `boundaries` the semantic definition of the query.
 
 The target relational spelling is deliberately explicit about which values are
 conditioned, enumerated and derived:
@@ -1231,11 +1231,38 @@ An earlier design exposed probes as a special initial plan and lifecycle
 milestone. That distinction is no longer useful. Once the run has an
 authoritative journal and exact open frontier, every enabled candidate or
 proof producer joins the same dependency-linked work graph. Current v1
-actively dispatches regional certificates and concrete/classified fallback.
-The planner can already derive source-event cuts, endpoints,
-certificate-authorized midpoints and lifted candidates; scheduling those is a
-performance follow-up whose residual intervals remain explicit work, never an
-implicit completeness claim.
+actively dispatches regional certificates and concrete/classified fallback,
+and now orders the fixed canonical chunks candidate-first. Its live candidate
+inputs are the lower and upper finite-range endpoints plus boundaries from
+direct checked affine admission/FIND guards. Those source coordinates reach
+the case partition only through a conservative exact single-axis lift whose
+coordinate interval matches a bare or product-factor case interval. Both
+adjacent sides of an interior boundary are nominated. Every other canonical
+chunk remains implicit residual exact work, so candidate exhaustion is never a
+completeness claim.
+
+Source-event cuts and proof-certificate piece boundaries or authorized
+midpoints remain typed future producer seams. The current stream does not
+populate either source, and its live proof-strategy call supplies no
+certificate obligation. Product-rank and plural-axis shapes therefore use
+endpoint-first plus canonical residual order rather than guessing a lift.
+The regional prover can still certify an already selected canonical child; it
+does not currently mine that proof for another candidate boundary. Likewise,
+Personskat helper/rule calls are not direct affine guard atoms, so without a
+checked rule-graph normalizer they contribute no hidden tax-threshold
+nominations—the honest order is range endpoints followed by residual chunks.
+Completed out-of-order chunks occupy durable sparse ordinal slots, allowing a
+selected run and its mechanism work to emerge before lower ordinals finish. A
+separate bounded checkpoint promotes only the next occupied ordinal into the
+contiguous root cursor; cold resume first continues any authenticated partial
+concrete slice, then skips accepted slots and reconstructs the same candidate
+and residual order.
+
+The result and mechanism lanes consume those sparse selected cases today. The
+current flat case/support artifact still publishes only its contiguous promoted
+prefix; the intended open case graph needs stable-key sparse updates before it
+can expose later chunks without reordering already appended records. Exact
+closure is already canonical and remains gated on the complete prefix.
 
 The dependency is on content readiness, not producer closure. As soon as one
 coherent profile transition is yielded, its immutable CaseId readiness token
@@ -3654,10 +3681,13 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    endpoints once in income order, then refines the chunk into exhaustive
    rejected intervals, admitted/non-cliff intervals and concrete cliff cases.
    Only cliff cases need full result and mechanism replay; interval evidence
-   contributes its exact logical count. Batches advance one authenticated
-   materializer cursor with no gaps or overlaps, so stopping after any batch is
-   a real covered prefix. For the current coarse relation this preserves the
-   `2,000 = rejected + non-cliff + cliff` conservation law and changes the
+   contributes its exact logical count. Candidate-first batches may accept
+   canonical chunks out of ordinal order into pre-sized sparse slots. Each such
+   batch is durable evidence about that exact child, but the covered root
+   prefix advances only through a separate checkpoint for the next occupied
+   ordinal. Stopping after either event therefore has an honest resumable
+   meaning without calling a sparse suffix a prefix. At closure this preserves
+   the `2,000 = rejected + non-cliff + cliff` conservation law and changes the
    expected retained cost from one row
    per income toward chunks plus outcome changes plus actual cliffs. Alternating
    outcomes still degrade honestly to linear size.
@@ -3687,7 +3717,8 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    the artifact. It installs the run partition, typed evidence and leaf seals
    through a bounded append transaction whose exact-key undo log is at most
    `9 * run_count + 3` entries. Any late validation error restores those keys
-   in reverse order; success appends only the new chunk. This preserves the
+   in reverse order; success fills only that child's canonical sparse slot and
+   does not move the root cursor. This preserves the
    all-or-nothing journal boundary without copying the complete accumulated
    support catalog once or twice per child. The causal append boundary also
    declares fresh roots without scanning retained refinements, and derives the
@@ -3697,10 +3728,14 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    opaque verified partition authority it reminted from that durable evidence.
    Classified slices, completed chunks and later selected-run materialization
    index that replay-derived value directly; cold replay rebuilds all eight chunk
-   descriptors once, not once per slice or positive run. A typed classified-progress
-   chain then binds the exact contiguous `(chunk ordinal, artifact, endpoint)`
-   prefix; the root-relative materialization cursor advances last only as its
-   operational mirror. Generic cursors cannot choose or advance this branch.
+   descriptors once, not once per slice or positive run. A distinct bounded
+   `RelationalClassifiedPrefixAdvanced` checkpoint validates the next occupied
+   slot's partition, ordinal, child, interval and artifact digest, then appends
+   exactly one `(chunk ordinal, artifact, endpoint)` binding to the typed
+   classified-progress chain. The root-relative materialization cursor advances
+   in that same checkpoint as its operational mirror. It never cascades across
+   several ready slots, so every crash prefix is replayable and bounded.
+   Generic cursors cannot choose or advance this branch.
    No semantic half-child is visible. To make the operational time limit honest
    even when one 256-coordinate child is expensive, the runtime seam is a
    second, typed layer: nonempty contiguous within-child slice checkpoints.
@@ -3719,7 +3754,14 @@ first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
    Keeping the fixed 256-coordinate semantic partition is important. Making
    the partition itself adaptive would make mathematical roots depend on host
    scheduling; shrinking it to one would create 2,000 proof children with no
-   semantic gain. With slice checkpoints the cold controller may grow
+   semantic gain. The live scheduler changes only visitation order: range
+   endpoints and safely lifted direct affine-guard boundaries nominate chunks
+   first, while all other chunks remain an implicit exact residual cover.
+   Accepted chunk IDs are reconstructed from the journal, so resume neither
+   repeats a completed candidate nor depends on a process-local cursor. An
+   authenticated partial concrete accumulator owns its chosen chunk until the
+   whole-child artifact is accepted. With slice checkpoints the cold
+   controller may grow
    `1, 2, 4, ... 256` within the first child, then reuse its learned quantum
    across the remaining canonical children.
    The mirror cursor remains outside the evidence root, while the outcome

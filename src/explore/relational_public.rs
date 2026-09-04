@@ -3526,6 +3526,7 @@ mod regional_stream_acceptance_tests {
         RelationalAnalysisLayerRegistration, RelationalAnalysisPlan,
         RelationalMechanismLayerRegistration, RelationalMechanismObservationId,
     };
+    use super::super::relational_candidate_schedule::RelationalCandidateScheduleReason;
     use super::super::relational_case_support_projection::{
         derive_relational_case_support_projection, RelationalCaseSupportClosureAuthority,
         RelationalCaseSupportCount, RelationalCaseSupportProjectionFrontier,
@@ -3544,6 +3545,7 @@ mod regional_stream_acceptance_tests {
         RelationalSchedulerDecision,
     };
     use super::super::relational_mechanism_step_driver::RelationalMechanismStepQuantum;
+    use super::super::relational_result_step_driver::RelationalResultStepQuantum;
     use super::super::relational_step_driver::{
         RelationalConcreteQuiescence, RelationalStepDriver, RelationalStepOutcome,
         RelationalStepQuantum,
@@ -3552,10 +3554,12 @@ mod regional_stream_acceptance_tests {
         RelationalStreamDriver, RelationalStreamDriverLimits, RelationalStreamQuantum,
         RelationalStreamStepOutcome,
     };
+    use super::super::relational_support_step_driver::RelationalSupportStepQuantum;
     use super::super::result_projection::ResultProjectionError;
     use super::super::stream_resource::{
         ExactStreamOneWorkerEnvelope, ExactStreamResourceAction, ExactStreamWorkSubject,
     };
+    use super::super::support_journal::SupportJournalEvent;
     use super::*;
     use crate::{Lexer, Parser};
 
@@ -3616,6 +3620,22 @@ mod regional_stream_acceptance_tests {
 
     transition after = before + 1
     find cases = matches of before >= 280
+}
+"#;
+
+    const CANDIDATE_RESULT_CONTENTION: &str = r#"
+? explore candidate_result_contention {
+    from {
+        vary before in range(0, 300)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find cases = matches of before >= 280
+    results selected_rows from find cases {
+        each case
+        select [before, after]
+    }
 }
 "#;
 
@@ -3909,9 +3929,17 @@ mod regional_stream_acceptance_tests {
                 Some(&prepared.classification_evaluator),
             )
             .expect("build direct concrete classifier");
+        let target = concrete
+            .next_target(
+                journal
+                    .scheduler_view()
+                    .expect("inspect direct classifier prefix"),
+            )
+            .expect("select direct concrete target");
         let RelationalClassifiedSweepStepOutcome::Emitted(partial) = concrete
             .step(
                 &journal,
+                target.as_ref(),
                 NonZeroU16::new(1).unwrap(),
                 &mut prepared.expression_runtime,
             )
@@ -5380,6 +5408,7 @@ mod regional_stream_acceptance_tests {
                 )
                 .expect("open hybrid durable journal");
             let mut preceding_base_classifications = 0usize;
+            let mut selected_candidate_materialized = false;
 
             for _ in 0..64 {
                 let outcome = driver
@@ -5396,11 +5425,24 @@ mod regional_stream_acceptance_tests {
                     panic!("hybrid stream quiesced before its first certified child");
                 };
                 let quantum = batch.quantum();
+                if let RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(
+                    classified,
+                )) = quantum
+                {
+                    preceding_base_classifications += 1;
+                    assert_eq!(classified.chunk_ordinal(), 1);
+                    assert_eq!(
+                        classified.schedule_reason(),
+                        RelationalCandidateScheduleReason::CheckedGuardBoundary
+                    );
+                }
                 if matches!(
                     quantum,
-                    RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(_))
+                    RelationalStreamQuantum::Base(
+                        RelationalStepQuantum::SelectedRunMaterialization(_)
+                    )
                 ) {
-                    preceding_base_classifications += 1;
+                    selected_candidate_materialized = true;
                 }
                 durable
                     .append_events(
@@ -5419,18 +5461,31 @@ mod regional_stream_acceptance_tests {
                     break;
                 }
             }
-            assert_eq!(preceding_base_classifications, 0);
+            assert_eq!(preceding_base_classifications, 1);
+            assert!(selected_candidate_materialized);
             let view = durable
                 .journal()
                 .expect("inspect durable prefix")
                 .scheduler_view()
                 .expect("inspect hybrid prefix");
+            assert!(view.classified_support_fragments().unwrap().is_empty());
+            assert_eq!(view.accepted_classified_fragment_count(), 2);
             assert!(matches!(
-                view.classified_support_fragments().unwrap(),
-                [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                view.classified_support_fragment_at(0).unwrap(),
+                Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(
                     _
-                )]
+                ))
             ));
+            assert!(matches!(
+                view.classified_support_fragment_at(1).unwrap(),
+                Some(RelationalClassifiedSupportFragment::Concrete(_))
+            ));
+            assert_eq!(
+                view.selected_run_materializations(question_id)
+                    .unwrap()
+                    .count(),
+                1
+            );
             paused_checkpoint = durable
                 .flush_for_pause()
                 .expect("flush certified hybrid prefix");
@@ -5456,18 +5511,17 @@ mod regional_stream_acceptance_tests {
         let reopened = durable.journal().expect("inspect reopened hybrid journal");
         assert_eq!(reopened.next_sequence(), paused_checkpoint.next_sequence());
         assert_eq!(reopened.head(), paused_checkpoint.head());
-        assert!(matches!(
-            reopened
-                .scheduler_view()
-                .expect("inspect replayed hybrid prefix")
-                .classified_support_fragments()
-                .unwrap(),
-            [RelationalClassifiedSupportFragment::CertifiedZeroSelected(
-                _
-            )]
-        ));
+        let reopened_view = reopened
+            .scheduler_view()
+            .expect("inspect replayed hybrid prefix");
+        assert!(reopened_view
+            .classified_support_fragments()
+            .unwrap()
+            .is_empty());
+        assert_eq!(reopened_view.accepted_classified_fragment_count(), 2);
 
         let mut completed = false;
+        let mut first_resumed_batch = true;
         for _ in 0..128 {
             match driver
                 .step_with_base_member_limit(
@@ -5481,6 +5535,18 @@ mod regional_stream_acceptance_tests {
                 .expect("resume hybrid stream")
             {
                 RelationalStreamStepOutcome::Emitted(batch) => {
+                    if first_resumed_batch {
+                        assert!(matches!(
+                            batch.quantum(),
+                            RelationalStreamQuantum::Base(
+                                RelationalStepQuantum::CompleteClassifiedTargetWork {
+                                    chunk_ordinal: 0,
+                                    ..
+                                }
+                            )
+                        ));
+                        first_resumed_batch = false;
+                    }
                     durable
                         .append_events(
                             batch.expected_sequence(),
@@ -5511,12 +5577,14 @@ mod regional_stream_acceptance_tests {
             .scheduler_view()
             .expect("inspect completed hybrid view");
         let fragments = view.classified_support_fragments().unwrap();
+        assert_eq!(fragments.len(), 2);
         assert!(matches!(
-            fragments,
-            [
-                RelationalClassifiedSupportFragment::CertifiedZeroSelected(_),
-                RelationalClassifiedSupportFragment::Concrete(_)
-            ]
+            fragments[0],
+            RelationalClassifiedSupportFragment::CertifiedZeroSelected(_)
+        ));
+        assert!(matches!(
+            fragments[1],
+            RelationalClassifiedSupportFragment::Concrete(_)
         ));
         assert_eq!(
             fragments
@@ -5644,6 +5712,459 @@ mod regional_stream_acceptance_tests {
             Some(RelationalCaseSupportProjectionRecord::Closure(closure))
                 if closure.exact_logical_case_count == 300
                     && closure.exact_selected_case_count == 20
+        ));
+    }
+
+    #[test]
+    fn classified_target_compaction_does_not_reseed_accepted_sparse_work() {
+        let mut prepared = prepare(HYBRID);
+        let checked = prepared.checked.view();
+        let analysis_plan =
+            RelationalAnalysisPlan::from_checked(&checked).expect("plan compaction fixture");
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            prepared.contract.clone(),
+            exact_one_region_replay_authority(&prepared),
+        );
+        journal
+            .append(RelationalJournalEvent::analysis_plan_registered(
+                analysis_plan,
+            ))
+            .expect("register compaction fixture analysis plan");
+        let member_limit = NonZeroU16::new(256).unwrap();
+        let driver =
+            RelationalStepDriver::from_checked_with_operational_limits_and_classification_backends(
+                &checked,
+                &prepared.support_plan,
+                member_limit,
+                NonZeroU32::MIN,
+                NonZeroU32::MIN,
+                None,
+                Some(&prepared.classification_evaluator),
+            )
+            .expect("build low-trigger classified scheduler");
+
+        let mut seeded = [false; 2];
+        let mut compactions = 0usize;
+        let mut closed = false;
+        for _ in 0..128 {
+            match driver
+                .step_with_max_members_per_quantum(
+                    &journal,
+                    &mut prepared.expression_runtime,
+                    member_limit,
+                )
+                .expect("advance low-trigger classified scheduler")
+            {
+                RelationalStepOutcome::Emitted(batch) => {
+                    let partition_just_accepted = matches!(
+                        batch.quantum(),
+                        RelationalStepQuantum::Support(
+                            RelationalSupportStepQuantum::AcceptCaseChunkPartition { .. }
+                        )
+                    );
+                    match batch.quantum() {
+                        RelationalStepQuantum::SeedClassifiedTargetWork {
+                            chunk_ordinal, ..
+                        } => {
+                            let index = usize::try_from(chunk_ordinal)
+                                .expect("fixture chunk ordinal fits usize");
+                            assert!(index < seeded.len(), "fixture has exactly two chunks");
+                            assert!(
+                                !std::mem::replace(&mut seeded[index], true),
+                                "an accepted classified target must never be reseeded after compaction"
+                            );
+                        }
+                        RelationalStepQuantum::CompactWorkFrontier { removed_nodes } => {
+                            assert_eq!(removed_nodes, 1);
+                            compactions += 1;
+                        }
+                        _ => {}
+                    }
+                    append_base_batch(&mut journal, batch);
+                    if partition_just_accepted {
+                        let before = (journal.next_sequence(), journal.head());
+                        for seal in [
+                            SupportJournalEvent::ObligationFrontierSealed,
+                            SupportJournalEvent::CatalogSealed,
+                        ] {
+                            assert!(matches!(
+                                journal.append(RelationalJournalEvent::support(seal)),
+                                Err(RelationalJournalError::ClassifiedSupportCoveragePending)
+                            ));
+                            assert_eq!((journal.next_sequence(), journal.head()), before);
+                        }
+                    }
+                    let retained_work_nodes = journal.scheduler_view().unwrap().work_node_count();
+                    assert!(
+                        retained_work_nodes <= 4,
+                        "the fixed four-node support frontier or one live target pair bounds retained work; retained {retained_work_nodes} nodes"
+                    );
+                }
+                RelationalStepOutcome::Quiescent(
+                    RelationalConcreteQuiescence::SupportEvidenceClosed { .. },
+                ) => {
+                    closed = true;
+                    break;
+                }
+                RelationalStepOutcome::Quiescent(other) => {
+                    panic!("unexpected classified quiescence: {other:?}");
+                }
+            }
+        }
+
+        assert!(closed, "low-trigger classified fixture must close");
+        assert_eq!(seeded, [true, true]);
+        assert!(compactions >= 4, "both two-node target pairs were peeled");
+        assert_eq!(journal.scheduler_view().unwrap().work_node_count(), 0);
+    }
+
+    #[test]
+    fn candidate_sparse_stream_prioritizes_ready_result_over_base_and_replays_the_choice() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("candidate-contention-run-state");
+        let member_limit = NonZeroU16::new(256).unwrap();
+
+        let (
+            paused_checkpoint,
+            expected_sequence,
+            expected_head,
+            expected_quantum,
+            expected_events,
+        ) = {
+            let mut prepared = prepare(CANDIDATE_RESULT_CONTENTION);
+            let checked = prepared.checked.view();
+            let question_id = checked.question_ids()[0];
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build candidate contention stream scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open candidate contention journal");
+
+            let mut selected_run_materialized = false;
+            for _ in 0..64 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow candidate contention journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        member_limit,
+                    )
+                    .expect("advance candidate contention prefix");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("candidate contention stream quiesced before selected materialization");
+                };
+                let quantum = batch.quantum();
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .expect("append candidate contention prefix");
+                if matches!(
+                    quantum,
+                    RelationalStreamQuantum::Base(
+                        RelationalStepQuantum::SelectedRunMaterialization(_)
+                    )
+                ) {
+                    selected_run_materialized = true;
+                    break;
+                }
+            }
+            assert!(
+                selected_run_materialized,
+                "candidate contention fixture did not materialize its sparse selected run"
+            );
+
+            {
+                let journal = durable.journal().expect("inspect contention prefix");
+                let view = journal
+                    .scheduler_view()
+                    .expect("inspect contention scheduler state");
+                assert!(view.classified_support_fragments().unwrap().is_empty());
+                assert_eq!(view.accepted_classified_fragment_count(), 1);
+                assert_eq!(
+                    view.selected_run_materializations(question_id)
+                        .unwrap()
+                        .count(),
+                    1
+                );
+            }
+
+            // The base scheduler is independently ready to seed chunk 0, but
+            // the stream coordinator must first consume the selected rows
+            // exposed by candidate chunk 1.
+            let base = RelationalStepDriver::from_checked_with_max_members_per_quantum_and_classification_backends(
+                &checked,
+                &prepared.support_plan,
+                member_limit,
+                None,
+                Some(&prepared.classification_evaluator),
+            )
+            .expect("build contention base scheduler");
+            let RelationalStepOutcome::Emitted(base_batch) = base
+                .step_with_max_members_per_quantum(
+                    durable.journal().expect("inspect ready base work"),
+                    &mut prepared.expression_runtime,
+                    member_limit,
+                )
+                .expect("plan ready lower-priority base work")
+            else {
+                panic!("candidate contention base scheduler was not ready");
+            };
+            assert!(matches!(
+                base_batch.quantum(),
+                RelationalStepQuantum::SeedClassifiedTargetWork {
+                    chunk_ordinal: 0,
+                    schedule_reason: RelationalCandidateScheduleReason::LowerRangeEndpoint,
+                    ..
+                }
+            ));
+
+            let outcome = driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow contention decision prefix"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    member_limit,
+                )
+                .expect("schedule contention winner");
+            let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                panic!("candidate contention winner was not emitted");
+            };
+            assert!(matches!(
+                batch.quantum(),
+                RelationalStreamQuantum::Result(
+                    RelationalResultStepQuantum::EvaluateSelectedRows {
+                        row_count,
+                        seals_input: false,
+                        ..
+                    }
+                ) if row_count.get() == 20
+            ));
+            assert!(matches!(
+                batch.events().first(),
+                Some(RelationalJournalEvent::Checkpoint(
+                    RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                        decision: RelationalSchedulerDecision::ReadyResult,
+                        ..
+                    }
+                ))
+            ));
+
+            let expected_sequence = batch.expected_sequence();
+            let expected_head = batch.expected_head();
+            let expected_quantum = batch.quantum();
+            let expected_events = batch.events().to_vec();
+            let paused_checkpoint = durable
+                .flush_for_pause()
+                .expect("flush unadvanced contention prefix");
+            (
+                paused_checkpoint,
+                expected_sequence,
+                expected_head,
+                expected_quantum,
+                expected_events,
+            )
+        };
+
+        let mut prepared = prepare(CANDIDATE_RESULT_CONTENTION);
+        let checked = prepared.checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("rebuild candidate contention stream scheduler");
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .expect("reopen candidate contention journal");
+        assert_eq!(
+            durable
+                .journal()
+                .expect("inspect reopened contention journal")
+                .next_sequence(),
+            paused_checkpoint.next_sequence()
+        );
+        assert_eq!(
+            durable
+                .journal()
+                .expect("inspect reopened contention journal")
+                .head(),
+            paused_checkpoint.head()
+        );
+
+        let outcome = driver
+            .step_with_base_member_limit(
+                durable
+                    .journal_mut_for_event_planning()
+                    .expect("borrow reopened contention journal"),
+                &mut prepared.expression_runtime,
+                &mut prepared.mechanism_runtime,
+                member_limit,
+            )
+            .expect("replay contention winner");
+        let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+            panic!("replayed candidate contention winner was not emitted");
+        };
+        assert_eq!(batch.expected_sequence(), expected_sequence);
+        assert_eq!(batch.expected_head(), expected_head);
+        assert_eq!(batch.quantum(), expected_quantum);
+        assert_eq!(batch.events(), expected_events.as_slice());
+        durable
+            .append_events(
+                batch.expected_sequence(),
+                batch.expected_head(),
+                batch.into_events(),
+            )
+            .expect("append replayed contention winner");
+    }
+
+    #[test]
+    fn candidate_partial_slice_reopens_on_the_same_canonical_chunk() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("candidate-partial-run-state");
+        let mut prepared = prepare(HYBRID);
+
+        {
+            let checked = prepared.checked.view();
+            let driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .expect("build candidate partial scheduler");
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open candidate partial journal");
+            let mut paused = false;
+            for _ in 0..32 {
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable
+                            .journal_mut_for_event_planning()
+                            .expect("borrow candidate partial journal"),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(17).unwrap(),
+                    )
+                    .expect("advance to candidate partial slice");
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("candidate partial fixture quiesced before its first slice");
+                };
+                let quantum = batch.quantum();
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .expect("append candidate partial prefix");
+                if let RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(
+                    classified,
+                )) = quantum
+                {
+                    assert_eq!(classified.chunk_ordinal(), 1);
+                    assert_eq!(
+                        classified.schedule_reason(),
+                        RelationalCandidateScheduleReason::CheckedGuardBoundary
+                    );
+                    assert!(classified.classified_artifact_id().is_none());
+                    paused = true;
+                    break;
+                }
+            }
+            assert!(
+                paused,
+                "candidate partial fixture never reached its first slice"
+            );
+            let view = durable
+                .journal()
+                .expect("inspect candidate partial prefix")
+                .scheduler_view()
+                .expect("inspect candidate partial scheduler state");
+            assert_eq!(
+                view.classified_chunk_accumulator()
+                    .unwrap()
+                    .expect("candidate slice accumulator")
+                    .chunk_ordinal(),
+                1
+            );
+            assert_eq!(view.accepted_classified_fragment_count(), 0);
+            durable
+                .flush_for_pause()
+                .expect("flush candidate partial prefix");
+        }
+
+        let checked = prepared.checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("rebuild candidate partial scheduler");
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .expect("reopen candidate partial journal");
+        let outcome = driver
+            .step_with_base_member_limit(
+                durable
+                    .journal_mut_for_event_planning()
+                    .expect("borrow reopened candidate partial journal"),
+                &mut prepared.expression_runtime,
+                &mut prepared.mechanism_runtime,
+                NonZeroU16::new(17).unwrap(),
+            )
+            .expect("resume candidate partial slice");
+        let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+            panic!("candidate partial resume did not emit its owned chunk");
+        };
+        assert!(matches!(
+            batch.quantum(),
+            RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(classified))
+                if classified.chunk_ordinal() == 1
+                    && classified.schedule_reason()
+                        == RelationalCandidateScheduleReason::CheckedGuardBoundary
         ));
     }
 

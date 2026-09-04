@@ -61,13 +61,39 @@ PUBLISH CONTRACT
 ```
 
 There is no public probe phase. Regional certificates and concrete/classified
-fallback already advance as prioritized work in one resumable stream. The
-candidate planner can derive endpoints, source events, certificate-authorized
-midpoints and lifted cuts; connecting those producers to the same scheduler is
-a performance follow-up, and their residual intervals must remain explicit
-until certified or materialized. There is also no implicit `selected` relation
-in the target surface: every view, choice and explanation names the `find`
-relation it consumes.
+fallback advance as ordinary prioritized work in one resumable stream. The
+live candidate scheduler now visits canonical bounded chunks out of ordinal
+order using two kinds of input: the finite range's lower/upper endpoints and
+boundaries extracted from direct checked affine admission/FIND guards. A guard
+boundary is lifted into case-chunk coordinates only for the conservative exact
+single-axis shapes whose source interval and case interval coincide. Both
+sides of an interior boundary are nominated; every un-nominated canonical
+chunk remains explicit residual exact work.
+
+Source-event cuts and proof-certificate piece boundaries or authorized
+midpoints are typed producer seams, not live discovery inputs yet. Ranked
+products, plural axes and other unproved lifts therefore keep endpoint-first
+plus canonical-residual scheduling. Candidate exhaustion never proves the
+complement. Accepted candidate chunks occupy durable sparse slots so their
+selected cases can flow immediately; a separate one-slot checkpoint promotes
+only the next occupied canonical ordinal into the root cursor. Reopening the
+journal resumes an in-flight concrete slice first, otherwise skips every
+already accepted slot and continues the same exact cover. There is also no
+implicit `selected` relation in the target surface: every view, choice and
+explanation names the `find` relation it consumes.
+
+Today those sparse selected cases already feed result and mechanism work. The
+flat case/support publication cursor still exposes only the contiguous promoted
+prefix; it cannot safely insert a later-discovered lower-ordinal record into an
+already appended file. The target contract remains a stable-key sparse update
+stream while open followed by a canonical exact snapshot at closure. That
+publisher seam is an explicit implementation gap, not a reason to weaken the
+sparse case-graph model.
+
+This distinction does not demote the live regional prover: it may certify one
+already selected canonical child and thereby avoid concrete evaluation of that
+child. What is not live is mining accepted proof artifacts for new split
+boundaries and feeding those boundaries back into candidate discovery.
 
 ## The smallest complete target example
 
@@ -693,7 +719,9 @@ cell may cover a very large profile-and-income population exactly.
 
 Use separate symbols for the logical plan and the materialized prefix:
 
-- `B`, `E`: FROM stages and declared dependency edges;
+- `D_s`, `E_s`: FROM stages and declared dependency edges;
+- `H`: canonical classified chunks, and `K_n`: explicitly nominated candidate
+  chunks;
 - `P`: accepted concrete source-prefix traversal edges;
 - `S`: distinct set-normalized source rows;
 - `N`: distinct constructible cases;
@@ -707,7 +735,7 @@ Use separate symbols for the logical plan and the materialized prefix:
 - `I`: mechanism-incidence rows; and
 - `J`, `D`: durable journal frames and immutable journal segments.
 
-The checked support plan itself is `O(B + E + C)` space and does not allocate a
+The checked support plan itself is `O(D_s + E_s + C)` space and does not allocate a
 node per concrete prefix. Its dependency-key recipes identify the future cache
 key for a finite fiber. The current concrete enumerator does **not** yet own
 that cross-prefix cache: resuming a source work node replays its prefix and
@@ -727,6 +755,35 @@ same normalized question add no work. The sweep binds one canonical ordered
 `QuestionId` set and represents an admitted outcome as a packed joint decision
 mask in that order. Adjacent cases are run-length encoded only when their full
 outcome agrees: rejection, or admission with the same complete mask.
+
+Candidate-first order improves time to the first informative case, not this
+worst-case bound. The canonical partition remains unchanged and its residual
+order is implicit rather than copied into a second work list. Durable sparse
+slot occupancy suppresses completed work after resume; one partial concrete
+accumulator owns its chosen chunk until admission, and root-prefix promotion
+does no user evaluation.
+
+The current selector checks the finite explicit nomination set `K_n` before
+residual work. Once nominations are exhausted, residual lookup starts at the
+durable committed prefix instead of rescanning chunk zero; prefix promotion
+makes already occupied residual gaps amortized `O(H)` across the run. Resuming
+an active nominated slice uses an ordinal index in `O(log K_n)`. Thus scheduler
+selection contributes `O(H * K_n + H)` over a complete run, which is linear in
+the domain when the checked program supplies a small fixed boundary set, but
+is not advertised as asymptotically linear if `K_n` itself grows with `H`. A
+future durable candidate-priority frontier can remove that remaining factor
+without changing semantic evidence.
+
+Replay also maintains an `O(1)` occupied-slot count, a canonical pending
+selected-run set and a pending classified-resolver set. One invocation chooses
+only the first pending key rather than scanning all `H` chunks. The sparse slot
+table is the sole owner of each classified artifact; the contiguous public
+prefix borrows those slots and does not allocate a second reference array.
+Once a semantic classified artifact is durable, an extant resolver is merely
+the crash-recovery checkpoint that still needs completion. Completed resolver
+and readiness leaves may then be compacted; their absence never recreates
+finished target work, because sparse artifact occupancy is the durable
+completion authority.
 
 For chunk `c`, compact retained decision state is
 `O(R_c ceil(q / 8))`; across chunks it is
@@ -751,11 +808,13 @@ Current hot paths are:
 | keyed source/case/classification/work/evidence insert | normally `O(log X)` plus payload validation | one canonical record; singleton successor and provenance collections stay inline and promote only when they actually branch |
 | resume a depth-`d` source prefix | `O(d)` fiber evaluations and set normalization | current prefix plus one materialized fiber |
 | enumerate one configured quantum | `O(k)` evaluator steps after the fiber opens | `O(k)` unapplied events; production fused work cold-starts at `k = 1`, then adapts toward five seconds with `k <= 256` |
-| reconstruct the verified case-chunk partition | `O(B)` once per cold journal replay; later slices/chunks/runs use indexed lookup in the replay-derived opaque authority | one `O(B)` partition/binding cache, currently `B = 782` for the 200k audit |
+| reconstruct the verified case-chunk partition | `O(H)` once per cold journal replay; later slices/chunks/runs use indexed lookup in the replay-derived opaque authority | one `O(H)` partition/binding cache, currently `H = 782` for the 200k audit |
+| choose classified recovery or selected-run work | `O(log H)` / `O(log R)` replay-derived pending-key lookup plus one addressed artifact validation | `O(H + R)` sparse slots and pending indexes; no per-invocation partition scan |
+| choose the next candidate/residual chunk | `O(K_n)` nomination check plus residual lookup from the committed prefix; active nominated-slice resume is `O(log K_n)` | `O(K_n)` immutable nomination/provenance indexes; residual chunks remain implicit |
 | accept one classified chunk | `O(rq log C)` worst-case keyed validation/append for `r <= 256` joint-outcome runs, including one admission item per run, one selection item per admitted run/question, causal roots and bounded addressed-chunk reverification | `O(rq)` exact-key undo/validation state; the durable outcome masks use `O(r ceil(q / 8))` plus `O(q)` counts, with no accumulated support-catalog clone, proof scan or whole-partition rebuild |
 | derive public classified counts | `O(C log C + M log C)` over the case-root-reachable support topology and facts | `O(C + M)` topology/key indexes while all semantic cells and evidence remain borrowed; no support snapshot or payload clone |
 | close classified support | `O((C + O + M) log (C + O + M))` full validation plus canonical hashing at each crash-safe seal boundary | derived key/ID validation sets only; no journal or support snapshot clone |
-| accept one shared any-selected run | `O(kq log N)` worst-case collision/classification preflight and sparse per-question membership merge for `k <= 256` union-selected cases | one `O(k)` batch-local relation/admission payload plus selected-question masks and sparse per-question memberships; no duplicate case row per matching question and no relation/admission/FIND prefix clones |
+| accept one shared any-selected run | `O(kq log N)` worst-case collision/classification preflight and sparse per-question membership merge for `k <= 256` union-selected cases; the containing classified chunk is structurally verified once per consecutive replay/apply group and then addressed by its content ID | one `O(k)` batch-local relation/admission payload plus a one-chunk (`<= 256` cases) operational verification cache, selected-question masks and sparse per-question memberships; no duplicate case row per matching question and no relation/admission/FIND prefix clones |
 | finish source traversal | `O(P + S + E)` ordered reachability/root validation over prefixes, sources and traversal edges | current `O(P + S + E)` reachability scratch; the terminal receipt itself is a fixed 212-byte body |
 | relation/admission/FIND closure | `O(N + A + Q)` coverage validation across all unique questions | relation rows plus `O(A + Q)` decisions; worst-case `Q = Nq` |
 | result evidence or projection-record insert | `O(log R)` in canonical indexes | one bounded record plus its reverse/index entry |
@@ -909,9 +968,13 @@ It can close an exact-empty selected population in `O(E + T log T)` time and
 `O(E + T)` memory, independent of the range cardinality. Its constant-size
 artifact is not authority by itself: revalidation against the same checked
 query and support plan is the only route to verifier-gated proof receipts.
-The more general strategy also derives split coordinates and structural
-interval partitions, but split candidates carry no classification authority
-by themselves.
+The live strategy derives split coordinates from direct checked affine guards
+and retains the structural interval plan, but split candidates carry no
+classification authority by themselves. Its current scheduler adapter passes
+no interval-certificate obligation: certificate piece boundaries and balanced
+midpoints exist as typed planning inputs for a later proof producer, not as
+facts discovered by today's stream. Likewise, source events are a planned
+candidate source rather than a populated inventory.
 
 The conditioned Personskat query is outside that first theorem: its Context is
 structured and FIND crosses checked helper/rule calls and field projections.
@@ -1657,7 +1720,21 @@ reasoning proves the skipped cell uniform.
 
 ### 6. Proof-oriented search reduction
 
-- Recognize source events and affine successors as scheduler information.
+- Keep the implemented candidate inputs narrow and explicit: both finite-range
+  endpoints plus truth-change boundaries from direct checked affine
+  admission/FIND atoms.
+- Lift those source coordinates only through the current exact single-axis
+  interval correspondence. Ranked products and plural axes require a real
+  slab/mixed-radix proof and meanwhile retain endpoint plus residual order.
+- Schedule nominated canonical chunks first, store independently accepted
+  chunks in sparse ordinal slots, materialize interesting selected runs from
+  those slots, and promote at most one occupied next ordinal into the
+  contiguous root prefix per checkpoint.
+- Preserve the complete canonical partition as residual exact work. Neither a
+  candidate miss nor exhaustion of all nominations closes the complement.
+- Add source-event extraction and accepted proof-certificate boundaries as
+  typed future producers feeding the same scheduler; do not describe their
+  existing data types as live discovery.
 - Certify interval, congruence and relevance cells.
 - Cache reconstructed fibers by the support plan's declared dependency tuple.
 - Add a checked Personskat rule-graph normalization/proof producer; do not

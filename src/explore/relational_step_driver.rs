@@ -29,6 +29,9 @@ use super::relation::{
     AdmissionDecision, AdmissionId, QuestionId, RelationId, RelationalCaseId, SelectionDecision,
     SourceKey,
 };
+use super::relational_candidate_schedule::{
+    RelationalCandidateChunkTarget, RelationalCandidateScheduleReason,
+};
 use super::relational_case_executor::{
     RelationalCaseExecutor, RelationalCaseExecutorError, RelationalQuestionEvaluationPlan,
     RelationalSingletonTransition, RelationalSuccessorAdvance, SuccessorFiberExhaustionReceiptId,
@@ -74,6 +77,10 @@ use super::relational_support_step_driver::{
     RelationalSupportStepDriver, RelationalSupportStepDriverError, RelationalSupportStepOutcome,
     RelationalSupportStepQuantum,
 };
+use super::support_cell::{
+    AdmissionClassificationClaim, SupportCellError, SupportCellId, SupportCellObligation,
+    SupportProofObligationId,
+};
 use super::support_evidence::SupportEvidenceRoot;
 use super::support_journal::SupportJournalEvent;
 use super::{ContextSchemaId, StateSchemaId, TransitionTypeId};
@@ -100,6 +107,21 @@ pub(crate) enum RelationalStepQuantum {
     CertifiedRegion {
         chunk_ordinal: u128,
         certificate_id: [u8; 32],
+        schedule_reason: RelationalCandidateScheduleReason,
+    },
+    AdvanceClassifiedPrefix {
+        chunk_ordinal: u128,
+        artifact_digest: [u8; 32],
+    },
+    SeedClassifiedTargetWork {
+        chunk_ordinal: u128,
+        schedule_reason: RelationalCandidateScheduleReason,
+        work_node_id: WorkNodeId,
+    },
+    CompleteClassifiedTargetWork {
+        chunk_ordinal: u128,
+        schedule_reason: RelationalCandidateScheduleReason,
+        work_node_id: WorkNodeId,
     },
     SelectedRunMaterialization(RelationalSelectedRunStepQuantum),
     SealClassifiedSupportObligationFrontier {
@@ -237,6 +259,17 @@ pub(crate) enum RelationalConcreteQuiescence {
 pub(crate) enum RelationalStepOutcome {
     Emitted(RelationalStepBatch),
     Quiescent(RelationalConcreteQuiescence),
+}
+
+struct RelationalClassifiedTargetWork {
+    chunk_ordinal: u128,
+    schedule_reason: RelationalCandidateScheduleReason,
+    cell_id: SupportCellId,
+    obligation_id: SupportProofObligationId,
+    readiness_spec: WorkNodeSpec,
+    readiness_id: WorkNodeId,
+    resolver_spec: WorkNodeSpec,
+    resolver_id: WorkNodeId,
 }
 
 /// Support-root and concrete-fallback planner bound to the immutable checked
@@ -520,11 +553,41 @@ impl<'query> RelationalStepDriver<'query> {
             Some(_) => {}
         }
 
+        // Repair the only valid semantic-artifact/work-completion crash
+        // prefix before doing potentially numerous selected-run
+        // materializations. Replay maintains the pending ordinal index, so
+        // recovery touches one exact target and never reevaluates a case or
+        // scans the partition.
+        let active_classified_slice = view.classified_chunk_accumulator()?.is_some();
+        if !active_classified_slice {
+            if let Some(classified_sweep) = &self.classified_sweep {
+                if let Some(batch) = self.recover_classified_target_work(view, classified_sweep)? {
+                    return Ok(RelationalStepOutcome::Emitted(batch));
+                }
+            }
+        }
+
+        // The classified fast path returns before the ordinary base-frontier
+        // compaction gate below. Compact its completed target-work leaves here
+        // so a long exact partition retains only bounded live scheduler state.
+        // An in-flight slice is left untouched until its canonical child has
+        // installed the semantic artifact used for crash recovery.
+        if !active_classified_slice
+            && self.classified_sweep.is_some()
+            && view.completed_work_node_count()
+                >= usize::try_from(self.completed_work_compaction_trigger.get())
+                    .expect("u32 compaction trigger fits usize on supported targets")
+        {
+            if let Some(batch) = self.compaction_batch(journal, view)? {
+                return Ok(RelationalStepOutcome::Emitted(batch));
+            }
+        }
+
         // Drain concrete witnesses from the already accepted classified
         // prefix before support closure can advance. One missing selected run
         // is materialized per invocation, in canonical chunk/run order, so an
         // interesting case becomes observable before the full sweep ends.
-        if !self.full_transition_materialization_requested {
+        if !self.full_transition_materialization_requested && !active_classified_slice {
             if let Some(selected_runs) = &self.selected_runs {
                 match selected_runs.step(journal, runtime)? {
                     RelationalSelectedRunStepOutcome::Emitted(batch) => {
@@ -568,6 +631,25 @@ impl<'query> RelationalStepDriver<'query> {
             }
         }
 
+        // Sparse child evidence may seal every support leaf before its
+        // independently checkpointed canonical root prefix has caught up.
+        // Promote one ready ordinal before honoring support quiescence, or a
+        // valid pause at that boundary could strand the exact prefix forever.
+        if self.classified_sweep.is_some() && !active_classified_slice {
+            if let Some((chunk_ordinal, artifact_digest, event)) =
+                view.next_classified_prefix_advance_event()?
+            {
+                return Ok(self.batch(
+                    view,
+                    RelationalStepQuantum::AdvanceClassifiedPrefix {
+                        chunk_ordinal,
+                        artifact_digest,
+                    },
+                    vec![event],
+                ));
+            }
+        }
+
         // Symbolic proof closure wins before concrete work seeding. In
         // particular, a statically exact-empty case population reaches this
         // branch immediately after support-plan registration and never mints
@@ -591,18 +673,27 @@ impl<'query> RelationalStepDriver<'query> {
         // in caller-bounded slices; support advances only when those slices
         // deterministically close one canonical chunk transcript.
         if let Some(classified_sweep) = &self.classified_sweep {
+            let target = classified_sweep.next_target(view)?;
+            if let Some(target) = target.as_ref() {
+                let work = self.classified_target_work(classified_sweep, target)?;
+                if let Some(batch) = self.seed_classified_target_work(view, &work)? {
+                    return Ok(RelationalStepOutcome::Emitted(batch));
+                }
+            }
+
             // A concrete slice checkpoint owns its child until completion.
             // Otherwise the producer-owned regional prover gets exactly one
             // chance to close the next whole canonical child before any case
             // in that child is evaluated. Regional proof remains deliberately
             // unary until its proof artifact binds a complete question set.
             if self.question_ids.len() == 1 && view.classified_chunk_accumulator()?.is_none() {
-                if let (Some(authority), Some(partition), Some(progress)) = (
+                if let (Some(target), Some(authority), Some(partition), Some(_progress)) = (
+                    target.as_ref(),
                     journal.region_replay_authority(),
                     view.verified_case_chunk_partition()?,
                     view.classified_sweep_progress()?,
                 ) {
-                    let chunk_ordinal = usize::try_from(progress.next_chunk_ordinal())
+                    let chunk_ordinal = usize::try_from(target.descriptor().ordinal())
                         .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
                     if chunk_ordinal < partition.partition().chunks().len() {
                         match authority.prove_canonical_child(partition, chunk_ordinal)? {
@@ -618,6 +709,7 @@ impl<'query> RelationalStepDriver<'query> {
                                                 RelationalStepDriverError::RegionProofSubjectMismatch,
                                             )?,
                                         certificate_id: artifact.certificate_id(),
+                                        schedule_reason: target.primary_reason(),
                                     },
                                     vec![RelationalJournalEvent::relational_region_proof_accepted(
                                         artifact,
@@ -629,7 +721,12 @@ impl<'query> RelationalStepDriver<'query> {
                     }
                 }
             }
-            match classified_sweep.step(journal, max_members_per_quantum, runtime)? {
+            match classified_sweep.step(
+                journal,
+                target.as_ref(),
+                max_members_per_quantum,
+                runtime,
+            )? {
                 RelationalClassifiedSweepStepOutcome::Emitted(batch) => {
                     debug_assert_eq!(batch.expected_sequence(), view.sequence());
                     debug_assert_eq!(batch.expected_head(), view.head());
@@ -720,6 +817,192 @@ impl<'query> RelationalStepDriver<'query> {
         }
 
         Err(RelationalStepDriverError::BaseFrontierStalled)
+    }
+
+    fn classified_target_work(
+        &self,
+        classified_sweep: &RelationalClassifiedSweepStepDriver<'_>,
+        target: &RelationalCandidateChunkTarget,
+    ) -> Result<RelationalClassifiedTargetWork, RelationalStepDriverError> {
+        let chunk_index = usize::try_from(target.descriptor().ordinal())
+            .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
+        let chunk = classified_sweep
+            .partition()
+            .chunks()
+            .get(chunk_index)
+            .ok_or(RelationalStepDriverError::ClassifiedTargetScopeMismatch)?;
+        if chunk.descriptor() != target.descriptor() {
+            return Err(RelationalStepDriverError::ClassifiedTargetScopeMismatch);
+        }
+        let obligation = SupportCellObligation::new(
+            chunk.cell(),
+            AdmissionClassificationClaim::new(self.admission_id),
+        )?;
+        let readiness_spec = WorkNodeSpec::SupportCellReady {
+            cell_id: chunk.cell().id(),
+        };
+        let readiness_id = RelationalWorkFrontier::derive_node_id(&readiness_spec, [])?;
+        let resolver_spec = WorkNodeSpec::ResolveSupportObligation {
+            cell_id: chunk.cell().id(),
+            obligation_id: obligation.id(),
+        };
+        let resolver_id = RelationalWorkFrontier::derive_node_id(&resolver_spec, [readiness_id])?;
+        Ok(RelationalClassifiedTargetWork {
+            chunk_ordinal: target.descriptor().ordinal(),
+            schedule_reason: target.primary_reason(),
+            cell_id: chunk.cell().id(),
+            obligation_id: obligation.id(),
+            readiness_spec,
+            readiness_id,
+            resolver_spec,
+            resolver_id,
+        })
+    }
+
+    fn seed_classified_target_work(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        work: &RelationalClassifiedTargetWork,
+    ) -> Result<Option<RelationalStepBatch>, RelationalStepDriverError> {
+        let readiness = view.work_node(work.readiness_id);
+        let resolver = view.work_node(work.resolver_id);
+        if resolver.is_some() && readiness.is_none() {
+            return Err(
+                RelationalStepDriverError::ClassifiedTargetResolverWithoutReadiness {
+                    chunk_ordinal: work.chunk_ordinal,
+                },
+            );
+        }
+        if readiness
+            .as_ref()
+            .is_some_and(|node| !node.progress.is_complete())
+        {
+            return Err(
+                RelationalStepDriverError::ClassifiedTargetResolverWithoutReadiness {
+                    chunk_ordinal: work.chunk_ordinal,
+                },
+            );
+        }
+        if resolver.is_some() {
+            return Ok(None);
+        }
+
+        // The semantic admission evidence/refinement can arrive, and its
+        // completed operational resolver can later be compacted, before the
+        // classified artifact is produced. In that valid decentralized
+        // prefix the durable support fact is sufficient: do not resurrect a
+        // work node whose result is already accepted. The still-empty sparse
+        // slot remains the independent classification completion authority.
+        if view
+            .support_refinement_for_parent(work.obligation_id)
+            .is_some()
+            || view
+                .support_admission_evidence_id_for_obligation(work.obligation_id)
+                .is_some()
+        {
+            return Ok(None);
+        }
+
+        let mut events = Vec::with_capacity(if readiness.is_some() { 1 } else { 2 });
+        if readiness.is_none() {
+            events.push(RelationalJournalEvent::work_readiness_materialized(
+                work.readiness_spec.clone(),
+            )?);
+        }
+        events.push(RelationalJournalEvent::work_node_inserted(
+            work.resolver_spec.clone(),
+            [work.readiness_id],
+        )?);
+        Ok(Some(self.make_batch(
+            view,
+            RelationalStepQuantum::SeedClassifiedTargetWork {
+                chunk_ordinal: work.chunk_ordinal,
+                schedule_reason: work.schedule_reason,
+                work_node_id: work.resolver_id,
+            },
+            events,
+        )))
+    }
+
+    fn recover_classified_target_work(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        classified_sweep: &RelationalClassifiedSweepStepDriver<'_>,
+    ) -> Result<Option<RelationalStepBatch>, RelationalStepDriverError> {
+        let Some(chunk_ordinal) = view.next_pending_classified_work_completion_ordinal() else {
+            return Ok(None);
+        };
+        let chunk = classified_sweep
+            .partition()
+            .chunks()
+            .get(chunk_ordinal)
+            .ok_or(RelationalStepDriverError::ClassifiedTargetScopeMismatch)?;
+        if view
+            .classified_support_fragment_at(chunk_ordinal)?
+            .is_none()
+        {
+            return Err(RelationalStepDriverError::ClassifiedTargetScopeMismatch);
+        }
+        let target = classified_sweep
+            .candidate_schedule()
+            .target_for_ordinal(classified_sweep.partition(), chunk.descriptor().ordinal())
+            .ok_or(RelationalStepDriverError::ClassifiedTargetScopeMismatch)?;
+        let work = self.classified_target_work(classified_sweep, &target)?;
+        let readiness = view.work_node(work.readiness_id);
+        let resolver = view.work_node(work.resolver_id).ok_or(
+            RelationalStepDriverError::ClassifiedTargetWorkMissing {
+                chunk_ordinal: work.chunk_ordinal,
+            },
+        )?;
+        if readiness
+            .as_ref()
+            .is_none_or(|node| !node.progress.is_complete())
+        {
+            return Err(
+                RelationalStepDriverError::ClassifiedTargetResolverWithoutReadiness {
+                    chunk_ordinal: work.chunk_ordinal,
+                },
+            );
+        }
+        if resolver.progress.is_complete() {
+            return Err(RelationalStepDriverError::ClassifiedTargetWorkMissing {
+                chunk_ordinal: work.chunk_ordinal,
+            });
+        }
+        let completion =
+            if let Some(refinement) = view.support_refinement_for_parent(work.obligation_id) {
+                WorkCompletionRef::SupportObligationRefined {
+                    cell_id: work.cell_id,
+                    obligation_id: work.obligation_id,
+                    refinement_id: refinement.id(),
+                }
+            } else if let Some(evidence_id) =
+                view.support_admission_evidence_id_for_obligation(work.obligation_id)
+            {
+                WorkCompletionRef::DirectSupportEvidence {
+                    cell_id: work.cell_id,
+                    obligation_id: work.obligation_id,
+                    evidence_id,
+                }
+            } else {
+                return Err(
+                    RelationalStepDriverError::ClassifiedTargetCompletionEvidenceMissing {
+                        chunk_ordinal: work.chunk_ordinal,
+                    },
+                );
+            };
+        Ok(Some(self.make_batch(
+            view,
+            RelationalStepQuantum::CompleteClassifiedTargetWork {
+                chunk_ordinal: work.chunk_ordinal,
+                schedule_reason: work.schedule_reason,
+                work_node_id: work.resolver_id,
+            },
+            vec![RelationalJournalEvent::work_node_completed(
+                work.resolver_id,
+                completion,
+            )],
+        )))
     }
 
     fn close_classified_support(
@@ -1955,6 +2238,17 @@ pub(crate) enum RelationalStepDriverError {
     InvalidOrderedClassification,
     RegionProofChunkOrdinalOverflow,
     RegionProofSubjectMismatch,
+    CandidateScheduleExhaustedBeforeClosure,
+    ClassifiedTargetScopeMismatch,
+    ClassifiedTargetResolverWithoutReadiness {
+        chunk_ordinal: u128,
+    },
+    ClassifiedTargetWorkMissing {
+        chunk_ordinal: u128,
+    },
+    ClassifiedTargetCompletionEvidenceMissing {
+        chunk_ordinal: u128,
+    },
     RegionProof(RelationalRegionProofError),
     Classification(RelationalClassifiedSweepError),
     Source(RelationalSourceExecutorError),
@@ -1964,6 +2258,7 @@ pub(crate) enum RelationalStepDriverError {
     SelectedRun(RelationalSelectedRunStepDriverError),
     Work(WorkFrontierError),
     Journal(RelationalJournalError),
+    SupportCell(SupportCellError),
 }
 
 impl fmt::Display for RelationalStepDriverError {
@@ -2043,6 +2338,24 @@ impl fmt::Display for RelationalStepDriverError {
                 .write_str("regional proof canonical chunk ordinal exceeds host capacity"),
             Self::RegionProofSubjectMismatch => formatter
                 .write_str("regional proof did not return its requested canonical child"),
+            Self::CandidateScheduleExhaustedBeforeClosure => formatter.write_str(
+                "candidate-informed schedule exhausted before the exact canonical cover closed",
+            ),
+            Self::ClassifiedTargetScopeMismatch => formatter.write_str(
+                "classified target work does not match its canonical chunk and admission scope",
+            ),
+            Self::ClassifiedTargetResolverWithoutReadiness { chunk_ordinal } => write!(
+                formatter,
+                "classified target chunk {chunk_ordinal} has a resolver without completed cell readiness",
+            ),
+            Self::ClassifiedTargetWorkMissing { chunk_ordinal } => write!(
+                formatter,
+                "classified target chunk {chunk_ordinal} has no durable resolver work node",
+            ),
+            Self::ClassifiedTargetCompletionEvidenceMissing { chunk_ordinal } => write!(
+                formatter,
+                "accepted classified target chunk {chunk_ordinal} installed neither direct admission evidence nor a refinement",
+            ),
             Self::RegionProof(error) => write!(formatter, "regional proof failed: {error}"),
             Self::Classification(error) => write!(formatter, "classification failed: {error}"),
             Self::Source(error) => write!(formatter, "source step failed: {error}"),
@@ -2056,6 +2369,7 @@ impl fmt::Display for RelationalStepDriverError {
             }
             Self::Work(error) => write!(formatter, "work-frontier step failed: {error}"),
             Self::Journal(error) => write!(formatter, "journal step failed: {error}"),
+            Self::SupportCell(error) => write!(formatter, "support-cell target failed: {error}"),
         }
     }
 }
@@ -2072,6 +2386,7 @@ impl Error for RelationalStepDriverError {
             Self::RegionProof(error) => Some(error),
             Self::Work(error) => Some(error),
             Self::Journal(error) => Some(error),
+            Self::SupportCell(error) => Some(error),
             Self::InvalidQuery(_)
             | Self::SupportPlanScopeMismatch
             | Self::ClassificationEvaluatorUnavailable
@@ -2096,7 +2411,12 @@ impl Error for RelationalStepDriverError {
             | Self::QuestionForRejectedCase(_)
             | Self::InvalidOrderedClassification
             | Self::RegionProofChunkOrdinalOverflow
-            | Self::RegionProofSubjectMismatch => None,
+            | Self::RegionProofSubjectMismatch
+            | Self::CandidateScheduleExhaustedBeforeClosure
+            | Self::ClassifiedTargetScopeMismatch
+            | Self::ClassifiedTargetResolverWithoutReadiness { .. }
+            | Self::ClassifiedTargetWorkMissing { .. }
+            | Self::ClassifiedTargetCompletionEvidenceMissing { .. } => None,
         }
     }
 }
@@ -2128,6 +2448,12 @@ impl From<WorkFrontierError> for RelationalStepDriverError {
 impl From<RelationalJournalError> for RelationalStepDriverError {
     fn from(error: RelationalJournalError) -> Self {
         Self::Journal(error)
+    }
+}
+
+impl From<SupportCellError> for RelationalStepDriverError {
+    fn from(error: SupportCellError) -> Self {
+        Self::SupportCell(error)
     }
 }
 

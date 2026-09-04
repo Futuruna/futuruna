@@ -1784,8 +1784,12 @@ Candidate producers, when enabled, MUST lower endpoints, source events,
 certificate-authorized midpoints and lifted candidates into ordinary
 dependency-linked work in the same stream, with a complete residual cover.
 Current v1 actively schedules regional certificates and concrete/classified
-fallback; source-event, midpoint and lifted-candidate dispatch are performance
-follow-ups, never hidden completeness assumptions.
+fallback, visits lower/upper range endpoints first, and conservatively lifts
+direct checked affine admission/FIND boundaries when one exact integer source
+axis coincides with the case-coordinate interval. Source-event and
+certificate-boundary/midpoint producers are performance follow-ups, never
+hidden completeness assumptions. Ranked products, plural axes and any other
+unproved coordinate lift retain endpoint-first plus canonical residual work.
 
 Every emitted coordinator batch begins with an authenticated
 `SchedulerDecisionRecorded` checkpoint carrying the scheduler-policy version
@@ -1868,15 +1872,30 @@ image restriction; it is not a Cartesian product of independently widened
 field bounds. The certificate need not materialize starter rows, but no public
 projection may relabel its scalar scheduling axis as starter support.
 
-One journal event re-verifies that certificate under the matching producer
-authority and atomically installs the child cardinality and classification
-evidence, leaf seal, materialization cursor and contiguous classified progress.
-Cold replay without that exact authority, or with a capsule, subject or proof
-mismatch, fails before semantic mutation. The public case/support projection is
-therefore a hybrid ordered prefix: concrete children retain their classified
-runs and sparse selected materializations, while a certified zero-selected
-child contributes one proof-backed uniform region and no invented `CaseId` or
+One semantic journal event re-verifies that certificate under the matching
+producer authority and atomically installs the addressed child's cardinality
+and classification evidence, leaf seal, and sparse canonical slot. It does not
+claim that lower ordinals are complete. A separate bounded checkpoint promotes
+exactly the next occupied slot into contiguous classified progress and advances
+the mirrored materialization cursor; it never evaluates user code or cascades
+over a ready suffix. Neither the support-obligation frontier nor the support
+catalog may seal while a classified slice is active or any canonical sparse
+slot is absent; already occupied slots may be promoted after those semantic
+seals because promotion creates no new support fact. Cold replay without the exact producer authority, or with
+a capsule, subject or proof mismatch, fails before semantic mutation. The
+public case/support projection is therefore sparse and useful while open, then
+canonical and exact at closure: concrete children retain their classified runs
+and selected materializations, while a certified zero-selected child
+contributes one proof-backed uniform region and no invented `CaseId` or
 extensional content root.
+
+Target readiness and resolver nodes are operational provenance, not a second
+completion authority. If a crash leaves an accepted child with its exact
+resolver still open, replay indexes and completes that resolver before choosing
+new base work. Once complete, both work leaves may be removed by an
+authenticated bounded compaction receipt. The durable sparse child artifact
+continues to suppress re-execution; missing compacted work nodes MUST NOT be
+reseeded.
 
 For a fixed canonical child size `K`, a one-axis relation of `N` cases needs at
 most `ceil(N/K)` formula proofs plus concrete work only for residual children.

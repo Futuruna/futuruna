@@ -30,6 +30,7 @@ use super::relational_analysis_journal::RelationalAnalysisJournalError;
 use super::relational_analysis_plan::{
     RelationalAnalysisLayerRegistration, RelationalAnalysisPlan, RelationalAnalysisPlanError,
 };
+use super::relational_candidate_schedule::RelationalCandidateScheduleReason;
 use super::relational_classification_evaluator::RelationalClassificationEvaluatorBackend;
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_incidence_result_step_driver::{
@@ -269,9 +270,19 @@ const fn decision_matches_quantum(
                 | RelationalStreamQuantum::CheckpointMechanismSupport { .. }
                 | RelationalStreamQuantum::CloseMechanismSupport { .. }
         ),
-        RelationalSchedulerDecision::BaseFrontier => {
-            matches!(quantum, RelationalStreamQuantum::Base(_))
-        }
+        RelationalSchedulerDecision::BaseFrontier
+        | RelationalSchedulerDecision::BaseCandidateCheckedGuard
+        | RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
+        | RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
+        | RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint
+        | RelationalSchedulerDecision::BaseCandidateCertificateMidpoint
+        | RelationalSchedulerDecision::BaseCandidateResidual
+        | RelationalSchedulerDecision::BaseClassifiedPrefixAdvance => match quantum {
+            RelationalStreamQuantum::Base(quantum) => {
+                base_decision_matches_quantum(decision, quantum)
+            }
+            _ => false,
+        },
         RelationalSchedulerDecision::SelectedQuestionBind => matches!(
             quantum,
             RelationalStreamQuantum::BindExtensionalSelectedQuestion { .. }
@@ -1039,11 +1050,12 @@ impl<'query> RelationalStreamDriver<'query> {
         )?;
         let base = match base {
             RelationalStepOutcome::Emitted(batch) => {
+                let decision = base_scheduler_decision(batch.quantum());
                 return Ok(RelationalStreamStepOutcome::Emitted(
                     RelationalStreamBatch::coordinator(
                         batch.expected_sequence(),
                         batch.expected_head(),
-                        RelationalSchedulerDecision::BaseFrontier,
+                        decision,
                         RelationalStreamQuantum::Base(batch.quantum()),
                         batch.into_events().into_vec(),
                     ),
@@ -1245,6 +1257,157 @@ impl<'query> RelationalStreamDriver<'query> {
             quantum,
             events,
         ))
+    }
+}
+
+const fn base_scheduler_decision(quantum: RelationalStepQuantum) -> RelationalSchedulerDecision {
+    let reason = match quantum {
+        RelationalStepQuantum::ClassifiedSweep(quantum) => Some(quantum.schedule_reason()),
+        RelationalStepQuantum::CertifiedRegion {
+            schedule_reason, ..
+        }
+        | RelationalStepQuantum::SeedClassifiedTargetWork {
+            schedule_reason, ..
+        }
+        | RelationalStepQuantum::CompleteClassifiedTargetWork {
+            schedule_reason, ..
+        } => Some(schedule_reason),
+        RelationalStepQuantum::AdvanceClassifiedPrefix { .. } => {
+            return RelationalSchedulerDecision::BaseClassifiedPrefixAdvance;
+        }
+        _ => None,
+    };
+    match reason {
+        Some(RelationalCandidateScheduleReason::CheckedGuardBoundary) => {
+            RelationalSchedulerDecision::BaseCandidateCheckedGuard
+        }
+        Some(RelationalCandidateScheduleReason::CertifiedPieceBoundary) => {
+            RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
+        }
+        Some(RelationalCandidateScheduleReason::LowerRangeEndpoint) => {
+            RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
+        }
+        Some(RelationalCandidateScheduleReason::UpperRangeEndpoint) => {
+            RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint
+        }
+        Some(RelationalCandidateScheduleReason::CertificateAuthorizedMidpoint) => {
+            RelationalSchedulerDecision::BaseCandidateCertificateMidpoint
+        }
+        Some(RelationalCandidateScheduleReason::ResidualFallback) => {
+            RelationalSchedulerDecision::BaseCandidateResidual
+        }
+        None => RelationalSchedulerDecision::BaseFrontier,
+    }
+}
+
+const fn base_decision_matches_quantum(
+    decision: RelationalSchedulerDecision,
+    quantum: RelationalStepQuantum,
+) -> bool {
+    matches!(
+        (decision, base_scheduler_decision(quantum)),
+        (
+            RelationalSchedulerDecision::BaseFrontier,
+            RelationalSchedulerDecision::BaseFrontier
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateCheckedGuard,
+            RelationalSchedulerDecision::BaseCandidateCheckedGuard
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
+            RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint,
+            RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint,
+            RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateCertificateMidpoint,
+            RelationalSchedulerDecision::BaseCandidateCertificateMidpoint
+        ) | (
+            RelationalSchedulerDecision::BaseCandidateResidual,
+            RelationalSchedulerDecision::BaseCandidateResidual
+        ) | (
+            RelationalSchedulerDecision::BaseClassifiedPrefixAdvance,
+            RelationalSchedulerDecision::BaseClassifiedPrefixAdvance
+        )
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn base_decisions_match_only_their_corresponding_quantum() {
+        let candidates = [
+            (
+                RelationalCandidateScheduleReason::CheckedGuardBoundary,
+                RelationalSchedulerDecision::BaseCandidateCheckedGuard,
+            ),
+            (
+                RelationalCandidateScheduleReason::CertifiedPieceBoundary,
+                RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
+            ),
+            (
+                RelationalCandidateScheduleReason::LowerRangeEndpoint,
+                RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint,
+            ),
+            (
+                RelationalCandidateScheduleReason::UpperRangeEndpoint,
+                RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint,
+            ),
+            (
+                RelationalCandidateScheduleReason::CertificateAuthorizedMidpoint,
+                RelationalSchedulerDecision::BaseCandidateCertificateMidpoint,
+            ),
+            (
+                RelationalCandidateScheduleReason::ResidualFallback,
+                RelationalSchedulerDecision::BaseCandidateResidual,
+            ),
+        ];
+
+        for (reason, expected) in candidates {
+            let quantum = RelationalStreamQuantum::Base(RelationalStepQuantum::CertifiedRegion {
+                chunk_ordinal: 0,
+                certificate_id: [0; 32],
+                schedule_reason: reason,
+            });
+            assert!(decision_matches_quantum(expected, quantum));
+            assert!(!decision_matches_quantum(
+                RelationalSchedulerDecision::BaseFrontier,
+                quantum
+            ));
+            for (_, other) in candidates {
+                if other != expected {
+                    assert!(!decision_matches_quantum(other, quantum));
+                }
+            }
+        }
+
+        let prefix =
+            RelationalStreamQuantum::Base(RelationalStepQuantum::AdvanceClassifiedPrefix {
+                chunk_ordinal: 0,
+                artifact_digest: [0; 32],
+            });
+        assert!(decision_matches_quantum(
+            RelationalSchedulerDecision::BaseClassifiedPrefixAdvance,
+            prefix
+        ));
+        assert!(!decision_matches_quantum(
+            RelationalSchedulerDecision::BaseFrontier,
+            prefix
+        ));
+
+        let ordinary = RelationalStreamQuantum::Base(RelationalStepQuantum::SeedSourceRoot);
+        assert!(decision_matches_quantum(
+            RelationalSchedulerDecision::BaseFrontier,
+            ordinary
+        ));
+        assert!(!decision_matches_quantum(
+            RelationalSchedulerDecision::BaseClassifiedPrefixAdvance,
+            ordinary
+        ));
     }
 }
 

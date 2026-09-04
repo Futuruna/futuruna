@@ -1,12 +1,13 @@
 //! Canonical sparse realization of admitted+selected classified runs.
 //!
-//! A process-local cursor scans the retained classified prefix in chunk/run
-//! order and evaluates at most one missing selected run. The cursor is only a
-//! search hint: it remains on an emitted run until the journal proves that run
-//! was accepted, and cold replay safely starts from zero. The resulting bounded
-//! artifact is proposed as one unapplied journal event. This lets concrete
-//! interesting cases emerge immediately after their classified chunk while
-//! preserving the exact symbolic population as the closure authority.
+//! The driver takes the lowest canonical `(chunk, run)` from a replay-derived
+//! sparse pending set and evaluates at most one missing selected run. A sparse
+//! candidate may arrive before an earlier ordinal; inserting a later-arriving
+//! lower key therefore reorders work correctly without a process-local cursor
+//! or a restart-from-zero scan. The resulting bounded artifact is proposed as
+//! one unapplied journal event. This lets concrete interesting cases emerge
+//! immediately after their classified chunk while preserving the exact
+//! symbolic population as the closure authority.
 
 use std::cell::RefCell;
 use std::error::Error;
@@ -19,7 +20,7 @@ use super::relational_bounded_chunk_partition::{
 };
 use super::relational_classified_sweep::{
     reverify_relational_classified_chunk_artifact, RelationalClassifiedChunkArtifactId,
-    RelationalClassifiedRunId, RelationalClassifiedSweepError,
+    RelationalClassifiedRunId, RelationalClassifiedSweepError, VerifiedRelationalClassifiedChunk,
 };
 use super::relational_executor::RelationalExpressionRuntime;
 use super::relational_journal::{
@@ -126,7 +127,13 @@ pub(crate) struct RelationalSelectedRunStepDriver<'query> {
     // interpreter runtime; this is a shallow view copy, never a cloned IR.
     checked: CheckedExploreQueryView<'query>,
     support_plan: &'query RelationalSupportPlan,
-    discovery_cursor: RefCell<(usize, usize)>,
+    /// Process-local structural authority for the chunk currently being
+    /// drained. The cache is used only after the content-derived artifact
+    /// identity and current durable injectivity evidence have been checked, so it cannot
+    /// authorize a different journal prefix. Keeping one chunk avoids
+    /// rebuilding all of its <=256 run cells once per selected run without
+    /// retaining a second copy of the full classified population.
+    verified_chunk_cache: RefCell<Option<VerifiedRelationalClassifiedChunk>>,
 }
 
 impl<'query> RelationalSelectedRunStepDriver<'query> {
@@ -148,7 +155,7 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         Ok(Self {
             checked: *checked,
             support_plan,
-            discovery_cursor: RefCell::new((0, 0)),
+            verified_chunk_cache: RefCell::new(None),
         })
     }
 
@@ -161,8 +168,7 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         let view = journal.scheduler_view()?;
         self.validate_scope(checked, view)?;
 
-        let retained = view.classified_support_fragments()?;
-        if retained.is_empty() {
+        if view.accepted_classified_fragment_count() == 0 {
             return Ok(RelationalSelectedRunStepOutcome::CaughtUp);
         }
         let verified_partition = view
@@ -197,75 +203,37 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
         let progress = view
             .classified_sweep_progress()?
             .ok_or(RelationalSelectedRunStepDriverError::ClassifiedProgressMissing)?;
-        if progress.accepted_chunk_count() != retained.len()
-            || progress.partition_artifact_id() != verified_partition.artifact().id()
-        {
+        if progress.partition_artifact_id() != verified_partition.artifact().id() {
             return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
         }
 
-        // Retained artifacts were structurally reverified at journal
-        // admission. Locate the first missing selected descriptor from the
-        // process-local hint, then remint authority for only that one chunk.
-        // The cursor never outruns a proposed-but-unapplied event: it remains
-        // on the target until the durable view reports that target present.
-        let mut cursor = *self.discovery_cursor.borrow();
-        if cursor.0 > retained.len() {
-            cursor = (0, 0);
-        }
-        let mut target = None;
-        for chunk_index in cursor.0..retained.len() {
-            let fragment = &retained[chunk_index];
-            let chunk = verified_partition
-                .partition()
-                .chunks()
-                .get(chunk_index)
-                .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-            let canonical_chunk_ordinal = u128::try_from(chunk_index)
-                .map_err(|_| RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-            if fragment.chunk_ordinal() != canonical_chunk_ordinal
-                || fragment.chunk_id() != Some(chunk.descriptor().id())
-                || fragment.chunk_cell_id() != chunk.cell().id()
-            {
-                return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
-            }
-            let Some(artifact) = fragment.concrete() else {
-                if chunk_index == cursor.0 && cursor.1 != 0 {
-                    return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
-                }
-                cursor = (chunk_index + 1, 0);
-                continue;
-            };
-            let first_run = if chunk_index == cursor.0 {
-                if cursor.1 > artifact.runs().len() {
-                    return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
-                }
-                cursor.1
-            } else {
-                0
-            };
-            for (run_index, run) in artifact.runs().iter().enumerate().skip(first_run) {
-                if run.outcome().any_selected()
-                    && view.selected_run_materialization(run.cell_id())?.is_none()
-                {
-                    cursor = (chunk_index, run_index);
-                    target = Some((chunk_index, run_index));
-                    break;
-                }
-            }
-            if target.is_some() {
-                break;
-            }
-            cursor = (chunk_index + 1, 0);
-        }
-        *self.discovery_cursor.borrow_mut() = cursor;
-        let Some((chunk_index, run_index)) = target else {
+        // Journal replay maintains the exact canonical set difference between
+        // accepted selected descriptors and accepted materializations. Taking
+        // its first `(chunk, run)` key avoids rescanning every earlier sparse
+        // chunk and already-materialized run on each bounded invocation.
+        let Some((chunk_index, run_ordinal)) = view.next_pending_selected_run_position() else {
             return Ok(RelationalSelectedRunStepOutcome::CaughtUp);
         };
 
-        let artifact = retained[chunk_index]
+        let fragment = view
+            .classified_support_fragment_at(chunk_index)?
+            .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
+        let canonical_chunk_ordinal = u128::try_from(chunk_index)
+            .map_err(|_| RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
+        let chunk = verified_partition
+            .partition()
+            .chunks()
+            .get(chunk_index)
+            .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
+        if fragment.chunk_ordinal() != canonical_chunk_ordinal
+            || fragment.chunk_id() != Some(chunk.descriptor().id())
+            || fragment.chunk_cell_id() != chunk.cell().id()
+        {
+            return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
+        }
+        let artifact = fragment
             .concrete()
             .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-        let chunk = &verified_partition.partition().chunks()[chunk_index];
         let expected_chunk_injectivity =
             relational_case_chunk_partition_gateway::injectivity(verified_partition, chunk_index)?;
         let durable_chunk_injectivity =
@@ -290,25 +258,37 @@ impl<'query> RelationalSelectedRunStepDriver<'query> {
                     );
                 }
             };
-        let verified_classified = reverify_relational_classified_chunk_artifact(
-            artifact,
-            self.support_plan,
-            verified_partition,
-            durable_chunk_injectivity,
-        )?;
+        let cache_miss = self
+            .verified_chunk_cache
+            .borrow()
+            .as_ref()
+            .is_none_or(|cached| cached.artifact().id() != artifact.id());
+        if cache_miss {
+            let verified = reverify_relational_classified_chunk_artifact(
+                artifact,
+                self.support_plan,
+                verified_partition,
+                durable_chunk_injectivity,
+            )?;
+            *self.verified_chunk_cache.borrow_mut() = Some(verified);
+        }
+        let verified_chunk_cache = self.verified_chunk_cache.borrow();
+        let verified_classified = verified_chunk_cache
+            .as_ref()
+            .expect("a cache miss installs the exact verified chunk");
+        let run_index = usize::from(run_ordinal);
         let run = verified_classified
             .runs()
             .get(run_index)
             .ok_or(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
-        if !run.descriptor().outcome().any_selected()
+        if run.descriptor().ordinal() != run_ordinal
+            || !run.descriptor().outcome().any_selected()
             || view
                 .selected_run_materialization(run.cell().id())?
                 .is_some()
         {
             return Err(RelationalSelectedRunStepDriverError::RetainedPrefixMismatch);
         }
-        let run_ordinal = u16::try_from(run_index)
-            .map_err(|_| RelationalSelectedRunStepDriverError::RetainedPrefixMismatch)?;
         let materialized = materialize_relational_selected_run(
             checked,
             self.support_plan,

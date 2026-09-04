@@ -86,7 +86,7 @@ use super::relational_region_proof::{
 use super::relational_selected_run_materialization::{
     reverify_relational_selected_run_materialization_artifact,
     RelationalSelectedRunMaterializationArtifact, RelationalSelectedRunMaterializationArtifactId,
-    RelationalSelectedRunMaterializationError,
+    RelationalSelectedRunMaterializationError, VerifiedRelationalSelectedRunMaterialization,
 };
 use super::relational_source_closure::{
     SourceRelationExhaustionReceipt, SourceRelationExhaustionReceiptId, SourceTraversalAccumulator,
@@ -132,15 +132,15 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 26;
-pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 1;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 27;
+pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 2;
 
-const JOURNAL_CONTRACT_HASH_V26: &[u8] = b"futuruna.explore.relational-journal-contract.v26";
-const JOURNAL_GENESIS_HASH_V26: &[u8] = b"futuruna.explore.relational-journal-genesis.v26";
-const JOURNAL_EVENT_HASH_V22: &[u8] = b"futuruna.explore.relational-journal-event.v22";
-const JOURNAL_ENTRY_HASH_V26: &[u8] = b"futuruna.explore.relational-journal-entry.v26";
-const SCHEDULER_WORK_FINGERPRINT_V1: &[u8] =
-    b"futuruna.explore.relational-scheduler-work-fingerprint.v1";
+const JOURNAL_CONTRACT_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-contract.v27";
+const JOURNAL_GENESIS_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-genesis.v27";
+const JOURNAL_EVENT_HASH_V23: &[u8] = b"futuruna.explore.relational-journal-event.v23";
+const JOURNAL_ENTRY_HASH_V27: &[u8] = b"futuruna.explore.relational-journal-entry.v27";
+const SCHEDULER_WORK_FINGERPRINT_V2: &[u8] =
+    b"futuruna.explore.relational-scheduler-work-fingerprint.v2";
 const CORE_EVIDENCE_ROOT_HASH_V6: &[u8] = b"futuruna.explore.relational-core-evidence-root.v6";
 const EXPLORATION_EVIDENCE_ROOT_HASH_V2: &[u8] =
     b"futuruna.explore.relational-exploration-evidence-root.v2";
@@ -504,7 +504,7 @@ impl RelationalJournalContract {
     }
 
     pub(crate) fn id(&self) -> RelationalJournalId {
-        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V26);
+        let mut hasher = ChainHasher::new(JOURNAL_CONTRACT_HASH_V27);
         hasher.u32(RELATIONAL_JOURNAL_SCHEMA_VERSION);
         hasher.digest(self.relation_id.bytes());
         hasher.digest(self.admission_id.bytes());
@@ -534,7 +534,7 @@ pub(crate) struct RelationalJournalHead([u8; 32]);
 
 impl RelationalJournalHead {
     fn genesis(contract_id: RelationalJournalId) -> Self {
-        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V26);
+        let mut hasher = ChainHasher::new(JOURNAL_GENESIS_HASH_V27);
         hasher.digest(contract_id.bytes());
         Self(hasher.finish())
     }
@@ -1081,8 +1081,10 @@ impl MechanismSupportObservationBackfillClaim {
 
 /// Why the deterministic relational coordinator selected one emitted batch.
 ///
-/// The ordinal is the stable priority under [`RELATIONAL_SCHEDULER_POLICY_VERSION`]:
-/// lower values are offered first. The decision deliberately omits work
+/// `priority()` is the stable coordinator tier under
+/// [`RELATIONAL_SCHEDULER_POLICY_VERSION`]: lower values are offered first.
+/// Candidate reasons intentionally share the base tier while retaining unique
+/// canonical tags. The decision deliberately omits work
 /// subjects because the immediately following batch events already commit
 /// their exact IDs and payloads.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -1095,6 +1097,13 @@ pub(crate) enum RelationalSchedulerDecision {
     MechanismSupport,
     ReadyMechanism,
     BaseFrontier,
+    BaseCandidateCheckedGuard,
+    BaseCandidateCertifiedPieceBoundary,
+    BaseCandidateLowerRangeEndpoint,
+    BaseCandidateUpperRangeEndpoint,
+    BaseCandidateCertificateMidpoint,
+    BaseCandidateResidual,
+    BaseClassifiedPrefixAdvance,
     SelectedQuestionBind,
     AnalysisClose,
 }
@@ -1109,9 +1118,38 @@ impl RelationalSchedulerDecision {
             Self::ReadyIncidenceResult => 4,
             Self::MechanismSupport => 5,
             Self::ReadyMechanism => 6,
-            Self::BaseFrontier => 7,
+            Self::BaseFrontier
+            | Self::BaseCandidateCheckedGuard
+            | Self::BaseCandidateCertifiedPieceBoundary
+            | Self::BaseCandidateLowerRangeEndpoint
+            | Self::BaseCandidateUpperRangeEndpoint
+            | Self::BaseCandidateCertificateMidpoint
+            | Self::BaseCandidateResidual
+            | Self::BaseClassifiedPrefixAdvance => 7,
             Self::SelectedQuestionBind => 8,
             Self::AnalysisClose => 9,
+        }
+    }
+
+    pub(crate) const fn canonical_tag(self) -> u8 {
+        match self {
+            Self::AnalysisRegistration => 0x01,
+            Self::InterruptedMechanismArtifactRecovery => 0x02,
+            Self::ExplicitObservation => 0x03,
+            Self::ReadyResult => 0x04,
+            Self::ReadyIncidenceResult => 0x05,
+            Self::MechanismSupport => 0x06,
+            Self::ReadyMechanism => 0x07,
+            Self::BaseFrontier => 0x08,
+            Self::SelectedQuestionBind => 0x09,
+            Self::AnalysisClose => 0x0a,
+            Self::BaseCandidateCheckedGuard => 0x0b,
+            Self::BaseCandidateCertifiedPieceBoundary => 0x0c,
+            Self::BaseCandidateLowerRangeEndpoint => 0x0d,
+            Self::BaseCandidateUpperRangeEndpoint => 0x0e,
+            Self::BaseCandidateCertificateMidpoint => 0x0f,
+            Self::BaseCandidateResidual => 0x10,
+            Self::BaseClassifiedPrefixAdvance => 0x11,
         }
     }
 }
@@ -1134,13 +1172,22 @@ pub(crate) enum RelationalCheckpointEvent {
         /// evidence or claiming it completed.
         work_fingerprint: [u8; 32],
     },
-    /// One caller-bounded checked prefix of the next canonical classified
+    /// One caller-bounded checked prefix of the selected canonical classified
     /// chunk. Replay validates and folds the artifact into an operational
     /// accumulator without executing user code. It cannot advance classified
     /// support or the semantic chunk cursor; only the separately accepted
     /// canonical whole-chunk artifact may do that.
     RelationalClassifiedChunkSliceCheckpointed {
         artifact: Box<RelationalClassifiedChunkSliceArtifact>,
+    },
+    /// Advance exactly one occupied canonical classified slot into the
+    /// committed root prefix. Sparse classification evidence may arrive in
+    /// any deterministic scheduler order; this bounded checkpoint is the
+    /// sole authority that advances the root materialization cursor.
+    RelationalClassifiedPrefixAdvanced {
+        partition_artifact_id: RelationalCaseChunkPartitionArtifactId,
+        chunk_ordinal: u128,
+        artifact_digest: [u8; 32],
     },
     /// Declare one ordinary semantic work node. Its ID commits both the spec
     /// and the canonical dependency set, so replay can reject an altered
@@ -1278,6 +1325,20 @@ impl RelationalJournalEvent {
         Self::Evidence(RelationalEvidenceEvent::RelationalClassifiedChunkAccepted {
             artifact: Box::new(artifact),
         })
+    }
+
+    pub(crate) const fn relational_classified_prefix_advanced(
+        partition_artifact_id: RelationalCaseChunkPartitionArtifactId,
+        chunk_ordinal: u128,
+        artifact_digest: [u8; 32],
+    ) -> Self {
+        Self::Checkpoint(
+            RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+                partition_artifact_id,
+                chunk_ordinal,
+                artifact_digest,
+            },
+        )
     }
 
     pub(crate) fn relational_region_proof_accepted(
@@ -1567,6 +1628,9 @@ impl RelationalJournalEvent {
             | Self::Checkpoint(
                 RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { .. },
             )
+            | Self::Checkpoint(RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+                ..
+            })
             | Self::Checkpoint(RelationalCheckpointEvent::SupportMaterializationCheckpointed {
                 ..
             })
@@ -1590,6 +1654,9 @@ impl RelationalJournalEvent {
             | Self::Checkpoint(
                 RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { .. },
             )
+            | Self::Checkpoint(RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+                ..
+            })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkNodeInserted { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkReadinessMaterialized { .. })
             | Self::Checkpoint(RelationalCheckpointEvent::WorkCursorAdvanced { .. })
@@ -1786,6 +1853,78 @@ impl RelationalClassifiedSupportFragment {
     }
 }
 
+/// Zero-copy borrowed view of the durable contiguous classified prefix.
+///
+/// The sparse slot table is the replay-derived storage authority and the
+/// classified progress record proves that every slot before `len` is
+/// occupied. Keeping the prefix as this lightweight view avoids rebuilding an
+/// allocated table of references on every scheduler/publication observation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RelationalClassifiedSupportPrefix<'a> {
+    slots: &'a [Option<RelationalClassifiedSupportFragment>],
+}
+
+impl<'a> RelationalClassifiedSupportPrefix<'a> {
+    pub(crate) const fn len(self) -> usize {
+        self.slots.len()
+    }
+
+    pub(crate) const fn is_empty(self) -> bool {
+        self.slots.is_empty()
+    }
+
+    pub(crate) fn get(self, index: usize) -> Option<&'a RelationalClassifiedSupportFragment> {
+        self.slots.get(index).and_then(Option::as_ref)
+    }
+
+    pub(crate) fn iter(
+        self,
+    ) -> impl ExactSizeIterator<Item = &'a RelationalClassifiedSupportFragment> + 'a {
+        self.slots.iter().map(|slot| {
+            slot.as_ref()
+                .expect("classified progress admits only an occupied contiguous prefix")
+        })
+    }
+}
+
+impl std::ops::Index<usize> for RelationalClassifiedSupportPrefix<'_> {
+    type Output = RelationalClassifiedSupportFragment;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        self.slots[index]
+            .as_ref()
+            .expect("classified progress admits only an occupied contiguous prefix")
+    }
+}
+
+fn classified_child_resolver_node_id(
+    cell_id: SupportCellId,
+    obligation_id: SupportProofObligationId,
+) -> Result<WorkNodeId, WorkFrontierError> {
+    let readiness = WorkNodeSpec::SupportCellReady { cell_id };
+    let readiness_id = RelationalWorkFrontier::derive_node_id(&readiness, [])?;
+    RelationalWorkFrontier::derive_node_id(
+        &WorkNodeSpec::ResolveSupportObligation {
+            cell_id,
+            obligation_id,
+        },
+        [readiness_id],
+    )
+}
+
+/// One-chunk replay/apply accelerator for consecutive selected-run artifacts.
+///
+/// The classified artifact ID is content-derived and every cache fill runs the
+/// full retained-chunk reverifier first. This cache is neither serialized nor
+/// committed by any root; fresh journal replay therefore starts empty and
+/// independently validates the first selected event for each encountered
+/// chunk. Replacement keeps retained memory bounded to one V1 chunk.
+#[derive(Clone, Debug)]
+struct RelationalSelectedRunClassifiedVerificationCache {
+    artifact_id: RelationalClassifiedChunkArtifactId,
+    verified: VerifiedRelationalClassifiedChunk,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalClassifiedSweepProgress {
     partition_artifact_id: RelationalCaseChunkPartitionArtifactId,
@@ -1840,24 +1979,6 @@ impl RelationalClassifiedSweepProgress {
             return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
         }
         Ok(())
-    }
-
-    /// Preflight one canonical ordinal without mutating the accepted prefix.
-    /// `false` means the exact historical entry is already present.
-    fn validate_chunk(
-        &self,
-        artifact: &RelationalClassifiedChunkArtifact,
-    ) -> Result<bool, RelationalJournalError> {
-        self.validate_fragment(
-            artifact.chunk_partition_id(),
-            artifact.chunk_id(),
-            artifact.chunk_ordinal(),
-            artifact.chunk_cell_id(),
-            artifact.chunk_materializer_id(),
-            artifact.id().bytes(),
-            artifact.interval_start(),
-            artifact.interval_end_exclusive(),
-        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1928,19 +2049,6 @@ impl RelationalClassifiedSweepProgress {
         Ok(true)
     }
 
-    /// Commit a chunk already accepted by `validate_chunk`. The partition-sized
-    /// capacity reservation makes this an infallible post-transaction delta.
-    fn commit_validated_chunk(&mut self, artifact: &RelationalClassifiedChunkArtifact) {
-        debug_assert_eq!(self.validate_chunk(artifact), Ok(true));
-        self.commit_validated_fragment(
-            artifact.chunk_id(),
-            artifact.chunk_ordinal(),
-            artifact.id().bytes(),
-            artifact.interval_start(),
-            artifact.interval_end_exclusive(),
-        );
-    }
-
     fn commit_validated_fragment(
         &mut self,
         chunk_id: RelationalCaseChunkId,
@@ -1984,7 +2092,7 @@ impl RelationalClassifiedSweepProgress {
         self.interval_end_exclusive
     }
 
-    pub(crate) fn accepted_chunk_count(&self) -> usize {
+    pub(crate) fn committed_prefix_count(&self) -> usize {
         self.accepted_chunks.len()
     }
 
@@ -2000,10 +2108,6 @@ impl RelationalClassifiedSweepProgress {
         self.accepted_chunks
             .last()
             .map(|chunk| chunk.artifact_digest)
-    }
-
-    fn has_accepted_chunks(&self) -> bool {
-        !self.accepted_chunks.is_empty()
     }
 }
 
@@ -2040,7 +2144,34 @@ struct RelationalEvidenceState {
     /// journal and checkpoint root, while final support evidence remains
     /// absent until the complete canonical chunk artifact is accepted.
     classified_chunk_accumulator: Option<RelationalClassifiedChunkAccumulator>,
-    classified_support_fragments: Vec<RelationalClassifiedSupportFragment>,
+    /// Canonical-partition-sized sparse acceptance table. Each semantic
+    /// classified artifact occupies its exact ordinal independently of the
+    /// root prefix, allowing candidate-first execution without inventing a
+    /// second partition or losing resumability.
+    classified_support_fragment_slots: Vec<Option<RelationalClassifiedSupportFragment>>,
+    /// Number of occupied sparse classified slots. This is replay-derived
+    /// operational state, excluded from every semantic root, and replaces a
+    /// full sparse-table scan in scheduler selection.
+    accepted_classified_fragment_count: usize,
+    /// Exact canonical child-admission resolver nodes installed by the
+    /// partition, indexed back to chunk/cell/obligation. The node identity
+    /// includes its readiness dependency, so a same-spec node with different
+    /// dependencies cannot retire an unrelated pending chunk.
+    classified_child_by_resolver_node:
+        BTreeMap<WorkNodeId, (usize, SupportCellId, SupportProofObligationId)>,
+    /// Occupied classified chunks whose child-admission resolver has not yet
+    /// recorded its completion checkpoint. Derived solely from accepted
+    /// artifact and work-completion events; it is scheduling state, not proof.
+    pending_classified_work_completion_ordinals: BTreeSet<usize>,
+    /// Selected concrete runs accepted but not yet materialized, ordered by
+    /// canonical chunk/run position. Sparse later chunks may enter first; a
+    /// subsequently accepted lower chunk naturally becomes the next key.
+    pending_selected_run_positions: BTreeSet<(usize, u16)>,
+    /// Process-local replay/apply accelerator for the most recently verified
+    /// classified chunk used by selected-run admission. Operational only and
+    /// bounded to one canonical chunk.
+    selected_run_classified_verification_cache:
+        Option<RelationalSelectedRunClassifiedVerificationCache>,
     selected_run_materializations:
         BTreeMap<SupportCellId, RelationalSelectedRunMaterializationArtifact>,
     selected_run_materialization_ids:
@@ -2333,7 +2464,12 @@ impl RelationalEvidenceState {
             verified_case_chunk_partition: None,
             classified_sweep_progress: None,
             classified_chunk_accumulator: None,
-            classified_support_fragments: Vec::new(),
+            classified_support_fragment_slots: Vec::new(),
+            accepted_classified_fragment_count: 0,
+            classified_child_by_resolver_node: BTreeMap::new(),
+            pending_classified_work_completion_ordinals: BTreeSet::new(),
+            pending_selected_run_positions: BTreeSet::new(),
+            selected_run_classified_verification_cache: None,
             selected_run_materializations: BTreeMap::new(),
             selected_run_materialization_ids: BTreeMap::new(),
             successor_exhaustion_receipts: BTreeMap::new(),
@@ -2345,6 +2481,24 @@ impl RelationalEvidenceState {
             mechanism_support_observations: BTreeMap::new(),
             work: RelationalWorkFrontier::new(),
         }
+    }
+
+    fn classified_child_resolver_is_open(
+        &self,
+        chunk_ordinal: usize,
+        cell_id: SupportCellId,
+        obligation_id: SupportProofObligationId,
+    ) -> Result<bool, RelationalJournalError> {
+        let resolver_id = classified_child_resolver_node_id(cell_id, obligation_id)?;
+        if self.classified_child_by_resolver_node.get(&resolver_id)
+            != Some(&(chunk_ordinal, cell_id, obligation_id))
+        {
+            return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
+        }
+        Ok(self
+            .work
+            .get(resolver_id)
+            .is_some_and(|node| !node.progress.is_complete()))
     }
 
     fn question(
@@ -3109,6 +3263,16 @@ impl RelationalEvidenceState {
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(RelationalCaseChunkPartitionError::from)?;
+        let mut classified_children = BTreeMap::new();
+        for (child_ordinal, child) in child_admissions.iter().enumerate() {
+            let resolver_id = classified_child_resolver_node_id(child.cell_id(), child.id())?;
+            if classified_children
+                .insert(resolver_id, (child_ordinal, child.cell_id(), child.id()))
+                .is_some()
+            {
+                return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
+            }
+        }
         let refinement = SupportObligationRefinement::new(
             &parent_admission_record,
             partition.certificate(),
@@ -3128,10 +3292,15 @@ impl RelationalEvidenceState {
         // Register the classified cursor namespace with the accepted proper
         // partition. A generic root cursor predating this authority could
         // otherwise strand or skip a classified prefix.
-        let classified_sweep_progress = match &self.classified_sweep_progress {
+        let classified_state = match &self.classified_sweep_progress {
             Some(existing) => {
                 existing.validate_partition(artifact)?;
-                existing.clone()
+                if self.classified_support_fragment_slots.len() != artifact.chunks().len()
+                    || self.classified_child_by_resolver_node != classified_children
+                {
+                    return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
+                }
+                None
             }
             None => {
                 if self
@@ -3141,7 +3310,15 @@ impl RelationalEvidenceState {
                 {
                     return Err(RelationalJournalError::CaseChunkRootCursorAlreadyExists);
                 }
-                RelationalClassifiedSweepProgress::from_partition(artifact)?
+                let progress = RelationalClassifiedSweepProgress::from_partition(artifact)?;
+                let mut slots = Vec::new();
+                slots
+                    .try_reserve_exact(artifact.chunks().len())
+                    .map_err(|_| {
+                        RelationalJournalError::ClassifiedChunkArtifactRetentionAllocationFailed
+                    })?;
+                slots.resize_with(artifact.chunks().len(), || None);
+                Some((progress, slots, classified_children))
             }
         };
 
@@ -3166,7 +3343,11 @@ impl RelationalEvidenceState {
             .apply(&mut support)?;
         self.support = support;
         self.verified_case_chunk_partition = Some(verified);
-        self.classified_sweep_progress = Some(classified_sweep_progress);
+        if let Some((progress, slots, classified_children)) = classified_state {
+            self.classified_sweep_progress = Some(progress);
+            self.classified_support_fragment_slots = slots;
+            self.classified_child_by_resolver_node = classified_children;
+        }
         Ok(())
     }
 
@@ -3199,19 +3380,28 @@ impl RelationalEvidenceState {
             .as_ref()
             .ok_or(RelationalJournalError::ClassifiedSweepProgressMissing)?;
         progress.validate_partition(verified_partition.artifact())?;
-        if artifact.chunk_ordinal() != progress.next_chunk_ordinal()
-            || progress.accepted_chunk_count() != self.classified_support_fragments.len()
-        {
+        let chunk_ordinal = usize::try_from(artifact.chunk_ordinal())
+            .map_err(|_| RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch)?;
+        if !matches!(
+            self.classified_support_fragment_slots.get(chunk_ordinal),
+            Some(None)
+        ) {
             return Err(
-                RelationalJournalError::ClassifiedChunkSliceProgressMismatch {
-                    expected_chunk_ordinal: progress.next_chunk_ordinal(),
-                    actual_chunk_ordinal: artifact.chunk_ordinal(),
+                RelationalJournalError::ClassifiedChunkArtifactRetentionConflict {
+                    chunk_ordinal: artifact.chunk_ordinal(),
                 },
             );
         }
-
-        let chunk_ordinal = usize::try_from(artifact.chunk_ordinal())
-            .map_err(|_| RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch)?;
+        if let Some(accumulator) = self.classified_chunk_accumulator.as_ref() {
+            if accumulator.chunk_ordinal() != artifact.chunk_ordinal() {
+                return Err(
+                    RelationalJournalError::ClassifiedChunkSliceProgressMismatch {
+                        expected_chunk_ordinal: accumulator.chunk_ordinal(),
+                        actual_chunk_ordinal: artifact.chunk_ordinal(),
+                    },
+                );
+            }
+        }
         let chunk = verified_partition
             .partition()
             .chunks()
@@ -3258,15 +3448,7 @@ impl RelationalEvidenceState {
         if self.concrete_source_traversal_has_started() {
             return Err(RelationalJournalError::ClassifiedSweepConflictsWithSourceTraversal);
         }
-        let (
-            verified,
-            chunk_admission,
-            run_admissions,
-            run_refinement,
-            cursor,
-            advances_classified_sweep,
-            finalizes_active_slice,
-        ) = {
+        let (verified, chunk_admission, run_admissions, run_refinement, finalizes_active_slice) = {
             let plan = self
                 .support_plan
                 .as_ref()
@@ -3326,26 +3508,36 @@ impl RelationalEvidenceState {
                     return Err(RelationalJournalError::ClassifiedChunkInjectivityEvidenceMissing);
                 }
             };
-            let finalizes_active_slice = match self.classified_support_fragments.get(chunk_ordinal)
+            let finalizes_active_slice = match self
+                .classified_support_fragment_slots
+                .get(chunk_ordinal)
             {
-                Some(RelationalClassifiedSupportFragment::Concrete(existing))
+                Some(Some(RelationalClassifiedSupportFragment::Concrete(existing)))
                     if existing == artifact =>
                 {
                     false
                 }
-                Some(_) => {
+                Some(Some(_)) => {
                     return Err(
                         RelationalJournalError::ClassifiedChunkArtifactRetentionConflict {
                             chunk_ordinal: artifact.chunk_ordinal(),
                         },
                     );
                 }
-                None => {
+                Some(None) => {
                     let accumulator = self.classified_chunk_accumulator.as_ref().ok_or(
                         RelationalJournalError::ClassifiedChunkSliceAccumulatorMissing {
                             chunk_ordinal: artifact.chunk_ordinal(),
                         },
                     )?;
+                    if accumulator.chunk_ordinal() != artifact.chunk_ordinal() {
+                        return Err(
+                            RelationalJournalError::ClassifiedChunkSliceProgressMismatch {
+                                expected_chunk_ordinal: accumulator.chunk_ordinal(),
+                                actual_chunk_ordinal: artifact.chunk_ordinal(),
+                            },
+                        );
+                    }
                     let expected = finalize_relational_classified_case_chunk(
                         plan,
                         verified_partition,
@@ -3361,6 +3553,9 @@ impl RelationalEvidenceState {
                         );
                     }
                     true
+                }
+                None => {
+                    return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
                 }
             };
             let verified = reverify_relational_classified_chunk_artifact(
@@ -3481,153 +3676,48 @@ impl RelationalEvidenceState {
                 return Err(RelationalJournalError::InvalidSupportPlanActivation);
             }
 
-            let root_cell = plan
-                .cases()
-                .cell()
-                .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
-            let root_interval_start = verified_partition.artifact().interval_start();
-            let relative_start = artifact
-                .interval_start()
-                .checked_sub(root_interval_start)
-                .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
-            let relative_end = artifact
-                .interval_end_exclusive()
-                .checked_sub(root_interval_start)
-                .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
-            let Some(root_coordinate_count) = root_cell.coordinate_cardinality().exact() else {
-                return Err(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch);
-            };
-            if relative_start >= relative_end || relative_end > root_coordinate_count {
-                return Err(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch);
-            }
-
-            // Rank-based chunks need no opaque backend continuation. The
-            // artifact identity is nevertheless retained as the canonical
-            // boundary checkpoint, preventing another classified transcript
-            // from claiming the same cursor position.
-            let cursor = SupportMaterializationCursor::at_start(root_cell)
-                .and_then(|start| {
-                    start.advance(
-                        root_cell,
-                        relative_end,
-                        artifact.id().bytes().to_vec().into_boxed_slice(),
-                    )
-                })
-                .map_err(RelationalClassifiedSweepError::from)?;
-            let previous_relative = classified_sweep_progress.next_coordinate_ordinal();
-            let previous_artifact_digest = classified_sweep_progress.last_artifact_digest();
-            let advanced = classified_sweep_progress.validate_chunk(artifact)?;
-            if advanced {
-                if self
-                    .support
-                    .cursor_at(root_cell.id(), relative_end)
-                    .is_some()
-                {
-                    return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
-                }
-                match (
-                    previous_relative,
-                    previous_artifact_digest,
-                    self.support.latest_cursor(root_cell.id()),
-                ) {
-                    (0, None, None) => {}
-                    (expected, Some(previous_artifact_digest), Some(previous)) => {
-                        previous
-                            .validate_for(root_cell)
-                            .map_err(RelationalClassifiedSweepError::from)?;
-                        if previous.next_coordinate_ordinal() != expected {
-                            return Err(
-                                RelationalJournalError::ClassifiedChunkCursorPredecessorMismatch {
-                                    expected,
-                                    actual: previous.next_coordinate_ordinal(),
-                                },
-                            );
-                        }
-                        if previous.checkpoint() != previous_artifact_digest.as_slice() {
-                            return Err(
-                                RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch,
-                            );
-                        }
-                    }
-                    (expected, _, Some(previous)) => {
-                        return Err(
-                            RelationalJournalError::ClassifiedChunkCursorPredecessorMismatch {
-                                expected,
-                                actual: previous.next_coordinate_ordinal(),
-                            },
-                        );
-                    }
-                    (expected, _, None) => {
-                        return Err(
-                            RelationalJournalError::ClassifiedChunkCursorPredecessorMissing {
-                                expected,
-                            },
-                        );
-                    }
-                }
-            } else {
-                match self.support.cursor_at(root_cell.id(), relative_end) {
-                    Some(durable) if durable == &cursor => {}
-                    Some(_) | None => {
-                        return Err(
-                            RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch,
-                        );
-                    }
-                }
-            }
-
             (
                 verified,
                 chunk_admission,
                 run_admissions,
                 run_refinement,
-                cursor,
-                advanced,
                 finalizes_active_slice,
             )
         };
 
-        // Retain the exact accepted producer artifact in canonical chunk
-        // order. The typed progress record is still the cursor authority; this
-        // parallel payload index exists so later sparse materialization can
-        // reverify a selected run without replaying or rerunning user code.
+        // Retain the exact accepted producer artifact in its pre-sized sparse
+        // canonical slot. Root-prefix order is advanced separately, so a
+        // candidate-selected child can expose useful selected runs without
+        // claiming that any preceding child has been classified.
         let chunk_ordinal = usize::try_from(artifact.chunk_ordinal())
             .map_err(|_| RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch)?;
         let retain_new_classified_artifact =
-            match self.classified_support_fragments.get(chunk_ordinal) {
-                Some(RelationalClassifiedSupportFragment::Concrete(existing))
+            match self.classified_support_fragment_slots.get(chunk_ordinal) {
+                Some(Some(RelationalClassifiedSupportFragment::Concrete(existing)))
                     if existing == artifact =>
                 {
                     false
                 }
-                Some(_) => {
+                Some(Some(_)) => {
                     return Err(
                         RelationalJournalError::ClassifiedChunkArtifactRetentionConflict {
                             chunk_ordinal: artifact.chunk_ordinal(),
                         },
                     );
                 }
-                None if chunk_ordinal == self.classified_support_fragments.len() => true,
+                Some(None) => true,
                 None => {
-                    return Err(
-                        RelationalJournalError::ClassifiedChunkArtifactRetentionGap {
-                            expected: self.classified_support_fragments.len() as u128,
-                            actual: artifact.chunk_ordinal(),
-                        },
-                    );
+                    return Err(RelationalJournalError::ClassifiedChunkPartitionIdentityMismatch);
                 }
             };
-        if retain_new_classified_artifact {
-            // Capacity is operational, not semantic. Reserve before any state
-            // commit so the final canonical push cannot allocate, while
-            // avoiding an O(prefix^2) clone of retained transcripts.
-            self.classified_support_fragments
-                .try_reserve(1)
-                .map_err(|_| {
-                    RelationalJournalError::ClassifiedChunkArtifactRetentionAllocationFailed
-                })?;
-        }
-        let retained_classified_artifact = retain_new_classified_artifact.then(|| artifact.clone());
+        let retained_classified_artifact = retain_new_classified_artifact
+            .then(|| RelationalClassifiedSupportFragment::Concrete(artifact.clone()));
+        let classified_resolver_is_open = retain_new_classified_artifact
+            && self.classified_child_resolver_is_open(
+                chunk_ordinal,
+                chunk_admission.cell_id(),
+                chunk_admission.id(),
+            )?;
 
         // Derive every bounded gateway payload before beginning the support
         // transaction. The transaction itself then has only established
@@ -3711,8 +3801,8 @@ impl RelationalEvidenceState {
         // A classified chunk is one semantic event. The bounded undo log
         // preserves its all-or-nothing replay contract while touching only the
         // new run records, rather than cloning the complete accumulated support
-        // catalog (twice) for every chunk. The cursor remains deliberately last
-        // and outside the support evidence root.
+        // catalog (twice) for every chunk. Root cursor publication is a
+        // separate bounded checkpoint after the canonical slot is occupied.
         let selection_evidence_count = classification_evidence
             .iter()
             .try_fold(0usize, |count, (_, selections, _)| {
@@ -3753,21 +3843,43 @@ impl RelationalEvidenceState {
             }
             support.seal_known_leaf(cell_id)?;
         }
-        support.insert_cursor(cursor)?;
         support.commit();
-        if advances_classified_sweep {
-            self.classified_sweep_progress
-                .as_mut()
-                .expect("the classified progress was present during preflight")
-                .commit_validated_chunk(artifact);
-        }
         if finalizes_active_slice {
             self.classified_chunk_accumulator = None;
         }
-        if let Some(artifact) = retained_classified_artifact {
-            self.classified_support_fragments
-                .push(RelationalClassifiedSupportFragment::Concrete(artifact));
+        if let Some(retained_fragment) = retained_classified_artifact {
+            self.classified_support_fragment_slots[chunk_ordinal] = Some(retained_fragment);
+            self.accepted_classified_fragment_count = self
+                .accepted_classified_fragment_count
+                .checked_add(1)
+                .expect("occupied classified slots cannot exceed the partition length");
+            debug_assert!(
+                self.accepted_classified_fragment_count
+                    <= self.classified_support_fragment_slots.len()
+            );
+            if classified_resolver_is_open {
+                self.pending_classified_work_completion_ordinals
+                    .insert(chunk_ordinal);
+            }
+            for run in artifact
+                .runs()
+                .iter()
+                .filter(|run| run.outcome().any_selected())
+            {
+                self.pending_selected_run_positions
+                    .insert((chunk_ordinal, run.ordinal()));
+            }
         }
+        // The acceptance path already paid the full structural reverification
+        // cost for this exact content-derived artifact. Retain that authority
+        // only as the bounded one-chunk selected-run accelerator; journal
+        // replay rebuilds it from the classified event rather than trusting a
+        // serialized cache.
+        self.selected_run_classified_verification_cache =
+            Some(RelationalSelectedRunClassifiedVerificationCache {
+                artifact_id: artifact.id(),
+                verified,
+            });
         Ok(())
     }
 
@@ -3777,9 +3889,6 @@ impl RelationalEvidenceState {
     ) -> Result<(), RelationalJournalError> {
         if self.concrete_source_traversal_has_started() {
             return Err(RelationalJournalError::ClassifiedSweepConflictsWithSourceTraversal);
-        }
-        if self.classified_chunk_accumulator.is_some() {
-            return Err(RelationalJournalError::RegionProofConflictsWithConcreteSlice);
         }
         let authority = self
             .region_replay_authority
@@ -3868,6 +3977,7 @@ impl RelationalEvidenceState {
             AdmissionClassificationClaim::new(plan.admission_id()),
         )
         .map_err(RelationalRegionProofError::from)?;
+        let chunk_admission_id = chunk_admission.id();
         match self.support.obligation(chunk_admission.id()) {
             Some(SupportObligationRecord::Admission(durable)) if durable == &chunk_admission => {}
             _ => return Err(RelationalJournalError::ClassifiedChunkAdmissionObligationMissing),
@@ -3912,109 +4022,34 @@ impl RelationalEvidenceState {
             None => None,
         };
 
-        let advances = progress.validate_fragment(
-            partition_artifact_id,
-            chunk_id,
-            chunk_ordinal,
-            chunk_cell_id,
-            chunk_materializer_id,
-            artifact.certificate_id(),
-            artifact.coordinate_start(),
-            artifact.coordinate_end_exclusive(),
-        )?;
-        let root_cell = plan
-            .cases()
-            .cell()
-            .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
-        let relative_end = artifact
-            .coordinate_end_exclusive()
-            .checked_sub(verified_partition.artifact().interval_start())
-            .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
-        let cursor = SupportMaterializationCursor::at_start(root_cell)
-            .and_then(|start| {
-                start.advance(
-                    root_cell,
-                    relative_end,
-                    artifact.certificate_id().to_vec().into_boxed_slice(),
-                )
-            })
-            .map_err(RelationalRegionProofError::from)?;
-        if advances {
-            if self
-                .support
-                .cursor_at(root_cell.id(), relative_end)
-                .is_some()
-            {
-                return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
-            }
-            match (
-                progress.next_coordinate_ordinal(),
-                progress.last_artifact_digest(),
-                self.support.latest_cursor(root_cell.id()),
-            ) {
-                (0, None, None) => {}
-                (expected, Some(previous_digest), Some(previous)) => {
-                    previous
-                        .validate_for(root_cell)
-                        .map_err(RelationalRegionProofError::from)?;
-                    if previous.next_coordinate_ordinal() != expected
-                        || previous.checkpoint() != previous_digest.as_slice()
-                    {
-                        return Err(
-                            RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch,
-                        );
-                    }
-                }
-                (expected, _, Some(previous)) => {
+        let retain =
+            match self.classified_support_fragment_slots.get(chunk_index) {
+                Some(Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                    existing,
+                ))) if existing == artifact => false,
+                Some(Some(_)) => {
                     return Err(
-                        RelationalJournalError::ClassifiedChunkCursorPredecessorMismatch {
-                            expected,
-                            actual: previous.next_coordinate_ordinal(),
+                        RelationalJournalError::ClassifiedChunkArtifactRetentionConflict {
+                            chunk_ordinal,
                         },
                     );
                 }
-                (expected, _, None) => {
-                    return Err(
-                        RelationalJournalError::ClassifiedChunkCursorPredecessorMissing {
-                            expected,
-                        },
-                    );
+                Some(None) => true,
+                None => {
+                    return Err(RelationalJournalError::RegionProofSubjectMismatch);
                 }
-            }
-        } else if self.support.cursor_at(root_cell.id(), relative_end) != Some(&cursor) {
-            return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
+            };
+        if retain && self.classified_chunk_accumulator.is_some() {
+            return Err(RelationalJournalError::RegionProofConflictsWithConcreteSlice);
         }
-
-        let retain = match self.classified_support_fragments.get(chunk_index) {
-            Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(existing))
-                if existing == artifact =>
-            {
-                false
-            }
-            Some(_) => {
-                return Err(
-                    RelationalJournalError::ClassifiedChunkArtifactRetentionConflict {
-                        chunk_ordinal,
-                    },
-                );
-            }
-            None if chunk_index == self.classified_support_fragments.len() => true,
-            None => {
-                return Err(
-                    RelationalJournalError::ClassifiedChunkArtifactRetentionGap {
-                        expected: self.classified_support_fragments.len() as u128,
-                        actual: chunk_ordinal,
-                    },
-                );
-            }
-        };
-        if retain {
-            self.classified_support_fragments
-                .try_reserve(1)
-                .map_err(|_| {
-                    RelationalJournalError::ClassifiedChunkArtifactRetentionAllocationFailed
-                })?;
-        }
+        let retained = retain
+            .then(|| RelationalClassifiedSupportFragment::CertifiedZeroSelected(artifact.clone()));
+        let classified_resolver_is_open = retain
+            && self.classified_child_resolver_is_open(
+                chunk_index,
+                chunk_cell_id,
+                chunk_admission_id,
+            )?;
 
         let undo_capacity = if selection.is_some() { 9 } else { 6 };
         let mut support = self.support.begin_append_transaction(undo_capacity)?;
@@ -4029,25 +4064,191 @@ impl RelationalEvidenceState {
             support.insert_declared_evidence_record(SupportEvidenceRecord::Selection(evidence))?;
         }
         support.seal_known_leaf(chunk_cell_id)?;
-        support.insert_cursor(cursor)?;
         support.commit();
-        if advances {
-            self.classified_sweep_progress
-                .as_mut()
-                .expect("region proof preflight required classified progress")
-                .commit_validated_fragment(
-                    chunk_id,
-                    chunk_ordinal,
-                    artifact.certificate_id(),
-                    artifact.coordinate_start(),
-                    artifact.coordinate_end_exclusive(),
-                );
-        }
-        if retain {
-            self.classified_support_fragments.push(
-                RelationalClassifiedSupportFragment::CertifiedZeroSelected(artifact.clone()),
+        if let Some(retained) = retained {
+            self.classified_support_fragment_slots[chunk_index] = Some(retained);
+            self.accepted_classified_fragment_count = self
+                .accepted_classified_fragment_count
+                .checked_add(1)
+                .expect("occupied classified slots cannot exceed the partition length");
+            debug_assert!(
+                self.accepted_classified_fragment_count
+                    <= self.classified_support_fragment_slots.len()
             );
+            if classified_resolver_is_open {
+                self.pending_classified_work_completion_ordinals
+                    .insert(chunk_index);
+            }
         }
+        Ok(())
+    }
+
+    fn accept_relational_classified_prefix_advance(
+        &mut self,
+        partition_artifact_id: RelationalCaseChunkPartitionArtifactId,
+        chunk_ordinal: u128,
+        artifact_digest: [u8; 32],
+    ) -> Result<(), RelationalJournalError> {
+        let (root_cell, relative_end, advances, chunk_id, interval_start, interval_end_exclusive) = {
+            let plan = self
+                .support_plan
+                .as_ref()
+                .ok_or(RelationalJournalError::SupportPlanMissing)?;
+            let verified_partition = self
+                .verified_case_chunk_partition
+                .as_ref()
+                .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
+            let progress = self
+                .classified_sweep_progress
+                .as_ref()
+                .ok_or(RelationalJournalError::ClassifiedSweepProgressMissing)?;
+            progress.validate_partition(verified_partition.artifact())?;
+            if partition_artifact_id != verified_partition.artifact().id() {
+                return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
+            }
+
+            let chunk_index = usize::try_from(chunk_ordinal).map_err(|_| {
+                RelationalJournalError::ClassifiedSweepProgressGap {
+                    expected: progress.next_chunk_ordinal(),
+                    actual: chunk_ordinal,
+                }
+            })?;
+            let chunk = verified_partition
+                .partition()
+                .chunks()
+                .get(chunk_index)
+                .ok_or(RelationalJournalError::ClassifiedSweepProgressScopeMismatch)?;
+            let fragment = self
+                .classified_support_fragment_slots
+                .get(chunk_index)
+                .and_then(Option::as_ref)
+                .ok_or(RelationalJournalError::ClassifiedSweepProgressGap {
+                    expected: progress.next_chunk_ordinal(),
+                    actual: chunk_ordinal,
+                })?;
+            if fragment.chunk_id() != Some(chunk.descriptor().id())
+                || fragment.chunk_ordinal() != chunk.descriptor().ordinal()
+                || fragment.chunk_cell_id() != chunk.cell().id()
+                || fragment.interval_start() != chunk.descriptor().interval_start()
+                || fragment.interval_end_exclusive() != chunk.descriptor().interval_end_exclusive()
+                || fragment.exact_case_count() != chunk.descriptor().cardinality()
+                || fragment.artifact_digest() != artifact_digest
+            {
+                return Err(RelationalJournalError::ClassifiedSweepProgressConflict {
+                    chunk_ordinal,
+                });
+            }
+
+            let root_cell = plan
+                .cases()
+                .cell()
+                .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
+            if root_cell.id() != progress.root_cell_id()
+                || root_cell.materializer_id() != progress.root_materializer_id()
+            {
+                return Err(RelationalJournalError::ClassifiedSweepProgressScopeMismatch);
+            }
+            let relative_end = fragment
+                .interval_end_exclusive()
+                .checked_sub(progress.interval_start())
+                .ok_or(RelationalJournalError::ClassifiedChunkCursorBoundsMismatch)?;
+            let advances = progress.validate_fragment(
+                partition_artifact_id,
+                chunk.descriptor().id(),
+                chunk_ordinal,
+                chunk.cell().id(),
+                chunk.cell().materializer_id(),
+                artifact_digest,
+                fragment.interval_start(),
+                fragment.interval_end_exclusive(),
+            )?;
+            (
+                root_cell.clone(),
+                relative_end,
+                advances,
+                chunk.descriptor().id(),
+                fragment.interval_start(),
+                fragment.interval_end_exclusive(),
+            )
+        };
+
+        let cursor = SupportMaterializationCursor::at_start(&root_cell)
+            .and_then(|start| {
+                start.advance(
+                    &root_cell,
+                    relative_end,
+                    artifact_digest.to_vec().into_boxed_slice(),
+                )
+            })
+            .map_err(RelationalClassifiedSweepError::from)?;
+        if !advances {
+            let chunk_index = usize::try_from(chunk_ordinal)
+                .map_err(|_| RelationalJournalError::ClassifiedSweepProgressScopeMismatch)?;
+            if self.support.cursor_at(root_cell.id(), relative_end) != Some(&cursor) {
+                return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
+            }
+            return Ok(());
+        }
+
+        let progress = self
+            .classified_sweep_progress
+            .as_ref()
+            .expect("prefix preflight required classified progress");
+        if self
+            .support
+            .cursor_at(root_cell.id(), relative_end)
+            .is_some()
+        {
+            return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
+        }
+        match (
+            progress.next_coordinate_ordinal(),
+            progress.last_artifact_digest(),
+            self.support.latest_cursor(root_cell.id()),
+        ) {
+            (0, None, None) => {}
+            (expected, Some(previous_digest), Some(previous)) => {
+                previous
+                    .validate_for(&root_cell)
+                    .map_err(RelationalClassifiedSweepError::from)?;
+                if previous.next_coordinate_ordinal() != expected {
+                    return Err(
+                        RelationalJournalError::ClassifiedChunkCursorPredecessorMismatch {
+                            expected,
+                            actual: previous.next_coordinate_ordinal(),
+                        },
+                    );
+                }
+                if previous.checkpoint() != previous_digest.as_slice() {
+                    return Err(RelationalJournalError::ClassifiedChunkCursorCheckpointMismatch);
+                }
+            }
+            (expected, _, Some(previous)) => {
+                return Err(
+                    RelationalJournalError::ClassifiedChunkCursorPredecessorMismatch {
+                        expected,
+                        actual: previous.next_coordinate_ordinal(),
+                    },
+                );
+            }
+            (expected, _, None) => {
+                return Err(
+                    RelationalJournalError::ClassifiedChunkCursorPredecessorMissing { expected },
+                );
+            }
+        }
+
+        self.support.insert_cursor(cursor)?;
+        self.classified_sweep_progress
+            .as_mut()
+            .expect("prefix preflight required classified progress")
+            .commit_validated_fragment(
+                chunk_id,
+                chunk_ordinal,
+                artifact_digest,
+                interval_start,
+                interval_end_exclusive,
+            );
         Ok(())
     }
 
@@ -4110,6 +4311,63 @@ impl RelationalEvidenceState {
         .map_err(RelationalJournalError::from)
     }
 
+    fn reverify_selected_run_materialization_with_cached_classified_chunk(
+        &mut self,
+        artifact: &RelationalSelectedRunMaterializationArtifact,
+        chunk_ordinal: usize,
+        classified_artifact_id: RelationalClassifiedChunkArtifactId,
+    ) -> Result<VerifiedRelationalSelectedRunMaterialization, RelationalJournalError> {
+        let cache_hit = self
+            .selected_run_classified_verification_cache
+            .as_ref()
+            .is_some_and(|cached| cached.artifact_id == classified_artifact_id);
+        if !cache_hit {
+            let verified = {
+                let classified_artifact = self
+                    .classified_support_fragment_slots
+                    .get(chunk_ordinal)
+                    .and_then(Option::as_ref)
+                    .and_then(RelationalClassifiedSupportFragment::concrete)
+                    .ok_or(
+                        RelationalJournalError::SelectedRunClassifiedArtifactMissing {
+                            chunk_ordinal: artifact.chunk_ordinal(),
+                        },
+                    )?;
+                if classified_artifact.id() != classified_artifact_id {
+                    return Err(RelationalJournalError::SelectedRunClassifiedArtifactMismatch);
+                }
+                self.reverify_retained_classified_chunk(classified_artifact)?
+            };
+            self.selected_run_classified_verification_cache =
+                Some(RelationalSelectedRunClassifiedVerificationCache {
+                    artifact_id: classified_artifact_id,
+                    verified,
+                });
+        }
+
+        let plan = self
+            .support_plan
+            .as_ref()
+            .ok_or(RelationalJournalError::SupportPlanMissing)?;
+        let verified_partition = self
+            .verified_case_chunk_partition
+            .as_ref()
+            .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
+        let cached = self
+            .selected_run_classified_verification_cache
+            .as_ref()
+            .filter(|cached| cached.artifact_id == classified_artifact_id)
+            .ok_or(RelationalJournalError::SelectedRunClassifiedArtifactMismatch)?;
+        reverify_relational_selected_run_materialization_artifact(
+            artifact,
+            plan,
+            verified_partition,
+            &cached.verified,
+            artifact.run_ordinal(),
+        )
+        .map_err(RelationalJournalError::from)
+    }
+
     fn accept_relational_selected_run_materialization(
         &mut self,
         artifact: &RelationalSelectedRunMaterializationArtifact,
@@ -4119,12 +4377,16 @@ impl RelationalEvidenceState {
                 chunk_ordinal: artifact.chunk_ordinal(),
             }
         })?;
-        let classified_artifact = self.classified_support_fragments.get(chunk_ordinal).ok_or(
-            RelationalJournalError::SelectedRunClassifiedArtifactMissing {
-                chunk_ordinal: artifact.chunk_ordinal(),
-            },
-        )?;
-        let classified_artifact = classified_artifact.concrete().ok_or(
+        let classified_fragment = self
+            .classified_support_fragment_slots
+            .get(chunk_ordinal)
+            .and_then(Option::as_ref)
+            .ok_or(
+                RelationalJournalError::SelectedRunClassifiedArtifactMissing {
+                    chunk_ordinal: artifact.chunk_ordinal(),
+                },
+            )?;
+        let classified_artifact = classified_fragment.concrete().ok_or(
             RelationalJournalError::SelectedRunClassifiedArtifactMissing {
                 chunk_ordinal: artifact.chunk_ordinal(),
             },
@@ -4132,21 +4394,11 @@ impl RelationalEvidenceState {
         if classified_artifact.id() != artifact.classified_chunk_artifact_id() {
             return Err(RelationalJournalError::SelectedRunClassifiedArtifactMismatch);
         }
-        let verified_classified = self.reverify_retained_classified_chunk(classified_artifact)?;
-        let plan = self
-            .support_plan
-            .as_ref()
-            .ok_or(RelationalJournalError::SupportPlanMissing)?;
-        let verified_partition = self
-            .verified_case_chunk_partition
-            .as_ref()
-            .ok_or(RelationalJournalError::ClassifiedChunkCanonicalPartitionUnavailable)?;
-        let verified = reverify_relational_selected_run_materialization_artifact(
+        let classified_artifact_id = classified_artifact.id();
+        let verified = self.reverify_selected_run_materialization_with_cached_classified_chunk(
             artifact,
-            plan,
-            verified_partition,
-            &verified_classified,
-            artifact.run_ordinal(),
+            chunk_ordinal,
+            classified_artifact_id,
         )?;
         for question_id in artifact.selected_question_ids() {
             if !self.contract.contains_question(*question_id) {
@@ -4234,6 +4486,8 @@ impl RelationalEvidenceState {
             .selected_run_materialization_ids
             .insert(artifact.id(), run_cell_id);
         debug_assert!(previous_id.is_none());
+        self.pending_selected_run_positions
+            .remove(&(chunk_ordinal, artifact.run_ordinal()));
         Ok(())
     }
 
@@ -4418,15 +4672,34 @@ impl RelationalEvidenceState {
             }
             _ => None,
         };
-        let sealing_obligations = matches!(event, SupportJournalEvent::ObligationFrontierSealed);
+        let sealing_support = matches!(
+            event,
+            SupportJournalEvent::ObligationFrontierSealed | SupportJournalEvent::CatalogSealed
+        );
 
-        if sealing_obligations {
+        if sealing_support {
+            // A sparse classified sweep may have discharged every obligation
+            // currently visible in the support catalog while later canonical
+            // chunk slots are still absent. Neither semantic seal may freeze
+            // that partial catalog: an accepted classified child can need to
+            // declare new support roots. Prefix promotion may safely follow a
+            // seal because it only advances a cursor over already accepted
+            // slots, so require occupancy rather than prefix completion here.
+            if self.classified_sweep_progress.is_some()
+                && (self.classified_chunk_accumulator.is_some()
+                    || self.accepted_classified_fragment_count
+                        != self.classified_support_fragment_slots.len())
+            {
+                return Err(RelationalJournalError::ClassifiedSupportCoveragePending);
+            }
             // Sealing changes only one monotone bit, so validate the current
             // immutable prefix before mutation instead of cloning the complete
-            // support catalog for rollback. Open-obligation membership is
-            // unchanged by the seal itself.
+            // support catalog for rollback. Open-obligation membership and
+            // sparse classified occupancy are unchanged by either seal.
             let closure = self.support.validated_closure()?;
-            if closure.has_open_obligation_kind(SupportEvidenceKind::Admission) {
+            if matches!(event, SupportJournalEvent::ObligationFrontierSealed)
+                && closure.has_open_obligation_kind(SupportEvidenceKind::Admission)
+            {
                 return Err(RelationalJournalError::StagedObligationActivationPending);
             }
             drop(closure);
@@ -4720,7 +4993,7 @@ impl RelationalEvidenceState {
 
         let Some(progress) = self.classified_sweep_progress.as_ref() else {
             if population.is_exact_empty()
-                && self.classified_support_fragments.is_empty()
+                && self.classified_support_fragment_slots.is_empty()
                 && !self
                     .selected_run_materializations
                     .values()
@@ -4737,7 +5010,11 @@ impl RelationalEvidenceState {
             .checked_sub(progress.interval_start())
             .ok_or(RelationalJournalError::ClassifiedSweepProgressScopeMismatch)?;
         if progress.next_coordinate_ordinal() != partition_cardinality
-            || progress.accepted_chunk_count() != self.classified_support_fragments.len()
+            || progress.committed_prefix_count() != self.classified_support_fragment_slots.len()
+            || self
+                .classified_support_fragment_slots
+                .iter()
+                .any(Option::is_none)
         {
             return Err(RelationalJournalError::CertifiedSelectedMaterializationCoverageOpen);
         }
@@ -4745,7 +5022,7 @@ impl RelationalEvidenceState {
         let mut expected_run_count = 0usize;
         let mut materialized = 0u128;
         let mut all_materialized_cases_are_selected = true;
-        for classified in &self.classified_support_fragments {
+        for classified in self.classified_support_fragment_slots.iter().flatten() {
             let Some(classified) = classified.concrete() else {
                 continue;
             };
@@ -4854,6 +5131,17 @@ impl RelationalEvidenceState {
             }
             RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
                 self.accept_relational_classified_chunk_slice(artifact)?;
+            }
+            RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+                partition_artifact_id,
+                chunk_ordinal,
+                artifact_digest,
+            } => {
+                self.accept_relational_classified_prefix_advance(
+                    *partition_artifact_id,
+                    *chunk_ordinal,
+                    *artifact_digest,
+                )?;
             }
             RelationalCheckpointEvent::WorkNodeInserted {
                 node_id,
@@ -5002,8 +5290,16 @@ impl RelationalEvidenceState {
                 node_id,
                 completion,
             } => {
+                let completed_classified_child = self
+                    .classified_child_by_resolver_node
+                    .get(node_id)
+                    .map(|(chunk_ordinal, _, _)| *chunk_ordinal);
                 self.validate_completion_reference(completion)?;
                 self.work.complete(*node_id, completion.clone())?;
+                if let Some(chunk_ordinal) = completed_classified_child {
+                    self.pending_classified_work_completion_ordinals
+                        .remove(&chunk_ordinal);
+                }
             }
             RelationalCheckpointEvent::WorkFrontierCompacted { receipt } => {
                 self.work.compact(*receipt)?;
@@ -6186,6 +6482,17 @@ impl<'a> RelationalSchedulerView<'a> {
             .refinement_for_parent(parent_obligation_id)
     }
 
+    pub(crate) fn support_admission_evidence_id_for_obligation(
+        self,
+        obligation_id: SupportProofObligationId,
+    ) -> Option<SupportCellEvidenceId> {
+        self.journal
+            .state
+            .support
+            .admission_evidence_for_obligation(obligation_id)
+            .map(|evidence| evidence.id())
+    }
+
     /// Typed contiguous classified prefix rebuilt only from accepted outer
     /// evidence events. This, rather than a generic cursor, is the scheduler's
     /// authority for choosing the next canonical chunk.
@@ -6195,7 +6502,8 @@ impl<'a> RelationalSchedulerView<'a> {
         Ok(self.journal.state.classified_sweep_progress.as_ref())
     }
 
-    /// Replay-derived checked prefix of the next canonical chunk. This is
+    /// Replay-derived checked prefix of the currently selected canonical
+    /// chunk. This is
     /// operational checkpoint authority only: support and classified progress
     /// still stop at the preceding complete chunk until this accumulator is
     /// finalized and its canonical whole-chunk artifact is accepted.
@@ -6210,8 +6518,106 @@ impl<'a> RelationalSchedulerView<'a> {
     /// the replay input for sparse selected-run realization.
     pub(crate) fn classified_support_fragments(
         self,
-    ) -> Result<&'a [RelationalClassifiedSupportFragment], RelationalJournalError> {
-        Ok(&self.journal.state.classified_support_fragments)
+    ) -> Result<RelationalClassifiedSupportPrefix<'a>, RelationalJournalError> {
+        let committed = self
+            .journal
+            .state
+            .classified_sweep_progress
+            .as_ref()
+            .map_or(0, RelationalClassifiedSweepProgress::committed_prefix_count);
+        let slots = self
+            .journal
+            .state
+            .classified_support_fragment_slots
+            .get(..committed)
+            .ok_or(RelationalJournalError::ClassifiedSweepProgressScopeMismatch)?;
+        Ok(RelationalClassifiedSupportPrefix { slots })
+    }
+
+    /// Borrow one independently accepted canonical classified slot. An empty
+    /// slot is ordinary residual work; it says nothing about later slots.
+    pub(crate) fn classified_support_fragment_at(
+        self,
+        chunk_ordinal: usize,
+    ) -> Result<Option<&'a RelationalClassifiedSupportFragment>, RelationalJournalError> {
+        Ok(self
+            .journal
+            .state
+            .classified_support_fragment_slots
+            .get(chunk_ordinal)
+            .and_then(Option::as_ref))
+    }
+
+    pub(crate) fn classified_support_slot_is_occupied(self, chunk_ordinal: usize) -> bool {
+        self.journal
+            .state
+            .classified_support_fragment_slots
+            .get(chunk_ordinal)
+            .is_some_and(Option::is_some)
+    }
+
+    pub(crate) fn accepted_classified_fragment_count(self) -> usize {
+        self.journal.state.accepted_classified_fragment_count
+    }
+
+    /// Lowest canonical classified child whose semantic artifact is durable
+    /// but whose matching resolver completion checkpoint is not. This is a
+    /// replay-derived recovery index and never substitutes for work-node or
+    /// support-evidence validation.
+    pub(crate) fn next_pending_classified_work_completion_ordinal(self) -> Option<usize> {
+        self.journal
+            .state
+            .pending_classified_work_completion_ordinals
+            .first()
+            .copied()
+    }
+
+    /// Lowest canonical selected run that has not yet published its concrete
+    /// materialization. Ordering the sparse set by `(chunk, run)` preserves
+    /// canonical projection even when candidate chunks arrive out of order.
+    pub(crate) fn next_pending_selected_run_position(self) -> Option<(usize, u16)> {
+        self.journal
+            .state
+            .pending_selected_run_positions
+            .first()
+            .copied()
+    }
+
+    /// Return the one currently legal root-prefix promotion, if its sparse
+    /// slot is occupied. The tuple exposes scheduler quantum metadata without
+    /// requiring callers to destructure private checkpoint variants.
+    pub(crate) fn next_classified_prefix_advance_event(
+        self,
+    ) -> Result<Option<(u128, [u8; 32], RelationalJournalEvent)>, RelationalJournalError> {
+        let Some(progress) = self.journal.state.classified_sweep_progress.as_ref() else {
+            return Ok(None);
+        };
+        let chunk_ordinal = progress.next_chunk_ordinal();
+        let chunk_index = usize::try_from(chunk_ordinal).map_err(|_| {
+            RelationalJournalError::ClassifiedSweepProgressGap {
+                expected: chunk_ordinal,
+                actual: chunk_ordinal,
+            }
+        })?;
+        let Some(fragment) = self
+            .journal
+            .state
+            .classified_support_fragment_slots
+            .get(chunk_index)
+            .and_then(Option::as_ref)
+        else {
+            return Ok(None);
+        };
+        let artifact_digest = fragment.artifact_digest();
+        Ok(Some((
+            chunk_ordinal,
+            artifact_digest,
+            RelationalJournalEvent::relational_classified_prefix_advanced(
+                progress.partition_artifact_id(),
+                chunk_ordinal,
+                artifact_digest,
+            ),
+        )))
     }
 
     /// Borrow the opaque partition authority reconstructed when the
@@ -6236,17 +6642,23 @@ impl<'a> RelationalSchedulerView<'a> {
             .get(&run_cell_id))
     }
 
-    /// Whether every admitted+selected run in the accepted classified prefix
+    /// Whether every admitted+selected run in every occupied classified slot
     /// has exactly one admitted sparse materialization and no other run-cell
     /// payload is present. Full-population closure additionally requires the
-    /// classified progress itself to cover the complete canonical partition.
+    /// committed prefix itself to cover the complete canonical partition.
     pub(crate) fn selected_run_materializations_cover_classified_prefix(
         self,
         question_id: QuestionId,
     ) -> Result<bool, RelationalJournalError> {
         self.journal.state.question(question_id)?;
         let mut expected = 0usize;
-        for artifact in &self.journal.state.classified_support_fragments {
+        for artifact in self
+            .journal
+            .state
+            .classified_support_fragment_slots
+            .iter()
+            .flatten()
+        {
             let Some(artifact) = artifact.concrete() else {
                 continue;
             };
@@ -7705,6 +8117,23 @@ impl RelationalJournal {
         if !snapshot.support().catalog_is_sealed() {
             return Err(RelationalJournalError::SupportCatalogOpen);
         }
+        if let Some(progress) = self.state.classified_sweep_progress.as_ref() {
+            let committed = progress.committed_prefix_count();
+            let total = self.state.classified_support_fragment_slots.len();
+            if committed != total
+                || self
+                    .state
+                    .classified_support_fragment_slots
+                    .iter()
+                    .any(Option::is_none)
+                || self.state.classified_chunk_accumulator.is_some()
+            {
+                return Err(RelationalJournalError::ClassifiedSweepPrefixOpen {
+                    committed: committed as u128,
+                    total: total as u128,
+                });
+            }
+        }
         let support_plan = self
             .state
             .support_plan
@@ -7786,7 +8215,12 @@ impl RelationalJournal {
             verified_case_chunk_partition,
             classified_sweep_progress: _,
             classified_chunk_accumulator,
-            classified_support_fragments: _,
+            classified_support_fragment_slots: _,
+            accepted_classified_fragment_count: _,
+            classified_child_by_resolver_node: _,
+            pending_classified_work_completion_ordinals: _,
+            pending_selected_run_positions: _,
+            selected_run_classified_verification_cache: _,
             selected_run_materializations: _,
             selected_run_materialization_ids: _,
             successor_exhaustion_receipts,
@@ -8405,6 +8839,10 @@ pub(crate) enum RelationalJournalError {
         expected: u128,
         actual: u128,
     },
+    ClassifiedSweepPrefixOpen {
+        committed: u128,
+        total: u128,
+    },
     ClassifiedSweepConflictsWithSourceTraversal,
     SourceTraversalConflictsWithClassifiedSweep,
     ClassifiedRootMaterializationCheckpointForbidden,
@@ -8476,6 +8914,7 @@ pub(crate) enum RelationalJournalError {
         concrete: AdmissionDecision,
     },
     InvalidSupportPlanActivation,
+    ClassifiedSupportCoveragePending,
     StagedObligationActivationPending,
     InvalidSourceExhaustionReceipt,
     InvalidSuccessorExhaustionReceipt,
@@ -8883,6 +9322,10 @@ impl fmt::Display for RelationalJournalError {
                 formatter,
                 "classified progress expected relative coordinate {expected}, found {actual}"
             ),
+            Self::ClassifiedSweepPrefixOpen { committed, total } => write!(
+                formatter,
+                "classified support closure requires the complete canonical prefix; committed {committed} of {total} chunks"
+            ),
             Self::ClassifiedSweepConflictsWithSourceTraversal => formatter.write_str(
                 "classified sweep cannot begin or advance after concrete source traversal",
             ),
@@ -9014,6 +9457,9 @@ impl fmt::Display for RelationalJournalError {
             ),
             Self::InvalidSupportPlanActivation => formatter
                 .write_str("relational support plan contains an invalid staged activation"),
+            Self::ClassifiedSupportCoveragePending => formatter.write_str(
+                "classified support cannot seal before every canonical chunk artifact is accepted",
+            ),
             Self::StagedObligationActivationPending => formatter.write_str(
                 "support obligation discovery cannot seal before admission-driven FIND work is known",
             ),
@@ -9534,7 +9980,7 @@ fn journal_entry_head(
     previous: RelationalJournalHead,
     event: &RelationalJournalEvent,
 ) -> RelationalJournalHead {
-    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V26);
+    let mut hasher = ChainHasher::new(JOURNAL_ENTRY_HASH_V27);
     hasher.digest(contract_id.bytes());
     hasher.u64(sequence);
     hasher.digest(previous.bytes());
@@ -9543,7 +9989,7 @@ fn journal_entry_head(
 }
 
 fn journal_event_digest(event: &RelationalJournalEvent) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V22);
+    let mut hasher = ChainHasher::new(JOURNAL_EVENT_HASH_V23);
     match event {
         RelationalJournalEvent::Evidence(event) => {
             hasher.tag(0x01);
@@ -9564,9 +10010,9 @@ pub(crate) fn relational_scheduler_work_fingerprint(
     decision: RelationalSchedulerDecision,
     events: &[RelationalJournalEvent],
 ) -> [u8; 32] {
-    let mut hasher = ChainHasher::new(SCHEDULER_WORK_FINGERPRINT_V1);
+    let mut hasher = ChainHasher::new(SCHEDULER_WORK_FINGERPRINT_V2);
     hasher.u32(RELATIONAL_SCHEDULER_POLICY_VERSION);
-    hasher.tag(decision.priority());
+    hasher.tag(decision.canonical_tag());
     hasher.u64(events.len() as u64);
     for event in events {
         hasher.digest(journal_event_digest(event));
@@ -10088,12 +10534,22 @@ fn hash_checkpoint_event(hasher: &mut ChainHasher, event: &RelationalCheckpointE
         } => {
             hasher.tag(0x12);
             hasher.u32(*policy_version);
-            hasher.tag(decision.priority());
+            hasher.tag(decision.canonical_tag());
             hasher.digest(*work_fingerprint);
         }
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
             hasher.tag(0x0d);
             hasher.digest(artifact.id().bytes());
+        }
+        RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+            partition_artifact_id,
+            chunk_ordinal,
+            artifact_digest,
+        } => {
+            hasher.tag(0x13);
+            hasher.digest(partition_artifact_id.bytes());
+            hasher.u128(*chunk_ordinal);
+            hasher.digest(*artifact_digest);
         }
         RelationalCheckpointEvent::WorkNodeInserted {
             node_id,

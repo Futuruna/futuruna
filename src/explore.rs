@@ -198,6 +198,7 @@ pub(crate) use relational_case_executor::{
     SuccessorFiberExhaustionReceiptId, RELATIONAL_SUCCESSOR_CURSOR_VERSION,
 };
 mod relational_bounded_chunk_partition;
+mod relational_candidate_schedule;
 pub(crate) use relational_bounded_chunk_partition::{
     decode_relational_case_chunk_finite_ordinals, derive_relational_case_chunk_subinterval_cell,
     plan_relational_bounded_case_chunks, reverify_relational_case_chunk_partition_artifact,

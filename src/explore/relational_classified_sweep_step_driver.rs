@@ -20,6 +20,11 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkPartitionError, RelationalCaseChunkPlanningOutcome,
     RelationalCaseChunkUnsupported,
 };
+use super::relational_candidate_schedule::{
+    schedule_relational_candidate_chunks, schedule_relational_endpoint_chunks,
+    RelationalCandidateChunkSchedule, RelationalCandidateChunkTarget,
+    RelationalCandidateLiftDisposition, RelationalCandidateScheduleReason,
+};
 use super::relational_classification_capsule::{
     ClassificationProvenanceRoot, ClassificationSpecializationRoot,
     FrozenClassificationQuestionSet, RelationalClassificationCapsule,
@@ -37,6 +42,9 @@ use super::relational_journal::{
 };
 use super::relational_native_classifier::{
     RelationalNativeClassifierFallbackBackendV2, RelationalNativeClassifierV2,
+};
+use super::relational_proof_strategy::{
+    RelationalProofStrategyError, RelationalProofStrategyInventory,
 };
 use super::relational_support_planner::{
     prove_relational_case_image_injectivity, RelationalCaseImageInjectivityProofError,
@@ -61,6 +69,7 @@ pub(crate) struct RelationalClassifiedSweepStepQuantum {
     chunk_ordinal: u128,
     interval_start: u128,
     interval_end_exclusive: u128,
+    schedule_reason: RelationalCandidateScheduleReason,
     slice_artifact_id: Option<RelationalClassifiedChunkSliceId>,
     evaluated_member_count: u16,
     classified_artifact_id: Option<RelationalClassifiedChunkArtifactId>,
@@ -85,6 +94,10 @@ impl RelationalClassifiedSweepStepQuantum {
 
     pub(crate) const fn interval_end_exclusive(self) -> u128 {
         self.interval_end_exclusive
+    }
+
+    pub(crate) const fn schedule_reason(self) -> RelationalCandidateScheduleReason {
+        self.schedule_reason
     }
 
     pub(crate) const fn slice_artifact_id(self) -> Option<RelationalClassifiedChunkSliceId> {
@@ -157,6 +170,7 @@ pub(crate) struct RelationalClassifiedSweepStepDriver<'query> {
     questions: FrozenClassificationQuestionSet,
     expected_root_injectivity: SupportCellEvidence<InjectiveMappingClaim>,
     partition: RelationalCaseChunkPartition,
+    candidate_schedule: RelationalCandidateChunkSchedule,
     root_admission_obligation_id: SupportProofObligationId,
     root_admission_refinement: SupportObligationRefinement,
     /// Optional process-local accelerator. It is absent from every support,
@@ -270,6 +284,25 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         if partition.artifact().questions() != &questions {
             return Err(RelationalClassifiedSweepStepDriverError::SupportPlanScopeMismatch);
         }
+        let candidate_schedule = if questions.question_ids().len() == 1 {
+            let strategy_inventory =
+                RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
+            let axis_plans = match strategy_inventory.axes() {
+                [axis] => vec![strategy_inventory.plan_axis(axis.dimension_id(), &[], None)?],
+                _ => Vec::new(),
+            };
+            schedule_relational_candidate_chunks(&strategy_inventory, &axis_plans, &partition)
+        } else {
+            schedule_relational_endpoint_chunks(
+                &partition,
+                RelationalCandidateLiftDisposition::QuestionSetNotUnary,
+            )
+        };
+        if !candidate_schedule.has_exact_nonoverlapping_cover(&partition)
+            || candidate_schedule.establishes_complement_closure()
+        {
+            return Err(RelationalClassifiedSweepStepDriverError::CandidateScheduleInvalid);
+        }
         let native_classifier = if questions.question_ids().len() == 1 {
             native_classifier
         } else {
@@ -302,6 +335,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             questions,
             expected_root_injectivity: case_image_proof.injectivity().clone(),
             partition,
+            candidate_schedule,
             root_admission_obligation_id,
             root_admission_refinement,
             native_classifier,
@@ -313,6 +347,45 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         self.partition.artifact()
     }
 
+    pub(crate) const fn partition(&self) -> &RelationalCaseChunkPartition {
+        &self.partition
+    }
+
+    pub(crate) const fn candidate_schedule(&self) -> &RelationalCandidateChunkSchedule {
+        &self.candidate_schedule
+    }
+
+    /// Select candidate-first work from durable sparse completion facts. An
+    /// in-flight slice always wins: its accumulator is the replay authority
+    /// for that exact canonical child and must finish before another target
+    /// can start.
+    pub(crate) fn next_target(
+        &self,
+        view: RelationalSchedulerView<'_>,
+    ) -> Result<Option<RelationalCandidateChunkTarget>, RelationalClassifiedSweepStepDriverError>
+    {
+        if let Some(accumulator) = view.classified_chunk_accumulator()? {
+            return self
+                .candidate_schedule
+                .target_for_ordinal(&self.partition, accumulator.chunk_ordinal())
+                .ok_or(RelationalClassifiedSweepStepDriverError::CandidateTargetMismatch)
+                .map(Some);
+        }
+        let residual_start_ordinal = view
+            .classified_sweep_progress()?
+            .ok_or(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMissing)?
+            .committed_prefix_count();
+        Ok(self.candidate_schedule.next_target_where(
+            &self.partition,
+            residual_start_ordinal,
+            |ordinal| {
+                usize::try_from(ordinal)
+                    .ok()
+                    .is_some_and(|index| view.classified_support_slot_is_occupied(index))
+            },
+        ))
+    }
+
     /// Evaluate and propose at most `max_members` from the next canonical
     /// chunk. The slice checkpoint is operational and replayable. If it closes
     /// the chunk, the batch appends the canonical whole-chunk evidence second;
@@ -320,6 +393,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
     pub(crate) fn step<R: RelationalExpressionRuntime>(
         &self,
         journal: &RelationalJournal,
+        target: Option<&RelationalCandidateChunkTarget>,
         max_members: NonZeroU16,
         runtime: &mut R,
     ) -> Result<RelationalClassifiedSweepStepOutcome, RelationalClassifiedSweepStepDriverError>
@@ -393,7 +467,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             || progress.root_materializer_id() != root_cell.materializer_id()
             || progress.interval_start() != artifact.interval_start()
             || progress.interval_end_exclusive() != artifact.interval_end_exclusive()
-            || u128::try_from(progress.accepted_chunk_count()).ok()
+            || u128::try_from(progress.committed_prefix_count()).ok()
                 != Some(progress.next_chunk_ordinal())
         {
             return Err(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch);
@@ -434,9 +508,9 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         }
 
         let chunks = verified_partition.partition().chunks();
-        let next_chunk_ordinal = usize::try_from(progress.next_chunk_ordinal())
-            .map_err(|_| RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch)?;
-        if next_coordinate_ordinal == coordinate_count && next_chunk_ordinal == chunks.len() {
+        if next_coordinate_ordinal == coordinate_count
+            && progress.committed_prefix_count() == chunks.len()
+        {
             return Ok(
                 RelationalClassifiedSweepStepOutcome::ExhaustedAwaitingClosure {
                     partition_artifact_id: artifact.id(),
@@ -445,22 +519,29 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 },
             );
         }
+        let target =
+            target.ok_or(RelationalClassifiedSweepStepDriverError::CandidateTargetMissing)?;
+        let target_chunk_ordinal = usize::try_from(target.descriptor().ordinal())
+            .map_err(|_| RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch)?;
         let chunk = chunks
-            .get(next_chunk_ordinal)
-            .ok_or(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch)?;
-        let relative_chunk_start = chunk
-            .descriptor()
-            .interval_start()
-            .checked_sub(artifact.interval_start())
-            .ok_or(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch)?;
-        if chunk.descriptor().ordinal() != progress.next_chunk_ordinal()
-            || relative_chunk_start != next_coordinate_ordinal
+            .get(target_chunk_ordinal)
+            .ok_or(RelationalClassifiedSweepStepDriverError::CandidateTargetMismatch)?;
+        if chunk.descriptor() != target.descriptor() {
+            return Err(RelationalClassifiedSweepStepDriverError::CandidateTargetMismatch);
+        }
+        if view
+            .classified_support_fragment_at(target_chunk_ordinal)?
+            .is_some()
         {
-            return Err(RelationalClassifiedSweepStepDriverError::ClassifiedProgressMismatch);
+            return Err(
+                RelationalClassifiedSweepStepDriverError::CandidateTargetAlreadyAccepted {
+                    chunk_ordinal: target.descriptor().ordinal(),
+                },
+            );
         }
         let expected_chunk_injectivity = relational_case_chunk_partition_gateway::injectivity(
             verified_partition,
-            next_chunk_ordinal,
+            target_chunk_ordinal,
         )?;
         let durable_chunk_injectivity =
             match view.support_evidence_record(expected_chunk_injectivity.id()) {
@@ -486,11 +567,18 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             };
 
         let prior = view.classified_chunk_accumulator()?;
+        if prior.is_some_and(|accumulator| {
+            accumulator.chunk_partition_id() != artifact.id()
+                || accumulator.chunk_id() != chunk.descriptor().id()
+                || accumulator.chunk_ordinal() != chunk.descriptor().ordinal()
+        }) {
+            return Err(RelationalClassifiedSweepStepDriverError::CandidateTargetMismatch);
+        }
         if prior.is_some_and(|accumulator| accumulator.is_complete()) {
             let classified = finalize_relational_classified_case_chunk(
                 self.support_plan,
                 verified_partition,
-                next_chunk_ordinal,
+                target_chunk_ordinal,
                 durable_chunk_injectivity,
                 prior.expect("the classified accumulator was present"),
             )?;
@@ -501,6 +589,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 chunk_ordinal: chunk.descriptor().ordinal(),
                 interval_start: chunk.descriptor().interval_start(),
                 interval_end_exclusive: chunk.descriptor().interval_end_exclusive(),
+                schedule_reason: target.primary_reason(),
                 slice_artifact_id: None,
                 evaluated_member_count: 0,
                 classified_artifact_id: Some(classified_artifact.id()),
@@ -535,7 +624,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                     &checked,
                     self.support_plan,
                     verified_partition,
-                    next_chunk_ordinal,
+                    target_chunk_ordinal,
                     durable_chunk_injectivity,
                     prior,
                     max_members,
@@ -549,7 +638,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                         &checked,
                         self.support_plan,
                         verified_partition,
-                        next_chunk_ordinal,
+                        target_chunk_ordinal,
                         durable_chunk_injectivity,
                         prior,
                         max_members,
@@ -564,7 +653,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                         &checked,
                         self.support_plan,
                         verified_partition,
-                        next_chunk_ordinal,
+                        target_chunk_ordinal,
                         durable_chunk_injectivity,
                         prior,
                         max_members,
@@ -576,7 +665,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
                 &checked,
                 self.support_plan,
                 verified_partition,
-                next_chunk_ordinal,
+                target_chunk_ordinal,
                 durable_chunk_injectivity,
                 prior,
                 max_members,
@@ -593,7 +682,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             let classified = finalize_relational_classified_case_chunk(
                 self.support_plan,
                 verified_partition,
-                next_chunk_ordinal,
+                target_chunk_ordinal,
                 durable_chunk_injectivity,
                 &accumulator,
             )?;
@@ -612,6 +701,7 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             chunk_ordinal: chunk.descriptor().ordinal(),
             interval_start: chunk.descriptor().interval_start(),
             interval_end_exclusive: chunk.descriptor().interval_end_exclusive(),
+            schedule_reason: target.primary_reason(),
             slice_artifact_id: Some(slice_artifact_id),
             evaluated_member_count: evaluated_member_count.get(),
             classified_artifact_id,
@@ -728,6 +818,12 @@ pub(crate) enum RelationalClassifiedSweepStepDriverError {
         cardinality: u128,
     },
     UnsupportedPartition(RelationalCaseChunkUnsupported),
+    CandidateScheduleInvalid,
+    CandidateTargetMissing,
+    CandidateTargetMismatch,
+    CandidateTargetAlreadyAccepted {
+        chunk_ordinal: u128,
+    },
     RootCellMissing,
     RootAdmissionObligationMissing,
     RootAdmissionScopeMismatch,
@@ -761,6 +857,7 @@ pub(crate) enum RelationalClassifiedSweepStepDriverError {
     ClassifiedSweep(RelationalClassifiedSweepError),
     SupportCell(SupportCellError),
     SupportEvidence(SupportEvidenceError),
+    ProofStrategy(RelationalProofStrategyError),
 }
 
 impl fmt::Display for RelationalClassifiedSweepStepDriverError {
@@ -791,6 +888,19 @@ impl fmt::Display for RelationalClassifiedSweepStepDriverError {
             Self::UnsupportedPartition(reason) => write!(
                 formatter,
                 "classified-sweep driver does not support the canonical root shape: {reason:?}"
+            ),
+            Self::CandidateScheduleInvalid => formatter.write_str(
+                "candidate-informed order does not conserve the canonical chunk partition",
+            ),
+            Self::CandidateTargetMissing => formatter.write_str(
+                "candidate-informed scheduler has no open target before exact partition closure",
+            ),
+            Self::CandidateTargetMismatch => formatter.write_str(
+                "candidate-informed target does not match the canonical chunk partition or active slice",
+            ),
+            Self::CandidateTargetAlreadyAccepted { chunk_ordinal } => write!(
+                formatter,
+                "candidate-informed target chunk {chunk_ordinal} is already accepted",
             ),
             Self::RootCellMissing => {
                 formatter.write_str("classified-sweep support plan has no case root cell")
@@ -860,6 +970,7 @@ impl fmt::Display for RelationalClassifiedSweepStepDriverError {
             Self::ClassifiedSweep(error) => fmt::Display::fmt(error, formatter),
             Self::SupportCell(error) => fmt::Display::fmt(error, formatter),
             Self::SupportEvidence(error) => fmt::Display::fmt(error, formatter),
+            Self::ProofStrategy(error) => fmt::Display::fmt(error, formatter),
         }
     }
 }
@@ -873,6 +984,7 @@ impl Error for RelationalClassifiedSweepStepDriverError {
             Self::ClassifiedSweep(error) => Some(error),
             Self::SupportCell(error) => Some(error),
             Self::SupportEvidence(error) => Some(error),
+            Self::ProofStrategy(error) => Some(error),
             _ => None,
         }
     }
@@ -894,3 +1006,4 @@ driver_error_from!(RelationalCaseChunkPartitionError, ChunkPartition);
 driver_error_from!(RelationalClassifiedSweepError, ClassifiedSweep);
 driver_error_from!(SupportCellError, SupportCell);
 driver_error_from!(SupportEvidenceError, SupportEvidence);
+driver_error_from!(RelationalProofStrategyError, ProofStrategy);

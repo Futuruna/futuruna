@@ -31,7 +31,9 @@ use super::relational_classified_sweep::{
     RelationalClassifiedChunkArtifactId, RelationalClassifiedRunDescriptor,
     RelationalClassifiedRunId,
 };
-use super::relational_journal::RelationalClassifiedSupportFragment;
+use super::relational_journal::{
+    RelationalClassifiedSupportFragment, RelationalClassifiedSupportPrefix,
+};
 use super::relational_region_proof::{
     RelationalCertifiedRegionConclusion, RelationalRegionProofSubject, RelationalStarterRegionId,
 };
@@ -313,7 +315,7 @@ pub(crate) enum RelationalCaseSupportProjectionRecord {
 pub(crate) struct RelationalCaseSupportProjection<'a> {
     question_id: QuestionId,
     partition: &'a RelationalCaseChunkPartitionArtifact,
-    classified_fragments: &'a [RelationalClassifiedSupportFragment],
+    classified_fragments: RelationalClassifiedSupportPrefix<'a>,
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
     chunk_indexes: Box<[RelationalCaseSupportChunkOrdinalIndex]>,
     materializations: Box<[&'a RelationalSelectedRunMaterializationArtifact]>,
@@ -513,7 +515,7 @@ impl<'a> RelationalCaseSupportProjection<'a> {
 pub(crate) fn derive_relational_case_support_projection<'a, F>(
     question_id: QuestionId,
     verified_partition: &'a VerifiedRelationalCaseChunkPartition,
-    classified_fragments: &'a [RelationalClassifiedSupportFragment],
+    classified_fragments: RelationalClassifiedSupportPrefix<'a>,
     mut selected_materialization: F,
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
     closure_authority: Option<RelationalCaseSupportClosureAuthority>,
@@ -585,7 +587,7 @@ where
     let mut authorized_case_record_count = 0_u128;
     let mut first_missing = None;
 
-    'chunks: for fragment in classified_fragments {
+    'chunks: for fragment in classified_fragments.iter() {
         let package_materialization_start = materializations.len();
         let mut package_record_count = 1_u128;
         let mut package_region_count = 0_u128;

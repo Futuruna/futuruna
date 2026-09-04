@@ -180,7 +180,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 21;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 22;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -7321,18 +7321,7 @@ fn encode_scheduler_decision(
     encoder: &mut Encoder,
     decision: RelationalSchedulerDecision,
 ) -> Result<(), RelationalJournalCodecError> {
-    encoder.tag(match decision {
-        RelationalSchedulerDecision::AnalysisRegistration => 0x01,
-        RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery => 0x02,
-        RelationalSchedulerDecision::ExplicitObservation => 0x03,
-        RelationalSchedulerDecision::ReadyResult => 0x04,
-        RelationalSchedulerDecision::ReadyIncidenceResult => 0x05,
-        RelationalSchedulerDecision::MechanismSupport => 0x06,
-        RelationalSchedulerDecision::ReadyMechanism => 0x07,
-        RelationalSchedulerDecision::BaseFrontier => 0x08,
-        RelationalSchedulerDecision::SelectedQuestionBind => 0x09,
-        RelationalSchedulerDecision::AnalysisClose => 0x0a,
-    })
+    encoder.tag(decision.canonical_tag())
 }
 
 fn decode_scheduler_decision(
@@ -7349,6 +7338,13 @@ fn decode_scheduler_decision(
         0x08 => Ok(RelationalSchedulerDecision::BaseFrontier),
         0x09 => Ok(RelationalSchedulerDecision::SelectedQuestionBind),
         0x0a => Ok(RelationalSchedulerDecision::AnalysisClose),
+        0x0b => Ok(RelationalSchedulerDecision::BaseCandidateCheckedGuard),
+        0x0c => Ok(RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary),
+        0x0d => Ok(RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint),
+        0x0e => Ok(RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint),
+        0x0f => Ok(RelationalSchedulerDecision::BaseCandidateCertificateMidpoint),
+        0x10 => Ok(RelationalSchedulerDecision::BaseCandidateResidual),
+        0x11 => Ok(RelationalSchedulerDecision::BaseClassifiedPrefixAdvance),
         tag => Err(RelationalJournalCodecError::UnknownTag {
             component: "relational scheduler decision",
             tag,
@@ -7374,6 +7370,16 @@ fn encode_checkpoint_event(
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
             encoder.tag(0x07)?;
             encode_classified_chunk_slice_artifact(encoder, artifact)
+        }
+        RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+            partition_artifact_id,
+            chunk_ordinal,
+            artifact_digest,
+        } => {
+            encoder.tag(0x0d)?;
+            encoder.digest(partition_artifact_id.bytes())?;
+            encoder.u128(*chunk_ordinal)?;
+            encoder.digest(*artifact_digest)
         }
         RelationalCheckpointEvent::WorkNodeInserted {
             spec, dependencies, ..
@@ -7493,6 +7499,15 @@ fn decode_checkpoint_event(
         0x07 => Ok(
             RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed {
                 artifact: Box::new(decode_classified_chunk_slice_artifact(reader)?),
+            },
+        ),
+        0x0d => Ok(
+            RelationalCheckpointEvent::RelationalClassifiedPrefixAdvanced {
+                partition_artifact_id: RelationalCaseChunkPartitionArtifactId::from_canonical_bytes(
+                    reader.digest()?,
+                ),
+                chunk_ordinal: reader.u128()?,
+                artifact_digest: reader.digest()?,
             },
         ),
         0x08 => Ok(RelationalCheckpointEvent::SupportFrontierCheckpointed {
@@ -8048,26 +8063,47 @@ mod tests {
     #[test]
     fn scheduler_decision_checkpoint_codec_round_trips_every_priority() {
         let decisions = [
-            RelationalSchedulerDecision::AnalysisRegistration,
-            RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery,
-            RelationalSchedulerDecision::ExplicitObservation,
-            RelationalSchedulerDecision::ReadyResult,
-            RelationalSchedulerDecision::ReadyIncidenceResult,
-            RelationalSchedulerDecision::MechanismSupport,
-            RelationalSchedulerDecision::ReadyMechanism,
-            RelationalSchedulerDecision::BaseFrontier,
-            RelationalSchedulerDecision::SelectedQuestionBind,
-            RelationalSchedulerDecision::AnalysisClose,
+            (RelationalSchedulerDecision::AnalysisRegistration, 0),
+            (
+                RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery,
+                1,
+            ),
+            (RelationalSchedulerDecision::ExplicitObservation, 2),
+            (RelationalSchedulerDecision::ReadyResult, 3),
+            (RelationalSchedulerDecision::ReadyIncidenceResult, 4),
+            (RelationalSchedulerDecision::MechanismSupport, 5),
+            (RelationalSchedulerDecision::ReadyMechanism, 6),
+            (RelationalSchedulerDecision::BaseFrontier, 7),
+            (RelationalSchedulerDecision::BaseCandidateCheckedGuard, 7),
+            (
+                RelationalSchedulerDecision::BaseCandidateCertifiedPieceBoundary,
+                7,
+            ),
+            (
+                RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint,
+                7,
+            ),
+            (
+                RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint,
+                7,
+            ),
+            (
+                RelationalSchedulerDecision::BaseCandidateCertificateMidpoint,
+                7,
+            ),
+            (RelationalSchedulerDecision::BaseCandidateResidual, 7),
+            (RelationalSchedulerDecision::BaseClassifiedPrefixAdvance, 7),
+            (RelationalSchedulerDecision::SelectedQuestionBind, 8),
+            (RelationalSchedulerDecision::AnalysisClose, 9),
         ];
         let limits = RelationalJournalCodecLimits::default();
+        let mut tags = std::collections::BTreeSet::new();
 
-        for (expected_priority, decision) in decisions.into_iter().enumerate() {
-            assert_eq!(decision.priority(), expected_priority as u8);
+        for (index, (decision, expected_priority)) in decisions.into_iter().enumerate() {
+            assert_eq!(decision.priority(), expected_priority);
+            assert!(tags.insert(decision.canonical_tag()));
             let RelationalJournalEvent::Checkpoint(event) =
-                RelationalJournalEvent::scheduler_decision_recorded(
-                    decision,
-                    [expected_priority as u8; 32],
-                )
+                RelationalJournalEvent::scheduler_decision_recorded(decision, [index as u8; 32])
             else {
                 unreachable!("scheduler decisions are checkpoint events")
             };

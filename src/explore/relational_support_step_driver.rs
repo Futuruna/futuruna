@@ -825,13 +825,10 @@ impl RelationalSupportStepDriver {
             })
             .transpose()?;
         let Some(node) = view.work_node(node_id) else {
-            if durable_refinement.is_some() {
-                return Err(
-                    RelationalSupportStepDriverError::ChunkRefinementWithoutResolver(
-                        proposal.admission_obligation_id,
-                    ),
-                );
-            }
+            // A matching durable refinement is the semantic result. Its
+            // completed resolver and readiness node may already have been
+            // compacted from the operational frontier, so their absence must
+            // neither invalidate nor resurrect accepted work.
             return Ok(None);
         };
         if !readiness_exists {
@@ -928,7 +925,6 @@ pub(crate) enum RelationalSupportStepDriverError {
     SourceImageProofMissingBeforePopulationWork,
     DurableProofEvidenceMismatch(SupportCellEvidenceId),
     DurableChunkRefinementMismatch(SupportObligationRefinementId),
-    ChunkRefinementWithoutResolver(SupportProofObligationId),
     ChunkResolverCompletionMismatch(SupportProofObligationId),
     ChunkAdmissionStateMismatch(SupportProofObligationId),
     SourceImageProof(RelationalSourceImageExactnessProofError),
@@ -992,8 +988,6 @@ impl fmt::Display for RelationalSupportStepDriverError {
             Self::DurableChunkRefinementMismatch(_) => formatter.write_str(
                 "durable support refinement does not match the bounded partition proposal",
             ),
-            Self::ChunkRefinementWithoutResolver(_) => formatter
-                .write_str("bounded admission refinement exists without its planned root resolver"),
             Self::ChunkResolverCompletionMismatch(_) => formatter.write_str(
                 "bounded admission resolver completion is missing its durable refinement",
             ),
@@ -1046,7 +1040,6 @@ impl Error for RelationalSupportStepDriverError {
             | Self::SourceImageProofMissingBeforePopulationWork
             | Self::DurableProofEvidenceMismatch(_)
             | Self::DurableChunkRefinementMismatch(_)
-            | Self::ChunkRefinementWithoutResolver(_)
             | Self::ChunkResolverCompletionMismatch(_)
             | Self::ChunkAdmissionStateMismatch(_) => None,
         }
