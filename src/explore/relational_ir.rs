@@ -4,7 +4,7 @@
 //! preserves the authored `given`/`vary`/`let` producer roles, and gives
 //! `context`, `before`, and each per-source `after` value semantic roles. It
 //! deliberately contains no Cartesian axes, boundary hints, output mode,
-//! probe plan, scheduling policy, or rank-derived identity.
+//! operational work plan, scheduling policy, or rank-derived identity.
 
 use std::collections::BTreeSet;
 

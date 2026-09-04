@@ -39,9 +39,10 @@ use super::relational_incidence_result_step_driver::{
 };
 use super::relational_ir::{ExploreMechanismSupportFacetIr, ExploreMechanismSupportSubjectIr};
 use super::relational_journal::{
-    MechanismSupportObservationPointId, MechanismSupportObservationStatus,
-    RelationalExplicitMechanismSupportStepEvents, RelationalJournal, RelationalJournalError,
-    RelationalJournalEvent, RelationalJournalHead, RelationalMechanismSupportStepEvents,
+    relational_scheduler_work_fingerprint, MechanismSupportObservationPointId,
+    MechanismSupportObservationStatus, RelationalExplicitMechanismSupportStepEvents,
+    RelationalJournal, RelationalJournalError, RelationalJournalEvent, RelationalJournalHead,
+    RelationalMechanismSupportStepEvents, RelationalSchedulerDecision,
 };
 use super::relational_mechanism_executor::{
     RelationalMechanismEndpoint, RelationalMechanismReplayPause, RelationalMechanismReplayRunError,
@@ -127,7 +128,8 @@ impl Default for RelationalStreamDriverLimits {
     }
 }
 
-/// One complete semantic quantum selected by the coordinator.
+/// One complete semantic quantum selected by the coordinator. Its persisted
+/// batch always begins with the corresponding scheduler-decision checkpoint.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalStreamQuantum {
     RegisterAnalysisPlan,
@@ -173,7 +175,8 @@ pub(crate) enum RelationalStreamQuantum {
     CloseAnalysis,
 }
 
-/// Ordered, unapplied frames bound to one exact journal prefix.
+/// Ordered, unapplied frames bound to one exact journal prefix. Construction
+/// is centralized so coordinator batches cannot omit scheduling provenance.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalStreamBatch {
     expected_sequence: u64,
@@ -183,6 +186,36 @@ pub(crate) struct RelationalStreamBatch {
 }
 
 impl RelationalStreamBatch {
+    fn coordinator(
+        expected_sequence: u64,
+        expected_head: RelationalJournalHead,
+        decision: RelationalSchedulerDecision,
+        quantum: RelationalStreamQuantum,
+        events: Vec<RelationalJournalEvent>,
+    ) -> Self {
+        assert!(
+            !events.is_empty(),
+            "coordinator batch must contain work events"
+        );
+        assert!(
+            decision_matches_quantum(decision, quantum),
+            "coordinator decision must match its emitted quantum"
+        );
+        let mut recorded = Vec::with_capacity(events.len().saturating_add(1));
+        let work_fingerprint = relational_scheduler_work_fingerprint(decision, &events);
+        recorded.push(RelationalJournalEvent::scheduler_decision_recorded(
+            decision,
+            work_fingerprint,
+        ));
+        recorded.extend(events);
+        Self {
+            expected_sequence,
+            expected_head,
+            quantum,
+            events: recorded.into_boxed_slice(),
+        }
+    }
+
     pub(crate) const fn expected_sequence(&self) -> u64 {
         self.expected_sequence
     }
@@ -201,6 +234,52 @@ impl RelationalStreamBatch {
 
     pub(crate) fn into_events(self) -> Box<[RelationalJournalEvent]> {
         self.events
+    }
+}
+
+const fn decision_matches_quantum(
+    decision: RelationalSchedulerDecision,
+    quantum: RelationalStreamQuantum,
+) -> bool {
+    match decision {
+        RelationalSchedulerDecision::AnalysisRegistration => {
+            matches!(quantum, RelationalStreamQuantum::RegisterAnalysisPlan)
+        }
+        RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery
+        | RelationalSchedulerDecision::ReadyMechanism => {
+            matches!(quantum, RelationalStreamQuantum::Mechanism(_))
+        }
+        RelationalSchedulerDecision::ExplicitObservation => matches!(
+            quantum,
+            RelationalStreamQuantum::RegisterMechanismSupportObservation { .. }
+                | RelationalStreamQuantum::BackfillMechanismSupportObservation { .. }
+                | RelationalStreamQuantum::ObserveMechanismSupport { .. }
+                | RelationalStreamQuantum::CheckpointMechanismSupport { .. }
+                | RelationalStreamQuantum::CloseMechanismSupport { .. }
+        ),
+        RelationalSchedulerDecision::ReadyResult => {
+            matches!(quantum, RelationalStreamQuantum::Result(_))
+        }
+        RelationalSchedulerDecision::ReadyIncidenceResult => {
+            matches!(quantum, RelationalStreamQuantum::IncidenceResult(_))
+        }
+        RelationalSchedulerDecision::MechanismSupport => matches!(
+            quantum,
+            RelationalStreamQuantum::ObserveMechanismSupport { .. }
+                | RelationalStreamQuantum::CheckpointMechanismSupport { .. }
+                | RelationalStreamQuantum::CloseMechanismSupport { .. }
+        ),
+        RelationalSchedulerDecision::BaseFrontier => {
+            matches!(quantum, RelationalStreamQuantum::Base(_))
+        }
+        RelationalSchedulerDecision::SelectedQuestionBind => matches!(
+            quantum,
+            RelationalStreamQuantum::BindExtensionalSelectedQuestion { .. }
+                | RelationalStreamQuantum::BindCertifiedSelectedQuestion { .. }
+        ),
+        RelationalSchedulerDecision::AnalysisClose => {
+            matches!(quantum, RelationalStreamQuantum::CloseAnalysis)
+        }
     }
 }
 
@@ -247,10 +326,6 @@ pub(crate) struct RelationalStreamDriver<'query> {
     mechanisms: RelationalMechanismStepDriver<'query>,
     support_requests: Box<[MechanismRequestId]>,
     support_observation_demands: Box<[RelationalSupportObservationDemand]>,
-    /// Process-local round-robin cursor. Durable support prefixes remain the
-    /// resume authority; this only prevents an idle open request from starving
-    /// another request's ready support suffix.
-    support_request_ordinal: RefCell<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -446,7 +521,6 @@ impl<'query> RelationalStreamDriver<'query> {
             mechanisms,
             support_requests,
             support_observation_demands,
-            support_request_ordinal: RefCell::new(0),
         })
     }
 
@@ -467,6 +541,7 @@ impl<'query> RelationalStreamDriver<'query> {
                     events,
                 } => Some(self.batch(
                     journal,
+                    RelationalSchedulerDecision::ExplicitObservation,
                     RelationalStreamQuantum::ObserveMechanismSupport {
                         request_id,
                         point_id,
@@ -482,6 +557,7 @@ impl<'query> RelationalStreamDriver<'query> {
                     events,
                 } => Some(self.batch(
                     journal,
+                    RelationalSchedulerDecision::ExplicitObservation,
                     RelationalStreamQuantum::CheckpointMechanismSupport {
                         request_id,
                         accepted_target_cases,
@@ -497,6 +573,7 @@ impl<'query> RelationalStreamDriver<'query> {
                     events,
                 } => Some(self.batch(
                     journal,
+                    RelationalSchedulerDecision::ExplicitObservation,
                     RelationalStreamQuantum::CloseMechanismSupport {
                         request_id,
                         checkpointed_frontier,
@@ -528,6 +605,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 Ok(Some(event)) => {
                     return Ok(Some(self.batch(
                         journal,
+                        RelationalSchedulerDecision::ExplicitObservation,
                         RelationalStreamQuantum::RegisterMechanismSupportObservation {
                             request_id: demand.request_id,
                             slice_id: slice.id(),
@@ -586,6 +664,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 }) => {
                     return Ok(Some(self.batch(
                         journal,
+                        RelationalSchedulerDecision::ExplicitObservation,
                         RelationalStreamQuantum::BackfillMechanismSupportObservation {
                             request_id,
                             slice_id: slice.id(),
@@ -604,6 +683,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 }) => {
                     return Ok(Some(self.batch(
                         journal,
+                        RelationalSchedulerDecision::ExplicitObservation,
                         RelationalStreamQuantum::ObserveMechanismSupport {
                             request_id,
                             point_id,
@@ -711,6 +791,7 @@ impl<'query> RelationalStreamDriver<'query> {
             None => {
                 return Ok(self.batch(
                     journal,
+                    RelationalSchedulerDecision::AnalysisRegistration,
                     RelationalStreamQuantum::RegisterAnalysisPlan,
                     vec![RelationalJournalEvent::analysis_plan_registered(
                         self.analysis_plan.clone(),
@@ -737,12 +818,13 @@ impl<'query> RelationalStreamDriver<'query> {
             match self.mechanisms.step(journal, mechanism_runtime) {
                 Ok(RelationalMechanismStepOutcome::Emitted(batch)) => {
                     return Ok(RelationalStreamStepOutcome::Emitted(
-                        RelationalStreamBatch {
-                            expected_sequence: batch.expected_sequence(),
-                            expected_head: batch.expected_head(),
-                            quantum: RelationalStreamQuantum::Mechanism(batch.quantum()),
-                            events: batch.into_events(),
-                        },
+                        RelationalStreamBatch::coordinator(
+                            batch.expected_sequence(),
+                            batch.expected_head(),
+                            RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery,
+                            RelationalStreamQuantum::Mechanism(batch.quantum()),
+                            batch.into_events().into_vec(),
+                        ),
                     ));
                 }
                 Ok(RelationalMechanismStepOutcome::Quiescent(
@@ -804,12 +886,13 @@ impl<'query> RelationalStreamDriver<'query> {
         let result_quiescence = match self.results.step(journal, expression_runtime)? {
             RelationalResultStepOutcome::Emitted(batch) => {
                 return Ok(RelationalStreamStepOutcome::Emitted(
-                    RelationalStreamBatch {
-                        expected_sequence: batch.expected_sequence(),
-                        expected_head: batch.expected_head(),
-                        quantum: RelationalStreamQuantum::Result(batch.quantum()),
-                        events: batch.into_events(),
-                    },
+                    RelationalStreamBatch::coordinator(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        RelationalSchedulerDecision::ReadyResult,
+                        RelationalStreamQuantum::Result(batch.quantum()),
+                        batch.into_events().into_vec(),
+                    ),
                 ));
             }
             RelationalResultStepOutcome::Quiescent(quiescence) => quiescence,
@@ -829,12 +912,13 @@ impl<'query> RelationalStreamDriver<'query> {
             match self.incidence_results.step(journal, expression_runtime)? {
                 RelationalIncidenceResultStepOutcome::Emitted(batch) => {
                     return Ok(RelationalStreamStepOutcome::Emitted(
-                        RelationalStreamBatch {
-                            expected_sequence: batch.expected_sequence(),
-                            expected_head: batch.expected_head(),
-                            quantum: RelationalStreamQuantum::IncidenceResult(batch.quantum()),
-                            events: batch.into_events(),
-                        },
+                        RelationalStreamBatch::coordinator(
+                            batch.expected_sequence(),
+                            batch.expected_head(),
+                            RelationalSchedulerDecision::ReadyIncidenceResult,
+                            RelationalStreamQuantum::IncidenceResult(batch.quantum()),
+                            batch.into_events().into_vec(),
+                        ),
                     ));
                 }
                 RelationalIncidenceResultStepOutcome::Quiescent(quiescence) => quiescence,
@@ -864,6 +948,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 } => {
                     return Ok(self.batch(
                         journal,
+                        RelationalSchedulerDecision::MechanismSupport,
                         RelationalStreamQuantum::ObserveMechanismSupport {
                             request_id,
                             point_id,
@@ -881,6 +966,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 } => {
                     return Ok(self.batch(
                         journal,
+                        RelationalSchedulerDecision::MechanismSupport,
                         RelationalStreamQuantum::CheckpointMechanismSupport {
                             request_id,
                             accepted_target_cases,
@@ -898,6 +984,7 @@ impl<'query> RelationalStreamDriver<'query> {
                 } => {
                     return Ok(self.batch(
                         journal,
+                        RelationalSchedulerDecision::MechanismSupport,
                         RelationalStreamQuantum::CloseMechanismSupport {
                             request_id,
                             checkpointed_frontier,
@@ -919,12 +1006,13 @@ impl<'query> RelationalStreamDriver<'query> {
         let mechanism_quiescence = match self.mechanisms.step(journal, mechanism_runtime) {
             Ok(RelationalMechanismStepOutcome::Emitted(batch)) => {
                 return Ok(RelationalStreamStepOutcome::Emitted(
-                    RelationalStreamBatch {
-                        expected_sequence: batch.expected_sequence(),
-                        expected_head: batch.expected_head(),
-                        quantum: RelationalStreamQuantum::Mechanism(batch.quantum()),
-                        events: batch.into_events(),
-                    },
+                    RelationalStreamBatch::coordinator(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        RelationalSchedulerDecision::ReadyMechanism,
+                        RelationalStreamQuantum::Mechanism(batch.quantum()),
+                        batch.into_events().into_vec(),
+                    ),
                 ));
             }
             Ok(RelationalMechanismStepOutcome::Quiescent(quiescence)) => quiescence,
@@ -952,12 +1040,13 @@ impl<'query> RelationalStreamDriver<'query> {
         let base = match base {
             RelationalStepOutcome::Emitted(batch) => {
                 return Ok(RelationalStreamStepOutcome::Emitted(
-                    RelationalStreamBatch {
-                        expected_sequence: batch.expected_sequence(),
-                        expected_head: batch.expected_head(),
-                        quantum: RelationalStreamQuantum::Base(batch.quantum()),
-                        events: batch.into_events(),
-                    },
+                    RelationalStreamBatch::coordinator(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        RelationalSchedulerDecision::BaseFrontier,
+                        RelationalStreamQuantum::Base(batch.quantum()),
+                        batch.into_events().into_vec(),
+                    ),
                 ));
             }
             RelationalStepOutcome::Quiescent(quiescence) => quiescence,
@@ -980,7 +1069,12 @@ impl<'query> RelationalStreamDriver<'query> {
                     journal.selected_question_certified_event(question_id)?,
                 ),
             };
-            return Ok(self.batch(journal, quantum, vec![event]));
+            return Ok(self.batch(
+                journal,
+                RelationalSchedulerDecision::SelectedQuestionBind,
+                quantum,
+                vec![event],
+            ));
         }
 
         if let RelationalResultStepQuiescence::AwaitingSelectedQuestion { question_id } =
@@ -1086,6 +1180,7 @@ impl<'query> RelationalStreamDriver<'query> {
 
         Ok(self.batch(
             journal,
+            RelationalSchedulerDecision::AnalysisClose,
             RelationalStreamQuantum::CloseAnalysis,
             vec![journal.analysis_terminal_event()?],
         ))
@@ -1101,8 +1196,18 @@ impl<'query> RelationalStreamDriver<'query> {
         if self.support_requests.is_empty() {
             return Ok(None);
         }
-        let mut ordinal = self.support_request_ordinal.borrow_mut();
-        let start = *ordinal % self.support_requests.len();
+        // Rotate from replay-derived scheduling history, not process-local
+        // state. Planning twice against the same journal prefix must choose
+        // the same request; accepting even a scheduling-only crash prefix
+        // advances the durable tie-breaker and prevents starvation.
+        let start = usize::try_from(
+            u128::from(
+                journal
+                    .scheduler_view()?
+                    .scheduler_decision_count(RelationalSchedulerDecision::MechanismSupport),
+            ) % self.support_requests.len() as u128,
+        )
+        .expect("a remainder below the request count fits usize");
         for offset in 0..self.support_requests.len() {
             let index = (start + offset) % self.support_requests.len();
             let request_id = self.support_requests[index];
@@ -1113,7 +1218,6 @@ impl<'query> RelationalStreamDriver<'query> {
                         .support_checkpoint_has_ready_work(request_id)
                         .map_err(RelationalMechanismStepDriverError::from)?)
             {
-                *ordinal = (index + 1) % self.support_requests.len();
                 return Ok(Some(request_id));
             }
         }
@@ -1121,7 +1225,6 @@ impl<'query> RelationalStreamDriver<'query> {
             let index = (start + offset) % self.support_requests.len();
             let request_id = self.support_requests[index];
             if analysis.mechanism_support_closure(request_id).is_none() {
-                *ordinal = (index + 1) % self.support_requests.len();
                 return Ok(Some(request_id));
             }
         }
@@ -1131,16 +1234,17 @@ impl<'query> RelationalStreamDriver<'query> {
     fn batch(
         &self,
         journal: &RelationalJournal,
+        decision: RelationalSchedulerDecision,
         quantum: RelationalStreamQuantum,
         events: Vec<RelationalJournalEvent>,
     ) -> RelationalStreamStepOutcome {
-        debug_assert!(!events.is_empty());
-        RelationalStreamStepOutcome::Emitted(RelationalStreamBatch {
-            expected_sequence: journal.next_sequence(),
-            expected_head: journal.head(),
+        RelationalStreamStepOutcome::Emitted(RelationalStreamBatch::coordinator(
+            journal.next_sequence(),
+            journal.head(),
+            decision,
             quantum,
-            events: events.into_boxed_slice(),
-        })
+            events,
+        ))
     }
 }
 

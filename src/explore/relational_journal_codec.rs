@@ -94,7 +94,8 @@ use super::relational_journal::{
     MechanismSupportObservationDemandRegistrationClaim, MechanismSupportObservationPointId,
     MechanismSupportObservationStatus, RelationalCheckpointEvent, RelationalEvidenceEvent,
     RelationalJournalContract, RelationalJournalEntry, RelationalJournalError,
-    RelationalJournalEvent, RelationalJournalHead, RELATIONAL_JOURNAL_SCHEMA_VERSION,
+    RelationalJournalEvent, RelationalJournalHead, RelationalSchedulerDecision,
+    RELATIONAL_JOURNAL_SCHEMA_VERSION,
 };
 use super::relational_mechanism_executor::{
     RelationalMechanismReplayObservationId, RelationalMechanismReplayReceiptId,
@@ -179,7 +180,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 20;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 21;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -7316,11 +7317,60 @@ fn decode_support_observation_backfill_claim(
     )
 }
 
+fn encode_scheduler_decision(
+    encoder: &mut Encoder,
+    decision: RelationalSchedulerDecision,
+) -> Result<(), RelationalJournalCodecError> {
+    encoder.tag(match decision {
+        RelationalSchedulerDecision::AnalysisRegistration => 0x01,
+        RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery => 0x02,
+        RelationalSchedulerDecision::ExplicitObservation => 0x03,
+        RelationalSchedulerDecision::ReadyResult => 0x04,
+        RelationalSchedulerDecision::ReadyIncidenceResult => 0x05,
+        RelationalSchedulerDecision::MechanismSupport => 0x06,
+        RelationalSchedulerDecision::ReadyMechanism => 0x07,
+        RelationalSchedulerDecision::BaseFrontier => 0x08,
+        RelationalSchedulerDecision::SelectedQuestionBind => 0x09,
+        RelationalSchedulerDecision::AnalysisClose => 0x0a,
+    })
+}
+
+fn decode_scheduler_decision(
+    reader: &mut Reader<'_>,
+) -> Result<RelationalSchedulerDecision, RelationalJournalCodecError> {
+    match reader.tag()? {
+        0x01 => Ok(RelationalSchedulerDecision::AnalysisRegistration),
+        0x02 => Ok(RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery),
+        0x03 => Ok(RelationalSchedulerDecision::ExplicitObservation),
+        0x04 => Ok(RelationalSchedulerDecision::ReadyResult),
+        0x05 => Ok(RelationalSchedulerDecision::ReadyIncidenceResult),
+        0x06 => Ok(RelationalSchedulerDecision::MechanismSupport),
+        0x07 => Ok(RelationalSchedulerDecision::ReadyMechanism),
+        0x08 => Ok(RelationalSchedulerDecision::BaseFrontier),
+        0x09 => Ok(RelationalSchedulerDecision::SelectedQuestionBind),
+        0x0a => Ok(RelationalSchedulerDecision::AnalysisClose),
+        tag => Err(RelationalJournalCodecError::UnknownTag {
+            component: "relational scheduler decision",
+            tag,
+        }),
+    }
+}
+
 fn encode_checkpoint_event(
     encoder: &mut Encoder,
     event: &RelationalCheckpointEvent,
 ) -> Result<(), RelationalJournalCodecError> {
     match event {
+        RelationalCheckpointEvent::SchedulerDecisionRecorded {
+            policy_version,
+            decision,
+            work_fingerprint,
+        } => {
+            encoder.tag(0x0c)?;
+            encoder.u32(*policy_version)?;
+            encode_scheduler_decision(encoder, *decision)?;
+            encoder.digest(*work_fingerprint)
+        }
         RelationalCheckpointEvent::RelationalClassifiedChunkSliceCheckpointed { artifact } => {
             encoder.tag(0x07)?;
             encode_classified_chunk_slice_artifact(encoder, artifact)
@@ -7395,6 +7445,11 @@ fn decode_checkpoint_event(
     reader: &mut Reader<'_>,
 ) -> Result<RelationalCheckpointEvent, RelationalJournalCodecError> {
     match reader.tag()? {
+        0x0c => Ok(RelationalCheckpointEvent::SchedulerDecisionRecorded {
+            policy_version: reader.u32()?,
+            decision: decode_scheduler_decision(reader)?,
+            work_fingerprint: reader.digest()?,
+        }),
         0x01 => {
             let spec = decode_work_spec(reader)?;
             let count = reader.collection_len("work dependencies")?;
@@ -7991,6 +8046,89 @@ mod tests {
     }
 
     #[test]
+    fn scheduler_decision_checkpoint_codec_round_trips_every_priority() {
+        let decisions = [
+            RelationalSchedulerDecision::AnalysisRegistration,
+            RelationalSchedulerDecision::InterruptedMechanismArtifactRecovery,
+            RelationalSchedulerDecision::ExplicitObservation,
+            RelationalSchedulerDecision::ReadyResult,
+            RelationalSchedulerDecision::ReadyIncidenceResult,
+            RelationalSchedulerDecision::MechanismSupport,
+            RelationalSchedulerDecision::ReadyMechanism,
+            RelationalSchedulerDecision::BaseFrontier,
+            RelationalSchedulerDecision::SelectedQuestionBind,
+            RelationalSchedulerDecision::AnalysisClose,
+        ];
+        let limits = RelationalJournalCodecLimits::default();
+
+        for (expected_priority, decision) in decisions.into_iter().enumerate() {
+            assert_eq!(decision.priority(), expected_priority as u8);
+            let RelationalJournalEvent::Checkpoint(event) =
+                RelationalJournalEvent::scheduler_decision_recorded(
+                    decision,
+                    [expected_priority as u8; 32],
+                )
+            else {
+                unreachable!("scheduler decisions are checkpoint events")
+            };
+            let mut encoder = Encoder::new(limits);
+            encode_checkpoint_event(&mut encoder, &event)
+                .expect("encode scheduler decision checkpoint");
+            let bytes = encoder.finish();
+            let mut reader = Reader::new(&bytes, limits);
+            let decoded =
+                decode_checkpoint_event(&mut reader).expect("decode scheduler decision checkpoint");
+            reader
+                .finish()
+                .expect("consume scheduler decision checkpoint");
+            assert_eq!(decoded, event);
+        }
+    }
+
+    #[test]
+    fn journal_fold_rejects_an_unknown_scheduler_policy_version() {
+        let relation = RelationId::from_canonical_semantic_preimage(b"scheduler-policy relation");
+        let admission =
+            AdmissionId::from_canonical_admission_preimage(relation, b"scheduler-policy admission");
+        let question = QuestionId::from_canonical_find_preimage(
+            admission,
+            b"scheduler-policy question",
+            FindPolarity::All,
+        );
+        let contract = RelationalJournalContract::new(
+            relation,
+            admission,
+            [question],
+            super::super::StateSchemaId::from_bytes([1; 32]),
+            super::super::ContextSchemaId::from_bytes([2; 32]),
+            super::super::TransitionTypeId::from_bytes([3; 32]),
+            [0; 32],
+        );
+        let mut journal = RelationalJournal::new(contract);
+        let expected_sequence = journal.next_sequence();
+        let expected_head = journal.head();
+        let error = journal
+            .append(RelationalJournalEvent::Checkpoint(
+                RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                    policy_version:
+                        super::super::relational_journal::RELATIONAL_SCHEDULER_POLICY_VERSION + 1,
+                    decision: RelationalSchedulerDecision::BaseFrontier,
+                    work_fingerprint: [0x5a; 32],
+                },
+            ))
+            .expect_err("an unknown scheduler policy must fail closed during replay");
+        assert!(matches!(
+            error,
+            RelationalJournalError::SchedulerPolicyVersionMismatch { expected, actual }
+                if expected
+                    == super::super::relational_journal::RELATIONAL_SCHEDULER_POLICY_VERSION
+                    && actual == expected + 1
+        ));
+        assert_eq!(journal.next_sequence(), expected_sequence);
+        assert_eq!(journal.head(), expected_head);
+    }
+
+    #[test]
     fn support_observation_claim_codec_round_trips_without_summary_payload() {
         let request_id = MechanismRequestId::from_journal_codec_bytes([0x11; 32]);
         let enclosing_mechanism = StructuralMechanismId::from_journal_codec_bytes([0x22; 32]);
@@ -8134,9 +8272,10 @@ mod tests {
         assert!(matches!(
             error,
             RelationalJournalCodecError::UnsupportedJournalSchema {
-                actual: 23,
-                expected: 24
-            }
+                actual,
+                expected
+            } if actual == RELATIONAL_JOURNAL_SCHEMA_VERSION - 1
+                && expected == RELATIONAL_JOURNAL_SCHEMA_VERSION
         ));
     }
 }

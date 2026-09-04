@@ -1,9 +1,9 @@
 //! Canonical content identities and set semantics for relational Explore cases.
 //!
-//! This module is deliberately independent of the current Cartesian executor,
-//! output projection, probe plan, and durable rank encoding. It is the common
-//! identity boundary for a finite source relation and each source row's finite
-//! successor relation.
+//! This module is deliberately independent of output projection, downstream
+//! analysis plans, scheduler policy, and durable cursor encoding. It is the
+//! common identity boundary for a finite source relation and each source row's
+//! finite successor relation.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
@@ -59,8 +59,8 @@ const SUCCESSOR_ROLE: u8 = 0x03;
 ///
 /// Its canonical semantic digest is supplied by the checked relational IR. In
 /// particular, admission, FIND selection, presentation views,
-/// probe/scheduling choices, and run-local limits are not inputs to this
-/// identity.
+/// downstream analysis plans, scheduler choices, and run-local limits are not
+/// inputs to this identity.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct RelationId([u8; 32]);
 

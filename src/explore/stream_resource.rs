@@ -20,8 +20,8 @@
 //! outer child instead charges one explicitly bounded stream quantum while the
 //! synchronous Rust-heap ceiling, independent reserve, process-group guard and
 //! live host-pressure checks contain the whole epoch. This is admission, not
-//! hard containment; an unbounded probe must fail closed until it is resumably
-//! sliced or isolated in a child.
+//! hard containment; an unbounded work item must fail closed until it is
+//! resumably sliced or isolated in a child.
 
 use std::num::{NonZeroU16, NonZeroU64};
 use std::time::{Duration, Instant};
@@ -225,9 +225,6 @@ pub(super) enum ExactStreamWorkSubject {
     /// One bounded stream-open preparation phase: typecheck plus authenticated
     /// replay. It is admitted only under the conservative calibration policy.
     PreparationPhase,
-    /// One bounded source-probe phase unit: initial analysis/manifest publish,
-    /// manifest-backed coverage acceptance, or completion marker publication.
-    ProbePhase,
     /// One bounded materialized-view phase. Snapshot lowering and canonical
     /// serialization may allocate tens of MiB, so they require the same
     /// sampled worker authority as semantic evaluation. If this phase is not
@@ -259,12 +256,6 @@ pub(super) enum ExactStreamWorkSubject {
     /// One deterministic candidate-first batch beginning at `first_rank` and
     /// evaluating no more than `case_cap` whole CaseIds.
     BoundedCaseIdBatch {
-        first_rank: u128,
-        case_cap: NonZeroU16,
-    },
-    /// One bounded batch drawn only from the durable source-probe candidate
-    /// manifest; residual frontier ranks are not authorized by this subject.
-    ProbeCandidateBatch {
         first_rank: u128,
         case_cap: NonZeroU16,
     },
@@ -300,12 +291,10 @@ impl ExactStreamWorkDispatchPermit {
             ExactStreamWorkSubject::CaseIdRank(rank)
             | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
-            | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::RelationalJournalQuantum { .. }
-            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. }
-            | ExactStreamWorkSubject::ProbeCandidateBatch { .. } => None,
+            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. } => None,
         }
     }
 
@@ -313,10 +302,8 @@ impl ExactStreamWorkDispatchPermit {
         match self.identity.subject {
             ExactStreamWorkSubject::CaseIdRank(rank)
             | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
-            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. }
-            | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
+            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
-            | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::RelationalJournalQuantum { .. } => None,
@@ -382,12 +369,10 @@ impl ExactStreamWorkInFlight {
             ExactStreamWorkSubject::CaseIdRank(rank)
             | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
             ExactStreamWorkSubject::PreparationPhase
-            | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::RelationalJournalQuantum { .. }
-            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. }
-            | ExactStreamWorkSubject::ProbeCandidateBatch { .. } => None,
+            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. } => None,
         }
     }
 
@@ -395,10 +380,8 @@ impl ExactStreamWorkInFlight {
         match self.identity.subject {
             ExactStreamWorkSubject::CaseIdRank(rank)
             | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
-            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. }
-            | ExactStreamWorkSubject::ProbeCandidateBatch { first_rank, .. } => Some(first_rank),
+            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. } => Some(first_rank),
             ExactStreamWorkSubject::PreparationPhase
-            | ExactStreamWorkSubject::ProbePhase
             | ExactStreamWorkSubject::SnapshotPublicationPhase
             | ExactStreamWorkSubject::FinalizationPhase
             | ExactStreamWorkSubject::RelationalJournalQuantum { .. } => None,
@@ -963,12 +946,11 @@ impl ExactStreamOneWorkerEnvelope {
         if matches!(
             work.identity.subject,
             ExactStreamWorkSubject::PreparationPhase
-                | ExactStreamWorkSubject::ProbePhase
                 | ExactStreamWorkSubject::SnapshotPublicationPhase
                 | ExactStreamWorkSubject::FinalizationPhase
         ) {
             // Never carry host headroom across a potentially heavy
-            // preparation, probe, view-publication, or finalization phase.
+            // preparation, view-publication, or finalization phase.
             // The next poll samples immediately.
             self.revoke_dispatch_authority();
             self.last_sample_started = None;
@@ -1206,7 +1188,6 @@ fn capacity_is_complete(capacity: HostCapacity) -> bool {
 fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWorkSubject) -> bool {
     match (purpose, subject) {
         (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::PreparationPhase)
-        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::ProbePhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::SnapshotPublicationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::FinalizationPhase)
         | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::CaseIdRank(_))
@@ -1219,18 +1200,12 @@ fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWor
             ExactStreamWorkPurpose::Calibration,
             ExactStreamWorkSubject::BoundedCaseIdBatch { .. },
         )
-        | (
-            ExactStreamWorkPurpose::Calibration,
-            ExactStreamWorkSubject::ProbeCandidateBatch { .. },
-        )
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::CaseIdRank(_))
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::MechanismCaseIdRank(_))
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::RelationalJournalQuantum { .. })
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::BoundedCaseIdBatch { .. })
-        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbeCandidateBatch { .. })
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::FinalizationPhase) => true,
         (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::PreparationPhase)
-        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::ProbePhase)
         | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::SnapshotPublicationPhase) => false,
     }
 }

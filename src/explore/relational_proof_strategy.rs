@@ -2276,3 +2276,100 @@ impl Error for RelationalProofStrategyError {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::super::relational_support_planner::RelationalSupportPlanner;
+    use super::*;
+    use crate::{Lexer, Parser, TypeChecker};
+
+    const FINITE_AXIS_WITH_CHECKED_CUT: &str = r#"
+? explore finite_axis_with_checked_cut {
+    from {
+        vary before in range(0, 8)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find upper_half = matches of before >= 4
+}
+"#;
+
+    #[test]
+    fn candidate_cuts_leave_the_complete_interval_cover_as_open_residual_work() {
+        let mut lexer = Lexer::new(FINITE_AXIS_WITH_CHECKED_CUT);
+        let statements = Parser::new(lexer.tokenize(), FINITE_AXIS_WITH_CHECKED_CUT)
+            .parse_program()
+            .expect("parse the finite-axis proof-strategy fixture");
+        let artifacts = TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            FINITE_AXIS_WITH_CHECKED_CUT,
+        );
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("join the checked finite-axis query");
+        let support_plan = RelationalSupportPlanner::from_checked(&checked)
+            .and_then(|planner| planner.plan())
+            .expect("plan exact support for the finite-axis query");
+        let inventory = RelationalProofStrategyInventory::from_checked(&checked, &support_plan)
+            .expect("derive the checked proof-strategy inventory");
+        let [axis] = inventory.axes() else {
+            panic!("fixture must expose exactly one independent integer axis")
+        };
+        let plan = inventory
+            .plan_axis(axis.dimension_id(), &[], None)
+            .expect("plan the checked finite axis");
+
+        let [candidate] = plan.candidates() else {
+            panic!("the checked comparison must yield exactly one candidate cut")
+        };
+        assert_eq!(candidate.coordinate(), 4);
+        assert_eq!(candidate.value_boundary(), 4);
+        assert_eq!(
+            candidate.priority(),
+            RelationalSplitPriority::CheckedGuardBoundary
+        );
+        assert!(!candidate.origins().is_empty());
+
+        let mut next_start = axis.coordinate_start();
+        let mut covered = 0_u128;
+        for interval in plan.intervals() {
+            assert_eq!(interval.start(), next_start);
+            assert!(interval.start() < interval.end_exclusive());
+            covered += interval.cardinality();
+            next_start = interval.end_exclusive();
+        }
+        assert_eq!(next_start, axis.coordinate_end_exclusive());
+        assert_eq!(covered, axis.cardinality());
+
+        let residual_intervals = plan
+            .residual_materialization()
+            .iter()
+            .map(|residual| {
+                assert_eq!(residual.cell_id(), Some(axis.cell().id()));
+                assert_eq!(residual.dimension_id(), Some(axis.dimension_id()));
+                assert_eq!(
+                    residual.reason(),
+                    &RelationalStrategyResidualReason::IntervalCertificateNotAccepted
+                );
+                residual
+                    .coordinate_interval()
+                    .expect("every unproved interval remains concrete fallback work")
+            })
+            .collect::<Vec<_>>();
+        let planned_intervals = plan
+            .intervals()
+            .iter()
+            .map(|interval| (interval.start(), interval.end_exclusive()))
+            .collect::<Vec<_>>();
+        assert_eq!(residual_intervals, planned_intervals);
+
+        assert!(!plan.establishes_complement_closure());
+    }
+}

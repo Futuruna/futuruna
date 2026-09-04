@@ -1,9 +1,9 @@
 //! Content-addressed work DAG for resumable relational Explore execution.
 //!
 //! This module models semantic work and monotone progress only. It contains no
-//! probe phase, worker assignment, priority, resource budget, retry timing, or
-//! other scheduler policy. Those choices may select an open node, but they may
-//! never rename one or alter its durable cursor.
+//! global scheduler phase, worker assignment, priority, resource budget, retry
+//! timing, or other scheduler policy. Those choices may select an open node,
+//! but they may never rename one or alter its durable cursor.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;

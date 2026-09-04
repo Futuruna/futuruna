@@ -1780,10 +1780,23 @@ so, and `partial` denotes useful open evidence. Those historical labels do not
 override the target vocabulary.
 
 There is no authored probe block, probe-complete state or global probe phase.
-Endpoints, source events, midpoints, region proofs and singleton evaluations
-are ordinary work nodes with scheduler priorities. Scheduling policy is
-observable operational provenance and is absent from RelationId, AdmissionId,
-QuestionId, ViewId, ChoiceId and AnalyzeGraphId.
+Candidate producers, when enabled, MUST lower endpoints, source events,
+certificate-authorized midpoints and lifted candidates into ordinary
+dependency-linked work in the same stream, with a complete residual cover.
+Current v1 actively schedules regional certificates and concrete/classified
+fallback; source-event, midpoint and lifted-candidate dispatch are performance
+follow-ups, never hidden completeness assumptions.
+
+Every emitted coordinator batch begins with an authenticated
+`SchedulerDecisionRecorded` checkpoint carrying the scheduler-policy version
+and selected priority reason, plus a canonical fingerprint of the complete ordered
+work batch. A crash may retain only that attempted-dispatch record; it still
+identifies exactly what was selected without claiming the work completed.
+Replay may select the still-open work again. These records affect the
+append-only journal head, but not the arrival-order-independent semantic
+evidence roots. Scheduling policy is
+therefore observable operational provenance and is absent from RelationId,
+AdmissionId, QuestionId, ViewId, ChoiceId and AnalyzeGraphId.
 
 ### Certified support cells and physical optimization
 

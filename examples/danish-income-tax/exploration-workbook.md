@@ -1229,9 +1229,13 @@ relevant branches or dependencies differ.
 
 An earlier design exposed probes as a special initial plan and lifecycle
 milestone. That distinction is no longer useful. Once the run has an
-authoritative journal and exact open frontier, source-event candidates,
-endpoints, midpoints, region proofs and singleton evaluations are simply work
-nodes with different priority and dependencies.
+authoritative journal and exact open frontier, every enabled candidate or
+proof producer joins the same dependency-linked work graph. Current v1
+actively dispatches regional certificates and concrete/classified fallback.
+The planner can already derive source-event cuts, endpoints,
+certificate-authorized midpoints and lifted candidates; scheduling those is a
+performance follow-up whose residual intervals remain explicit work, never an
+implicit completeness claim.
 
 The dependency is on content readiness, not producer closure. As soon as one
 coherent profile transition is yielded, its immutable CaseId readiness token
@@ -1292,12 +1296,18 @@ neither token is accepted where the other is required. The cursor is
 operational state; the EvidenceToken is semantic read authority. Neither is
 part of `RelationId`, a question predicate or structural mechanism identity.
 
-Scheduling policy and each scheduling decision may remain observable
-operational provenance. They do not change the declared world or answer. Some
-v0 probe-era modules still exist as migration residue on the feature branch.
-They are not an executable fallback for the accepted relational syntax: the
-command must fail closed until its new work frontier is wired, and the residue
-is removed rather than preserved as another lifecycle.
+Scheduling policy and each scheduling decision are observable operational
+provenance. Every emitted coordinator batch starts with an authenticated
+policy-versioned reason checkpoint that fingerprints the complete ordered work
+batch. It may survive alone as an attempted dispatch after a crash; it says
+exactly what was selected without claiming that work completed, and resume can
+select the still-open work again. It changes the journal head, not the semantic
+evidence roots or declared answer. The v0
+Cartesian/probe executor and its CLI, codec, snapshot and resource subjects
+have been removed rather than retained as a second lifecycle. Opening its
+`run-opened`/`fence-v1`/`blob-v1`/`event-v1` state namespace now fails closed
+and directs the operator to a fresh run directory; it can never be mistaken
+for an empty relational journal.
 
 The append-only journal remains authoritative for recovery. Every constructible
 case commits its `CaseId`, canonical Context/Before/After transition and
@@ -3510,18 +3520,14 @@ schemas is evidence for this contract.
 
 ### Final pieces to lock before the broad run
 
-The architecture now has a strong center, but the following pieces must be made
-coherent before the first broad `0..1,500,000 DKK` audit—1,000-DKK transitions,
-1,500 edges and 1,501 reusable endpoints per profile—is a sensible execution
-target:
+The architecture now has a strong center. Source construction and downstream
+consumers have separate checked identities, and the v0 Cartesian/probe path is
+physically gone rather than folded into the `RelationId`-scoped source graph.
+The following positive proof and consumption work still matters before the
+first broad `0..1,500,000 DKK` audit—1,000-DKK transitions, 1,500 edges and
+1,501 reusable endpoints per profile—is a sensible execution target:
 
-1. Keep source construction and downstream consumers on their own checked
-   identities. The source side is the `RelationId`-scoped, FROM-only recursive
-   Context/Before coverage manifest described above; admission, `find` and
-   observer inputs need their separate identity-scoped coverage siblings.
-   Physically unhook the v0 Cartesian/probe path without folding those layers
-   into one manifest.
-2. Make an exact `SupportCell`, rather than only one materialized `CaseId`, a
+1. Make an exact `SupportCell`, rather than only one materialized `CaseId`, a
    first-class evidence unit. Cells carry canonical finite support, exact or
    open image cardinality, disjoint-union partition proof and a resumable
    concrete materializer. Producer-assignment counts never become row or case

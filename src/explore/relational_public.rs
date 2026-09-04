@@ -3541,6 +3541,7 @@ mod regional_stream_acceptance_tests {
     use super::super::relational_journal::{
         RelationalCheckpointEvent, RelationalClassifiedSupportFragment, RelationalEvidenceEvent,
         RelationalJournal, RelationalJournalError, RelationalJournalEvent,
+        RelationalSchedulerDecision,
     };
     use super::super::relational_mechanism_step_driver::RelationalMechanismStepQuantum;
     use super::super::relational_step_driver::{
@@ -4436,7 +4437,7 @@ mod regional_stream_acceptance_tests {
                 });
             if pending_structural && cache.successful_derivations() == 1 {
                 assert_eq!(report.semantic_batches_appended, 1);
-                assert_eq!(report.semantic_events_appended, 1);
+                assert_eq!(report.semantic_events_appended, 2);
                 structural_sequences.push(report.checkpoint.next_sequence);
                 if structural_sequences.len() == 3 {
                     break;
@@ -4448,8 +4449,8 @@ mod regional_stream_acceptance_tests {
             3,
             "fixture must span the structural open and at least two chunk slices"
         );
-        assert_eq!(structural_sequences[1], structural_sequences[0] + 1);
-        assert_eq!(structural_sequences[2], structural_sequences[1] + 1);
+        assert_eq!(structural_sequences[1], structural_sequences[0] + 2);
+        assert_eq!(structural_sequences[2], structural_sequences[1] + 2);
         assert_eq!(cache.successful_derivations(), 1);
 
         let warm_next_sequence = structural_sequences[2];
@@ -4464,18 +4465,163 @@ mod regional_stream_acceptance_tests {
         let first_cold = cold_epoch
             .run_one_batch_slice_for_test()
             .expect("authenticate and continue the cold pending artifact");
-        assert_eq!(first_cold.semantic_events_appended, 1);
-        assert_eq!(first_cold.checkpoint.next_sequence, warm_next_sequence + 1);
+        assert_eq!(first_cold.semantic_events_appended, 2);
+        assert_eq!(first_cold.checkpoint.next_sequence, warm_next_sequence + 2);
         assert_eq!(cold_cache.successful_derivations(), 1);
         let second_cold = cold_epoch
             .run_one_batch_slice_for_test()
             .expect("reuse the cold epoch's authenticated structural artifact");
-        assert_eq!(second_cold.semantic_events_appended, 1);
+        assert_eq!(second_cold.semantic_events_appended, 2);
         assert_eq!(
             second_cold.checkpoint.next_sequence,
-            first_cold.checkpoint.next_sequence + 1
+            first_cold.checkpoint.next_sequence + 2
         );
         assert_eq!(cold_cache.successful_derivations(), 1);
+    }
+
+    #[test]
+    fn analysis_registration_decision_prefix_replays_and_resumes_plan_registration() {
+        let temp = TestDirectory::new();
+        let run_state = temp.path().join("run-state");
+        let mut prepared = prepare(UNIFORMLY_SELECTED);
+        let checked = prepared.checked.view();
+        let driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+            &checked,
+            &prepared.support_plan,
+            RelationalStreamDriverLimits::default(),
+            None,
+            Some(&prepared.classification_evaluator),
+        )
+        .expect("build registration-prefix scheduler");
+
+        {
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &run_state,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open registration-prefix journal");
+            let outcome = driver
+                .step_with_base_member_limit(
+                    durable
+                        .journal_mut_for_event_planning()
+                        .expect("borrow registration-prefix journal"),
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(1).unwrap(),
+                )
+                .expect("plan initial analysis registration");
+            let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                panic!("fresh stream must emit its analysis registration");
+            };
+            assert_eq!(
+                batch.quantum(),
+                RelationalStreamQuantum::RegisterAnalysisPlan
+            );
+            let expected_sequence = batch.expected_sequence();
+            let expected_head = batch.expected_head();
+            let events = batch.into_events().into_vec();
+            assert!(matches!(
+                events.as_slice(),
+                [
+                    RelationalJournalEvent::Checkpoint(
+                        RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                            decision: RelationalSchedulerDecision::AnalysisRegistration,
+                            ..
+                        }
+                    ),
+                    RelationalJournalEvent::Evidence(
+                        RelationalEvidenceEvent::AnalysisPlanRegistered { .. }
+                    )
+                ]
+            ));
+
+            let wrong_plan_root = prepare(EXACT_EMPTY).analysis_plan_root;
+            assert_ne!(wrong_plan_root, prepared.analysis_plan_root);
+            let mut mismatched =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    temp.path().join("poisoned-run-state"),
+                    prepared.contract.clone(),
+                    wrong_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .expect("open mismatched registration journal");
+            let error = mismatched
+                .append_events(expected_sequence, expected_head, events.clone())
+                .expect_err("a wrong plan after an applied decision must fail");
+            assert!(matches!(
+                error,
+                RelationalDurableJournalError::ExpectedAnalysisPlanRootMismatch {
+                    expected,
+                    actual,
+                } if expected == wrong_plan_root && actual == prepared.analysis_plan_root
+            ));
+            assert!(
+                mismatched.is_poisoned(),
+                "a later event validation failure must poison a partially advanced owner"
+            );
+
+            durable
+                .append_events(expected_sequence, expected_head, [events[0].clone()])
+                .expect("append only the crash-safe scheduling prefix");
+            assert!(durable
+                .journal()
+                .expect("inspect scheduling prefix")
+                .analysis_state()
+                .is_none());
+            durable
+                .flush_for_pause()
+                .expect("flush scheduling-only prefix");
+        }
+
+        let mut durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &run_state,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .expect("replay scheduling-only prefix");
+        assert_eq!(
+            durable
+                .journal()
+                .expect("inspect replayed scheduling prefix")
+                .next_sequence(),
+            1
+        );
+        let outcome = driver
+            .step_with_base_member_limit(
+                durable
+                    .journal_mut_for_event_planning()
+                    .expect("borrow replayed registration-prefix journal"),
+                &mut prepared.expression_runtime,
+                &mut prepared.mechanism_runtime,
+                NonZeroU16::new(1).unwrap(),
+            )
+            .expect("resume analysis registration");
+        let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+            panic!("registration-prefix resume must re-offer the uncommitted plan");
+        };
+        durable
+            .append_events(
+                batch.expected_sequence(),
+                batch.expected_head(),
+                batch.into_events(),
+            )
+            .expect("append resumed analysis registration");
+        let journal = durable.journal().expect("inspect resumed registration");
+        assert_eq!(journal.next_sequence(), 3);
+        assert_eq!(
+            journal
+                .scheduler_view()
+                .expect("inspect registered analysis plan")
+                .analysis_plan_root(),
+            Some(prepared.analysis_plan_root)
+        );
     }
 
     #[test]
@@ -5001,7 +5147,16 @@ mod regional_stream_acceptance_tests {
                 continue;
             }
 
-            assert_eq!(events.len(), 2);
+            assert_eq!(events.len(), 3);
+            assert!(matches!(
+                &events[0],
+                RelationalJournalEvent::Checkpoint(
+                    RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                        decision: RelationalSchedulerDecision::ReadyMechanism,
+                        ..
+                    }
+                )
+            ));
             let chosen_claim = |event: &RelationalJournalEvent| match event {
                 RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
                     RelationalAnalysisEvidenceEvent::MechanismChoiceTargetCaseAccepted {
@@ -5013,9 +5168,9 @@ mod regional_stream_acceptance_tests {
                 )) => (*request_id, *choice_id, *member_ordinal, *case_id),
                 _ => panic!("chosen-target batch contained a non-provenance event"),
             };
-            let (request_id, choice_id, member_ordinal, first_case_id) = chosen_claim(&events[0]);
+            let (request_id, choice_id, member_ordinal, first_case_id) = chosen_claim(&events[1]);
             let (second_request_id, second_choice_id, second_ordinal, second_case_id) =
-                chosen_claim(&events[1]);
+                chosen_claim(&events[2]);
             assert_eq!(second_request_id, request_id);
             assert_eq!(second_choice_id, choice_id);
             assert_ne!(second_ordinal, member_ordinal);

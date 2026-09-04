@@ -43,6 +43,10 @@ pub(crate) const RELATIONAL_JOURNAL_STORE_HARD_MAX_SEGMENTS: usize = 1_000_000;
 const SEGMENT_MAGIC: &[u8; 8] = b"FTRJSEG2";
 const SEGMENT_PREFIX: &str = "reljournal-segment-v2-";
 const SEGMENT_FAMILY: &str = "reljournal-segment";
+const LEGACY_RUN_OPENED_FAMILY: &str = "run-opened";
+const LEGACY_FENCE_V1_FAMILY: &str = "fence-v1";
+const LEGACY_BLOB_V1_FAMILY: &str = "blob-v1";
+const LEGACY_EVENT_V1_FAMILY: &str = "event-v1";
 const SEGMENT_ORDINAL_HEX_BYTES: usize = 16;
 const SEGMENT_SEQUENCE_HEX_BYTES: usize = 16;
 const SHA256_HEX_BYTES: usize = 64;
@@ -946,6 +950,14 @@ fn scan_store(
     let mut segments = Vec::new();
     for entry in guard.list_entries()? {
         let name = entry.name();
+        if let Some(family) = legacy_run_state_family(name) {
+            return Err(
+                RelationalJournalSegmentStoreError::UnsupportedLegacyRunState {
+                    family,
+                    entry: name.to_owned(),
+                },
+            );
+        }
         if !name.starts_with(SEGMENT_FAMILY) {
             continue;
         }
@@ -1036,6 +1048,17 @@ fn scan_store(
         next_sequence: expected_sequence,
         terminal_head: expected_head,
     })
+}
+
+fn legacy_run_state_family(name: &str) -> Option<&'static str> {
+    [
+        LEGACY_RUN_OPENED_FAMILY,
+        LEGACY_FENCE_V1_FAMILY,
+        LEGACY_BLOB_V1_FAMILY,
+        LEGACY_EVENT_V1_FAMILY,
+    ]
+    .into_iter()
+    .find(|family| name.starts_with(*family))
 }
 
 fn read_validated_segment(
@@ -1538,6 +1561,10 @@ fn malformed_segment(name: &str, reason: &'static str) -> RelationalJournalSegme
 pub(crate) enum RelationalJournalSegmentStoreError {
     Store(RunStoreError),
     InvalidLimits(&'static str),
+    UnsupportedLegacyRunState {
+        family: &'static str,
+        entry: String,
+    },
     UnsupportedSchema {
         actual: u32,
         expected: u32,
@@ -1617,6 +1644,10 @@ impl fmt::Display for RelationalJournalSegmentStoreError {
             Self::InvalidLimits(reason) => {
                 write!(formatter, "invalid relational journal segment limits: {reason}")
             }
+            Self::UnsupportedLegacyRunState { family, entry } => write!(
+                formatter,
+                "unsupported legacy Explore run-state namespace {family:?} at entry {entry:?}; use a fresh --run-state directory"
+            ),
             Self::UnsupportedSchema { actual, expected } => write!(
                 formatter,
                 "unsupported relational journal segment schema {actual}; expected {expected}"
@@ -1704,6 +1735,134 @@ impl fmt::Display for RelationalJournalSegmentStoreError {
                 "relational journal segment installation had an uncertain outcome; reopen and rescan before writing",
             ),
         }
+    }
+}
+
+#[cfg(all(
+    test,
+    any(
+        all(
+            target_os = "linux",
+            target_arch = "x86_64",
+            target_pointer_width = "64"
+        ),
+        all(
+            target_os = "macos",
+            any(target_arch = "x86_64", target_arch = "aarch64")
+        )
+    )
+))]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_TEMP_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+    struct TestDirectory(PathBuf);
+
+    impl TestDirectory {
+        fn new() -> Self {
+            let path = std::env::temp_dir().join(format!(
+                "futuruna-relational-journal-legacy-{}-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("clock")
+                    .as_nanos(),
+                NEXT_TEMP_DIRECTORY.fetch_add(1, Ordering::Relaxed),
+            ));
+            fs::create_dir(&path).expect("create journal-store test directory");
+            Self(path)
+        }
+
+        fn path(&self) -> &Path {
+            &self.0
+        }
+    }
+
+    impl Drop for TestDirectory {
+        fn drop(&mut self) {
+            fs::remove_dir_all(&self.0).ok();
+        }
+    }
+
+    #[test]
+    fn legacy_probe_era_namespaces_fail_closed_without_data_entry_mutation() {
+        let temp = TestDirectory::new();
+        for (ordinal, (entry_name, expected_family)) in [
+            ("run-opened-v1", LEGACY_RUN_OPENED_FAMILY),
+            ("run-opened-malformed", LEGACY_RUN_OPENED_FAMILY),
+            ("fence-v1-legacy", LEGACY_FENCE_V1_FAMILY),
+            ("fence-v1malformed", LEGACY_FENCE_V1_FAMILY),
+            ("blob-v1-legacy", LEGACY_BLOB_V1_FAMILY),
+            ("blob-v1malformed", LEGACY_BLOB_V1_FAMILY),
+            ("event-v1-legacy", LEGACY_EVENT_V1_FAMILY),
+            ("event-v1malformed", LEGACY_EVENT_V1_FAMILY),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let directory = temp.path().join(format!("case-{ordinal}"));
+            let guard = RunStoreGuard::open_or_create(&directory, RunStoreLimits::default())
+                .expect("create legacy run-state fixture");
+            guard
+                .install_immutable(entry_name, b"legacy-run-state")
+                .expect("install legacy run-state entry");
+            let entries_before = guard.list_entries().expect("list legacy fixture");
+            drop(guard);
+
+            let error = match RelationalJournalSegmentStore::open_or_create(
+                &directory,
+                RunStoreLimits::default(),
+                RelationalJournalSegmentLimits::default(),
+                RelationalJournalStoreAnchor::new(0, [0x5a; 32]),
+            ) {
+                Err(error) => error,
+                Ok(_) => panic!("legacy run-state namespace was accepted: {entry_name}"),
+            };
+            assert!(matches!(
+                &error,
+                RelationalJournalSegmentStoreError::UnsupportedLegacyRunState {
+                    family,
+                    entry,
+                } if *family == expected_family && entry == entry_name
+            ));
+
+            let guard = RunStoreGuard::open(&directory, RunStoreLimits::default())
+                .expect("reopen rejected legacy fixture");
+            assert_eq!(
+                guard.list_entries().expect("list rejected legacy fixture"),
+                entries_before,
+                "rejecting {entry_name} changed the run-state data namespace"
+            );
+        }
+
+        let unrelated_directory = temp.path().join("unrelated-entry");
+        let guard = RunStoreGuard::open_or_create(&unrelated_directory, RunStoreLimits::default())
+            .expect("create unrelated-entry fixture");
+        guard
+            .install_immutable("operator-note-v2", b"not a Futuruna run-state artifact")
+            .expect("install unrelated entry");
+        let unrelated_entries = guard.list_entries().expect("list unrelated fixture");
+        drop(guard);
+
+        let store = RelationalJournalSegmentStore::open_or_create(
+            &unrelated_directory,
+            RunStoreLimits::default(),
+            RelationalJournalSegmentLimits::default(),
+            RelationalJournalStoreAnchor::new(0, [0x5a; 32]),
+        )
+        .expect("unrelated entries must not be mistaken for legacy run state");
+        assert_eq!(store.durable_segment_count(), 0);
+        drop(store);
+        let guard = RunStoreGuard::open(&unrelated_directory, RunStoreLimits::default())
+            .expect("reopen unrelated-entry fixture");
+        assert_eq!(
+            guard.list_entries().expect("relist unrelated fixture"),
+            unrelated_entries
+        );
     }
 }
 

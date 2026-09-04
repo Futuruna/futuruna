@@ -18,8 +18,9 @@ use std::sync::Arc;
 
 use super::relational_analysis_plan::RelationalAnalysisPlanRoot;
 use super::relational_journal::{
-    RelationalEvidenceEvent, RelationalJournal, RelationalJournalContract, RelationalJournalError,
-    RelationalJournalEvent, RelationalJournalHead,
+    RelationalCheckpointEvent, RelationalEvidenceEvent, RelationalJournal,
+    RelationalJournalContract, RelationalJournalError, RelationalJournalEvent,
+    RelationalJournalHead, RelationalSchedulerDecision,
 };
 use super::relational_journal_codec::{
     decode_relational_journal_entry, encode_relational_journal_entry, RelationalJournalCodecError,
@@ -373,7 +374,7 @@ impl RelationalDurableJournal {
                         )?;
                         validate_initial_analysis_plan_event(
                             expected_analysis_plan_root,
-                            entry.sequence(),
+                            journal.analysis_state().is_some(),
                             entry.event(),
                         )?;
                         journal.replay_streaming_entry(entry)?;
@@ -467,11 +468,16 @@ impl RelationalDurableJournal {
         let mut physical_frame_count = 0_u64;
         let mut installed_segment_count = 0_u64;
         for event in events {
-            validate_initial_analysis_plan_event(
+            if let Err(error) = validate_initial_analysis_plan_event(
                 self.expected_analysis_plan_root,
-                self.journal.next_sequence(),
+                self.journal.analysis_state().is_some(),
                 &event,
-            )?;
+            ) {
+                if self.journal.next_sequence() != first_sequence {
+                    self.poisoned = true;
+                }
+                return Err(error);
+            }
             if self.pending_heads.try_reserve(1).is_err() {
                 self.poisoned = true;
                 return Err(RelationalDurableJournalError::AllocationFailed(
@@ -766,28 +772,35 @@ impl RelationalDurableJournal {
 
 fn validate_initial_analysis_plan_event(
     expected: RelationalAnalysisPlanRoot,
-    sequence: u64,
+    analysis_plan_registered: bool,
     event: &RelationalJournalEvent,
 ) -> Result<(), RelationalDurableJournalError> {
-    if sequence != 0 {
+    if analysis_plan_registered {
         return Ok(());
     }
-    let RelationalJournalEvent::Evidence(RelationalEvidenceEvent::AnalysisPlanRegistered {
-        plan_root,
-        ..
-    }) = event
-    else {
-        return Err(RelationalDurableJournalError::InitialAnalysisPlanMissing);
-    };
-    if *plan_root != expected {
-        return Err(
+
+    match event {
+        RelationalJournalEvent::Checkpoint(
+            RelationalCheckpointEvent::SchedulerDecisionRecorded {
+                decision: RelationalSchedulerDecision::AnalysisRegistration,
+                ..
+            },
+        ) => Ok(()),
+        RelationalJournalEvent::Evidence(RelationalEvidenceEvent::AnalysisPlanRegistered {
+            plan_root,
+            ..
+        }) if *plan_root == expected => Ok(()),
+        RelationalJournalEvent::Evidence(RelationalEvidenceEvent::AnalysisPlanRegistered {
+            plan_root,
+            ..
+        }) => Err(
             RelationalDurableJournalError::ExpectedAnalysisPlanRootMismatch {
                 expected,
                 actual: *plan_root,
             },
-        );
+        ),
+        _ => Err(RelationalDurableJournalError::InitialAnalysisPlanMissing),
     }
-    Ok(())
 }
 
 impl RelationalPublicationAuthority for RelationalDurableJournal {
@@ -942,7 +955,7 @@ impl fmt::Display for RelationalDurableJournalError {
                 "installed relational segments and the semantic journal disagree at their tail",
             ),
             Self::InitialAnalysisPlanMissing => formatter.write_str(
-                "relational journal semantic event zero must register the checked analysis plan",
+                "relational journal must register the checked analysis plan before semantic work",
             ),
             Self::ExpectedAnalysisPlanRootMismatch { .. } => formatter.write_str(
                 "relational journal analysis plan differs from the freshly checked plan",

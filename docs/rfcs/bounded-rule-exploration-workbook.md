@@ -60,10 +60,14 @@ PUBLISH CONTRACT
   (outside RelationId, AdmissionId, QuestionId, ChoiceId and the analysis DAG)
 ```
 
-There is no public probe phase. Candidate endpoints, source events, midpoints,
-region certificates and singletons are prioritized work nodes in one resumable
-stream. There is also no implicit `selected` relation in the target surface:
-every view, choice and explanation names the `find` relation it consumes.
+There is no public probe phase. Regional certificates and concrete/classified
+fallback already advance as prioritized work in one resumable stream. The
+candidate planner can derive endpoints, source events, certificate-authorized
+midpoints and lifted cuts; connecting those producers to the same scheduler is
+a performance follow-up, and their residual intervals must remain explicit
+until certified or materialized. There is also no implicit `selected` relation
+in the target surface: every view, choice and explanation names the `find`
+relation it consumes.
 
 ## The smallest complete target example
 
@@ -1531,9 +1535,9 @@ becomes
 not allocate one case row per question, but the honest adversarial decision
 floor is still `Omega(Nq)` bits when every case breaks the preceding joint run.
 Each admitted run authenticates admission once and selection once per
-question. Binary search and probes can rank where to work next, but cannot
-certify skipped coordinates unless interval or rule-graph reasoning proves the
-skipped cell uniform.
+question. Binary search and informative sampling may influence scheduler
+priority, but cannot certify skipped coordinates unless interval or rule-graph
+reasoning proves the skipped cell uniform.
 
 ## Implementation checkpoints
 

@@ -18,7 +18,6 @@ use super::{
         OrderedDecisionDag,
     },
     report::ExploreCaseId,
-    run_stream::{ExactCaseSupport, ExploreCaseUniverse},
 };
 use crate::{
     AnalysisProgramId, CheckedCallTarget, CheckedCallableId, CheckedExploreQueryView,
@@ -2345,50 +2344,6 @@ impl ExactMatchingTargetMembership {
             .map_err(|error| {
                 invalid(format!(
                     "cannot project authoritative matching membership: {error}"
-                ))
-            })?;
-        let id = derive_target_membership_id(&request.case_target, &membership);
-        let exact = Self { id, membership };
-        exact.validate_for_request(request)?;
-        Ok(exact)
-    }
-
-    /// Seal one coordinator-certified complete matching support without
-    /// enumerating its ranks. The support identity must belong to the exact
-    /// request universe; its canonical intervals are lowered directly into a
-    /// binary target-membership DAG.
-    pub(crate) fn from_exact_case_support(
-        request: &MechanismObservationRequest,
-        support: &ExactCaseSupport,
-    ) -> Result<Self, MechanismValidationError> {
-        request.validate()?;
-        let universe = ExploreCaseUniverse::new(request.axis_cardinalities.clone())
-            .map_err(|error| invalid(format!("invalid mechanism case universe: {error}")))?;
-        ExactCaseSupport::empty(&universe)
-            .merge_disjoint(support)
-            .map_err(|error| {
-                invalid(format!(
-                    "exact matching support belongs to another case universe: {error}"
-                ))
-            })?;
-
-        let base = MechanismTargetMembershipDag::from_sparse_classifications(
-            request.axis_cardinalities.to_vec(),
-            Vec::<(Vec<u128>, MechanismTargetMembership)>::new(),
-            MechanismTargetMembership::OutsideTarget,
-        )
-        .map_err(|error| invalid(format!("cannot build empty target membership: {error}")))?;
-        let membership = base
-            .with_rank_interval_overrides(support.iter_intervals().map(|interval| {
-                (
-                    interval.start(),
-                    interval.end_exclusive(),
-                    MechanismTargetMembership::InsideTarget,
-                )
-            }))
-            .map_err(|error| {
-                invalid(format!(
-                    "cannot lower exact matching support into target membership: {error}"
                 ))
             })?;
         let id = derive_target_membership_id(&request.case_target, &membership);
