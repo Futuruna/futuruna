@@ -3,9 +3,10 @@
 //! The retained v1 strategy recognizes an independent singleton `Context`
 //! followed by one exact finite `Before` factor. V2 additionally composes a
 //! compiler-minted separating-projection certificate over an ordered product
-//! of independent integer factors. Each varying coordinate must survive in a
-//! distinct `(Context, Before)` constructor-field path as a checked nonzero
-//! affine projection; unsupported construction or arithmetic remains open.
+//! of independent factors. Each varying coordinate must survive in a distinct
+//! `(Context, Before)` constructor-field path as either a checked nonzero
+//! affine projection or an exact finite direct identity; unsupported
+//! construction or arithmetic remains open.
 //!
 //! The retained artifact is not proof authority. A decoder may restore its
 //! canonical parts and validate its content identity, but typed evidence and a
@@ -36,6 +37,7 @@ use super::support_cell::{
     SupportCellObligation, SupportCellSpace, SupportExpr, SupportExtensionalTarget,
     SupportMaterializerId, SupportProducerId, SupportProofObligationId,
 };
+use crate::{CheckedExploreSourceProjectionFactorKind, CheckedExploreSourceProjectionWitnessKind};
 
 const ASSIGNMENT_PRODUCER_V1: &[u8] = b"futuruna.explore.relational-support.assignment-producer.v1";
 const ASSIGNMENT_MATERIALIZER_V1: &[u8] =
@@ -981,13 +983,30 @@ fn verify_source_image_producer_chain_v2(
                 "separated source proof has an exact-empty finite factor",
             ),
         )?;
+        let kind_matches = matches!(
+            (factor.kind, witness.kind, stage.recipe().domain_kind()),
+            (
+                CheckedExploreSourceProjectionFactorKind::AffineIntRange { .. },
+                CheckedExploreSourceProjectionWitnessKind::Affine { coefficient, .. },
+                super::relational_support_planner::RelationalFiniteDomainRecipeKind::CheckedIntRange,
+            ) if coefficient != 0
+        ) || matches!(
+            (factor.kind, witness.kind, stage.recipe().domain_kind()),
+            (
+                CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest },
+                CheckedExploreSourceProjectionWitnessKind::DirectIdentity {
+                    plan_digest: witness_plan_digest,
+                },
+                super::relational_support_planner::RelationalFiniteDomainRecipeKind::CheckedExact,
+            ) if plan_digest == witness_plan_digest
+        );
         if stage.recipe().binding_index() != factor.binding_index
             || !stage.recipe().dependency_key().is_empty()
             || !stage.schema().key_dimensions().is_empty()
             || stage.recipe().known_local_cardinality() != Some(factor.exact_cardinality)
             || stage.exactness().exact() != Some(factor.exact_cardinality)
             || witness.factor_binding_index != factor.binding_index
-            || witness.coefficient == 0
+            || !kind_matches
             || factor_cell.space()
                 != SupportCellSpace::ProducerCoordinates(stage.recipe().producer_id())
             || factor_cell.materializer_id() != stage.recipe().materializer_id()

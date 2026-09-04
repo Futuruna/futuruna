@@ -28908,7 +28908,7 @@ impl CheckedExploreSourceCoverageManifest {
 /// certificate.  This is intentionally independent of the journal and
 /// support-plan versions: an unsupported checked expression simply produces
 /// no certificate and leaves the mapped source image open.
-pub(crate) const CHECKED_EXPLORE_SOURCE_IMAGE_PROJECTION_VERSION: u32 = 2;
+pub(crate) const CHECKED_EXPLORE_SOURCE_IMAGE_PROJECTION_VERSION: u32 = 3;
 
 /// Semantic endpoint retained by one normalized source row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -28930,31 +28930,50 @@ pub(crate) struct CheckedExploreSourceProjectionField {
     pub(crate) field_index: u32,
 }
 
-/// One independent finite integer factor recognized by the checked producer.
-/// The half-open bounds are also the totality domain used for every checked
-/// arithmetic node in singleton-alias expansion.
+/// Exact finite-domain evidence carried by one independent source factor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CheckedExploreSourceProjectionFactorKind {
+    /// A checked half-open integer range. These bounds are also the totality
+    /// domain used for every checked arithmetic node in alias expansion.
+    AffineIntRange { start: i64, end_exclusive: i64 },
+    /// A canonical ordinal space for one checked finite Unit/Bool/tuple/sum
+    /// plan. The digest commits the lazy plan without materializing it.
+    ExactFinite { plan_digest: [u8; 32] },
+}
+
+/// One independent finite factor recognized by the checked producer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct CheckedExploreSourceProjectionFactor {
     pub(crate) binding_index: u32,
     pub(crate) binder_digest: [u8; 32],
-    pub(crate) start: i64,
-    pub(crate) end_exclusive: i64,
+    pub(crate) kind: CheckedExploreSourceProjectionFactorKind,
     pub(crate) exact_cardinality: u128,
 }
 
-/// One factor-separating field projection. The checked expression at `path`
-/// normalizes to `coefficient * factor + offset`; a nonzero coefficient makes
-/// that leaf injective over the factor's exact integer domain.
+/// Proof that one endpoint field separates one independent factor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CheckedExploreSourceProjectionWitnessKind {
+    /// The endpoint leaf normalizes to `coefficient * factor + offset` over a
+    /// checked integer interval. A nonzero coefficient is injective.
+    Affine {
+        coefficient: i64,
+        offset: i64,
+        output_min: i64,
+        output_max: i64,
+        proof_digest: [u8; 32],
+    },
+    /// The endpoint field is the exact finite value itself, propagated only
+    /// through checked aliases and constructor insertion.
+    DirectIdentity { plan_digest: [u8; 32] },
+}
+
+/// One factor-separating field projection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CheckedExploreSourceProjectionWitness {
     pub(crate) factor_binding_index: u32,
     pub(crate) endpoint: CheckedExploreSourceProjectionEndpoint,
     pub(crate) path: Box<[CheckedExploreSourceProjectionField]>,
-    pub(crate) coefficient: i64,
-    pub(crate) offset: i64,
-    pub(crate) output_min: i64,
-    pub(crate) output_max: i64,
-    pub(crate) affine_proof_digest: [u8; 32],
+    pub(crate) kind: CheckedExploreSourceProjectionWitnessKind,
     pub(crate) witness_id: [u8; 32],
 }
 
@@ -28982,53 +29001,81 @@ impl CheckedExploreSourceImageProjectionCertificate {
             || self.factors.is_empty()
             || self.factors.len() != self.witnesses.len()
             || self.factors.iter().enumerate().any(|(index, factor)| {
-                factor.start >= factor.end_exclusive
-                    || factor.exact_cardinality == 0
+                factor.exact_cardinality == 0
                     || (index > 0 && self.factors[index - 1].binding_index >= factor.binding_index)
             })
         {
             return false;
         }
         for (factor, witness) in self.factors.iter().zip(self.witnesses.iter()) {
-            let Ok(implied_cardinality) =
-                u128::try_from(i128::from(factor.end_exclusive) - i128::from(factor.start))
-            else {
-                return false;
-            };
-            let Some(maximum_input) = factor.end_exclusive.checked_sub(1) else {
-                return false;
-            };
-            let Some(first_output) = factor
-                .start
-                .checked_mul(witness.coefficient)
-                .and_then(|value| value.checked_add(witness.offset))
-            else {
-                return false;
-            };
-            let Some(last_output) = maximum_input
-                .checked_mul(witness.coefficient)
-                .and_then(|value| value.checked_add(witness.offset))
-            else {
-                return false;
-            };
             if witness.factor_binding_index != factor.binding_index
-                || factor.exact_cardinality != implied_cardinality
-                || witness.coefficient == 0
-                || witness.output_min != first_output.min(last_output)
-                || witness.output_max != first_output.max(last_output)
                 || checked_explore_projection_witness_id(
                     self.relation_id,
                     factor,
                     witness.endpoint,
                     &witness.path,
-                    witness.coefficient,
-                    witness.offset,
-                    witness.output_min,
-                    witness.output_max,
-                    witness.affine_proof_digest,
+                    witness.kind,
                 ) != witness.witness_id
             {
                 return false;
+            }
+            match (factor.kind, witness.kind) {
+                (
+                    CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                        start,
+                        end_exclusive,
+                    },
+                    CheckedExploreSourceProjectionWitnessKind::Affine {
+                        coefficient,
+                        offset,
+                        output_min,
+                        output_max,
+                        ..
+                    },
+                ) => {
+                    let Ok(implied_cardinality) =
+                        u128::try_from(i128::from(end_exclusive) - i128::from(start))
+                    else {
+                        return false;
+                    };
+                    let Some(maximum_input) = end_exclusive.checked_sub(1) else {
+                        return false;
+                    };
+                    let Some(first_output) = start
+                        .checked_mul(coefficient)
+                        .and_then(|value| value.checked_add(offset))
+                    else {
+                        return false;
+                    };
+                    let Some(last_output) = maximum_input
+                        .checked_mul(coefficient)
+                        .and_then(|value| value.checked_add(offset))
+                    else {
+                        return false;
+                    };
+                    if start >= end_exclusive
+                        || factor.exact_cardinality != implied_cardinality
+                        || coefficient == 0
+                        || output_min != first_output.min(last_output)
+                        || output_max != first_output.max(last_output)
+                    {
+                        return false;
+                    }
+                }
+                (
+                    CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest },
+                    CheckedExploreSourceProjectionWitnessKind::DirectIdentity {
+                        plan_digest: witness_plan_digest,
+                    },
+                ) => {
+                    if plan_digest != witness_plan_digest
+                        || witness.endpoint != CheckedExploreSourceProjectionEndpoint::Before
+                        || witness.path.is_empty()
+                    {
+                        return false;
+                    }
+                }
+                _ => return false,
             }
         }
         checked_explore_projection_certificate_id(
@@ -29046,7 +29093,7 @@ impl CheckedExploreSourceImageProjectionCertificate {
 /// canonical mixed-radix product. This proof is an optional execution recipe;
 /// it is deliberately absent from RelationId, QuestionId, ViewId and the
 /// analysis-graph digest.
-pub(crate) const CHECKED_EXPLORE_PRODUCT_RANK_GROUPED_DISTINCT_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_PRODUCT_RANK_GROUPED_DISTINCT_VERSION: u32 = 2;
 
 /// Checked prefix/suffix reduction theorem for one source result view.
 ///
@@ -34766,6 +34813,53 @@ impl<'a, 'index> CheckedExploreSemanticClosure<'a, 'index> {
             checked_query_hash_component(hasher, "value-binding", "wildcard");
             return Ok(());
         }
+        // `values(Type)` is a compile-time finite-universe producer, not a
+        // runtime callable. The ordinary expression checker intentionally
+        // records an unresolved `values/1` call while Explore separately
+        // checks and lowers the type into an exact finite plan. Seal that
+        // already-checked type dependency directly; the relation hash below
+        // independently commits the complete canonical plan.
+        if let ExprKind::App(function, arguments) = &expression.kind {
+            if matches!(&function.kind, ExprKind::Var(name) if name == "values")
+                && arguments.len() == 1
+            {
+                let resolution = self.resolutions.expressions.get(site).ok_or_else(|| {
+                    CheckedExploreQueryArtifactIssue::QuerySiteMissing(site.clone())
+                })?;
+                let only_expected_marker_gap = self
+                    .resolutions
+                    .unsupported_sites
+                    .get(site)
+                    .is_some_and(|issues| {
+                        !issues.is_empty()
+                            && issues.iter().all(|issue| {
+                                matches!(
+                                    issue,
+                                    CheckedResolutionIssue::CallableNotResolved { name, arity }
+                                        if name.as_ref() == "values" && *arity == 1
+                                )
+                            })
+                    });
+                let Some(ty) = TypeChecker::explore_ty_from_expr(&arguments[0]) else {
+                    return self.unsealed(Some(site.clone()));
+                };
+                if !only_expected_marker_gap
+                    || !matches!(resolution.resolved_type, CheckedExpressionType::Unsupported)
+                    || resolution.value_binding.is_some()
+                    || resolution.call_target.is_some()
+                {
+                    return self.unsealed(Some(site.clone()));
+                }
+                checked_query_hash_component(
+                    hasher,
+                    "expression-type",
+                    "checked-finite-type-universe",
+                );
+                checked_query_hash_component(hasher, "expression-kind", "values-type-universe");
+                self.hash_type(hasher, &ty, type_variables)?;
+                return Ok(());
+            }
+        }
         if self.resolutions.unsupported_sites.contains_key(site) {
             return self.unsealed(Some(site.clone()));
         }
@@ -37542,6 +37636,10 @@ fn checked_explore_source_coverage_manifest(
 #[derive(Debug, Clone, PartialEq, Eq)]
 enum CheckedExploreSourceProjectionTerm {
     Affine(CheckedExploreSourceProjectionAffine),
+    DirectIdentity {
+        binding_index: u32,
+        plan_digest: [u8; 32],
+    },
     Constructor {
         constructor_digest: [u8; 32],
         fields: Box<
@@ -37563,6 +37661,12 @@ struct CheckedExploreSourceProjectionAffine {
     minimum: i64,
     maximum: i64,
     proof_digest: [u8; 32],
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum CheckedExploreSourceProjectionCandidate {
+    Affine(CheckedExploreSourceProjectionAffine),
+    DirectIdentity { plan_digest: [u8; 32] },
 }
 
 struct CheckedExploreSourceProjectionAnalysis {
@@ -37624,46 +37728,77 @@ fn checked_explore_source_image_projection_analysis(
             explore::ExploreSourceBindingKindIr::Finite { domain }
                 if binding.dependencies.is_empty() =>
             {
-                let Some((start, end_exclusive)) =
-                    checked_explore_projection_static_int_range(domain)
-                else {
-                    return Ok(None);
-                };
-                if start >= end_exclusive {
-                    return Ok(None);
-                }
-                let exact_cardinality =
-                    u128::try_from(i128::from(end_exclusive) - i128::from(start)).ok();
-                let Some(exact_cardinality) = exact_cardinality else {
-                    return Ok(None);
-                };
-                let maximum = end_exclusive.checked_sub(1);
-                let Some(maximum) = maximum else {
-                    return Ok(None);
-                };
                 let binder_digest = checked_explore_projection_binder_digest(&checked_site.binder);
-                factors.push(CheckedExploreSourceProjectionFactor {
-                    binding_index,
-                    binder_digest,
-                    start,
-                    end_exclusive,
-                    exact_cardinality,
-                });
-                factor_bounds.insert(binding_index, (start, maximum));
-                let mut coefficients = BTreeMap::new();
-                coefficients.insert(binding_index, 1);
-                CheckedExploreSourceProjectionTerm::Affine(CheckedExploreSourceProjectionAffine {
-                    coefficients,
-                    offset: 0,
-                    minimum: start,
-                    maximum,
-                    proof_digest: checked_explore_projection_affine_leaf_digest(
-                        0x02,
-                        binding_index,
-                        start,
-                        maximum,
-                    ),
-                })
+                match domain {
+                    explore::ExploreFiniteDomainIr::IntRange { .. } => {
+                        let Some((start, end_exclusive)) =
+                            checked_explore_projection_static_int_range(domain)
+                        else {
+                            return Ok(None);
+                        };
+                        if start >= end_exclusive {
+                            return Ok(None);
+                        }
+                        let Some(exact_cardinality) =
+                            u128::try_from(i128::from(end_exclusive) - i128::from(start)).ok()
+                        else {
+                            return Ok(None);
+                        };
+                        let Some(maximum) = end_exclusive.checked_sub(1) else {
+                            return Ok(None);
+                        };
+                        factors.push(CheckedExploreSourceProjectionFactor {
+                            binding_index,
+                            binder_digest,
+                            kind: CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                                start,
+                                end_exclusive,
+                            },
+                            exact_cardinality,
+                        });
+                        factor_bounds.insert(binding_index, (start, maximum));
+                        let mut coefficients = BTreeMap::new();
+                        coefficients.insert(binding_index, 1);
+                        CheckedExploreSourceProjectionTerm::Affine(
+                            CheckedExploreSourceProjectionAffine {
+                                coefficients,
+                                offset: 0,
+                                minimum: start,
+                                maximum,
+                                proof_digest: checked_explore_projection_affine_leaf_digest(
+                                    0x02,
+                                    binding_index,
+                                    start,
+                                    maximum,
+                                ),
+                            },
+                        )
+                    }
+                    explore::ExploreFiniteDomainIr::Exact(
+                        explore::ExploreExactDomain::FiniteType { plan, .. },
+                    ) => {
+                        let Some(exact_cardinality) = plan.cardinality().exact() else {
+                            return Ok(None);
+                        };
+                        if exact_cardinality == 0 {
+                            return Ok(None);
+                        }
+                        let plan_digest = checked_explore_finite_plan_digest(plan);
+                        factors.push(CheckedExploreSourceProjectionFactor {
+                            binding_index,
+                            binder_digest,
+                            kind: CheckedExploreSourceProjectionFactorKind::ExactFinite {
+                                plan_digest,
+                            },
+                            exact_cardinality,
+                        });
+                        CheckedExploreSourceProjectionTerm::DirectIdentity {
+                            binding_index,
+                            plan_digest,
+                        }
+                    }
+                    _ => return Ok(None),
+                }
             }
             explore::ExploreSourceBindingKindIr::Finite { .. } => return Ok(None),
             explore::ExploreSourceBindingKindIr::Singleton { value } => {
@@ -37703,7 +37838,7 @@ fn checked_explore_source_image_projection_analysis(
         Vec<(
             CheckedExploreSourceProjectionEndpoint,
             Box<[CheckedExploreSourceProjectionField]>,
-            CheckedExploreSourceProjectionAffine,
+            CheckedExploreSourceProjectionCandidate,
         )>,
     >::new();
     checked_explore_projection_candidates(
@@ -37726,53 +37861,76 @@ fn checked_explore_source_image_projection_analysis(
         };
         factor_candidates
             .sort_by(|left, right| (left.0, left.1.as_ref()).cmp(&(right.0, right.1.as_ref())));
-        let Some((endpoint, path, affine)) = factor_candidates.first().cloned() else {
-            return Ok(None);
-        };
-        let Some(coefficient) = affine.coefficients.get(&factor.binding_index).copied() else {
-            return Ok(None);
-        };
-        if coefficient == 0 || affine.coefficients.len() != 1 {
+        if matches!(
+            factor.kind,
+            CheckedExploreSourceProjectionFactorKind::ExactFinite { .. }
+        ) && factor_candidates.len() != 1
+        {
+            // Direct identity is deliberately narrower than general
+            // injectivity: one unique endpoint field owns the copied value.
             return Ok(None);
         }
-        let Some(maximum_input) = factor.end_exclusive.checked_sub(1) else {
+        let Some((endpoint, path, candidate)) = factor_candidates.first().cloned() else {
             return Ok(None);
         };
-        let Some(first_output) = factor
-            .start
-            .checked_mul(coefficient)
-            .and_then(|value| value.checked_add(affine.offset))
-        else {
-            return Ok(None);
+        let kind = match (factor.kind, candidate) {
+            (
+                CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                    start,
+                    end_exclusive,
+                },
+                CheckedExploreSourceProjectionCandidate::Affine(affine),
+            ) => {
+                let Some(coefficient) = affine.coefficients.get(&factor.binding_index).copied()
+                else {
+                    return Ok(None);
+                };
+                if coefficient == 0 || affine.coefficients.len() != 1 {
+                    return Ok(None);
+                }
+                let Some(maximum_input) = end_exclusive.checked_sub(1) else {
+                    return Ok(None);
+                };
+                let Some(first_output) = start
+                    .checked_mul(coefficient)
+                    .and_then(|value| value.checked_add(affine.offset))
+                else {
+                    return Ok(None);
+                };
+                let Some(last_output) = maximum_input
+                    .checked_mul(coefficient)
+                    .and_then(|value| value.checked_add(affine.offset))
+                else {
+                    return Ok(None);
+                };
+                CheckedExploreSourceProjectionWitnessKind::Affine {
+                    coefficient,
+                    offset: affine.offset,
+                    output_min: first_output.min(last_output),
+                    output_max: first_output.max(last_output),
+                    proof_digest: affine.proof_digest,
+                }
+            }
+            (
+                CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest },
+                CheckedExploreSourceProjectionCandidate::DirectIdentity {
+                    plan_digest: candidate_plan_digest,
+                },
+            ) if plan_digest == candidate_plan_digest
+                && endpoint == CheckedExploreSourceProjectionEndpoint::Before
+                && !path.is_empty() =>
+            {
+                CheckedExploreSourceProjectionWitnessKind::DirectIdentity { plan_digest }
+            }
+            _ => return Ok(None),
         };
-        let Some(last_output) = maximum_input
-            .checked_mul(coefficient)
-            .and_then(|value| value.checked_add(affine.offset))
-        else {
-            return Ok(None);
-        };
-        let output_min = first_output.min(last_output);
-        let output_max = first_output.max(last_output);
-        let witness_id = checked_explore_projection_witness_id(
-            relation_id,
-            factor,
-            endpoint,
-            &path,
-            coefficient,
-            affine.offset,
-            output_min,
-            output_max,
-            affine.proof_digest,
-        );
+        let witness_id =
+            checked_explore_projection_witness_id(relation_id, factor, endpoint, &path, kind);
         witnesses.push(CheckedExploreSourceProjectionWitness {
             factor_binding_index: factor.binding_index,
             endpoint,
             path,
-            coefficient,
-            offset: affine.offset,
-            output_min,
-            output_max,
-            affine_proof_digest: affine.proof_digest,
+            kind,
             witness_id,
         });
     }
@@ -38126,6 +38284,9 @@ fn checked_explore_projection_term_dependencies(
                     .filter_map(|(binding, coefficient)| (*coefficient != 0).then_some(*binding)),
             );
         }
+        CheckedExploreSourceProjectionTerm::DirectIdentity { binding_index, .. } => {
+            dependencies.insert(*binding_index);
+        }
         CheckedExploreSourceProjectionTerm::Constructor { fields, .. } => {
             for (_, child) in fields.iter() {
                 checked_explore_projection_term_dependencies(child, dependencies);
@@ -38152,6 +38313,9 @@ fn checked_explore_projection_term_separators(
             if coefficient != 0 {
                 separators.insert(binding);
             }
+        }
+        CheckedExploreSourceProjectionTerm::DirectIdentity { binding_index, .. } => {
+            separators.insert(*binding_index);
         }
         CheckedExploreSourceProjectionTerm::Constructor { fields, .. } => {
             for (_, child) in fields.iter() {
@@ -38481,7 +38645,7 @@ fn checked_explore_projection_candidates(
         Vec<(
             CheckedExploreSourceProjectionEndpoint,
             Box<[CheckedExploreSourceProjectionField]>,
-            CheckedExploreSourceProjectionAffine,
+            CheckedExploreSourceProjectionCandidate,
         )>,
     >,
 ) {
@@ -38496,9 +38660,21 @@ fn checked_explore_projection_candidates(
                 candidates.entry(binding).or_default().push((
                     endpoint,
                     path.clone().into_boxed_slice(),
-                    affine.clone(),
+                    CheckedExploreSourceProjectionCandidate::Affine(affine.clone()),
                 ));
             }
+        }
+        CheckedExploreSourceProjectionTerm::DirectIdentity {
+            binding_index,
+            plan_digest,
+        } => {
+            candidates.entry(*binding_index).or_default().push((
+                endpoint,
+                path.clone().into_boxed_slice(),
+                CheckedExploreSourceProjectionCandidate::DirectIdentity {
+                    plan_digest: *plan_digest,
+                },
+            ));
         }
         CheckedExploreSourceProjectionTerm::Constructor { fields, .. } => {
             for (field, child) in fields.iter() {
@@ -38752,6 +38928,14 @@ fn checked_explore_projection_hash_term(
             hasher.update(affine.minimum.to_le_bytes());
             hasher.update(affine.maximum.to_le_bytes());
         }
+        CheckedExploreSourceProjectionTerm::DirectIdentity {
+            binding_index,
+            plan_digest,
+        } => {
+            hasher.update([0x04]);
+            hasher.update(binding_index.to_le_bytes());
+            hasher.update(plan_digest);
+        }
         CheckedExploreSourceProjectionTerm::Constructor {
             constructor_digest,
             fields,
@@ -38777,8 +38961,20 @@ fn checked_explore_projection_hash_factor(
 ) {
     hasher.update(factor.binding_index.to_le_bytes());
     hasher.update(factor.binder_digest);
-    hasher.update(factor.start.to_le_bytes());
-    hasher.update(factor.end_exclusive.to_le_bytes());
+    match factor.kind {
+        CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+            start,
+            end_exclusive,
+        } => {
+            hasher.update([0x01]);
+            hasher.update(start.to_le_bytes());
+            hasher.update(end_exclusive.to_le_bytes());
+        }
+        CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest } => {
+            hasher.update([0x02]);
+            hasher.update(plan_digest);
+        }
+    }
     hasher.update(factor.exact_cardinality.to_le_bytes());
 }
 
@@ -38799,7 +38995,7 @@ fn checked_explore_product_rank_factor_root(
     factors: &[CheckedExploreSourceProjectionFactor],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-product-rank-factor-root.v1\0");
+    hasher.update(b"futuruna.checked-explore-product-rank-factor-root.v2\0");
     checked_query_hash_component(&mut hasher, "factor-count", &factors.len().to_string());
     for factor in factors {
         checked_explore_projection_hash_factor(&mut hasher, factor);
@@ -38812,7 +39008,7 @@ fn checked_explore_product_rank_projection_digest(
     terms: &[CheckedExploreSourceProjectionTerm],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-product-rank-projection.v1\0");
+    hasher.update(b"futuruna.checked-explore-product-rank-projection.v2\0");
     hasher.update([role]);
     checked_query_hash_component(&mut hasher, "term-count", &terms.len().to_string());
     for term in terms {
@@ -38825,7 +39021,7 @@ fn checked_explore_product_rank_grouped_distinct_certificate_id(
     certificate: &CheckedExploreProductRankGroupedDistinctCertificate,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-product-rank-grouped-distinct.v1\0");
+    hasher.update(b"futuruna.checked-explore-product-rank-grouped-distinct.v2\0");
     hasher.update(certificate.version.to_le_bytes());
     hasher.update(certificate.relation_id.bytes());
     hasher.update(certificate.view_id.bytes());
@@ -38849,7 +39045,7 @@ fn checked_explore_projection_certificate_id(
     witnesses: &[CheckedExploreSourceProjectionWitness],
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-image-projection-certificate.v2\0");
+    hasher.update(b"futuruna.checked-explore-source-image-projection-certificate.v3\0");
     checked_query_hash_component(&mut hasher, "certificate-version", &version.to_string());
     hasher.update(relation_id.bytes());
     hasher.update(semantic_dependency_digest);
@@ -38871,14 +39067,10 @@ fn checked_explore_projection_witness_id(
     factor: &CheckedExploreSourceProjectionFactor,
     endpoint: CheckedExploreSourceProjectionEndpoint,
     path: &[CheckedExploreSourceProjectionField],
-    coefficient: i64,
-    offset: i64,
-    output_min: i64,
-    output_max: i64,
-    affine_proof_digest: [u8; 32],
+    kind: CheckedExploreSourceProjectionWitnessKind,
 ) -> [u8; 32] {
     let mut hasher = Sha256::new();
-    hasher.update(b"futuruna.checked-explore-source-projection-witness.v1\0");
+    hasher.update(b"futuruna.checked-explore-source-projection-witness.v2\0");
     hasher.update(relation_id.bytes());
     checked_explore_projection_hash_factor(&mut hasher, factor);
     hasher.update([match endpoint {
@@ -38889,11 +39081,26 @@ fn checked_explore_projection_witness_id(
     for field in path {
         checked_explore_projection_hash_field(&mut hasher, *field);
     }
-    hasher.update(coefficient.to_le_bytes());
-    hasher.update(offset.to_le_bytes());
-    hasher.update(output_min.to_le_bytes());
-    hasher.update(output_max.to_le_bytes());
-    hasher.update(affine_proof_digest);
+    match kind {
+        CheckedExploreSourceProjectionWitnessKind::Affine {
+            coefficient,
+            offset,
+            output_min,
+            output_max,
+            proof_digest,
+        } => {
+            hasher.update([0x01]);
+            hasher.update(coefficient.to_le_bytes());
+            hasher.update(offset.to_le_bytes());
+            hasher.update(output_min.to_le_bytes());
+            hasher.update(output_max.to_le_bytes());
+            hasher.update(proof_digest);
+        }
+        CheckedExploreSourceProjectionWitnessKind::DirectIdentity { plan_digest } => {
+            hasher.update([0x02]);
+            hasher.update(plan_digest);
+        }
+    }
     hasher.finalize().into()
 }
 
@@ -39139,6 +39346,13 @@ fn hash_checked_explore_finite_plan(hasher: &mut Sha256, plan: &explore::Explore
             }
         }
     }
+}
+
+fn checked_explore_finite_plan_digest(plan: &explore::ExploreFiniteTypePlan) -> [u8; 32] {
+    let mut hasher = Sha256::new();
+    hasher.update(b"futuruna.checked-explore-finite-type-plan.v1\0");
+    hash_checked_explore_finite_plan(&mut hasher, plan);
+    hasher.finalize().into()
 }
 
 fn hash_checked_explore_exact_domain(
@@ -58040,6 +58254,88 @@ __FINDS__
                 reason: CheckedExploreCoverageGapReason::SchemaCompositionUnavailable
             }
         ));
+    }
+
+    #[test]
+    fn explore_source_projection_carries_exact_finite_direct_identity() {
+        let source = r#"
+# ProjectionAge = WorkingAge | Senior
+# ProjectionProfile(church: Bool, age: ProjectionAge)
+# ProjectionState(profile: ProjectionProfile, income: Int)
+
+? explore structured_source_projection {
+    from {
+        vary profile in values(ProjectionProfile)
+        vary income in range(0, 2)
+        let before = ProjectionState(profile = profile, income = income)
+        given context = ()
+    }
+    transition after = ProjectionState(
+        profile = before.profile,
+        income = before.income + 1
+    )
+    find all_cases = all
+    results profiles from sources {
+        group by [profile = before.profile]
+        aggregate [incomes = count_distinct(before.income)]
+        select [profile, incomes]
+    }
+}
+"#;
+        let artifacts = explore_artifacts_for_source(source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "unexpected structured projection diagnostics: {:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts
+            .checked_exploration_query(0)
+            .expect("structured exact-finite source projection must check");
+        assert!(!checked.source_coverage().has_coverage_gaps());
+
+        let certificate = checked
+            .source_image_projection()
+            .expect("structured factor and integer range must retain a source projection proof");
+        assert!(certificate.validate_identity());
+        assert_eq!(certificate.factors.len(), 2);
+        assert_eq!(certificate.factors[0].exact_cardinality, 4);
+        assert!(matches!(
+            certificate.factors[0].kind,
+            CheckedExploreSourceProjectionFactorKind::ExactFinite { .. }
+        ));
+        assert!(matches!(
+            certificate.witnesses[0].kind,
+            CheckedExploreSourceProjectionWitnessKind::DirectIdentity { .. }
+        ));
+        assert_eq!(
+            certificate.witnesses[0].endpoint,
+            CheckedExploreSourceProjectionEndpoint::Before
+        );
+        assert_eq!(certificate.witnesses[0].path.len(), 1);
+        assert_eq!(certificate.factors[1].exact_cardinality, 2);
+        assert!(matches!(
+            certificate.factors[1].kind,
+            CheckedExploreSourceProjectionFactorKind::AffineIntRange { .. }
+        ));
+        assert!(matches!(
+            certificate.witnesses[1].kind,
+            CheckedExploreSourceProjectionWitnessKind::Affine { .. }
+        ));
+
+        let view_id = checked
+            .analysis_nodes()
+            .find_map(|(_, identity)| match identity {
+                CheckedExploreAnalysisIdentity::View { view_id } => Some(*view_id),
+                CheckedExploreAnalysisIdentity::Mechanisms { .. } => None,
+            })
+            .expect("profile source view identity");
+        let grouped = checked
+            .product_rank_grouped_distinct_certificate(view_id)
+            .expect("mixed exact-finite/integer factors must support ProductRank reduction");
+        assert!(grouped.validate_identity());
+        assert!(grouped.validates_source_projection(certificate));
+        assert_eq!(grouped.exact_group_count(), 4);
+        assert_eq!(grouped.exact_members_per_group(), 2);
     }
 
     #[test]

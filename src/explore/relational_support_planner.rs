@@ -46,7 +46,8 @@ use super::{ExploreCardinality, ExploreExactDomain};
 use crate::{
     CheckedExploreCoverageClassification, CheckedExploreQueryView,
     CheckedExploreSourceCoverageManifest, CheckedExploreSourceImageProjectionCertificate,
-    CheckedExploreSourceProjectionEndpoint, ExploreAdmissionScope, Expr, ExprKind, Literal,
+    CheckedExploreSourceProjectionEndpoint, CheckedExploreSourceProjectionFactorKind,
+    CheckedExploreSourceProjectionWitnessKind, ExploreAdmissionScope, Expr, ExprKind, Literal,
 };
 
 pub(crate) const RELATIONAL_SUPPORT_PLANNER_VERSION: u32 = 3;
@@ -1260,15 +1261,31 @@ fn validate_source_image_projection_recipe(
         .zip(certificate.factors.iter())
         .zip(certificate.witnesses.iter())
     {
+        let kind_matches = matches!(
+            (factor.kind, witness.kind, stage.recipe().domain_kind()),
+            (
+                CheckedExploreSourceProjectionFactorKind::AffineIntRange { .. },
+                CheckedExploreSourceProjectionWitnessKind::Affine { coefficient, .. },
+                RelationalFiniteDomainRecipeKind::CheckedIntRange,
+            ) if coefficient != 0
+        ) || matches!(
+            (factor.kind, witness.kind, stage.recipe().domain_kind()),
+            (
+                CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest },
+                CheckedExploreSourceProjectionWitnessKind::DirectIdentity {
+                    plan_digest: witness_plan_digest,
+                },
+                RelationalFiniteDomainRecipeKind::CheckedExact,
+            ) if plan_digest == witness_plan_digest
+        );
         if stage.recipe().binding_index() != factor.binding_index
             || !stage.recipe().dependency_key().is_empty()
             || !stage.schema().key_dimensions().is_empty()
-            || stage.recipe().domain_kind() != RelationalFiniteDomainRecipeKind::CheckedIntRange
             || stage.recipe().known_local_cardinality() != Some(factor.exact_cardinality)
             || stage.exactness().exact() != Some(factor.exact_cardinality)
             || stage.cell().is_none()
             || witness.factor_binding_index != factor.binding_index
-            || witness.coefficient == 0
+            || !kind_matches
         {
             return Err(RelationalSupportPlannerError::PlanInvariant(
                 "source-image projection factor disagrees with the exact independent stage",
@@ -2361,8 +2378,20 @@ fn hash_source_image_projection_certificate(
     for factor in certificate.factors.iter() {
         hasher.u32(factor.binding_index);
         hasher.digest(factor.binder_digest);
-        hasher.bytes(&factor.start.to_le_bytes());
-        hasher.bytes(&factor.end_exclusive.to_le_bytes());
+        match factor.kind {
+            CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                start,
+                end_exclusive,
+            } => {
+                hasher.u8(0x01);
+                hasher.bytes(&start.to_le_bytes());
+                hasher.bytes(&end_exclusive.to_le_bytes());
+            }
+            CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest } => {
+                hasher.u8(0x02);
+                hasher.digest(plan_digest);
+            }
+        }
         hasher.u128(factor.exact_cardinality);
     }
     hasher.u128(certificate.witnesses.len() as u128);
@@ -2378,11 +2407,26 @@ fn hash_source_image_projection_certificate(
             hasher.u32(field.variant_index);
             hasher.u32(field.field_index);
         }
-        hasher.bytes(&witness.coefficient.to_le_bytes());
-        hasher.bytes(&witness.offset.to_le_bytes());
-        hasher.bytes(&witness.output_min.to_le_bytes());
-        hasher.bytes(&witness.output_max.to_le_bytes());
-        hasher.digest(witness.affine_proof_digest);
+        match witness.kind {
+            CheckedExploreSourceProjectionWitnessKind::Affine {
+                coefficient,
+                offset,
+                output_min,
+                output_max,
+                proof_digest,
+            } => {
+                hasher.u8(0x01);
+                hasher.bytes(&coefficient.to_le_bytes());
+                hasher.bytes(&offset.to_le_bytes());
+                hasher.bytes(&output_min.to_le_bytes());
+                hasher.bytes(&output_max.to_le_bytes());
+                hasher.digest(proof_digest);
+            }
+            CheckedExploreSourceProjectionWitnessKind::DirectIdentity { plan_digest } => {
+                hasher.u8(0x02);
+                hasher.digest(plan_digest);
+            }
+        }
         hasher.digest(witness.witness_id);
     }
     hasher.digest(certificate.certificate_id);

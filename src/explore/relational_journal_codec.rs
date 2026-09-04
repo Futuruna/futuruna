@@ -169,12 +169,13 @@ use super::transition::TransitionId;
 use super::ExploreValue;
 use crate::{
     CheckedExploreSourceImageProjectionCertificate, CheckedExploreSourceProjectionEndpoint,
-    CheckedExploreSourceProjectionFactor, CheckedExploreSourceProjectionField,
-    CheckedExploreSourceProjectionWitness, ExploreAdmissionScope, ExploreChooseCardinality,
+    CheckedExploreSourceProjectionFactor, CheckedExploreSourceProjectionFactorKind,
+    CheckedExploreSourceProjectionField, CheckedExploreSourceProjectionWitness,
+    CheckedExploreSourceProjectionWitnessKind, ExploreAdmissionScope, ExploreChooseCardinality,
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 18;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 19;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -2600,8 +2601,20 @@ fn encode_source_image_projection_certificate(
     for factor in certificate.factors.iter() {
         encoder.u32(factor.binding_index)?;
         encoder.digest(factor.binder_digest)?;
-        encoder.i64(factor.start)?;
-        encoder.i64(factor.end_exclusive)?;
+        match factor.kind {
+            CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                start,
+                end_exclusive,
+            } => {
+                encoder.tag(0x01)?;
+                encoder.i64(start)?;
+                encoder.i64(end_exclusive)?;
+            }
+            CheckedExploreSourceProjectionFactorKind::ExactFinite { plan_digest } => {
+                encoder.tag(0x02)?;
+                encoder.digest(plan_digest)?;
+            }
+        }
         encoder.u128(factor.exact_cardinality)?;
     }
     encoder.collection_len(certificate.witnesses.len())?;
@@ -2617,11 +2630,26 @@ fn encode_source_image_projection_certificate(
             encoder.u32(field.variant_index)?;
             encoder.u32(field.field_index)?;
         }
-        encoder.i64(witness.coefficient)?;
-        encoder.i64(witness.offset)?;
-        encoder.i64(witness.output_min)?;
-        encoder.i64(witness.output_max)?;
-        encoder.digest(witness.affine_proof_digest)?;
+        match witness.kind {
+            CheckedExploreSourceProjectionWitnessKind::Affine {
+                coefficient,
+                offset,
+                output_min,
+                output_max,
+                proof_digest,
+            } => {
+                encoder.tag(0x01)?;
+                encoder.i64(coefficient)?;
+                encoder.i64(offset)?;
+                encoder.i64(output_min)?;
+                encoder.i64(output_max)?;
+                encoder.digest(proof_digest)?;
+            }
+            CheckedExploreSourceProjectionWitnessKind::DirectIdentity { plan_digest } => {
+                encoder.tag(0x02)?;
+                encoder.digest(plan_digest)?;
+            }
+        }
         encoder.digest(witness.witness_id)?;
     }
     encoder.digest(certificate.certificate_id)
@@ -2645,11 +2673,27 @@ fn decode_source_image_projection_certificate(
                 }
             })?;
             for _ in 0..factor_count {
+                let binding_index = reader.u32()?;
+                let binder_digest = reader.digest()?;
+                let kind = match reader.tag()? {
+                    0x01 => CheckedExploreSourceProjectionFactorKind::AffineIntRange {
+                        start: reader.i64()?,
+                        end_exclusive: reader.i64()?,
+                    },
+                    0x02 => CheckedExploreSourceProjectionFactorKind::ExactFinite {
+                        plan_digest: reader.digest()?,
+                    },
+                    tag => {
+                        return Err(RelationalJournalCodecError::UnknownTag {
+                            component: "source projection factor kind",
+                            tag,
+                        });
+                    }
+                };
                 factors.push(CheckedExploreSourceProjectionFactor {
-                    binding_index: reader.u32()?,
-                    binder_digest: reader.digest()?,
-                    start: reader.i64()?,
-                    end_exclusive: reader.i64()?,
+                    binding_index,
+                    binder_digest,
+                    kind,
                     exact_cardinality: reader.u128()?,
                 });
             }
@@ -2686,15 +2730,29 @@ fn decode_source_image_projection_certificate(
                         field_index: reader.u32()?,
                     });
                 }
+                let kind = match reader.tag()? {
+                    0x01 => CheckedExploreSourceProjectionWitnessKind::Affine {
+                        coefficient: reader.i64()?,
+                        offset: reader.i64()?,
+                        output_min: reader.i64()?,
+                        output_max: reader.i64()?,
+                        proof_digest: reader.digest()?,
+                    },
+                    0x02 => CheckedExploreSourceProjectionWitnessKind::DirectIdentity {
+                        plan_digest: reader.digest()?,
+                    },
+                    tag => {
+                        return Err(RelationalJournalCodecError::UnknownTag {
+                            component: "source projection witness kind",
+                            tag,
+                        });
+                    }
+                };
                 witnesses.push(CheckedExploreSourceProjectionWitness {
                     factor_binding_index,
                     endpoint,
                     path: path.into_boxed_slice(),
-                    coefficient: reader.i64()?,
-                    offset: reader.i64()?,
-                    output_min: reader.i64()?,
-                    output_max: reader.i64()?,
-                    affine_proof_digest: reader.digest()?,
+                    kind,
                     witness_id: reader.digest()?,
                 });
             }
