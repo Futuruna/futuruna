@@ -1442,6 +1442,17 @@ fn dispatch_scalar_integer_id(value: i64) -> DispatchScalarTermId {
     hasher.finalize().into()
 }
 
+fn dispatch_scalar_constructor_id(identity: &CheckedConstructorIdentity) -> DispatchScalarTermId {
+    let mut hasher = Sha256::new();
+    hash_segment(&mut hasher, DISPATCH_SCALAR_TERM_V1);
+    hash_segment(&mut hasher, &[0x06]);
+    hash_segment(
+        &mut hasher,
+        &checked_explore_projection_constructor_digest(identity),
+    );
+    hasher.finalize().into()
+}
+
 fn dispatch_scalar_field_id(
     base: DispatchScalarTermId,
     fields: &[CheckedVariantField],
@@ -5580,7 +5591,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         for argument in &arguments {
             self.retain_value(&mut retained, argument, &call_site)?;
         }
-        let predicate_bdd = match DispatchPredicateBdd::new(Rc::clone(&self.retention)) {
+        let mut predicate_bdd = match DispatchPredicateBdd::new(Rc::clone(&self.retention)) {
             Ok(predicate_bdd) => predicate_bdd,
             Err(DispatchBddError::RetentionLimit) => {
                 self.shed_optional_caches();
@@ -5589,6 +5600,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             }
             Err(error) => return Err(self.dispatch_issue(&call_site, error)),
         };
+        let residual = self.dispatch_argument_domain(&arguments, &mut predicate_bdd, &call_site)?;
         self.set_control(
             machine,
             EvalControl::RuleNext(Box::new(RuleState {
@@ -5613,7 +5625,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 results: Vec::new(),
                 retained,
                 predicate_bdd,
-                residual: DispatchPredicateBdd::ALL,
+                residual,
                 false_backtrack_coverage: DispatchPredicateBdd::EMPTY,
             })),
         )?;
@@ -7295,6 +7307,63 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         self.canonical_dispatch_condition_inner(site, origins, bdd, 0)
     }
 
+    /// Constrain symbolic dispatch to the exact nullary-constructor values
+    /// retained by each abstract argument. Without this source-domain axiom,
+    /// guards such as `status == First` and `status == Second` remain
+    /// independent Boolean atoms even when those are the only reachable
+    /// variants, leaving a spurious fallthrough path. Fielded constructors are
+    /// deliberately omitted until their payload equality can be represented
+    /// without strengthening the runtime domain.
+    fn dispatch_argument_domain(
+        &self,
+        arguments: &[AbstractValue],
+        bdd: &mut DispatchPredicateBdd,
+        site: &ExprSiteId,
+    ) -> Result<DispatchBddId, RelationalEndpointTotalityIssue> {
+        let mut domain = DispatchPredicateBdd::ALL;
+        for (index, argument) in arguments.iter().enumerate() {
+            let AbstractValue::Constructors(variants) = argument else {
+                continue;
+            };
+            if variants.is_empty() || variants.values().any(|variant| !variant.fields.is_empty()) {
+                continue;
+            }
+            let index = u32::try_from(index).map_err(|_| {
+                self.issue(
+                    site,
+                    RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+                    "rule-family arity exceeds the dispatch argument identity format",
+                )
+            })?;
+            let argument = dispatch_scalar_argument_id(index);
+            let mut reachable = DispatchPredicateBdd::EMPTY;
+            for variant in variants.values() {
+                let constructor = dispatch_scalar_constructor_id(&variant.identity);
+                let (left, right) = if argument <= constructor {
+                    (argument, constructor)
+                } else {
+                    (constructor, argument)
+                };
+                let atom = self
+                    .retry_dispatch_after_cache_shed(|| {
+                        bdd.atom(DispatchPredicateAtom {
+                            operator: DispatchComparisonOperator::Equal,
+                            left,
+                            right,
+                        })
+                    })
+                    .map_err(|error| self.dispatch_issue(site, error))?;
+                reachable = self
+                    .retry_dispatch_after_cache_shed(|| bdd.or(reachable, atom))
+                    .map_err(|error| self.dispatch_issue(site, error))?;
+            }
+            domain = self
+                .retry_dispatch_after_cache_shed(|| bdd.and(domain, reachable))
+                .map_err(|error| self.dispatch_issue(site, error))?;
+        }
+        Ok(domain)
+    }
+
     fn canonical_dispatch_condition_inner(
         &self,
         site: &ExprSiteId,
@@ -7513,18 +7582,33 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 let Some(resolution) = self.resolutions.expressions.get(site) else {
                     return Ok(None);
                 };
-                let Some(CheckedValueBinding::Binder { site: binder, .. }) =
+                if let Some(CheckedValueBinding::Binder { site: binder, .. }) =
                     resolution.value_binding.as_ref()
-                else {
-                    return Ok(None);
-                };
-                let origin = origins
-                    .get(&checked_explore_projection_binder_digest(binder))
-                    .copied();
-                if origin.is_some() {
-                    budget.charge_scalar_node()?;
+                {
+                    let origin = origins
+                        .get(&checked_explore_projection_binder_digest(binder))
+                        .copied();
+                    if origin.is_some() {
+                        budget.charge_scalar_node()?;
+                    }
+                    return Ok(origin);
                 }
-                Ok(origin)
+                let constructor = match (
+                    resolution.value_binding.as_ref(),
+                    resolution.exact_constructor.as_ref(),
+                ) {
+                    (Some(CheckedValueBinding::Constructor { .. }), Some(constructor))
+                        if constructor.fields.is_empty() =>
+                    {
+                        Some(constructor)
+                    }
+                    _ => None,
+                };
+                if let Some(constructor) = constructor {
+                    budget.charge_scalar_node()?;
+                    return Ok(Some(dispatch_scalar_constructor_id(constructor)));
+                }
+                Ok(None)
             }
             ExprKind::Lit(Literal::Int(value)) => {
                 budget.charge_scalar_node()?;

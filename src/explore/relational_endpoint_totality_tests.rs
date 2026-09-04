@@ -698,6 +698,64 @@ fn partial_value_rule_rejects_while_an_irrefutable_fallback_certifies() {
 }
 
 #[test]
+fn finite_nullary_constructor_guards_close_exact_dispatch_domain() {
+    let source = r#"
+# EndpointTestAge = EndpointTestAdult | EndpointTestChild
+# EndpointTestProfile(age: EndpointTestAge)
+
+| endpoint_test_age_amount(status: EndpointTestAge) -> 1 under status == EndpointTestAdult
+| endpoint_test_age_amount(status: EndpointTestAge) -> 2 under status == EndpointTestChild
+
+> endpoint_test_age_observer(state: EndpointTestProfile, context: Unit) -> Int {
+    endpoint_test_age_amount(state.age)
+}
+
+? explore finite_constructor_dispatch_domain {
+    from {
+        vary before in values(EndpointTestProfile)
+        given context = ()
+    }
+    transition after = before
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_age_observer
+}
+"#;
+
+    checked_plan_identity(source);
+}
+
+#[test]
+fn missing_nullary_constructor_guard_retains_partial_dispatch() {
+    let source = r#"
+# EndpointTestAge = EndpointTestAdult | EndpointTestChild
+# EndpointTestProfile(age: EndpointTestAge)
+
+| endpoint_test_partial_age_amount(status: EndpointTestAge) -> 1 under status == EndpointTestAdult
+
+> endpoint_test_partial_age_observer(state: EndpointTestProfile, context: Unit) -> Int {
+    endpoint_test_partial_age_amount(state.age)
+}
+
+? explore partial_constructor_dispatch_domain {
+    from {
+        vary before in values(EndpointTestProfile)
+        given context = ()
+    }
+    transition after = before
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_partial_age_observer
+}
+"#;
+
+    let issue = endpoint_issue_before_plan(source);
+    assert_eq!(issue.endpoint(), RelationalEndpointRole::Before);
+    assert_eq!(
+        issue.reason(),
+        RelationalEndpointTotalityIssueReason::PartialRuleDispatch
+    );
+}
+
+#[test]
 fn complementary_modulo_guards_close_the_ordered_dispatch_residual() {
     let source = r#"
 | endpoint_test_modulo_partition(value: Int) -> 0 under value % 100 == 0
