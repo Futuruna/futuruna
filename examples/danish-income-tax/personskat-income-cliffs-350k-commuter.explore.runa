@@ -56,13 +56,17 @@ inputs. The mechanism views count distinct replay-derived signatures directly,
 including distinct signatures in each 50-DKK loss bin; they never infer a
 mechanism count from a case count.
 
-The two trailing `starters` consumers were appended after an exact first run
-identified the current structural mechanism IDs. They authorize typed starter
-fibers for those two subjects only. They do not alter or seed the source
-relation, cliff cases, mechanism replay or structural quotient; removing
-them leaves the answer-defining analysis identity unchanged. Their 100/150-km
-names describe the subsequently authenticated fibers rather than candidate
-coordinates supplied to the search.
+The trailing `starters` consumers were appended after exact runs identified
+their publication contracts' structural mechanism IDs. They authorize typed
+starter fibers for those subjects only. They do not alter or seed the source
+relation, cliff cases, mechanism replay or structural quotient; removing them
+leaves the answer-defining analysis identity unchanged. If a later structural
+quotient no longer contains a discovered address, its closed slice is
+authenticated exact-empty rather than silently redirected to a lookalike
+mechanism. The 100/150-km names describe subsequently authenticated fibers
+rather than candidate coordinates supplied to the search. The unqualified
+names retain the historical publication-v9 addresses; the `_v17` names attach
+the addresses discovered by the current publication-v17 result.
 
 The imported Personskat model carries the legal-source provenance for the
 calculation. This file is a bounded model audit, not individual tax advice.
@@ -425,4 +429,8 @@ calculation. This file is a bounded model audit, not individual tax advice.
     starters cliff_mechanism_100_km from mechanisms cliff_paths for mechanism "209897c89a8a3393f66e0ff631314a50eeb787dec688e9ee618944cc862a9d9d" using values from cliffs
 
     starters cliff_mechanism_150_km from mechanisms cliff_paths for mechanism "e993d97f96fb14ed7717649a633a98c727f7e828f01f38491a4e34d0b6f110af" using values from cliffs
+
+    starters cliff_mechanism_100_km_v17 from mechanisms cliff_paths for mechanism "d9dfd021cff7fbcd67247113ea544db72865946575e53ed915d44e5c222dd571" using values from cliffs
+
+    starters cliff_mechanism_150_km_v17 from mechanisms cliff_paths for mechanism "2b0db46ec32eeeae82f63adbebbac19f89352e2d73058ac9c3672371523c10b3" using values from cliffs
 }

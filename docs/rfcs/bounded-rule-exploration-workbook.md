@@ -1305,11 +1305,27 @@ suspected threshold or expected case is encoded in the relation. The typed
 `Before` carries the whole starting profile and salary, `Context` carries only
 the promotion, and the views count distinct `(Context, Before)` starters
 separately from cases and signatures. This query has passed targeted format and
-static checks but has not yet supplied semantic evidence.
-This is an exact result for the declared coarse relation, not a certificate for
-every one-krone transition or every profile. The authenticated external run
-closed at journal sequence 130 and head
-`81eaaa3bbd0089501dc9a2af7574762a7df8d0b0474673ddb223073265a6cf32`.
+static checks at this checkpoint; its later authenticated 10,500-case runs are
+recorded separately below. The sequence-130 external closure in the preceding
+paragraph belongs to the conditioned 2,000-case question, not this commuter
+relation. Every eventual result here remains exact only for its declared coarse
+relation, never for every one-krone transition or every profile.
+
+The current publication-v17 execution of that relation is now an authenticated
+exact result rather than a prefix. It closed 10,500 sources, cases, admissions
+and FIND classifications with zero rejections, 16 selected cliffs and 10,484
+non-selected cases. Mechanism analysis closed with two raw signatures, two
+structural mechanisms, two execution profiles, 16 successful incidences and
+zero unavailable cases. Each mechanism has exactly eight cases and eight
+distinct `(Context, Before)` starters; together they occupy the single declared
+50-DKK loss bin beginning at 50 DKK. After attaching the two discovered
+mechanism starter fibers, the saved bundle's 22 artifacts all match
+journal sequence 5,325 and head
+`47e1f09df411dc5db6981d620efadb6dc6a473fc4ff4d6318b79872525921bc6`.
+This closes the declared relation, not the profile schema: source coverage v3
+still reports four `schema_composition_unavailable` subjects. Structured
+exact-finite profile composition therefore remains a prerequisite for broader
+profile claims and for the planned 1,500,000-DKK audit.
 
 The complementary conditioned mechanism-landscape entrypoint is now authored
 with the same 2,000-edge relation, `find admitted_cases = all`, raw admitted-edge and successful

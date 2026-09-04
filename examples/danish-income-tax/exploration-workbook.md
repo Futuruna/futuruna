@@ -3301,7 +3301,122 @@ The ordinary interpreter remains the atomic whole-batch fallback, and the
 first successful native batch must agree with it before any native outcome is
 trusted. Resource containment is a passive ceiling around this path, not a
 separate exploration phase. The content-addressed executable can be reused by
-an unchanged checked query, so later resumes do not repay compilation.
+an unchanged checked query, so later resumes need not repay `rustc`; the later
+checkpoint below distinguishes that executable reuse from the still-repeated
+pre-cache code-generation analysis.
+
+A fresh publication-v17 run of the 10,500-case commuter relation then supplied
+an intentionally interruptible current-head prefix. Source and case geometry
+closed immediately at **10,500 exact**, including three exact 3,500-income
+profile groups. Native classification reached **lower_bound(7,168)** admitted
+cases and discovered **lower_bound(8)** selected cases; one of those selected
+cases had reached complete raw-signature incidence. Those are prefix facts
+only; relation, question, structural quotient and analysis closure remain open.
+
+That prefix exposed a warm-stream ownership bug before an hours-long run was
+allowed to continue. Each roughly 15-second `run_slice` rebuilt the
+`RelationalStreamDriver`; its mechanism driver therefore lost the process-local
+structural-quotient artifact, rederived the entire large mechanism DAG, and
+journaled only the next 32-KiB artifact chunk. The run was safely interrupted
+after durable sequence **1,209**, head
+`5bcdd3b6be60446e37cc41aff396c6aaa080cb63627e78cce122ad70a8bbe178`.
+Its authenticated prefix remains resumable. The direct fix is to retain the
+query-bound structural artifact across slices in one warm epoch while a cold
+resume still rederives and validates it once. No further semantic run should
+resume until that cache-ownership gate lands; repeated full derivation per
+chunk is algorithmic waste, not useful exploration.
+
+The focused warm/cold regression then proved one structural derivation across
+successive warm artifact chunks and exactly one authenticated rederivation
+after a cold reopen. Resuming the same journal advanced it to sequence
+**2,633**, head
+`12634184c72d2a0c324d52d3606bfe609dd65b0de8dee5010febbd2e1f41e2aa`.
+The stream now commits **lower_bound(1)** structural mechanism, one execution
+profile and five explained-case incidences for the still-open eight-case
+selected prefix. It paused safely with `resource_swap_growth`; none of those
+lower bounds may yet be read as final counts.
+
+That pause reason is not attributable evidence about this Explore worker.
+macOS exposes `Swapouts` as a boot-global counter, so any host process can
+advance it. The outer containment supervisor already samples this process
+group's RSS, available-memory floor, critical pressure and throttling while
+enforcing the operator's 6-GiB envelope as a stricter 5.5-GiB group trip after
+its 512-MiB untracked reserve. Under that validated containment only, swap
+growth should remain visible advisory telemetry instead of draining a
+roughly 1.2-GiB worker and ending its slice. Standalone governor use must keep
+the conservative hard backoff, and no actual RSS/headroom/pressure stop is
+weakened.
+
+That resume exposed the next operational bottleneck before another invocation.
+The native-classifier executable cache is currently consulted only after full
+classifier synthesis and Rust code generation. A cache hit therefore repays
+roughly the whole checked compiler analysis merely to reproduce the bytes used
+as its lookup key. Resume should instead derive an early cache address from the
+checked classifier identity plus Futuruna-compiler and `rustc` fingerprints,
+then retain the existing protocol identity handshake and checked-interpreter
+fallback. This is an operational cache change only: it must not enter query,
+journal or result identity.
+
+With both warm structural reuse and the early native-classifier cache in place,
+the same publication-v17 stream has now reached exact semantic and publication
+closure. Its authenticated checkpoint is sequence **5,325**, head
+`47e1f09df411dc5db6981d620efadb6dc6a473fc4ff4d6318b79872525921bc6`;
+the journal remains at 96 immutable segments and all 22 artifacts are caught up
+to that prefix. The final exact counts are:
+
+- **10,500** sources, cases, admissions and FIND-classified transitions;
+- **0** rejected, **16** selected and **10,484** non-selected transitions;
+- **2** affected starting profiles and **16** affected starting states;
+- **2** raw signatures, structural mechanisms and execution profiles;
+- **16** successful mechanism incidences and **0** unavailable cases; and
+- one exact 50-DKK loss bin beginning at 5,000 øre, containing both mechanisms,
+  both signatures, all 16 cases and both affected profiles.
+
+The cases are the eight lower salaries
+`342,400, 343,400, ..., 349,400 DKK` at 100 km and the same eight salaries at
+150 km, each followed by the declared 100-DKK promotion. The 50-km profile has
+no selected case. Modeled disposable-income loss is **8,161--8,185 øre**. The
+current structural mechanism IDs are `d9dfd021...` at 100 km and `2b0db46e...`
+at 150 km; each has exactly one raw signature, eight cases and eight distinct
+starters. These IDs are discovered result addresses, not authored policy names.
+
+The compact human-usable evidence is outside the checkout under
+`/Users/andreasrudolph/futuruna-explore-runs/personskat-350k-commuter-current-v1.result`:
+`views/cliffs.ndjson` holds all 16 typed configurations,
+`views/mechanism_starter_support.ndjson` holds the exact per-mechanism counts,
+`views/mechanism_loss_bins_50_dkk.ndjson` holds the histogram row, and
+`graphs/case-transitions.ndjson` is the case graph. `manifest.json` binds these
+to the terminal journal head. The final resume spent roughly four minutes on
+checked reopen and publication catch-up while appending **zero semantic
+events**: sequence and head did not move from the already closed journal.
+
+The two unqualified checked-in convenience `starters` declarations still name
+mechanism IDs discovered under the earlier publication-v9 structural quotient.
+Under the current closed quotient those subjects are absent. Publication now
+reports each one as an authenticated exact-empty closed slice, including
+`structural_subject_membership = absent_from_closed_structural_catalog`, rather
+than failing the otherwise complete result or inventing members.
+
+The two current IDs were then attached as `_v17` additive consumers. That
+resume left the journal at the same sequence and head—again appending **zero
+semantic events**—and added four caught-up artifacts. Each starter stream is
+three NDJSON records and 28,755 bytes: a header, one page with eight typed
+members and an exact closure. The closures independently certify eight cases,
+eight distinct starters, equal inner/outer correlated-support roots and
+`exact_starter_set`. The materialized values confirm that `d9dfd021...` is the
+100-km fiber and `2b0db46e...` is the 150-km fiber, each over the eight salaries
+listed above. They are saved as
+`starters/cliff_mechanism_100_km_v17.ndjson` and
+`starters/cliff_mechanism_150_km_v17.ndjson` in the external result bundle.
+
+This exactness is deliberately scoped. Source coverage v3 reports
+`has_gaps = true`: four composed Before/profile subjects, including municipality
+and age-status projections, remain `schema_composition_unavailable`. The three
+declared commuter groups and their 3,500 salary coordinates are exact, but this
+manifest is not yet a certificate that all other profile dimensions were
+exhaustively classified. Carrying structured exact-finite profile factors
+through the coverage algebra is therefore the next semantic gate before a
+broader profile audit or the planned 1,500,000-DKK stream.
 
 This result is not an exact-empty certificate for 1-DKK transitions or other
 profiles. It also revealed one provenance debt in the audit source: the
@@ -3883,12 +3998,28 @@ is itself completely covered, or when a future explicit checked bridge proves
 which coarse regions transfer. Resolution is an operational search strategy;
 coverage remains tied to the declared relation identity.
 
-After the conditioned mechanism-landscape audit, the next widening keeps the
-same income horizon but replaces the conditioned context with a genuinely
-multidimensional coherent profile relation. It must additionally publish
-profile counts and 50-DKK loss-bin views. This is still a system audit rather
-than a claim that the model covers every real Danish taxpayer; any
-profile-model gaps remain explicit output.
+The next widening keeps the same income horizon but replaces the conditioned
+profile with a genuinely multidimensional coherent profile relation. It comes
+before the all-admitted mechanism-landscape audit: widening starter structure
+can validate profile grouping and sparse selected-only mechanism/support paths
+without first tracing every admitted edge. It must additionally publish profile
+counts and 50-DKK loss-bin views. The all-admitted question remains a later
+shared-relation consumer when signature-change discovery justifies its replay
+cost. This is still a system audit rather than a claim that the model covers
+every real Danish taxpayer; any profile-model gaps remain explicit output.
+
+Its first bounded form is deliberately algebraic rather than a bag of
+independent switches. One exact finite `Personskat200kProfile` has only church
+tax status and the relevant two-case age-status enum, so `values(Profile)`
+contains four coherent members. Cross those four members with the existing
+2,000 income coordinates and the declared relation has **8,000 exact cases**
+and four exact profile groups of 2,000. A typed scope inside `Before` carries
+year, municipality and every remaining conditioned fact; `Context` carries
+only the 100-DKK promotion. Source-image proof must certify the structured
+profile's direct identity path into `Before.profile`, and native execution must
+transport its authenticated finite ordinal before this run is launched. The
+8,000 relation size is an input theorem; selected cases, mechanisms and loss
+bins remain outputs and must not be guessed into acceptance.
 
 That historical conditioned Personskat relation had no selected coarse cliff
 in that horizon, and every declared source, successor, classification
