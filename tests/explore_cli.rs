@@ -249,6 +249,136 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
 }
 
 #[test]
+fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() {
+    let fixture = fixture();
+    let temp = TestDirectory::new();
+    let run_state = temp.path().join("absent-mechanism-state");
+    let output_directory = temp.path().join("absent-mechanism-output");
+    let absent_mechanism_id = "a5".repeat(32);
+
+    let fixture_source = std::fs::read_to_string(&fixture).expect("read Explore fixture");
+    let next_query = fixture_source
+        .find("\n? explore relational_stream_empty_smoke")
+        .expect("second Explore fixture query");
+    let closing_brace = fixture_source[..next_query]
+        .rfind('}')
+        .expect("first Explore fixture query closing brace");
+    let projected_source = format!(
+        "{}    starters absent_closed_mechanism from mechanisms paths for mechanism \"{}\" using values from selected_cases\n{}",
+        &fixture_source[..closing_brace],
+        absent_mechanism_id,
+        &fixture_source[closing_brace..],
+    );
+    let projected_fixture = temp
+        .path()
+        .join("relational-explore-absent-mechanism-starters.runa");
+    std::fs::write(&projected_fixture, projected_source)
+        .expect("write absent-mechanism Explore fixture");
+
+    let output = run_explore(&projected_fixture, &run_state, &output_directory);
+    assert_success(&output);
+    let report = parse_stdout(&output);
+    assert_eq!(report["run"]["lifecycle"], "complete");
+    assert_eq!(report["publication"]["caught_up"], true);
+
+    let manifest = read_json(&output_directory.join("manifest.json"));
+    let starter_artifact = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "subject_starter_support"
+                && artifact["name"] == "absent_closed_mechanism"
+        })
+        .expect("absent subject starter artifact");
+    assert_eq!(
+        starter_artifact["structural_subject_membership"],
+        "absent_from_closed_structural_catalog"
+    );
+    assert_eq!(
+        starter_artifact["availability"],
+        serde_json::json!({
+            "status": "exact_projection_available",
+            "exact_case_count": "0",
+        })
+    );
+
+    let starter_records = read_ndjson(&named_artifact_path(
+        &manifest,
+        &output_directory,
+        "subject_starter_support",
+        "absent_closed_mechanism",
+    ));
+    assert_eq!(
+        starter_records
+            .iter()
+            .map(|record| record["record"]["kind"]
+                .as_str()
+                .expect("starter record kind"))
+            .collect::<Vec<_>>(),
+        vec![
+            "subject_starters_header",
+            "subject_starters_page",
+            "subject_starters_closure",
+        ]
+    );
+    assert_eq!(starter_records[0]["record"]["exact_case_count"], "0");
+    assert!(starter_records[1]["record"]["members"]
+        .as_array()
+        .expect("empty terminal starter page members")
+        .is_empty());
+    assert_eq!(starter_records[1]["record"]["exhausted"], true);
+    assert_eq!(starter_records[2]["record"]["exact_case_count"], "0");
+    assert_eq!(
+        starter_records[2]["record"]["exact_distinct_starter_count"],
+        "0"
+    );
+
+    let region_artifact = manifest["artifacts"]
+        .as_array()
+        .expect("manifest artifacts")
+        .iter()
+        .find(|artifact| {
+            artifact["kind"] == "subject_support_regions"
+                && artifact["name"] == "absent_closed_mechanism_regions"
+        })
+        .expect("absent subject support-region artifact");
+    assert_eq!(
+        region_artifact["structural_subject_membership"],
+        "absent_from_closed_structural_catalog"
+    );
+    assert_eq!(region_artifact["exact_case_count"], "0");
+    assert_eq!(
+        region_artifact["availability"]["status"],
+        "exact_support_navigation_available"
+    );
+
+    let region_records = read_ndjson(&named_artifact_path(
+        &manifest,
+        &output_directory,
+        "subject_support_regions",
+        "absent_closed_mechanism_regions",
+    ));
+    assert_eq!(region_records.len(), 2);
+    assert_eq!(
+        region_records[0]["record"]["kind"],
+        "subject_support_regions_header"
+    );
+    assert_eq!(
+        region_records[1]["record"]["kind"],
+        "subject_support_regions_closure"
+    );
+    assert_eq!(
+        region_records[1]["record"]["counts"]["total_cases"]["value"],
+        "0"
+    );
+    assert_eq!(
+        region_records[1]["record"]["counts"]["total_distinct_starters"]["value"],
+        "0"
+    );
+}
+
+#[test]
 fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exactly() {
     let fixture = fixture();
     let temp = TestDirectory::new();

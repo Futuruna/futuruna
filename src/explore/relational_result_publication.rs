@@ -71,12 +71,12 @@ use super::mechanism_support::{
     MechanismExplicitObservationRegistrationDisposition,
     MechanismExplicitObservationRegistrationPhase, MechanismExplicitObservationSchedulerSummary,
     MechanismFactorizedStarterBoundBasis, MechanismStarterSetStatus,
-    MechanismSupportCatalogBuilder, MechanismSupportClosureReceipt, MechanismSupportCount,
-    MechanismSupportExpressionBounds, MechanismSupportFacet, MechanismSupportKey,
-    MechanismSupportSlice, MechanismSupportStarterCursor, MechanismSupportSubject,
-    AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT, MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION,
-    MECHANISM_STARTER_PROJECTION_EXPR_VERSION, MECHANISM_STARTER_PROJECTION_PLAN_VERSION,
-    MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
+    MechanismStructuralSubjectMembership, MechanismSupportCatalogBuilder,
+    MechanismSupportClosureReceipt, MechanismSupportCount, MechanismSupportExpressionBounds,
+    MechanismSupportFacet, MechanismSupportKey, MechanismSupportSlice,
+    MechanismSupportStarterCursor, MechanismSupportSubject, AUTOMATIC_SUBJECT_SIGNATURE_SCAN_LIMIT,
+    MECHANISM_FACTORIZED_SUPPORT_OBSERVATION_VERSION, MECHANISM_STARTER_PROJECTION_EXPR_VERSION,
+    MECHANISM_STARTER_PROJECTION_PLAN_VERSION, MECHANISM_SUPPORT_FIBER_EXPR_VERSION,
 };
 use super::relational_analysis_catalog::{
     RelationalAnalysisLayerSnapshot, RelationalAnalysisLayerStatus,
@@ -7245,6 +7245,15 @@ const fn public_mechanism_starter_set_status(status: MechanismStarterSetStatus) 
     }
 }
 
+const fn public_structural_subject_membership(
+    membership: MechanismStructuralSubjectMembership,
+) -> &'static str {
+    match membership {
+        MechanismStructuralSubjectMembership::Present => "present",
+        MechanismStructuralSubjectMembership::Absent => "absent_from_closed_structural_catalog",
+    }
+}
+
 const fn public_mechanism_correlated_support_status(
     status: MechanismCorrelatedSupportStatus,
 ) -> &'static str {
@@ -11166,6 +11175,13 @@ fn build_manifest(
                         public_mechanism_support_slice(*mechanism_id),
                     );
                 }
+                let projection_authority = subject_starter_publication_authority(
+                    journal,
+                    *request_id,
+                    target.semantic_target(),
+                    *subject,
+                    *within_mechanism,
+                )?;
                 let availability = match mechanism_starter_unavailable_residual_case_count(
                     journal,
                     *request_id,
@@ -11175,20 +11191,44 @@ fn build_manifest(
                         "reason": "closed_mechanism_replay_residual",
                         "unavailable_case_count": unavailable_case_count.to_string(),
                     }),
-                    None if subject_starter_publication_authority(
-                        journal,
-                        *request_id,
-                        target.semantic_target(),
-                        *subject,
-                        *within_mechanism,
-                    )?
-                    .is_some() =>
-                    {
-                        json!({ "status": "exact_projection_available" })
-                    }
-                    None => json!({ "status": "awaiting_exact_support" }),
+                    None => projection_authority.as_ref().map_or_else(
+                        || json!({ "status": "awaiting_exact_support" }),
+                        |authority| {
+                            json!({
+                                "status": "exact_projection_available",
+                                "exact_case_count": authority
+                                    .key_authority
+                                    .exact_case_count()
+                                    .to_string(),
+                            })
+                        },
+                    ),
                 };
                 object.insert("availability".into(), availability);
+                if let Some(authority) = projection_authority.as_ref() {
+                    object.insert(
+                        "structural_subject_membership".into(),
+                        JsonValue::String(
+                            public_structural_subject_membership(
+                                authority
+                                    .key_authority
+                                    .structural_subject_membership(),
+                            )
+                            .into(),
+                        ),
+                    );
+                    if let Some(membership) = authority
+                        .key_authority
+                        .enclosing_mechanism_membership()
+                    {
+                        object.insert(
+                            "structural_enclosing_mechanism_membership".into(),
+                            JsonValue::String(
+                                public_structural_subject_membership(membership).into(),
+                            ),
+                        );
+                    }
+                }
                 object.insert(
                     "authorization".into(),
                     public_mechanism_starter_authorization(authorization),
@@ -11244,6 +11284,10 @@ fn build_manifest(
             }
             if let PublicationArtifactPlan::SubjectSupportRegions {
                 consumer_id,
+                request_id,
+                target,
+                subject,
+                within_mechanism,
                 source_starters_artifact_key,
                 source_starters_artifact_path,
                 ..
@@ -11261,6 +11305,40 @@ fn build_manifest(
                     "consumer_id".into(),
                     JsonValue::String(hex(*consumer_id)),
                 );
+                if let Some(authority) = subject_starter_publication_authority(
+                    journal,
+                    *request_id,
+                    target.semantic_target(),
+                    *subject,
+                    *within_mechanism,
+                )? {
+                    object.insert(
+                        "structural_subject_membership".into(),
+                        JsonValue::String(
+                            public_structural_subject_membership(
+                                authority
+                                    .key_authority
+                                    .structural_subject_membership(),
+                            )
+                            .into(),
+                        ),
+                    );
+                    object.insert(
+                        "exact_case_count".into(),
+                        JsonValue::String(authority.key_authority.exact_case_count().to_string()),
+                    );
+                    if let Some(membership) = authority
+                        .key_authority
+                        .enclosing_mechanism_membership()
+                    {
+                        object.insert(
+                            "structural_enclosing_mechanism_membership".into(),
+                            JsonValue::String(
+                                public_structural_subject_membership(membership).into(),
+                            ),
+                        );
+                    }
+                }
                 object.insert(
                     "availability".into(),
                     if ordinal_index.subject_support_regions.contains_key(consumer_id) {
@@ -12344,6 +12422,9 @@ fn artifact_layer_roots(
                 "request_id": hex(request_id.bytes()),
                 "target": public_mechanism_target_id(target),
                 "subject": public_mechanism_support_subject(*subject),
+                "structural_subject_membership": public_structural_subject_membership(
+                    authority.key_authority.structural_subject_membership()
+                ),
                 "projection_plan_id": hex(authority.key_authority.projection_plan_id().bytes()),
                 "projection_job_id": hex(job.id().bytes()),
                 "authorization_id": hex(authorization.authorization_id().bytes()),
@@ -12352,6 +12433,15 @@ fn artifact_layer_roots(
                 "structural_quotient_root": hex(authority.structural_closure.root().bytes()),
                 "mechanism_support_closure_root": hex(authority.support_closure.root().bytes()),
             });
+            if let Some(membership) = authority.key_authority.enclosing_mechanism_membership() {
+                roots
+                    .as_object_mut()
+                    .expect("subject-starter roots are a JSON object")
+                    .insert(
+                        "structural_enclosing_mechanism_membership".into(),
+                        JsonValue::String(public_structural_subject_membership(membership).into()),
+                    );
+            }
             insert_public_mechanism_support_slice(&mut roots, *within_mechanism);
             Ok(roots)
         }

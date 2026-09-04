@@ -191,6 +191,20 @@ impl MechanismSupportSubject {
     }
 }
 
+/// Closed-world membership of an explicitly addressed structural subject.
+///
+/// An Explore consumer may use a well-formed structural ID as a relational
+/// predicate even when that ID is not a member of this request's final
+/// quotient. Once the quotient is closed, absence is proof of an exact-empty
+/// support relation rather than an analysis error. This status keeps that
+/// case distinct from a present node or edge facet whose differential support
+/// happens to be empty.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) enum MechanismStructuralSubjectMembership {
+    Present,
+    Absent,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct MechanismSupportKey {
     request_id: MechanismRequestId,
@@ -557,6 +571,8 @@ impl MechanismStarterProjectionPlanId {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct MechanismClosedSubjectStarterProjectionAuthority {
     slice: MechanismSupportSlice,
+    structural_subject_membership: MechanismStructuralSubjectMembership,
+    enclosing_mechanism_membership: Option<MechanismStructuralSubjectMembership>,
     question_id: QuestionId,
     projection_plan_id: MechanismStarterProjectionPlanId,
     support_expression_bounds: MechanismSupportExpressionBounds,
@@ -572,6 +588,18 @@ impl MechanismClosedSubjectStarterProjectionAuthority {
 
     pub(crate) const fn key(self) -> MechanismSupportKey {
         self.slice.key()
+    }
+
+    pub(crate) const fn structural_subject_membership(
+        self,
+    ) -> MechanismStructuralSubjectMembership {
+        self.structural_subject_membership
+    }
+
+    pub(crate) const fn enclosing_mechanism_membership(
+        self,
+    ) -> Option<MechanismStructuralSubjectMembership> {
+        self.enclosing_mechanism_membership
     }
 
     pub(crate) const fn question_id(self) -> QuestionId {
@@ -4905,8 +4933,10 @@ impl MechanismSupportCatalogBuilder {
         if closure_encoder.finish() != support_closure.root().bytes() {
             return Err(MechanismSupportError::ClosureConflict);
         }
-        validate_structural_subject(structural, slice.subject())?;
-
+        // This is a closed-world relational selector. A well-formed subject
+        // ID absent from the sealed structural quotient denotes the exact
+        // empty set; open-prefix APIs still reject an unknown subject because
+        // they cannot yet prove absence.
         let signatures = supporting_signatures_for_slice(structural, slice)?;
         let contributing_signature_count = signatures.len() as u128;
         let mut prefix_encoder = factorized_support_slice_signature_prefix_encoder(slice);
@@ -5102,7 +5132,9 @@ impl MechanismSupportCatalogBuilder {
 
     /// Freeze exact key-only paging authority for a total or route-conditioned
     /// support slice. Both forms use the same correlated signature fibers; the
-    /// slice only changes which raw signatures participate.
+    /// slice only changes which raw signatures participate. A well-formed
+    /// subject absent from the closed structural quotient receives an
+    /// authenticated exact-empty authority.
     pub(crate) fn derive_closed_support_slice_starter_projection_authority(
         &self,
         slice: MechanismSupportSlice,
@@ -5133,10 +5165,17 @@ impl MechanismSupportCatalogBuilder {
             ));
         }
 
-        // `derive_closed_factorized_subject_summary` already proved structural
-        // existence. An absent differential signature index therefore means
-        // exact empty support for this facet; it must not be conflated with an
-        // unknown node or edge.
+        let subject_membership = structural_subject_membership(structural, slice.subject());
+        let enclosing_mechanism_membership = slice.enclosing_mechanism().map(|mechanism_id| {
+            structural_subject_membership(
+                structural,
+                MechanismSupportSubject::Mechanism(mechanism_id),
+            )
+        });
+        // The closed summary proved either structural membership or
+        // closed-world absence. An absent signature index therefore means
+        // exact empty support, while the membership status preserves the
+        // distinction between an absent subject and a present empty facet.
         let signatures = supporting_signatures_for_slice(structural, slice)?;
         let mut exact_case_count = 0u128;
         for signature_id in signatures.iter() {
@@ -5191,6 +5230,8 @@ impl MechanismSupportCatalogBuilder {
 
         Ok(MechanismClosedSubjectStarterProjectionAuthority {
             slice,
+            structural_subject_membership: subject_membership,
+            enclosing_mechanism_membership,
             question_id: self.scope.question_id(),
             projection_plan_id: summary.projection_plan_id(),
             support_expression_bounds: summary.support_expression_bounds(),
@@ -5964,11 +6005,10 @@ fn supporting_signatures_for_slice<'a>(
     slice: MechanismSupportSlice,
 ) -> Result<SupportingSignatureSlice<'a>, MechanismSupportError> {
     let mechanism_signatures = match slice.enclosing_mechanism() {
-        Some(mechanism_id) => Some(
-            structural
-                .signatures_for_mechanism(mechanism_id)
-                .ok_or(MechanismSupportError::UnknownStructuralSubject)?,
-        ),
+        Some(mechanism_id) => match structural.signatures_for_mechanism(mechanism_id) {
+            Some(signatures) => Some(signatures),
+            None => return Ok(SupportingSignatureSlice::Empty),
+        },
         None => None,
     };
     let Some(subject_signatures) = supporting_signatures(structural, slice.subject()) else {
@@ -6022,17 +6062,30 @@ fn validate_structural_subject(
     structural: &StructuralMechanismCatalogBuilder,
     subject: MechanismSupportSubject,
 ) -> Result<(), MechanismSupportError> {
-    let known = match subject {
+    if structural_subject_membership(structural, subject)
+        == MechanismStructuralSubjectMembership::Present
+    {
+        Ok(())
+    } else {
+        Err(MechanismSupportError::UnknownStructuralSubject)
+    }
+}
+
+fn structural_subject_membership(
+    structural: &StructuralMechanismCatalogBuilder,
+    subject: MechanismSupportSubject,
+) -> MechanismStructuralSubjectMembership {
+    let present = match subject {
         MechanismSupportSubject::Mechanism(mechanism_id) => {
             structural.contains_mechanism(mechanism_id)
         }
         MechanismSupportSubject::Node { node_id, .. } => structural.contains_node(node_id),
         MechanismSupportSubject::Edge { edge_id, .. } => structural.contains_edge(edge_id),
     };
-    if known {
-        Ok(())
+    if present {
+        MechanismStructuralSubjectMembership::Present
     } else {
-        Err(MechanismSupportError::UnknownStructuralSubject)
+        MechanismStructuralSubjectMembership::Absent
     }
 }
 
@@ -9220,6 +9273,10 @@ mod tests {
                 .support
                 .derive_closed_subject_starter_projection_authority(key, &fixture.structural)
                 .expect("known empty subject authority");
+            assert_eq!(
+                authority.structural_subject_membership(),
+                MechanismStructuralSubjectMembership::Present
+            );
             assert_eq!(authority.exact_case_count(), 0);
             let page = fixture
                 .support
@@ -9235,5 +9292,76 @@ mod tests {
             assert!(page.exhausted());
             assert_eq!(page.end_cursor(), None);
         }
+    }
+
+    #[test]
+    fn absent_subject_in_closed_structural_catalog_is_authenticated_exact_empty() {
+        let fixture = closed_subject_starter_fixture();
+        let absent_mechanism = StructuralMechanismId::from_checked_source_bytes([0xa5; 32]);
+        assert_ne!(absent_mechanism, fixture.mechanism_id);
+        assert!(!fixture.structural.contains_mechanism(absent_mechanism));
+
+        let key = MechanismSupportKey::new(
+            fixture.support.scope(),
+            MechanismSupportSubject::Mechanism(absent_mechanism),
+        );
+        let summary = fixture
+            .support
+            .derive_closed_factorized_subject_summary(key, &fixture.structural)
+            .expect("closed-world absent subject summary");
+        assert_eq!(summary.case_count(), MechanismSupportCount::Exact(0));
+        assert_eq!(summary.starter_count(), MechanismSupportCount::Exact(0));
+        assert_eq!(
+            summary.starter_bound_basis(),
+            MechanismFactorizedStarterBoundBasis::ExactEmpty
+        );
+
+        let authority = fixture
+            .support
+            .derive_closed_subject_starter_projection_authority(key, &fixture.structural)
+            .expect("closed-world absent subject authority");
+        assert_eq!(
+            authority.structural_subject_membership(),
+            MechanismStructuralSubjectMembership::Absent
+        );
+        assert_eq!(authority.exact_case_count(), 0);
+        let page = fixture
+            .support
+            .closed_subject_starter_page(
+                authority,
+                &fixture.structural,
+                fixture.relation_id,
+                None,
+                NonZeroU16::new(1).unwrap(),
+            )
+            .expect("closed-world absent subject page");
+        assert!(page.members().is_empty());
+        assert!(page.exhausted());
+        assert_eq!(page.end_cursor(), None);
+
+        let absent_route = StructuralMechanismId::from_checked_source_bytes([0xa6; 32]);
+        let present_node_key = MechanismSupportKey::new(
+            fixture.support.scope(),
+            MechanismSupportSubject::Node {
+                facet: MechanismSupportFacet::Activation,
+                node_id: fixture.node_ids[0],
+            },
+        );
+        let routed_authority = fixture
+            .support
+            .derive_closed_support_slice_starter_projection_authority(
+                MechanismSupportSlice::within_mechanism(present_node_key, absent_route),
+                &fixture.structural,
+            )
+            .expect("closed-world absent route authority");
+        assert_eq!(
+            routed_authority.structural_subject_membership(),
+            MechanismStructuralSubjectMembership::Present
+        );
+        assert_eq!(
+            routed_authority.enclosing_mechanism_membership(),
+            Some(MechanismStructuralSubjectMembership::Absent)
+        );
+        assert_eq!(routed_authority.exact_case_count(), 0);
     }
 }
