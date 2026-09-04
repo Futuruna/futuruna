@@ -35,6 +35,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 
 pub mod calculate;
 mod checked_explore_classification;
+mod checked_explore_source_events;
 pub mod explore;
 /// Proof kernel — Curry-Howard verification layer for the `?` rune.
 /// Lives in its own file so it can be audited in isolation.
@@ -29239,6 +29240,11 @@ pub(crate) struct CheckedExploreQueryArtifact {
     /// never inside, the reusable name-free classification program.
     classification_runtime_shapes:
         Arc<explore::relational_classification_capsule::FrozenClassificationRuntimeShapes>,
+    /// Versioned, solver-neutral source/law boundary candidates extracted
+    /// while the checked syntax, resolution graph, and relational query are
+    /// still joined. These are scheduling hints only: unsupported extraction
+    /// is retained as an explicit residual and never narrows execution.
+    source_event_inventory: Arc<checked_explore_source_events::CheckedExploreSourceEventInventory>,
     /// Compiler-owned transitive declaration slice for an optional native
     /// classifier. Occurrence identity prevents an accelerator from silently
     /// selecting another same-spelled declaration from the flattened graph.
@@ -29411,6 +29417,15 @@ impl CheckedExploreQueryView<'_> {
         &self,
     ) -> Arc<explore::relational_classification_capsule::FrozenClassificationRuntimeShapes> {
         Arc::clone(&self.artifact.classification_runtime_shapes)
+    }
+
+    /// Compiler-minted rule/source boundary candidates for this exact checked
+    /// query. The returned inventory is immutable and survives conversion to
+    /// [`OwnedCheckedExploreQuery`].
+    pub(crate) fn source_event_inventory(
+        &self,
+    ) -> &checked_explore_source_events::CheckedExploreSourceEventInventory {
+        self.artifact.source_event_inventory.as_ref()
     }
 
     /// Producer-bound schema identities for replaying this query's
@@ -30529,8 +30544,22 @@ impl TypeCheckArtifacts {
                     error.to_string().into_boxed_str(),
                 )
             })?;
+        let rebuilt_source_events =
+            checked_explore_source_events::checked_explore_source_event_inventory(
+                &self.analysis_program,
+                &self.checked_resolutions,
+                public_closed_query,
+                &sites,
+                ladder.relation_id,
+                ladder.admission_id,
+                &ladder.find_question_ids,
+                semantic_index,
+            )
+            .map_err(|_| CheckedExploreQueryAccessError::ArtifactDiverged)?;
         if !artifact.classification_program.validate_identity()
             || !artifact.classification_runtime_shapes.validate_identity()
+            || !artifact.source_event_inventory.validate_identity()
+            || rebuilt_source_events != *artifact.source_event_inventory
             || artifact
                 .classification_runtime_shapes
                 .validate_for_program(artifact.classification_program.as_ref())
@@ -40852,6 +40881,17 @@ fn build_checked_explore_query_artifact(
     .map_err(|error| {
         CheckedExploreQueryArtifactIssue::ClassificationProgram(error.to_string().into_boxed_str())
     })?;
+    let source_event_inventory =
+        checked_explore_source_events::checked_explore_source_event_inventory(
+            program,
+            resolutions,
+            closed_query,
+            &sites,
+            ladder.relation_id,
+            ladder.admission_id,
+            &ladder.find_question_ids,
+            semantic_index,
+        )?;
     Ok(CheckedExploreQueryArtifact {
         identity,
         relation_id: ladder.relation_id,
@@ -40860,6 +40900,7 @@ fn build_checked_explore_query_artifact(
         question_ids: ladder.question_ids,
         classification_program: Arc::new(classification.program),
         classification_runtime_shapes: Arc::new(classification.runtime_shapes),
+        source_event_inventory: Arc::new(source_event_inventory),
         classifier_reachable_declarations: ladder.classifier_reachable_declarations,
         classifier_reachable_dependencies: ladder.classifier_reachable_dependencies,
         transition_schemas: ladder.transition_schemas,
