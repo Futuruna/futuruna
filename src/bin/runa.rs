@@ -8046,8 +8046,272 @@ fn run_relational_explore_stream(
     }
 }
 
-const EXPLORE_NATIVE_CLASSIFIER_CACHE_VERSION_V2: u32 = 2;
+const EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_VERSION_V3: u32 = 3;
+const EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_DOMAIN_V3: &[u8] =
+    b"futuruna.explore.native-classifier.derivation-cache.v3";
 const EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2: i32 = 70;
+
+fn explore_native_classifier_cache_hash_usize_v3(hasher: &mut Sha256, value: usize) -> Option<()> {
+    cache_hash_segment(hasher, &u64::try_from(value).ok()?.to_le_bytes());
+    Some(())
+}
+
+fn explore_native_classifier_cache_hash_optional_string_v3(
+    hasher: &mut Sha256,
+    value: Option<&str>,
+) {
+    match value {
+        Some(value) => {
+            cache_hash_segment(hasher, &[1]);
+            cache_hash_segment(hasher, value.as_bytes());
+        }
+        None => cache_hash_segment(hasher, &[0]),
+    }
+}
+
+fn explore_native_classifier_cache_hash_ty_v3(hasher: &mut Sha256, ty: &Ty) -> Option<()> {
+    match ty {
+        Ty::Name(name) => {
+            cache_hash_segment(hasher, &[0]);
+            cache_hash_segment(hasher, name.as_bytes());
+        }
+        Ty::App(constructor, arguments) => {
+            cache_hash_segment(hasher, &[1]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, constructor)?;
+            explore_native_classifier_cache_hash_usize_v3(hasher, arguments.len())?;
+            for argument in arguments {
+                explore_native_classifier_cache_hash_ty_v3(hasher, argument)?;
+            }
+        }
+        Ty::Arrow(input, output) => {
+            cache_hash_segment(hasher, &[2]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, input)?;
+            explore_native_classifier_cache_hash_ty_v3(hasher, output)?;
+        }
+        Ty::Ref(inner) => {
+            cache_hash_segment(hasher, &[3]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::MutRef(inner) => {
+            cache_hash_segment(hasher, &[4]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Shared(inner) => {
+            cache_hash_segment(hasher, &[5]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Optional(inner) => {
+            cache_hash_segment(hasher, &[6]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Var(name) => {
+            cache_hash_segment(hasher, &[7]);
+            cache_hash_segment(hasher, name.as_bytes());
+        }
+        Ty::Unit => cache_hash_segment(hasher, &[8]),
+        Ty::Hole => cache_hash_segment(hasher, &[9]),
+    }
+    Some(())
+}
+
+fn explore_native_classifier_cache_hash_rule_key_v3(
+    hasher: &mut Sha256,
+    key: &RuleDispatchKey,
+) -> Option<()> {
+    explore_native_classifier_cache_hash_optional_string_v3(hasher, key.scope.as_deref());
+    cache_hash_segment(hasher, key.name.as_bytes());
+    explore_native_classifier_cache_hash_usize_v3(hasher, key.arity)
+}
+
+fn explore_native_classifier_cache_hash_rule_metadata_v3(
+    hasher: &mut Sha256,
+    metadata: &explore::ExploreNativeClassifierRuleMetadataV2,
+) -> Option<()> {
+    cache_hash_segment(hasher, &metadata.checked_program);
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.return_types.len())?;
+    for (key, value) in &metadata.return_types {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        cache_hash_segment(hasher, value.as_bytes());
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.return_issues.len())?;
+    for (key, value) in &metadata.return_issues {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        cache_hash_segment(hasher, value.as_bytes());
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.parameter_types.len())?;
+    for (key, parameters) in &metadata.parameter_types {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        explore_native_classifier_cache_hash_usize_v3(hasher, parameters.len())?;
+        for parameter in parameters {
+            explore_native_classifier_cache_hash_optional_string_v3(hasher, parameter.as_deref());
+        }
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.parameter_names.len())?;
+    for (key, parameters) in &metadata.parameter_names {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        explore_native_classifier_cache_hash_usize_v3(hasher, parameters.len())?;
+        for parameter in parameters {
+            explore_native_classifier_cache_hash_optional_string_v3(hasher, parameter.as_deref());
+        }
+    }
+
+    for keys in [
+        &metadata.parameter_issues,
+        &metadata.boolean_miss_safe_keys,
+        &metadata.runtime_irrefutable_keys,
+    ] {
+        explore_native_classifier_cache_hash_usize_v3(hasher, keys.len())?;
+        for key in keys {
+            explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        }
+    }
+    Some(())
+}
+
+/// Derive the pre-codegen cache address from producer identities plus the
+/// cheap classifier shape that is not itself carried by those identities.
+/// Expression and declaration bodies are already committed by
+/// `checked_program`; the compiler executable hash binds their lowering and
+/// slice-selection algorithm without walking or formatting that AST again.
+fn explore_native_classifier_derivation_cache_key_v3(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+    compiler_identity: &str,
+    rustc_identity: &str,
+) -> Option<String> {
+    if plan.rule_metadata.checked_program != plan.identity.checked_program
+        || !valid_sha256(compiler_identity)
+        || !valid_sha256(rustc_identity)
+    {
+        return None;
+    }
+
+    let mut hasher = Sha256::new();
+    cache_hash_segment(
+        &mut hasher,
+        EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_DOMAIN_V3,
+    );
+    cache_hash_segment(
+        &mut hasher,
+        &EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_VERSION_V3.to_le_bytes(),
+    );
+    cache_hash_segment(&mut hasher, compiler_identity.as_bytes());
+    cache_hash_segment(&mut hasher, rustc_identity.as_bytes());
+    cache_hash_segment(
+        &mut hasher,
+        &explore::RelationalNativeClassifierProtocolV2::VERSION.to_le_bytes(),
+    );
+    cache_hash_segment(
+        &mut hasher,
+        &EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2.to_le_bytes(),
+    );
+    cache_hash_segment(&mut hasher, &plan.identity.checked_program);
+    cache_hash_segment(&mut hasher, &plan.identity.relation_id);
+    cache_hash_segment(&mut hasher, &plan.identity.admission_id);
+    cache_hash_segment(&mut hasher, &plan.identity.question_id);
+
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.source_bindings.len())?;
+    for binding in &plan.source_bindings {
+        explore_native_classifier_cache_hash_usize_v3(&mut hasher, binding.binding_index)?;
+        cache_hash_segment(&mut hasher, binding.name.as_bytes());
+        explore_native_classifier_cache_hash_ty_v3(&mut hasher, &binding.ty)?;
+        let kind = match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => 0,
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => 1,
+        };
+        cache_hash_segment(&mut hasher, &[kind]);
+    }
+    explore_native_classifier_cache_hash_usize_v3(
+        &mut hasher,
+        plan.finite_input_binding_indices.len(),
+    )?;
+    for index in &plan.finite_input_binding_indices {
+        explore_native_classifier_cache_hash_usize_v3(&mut hasher, *index)?;
+    }
+    cache_hash_segment(&mut hasher, &plan.finite_coordinate_count.to_le_bytes());
+    cache_hash_segment(&mut hasher, plan.after_binding_name.as_bytes());
+    explore_native_classifier_cache_hash_ty_v3(&mut hasher, &plan.after_ty)?;
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.admissions.len())?;
+    for admission in &plan.admissions {
+        let scope = match admission.scope {
+            ExploreAdmissionScope::Before => 0,
+            ExploreAdmissionScope::After => 1,
+            ExploreAdmissionScope::Transition => 2,
+        };
+        cache_hash_segment(&mut hasher, &[scope]);
+    }
+    let find = match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => 0,
+        explore::ExploreNativeClassifierFindV2::Matches { .. } => 1,
+        explore::ExploreNativeClassifierFindV2::Violations { .. } => 2,
+    };
+    cache_hash_segment(&mut hasher, &[find]);
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.checked_declarations.len())?;
+    explore_native_classifier_cache_hash_usize_v3(
+        &mut hasher,
+        plan.compile_time_metadata_bindings.len(),
+    )?;
+    for binding in &plan.compile_time_metadata_bindings {
+        cache_hash_segment(&mut hasher, binding.as_bytes());
+    }
+    explore_native_classifier_cache_hash_rule_metadata_v3(&mut hasher, &plan.rule_metadata)?;
+    Some(format!("{:x}", hasher.finalize()))
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExploreNativeClassifierCacheTargetV3 {
+    artifact_dir: PathBuf,
+    executable: PathBuf,
+}
+
+fn explore_native_classifier_cache_target_v3(
+    cache_root: &Path,
+    cache_key: &str,
+) -> ExploreNativeClassifierCacheTargetV3 {
+    let artifact_dir = cache_root
+        .join("explore-native-classifier-v3")
+        .join(cache_key);
+    let executable_name = if std::env::consts::EXE_EXTENSION.is_empty() {
+        "classifier".to_string()
+    } else {
+        format!("classifier.{}", std::env::consts::EXE_EXTENSION)
+    };
+    ExploreNativeClassifierCacheTargetV3 {
+        executable: artifact_dir.join(executable_name),
+        artifact_dir,
+    }
+}
+
+struct ExploreNativeClassifierCacheResolutionV3 {
+    executable: Option<PathBuf>,
+    cache_hit: bool,
+}
+
+fn explore_native_classifier_cache_or_build_v3<F>(
+    target: ExploreNativeClassifierCacheTargetV3,
+    build: F,
+) -> ExploreNativeClassifierCacheResolutionV3
+where
+    F: FnOnce(&ExploreNativeClassifierCacheTargetV3) -> Option<PathBuf>,
+{
+    if target
+        .executable
+        .metadata()
+        .is_ok_and(|metadata| metadata.is_file())
+    {
+        return ExploreNativeClassifierCacheResolutionV3 {
+            executable: Some(target.executable),
+            cache_hit: true,
+        };
+    }
+    ExploreNativeClassifierCacheResolutionV3 {
+        executable: build(&target),
+        cache_hit: false,
+    }
+}
 
 fn collect_generated_rust_pattern_names(pattern: &Pat, names: &mut BTreeSet<String>) {
     match pattern {
@@ -8568,6 +8832,52 @@ fn build_explore_native_classifier_v2(
         return None;
     }
 
+    let compiler_identity = match compiler_executable_hash() {
+        Some(identity) => identity,
+        None => {
+            trace_explore_native_classifier_build_v2(
+                "compiler identity unavailable",
+                started,
+                None,
+            );
+            return None;
+        }
+    };
+    let rustc_identity = match rustc_fingerprint() {
+        Some(identity) => identity,
+        None => {
+            trace_explore_native_classifier_build_v2("rustc identity unavailable", started, None);
+            return None;
+        }
+    };
+    let cache_key = match explore_native_classifier_derivation_cache_key_v3(
+        &plan,
+        &compiler_identity,
+        &rustc_identity,
+    ) {
+        Some(cache_key) => cache_key,
+        None => {
+            trace_explore_native_classifier_build_v2("cache identity unavailable", started, None);
+            return None;
+        }
+    };
+    let cache_root = compiler_artifact_cache_dir()
+        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
+    let target = explore_native_classifier_cache_target_v3(&cache_root, &cache_key);
+    let resolution = explore_native_classifier_cache_or_build_v3(target, |target| {
+        build_explore_native_classifier_v2_cache_miss(plan, target, started)
+    });
+    if resolution.cache_hit {
+        trace_explore_native_classifier_build_v2("reused cached executable", started, None);
+    }
+    resolution.executable
+}
+
+fn build_explore_native_classifier_v2_cache_miss(
+    plan: explore::ExploreNativeClassifierPlanV2,
+    target: &ExploreNativeClassifierCacheTargetV3,
+    started: std::time::Instant,
+) -> Option<PathBuf> {
     let mut reachable_names = explore_native_classifier_reachable_names_v2(&plan);
     let function_name = fresh_generated_rust_name(
         &explore_native_classifier_function_name_v2(&plan),
@@ -8620,40 +8930,7 @@ fn build_explore_native_classifier_v2(
     }
     generated.push_str(&protocol_main);
 
-    let rustc_identity = match rustc_fingerprint() {
-        Some(identity) => identity,
-        None => {
-            trace_explore_native_classifier_build_v2("rustc identity unavailable", started, None);
-            return None;
-        }
-    };
-    let mut cache_hasher = Sha256::new();
-    cache_hash_segment(
-        &mut cache_hasher,
-        &EXPLORE_NATIVE_CLASSIFIER_CACHE_VERSION_V2.to_le_bytes(),
-    );
-    cache_hash_segment(&mut cache_hasher, rustc_identity.as_bytes());
-    cache_hash_segment(&mut cache_hasher, generated.as_bytes());
-    let cache_key = format!("{:x}", cache_hasher.finalize());
-    let cache_root = compiler_artifact_cache_dir()
-        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
-    let artifact_dir = cache_root
-        .join("explore-native-classifier-v2")
-        .join(cache_key);
-    let executable_name = if std::env::consts::EXE_EXTENSION.is_empty() {
-        "classifier".to_string()
-    } else {
-        format!("classifier.{}", std::env::consts::EXE_EXTENSION)
-    };
-    let executable = artifact_dir.join(executable_name);
-    if executable
-        .metadata()
-        .is_ok_and(|metadata| metadata.is_file())
-    {
-        trace_explore_native_classifier_build_v2("reused cached executable", started, None);
-        return Some(executable);
-    }
-    if let Err(error) = std::fs::create_dir_all(&artifact_dir) {
+    if let Err(error) = std::fs::create_dir_all(&target.artifact_dir) {
         trace_explore_native_classifier_build_v2(
             "cannot create cache directory",
             started,
@@ -8664,8 +8941,8 @@ fn build_explore_native_classifier_v2(
 
     let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
     let temporary_stem = format!("classifier-{}-{sequence}", std::process::id());
-    let temporary_source = artifact_dir.join(format!("{temporary_stem}.rs"));
-    let temporary_executable = artifact_dir.join(format!("{temporary_stem}.bin"));
+    let temporary_source = target.artifact_dir.join(format!("{temporary_stem}.rs"));
+    let temporary_executable = target.artifact_dir.join(format!("{temporary_stem}.bin"));
     if let Err(error) = std::fs::write(&temporary_source, generated.as_bytes()) {
         trace_explore_native_classifier_build_v2(
             "cannot write generated Rust",
@@ -8708,22 +8985,23 @@ fn build_explore_native_classifier_v2(
         return None;
     }
 
-    if executable.exists() {
+    if target.executable.exists() {
         // A concurrent builder won the content-addressed cache race.
         let _ = std::fs::remove_file(&temporary_executable);
-    } else if std::fs::rename(&temporary_executable, &executable).is_err() {
+    } else if std::fs::rename(&temporary_executable, &target.executable).is_err() {
         let _ = std::fs::remove_file(&temporary_executable);
-        if !executable.exists() {
+        if !target.executable.exists() {
             return None;
         }
     }
-    executable
+    target
+        .executable
         .metadata()
         .ok()
         .filter(|metadata| metadata.is_file())
         .map(|_| {
             trace_explore_native_classifier_build_v2("installed executable", started, None);
-            executable
+            target.executable.clone()
         })
 }
 
@@ -69588,6 +69866,161 @@ routes <- "b"
             !floats.contains("fact.0 != probe"),
             "native Float inequality is NaN-incompatible with interpreter matching: {floats}"
         );
+    }
+
+    fn native_classifier_cache_test_plan() -> explore::ExploreNativeClassifierPlanV2 {
+        let source = r#"
+? explore native_classifier_cache_key {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = before + 1
+    where transition after > before
+    find cases = matches of after > before
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("native_classifier_cache_key"),
+        )
+        .expect("prepare native classifier cache fixture");
+        prepared
+            .take_native_classifier_plan_v2()
+            .expect("fixture has the native classifier V2 shape")
+    }
+
+    #[test]
+    fn native_classifier_derivation_cache_key_tracks_semantics_toolchain_and_shape() {
+        let plan = native_classifier_cache_test_plan();
+        let compiler = sha256_hex(b"native classifier compiler A");
+        let rustc = sha256_hex(b"native classifier rustc A");
+        let baseline = explore_native_classifier_derivation_cache_key_v3(&plan, &compiler, &rustc)
+            .expect("derive baseline native classifier cache key");
+
+        let mut display_equivalent = plan.clone();
+        display_equivalent.successor_value.span = Span::new(10_000, 10_100);
+        display_equivalent.admissions[0].predicate.span = Span::new(20_000, 20_100);
+        if let explore::ExploreNativeClassifierFindV2::Matches { predicate } =
+            &mut display_equivalent.find
+        {
+            predicate.span = Span::new(30_000, 30_100);
+        } else {
+            panic!("cache fixture must retain a matches predicate");
+        }
+        assert_eq!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &display_equivalent,
+                &compiler,
+                &rustc,
+            )
+            .expect("derive display-equivalent cache key"),
+            baseline,
+            "source-location-only changes cannot force classifier regeneration"
+        );
+
+        let mut semantic_change = plan.clone();
+        semantic_change.identity.question_id[0] ^= 0xff;
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&semantic_change, &compiler, &rustc,)
+                .expect("derive changed semantic cache key"),
+            baseline
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &plan,
+                &sha256_hex(b"native classifier compiler B"),
+                &rustc,
+            )
+            .expect("derive changed compiler cache key"),
+            baseline
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &plan,
+                &compiler,
+                &sha256_hex(b"native classifier rustc B"),
+            )
+            .expect("derive changed rustc cache key"),
+            baseline
+        );
+
+        let mut shape_change = plan.clone();
+        shape_change.finite_coordinate_count += 1;
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&shape_change, &compiler, &rustc,)
+                .expect("derive changed shape cache key"),
+            baseline
+        );
+        let mut metadata_change = plan.clone();
+        metadata_change
+            .compile_time_metadata_bindings
+            .insert("cache_key_metadata_probe".to_string());
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&metadata_change, &compiler, &rustc,)
+                .expect("derive changed metadata cache key"),
+            baseline
+        );
+        let mut rule_metadata_change = plan;
+        rule_metadata_change.rule_metadata.return_issues.insert(
+            RuleDispatchKey {
+                scope: None,
+                name: "cache_key_rule_probe".to_string(),
+                arity: 0,
+            },
+            "cache-key test metadata".to_string(),
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &rule_metadata_change,
+                &compiler,
+                &rustc,
+            )
+            .expect("derive changed RuleDispatch metadata cache key"),
+            baseline
+        );
+    }
+
+    #[test]
+    fn native_classifier_derivation_cache_hit_skips_generation_and_miss_builds_once() {
+        let plan = native_classifier_cache_test_plan();
+        let compiler = sha256_hex(b"native classifier cache hit compiler");
+        let rustc = sha256_hex(b"native classifier cache hit rustc");
+        let cache_key = explore_native_classifier_derivation_cache_key_v3(&plan, &compiler, &rustc)
+            .expect("derive cache-hit key");
+        let temp_dir = unique_temp_workspace("futuruna-explore-native-derivation-cache");
+        let target = explore_native_classifier_cache_target_v3(&temp_dir, &cache_key);
+        std::fs::create_dir_all(&target.artifact_dir)
+            .expect("create native classifier cache-hit directory");
+        std::fs::write(&target.executable, b"cached classifier")
+            .expect("write cached classifier probe");
+
+        let builds = std::cell::Cell::new(0_u32);
+        let hit = explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
+            builds.set(builds.get() + 1);
+            None
+        });
+        assert!(hit.cache_hit);
+        assert_eq!(hit.executable, Some(target.executable.clone()));
+        assert_eq!(builds.get(), 0, "a cache hit must bypass generation");
+
+        let miss_target = explore_native_classifier_cache_target_v3(
+            &temp_dir,
+            &sha256_hex(b"distinct native classifier cache miss"),
+        );
+        let miss = explore_native_classifier_cache_or_build_v3(miss_target.clone(), |target| {
+            builds.set(builds.get() + 1);
+            std::fs::create_dir_all(&target.artifact_dir).ok()?;
+            std::fs::write(&target.executable, b"new classifier").ok()?;
+            Some(target.executable.clone())
+        });
+        assert!(!miss.cache_hit);
+        assert_eq!(miss.executable, Some(miss_target.executable));
+        assert_eq!(builds.get(), 1, "a cache miss must invoke generation once");
+        std::fs::remove_dir_all(temp_dir).ok();
     }
 
     #[test]
