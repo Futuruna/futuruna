@@ -23,8 +23,8 @@ use std::process::{Child, Command, Stdio};
 
 use super::resource_governor::{
     CompileEpoch, CompilerObservation, CpuHeadroom, EvaluatorObservation, HostCapacity,
-    MemoryPressure, ResourceSample, StabilityEpoch, StabilityObservation, SwapOutCounter,
-    TelemetryCursor, TelemetryEpoch,
+    MemoryPressure, ResourceSample, StabilityEpoch, StabilityObservation, SwapGrowthAuthority,
+    SwapOutCounter, TelemetryCursor, TelemetryEpoch,
 };
 
 /// Frozen API contract consumed from `resource_governor.rs`.
@@ -198,6 +198,7 @@ struct StableWindow {
 #[derive(Debug, Clone)]
 pub(crate) struct StabilityWindowReducer {
     pressure_policy: StabilityPressurePolicy,
+    swap_growth_authority: SwapGrowthAuthority,
     telemetry_epoch: TelemetryEpoch,
     stability_epoch: StabilityEpoch,
     sequence: u64,
@@ -210,9 +211,14 @@ pub(crate) struct StabilityWindowReducer {
 }
 
 impl StabilityWindowReducer {
-    pub(crate) fn new(seed: ReducerEpochSeed, pressure_policy: StabilityPressurePolicy) -> Self {
+    pub(crate) fn new(
+        seed: ReducerEpochSeed,
+        pressure_policy: StabilityPressurePolicy,
+        swap_growth_authority: SwapGrowthAuthority,
+    ) -> Self {
         Self {
             pressure_policy,
+            swap_growth_authority,
             telemetry_epoch: TelemetryEpoch(seed.telemetry.get()),
             stability_epoch: StabilityEpoch(seed.stability.get()),
             sequence: 0,
@@ -296,7 +302,13 @@ impl StabilityWindowReducer {
             self.pressure_policy.admits(host.pressure)
                 && !host.oom_risk
                 && !telemetry_reset
-                && matches!(swap_state, SwapState::Unchanged)
+                && match swap_state {
+                    SwapState::Unchanged => true,
+                    SwapState::Growth => self
+                        .swap_growth_authority
+                        .admits(super::resource_governor::SwapAssessment::Growth),
+                    SwapState::Unknown | SwapState::Baseline | SwapState::Reset => false,
+                }
         });
 
         if stable_now {
@@ -341,8 +353,11 @@ impl StabilityWindowReducer {
                 }
             }
         } else {
-            // Gaps, unknown/raised pressure, source reset, first/reset/growing
-            // swap evidence, and incoherent arithmetic never inherit a window.
+            // Gaps, unknown/raised pressure, source reset, first/reset swap
+            // evidence, strict-mode growth, and incoherent arithmetic never
+            // inherit a window. Validated outer containment may retain the
+            // window across host-global growth while independently enforcing
+            // its process-group and host-memory guards.
             self.advance_stability_epoch()?;
             self.stable = None;
         }
@@ -1329,6 +1344,18 @@ mod source_canaries {
                 stability: NonZeroU64::new(1).unwrap(),
             },
             StabilityPressurePolicy::NormalOnly,
+            SwapGrowthAuthority::StrictStandalone,
+        )
+    }
+
+    fn outer_contained_reducer() -> StabilityWindowReducer {
+        StabilityWindowReducer::new(
+            ReducerEpochSeed {
+                telemetry: NonZeroU64::new(1).unwrap(),
+                stability: NonZeroU64::new(1).unwrap(),
+            },
+            StabilityPressurePolicy::NormalOrOuterContainedWarning,
+            SwapGrowthAuthority::ValidatedOuterContainmentAdvisory,
         )
     }
 
@@ -1374,6 +1401,25 @@ mod source_canaries {
             .is_some());
         let growth = reducer.reduce(raw(3_000, Some(host(4_096)))).unwrap();
         assert_eq!(growth.sample.stability.minimum_available_memory_bytes, None);
+    }
+
+    #[test]
+    fn outer_contained_swap_growth_retains_low_water_evidence() {
+        let mut reducer = outer_contained_reducer();
+        reducer.reduce(raw(1_000, Some(host(0)))).unwrap();
+        let stable = reducer.reduce(raw(2_000, Some(host(0)))).unwrap();
+        let stable_epoch = stable.sample.stability.epoch;
+        let stable_since = stable.sample.stability.stable_since_millis;
+
+        let growth = reducer.reduce(raw(3_000, Some(host(4_096)))).unwrap();
+
+        assert_eq!(growth.sample.stability.epoch, stable_epoch);
+        assert_eq!(growth.sample.stability.stable_since_millis, stable_since);
+        assert!(growth
+            .sample
+            .stability
+            .minimum_available_memory_bytes
+            .is_some());
     }
 
     #[test]

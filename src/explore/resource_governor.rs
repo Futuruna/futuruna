@@ -98,6 +98,34 @@ impl HostCapacity {
     }
 }
 
+/// Authority for interpreting a host-global swap-out delta.
+///
+/// The strict default treats growth as a work-stopping pressure signal. The
+/// advisory mode is valid only when an independently validated outer boundary
+/// continuously enforces the process-group RSS, Rust heap, host-memory floor,
+/// pressure, and throttling guards. Growth remains observable in decision
+/// metadata in both modes; only its authority to stop otherwise-safe work
+/// changes.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SwapGrowthAuthority {
+    StrictStandalone,
+    ValidatedOuterContainmentAdvisory,
+}
+
+impl SwapGrowthAuthority {
+    pub(crate) const fn admits(self, assessment: SwapAssessment) -> bool {
+        match assessment {
+            SwapAssessment::Unchanged => true,
+            SwapAssessment::Growth => {
+                matches!(self, Self::ValidatedOuterContainmentAdvisory)
+            }
+            SwapAssessment::Unknown | SwapAssessment::Baseline | SwapAssessment::CounterReset => {
+                false
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct ResourcePolicy {
     /// Immutable operator cap.  `None` means no additional configured cap.
@@ -120,8 +148,12 @@ pub(crate) struct ResourcePolicy {
     /// Presence means evaluator admission may remain live at macOS Warning
     /// pressure; the outer process-group boundary independently caps the
     /// epoch, retains untracked memory, and stops pressure escalation. It never
-    /// relaxes compiler admission.
+    /// relaxes compiler charge or pressure admission.
     pub(crate) outer_contained_cold_worker_memory_charge_bytes: Option<u64>,
+    /// Whether host-global swap growth may remain advisory. The advisory
+    /// variant is rejected unless the independently contained worker charge is
+    /// also present.
+    pub(crate) swap_growth_authority: SwapGrowthAuthority,
     pub(crate) stable_window_millis: u64,
     pub(crate) committed_shards_before_scale_up: u16,
 }
@@ -146,6 +178,7 @@ impl Default for ResourcePolicy {
             minimum_compile_memory_charge_bytes: 2 * GIB,
             minimum_compile_cpu_charge_millicores: 1_000,
             outer_contained_cold_worker_memory_charge_bytes: None,
+            swap_growth_authority: SwapGrowthAuthority::StrictStandalone,
             stable_window_millis: MINIMUM_STABLE_WINDOW_MILLIS,
             committed_shards_before_scale_up: 2,
         }
@@ -187,6 +220,15 @@ impl ResourcePolicy {
         if self.outer_contained_cold_worker_memory_charge_bytes == Some(0) {
             return Err(ResourceGovernorError::InvalidPolicy(
                 "outer-contained cold worker charge must be positive",
+            ));
+        }
+        if self.swap_growth_authority == SwapGrowthAuthority::ValidatedOuterContainmentAdvisory
+            && self
+                .outer_contained_cold_worker_memory_charge_bytes
+                .is_none()
+        {
+            return Err(ResourceGovernorError::InvalidPolicy(
+                "advisory swap growth requires validated outer containment",
             ));
         }
         if self.minimum_memory_reserve_bytes < GIB
@@ -1401,12 +1443,13 @@ impl ResourceGovernor {
             swap_candidate.assessment,
             stable_duration_millis,
         );
+        let swap_breaks_stability = !self
+            .policy
+            .swap_growth_authority
+            .admits(swap_candidate.assessment);
         let reset_ramp = telemetry_reset
             || stability_advanced
-            || matches!(
-                swap_candidate.assessment,
-                SwapAssessment::Baseline | SwapAssessment::CounterReset | SwapAssessment::Growth
-            )
+            || swap_breaks_stability
             || (self.phase == GovernorPhase::Scanning
                 && (!stable || !sample.evaluator.is_fully_active(self.target_worker_leases)));
 
@@ -1731,7 +1774,9 @@ impl ResourceGovernor {
             tracker: Some(SwapTracker {
                 telemetry_epoch: sample.cursor.epoch,
                 counter,
-                baseline_at_millis: if assessment == SwapAssessment::Growth {
+                baseline_at_millis: if assessment == SwapAssessment::Growth
+                    && !self.policy.swap_growth_authority.admits(assessment)
+                {
                     sample.cursor.observed_at_millis
                 } else {
                     previous.baseline_at_millis
@@ -1871,7 +1916,7 @@ impl ResourceGovernor {
             && !sample.oom_risk
             && capacity.telemetry_complete
             && self.current_and_window_reserve_intact(sample, capacity)
-            && swap == SwapAssessment::Unchanged
+            && self.policy.swap_growth_authority.admits(swap)
             && stable_duration_millis >= self.policy.stable_window_millis
             && self
                 .blocked_stability_through
@@ -1946,6 +1991,11 @@ impl ResourceGovernor {
             MemoryPressure::Warning | MemoryPressure::Normal => {}
         }
         match ingested.swap {
+            SwapAssessment::Growth
+                if self
+                    .policy
+                    .swap_growth_authority
+                    .admits(SwapAssessment::Growth) => {}
             SwapAssessment::Growth => {
                 self.block_stability_epoch(sample.stability.epoch);
                 self.backoff_to(
@@ -2116,7 +2166,7 @@ impl ResourceGovernor {
         });
         if sample.pressure != MemoryPressure::Normal
             || sample.oom_risk
-            || ingested.swap != SwapAssessment::Unchanged
+            || !self.policy.swap_growth_authority.admits(ingested.swap)
             || !memory_safe
             || !cpu_safe
         {
@@ -2632,6 +2682,17 @@ mod tests {
         governor
     }
 
+    fn outer_contained_governor() -> ResourceGovernor {
+        let mut policy = ResourcePolicy::default();
+        policy.configured_worker_ceiling = Some(1);
+        policy.requested_jobs_ceiling = Some(1);
+        policy.outer_contained_cold_worker_memory_charge_bytes = Some(256 * MIB);
+        policy.swap_growth_authority = SwapGrowthAuthority::ValidatedOuterContainmentAdvisory;
+        let mut governor = ResourceGovernor::new(host(), policy).unwrap();
+        governor.calibration = calibrated_governor().calibration;
+        governor
+    }
+
     fn begin_scanning(governor: &mut ResourceGovernor) {
         governor
             .transition(ResourceGovernorEvent::Observe(sample(
@@ -2675,6 +2736,30 @@ mod tests {
         assert_eq!(capacity.memory_worker_ceiling, 12);
         assert_eq!(capacity.cpu_worker_ceiling, 4);
         assert_eq!(capacity.safe_worker_ceiling, 4);
+    }
+
+    #[test]
+    fn advisory_swap_growth_requires_outer_containment_and_keeps_other_states_strict() {
+        let mut policy = ResourcePolicy::default();
+        policy.swap_growth_authority = SwapGrowthAuthority::ValidatedOuterContainmentAdvisory;
+
+        assert!(matches!(
+            ResourceGovernor::new(host(), policy),
+            Err(ResourceGovernorError::InvalidPolicy(
+                "advisory swap growth requires validated outer containment"
+            ))
+        ));
+        assert!(policy
+            .swap_growth_authority
+            .admits(SwapAssessment::Unchanged));
+        assert!(policy.swap_growth_authority.admits(SwapAssessment::Growth));
+        for assessment in [
+            SwapAssessment::Unknown,
+            SwapAssessment::Baseline,
+            SwapAssessment::CounterReset,
+        ] {
+            assert!(!policy.swap_growth_authority.admits(assessment));
+        }
     }
 
     #[test]
@@ -3284,6 +3369,26 @@ mod tests {
             decision.metadata.drain_trigger,
             Some(DecisionReason::SwapGrowthBackoff)
         );
+    }
+
+    #[test]
+    fn outer_contained_swap_growth_remains_observable_without_stopping_work() {
+        let mut governor = outer_contained_governor();
+        begin_scanning(&mut governor);
+        let mut growth = sample(&governor, 3, 31_000, 1, 0, 1);
+        growth.swap_out.as_mut().unwrap().cumulative_bytes = 1;
+
+        let decision = governor
+            .transition(ResourceGovernorEvent::Observe(growth))
+            .unwrap();
+
+        assert_eq!(decision.phase, GovernorPhase::Scanning);
+        assert_eq!(decision.target_worker_leases, 1);
+        assert_eq!(decision.reason, DecisionReason::Holding);
+        assert_eq!(decision.metadata.swap, SwapAssessment::Growth);
+        assert!(decision.metadata.stable);
+        assert_eq!(decision.metadata.drain_trigger, None);
+        assert!(governor.ramp.is_some());
     }
 
     #[test]

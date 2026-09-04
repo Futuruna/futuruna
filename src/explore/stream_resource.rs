@@ -30,7 +30,7 @@ use super::resource_governor::{
     CalibrationPeakEvidence, CompilerObservation, DecisionReason, EvaluatorObservation,
     GovernorDecision, GovernorPhase, HostCapacity, LeaseAuthority, LeaseGeneration, MemoryPressure,
     ResourceGovernor, ResourceGovernorError, ResourceGovernorEvent, ResourcePolicy, ResourceSample,
-    StabilityEpoch, SwapAssessment, TelemetryCursor,
+    StabilityEpoch, SwapAssessment, SwapGrowthAuthority, TelemetryCursor,
 };
 #[cfg(target_os = "macos")]
 use super::resource_sampler::{HostFactProvider, MacOsCommandProvider};
@@ -540,6 +540,11 @@ impl ExactStreamOneWorkerEnvelope {
         policy.requested_jobs_ceiling = Some(1);
         policy.outer_contained_cold_worker_memory_charge_bytes =
             outer_containment.map(|_| STREAM_QUANTUM_ACCOUNTED_WORKING_SET);
+        policy.swap_growth_authority = if outer_containment.is_some() {
+            SwapGrowthAuthority::ValidatedOuterContainmentAdvisory
+        } else {
+            SwapGrowthAuthority::StrictStandalone
+        };
         if outer_containment.is_some() {
             policy.stable_window_millis = u64::try_from(SAMPLE_CADENCE.as_millis())
                 .map_err(|_| ExactStreamResourcePauseReason::InvalidConfiguration)?;
@@ -565,6 +570,7 @@ impl ExactStreamOneWorkerEnvelope {
                 } else {
                     StabilityPressurePolicy::NormalOnly
                 },
+                policy.swap_growth_authority,
             ),
             watchdog,
             governor: None,
@@ -1288,7 +1294,7 @@ fn decision_has_safe_one_worker_capacity(
         && decision.metadata.failure.is_none()
         && decision.metadata.lease_authority == LeaseAuthority::Active
         && decision.metadata.stable
-        && decision.metadata.swap == SwapAssessment::Unchanged
+        && policy.swap_growth_authority.admits(decision.metadata.swap)
         && policy.evaluator_pressure_is_admissible(decision.metadata.pressure)
         && decision.metadata.capacity.is_some_and(|capacity| {
             capacity.telemetry_complete
@@ -1326,6 +1332,7 @@ fn pause_reason_for_decision(
         SwapAssessment::CounterReset => {
             return ExactStreamResourcePauseReason::ResourceBackoff("resource_swap_counter_reset");
         }
+        SwapAssessment::Growth if policy.swap_growth_authority.admits(SwapAssessment::Growth) => {}
         SwapAssessment::Growth => {
             return ExactStreamResourcePauseReason::ResourceBackoff("resource_swap_growth");
         }
@@ -1453,7 +1460,117 @@ const fn platform_supported() -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::super::resource_governor::{
+        CapacityAssessment, CpuHeadroom, DecisionMetadata, StabilityObservation, SwapOutCounter,
+        SwapOutGeneration, TelemetryEpoch,
+    };
     use super::*;
+
+    fn policy(authority: SwapGrowthAuthority) -> ResourcePolicy {
+        let mut policy = ResourcePolicy::default();
+        if authority == SwapGrowthAuthority::ValidatedOuterContainmentAdvisory {
+            policy.outer_contained_cold_worker_memory_charge_bytes =
+                Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET);
+        }
+        policy.swap_growth_authority = authority;
+        policy
+    }
+
+    fn safe_decision(swap: SwapAssessment) -> GovernorDecision {
+        let cursor = TelemetryCursor {
+            epoch: TelemetryEpoch(1),
+            sequence: 3,
+            observed_at_millis: 10_000,
+        };
+        GovernorDecision {
+            phase: GovernorPhase::Scanning,
+            target_worker_leases: 1,
+            reason: DecisionReason::Holding,
+            metadata: DecisionMetadata {
+                cursor: Some(cursor),
+                stability_epoch: Some(StabilityEpoch(1)),
+                stable_duration_millis: 10_000,
+                stable: true,
+                swap,
+                pressure: MemoryPressure::Normal,
+                lease_generation: LeaseGeneration(2),
+                lease_authority: LeaseAuthority::Active,
+                lease_observation_cutoff: Some(cursor),
+                observed_lease_generation: Some(LeaseGeneration(2)),
+                resident_workers: Some(1),
+                draining_workers: Some(0),
+                reserved_workers: Some(0),
+                committed_shards_in_ramp_window: 0,
+                calibration: None,
+                capacity: Some(CapacityAssessment {
+                    telemetry_complete: true,
+                    memory_reserve_bytes: ONE_GIB,
+                    cpu_reserve_millicores: 2_000,
+                    worker_memory_charge_bytes: STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+                    worker_cpu_charge_millicores: 1_000,
+                    current_memory_before_worker_charge_bytes: Some(6 * ONE_GIB),
+                    current_cpu_before_worker_charge_millicores: Some(6_000),
+                    memory_worker_ceiling: 1,
+                    cpu_worker_ceiling: 1,
+                    policy_worker_ceiling: 1,
+                    charged_worker_commitments: 1,
+                    safe_worker_ceiling: 1,
+                }),
+                post_compile_cutoff: None,
+                failure: None,
+                drain_trigger: None,
+            },
+        }
+    }
+
+    fn reduced_sample() -> ReducedResourceSample {
+        ReducedResourceSample {
+            capacity: HostCapacity {
+                logical_cpu_count: Some(8),
+                total_memory_bytes: Some(8 * ONE_GIB),
+            },
+            sample: ResourceSample {
+                cursor: TelemetryCursor {
+                    epoch: TelemetryEpoch(1),
+                    sequence: 3,
+                    observed_at_millis: 10_000,
+                },
+                stability: StabilityObservation {
+                    epoch: StabilityEpoch(1),
+                    stable_since_millis: 0,
+                    minimum_available_memory_bytes: Some(6 * ONE_GIB),
+                    minimum_idle_cpu_millicores: Some(6_000),
+                    minimum_memory_before_evaluator_charge_bytes: Some(6 * ONE_GIB),
+                    minimum_cpu_before_evaluator_charge_millicores: Some(6_000),
+                },
+                compile_epoch: None,
+                pressure: MemoryPressure::Normal,
+                oom_risk: false,
+                available_memory_bytes: Some(6 * ONE_GIB),
+                cpu: Some(CpuHeadroom {
+                    live_capacity_millicores: 8_000,
+                    idle_millicores: 6_000,
+                }),
+                swap_out: Some(SwapOutCounter {
+                    generation: SwapOutGeneration(1),
+                    cumulative_bytes: 4_096,
+                }),
+                evaluator: EvaluatorObservation {
+                    lease_generation: LeaseGeneration(2),
+                    resident_workers: 1,
+                    draining_workers: 0,
+                    reserved_workers: 0,
+                    aggregate_rss_bytes: Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET),
+                    aggregate_cpu_millicores: Some(1_000),
+                },
+                compiler: CompilerObservation {
+                    rss_bytes: Some(0),
+                    cpu_millicores: Some(0),
+                },
+            },
+            force_zero_admission: false,
+        }
+    }
 
     #[test]
     fn mechanism_case_rank_is_individually_admitted_for_calibration_and_scan() {
@@ -1464,5 +1581,45 @@ mod tests {
             subject
         ));
         assert!(work_subject_allowed(ExactStreamWorkPurpose::Scan, subject));
+    }
+
+    #[test]
+    fn outer_contained_swap_growth_keeps_permit_authority_and_never_names_swap_backoff() {
+        let decision = safe_decision(SwapAssessment::Growth);
+        let advisory = policy(SwapGrowthAuthority::ValidatedOuterContainmentAdvisory);
+        let strict = policy(SwapGrowthAuthority::StrictStandalone);
+
+        assert!(decision_has_safe_one_worker_capacity(decision, advisory));
+        assert!(!decision_has_safe_one_worker_capacity(decision, strict));
+        assert_eq!(
+            pause_reason_for_decision(decision, reduced_sample(), None, None, strict).code(),
+            "resource_swap_growth"
+        );
+        assert_ne!(
+            pause_reason_for_decision(decision, reduced_sample(), None, None, advisory).code(),
+            "resource_swap_growth"
+        );
+    }
+
+    #[test]
+    fn advisory_swap_growth_preserves_the_validated_outer_memory_envelope() {
+        let group_rss_trip = (11 * ONE_GIB) / 2;
+        let receipt = ExactStreamOuterContainmentReceipt::new(
+            group_rss_trip,
+            ONE_GIB / 2,
+            group_rss_trip,
+            ONE_GIB,
+        )
+        .unwrap();
+        let host = HostCapacity {
+            logical_cpu_count: Some(8),
+            total_memory_bytes: Some(8 * ONE_GIB),
+        };
+        assert!(receipt.validates_for(host));
+
+        let over_envelope =
+            ExactStreamOuterContainmentReceipt::new(6 * ONE_GIB, ONE_GIB / 2, 6 * ONE_GIB, ONE_GIB)
+                .unwrap();
+        assert!(!over_envelope.validates_for(host));
     }
 }
