@@ -124,9 +124,12 @@ impl ExploreStreamOuterContainment {
     /// Rust-heap cap and arranged for an independently runnable supervisor to
     /// continuously contain the complete process group at the supplied RSS
     /// limit, available-memory floor, critical memory pressure, throttled-page
-    /// signal, and telemetry-loss boundaries. That supervisor must outlive
-    /// every Explore epoch receiving this process-local value. The attestation
-    /// must never be persisted or transferred to another process.
+    /// signal, and telemetry-loss boundaries. It must also continuously sample
+    /// total host CPU, carry and repay host-CPU budget debt, and pace the
+    /// complete process group so cumulative use stays within the authorized
+    /// 80%-of-installed-CPU boundary. That supervisor must outlive every
+    /// Explore epoch receiving this process-local value. The attestation must
+    /// never be persisted or transferred to another process.
     pub unsafe fn attest_current_process_is_supervised(
         rust_heap_limit_bytes: NonZeroU64,
         untracked_memory_reserve_bytes: NonZeroU64,

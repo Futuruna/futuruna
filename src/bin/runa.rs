@@ -7838,11 +7838,14 @@ fn run_relational_explore_stream(
                 let available_memory_floor_bytes =
                     std::num::NonZeroU64::new(receipt.available_memory_floor_bytes)
                         .expect("validated Explore available-memory floor is positive");
-                // SAFETY: `validated_exact_stream_containment` is populated only
-                // after startup has installed this exact Rust-heap cap, verified
-                // the worker/guardian process shape, crossed the start gate, and
-                // retained the independently runnable guardian and parent
-                // watchdog for the lifetime of this worker process.
+                // SAFETY: `activate_exact_stream_child_liveness` installed this
+                // exact Rust-heap cap and populated the receipt after verifying
+                // the worker/guardian process shape. Although population precedes
+                // the start-gate wait, this call is reachable only after activation
+                // returns across that gate with the child marked validated. The
+                // independently runnable guardian and parent watchdog retain the
+                // memory boundary, host-CPU debt accounting, and process-group CPU
+                // pacing for the lifetime of this worker process.
                 unsafe {
                     explore::ExploreStreamOuterContainment::attest_current_process_is_supervised(
                         rust_heap_limit_bytes,
