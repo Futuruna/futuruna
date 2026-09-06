@@ -3526,8 +3526,9 @@ fn encode_region_proof_artifact(
     encoder.digest(artifact.certificate_id())?;
     encoder.digest(artifact.replay_authority_id())?;
     encoder.digest(artifact.classification_capsule_id().bytes())?;
-    encoder.digest(artifact.successor_root_id().bytes())?;
-    encoder.digest(artifact.find_root_id().bytes())?;
+    let (basis_first, basis_second) = artifact.basis().canonical_digests();
+    encoder.digest(basis_first)?;
+    encoder.digest(basis_second)?;
     encoder.digest(artifact.relation_id().bytes())?;
     encoder.digest(artifact.admission_id().bytes())?;
     encoder.digest(artifact.question_id().bytes())?;
@@ -3582,8 +3583,12 @@ fn decode_region_proof_artifact(
     let certificate_id = reader.digest()?;
     let replay_authority_id = reader.digest()?;
     let classification_capsule_id = ClassificationCapsuleId::from_bytes(reader.digest()?);
-    let successor_root_id = ClassificationNodeId::from_bytes(reader.digest()?);
-    let find_root_id = ClassificationNodeId::from_bytes(reader.digest()?);
+    let basis =
+        super::relational_region_proof::RelationalRegionProofBasis::restore_from_canonical_digests(
+            schema_version,
+            reader.digest()?,
+            reader.digest()?,
+        )?;
     let relation_id = RelationId::from_journal_codec_bytes(reader.digest()?);
     let admission_id = AdmissionId::from_journal_codec_bytes(reader.digest()?);
     let question_id = QuestionId::from_journal_codec_bytes(reader.digest()?);
@@ -3618,8 +3623,7 @@ fn decode_region_proof_artifact(
         certificate_id,
         replay_authority_id,
         classification_capsule_id,
-        successor_root_id,
-        find_root_id,
+        basis,
         relation_id,
         admission_id,
         question_id,

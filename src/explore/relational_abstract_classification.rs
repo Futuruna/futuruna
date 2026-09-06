@@ -42,6 +42,25 @@ pub(crate) struct CheckedBoxClassifier {
 }
 
 impl CheckedBoxClassifier {
+    /// This is a fresh proof over checked source coordinates, not a reuse of
+    /// the operational tile cache. Regional replay must call it again.
+    pub(crate) fn prove_coordinates(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+        coordinates: &[Option<(i64, i64)>],
+    ) -> Option<CheckedSourceBoxProof> {
+        let retained = self.inputs.checked.view();
+        if checked.program_hash() != retained.program_hash()
+            || checked.relation_id() != retained.relation_id()
+            || checked.admission_id() != retained.admission_id()
+            || checked.question_ids() != retained.question_ids()
+        {
+            return None;
+        }
+        let index = CheckedExploreSemanticIndex::build(&self.inputs.program);
+        prove_box(&index, &self.inputs.resolutions, checked, coordinates).ok()
+    }
+
     pub(crate) fn new(
         artifacts: TypeCheckArtifacts,
         checked: Arc<OwnedCheckedExploreQuery>,
@@ -171,6 +190,76 @@ pub(crate) struct BoxClassification {
     pub(crate) selections: Box<[Option<bool>]>,
 }
 
+/// Producer-owned abstract derivation. The root is an integrity commitment,
+/// not replay authority; durable consumers re-run the checked derivation.
+pub(crate) struct CheckedSourceBoxProof {
+    classification: BoxClassification,
+    derivation_root: [u8; 32],
+}
+
+impl CheckedSourceBoxProof {
+    pub(crate) fn all_admitted_not_selected(&self) -> bool {
+        self.classification
+            .admissions
+            .iter()
+            .all(|value| *value == Some(true))
+            && self.classification.selections.as_ref() == [Some(false)]
+    }
+
+    pub(crate) const fn derivation_root(&self) -> [u8; 32] {
+        self.derivation_root
+    }
+}
+
+fn finish_box_proof(
+    prover: &EndpointTotalityProver<'_, '_>,
+    checked: &CheckedExploreQueryView<'_>,
+    coordinates: &[Option<(i64, i64)>],
+    classification: BoxClassification,
+) -> CheckedSourceBoxProof {
+    let mut hash = Sha256::new();
+    hash_segment(
+        &mut hash,
+        b"futuruna.explore.checked-source-box.derivation.v1\0",
+    );
+    hash_segment(&mut hash, checked.program_hash().as_bytes());
+    hash_segment(&mut hash, prover.index.program.id.as_str().as_bytes());
+    hash_segment(&mut hash, &checked.relation_id().bytes());
+    hash_segment(&mut hash, &checked.admission_id().bytes());
+    for question in checked.question_ids() {
+        hash_segment(&mut hash, &question.bytes());
+    }
+    hash_segment(&mut hash, &(coordinates.len() as u64).to_le_bytes());
+    for coordinate in coordinates {
+        match coordinate {
+            None => hash_segment(&mut hash, &[0]),
+            Some((low, high)) => {
+                hash_segment(&mut hash, &[1]);
+                hash_segment(&mut hash, &low.to_le_bytes());
+                hash_segment(&mut hash, &high.to_le_bytes());
+            }
+        }
+    }
+    for decisions in [&classification.admissions, &classification.selections] {
+        hash_segment(&mut hash, &(decisions.len() as u64).to_le_bytes());
+        for decision in decisions.iter() {
+            hash_segment(
+                &mut hash,
+                &[match decision {
+                    None => 0,
+                    Some(false) => 1,
+                    Some(true) => 2,
+                }],
+            );
+        }
+    }
+    hash_segment(&mut hash, &prover.proof_root().bytes());
+    CheckedSourceBoxProof {
+        classification,
+        derivation_root: hash.finalize().into(),
+    }
+}
+
 impl BoxClassification {
     fn outcome(
         &self,
@@ -220,6 +309,15 @@ pub(crate) fn classify_box(
     checked: &CheckedExploreQueryView<'_>,
     coordinates: &[Option<(i64, i64)>],
 ) -> Result<BoxClassification, RelationalEndpointTotalityIssue> {
+    prove_box(index, resolutions, checked, coordinates).map(|proof| proof.classification)
+}
+
+fn prove_box(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    checked: &CheckedExploreQueryView<'_>,
+    coordinates: &[Option<(i64, i64)>],
+) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
     let query = checked.closed_query;
     let sites = &checked.artifact.sites;
     let mut prover = EndpointTotalityProver::new(index, resolutions, checked.relation_id());
@@ -332,10 +430,15 @@ pub(crate) fn classify_box(
         if decision == Some(false) {
             // Subsequent predicates are not executed on rejected subjects.
             admissions.resize(sites.admissions.len(), None);
-            return Ok(BoxClassification {
-                admissions: admissions.into_boxed_slice(),
-                selections: vec![None; query.finds.len()].into_boxed_slice(),
-            });
+            return Ok(finish_box_proof(
+                &prover,
+                checked,
+                coordinates,
+                BoxClassification {
+                    admissions: admissions.into_boxed_slice(),
+                    selections: vec![None; query.finds.len()].into_boxed_slice(),
+                },
+            ));
         }
         // All later lanes run only when this admission holds. Narrowing is
         // sound even if this first lane remains unknown over the whole box.
@@ -367,10 +470,15 @@ pub(crate) fn classify_box(
         };
         selections.push(decision);
     }
-    Ok(BoxClassification {
-        admissions: admissions.into_boxed_slice(),
-        selections: selections.into_boxed_slice(),
-    })
+    Ok(finish_box_proof(
+        &prover,
+        checked,
+        coordinates,
+        BoxClassification {
+            admissions: admissions.into_boxed_slice(),
+            selections: selections.into_boxed_slice(),
+        },
+    ))
 }
 
 #[cfg(test)]

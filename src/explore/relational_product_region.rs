@@ -412,15 +412,14 @@ impl Evaluator<'_> {
     }
 }
 
-pub(super) fn prove(
+/// Geometry authority shared by graph and checked-source-box producers.
+/// Enclosure may add points; the artifact's weight never exceeds its exact
+/// canonical rank slice. Non-independent/non-integer products remain residual.
+fn coordinate_box(
     checked: &CheckedExploreQueryView<'_>,
     plan: &RelationalSupportPlan,
-    capsule: &RelationalClassificationCapsule,
     target: &RelationalRegionProofTarget<'_>,
-    replay_authority_id: [u8; 32],
-) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
-    let unsupported =
-        || fallback(RelationalRegionProofResidual::CaseImageCardinalityLiftUnavailable);
+) -> Result<Option<BTreeMap<u32, (i128, i128)>>, RelationalRegionProofError> {
     let inventory = RelationalProofStrategyInventory::from_checked(checked, plan)?;
     let SupportExprKind::ProductRankInterval {
         factors,
@@ -428,7 +427,7 @@ pub(super) fn prove(
         rank_end_exclusive: end_exclusive,
     } = target.cell.expression().kind()
     else {
-        return Ok(unsupported());
+        return Ok(None);
     };
     if start >= end_exclusive
         || *start != target.coordinate_start
@@ -437,15 +436,8 @@ pub(super) fn prove(
         || inventory.axes().len() != factors.len()
         || factors.len() > 16
     {
-        return Ok(unsupported());
+        return Ok(None);
     }
-    let Some(first_axis) = inventory
-        .axes()
-        .iter()
-        .find(|axis| Some(&axis.binding_index()) == inventory.finite_binding_indices().first())
-    else {
-        return Ok(unsupported());
-    };
     let mut domains = BTreeMap::new();
     let mut stride = 1u128;
     for (binding, factor) in inventory.finite_binding_indices().iter().zip(factors).rev() {
@@ -454,23 +446,23 @@ pub(super) fn prove(
             end_exclusive: radix,
         } = factor.kind()
         else {
-            return Ok(unsupported());
+            return Ok(None);
         };
         if *radix == 0 {
-            return Ok(unsupported());
+            return Ok(None);
         }
         let Some(axis) = inventory
             .axes()
             .iter()
             .find(|axis| axis.binding_index() == *binding)
         else {
-            return Ok(unsupported());
+            return Ok(None);
         };
         if axis.cardinality() != *radix || axis.coordinate_start() != 0 {
-            return Ok(unsupported());
+            return Ok(None);
         }
         let Some(period) = stride.checked_mul(*radix) else {
-            return Ok(unsupported());
+            return Ok(None);
         };
         let (low, high) = if start / period == (end_exclusive - 1) / period {
             (
@@ -488,8 +480,33 @@ pub(super) fn prove(
         stride = period;
     }
     if stride != target.root_coordinate_end_exclusive || target.root_coordinate_start != 0 {
-        return Ok(unsupported());
+        return Ok(None);
     }
+    Ok(Some(domains))
+}
+
+pub(super) fn prove(
+    checked: &CheckedExploreQueryView<'_>,
+    plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
+    target: &RelationalRegionProofTarget<'_>,
+    replay_authority_id: [u8; 32],
+) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+    let unsupported =
+        || fallback(RelationalRegionProofResidual::CaseImageCardinalityLiftUnavailable);
+    let Some(domains) = coordinate_box(checked, plan, target)? else {
+        return Ok(unsupported());
+    };
+    let inventory = RelationalProofStrategyInventory::from_checked(checked, plan)?;
+    let Some(first_axis) = inventory
+        .axes()
+        .iter()
+        .find(|axis| Some(&axis.binding_index()) == inventory.finite_binding_indices().first())
+    else {
+        return Ok(unsupported());
+    };
+    let start = &target.coordinate_start;
+    let end_exclusive = &target.coordinate_end_exclusive;
     let mut evaluator = Evaluator {
         capsule,
         domains,
@@ -597,8 +614,10 @@ pub(super) fn prove(
         certificate_id: [0; 32],
         replay_authority_id,
         classification_capsule_id: capsule.id(),
-        successor_root_id,
-        find_root_id,
+        basis: RelationalRegionProofBasis::GraphNodes {
+            successor_root_id,
+            find_root_id,
+        },
         relation_id: checked.relation_id(),
         admission_id: checked.admission_id(),
         question_id,
@@ -630,6 +649,115 @@ pub(super) fn prove(
             AdmissionClassificationClaim::new(checked.admission_id()),
         )?,
         SupportCellObligation::new(target.cell, SelectionClassificationClaim::new(question_id))?,
+        target.cell,
+        false,
+    )
+}
+
+pub(super) fn prove_checked_box(
+    checked: &CheckedExploreQueryView<'_>,
+    plan: &RelationalSupportPlan,
+    capsule: &RelationalClassificationCapsule,
+    target: &RelationalRegionProofTarget<'_>,
+    replay_authority_id: [u8; 32],
+    classifier: &CheckedBoxClassifier,
+) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+    let unsupported =
+        || fallback(RelationalRegionProofResidual::CaseImageCardinalityLiftUnavailable);
+    if !target.product_rank {
+        return Ok(unsupported());
+    }
+    let Some(domains) = coordinate_box(checked, plan, target)? else {
+        return Ok(unsupported());
+    };
+    let coordinates = checked
+        .closed_query
+        .source
+        .bindings
+        .iter()
+        .map(|binding| match binding.kind {
+            ExploreSourceBindingKindIr::Singleton { .. } => Some(None),
+            ExploreSourceBindingKindIr::Finite { .. } => {
+                let (low, high) = domains.get(&u32::try_from(binding.binding_index).ok()?)?;
+                Some(Some((
+                    i64::try_from(*low).ok()?,
+                    i64::try_from(*high).ok()?,
+                )))
+            }
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(coordinates) = coordinates else {
+        return Ok(unsupported());
+    };
+    let Some(proof) = classifier.prove_coordinates(checked, &coordinates) else {
+        return Ok(unsupported());
+    };
+    if !proof.all_admitted_not_selected() {
+        return Ok(fallback(
+            RelationalRegionProofResidual::SelectionTruthVariesOverAxis,
+        ));
+    }
+    let inventory = RelationalProofStrategyInventory::from_checked(checked, plan)?;
+    let Some(first_axis) = inventory
+        .axes()
+        .iter()
+        .find(|axis| Some(&axis.binding_index()) == inventory.finite_binding_indices().first())
+    else {
+        return Ok(unsupported());
+    };
+    let (Some(assignment), Some(source), Some(successor), Some(root_cell_id)) = (
+        plan.source_assignments().cell(),
+        plan.source_rows().cell(),
+        plan.successor_coordinates().cell(),
+        plan.root_cell_id(),
+    ) else {
+        return Ok(unsupported());
+    };
+    let artifact = RelationalRegionProofArtifact {
+        schema_version: RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION,
+        product_rank: true,
+        certificate_id: [0; 32],
+        replay_authority_id,
+        classification_capsule_id: capsule.id(),
+        basis: RelationalRegionProofBasis::CheckedSourceBox {
+            checked_program: decode_lowercase_sha256(checked.program_hash())
+                .ok_or(RelationalRegionProofError::InvalidCheckedProgramDigest)?,
+            derivation_root: proof.derivation_root(),
+        },
+        relation_id: checked.relation_id(),
+        admission_id: checked.admission_id(),
+        question_id: checked.question_ids()[0],
+        plan_root: plan.root(),
+        root_cell_id,
+        subject: target.subject,
+        conclusion: RelationalCertifiedRegionConclusion::AdmittedNotSelected,
+        starter_region_id: RelationalStarterRegionId([0; 32]),
+        source_assignment_cell_id: assignment.id(),
+        source_row_cell_id: source.id(),
+        successor_coordinate_cell_id: successor.id(),
+        axis_stage_id: first_axis.stage_id(),
+        axis_dimension_id: first_axis.dimension_id(),
+        axis_cell_id: first_axis.cell().id(),
+        value_start: i64::try_from(target.coordinate_start)
+            .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?,
+        value_end_exclusive: i64::try_from(target.coordinate_end_exclusive)
+            .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?,
+        coordinate_start: target.coordinate_start,
+        coordinate_end_exclusive: target.coordinate_end_exclusive,
+        case_cardinality: target.coordinate_end_exclusive - target.coordinate_start,
+        selected_formula_digest: proof.derivation_root(),
+    };
+    seal_region_proof(
+        artifact,
+        SupportCellObligation::new(target.cell, ExactCardinalityClaim)?,
+        SupportCellObligation::new(
+            target.cell,
+            AdmissionClassificationClaim::new(checked.admission_id()),
+        )?,
+        SupportCellObligation::new(
+            target.cell,
+            SelectionClassificationClaim::new(checked.question_ids()[0]),
+        )?,
         target.cell,
         false,
     )

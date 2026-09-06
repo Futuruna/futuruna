@@ -1417,7 +1417,8 @@ pub fn prepare_checked_relational_stream(
                 support_plan.clone(),
                 Arc::clone(&classification_capsule),
             )
-            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?,
+            .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?
+            .with_checked_box_classifier(box_classifier.clone()),
         ))
     } else {
         None

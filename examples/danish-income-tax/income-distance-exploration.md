@@ -982,8 +982,8 @@ The ignored `canonical_2026_box_output` experiment accepts test-only
 (income, commuting distance, intervention). It checks those bounds against
 the unchanged full query and prints the exact final comparison enclosure.
 This is measurement control, not public Explore syntax or new proof authority.
-These optional classifier decisions do not yet create durable regional
-certificates or close portions of the saved full-grid journal.
+At this measurement stage, the optional classifier decisions did not create
+durable regional certificates or close portions of the saved full-grid journal.
 
 The final canonical measurement with both changes produced:
 
@@ -1011,10 +1011,116 @@ and constant-only measurements took 293.22 and 313.95 seconds respectively;
 these are diagnostic runs, not a controlled throughput comparison. No extra
 optimized CLI rebuild was performed for this precision patch.
 
-The next bridge is tracked as `td-ed3104`: retain the checked AST box proof
-as an honestly typed, replayable regional certificate. The existing journal
-producer requires complete lowered classification-graph lanes, while the
+These measurements motivated `td-ed3104`: retain the checked AST box proof
+as an honestly typed, replayable regional certificate (described below).
+The original journal producer requires complete lowered graph lanes, while the
 canonical model still has residual collection/dispatch lanes that this box
 interpreter can handle. A residual AST expression must not be disguised as a
 graph node. Mixed admission and the remaining wide salary rounding dependency
 also remain open under `td-966941`; the full 0..400,000-DKK query is not closed.
+
+## Replayable checked-source-box certificates
+
+The checked box interpreter can now issue a distinct **version 5 regional
+certificate** when an entire canonical product enclosure is proved valid and
+not selected. This connects the numerical box proofs above to durable
+classified-support accounting. It does not change the tax model or add query
+syntax.
+
+The existing version 4 graph certificate retains its encoding, hash inputs,
+and replay-authority identity. Version 5 explicitly identifies a checked
+source-box derivation instead of pretending residual source expressions are
+classification-graph nodes. Both routes remain bound to the checked query,
+admission and question, support plan, exact canonical child, and exact case
+cardinality. A conservative rectangular enclosure may include extra source
+points, but the accepted count is only the weight of the canonical rank slice.
+
+The source-box proof commits to the checked program, source coordinates,
+admission/selection decisions, and strict evaluation obligations. Its digest
+is not proof authority: journal acceptance and cold replay freshly derive the
+same theorem from the checked program and require the complete artifact to
+match. Replay uses the recorded proof route, so making a newer producer
+available does not silently replace an older certificate's derivation.
+Mixed admission, selected points, unknown comparisons and unsupported
+evaluation remain residual work; a matching mechanism path cannot close them.
+
+The permanent edge
+`checked_box_child_certificate_replays_without_graph_nodes_or_pointwise_cases`
+proves an 800-case collection-based product through the source-box route while
+the graph-only producer remains residual. It checks exact rank weights,
+support projection without concrete cases, journal encoding and cold replay,
+and rejection of altered bounds, outcomes, program identity and derivation
+roots even after repairing artifact identities. It passes in 0.18 seconds.
+The unchanged graph-based
+`product_child_certificate_replays_exact_rank_weight_and_typed_starter_chain`
+passes in 0.08 seconds. These are focused certificate edges, not a full
+compiler validation claim; mint and deeper suites remain deferred as requested.
+
+The optimized CLI then closed the canonical-model slice with starting incomes
+**342,000..342,498 DKK**, starting daily round-trip commute **25..50 km**, and
+the **+1 km** intervention. The other conditioned facts, canonical assessment,
+validity predicates, integer-øre metric and result/mechanism consumers were
+unchanged. Commute successors reach 51 km, within the full query's 200-km cap.
+
+All **12,974** candidates were admitted and not selected, with **zero
+exclusions or losses**. The case/support graph contains **51 regional
+certificates**: fifty exact 256-case children and one 174-case child. There
+were **zero concrete classification sweeps** and no observer-memo entries or
+calls. All four analysis layers closed and all 11 published artifacts caught
+up to the final journal. This is actual saved negative-region coverage for
+this query, not merely an optional classifier decision.
+
+State occupied approximately **180 KiB**, output **216 KiB**. The 51 certificate
+quanta reported **214.506 seconds** in total. Frontend preparation took
+**78.767 seconds** and the eagerly built native fallback took **208.365
+seconds**, although no concrete sweep subsequently needed it. Trace/report
+file timestamps give an approximate end-to-end span of **544 seconds**;
+this is not a controlled benchmark. The governor reported four CPU-pacing
+pauses totaling 4.498 seconds. The optimized compiler build itself took
+7m25s, separately from this run, using one low-priority build job.
+
+Final journal sequence: **519**, in **12 segments**, head
+`aecbe5511204f694858845a2dcbd939fba35d45b1d7f1063651a58ae5ba39e93`.
+The actual command was:
+
+```sh
+env FUTURUNA_EXPLORE_TRACE=1 nice -n 15 \
+  /Users/andreasrudolph/futuruna-explore-spec/target/release/runa explore \
+  /tmp/futuruna-checked-box-output.zbifuK/checked-box.explore.runa \
+  --query personskat_checked_box_2026 \
+  --run-state /tmp/futuruna-checked-box-output.zbifuK/state \
+  --output /tmp/futuruna-checked-box-output.zbifuK/output \
+  --time-limit 20m --json
+```
+
+The external fixture passed `runa fmt --check`. Its first launch with only a
+relative filename failed import resolution before exploration; the absolute
+path above succeeded. No separate `runa check` was run because actual
+execution performs the checked frontend preparation. The build required no
+cache deletion: low disk space interrupted the first focused test build, then
+space recovered externally and subsequent work proceeded serially.
+
+A separate cold process then reopened the same state/output with the same
+command and a `10m` limit. It completed in approximately **192 seconds**,
+including **81.385 seconds** of preparation; native cache reuse took 226 ms.
+It added **zero semantic events and zero batches**. A direct comparison of
+the two JSON reports confirmed identical checkpoint, exact counts, coverage,
+all published artifacts, and analysis closure root. The empty `losses` result
+root is `bdb698e513727c90fba077fdfff6601d5db5b68b674dc043c588d3d894ba7404`.
+Cold replay re-derives the checked-box certificates; it does not restore an
+operational classification cache or classify each of the 12,974 points.
+
+The focused Rust command was
+`env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target CARGO_BUILD_JOBS=1 nice -n 15 cargo test --lib checked_box_child_certificate_replays_without_graph_nodes_or_pointwise_cases -- --test-threads=1 --nocapture`.
+The legacy edge used the resulting library-test binary directly with
+`product_child_certificate_replays_exact_rank_weight_and_typed_starter_chain --test-threads=1 --nocapture`.
+`cargo fmt --check` and `git diff --check` passed. An initial edge assertion
+expected a semantic mismatch where V5 correctly rejected an invalid shape
+earlier; the expectation was corrected before the passing run. No broad gate
+or per-point canonical oracle was added for this change.
+
+The full 0..400,000-DKK / 0..200-km query is still open. Its canonical pages
+mix inward transitions with outward upper-bound edges; they require exact
+subregion or mixed-admission accounting. Wide salary comparisons also still
+need tighter rounding dependence. This separately bound slice is not silently
+imported as coverage of the older full-grid checkpoint.

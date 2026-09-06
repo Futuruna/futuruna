@@ -10474,8 +10474,9 @@ fn hash_relational_region_proof_artifact(
     hasher.digest(artifact.certificate_id());
     hasher.digest(artifact.replay_authority_id());
     hasher.digest(artifact.classification_capsule_id().bytes());
-    hasher.digest(artifact.successor_root_id().bytes());
-    hasher.digest(artifact.find_root_id().bytes());
+    let (basis_first, basis_second) = artifact.basis().canonical_digests();
+    hasher.digest(basis_first);
+    hasher.digest(basis_second);
     hasher.digest(artifact.relation_id().bytes());
     hasher.digest(artifact.admission_id().bytes());
     hasher.digest(artifact.question_id().bytes());

@@ -41,6 +41,7 @@ use super::relational_classification_capsule::{
     ClassificationUnaryOp, FrozenClassificationProgram, FrozenClassificationQuestionSet,
     RelationalClassificationCapsule,
 };
+use super::relational_endpoint_totality_proof::abstract_classification::CheckedBoxClassifier;
 use super::relational_ir::{
     ExploreFindIr, ExploreSourceBindingKindIr, ExploreSourceBindingRoleIr, ExploreSuccessorKindIr,
 };
@@ -70,6 +71,57 @@ use crate::{
 };
 
 pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 4;
+pub(crate) const RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION: u32 = 5;
+
+/// Distinct proof subjects: a residual checked expression is never encoded
+/// as an executable classification-graph node. V4 graph artifacts retain
+/// their exact bytes and identities; V5 introduces the checked-box recipe.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RelationalRegionProofBasis {
+    GraphNodes {
+        successor_root_id: ClassificationNodeId,
+        find_root_id: ClassificationNodeId,
+    },
+    CheckedSourceBox {
+        checked_program: [u8; 32],
+        derivation_root: [u8; 32],
+    },
+}
+
+impl RelationalRegionProofBasis {
+    pub(crate) const fn canonical_digests(self) -> ([u8; 32], [u8; 32]) {
+        match self {
+            Self::GraphNodes {
+                successor_root_id,
+                find_root_id,
+            } => (successor_root_id.bytes(), find_root_id.bytes()),
+            Self::CheckedSourceBox {
+                checked_program,
+                derivation_root,
+            } => (checked_program, derivation_root),
+        }
+    }
+
+    pub(super) fn restore_from_canonical_digests(
+        version: u32,
+        first: [u8; 32],
+        second: [u8; 32],
+    ) -> Result<Self, RelationalRegionProofError> {
+        match version {
+            RELATIONAL_REGION_PROOF_VERSION => Ok(Self::GraphNodes {
+                successor_root_id: ClassificationNodeId::from_bytes(first),
+                find_root_id: ClassificationNodeId::from_bytes(second),
+            }),
+            RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION => Ok(Self::CheckedSourceBox {
+                checked_program: first,
+                derivation_root: second,
+            }),
+            _ => Err(RelationalRegionProofError::UnsupportedArtifactVersion(
+                version,
+            )),
+        }
+    }
+}
 
 #[path = "relational_product_region.rs"]
 mod product;
@@ -218,8 +270,7 @@ pub(crate) struct RelationalRegionProofArtifact {
     certificate_id: [u8; 32],
     replay_authority_id: [u8; 32],
     classification_capsule_id: ClassificationCapsuleId,
-    successor_root_id: ClassificationNodeId,
-    find_root_id: ClassificationNodeId,
+    basis: RelationalRegionProofBasis,
     relation_id: RelationId,
     admission_id: AdmissionId,
     question_id: QuestionId,
@@ -263,12 +314,8 @@ impl RelationalRegionProofArtifact {
         self.classification_capsule_id
     }
 
-    pub(crate) const fn successor_root_id(&self) -> ClassificationNodeId {
-        self.successor_root_id
-    }
-
-    pub(crate) const fn find_root_id(&self) -> ClassificationNodeId {
-        self.find_root_id
+    pub(crate) const fn basis(&self) -> RelationalRegionProofBasis {
+        self.basis
     }
 
     pub(crate) const fn relation_id(&self) -> RelationId {
@@ -363,8 +410,7 @@ impl RelationalRegionProofArtifact {
         certificate_id: [u8; 32],
         replay_authority_id: [u8; 32],
         classification_capsule_id: ClassificationCapsuleId,
-        successor_root_id: ClassificationNodeId,
-        find_root_id: ClassificationNodeId,
+        basis: RelationalRegionProofBasis,
         relation_id: RelationId,
         admission_id: AdmissionId,
         question_id: QuestionId,
@@ -392,8 +438,7 @@ impl RelationalRegionProofArtifact {
             certificate_id,
             replay_authority_id,
             classification_capsule_id,
-            successor_root_id,
-            find_root_id,
+            basis,
             relation_id,
             admission_id,
             question_id,
@@ -420,10 +465,26 @@ impl RelationalRegionProofArtifact {
     }
 
     fn validate_identity(&self) -> Result<(), RelationalRegionProofError> {
-        if self.schema_version != RELATIONAL_REGION_PROOF_VERSION {
+        if !matches!(
+            (self.schema_version, self.basis),
+            (
+                RELATIONAL_REGION_PROOF_VERSION,
+                RelationalRegionProofBasis::GraphNodes { .. }
+            ) | (
+                RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION,
+                RelationalRegionProofBasis::CheckedSourceBox { .. }
+            )
+        ) {
             return Err(RelationalRegionProofError::UnsupportedArtifactVersion(
                 self.schema_version,
             ));
+        }
+        if matches!(
+            self.basis,
+            RelationalRegionProofBasis::CheckedSourceBox { .. }
+        ) && (!self.product_rank || matches!(self.subject, RelationalRegionProofSubject::Root))
+        {
+            return Err(RelationalRegionProofError::InvalidArtifactShape);
         }
         if self.value_start >= self.value_end_exclusive
             || self.coordinate_start >= self.coordinate_end_exclusive
@@ -495,14 +556,6 @@ impl VerifiedRelationalRegionProof {
 
     pub(crate) const fn classification_capsule_id(&self) -> ClassificationCapsuleId {
         self.artifact.classification_capsule_id
-    }
-
-    pub(crate) const fn successor_root_id(&self) -> ClassificationNodeId {
-        self.artifact.successor_root_id
-    }
-
-    pub(crate) const fn find_root_id(&self) -> ClassificationNodeId {
-        self.artifact.find_root_id
     }
 
     pub(crate) fn evidence_binding(
@@ -638,6 +691,7 @@ pub(crate) struct RelationalRegionReplayAuthority {
     checked: Arc<OwnedCheckedExploreQuery>,
     support_plan: RelationalSupportPlan,
     capsule: Arc<RelationalClassificationCapsule>,
+    checked_box: Option<CheckedBoxClassifier>,
 }
 
 impl RelationalRegionReplayAuthority {
@@ -663,7 +717,18 @@ impl RelationalRegionReplayAuthority {
             checked,
             support_plan,
             capsule,
+            checked_box: None,
         })
+    }
+
+    /// Adds a checked proof producer, not authority from disk. Its retained
+    /// query/program identities are checked again for every box derivation.
+    pub(crate) fn with_checked_box_classifier(
+        mut self,
+        classifier: Option<CheckedBoxClassifier>,
+    ) -> Self {
+        self.checked_box = classifier;
+        self
     }
 
     pub(crate) const fn id(&self) -> [u8; 32] {
@@ -684,13 +749,30 @@ impl RelationalRegionReplayAuthority {
         chunk_ordinal: usize,
     ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
         let target = self.target(partition, chunk_ordinal)?;
-        prove_relational_region(
+        let graph = prove_relational_region(
             &self.checked.view(),
             &self.support_plan,
             self.capsule.as_ref(),
             Some(&target),
             self.id,
-        )
+        )?;
+        if graph.exact_empty().is_some() {
+            return Ok(graph);
+        }
+        if let Some(classifier) = &self.checked_box {
+            let boxed = product::prove_checked_box(
+                &self.checked.view(),
+                &self.support_plan,
+                self.capsule.as_ref(),
+                &target,
+                self.id,
+                classifier,
+            )?;
+            if boxed.exact_empty().is_some() {
+                return Ok(boxed);
+            }
+        }
+        Ok(graph)
     }
 
     pub(crate) fn reverify_canonical_child(
@@ -711,7 +793,33 @@ impl RelationalRegionReplayAuthority {
         };
         let chunk_ordinal = usize::try_from(chunk_ordinal)
             .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?;
-        match self.prove_canonical_child(partition, chunk_ordinal)? {
+        let target = self.target(partition, chunk_ordinal)?;
+        // Replay the recorded recipe, even if a later producer can also prove
+        // the same region using a different route. Never substitute a root.
+        let reproduced = match artifact.basis() {
+            RelationalRegionProofBasis::GraphNodes { .. } => prove_relational_region(
+                &self.checked.view(),
+                &self.support_plan,
+                self.capsule.as_ref(),
+                Some(&target),
+                self.id,
+            )?,
+            RelationalRegionProofBasis::CheckedSourceBox { .. } => {
+                let classifier = self
+                    .checked_box
+                    .as_ref()
+                    .ok_or(RelationalRegionProofError::ReplayAuthorityMismatch)?;
+                product::prove_checked_box(
+                    &self.checked.view(),
+                    &self.support_plan,
+                    self.capsule.as_ref(),
+                    &target,
+                    self.id,
+                    classifier,
+                )?
+            }
+        };
+        match reproduced {
             RelationalRegionProofOutcome::ExactEmpty(closure)
                 if closure.proof().artifact() == artifact =>
             {
@@ -1057,8 +1165,10 @@ fn prove_relational_region(
         certificate_id: [0; 32],
         replay_authority_id,
         classification_capsule_id: capsule.id(),
-        successor_root_id,
-        find_root_id,
+        basis: RelationalRegionProofBasis::GraphNodes {
+            successor_root_id,
+            find_root_id,
+        },
         relation_id: checked.relation_id(),
         admission_id: checked.admission_id(),
         question_id,
@@ -2709,8 +2819,9 @@ fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
     hasher.u8(u8::from(artifact.product_rank));
     hasher.digest(artifact.replay_authority_id);
     hasher.digest(artifact.classification_capsule_id.bytes());
-    hasher.digest(artifact.successor_root_id.bytes());
-    hasher.digest(artifact.find_root_id.bytes());
+    let (basis_first, basis_second) = artifact.basis.canonical_digests();
+    hasher.digest(basis_first);
+    hasher.digest(basis_second);
     hasher.digest(artifact.relation_id.bytes());
     hasher.digest(artifact.admission_id.bytes());
     hasher.digest(artifact.question_id.bytes());
@@ -3411,7 +3522,7 @@ mod tests {
 
     #[test]
     fn canonical_child_certificate_preserves_correlated_starter_chain() {
-        assert_child_certificate_chain(CAPSULE_PARTITIONED_EMPTY_SOURCE, false);
+        assert_child_certificate_chain(CAPSULE_PARTITIONED_EMPTY_SOURCE, false, false);
     }
 
     #[test]
@@ -3435,23 +3546,58 @@ mod tests {
 }
 "#,
             true,
+            false,
         );
     }
 
-    fn assert_child_certificate_chain(source: &str, product_rank: bool) {
+    #[test]
+    fn checked_box_child_certificate_replays_without_graph_nodes_or_pointwise_cases() {
+        assert_child_certificate_chain(
+            r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter) -> Int { sum_list([s.income * 3, s.distance * 2]) }
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore checked_box_certificate {
+    from {
+        vary income in range(100, 120)
+        vary distance in range(30, 70)
+        let before = Starter(income, distance)
+        given context = Step(1, 0)
+    }
+    transition after = advance(before, context)
+    where transition after.income > before.income
+    find cliffs = violations of net(after) >= net(before)
+}
+"#,
+            true,
+            true,
+        );
+    }
+
+    fn assert_child_certificate_chain(source: &str, product_rank: bool, checked_box: bool) {
         let mut lexer = Lexer::new(source);
         let statements = Parser::new(lexer.tokenize(), source)
             .parse_program()
             .expect("parse partitioned exact-empty capsule fixture");
+        let statements = if checked_box {
+            crate::prepend_prelude(crate::parse_prelude(), &statements)
+        } else {
+            statements
+        };
         let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
             artifacts.diagnostics
         );
-        let checked = artifacts
-            .checked_exploration_query(0)
-            .expect("join the checked partitioned query");
+        let owned = Arc::new(
+            artifacts
+                .checked_exploration_query(0)
+                .expect("join the checked partitioned query")
+                .to_owned_checked_query(),
+        );
+        let checked = owned.view();
         let question_id = checked.question_ids()[0];
         let support_plan = RelationalSupportPlanner::from_checked(&checked)
             .and_then(|planner| planner.plan())
@@ -3477,12 +3623,27 @@ mod tests {
         .expect("reverify the canonical case partition");
         let authority = Arc::new(
             RelationalRegionReplayAuthority::new(
-                Arc::new(checked.to_owned_checked_query()),
+                Arc::clone(&owned),
                 support_plan.clone(),
                 Arc::clone(&capsule),
             )
-            .expect("bind producer-owned regional replay authority"),
+            .expect("bind producer-owned regional replay authority")
+            .with_checked_box_classifier(if checked_box {
+                Some(CheckedBoxClassifier::new(artifacts, owned.clone(), &support_plan).unwrap())
+            } else {
+                None
+            }),
         );
+
+        if checked_box {
+            let mut graph_only = (*authority).clone();
+            graph_only.checked_box = None;
+            assert!(graph_only
+                .prove_canonical_child(&verified_partition, 0)
+                .unwrap()
+                .exact_empty()
+                .is_none());
+        }
 
         let outcome = authority
             .prove_canonical_child(&verified_partition, 0)
@@ -3493,6 +3654,55 @@ mod tests {
         let proof = closure.proof();
         let artifact = proof.artifact();
         assert_eq!(artifact.product_rank(), product_rank);
+        assert_eq!(
+            matches!(
+                artifact.basis(),
+                RelationalRegionProofBasis::CheckedSourceBox { .. }
+            ),
+            checked_box
+        );
+        if checked_box {
+            // Repaired identities are not proof authority: bounds, claimed
+            // outcome and the source derivation must all be reproduced.
+            let mut forgeries = vec![];
+            let mut changed = artifact.clone();
+            changed.coordinate_end_exclusive -= 1;
+            changed.case_cardinality -= 1;
+            changed.value_end_exclusive -= 1;
+            forgeries.push(changed);
+            let mut changed = artifact.clone();
+            changed.conclusion = RelationalCertifiedRegionConclusion::Rejected;
+            forgeries.push(changed);
+            for slot in 0..2 {
+                let mut changed = artifact.clone();
+                let RelationalRegionProofBasis::CheckedSourceBox {
+                    checked_program,
+                    derivation_root,
+                } = &mut changed.basis
+                else {
+                    unreachable!()
+                };
+                if slot == 0 {
+                    checked_program[0] ^= 0xff;
+                } else {
+                    derivation_root[0] ^= 0xff;
+                }
+                forgeries.push(changed);
+            }
+            for mut forged in forgeries {
+                forged.starter_region_id = derive_starter_region_id(&forged);
+                forged.certificate_id = derive_certificate_id(&forged);
+                forged.validate_identity().unwrap();
+                assert!(authority
+                    .reverify_canonical_child(&forged, &verified_partition)
+                    .is_err());
+            }
+            let mut graph_only = (*authority).clone();
+            graph_only.checked_box = None;
+            assert!(graph_only
+                .reverify_canonical_child(artifact, &verified_partition)
+                .is_err());
+        }
         if product_rank {
             // The first rank interval encloses more than 256 source points;
             // enclosure must never inflate the certified cardinality.
@@ -3512,10 +3722,14 @@ mod tests {
             forged.product_rank = false;
             forged.starter_region_id = derive_starter_region_id(&forged);
             forged.certificate_id = derive_certificate_id(&forged);
-            assert!(matches!(
+            assert_eq!(
                 authority.reverify_canonical_child(&forged, &verified_partition),
-                Err(RelationalRegionProofError::ArtifactSemanticMismatch)
-            ));
+                Err(if checked_box {
+                    RelationalRegionProofError::InvalidArtifactShape
+                } else {
+                    RelationalRegionProofError::ArtifactSemanticMismatch
+                })
+            );
         }
         let child = &verified_partition.partition().chunks()[0];
         let RelationalBindingStage::Finite(axis_stage) = &support_plan.stages()[0] else {
