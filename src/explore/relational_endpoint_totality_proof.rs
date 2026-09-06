@@ -2161,10 +2161,15 @@ struct EndpointTotalityProver<'a, 'program> {
     // Optional classification precision. The ordinary endpoint-totality
     // certificate mode retains its existing abstract values and roots.
     track_scalar_call_identities: bool,
+    // V6 checked-cover precision; legacy V4/V5 proof recipes leave this off.
+    refine_known_parameter_constants: bool,
+    refine_checked_clamp_identities: bool,
     source_axis_count: usize,
     scalar_call_axes: RefCell<Vec<[u8; 32]>>,
     #[cfg(test)]
     trace_comparison_site: Option<ExprSiteId>,
+    #[cfg(test)]
+    trace_unknown_equalities: bool,
 }
 
 impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
@@ -2186,10 +2191,14 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             top_level_cache: RefCell::new(BTreeMap::new()),
             cache_admission_enabled: Cell::new(true),
             track_scalar_call_identities: false,
+            refine_known_parameter_constants: false,
+            refine_checked_clamp_identities: false,
             source_axis_count: 0,
             scalar_call_axes: RefCell::new(Vec::new()),
             #[cfg(test)]
             trace_comparison_site: None,
+            #[cfg(test)]
+            trace_unknown_equalities: false,
         }
     }
 
@@ -6089,7 +6098,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 }
             }
         }
-        let mut value = join_values(state.results).ok_or_else(|| {
+        let mut value = join_values(std::mem::take(&mut state.results)).ok_or_else(|| {
             self.issue(
                 &state.call_site,
                 RelationalEndpointTotalityIssueReason::PartialRuleDispatch,
@@ -6104,6 +6113,11 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             &value,
             &mut state.substitutions,
         )?;
+        if self.refine_checked_clamp_identities {
+            if let Some(identity) = self.checked_rule_clamp_identity(&state) {
+                value = AbstractValue::Int(identity);
+            }
+        }
         self.identify_scalar_call_result(
             &state.family,
             &state.call_input,
@@ -6124,6 +6138,61 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         }
         self.deliver_value(machine, value)?;
         Ok(())
+    }
+
+    /// Recover x from an exactly checked max(c, x) / min(c, x) rule when
+    /// the input is already on its identity side. Normal strict dispatch and
+    /// totality have completed before this optional refinement runs. In
+    /// particular, equal result enclosures alone never authorize correlation.
+    fn checked_rule_clamp_identity(&self, state: &RuleState) -> Option<IntInterval> {
+        let [argument] = state.arguments.as_slice() else {
+            return None;
+        };
+        let input = argument.int()?;
+        let resolution = self.resolutions.rule_families.get(&state.family)?;
+        let [exception, default] = resolution.candidates.as_ref() else {
+            return None;
+        };
+        if exception.tier != RuleDispatchTier::Exception
+            || !matches!(
+                default.tier,
+                RuleDispatchTier::UnconditionalDefault | RuleDispatchTier::Clause
+            )
+            || default.condition_site.is_some()
+        {
+            return None;
+        }
+        // Both heads must bind the whole sole argument, not a literal or a
+        // projection. Origins resolve typed/named wrappers without name matching.
+        let origins = self.dispatch_argument_origins(&exception.head_site, 1);
+        if origins.len() != 1 || self.dispatch_argument_origins(&default.head_site, 1).len() != 1 {
+            return None;
+        }
+        let identity_place = self.abstract_int_place(exception.value_site.as_ref()?)?;
+        if !identity_place.fields.is_empty()
+            || origins.get(&checked_explore_projection_binder_digest(
+                &identity_place.binder,
+            )) != Some(&dispatch_scalar_argument_id(0))
+        {
+            return None;
+        }
+        let constant = exact_int_literal(self.index.expression(default.value_site.as_ref()?))?;
+        let guard = exception.condition_site.as_ref()?;
+        let ExprKind::BinOp(operator, _, _) = &self.index.expression(guard)?.kind else {
+            return None;
+        };
+        let guard_place = self.abstract_int_place(&child_site(guard, 0))?;
+        if guard_place.binder != identity_place.binder
+            || !guard_place.fields.is_empty()
+            || exact_int_literal(self.index.expression(&child_site(guard, 1))) != Some(constant)
+        {
+            return None;
+        }
+        match operator.as_str() {
+            ">" | ">=" if input.minimum >= constant => Some(input),
+            "<" | "<=" if input.maximum <= constant => Some(input),
+            _ => None,
+        }
     }
 
     fn continue_match(
@@ -7983,7 +8052,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 {
                     let left_site = child_site(&condition_site, 0);
                     let right_site = child_site(&condition_site, 1);
-                    if let Some(constant) = exact_int_literal(self.index.expression(&right_site)) {
+                    if let Some(constant) = self.refinement_constant(&right_site, env) {
                         if let Some(place) = self.abstract_int_place(&left_site) {
                             self.refine_place_comparison(
                                 env,
@@ -7993,9 +8062,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                                 assume_true,
                             );
                         }
-                    } else if let Some(constant) =
-                        exact_int_literal(self.index.expression(&left_site))
-                    {
+                    } else if let Some(constant) = self.refinement_constant(&left_site, env) {
                         if let Some(place) = self.abstract_int_place(&right_site) {
                             self.refine_place_comparison(
                                 env,
@@ -8010,6 +8077,24 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 _ => {}
             }
         }
+    }
+
+    fn refinement_constant(&self, site: &ExprSiteId, env: &AbstractEnv) -> Option<i128> {
+        exact_int_literal(self.index.expression(site)).or_else(|| {
+            if !self.refine_known_parameter_constants {
+                return None;
+            }
+            let place = self.abstract_int_place(site)?;
+            // A parameter proven constant in this branch is as strong as a
+            // literal. Do not evaluate calls or infer equality from enclosures.
+            if !place.fields.is_empty() {
+                return None;
+            }
+            env.get(&place.binder)?
+                .int()?
+                .singleton_value()
+                .map(i128::from)
+        })
     }
 
     fn abstract_int_place(&self, site: &ExprSiteId) -> Option<AbstractIntPlace> {
@@ -9372,6 +9457,16 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             let _input_retained = self.new_tuple_clone_budget([&left, &right].into_iter(), site)?;
             let input = AbstractValue::Tuple(vec![left.clone(), right.clone()].into_boxed_slice());
             let mut result = abstract_equality(&left, &right);
+            #[cfg(test)]
+            if self.trace_unknown_equalities
+                && result.singleton().is_none()
+                && left.int().is_some()
+                && right.int().is_some()
+            {
+                eprintln!(
+                    "CANONICAL_BOX_UNKNOWN_EQUALITY site={site:?}; left={left:?}; right={right:?}"
+                );
+            }
             if operator == "!=" {
                 result = result.not();
             }

@@ -1124,3 +1124,191 @@ mix inward transitions with outward upper-bound edges; they require exact
 subregion or mixed-admission accounting. Wide salary comparisons also still
 need tighter rounding dependence. This separately bound slice is not silently
 imported as coverage of the older full-grid checkpoint.
+
+## Exact mixed-admission covers of ranked pages
+
+Version 6 regional certificates add a bounded tree of source-factor splits
+inside an existing canonical page. They can close a page whose leaves are
+either rejected or admitted/not-selected, without pretending that the parent
+has one uniform admission outcome. Versions 4 and 5 retain their existing
+encoding and replay recipes.
+
+Factor restrictions retain original tuple coordinates. Their rank endpoints
+are translated by exact mixed-radix prefix counts, not by enumerating incomes
+or kilometres. Thus splitting the intervention and the 200-km endpoint does
+not require one leaf per income. For the original grid's first 65,536-rank
+page, the geometry alone accounts for 32,768 salary steps, 32,605 inward
+commuting steps and 163 outward commuting steps. Geometry is not tax evidence:
+the checked model must still prove each leaf's admission and FIND result.
+
+Search is bounded to 31 tree nodes. Every accepted leaf is freshly proved;
+an unknown predicate or a selected loss leaves the page open. The journal
+stores the split recipe, leaf outcomes, exact weights and derivation roots.
+Cold replay reconstructs the partition and re-proves every leaf. Public
+support rows report each leaf separately. A shared mechanism signature is
+still never permission to skip a region.
+
+A saved concrete prefix can be reconciled with this cover: every existing run
+is intersected with the proved leaves by exact rank counting and must agree
+with their outcomes. Only after atomic proof acceptance is the pending
+accumulator retired; the original slice events remain in the journal.
+Disagreement refuses the proof and preserves the prefix. A failed search is
+not repeated after each subsequent concrete slice in the same attached run.
+
+The focused `ranked_box_mixed_cover_journals_exact_leaf_counts_and_cold_replay`
+check passes with a 41-case saved prefix, a first page containing 250
+admitted/not-selected and six rejected cases, public leaf rows, codec round
+trip and cold replay. Initial integration attempts exposed a remaining
+single-region projection assumption and test-fixture wiring errors; these
+were corrected before the passing 0.14-second run. Broad gates remain deferred
+at the user's explicit request.
+
+The final focused library binary also passed `ranked_box_` (four checks,
+0.51 seconds), `checked_box_child_certificate_replays` (one, 0.05 seconds)
+and `product_child_certificate_replays` (one, 0.03 seconds), each with
+`--test-threads=1 --nocapture` under `nice -n 15`. The optimized build used
+`env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target CARGO_BUILD_JOBS=1 nice -n 15 cargo build --release --bin runa`
+and finished in 4m29s with the two pre-existing unused CLI-helper warnings.
+`cargo fmt --check` and `git diff --check` passed. No full mint, canary or
+differential lane was run.
+
+The first actual full-grid resume with V6 did **not** close page zero. Its
+bounded search declined, retaining the old concrete prefix and appending only
+one checked transition (sequence 261 to 263; 14,013 pending transitions, still
+zero public classified lower bound). Model preparation took 61.856 seconds;
+the eager native evaluator build added 155.039 seconds. The captured report is
+`/tmp/futuruna-mixed-cover-output.hK6DTI/report.json`; this attempt must not be
+reported as certified full-grid coverage.
+
+A three-box diagnostic localized one blocker to known-zero parameters in
+`penge_mindste_beløb(a, b)`, whose body is `if a < b { a } else { b }`.
+For `a = 0` and nonnegative `b`, literal-only branch refinement retained a
+spurious positive alternative in the else branch. That made the negative
+share-tax conservation check uncertain even with no share income. Zero income
+at every 0..200-km commute was proved valid/harmless; income 0..163 at zero
+commute and income 1..163 at all commutes remained uncertain. These are proof
+precision findings, not tax-rule changes or newly discovered invalid inputs.
+
+V6 now permits branch refinement from a checked parameter whose abstract
+integer bounds are a singleton. It does not treat a range as constant, evaluate
+new calls during refinement, or change the V4/V5 recipe. The small
+`cover_branch_constants` reproduction passed in 0.07 seconds; the mixed-cover
+replay and V5 compatibility edges then passed in 0.13 and 0.05 seconds.
+
+Proof-focused CLI runs can set
+`FUTURUNA_EXPLORE_DISABLE_NATIVE_CLASSIFIER=1` to skip the native sidecar build.
+Regional proofs and the checked interpreter remain enabled, as does the
+resource governor. The default stays unchanged. This is an operational choice,
+not a weaker admission check or a change to the query's answer identity.
+
+### Actual mixed-cover output
+
+The canonical model's low-income strip now closes completely: starting incomes
+0..10 DKK inclusive, every round-trip commute 0..200 km inclusive, and both
+separate unit interventions. The endpoint horizon remains 400,000 DKK / 200 km,
+so salary 10 → 11 is admitted. The exact result is 4,422 candidates, 4,411
+admitted/not-selected and 11 rejected outward 200 → 201-km steps. There are
+zero losses or unclassified cases in this strip.
+
+This actual run used 18 certified-region quanta, no concrete sweeps and no
+observer evaluations. All four layers closed and all 11 published artifacts
+caught up. Public case support occupies 61 records, with separate weights for
+the mixed-cover leaves. Preparation took 60.711 seconds and regional quanta
+151.791 seconds in total; native classification was disabled. The saved state
+is 92 KiB and output 172 KiB on the measured filesystem. The six-minute run
+finished normally at sequence 222, nine segments, journal head
+`1054db47248a8b9ffae1dcc0abb55d1c5a8a8f6cbfb240ab2114331ab37518f2`.
+
+Evidence is under `/tmp/futuruna-mixed-cover-output.hK6DTI/`: the derived query
+`low-income-strip.explore.runa`, `strip-report.json`, `strip-trace.log`,
+`strip-findings.md`, `strip-state/` and `strip-output/`. Its inherited block
+comment describes the parent full grid; the executable income range is
+`range(0, 11)`. This is a separately bound query, not silently imported coverage
+of the original full-grid checkpoint.
+
+The second original-grid attempt confirmed the known-parameter fix makes
+low-income model admission provable. It still failed to close page zero because
+the salary-rounding comparison remained unknown. It was interrupted after
+retaining additional concrete progress; no public full-grid coverage is claimed.
+One loaded-model diagnostic proved the full 0..163-income / 0..199-km inward
+commuting box harmless and the 0..10-income / 0..200-km salary box harmless.
+These diagnostic boxes are not themselves journal certificates.
+
+### Preserve rounded dependence through checked clamps
+
+A second precision fix recognizes an exact checked integer clamp: one
+exception returns the sole argument under `x > c` (or `>=`, `<`, `<=`), and
+the fallback returns that same literal `c`. Both heads must bind the whole
+argument. After ordinary strict dispatch and totality succeed, the analyzer
+can preserve the argument's correlation on the clamp's identity side. It does
+not recognize tax-rule names, assume equal enclosures denote equal values, or
+ignore extra exceptions. Unrecognized shapes remain conservative.
+
+The V6 producer tries the previous checked-box recipe first. Only an unknown
+outcome uses this stronger fallback, preserving the derivation roots of
+previously accepted V6 leaves. V4/V5 continue to use their existing precision.
+The focused `cover_checked_clamp` edge passed in 0.11 seconds, including
+altered constants, guards, an extra exception and a negative-crossing input.
+Initial compile/fixture failures were corrected before this passing run. The
+mixed journal/cold-replay edge also passed in 0.11 seconds after the change.
+
+On the actual canonical model, the complete salary box with starting incomes
+0..163 DKK and distances 0..200 km then proved all admissions and no loss in
+7.381 seconds (after model loading). The after-minus-before net-income bound
+is 0..100 øre: an affine slope of 92 øre per DKK combined with the exact
+whole-krone congruence of AM-tax rounding. This replaces the previous loose
+-1,200..1,400-øre comparison; no tax rule was changed.
+
+Two wider boxes in the same loaded-model diagnostic also proved harmless:
+starting incomes 0..50,000 at every 0..200-km salary step (6.543 seconds), and
+the same incomes at every 0..199-km inward commuting step (6.804 seconds).
+The latter difference is exactly zero. These enclosures respectively cover
+10,050,201 and 10,000,200 transitions, but remain diagnostic evidence until
+bound into the requested query's saved support. Logs are in
+`/tmp/futuruna-mixed-cover-output.hK6DTI/clamp-boxes-run.log`.
+
+### First saved page in the original full grid
+
+The original query and checkpoint now have actual regional coverage. Page zero
+closed with three leaves: 32,768 valid harmless salary steps, 32,605 valid
+harmless commuting steps, and 163 rejected outward commuting steps. These sum
+to its exact 65,536 candidates. It includes all distances for incomes 0..162,
+then distances 0..4 for income 163. The saved concrete prefix was reconciled
+without replacing history, and no new concrete sweep was needed for this page.
+The certified-region quantum took 14.914 seconds.
+
+The original state at `/tmp/futuruna-rule-regions.zIAuRQ/personskat-blocks-state`
+is now sequence 330, 33 durable segments, journal head
+`c3268c6b82dafdd4d8537bdc13cd84da8682d9dbd26b757f3d986fcf762b335b`.
+All 11 artifacts in the adjacent `personskat-blocks-output` caught up. Its
+case-support graph has five records: root, page and three regional leaves.
+State/output occupy 496/88 KiB on this filesystem. The certificate is
+`5d2d06742d9aae9336853d6283150484d788b8c5050a6a208527ec5797963278`.
+
+This actual run used the optimized build completed in 4m31s and the command:
+
+```sh
+env FUTURUNA_EXPLORE_TRACE=1 FUTURUNA_EXPLORE_DISABLE_NATIVE_CLASSIFIER=1 \
+  nice -n 15 /Users/andreasrudolph/futuruna-explore-spec/target/release/runa explore \
+  examples/danish-income-tax/personskat-income-distance-unit.explore.runa \
+  --query personskat_income_distance_unit_2026 \
+  --run-state /tmp/futuruna-rule-regions.zIAuRQ/personskat-blocks-state \
+  --output /tmp/futuruna-rule-regions.zIAuRQ/personskat-blocks-output \
+  --time-limit 3m --json
+```
+
+Preparation took 63.946 seconds. The run then tried high-income endpoint page
+2453, failed to close that page and retained one concrete transition there.
+That quantum took 92.359 seconds including bounded proof search and fallback.
+The run paused normally at its runtime limit. This next page, and the full
+query, remain open; the public 65,536 classified count is a lower bound. No
+no-cliff claim is made for the remaining 160,734,866 candidates.
+
+The report, trace and readable findings are `original-page-report.json`,
+`original-page-trace.log` and `original-page-findings.md` under
+`/tmp/futuruna-mixed-cover-output.hK6DTI/`. The final focused compile/run was
+`env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target CARGO_BUILD_JOBS=1 nice -n 15 cargo test --lib cover_checked_clamp -- --test-threads=1 --nocapture`;
+the resulting test binary ran `ranked_box_mixed_cover_journals --test-threads=1 --nocapture`
+under `nice -n 15`. Both checks passed in 0.11 seconds each. Formatting and
+diff checks passed. Broad gates and another canonical cold replay were
+deliberately deferred in favor of actual output, at the user's request.

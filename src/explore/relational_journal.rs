@@ -81,8 +81,8 @@ use super::relational_population::{
     CertifiedSelectedPopulationError, ClosedCertifiedSelectedPopulation,
 };
 use super::relational_region_proof::{
-    RelationalCertifiedRegionConclusion, RelationalRegionProofArtifact, RelationalRegionProofError,
-    RelationalRegionProofSubject, RelationalRegionReplayAuthority,
+    RelationalRegionProofArtifact, RelationalRegionProofError, RelationalRegionProofSubject,
+    RelationalRegionReplayAuthority,
 };
 use super::relational_selected_run_materialization::{
     reverify_relational_selected_run_materialization_artifact,
@@ -1847,10 +1847,7 @@ impl RelationalClassifiedSupportFragment {
     pub(crate) const fn rejected_count(&self) -> u128 {
         match self {
             Self::Concrete(artifact) => artifact.rejected_count(),
-            Self::CertifiedZeroSelected(artifact) => match artifact.conclusion() {
-                RelationalCertifiedRegionConclusion::Rejected => artifact.case_cardinality(),
-                RelationalCertifiedRegionConclusion::AdmittedNotSelected => 0,
-            },
+            Self::CertifiedZeroSelected(artifact) => artifact.rejected_case_count(),
         }
     }
 
@@ -1858,12 +1855,7 @@ impl RelationalClassifiedSupportFragment {
         match self {
             Self::Concrete(artifact) => artifact.admitted_not_selected_count(question_id),
             Self::CertifiedZeroSelected(artifact) if artifact.question_id() == question_id => {
-                Some(match artifact.conclusion() {
-                    RelationalCertifiedRegionConclusion::Rejected => 0,
-                    RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
-                        artifact.case_cardinality()
-                    }
-                })
+                Some(artifact.admitted_case_count())
             }
             Self::CertifiedZeroSelected(_) => None,
         }
@@ -4064,42 +4056,61 @@ impl RelationalEvidenceState {
         }
 
         let verified = authority.reverify_canonical_child(artifact, verified_partition)?;
-        if !matches!(
-            artifact.conclusion(),
-            RelationalCertifiedRegionConclusion::Rejected
-                | RelationalCertifiedRegionConclusion::AdmittedNotSelected
-        ) {
-            return Err(RelationalJournalError::RegionProofConclusionUnsupported);
-        }
-        let cardinality_obligation =
-            SupportCellObligation::new(chunk.cell(), ExactCardinalityClaim)
-                .map_err(RelationalRegionProofError::from)?;
-        let cardinality = relational_region_proof_gateway::cardinality(
-            &verified,
-            cardinality_obligation.clone(),
-            artifact.case_cardinality(),
-        )
-        .map_err(RelationalRegionProofError::from)?;
-        let admission = relational_region_proof_gateway::admission(
-            &verified,
-            chunk_admission,
-            artifact.conclusion().admission(),
-        )
-        .map_err(RelationalRegionProofError::from)?;
-        let selection = match artifact.conclusion().selection() {
-            Some(decision) => {
-                let obligation = SupportCellObligation::new(
-                    chunk.cell(),
-                    SelectionClassificationClaim::new(artifact.question_id()),
-                )
-                .map_err(RelationalRegionProofError::from)?;
-                Some((
-                    obligation.clone(),
-                    relational_region_proof_gateway::selection(&verified, obligation, decision)
-                        .map_err(RelationalRegionProofError::from)?,
-                ))
+        let events = if verified.checked_cover().is_some() {
+            verified.cover_events(chunk.cell())?
+        } else {
+            let conclusion = artifact
+                .conclusion()
+                .ok_or(RelationalJournalError::RegionProofConclusionUnsupported)?;
+            let cardinality_obligation =
+                SupportCellObligation::new(chunk.cell(), ExactCardinalityClaim)
+                    .map_err(RelationalRegionProofError::from)?;
+            let cardinality = relational_region_proof_gateway::cardinality(
+                &verified,
+                cardinality_obligation.clone(),
+                artifact.case_cardinality(),
+            )
+            .map_err(RelationalRegionProofError::from)?;
+            let admission = relational_region_proof_gateway::admission(
+                &verified,
+                chunk_admission,
+                conclusion.admission(),
+            )
+            .map_err(RelationalRegionProofError::from)?;
+            let selection = match conclusion.selection() {
+                Some(decision) => {
+                    let obligation = SupportCellObligation::new(
+                        chunk.cell(),
+                        SelectionClassificationClaim::new(artifact.question_id()),
+                    )
+                    .map_err(RelationalRegionProofError::from)?;
+                    Some((
+                        obligation.clone(),
+                        relational_region_proof_gateway::selection(&verified, obligation, decision)
+                            .map_err(RelationalRegionProofError::from)?,
+                    ))
+                }
+                None => None,
+            };
+            let mut events = vec![
+                SupportJournalEvent::root_obligation_declared(
+                    SupportObligationRecord::Cardinality(cardinality_obligation),
+                ),
+                SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Cardinality(
+                    cardinality,
+                )),
+                SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Admission(admission)),
+            ];
+            if let Some((obligation, evidence)) = selection {
+                events.push(SupportJournalEvent::root_obligation_declared(
+                    SupportObligationRecord::Selection(obligation),
+                ));
+                events.push(SupportJournalEvent::evidence_accepted(
+                    SupportEvidenceRecord::Selection(evidence),
+                ));
             }
-            None => None,
+            events.push(SupportJournalEvent::leaf_sealed(chunk_cell_id));
+            events.into_boxed_slice()
         };
 
         let retain =
@@ -4119,8 +4130,12 @@ impl RelationalEvidenceState {
                     return Err(RelationalJournalError::RegionProofSubjectMismatch);
                 }
             };
-        if retain && self.classified_chunk_accumulator.is_some() {
-            return Err(RelationalJournalError::RegionProofConflictsWithConcreteSlice);
+        if retain {
+            if let Some(accumulator) = &self.classified_chunk_accumulator {
+                if !verified.reconciles_prefix(chunk.cell(), accumulator)? {
+                    return Err(RelationalJournalError::RegionProofConflictsWithConcreteSlice);
+                }
+            }
         }
         let retained = retain
             .then(|| RelationalClassifiedSupportFragment::CertifiedZeroSelected(artifact.clone()));
@@ -4136,21 +4151,41 @@ impl RelationalEvidenceState {
                 .map_err(|_| RelationalJournalError::CaseSupportDiscoveryAllocationFailed)?;
         }
 
-        let undo_capacity = if selection.is_some() { 9 } else { 6 };
+        let undo_capacity = events.len() * 3 + 3;
         let mut support = self.support.begin_append_transaction(undo_capacity)?;
-        support.declare_root_obligation_record(SupportObligationRecord::Cardinality(
-            cardinality_obligation,
-        ))?;
-        support.insert_declared_evidence_record(SupportEvidenceRecord::Cardinality(cardinality))?;
-        support.insert_declared_evidence_record(SupportEvidenceRecord::Admission(admission))?;
-        if let Some((obligation, evidence)) = selection {
-            support
-                .declare_root_obligation_record(SupportObligationRecord::Selection(obligation))?;
-            support.insert_declared_evidence_record(SupportEvidenceRecord::Selection(evidence))?;
+        for event in events {
+            match event {
+                SupportJournalEvent::CellInserted { cell, .. } => {
+                    support.insert_known_cell(cell)?;
+                }
+                SupportJournalEvent::PartitionAccepted { certificate, .. } => {
+                    support.insert_known_partition(certificate)?;
+                }
+                SupportJournalEvent::ObligationRefined {
+                    refinement,
+                    child_obligations,
+                    ..
+                } => {
+                    support.insert_obligation_refinement_with_children(
+                        refinement,
+                        child_obligations,
+                    )?;
+                }
+                SupportJournalEvent::RootObligationDeclared { obligation, .. } => {
+                    support.declare_root_obligation_record(obligation)?;
+                }
+                SupportJournalEvent::EvidenceAccepted { evidence, .. } => {
+                    support.insert_declared_evidence_record(evidence)?;
+                }
+                SupportJournalEvent::LeafSealed { cell_id } => {
+                    support.seal_known_leaf(cell_id)?;
+                }
+                _ => return Err(RelationalJournalError::RegionProofConclusionUnsupported),
+            }
         }
-        support.seal_known_leaf(chunk_cell_id)?;
         support.commit();
         if let Some(retained) = retained {
+            self.classified_chunk_accumulator = None;
             self.classified_support_fragment_slots[chunk_index] = Some(retained);
             self.accepted_classified_fragment_count = self
                 .accepted_classified_fragment_count
@@ -10499,7 +10534,7 @@ fn hash_relational_region_proof_artifact(
             hasher.digest(chunk_materializer_id.bytes());
         }
     }
-    hasher.tag(artifact.conclusion().canonical_tag());
+    hasher.tag(artifact.conclusion_tag());
     hasher.digest(artifact.starter_region_id().bytes());
     hasher.digest(artifact.source_assignment_cell_id().bytes());
     hasher.digest(artifact.source_row_cell_id().bytes());
@@ -10513,6 +10548,9 @@ fn hash_relational_region_proof_artifact(
     hasher.u128(artifact.coordinate_end_exclusive());
     hasher.u128(artifact.case_cardinality());
     hasher.digest(artifact.selected_formula_digest());
+    if let Some(cover) = artifact.cover() {
+        hasher.digest(cover.digest());
+    }
 }
 
 fn hash_relational_selected_run_materialization_artifact(

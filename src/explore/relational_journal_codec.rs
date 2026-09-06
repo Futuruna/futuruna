@@ -3551,7 +3551,7 @@ fn encode_region_proof_artifact(
             encoder.digest(chunk_materializer_id.bytes())?;
         }
     }
-    encoder.tag(artifact.conclusion().canonical_tag())?;
+    encoder.tag(artifact.conclusion_tag())?;
     encoder.digest(artifact.starter_region_id().bytes())?;
     encoder.digest(artifact.source_assignment_cell_id().bytes())?;
     encoder.digest(artifact.source_row_cell_id().bytes())?;
@@ -3564,7 +3564,32 @@ fn encode_region_proof_artifact(
     encoder.u128(artifact.coordinate_start())?;
     encoder.u128(artifact.coordinate_end_exclusive())?;
     encoder.u128(artifact.case_cardinality())?;
-    encoder.digest(artifact.selected_formula_digest())
+    encoder.digest(artifact.selected_formula_digest())?;
+    if let Some(cover) = artifact.cover() {
+        use super::relational_region_proof::RelationalRegionCoverNode as Node;
+        encoder.collection_len(cover.nodes().len())?;
+        encoder.u128(cover.rejected_count())?;
+        for node in cover.nodes() {
+            match node {
+                Node::Split { axis, pivot } => {
+                    encoder.tag(1)?;
+                    encoder.u32(*axis)?;
+                    encoder.u128(*pivot)?;
+                }
+                Node::Leaf {
+                    outcome,
+                    derivation_root,
+                    coordinate_count,
+                } => {
+                    encoder.tag(2)?;
+                    encoder.tag(outcome.canonical_tag())?;
+                    encoder.digest(*derivation_root)?;
+                    encoder.u128(*coordinate_count)?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn decode_region_proof_artifact(
@@ -3614,9 +3639,14 @@ fn decode_region_proof_artifact(
             });
         }
     };
-    let conclusion = RelationalCertifiedRegionConclusion::from_canonical_tag(reader.tag()?).ok_or(
-        RelationalJournalCodecError::Malformed("unknown regional proof conclusion"),
-    )?;
+    let conclusion = match reader.tag()? {
+        3 => None,
+        tag => Some(
+            RelationalCertifiedRegionConclusion::from_canonical_tag(tag).ok_or(
+                RelationalJournalCodecError::Malformed("unknown regional proof conclusion"),
+            )?,
+        ),
+    };
     RelationalRegionProofArtifact::restore_from_canonical_parts(
         schema_version,
         product_rank,
@@ -3644,8 +3674,54 @@ fn decode_region_proof_artifact(
         reader.u128()?,
         reader.u128()?,
         reader.digest()?,
+        decode_region_cover(reader, schema_version)?,
     )
     .map_err(RelationalJournalCodecError::from)
+}
+
+fn decode_region_cover(
+    reader: &mut Reader<'_>,
+    version: u32,
+) -> Result<
+    Option<Box<super::relational_region_proof::RelationalRegionCoverArtifact>>,
+    RelationalJournalCodecError,
+> {
+    use super::relational_region_proof::{
+        RelationalRegionCoverArtifact as Cover, RelationalRegionCoverNode as Node,
+        RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
+    };
+    if version != RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION {
+        return Ok(None);
+    }
+    let count = reader.collection_len("regional cover nodes")?;
+    if count == 0 || count > 31 {
+        return Err(RelationalJournalCodecError::Malformed(
+            "invalid cover node count",
+        ));
+    }
+    let rejected = reader.u128()?;
+    let mut nodes = Vec::with_capacity(count);
+    for _ in 0..count {
+        nodes.push(match reader.tag()? {
+            1 => Node::Split {
+                axis: reader.u32()?,
+                pivot: reader.u128()?,
+            },
+            2 => Node::Leaf {
+                outcome: RelationalCertifiedRegionConclusion::from_canonical_tag(reader.tag()?)
+                    .ok_or(RelationalJournalCodecError::Malformed(
+                        "invalid cover leaf outcome",
+                    ))?,
+                derivation_root: reader.digest()?,
+                coordinate_count: reader.u128()?,
+            },
+            _ => return Err(RelationalJournalCodecError::Malformed("invalid cover node")),
+        });
+    }
+    Ok(Some(Box::new(Cover::restore(
+        nodes.into_boxed_slice(),
+        rejected,
+    )?)))
 }
 
 fn encode_selected_run_materialization_artifact(

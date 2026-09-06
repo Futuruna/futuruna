@@ -713,12 +713,10 @@ impl<'query> RelationalStepDriver<'query> {
                 }
             }
 
-            // A concrete slice checkpoint owns its child until completion.
-            // Otherwise the producer-owned regional prover gets exactly one
-            // chance to close the next whole canonical child before any case
-            // in that child is evaluated. Regional proof remains deliberately
-            // unary until its proof artifact binds a complete question set.
-            if self.question_ids.len() == 1 && view.classified_chunk_accumulator()?.is_none() {
+            // A fresh checked cover may reconcile a resumed concrete prefix;
+            // journal acceptance checks every prior run against its leaves.
+            // Failed search is attempted once per child per attached authority.
+            if self.question_ids.len() == 1 {
                 if let (Some(target), Some(authority), Some(partition), Some(_progress)) = (
                     target.as_ref(),
                     journal.region_replay_authority(),
@@ -727,8 +725,22 @@ impl<'query> RelationalStepDriver<'query> {
                 ) {
                     let chunk_ordinal = usize::try_from(target.descriptor().ordinal())
                         .map_err(|_| RelationalStepDriverError::RegionProofChunkOrdinalOverflow)?;
-                    if chunk_ordinal < partition.partition().chunks().len() {
-                        match authority.prove_canonical_child(partition, chunk_ordinal)? {
+                    let accumulator = view.classified_chunk_accumulator()?;
+                    let attempt = authority.claim_child_attempt(
+                        chunk_ordinal,
+                        accumulator.map_or(target.descriptor().interval_start(), |prefix| {
+                            prefix.next_coordinate()
+                        }),
+                    );
+                    if chunk_ordinal < partition.partition().chunks().len()
+                        && (accumulator.is_none() || attempt)
+                    {
+                        let outcome = if accumulator.is_some() {
+                            authority.prove_resumed_cover(partition, chunk_ordinal)?
+                        } else {
+                            authority.prove_canonical_child(partition, chunk_ordinal)?
+                        };
+                        match outcome {
                             RelationalRegionProofOutcome::ExactEmpty(closure) => {
                                 let artifact = closure.proof().artifact().clone();
                                 return Ok(self.batch(

@@ -49,6 +49,23 @@ impl CheckedBoxClassifier {
         checked: &CheckedExploreQueryView<'_>,
         coordinates: &[Option<(i64, i64)>],
     ) -> Option<CheckedSourceBoxProof> {
+        self.prove_coordinates_mode(checked, coordinates, false)
+    }
+
+    pub(crate) fn prove_cover_coordinates(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+        coordinates: &[Option<(i64, i64)>],
+    ) -> Option<CheckedSourceBoxProof> {
+        self.prove_coordinates_mode(checked, coordinates, true)
+    }
+
+    fn prove_coordinates_mode(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+        coordinates: &[Option<(i64, i64)>],
+        branch_constants: bool,
+    ) -> Option<CheckedSourceBoxProof> {
         let retained = self.inputs.checked.view();
         if checked.program_hash() != retained.program_hash()
             || checked.relation_id() != retained.relation_id()
@@ -58,7 +75,28 @@ impl CheckedBoxClassifier {
             return None;
         }
         let index = CheckedExploreSemanticIndex::build(&self.inputs.program);
-        prove_box(&index, &self.inputs.resolutions, checked, coordinates).ok()
+        let proof = prove_box_with_branch_constants(
+            &index,
+            &self.inputs.resolutions,
+            checked,
+            coordinates,
+            branch_constants,
+        )
+        .ok()?;
+        // Preserve existing V6 leaf roots: stronger precision is attempted
+        // only where the original recipe could not issue a closed outcome.
+        if !branch_constants || proof.classification.outcome(checked).is_some() {
+            return Some(proof);
+        }
+        prove_box_with_clamp_identities(
+            &index,
+            &self.inputs.resolutions,
+            checked,
+            coordinates,
+            branch_constants,
+            true,
+        )
+        .ok()
     }
 
     pub(crate) fn new(
@@ -198,6 +236,10 @@ pub(crate) struct CheckedSourceBoxProof {
 }
 
 impl CheckedSourceBoxProof {
+    pub(crate) fn all_rejected(&self) -> bool {
+        self.classification.admissions.contains(&Some(false))
+    }
+
     pub(crate) fn all_admitted_not_selected(&self) -> bool {
         self.classification
             .admissions
@@ -318,10 +360,40 @@ fn prove_box(
     checked: &CheckedExploreQueryView<'_>,
     coordinates: &[Option<(i64, i64)>],
 ) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
+    prove_box_with_branch_constants(index, resolutions, checked, coordinates, false)
+}
+
+fn prove_box_with_branch_constants(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    checked: &CheckedExploreQueryView<'_>,
+    coordinates: &[Option<(i64, i64)>],
+    branch_constants: bool,
+) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
+    prove_box_with_clamp_identities(
+        index,
+        resolutions,
+        checked,
+        coordinates,
+        branch_constants,
+        false,
+    )
+}
+
+fn prove_box_with_clamp_identities(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    checked: &CheckedExploreQueryView<'_>,
+    coordinates: &[Option<(i64, i64)>],
+    branch_constants: bool,
+    clamp_identities: bool,
+) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
     let query = checked.closed_query;
     let sites = &checked.artifact.sites;
     let mut prover = EndpointTotalityProver::new(index, resolutions, checked.relation_id());
     prover.track_scalar_call_identities = true;
+    prover.refine_known_parameter_constants = branch_constants;
+    prover.refine_checked_clamp_identities = clamp_identities;
     prover.source_axis_count = query
         .source
         .bindings
@@ -422,11 +494,34 @@ fn prove_box(
     );
 
     let mut admissions = Vec::new();
+    #[cfg(test)]
+    {
+        prover.trace_unknown_equalities =
+            std::env::var_os("FUTURUNA_EXPLORE_ADMISSION_TRACE").is_some();
+    }
     for site in sites.admissions.iter() {
         let value = prover.eval_site(site, &env)?;
         let truth = value.value.truth();
         let decision = truth.and_then(TruthDomain::singleton);
         admissions.push(decision);
+        #[cfg(test)]
+        if prover.trace_unknown_equalities {
+            eprintln!(
+                "CANONICAL_BOX_ADMISSION ordinal={}; decision={decision:?}",
+                admissions.len() - 1
+            );
+            for ((_, family, _), cached) in prover.rule_family_cache.borrow().iter() {
+                if family.name.contains("gyldig") || family.name.contains("afstemt") {
+                    if cached
+                        .value
+                        .truth()
+                        .is_some_and(|truth| truth.singleton().is_none())
+                    {
+                        eprintln!("CANONICAL_BOX_UNKNOWN_VALIDITY family={family:?}");
+                    }
+                }
+            }
+        }
         if decision == Some(false) {
             // Subsequent predicates are not executed on rejected subjects.
             admissions.resize(sites.admissions.len(), None);
@@ -445,6 +540,10 @@ fn prove_box(
         prover.refine_condition_into(site, true, &mut env);
     }
     let mut selections = Vec::new();
+    #[cfg(test)]
+    {
+        prover.trace_unknown_equalities = false;
+    }
     for (find, site) in query.finds.iter().zip(sites.find_predicates.iter()) {
         let decision = match (&find.find, site) {
             (ExploreFindIr::All { .. }, None) => Some(true),
@@ -485,6 +584,134 @@ fn prove_box(
 mod tests {
     use super::*;
     use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    fn cover_checked_clamp_preserves_rounded_income_difference_only_for_exact_identity() {
+        let template = r#"
+| clamp(x: Int) -> DEFAULT
+| exception clamp_side clamp(x: Int) -> x under x > BOUND
+EXTRA
+> tax(x: Int) -> Int { clamp(x * 8 / 100) * 100 }
+? explore clamp_identity {
+    from {
+        vary before in range(START, 164)
+        given context = ()
+    }
+    transition after = before + 1
+    where before clamp(before) == before
+    find rows = matches of after * 100 - tax(after) < before * 100 - tax(before)
+}
+"#;
+        for (start, default, bound, extra, identity) in [
+            (0, 0, 0, "", true),
+            (-1, 0, 0, "", false),
+            (0, 1, 0, "", false),
+            (0, 0, 1, "", false),
+            (
+                0,
+                0,
+                0,
+                "| exception extra clamp(x: Int) -> -1 under x == 10",
+                false,
+            ),
+        ] {
+            let source = template
+                .replace("START", &start.to_string())
+                .replace("DEFAULT", &default.to_string())
+                .replace("BOUND", &bound.to_string())
+                .replace("EXTRA", extra);
+            let mut lexer = Lexer::new(&source);
+            let statements = Parser::new(lexer.tokenize(), &source)
+                .parse_program()
+                .unwrap();
+            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+            let checked = artifacts.checked_exploration_query(0).unwrap();
+            let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+            let coordinates = [Some((start, 163)), None];
+            let proof = prove_box_with_clamp_identities(
+                &index,
+                &artifacts.checked_resolutions,
+                &checked,
+                &coordinates,
+                true,
+                true,
+            )
+            .unwrap();
+            assert_eq!(
+                proof.classification.admissions[0] == Some(true),
+                identity,
+                "start={start} default={default} bound={bound} extra={extra}"
+            );
+            if identity {
+                assert_eq!(proof.classification.selections[0], Some(false));
+                let legacy = prove_box_with_branch_constants(
+                    &index,
+                    &artifacts.checked_resolutions,
+                    &checked,
+                    &coordinates,
+                    true,
+                )
+                .unwrap();
+                assert_eq!(legacy.classification.admissions[0], None);
+            }
+        }
+    }
+
+    #[test]
+    fn cover_branch_constants_prove_minimum_without_treating_ranges_as_constants() {
+        let template = r#"
+> minimum(a: Int, b: Int) -> Int { if a < b { a } else { b } }
+? explore constant_parameter {
+    from {
+        vary before in range(START, 164)
+        given context = ()
+    }
+    transition after = before + 1
+    where before minimum(BOUND, before) == BOUND
+    find rows = matches of false
+}
+"#;
+        for (start, bound, expected) in [(0, 0, Some(true)), (-1, 0, None), (0, 1, None)] {
+            let source = template
+                .replace("START", &start.to_string())
+                .replace("BOUND", &bound.to_string());
+            let mut lexer = Lexer::new(&source);
+            let statements = Parser::new(lexer.tokenize(), &source)
+                .parse_program()
+                .unwrap();
+            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+            let checked = artifacts.checked_exploration_query(0).unwrap();
+            let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+            let coordinates = [Some((start, 163)), None];
+            let legacy = prove_box(
+                &index,
+                &artifacts.checked_resolutions,
+                &checked,
+                &coordinates,
+            )
+            .unwrap();
+            assert_eq!(legacy.classification.admissions[0], None);
+            let cover = prove_box_with_branch_constants(
+                &index,
+                &artifacts.checked_resolutions,
+                &checked,
+                &coordinates,
+                true,
+            )
+            .unwrap();
+            assert_eq!(cover.classification.admissions[0], expected);
+        }
+    }
 
     #[test]
     fn symbolic_scalar_calls_preserve_aliases_not_equal_enclosures() {
@@ -755,18 +982,48 @@ DEFINITION
                     .collect::<Vec<_>>()
             })
             .unwrap_or_else(|| default_coordinates.to_vec());
-        for coordinates in coordinates {
+        let measure = |coordinates: Coordinates| {
             let started = std::time::Instant::now();
-            let result = classify_box(
+            let result = prove_box_with_clamp_identities(
                 &index,
                 &artifacts.checked_resolutions,
                 &checked,
                 &coordinates,
-            );
+                std::env::var_os("FUTURUNA_EXPLORE_COVER_PROOF").is_some(),
+                std::env::var_os("FUTURUNA_EXPLORE_CLAMP_PROOF").is_some(),
+            )
+            .map(|proof| proof.classification);
             eprintln!(
                 "CANONICAL_2026_BOX {coordinates:?}: {result:?} elapsed={:?}",
                 started.elapsed()
             );
+        };
+        for coordinates in coordinates {
+            measure(coordinates.to_vec());
+        }
+        // Optional measurement REPL: retain the already checked model between
+        // boxes instead of paying its load cost for each follow-up question.
+        // This ignored diagnostic does not issue or accept journal evidence.
+        if std::env::var_os("FUTURUNA_EXPLORE_BOXES_STDIN").is_some() {
+            use std::io::BufRead;
+            eprintln!("CANONICAL_BOX_READY: enter JSON boxes or quit");
+            for line in std::io::stdin().lock().lines() {
+                let line = line.unwrap();
+                if line.trim() == "quit" {
+                    break;
+                }
+                let boxes: Vec<[[i64; 2]; 3]> = serde_json::from_str(&line).unwrap();
+                for axes in boxes {
+                    measure(vec![
+                        Some((axes[0][0], axes[0][1])),
+                        Some((axes[1][0], axes[1][1])),
+                        Some((axes[2][0], axes[2][1])),
+                        None,
+                        None,
+                    ]);
+                }
+                eprintln!("CANONICAL_BOX_READY: enter JSON boxes or quit");
+            }
         }
     }
 }

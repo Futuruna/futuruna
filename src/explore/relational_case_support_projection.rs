@@ -659,7 +659,9 @@ pub(crate) fn derive_relational_case_support_projection<'a>(
                 RelationalClassifiedSupportFragment::Concrete(chunk) => {
                     usize_to_u128(chunk.runs().len())?
                 }
-                RelationalClassifiedSupportFragment::CertifiedZeroSelected(_) => 1,
+                RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
+                    usize_to_u128(certificate.region_count())?
+                }
             },
         )?;
         let RelationalClassifiedSupportFragment::Concrete(chunk) = fragment else {
@@ -1094,7 +1096,9 @@ fn fragment_region_count(
 ) -> Result<usize, RelationalCaseSupportProjectionError> {
     Ok(match fragment {
         RelationalClassifiedSupportFragment::Concrete(chunk) => chunk.runs().len(),
-        RelationalClassifiedSupportFragment::CertifiedZeroSelected(_) => 1,
+        RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
+            certificate.region_count()
+        }
     })
 }
 
@@ -1132,10 +1136,12 @@ fn fragment_region_row(
             ))
         }
         RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
-            if region_index != 0 {
-                return Err(RelationalCaseSupportProjectionError::OrdinalIndexMismatch);
-            }
-            let outcome = match certificate.conclusion() {
+            let (exact_case_count, conclusion, starter_region_id) = certificate
+                .region_summary(region_index)
+                .ok_or(RelationalCaseSupportProjectionError::OrdinalIndexMismatch)?;
+            let run_ordinal = u16::try_from(region_index)
+                .map_err(|_| RelationalCaseSupportProjectionError::OrdinalIndexMismatch)?;
+            let outcome = match conclusion {
                 RelationalCertifiedRegionConclusion::Rejected => {
                     RelationalCaseSupportOutcome::Rejected
                 }
@@ -1146,7 +1152,7 @@ fn fragment_region_row(
             Ok((
                 RelationalCaseSupportRecordKey::Region {
                     chunk_ordinal,
-                    run_ordinal: 0,
+                    run_ordinal,
                 },
                 RelationalCaseSupportRow::Region {
                     classification_authority:
@@ -1157,10 +1163,10 @@ fn fragment_region_row(
                         certificate.certificate_id(),
                     ),
                     chunk_ordinal,
-                    run_ordinal: 0,
-                    exact_case_count: certificate.case_cardinality(),
+                    run_ordinal,
+                    exact_case_count,
                     outcome,
-                    correlated_starter_region_id: Some(certificate.starter_region_id()),
+                    correlated_starter_region_id: Some(starter_region_id),
                 },
             ))
         }
@@ -1253,12 +1259,7 @@ fn fragment_admitted_not_selected_count(
             )
         }
         RelationalClassifiedSupportFragment::CertifiedZeroSelected(certificate) => {
-            Ok(match certificate.conclusion() {
-                RelationalCertifiedRegionConclusion::Rejected => 0,
-                RelationalCertifiedRegionConclusion::AdmittedNotSelected => {
-                    certificate.case_cardinality()
-                }
-            })
+            Ok(certificate.admitted_case_count())
         }
     }
 }

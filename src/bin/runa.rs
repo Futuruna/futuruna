@@ -7936,7 +7936,11 @@ fn run_relational_explore_stream(
         filename,
     );
     if let Some(plan) = prepared.take_native_classifier_plan_v2() {
-        if plan.finite_coordinate_count
+        if cache_env_enabled("FUTURUNA_EXPLORE_DISABLE_NATIVE_CLASSIFIER") {
+            if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!("Explore native classifier: disabled; regional proofs and checked interpreter remain enabled");
+            }
+        } else if plan.finite_coordinate_count
             > explore::RelationalNativeClassifierProtocolV2::MAX_BATCH_SUBJECTS as u128
         {
             if let Some(executable) = build_explore_native_classifier_v2(plan) {

@@ -26,6 +26,10 @@ use super::relation::{
 };
 use super::{transition::canonical_explore_value_digest, ExploreValue};
 
+#[path = "support_ranked_product.rs"]
+mod ranked_product;
+pub(crate) use ranked_product::RankedProductBox;
+
 const SUPPORT_EXPR_HASH_V1: &[u8] = b"futuruna.explore.support-expr.v1";
 const SUPPORT_PRODUCER_HASH_V1: &[u8] = b"futuruna.explore.support-producer.v1";
 const SUPPORT_MATERIALIZER_HASH_V1: &[u8] = b"futuruna.explore.support-materializer.v1";
@@ -177,7 +181,7 @@ pub(crate) enum SupportExprKind {
     },
     Product(Box<[SupportExpr]>),
     /// One nonempty half-open mixed-radix rank interval inside an ordered
-    /// product of zero-based ordinal factors. The final factor is the
+    /// product of ordinal factors. The final factor is the
     /// least-significant (fastest-varying) coordinate.
     ProductRankInterval {
         factors: Box<[SupportExpr]>,
@@ -331,13 +335,9 @@ impl SupportExpr {
             ));
         };
         for factor in canonical_factors.iter() {
-            let SupportExprKind::OrdinalInterval {
-                start: 0,
-                end_exclusive: _,
-            } = factor.kind()
-            else {
+            let SupportExprKind::OrdinalInterval { .. } = factor.kind() else {
                 return Err(SupportCellError::InvalidProductRankInterval(
-                    "ranked product factors must be zero-based ordinal intervals",
+                    "ranked product factors must be ordinal intervals",
                 ));
             };
         }
@@ -1338,6 +1338,147 @@ pub(crate) mod relational_region_proof_gateway {
     const SELECTION_VERIFIER_V1: &[u8] =
         b"futuruna.explore.relational-region.selection-verifier.v1";
 
+    /// Only a freshly replayed cover can issue subset-image and leaf receipts.
+    /// The producer's canonical parent target already carries injectivity.
+    pub(crate) fn cover_events(
+        proof: &VerifiedRelationalRegionProof,
+        parent: &SupportCell,
+    ) -> Result<
+        Box<[crate::explore::support_journal::SupportJournalEvent]>,
+        crate::explore::relational_region_proof::RelationalRegionProofError,
+    > {
+        use crate::explore::relational_region_proof::{
+            RelationalRegionProofError as Error, RelationalRegionProofSubject,
+        };
+        use crate::explore::support_evidence::{
+            SupportEvidenceRecord as Evidence, SupportObligationRecord as Obligation,
+            SupportObligationRefinement,
+        };
+        use crate::explore::support_journal::SupportJournalEvent as Event;
+        let cover = proof.checked_cover().ok_or(Error::InvalidArtifactShape)?;
+        match proof.artifact().subject() {
+            RelationalRegionProofSubject::CanonicalChunk {
+                chunk_cell_id,
+                chunk_materializer_id,
+                ..
+            } if chunk_cell_id == parent.id()
+                && chunk_materializer_id == parent.materializer_id() => {}
+            _ => return Err(Error::ArtifactSemanticMismatch),
+        }
+        let cells = cover
+            .leaves()
+            .iter()
+            .map(|leaf| {
+                SupportCell::new(
+                    parent.space(),
+                    leaf.region.expression()?,
+                    parent.materializer_id(),
+                )
+            })
+            .collect::<Result<Vec<_>, SupportCellError>>()?;
+        let admissions = cells
+            .iter()
+            .map(|cell| {
+                SupportCellObligation::new(
+                    cell,
+                    AdmissionClassificationClaim::new(proof.artifact().admission_id()),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut events = Vec::new();
+        if cells.len() != 1 || cells[0] != *parent {
+            let obligation = SupportPartitionObligation::new(parent, &cells)?;
+            let receipt = SupportProofReceipt::from_accepted_proof(
+                obligation.id,
+                SupportProofVerifierId::from_canonical_preimage(
+                    b"futuruna.explore.checked-cover.partition.v1",
+                ),
+                obligation.conclusion_digest(),
+                proof.artifact().certificate_id(),
+            );
+            let partition =
+                SupportPartitionCertificate::from_accepted_disjoint_union(parent, &cells, receipt)?;
+            let parent_admission = Obligation::Admission(SupportCellObligation::new(
+                parent,
+                AdmissionClassificationClaim::new(proof.artifact().admission_id()),
+            )?);
+            let children = admissions
+                .iter()
+                .cloned()
+                .map(Obligation::Admission)
+                .collect::<Vec<_>>();
+            let refinement =
+                SupportObligationRefinement::new(&parent_admission, &partition, &children)
+                    .map_err(|_| Error::InvalidArtifactShape)?;
+            events.extend(cells.iter().cloned().map(Event::cell_inserted));
+            events.push(Event::partition_accepted(partition));
+            events.push(
+                Event::obligation_refined(refinement, children)
+                    .map_err(|_| Error::InvalidArtifactShape)?,
+            );
+        }
+        for ((cell, leaf), admission) in cells.iter().zip(cover.leaves()).zip(admissions) {
+            let injectivity = cover_evidence(
+                proof,
+                SupportCellObligation::new(
+                    cell,
+                    InjectiveMappingClaim::new(cell.materializer_id()),
+                )?,
+                CertifiedInjective,
+            )?;
+            events.push(Event::root_obligation_declared(Obligation::Injectivity(
+                injectivity.obligation().clone(),
+            )));
+            events.push(Event::evidence_accepted(Evidence::Injectivity(injectivity)));
+            let cardinality = cover_evidence(
+                proof,
+                SupportCellObligation::new(cell, ExactCardinalityClaim)?,
+                leaf.region.coordinate_count(),
+            )?;
+            events.push(Event::root_obligation_declared(Obligation::Cardinality(
+                cardinality.obligation().clone(),
+            )));
+            events.push(Event::evidence_accepted(Evidence::Cardinality(cardinality)));
+            events.push(Event::evidence_accepted(Evidence::Admission(
+                cover_evidence(proof, admission, leaf.outcome.admission())?,
+            )));
+            if let Some(decision) = leaf.outcome.selection() {
+                let selection = cover_evidence(
+                    proof,
+                    SupportCellObligation::new(
+                        cell,
+                        SelectionClassificationClaim::new(proof.artifact().question_id()),
+                    )?,
+                    decision,
+                )?;
+                events.push(Event::root_obligation_declared(Obligation::Selection(
+                    selection.obligation().clone(),
+                )));
+                events.push(Event::evidence_accepted(Evidence::Selection(selection)));
+            }
+            events.push(Event::leaf_sealed(cell.id()));
+        }
+        Ok(events.into_boxed_slice())
+    }
+
+    // Private: obligations and conclusions above are derived from opaque leaves,
+    // never accepted from a decoded artifact or arbitrary caller.
+    fn cover_evidence<C: SupportCellClaim>(
+        proof: &VerifiedRelationalRegionProof,
+        obligation: SupportCellObligation<C>,
+        conclusion: C::Conclusion,
+    ) -> Result<SupportCellEvidence<C>, SupportCellError> {
+        let receipt = SupportProofReceipt::from_accepted_proof(
+            obligation.id(),
+            SupportProofVerifierId::from_canonical_preimage(
+                b"futuruna.explore.checked-cover.leaf.v1",
+            ),
+            obligation.claim().conclusion_digest(&conclusion),
+            proof.artifact().certificate_id(),
+        );
+        SupportCellEvidence::from_accepted_proof(obligation, conclusion, receipt)
+    }
+
     pub(crate) fn cardinality(
         proof: &VerifiedRelationalRegionProof,
         obligation: SupportCellObligation<ExactCardinalityClaim>,
@@ -1389,7 +1530,9 @@ pub(crate) mod relational_region_proof_gateway {
     ) -> Result<SupportCellEvidence<C>, SupportCellError> {
         obligation.validate()?;
         obligation.claim.validate_conclusion(&conclusion)?;
-        let binding = proof.evidence_binding(role);
+        let binding = proof
+            .evidence_binding(role)
+            .ok_or(SupportCellError::ReceiptObligationMismatch)?;
         if binding.obligation_id() != obligation.id() {
             return Err(SupportCellError::ReceiptObligationMismatch);
         }

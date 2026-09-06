@@ -624,7 +624,7 @@ pub(super) fn prove(
         plan_root: plan.root(),
         root_cell_id,
         subject: target.subject,
-        conclusion: RelationalCertifiedRegionConclusion::AdmittedNotSelected,
+        conclusion: Some(RelationalCertifiedRegionConclusion::AdmittedNotSelected),
         starter_region_id: RelationalStarterRegionId([0; 32]),
         source_assignment_cell_id: assignment.id(),
         source_row_cell_id: source.id(),
@@ -640,6 +640,7 @@ pub(super) fn prove(
         coordinate_end_exclusive: *end_exclusive,
         case_cardinality: end_exclusive - start,
         selected_formula_digest: digest.finish(),
+        cover: None,
     };
     seal_region_proof(
         artifact,
@@ -730,7 +731,7 @@ pub(super) fn prove_checked_box(
         plan_root: plan.root(),
         root_cell_id,
         subject: target.subject,
-        conclusion: RelationalCertifiedRegionConclusion::AdmittedNotSelected,
+        conclusion: Some(RelationalCertifiedRegionConclusion::AdmittedNotSelected),
         starter_region_id: RelationalStarterRegionId([0; 32]),
         source_assignment_cell_id: assignment.id(),
         source_row_cell_id: source.id(),
@@ -746,6 +747,7 @@ pub(super) fn prove_checked_box(
         coordinate_end_exclusive: target.coordinate_end_exclusive,
         case_cardinality: target.coordinate_end_exclusive - target.coordinate_start,
         selected_formula_digest: proof.derivation_root(),
+        cover: None,
     };
     seal_region_proof(
         artifact,
