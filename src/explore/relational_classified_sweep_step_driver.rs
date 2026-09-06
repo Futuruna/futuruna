@@ -666,6 +666,26 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
             enabled_native_classifier,
             self.classification_evaluator.as_ref(),
         ) {
+            (native, Some(classification_evaluator))
+                if classification_evaluator.try_borrow_mut().is_ok() =>
+            {
+                let mut evaluator = classification_evaluator.borrow_mut();
+                let mut backend = super::relational_classification_evaluator::RelationalProofFirstClassificationBackend {
+                    evaluator: &mut evaluator,
+                    native,
+                };
+                classify_relational_case_chunk_slice_with_backend(
+                    &checked,
+                    self.support_plan,
+                    verified_partition,
+                    target_chunk_ordinal,
+                    durable_chunk_injectivity,
+                    prior,
+                    max_members,
+                    runtime,
+                    &mut backend,
+                )?
+            }
             (Some(native_classifier), _) => {
                 let mut backend =
                     RelationalNativeClassifierFallbackBackendV2::new(native_classifier.clone());

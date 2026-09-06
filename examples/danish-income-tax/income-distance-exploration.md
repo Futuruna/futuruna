@@ -655,3 +655,89 @@ an exact answer. The implementation follows the Futuruna semantic-change
 ratchet, with ordinary runtime behavior unchanged and only Experimental
 proof acceptance/artifacts affected; no stable compatibility-guide entry is
 needed.
+
+## Output-first correlated classification
+
+The next implementation reuses the checked endpoint abstract interpreter for
+classification boxes, including canonical collection callbacks, empty inputs,
+strict evaluation and scoped rules. It carries rational affine correlations,
+bounded rounding error and integer congruences through arithmetic. In
+particular, converting a whole-krone amount to øre retains its 100-øre step:
+independent rounding uncertainty cannot invent an impossible fractional step.
+All overflow and division safety obligations remain in force.
+
+The stream tries a bounded cache of source-coordinate boxes before exact
+native/interpreted fallback. Uniform decisions are applied only to actual
+host-produced cases inside that box. The host still records the ordinary
+ordered classification transcript; these ephemeral facts are **not** new
+regional journal certificates. Cache misses, unsupported operations and
+uncertain predicates remain exact residual work. The cache holds at most 16
+tiles and supports at most eight independent integer axes. Its tile widths
+and isolated upper endpoints are operational choices, not tax thresholds.
+
+The canonical 2026 experiment now obtains these results with the unchanged
+full-query model and fixed facts:
+
+| Starting income (DKK) | Starting commute (km) | Intervention | Checked result |
+| --- | --- | --- | --- |
+| 1,000..1,100 | 50 | +1 DKK | All 101 valid edges harmless |
+| 1,000..1,100 | 0..199 | +1 km | All 20,200 valid edges harmless |
+| 349,499 | 50 | +1 DKK | Valid harmful edge |
+
+These are checked-box results, not a full-grid journal closure. The three
+box evaluations took 12.79s, 12.97s and 12.28s in the debug experiment; including
+canonical frontend preparation, the experiment took 460.62s. Before preserving
+integer congruences, the two non-singleton boxes were inconclusive.
+
+For concrete output before attempting the full grid, the separate
+[boundary window](personskat-income-distance-boundary.explore.runa) searches
+all 201 distances and both interventions at the six starting incomes
+342,497..342,502 DKK. This deliberately targets a documented mechanism
+boundary; it cannot close the complementary income ranges. It contains 2,412
+candidates, including six explicitly rejected outward distance edges.
+
+The first published witness is a **2.11-DKK annual loss** at a **25-km** daily
+round-trip commute when salary increases from **342,499 to 342,500 DKK**.
+The saved loss is exactly **211 øre**, with the salary intervention `(1 DKK,
+0 km)`. Both endpoints pass canonical model validity. This is a result from
+the new boundary run, not an inference from a sampled mechanism signature.
+The boundary run is still open while the remaining cases and explanations are
+published; no complete-window count is claimed here yet.
+
+The encoded supplement reduction uses whole-thousand steps in
+[`ll9c_lavindkomst_aftrapningstrin_1000`](ligningsloven_fradrag.runa). This is why
+an unchanged branch path is not sufficient to dismiss an income edge:
+discrete arithmetic can change a deduction within that same path.
+
+```sh
+runa explore examples/danish-income-tax/personskat-income-distance-boundary.explore.runa \
+  --query personskat_income_distance_boundary_2026 \
+  --run-state /private/your-boundary.run --output /private/your-boundary.result \
+  --time-limit 10m --json
+```
+
+Run the model epoch separately from large builds on an 8-GiB machine. The
+initial native build took 433.74s; a cached reopen reused it in 255ms. An
+overlapping build caused `resource_reserve_backoff` before classification,
+not a negative answer. The resource reserve was preserved.
+With the updated executable running alone, preparation took 76.55s and the
+new compiler-specific native build took 197.10s. Classification and mechanism
+publication then began normally. The full optimized `runa` build took 7m42s;
+its only warning was the pre-existing pair of unused code-generation helpers.
+
+Iteration checks deliberately follow the user's output-first instruction:
+
+- `cargo test --lib adjacent_ -- --test-threads=1 --nocapture`: four passed
+  in 0.07s, including the two new rounding/box checks.
+- `cargo test --lib adjacent_box_outcomes_and_residuals_share_exact_ordered_accounting -- --nocapture`:
+  passed in 2.36s. Both scheduled and canonical execution agree with an
+  independent 400-case oracle: 30 rejected, 368 harmless and two losses.
+- The explicitly invoked `canonical_2026_box_output --ignored --nocapture`
+  experiment produced the canonical results above.
+- `cargo fmt --check`, `git diff --check`, and
+  `runa fmt --check examples/danish-income-tax/personskat-income-distance-boundary.explore.runa`
+  passed.
+
+Mint, differential, canary and the full Futuruna suite are deferred at the
+user's explicit request while pursuing real output. This does not mark the
+previous gate debt resolved or claim that the full Explore feature is finished.

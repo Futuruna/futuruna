@@ -552,6 +552,9 @@ pub(crate) struct RelationalClassificationEvaluatorBackend {
     call_cache: CompleteCallCache,
     stats: RelationalClassificationEvaluatorStats,
     last_fallback: Option<RelationalClassificationEvaluatorFallback>,
+    box_classifier: Option<
+        super::relational_endpoint_totality_proof::abstract_classification::CheckedBoxClassifier,
+    >,
 }
 
 impl RelationalClassificationEvaluatorBackend {
@@ -566,7 +569,15 @@ impl RelationalClassificationEvaluatorBackend {
             call_cache: CompleteCallCache::new(call_cache_capacity),
             stats: RelationalClassificationEvaluatorStats::default(),
             last_fallback: None,
+            box_classifier: None,
         }
+    }
+
+    pub(crate) fn install_box_classifier(
+        &mut self,
+        classifier: Option<super::relational_endpoint_totality_proof::abstract_classification::CheckedBoxClassifier>,
+    ) {
+        self.box_classifier = classifier;
     }
 
     pub(crate) fn capsule(&self) -> &RelationalClassificationCapsule {
@@ -647,6 +658,57 @@ impl RelationalClassificationEvaluatorBackend {
                     RelationalClassificationEvaluatorFallbackReason::InvalidCompleteCallCacheState,
             })?;
         Ok(outcomes)
+    }
+}
+
+/// Proof-derived outcomes and exact residual execution share the original
+/// ordered sweep boundary. Only unresolved subjects reach the native/checked
+/// fallback, and all outcomes return to the ordinary evidence-producing host.
+pub(crate) struct RelationalProofFirstClassificationBackend<'a> {
+    pub(crate) evaluator: &'a mut RelationalClassificationEvaluatorBackend,
+    pub(crate) native:
+        Option<&'a super::relational_native_classifier::RelationalNativeClassifierV2>,
+}
+
+impl RelationalOrderedClassificationBackend for RelationalProofFirstClassificationBackend<'_> {
+    fn classify_ordered_batch<R: RelationalExpressionRuntime>(
+        &mut self,
+        subjects: &[RelationalOrderedClassificationSubject<'_>],
+        checked: &mut RelationalCheckedClassificationContext<'_, '_, '_, R>,
+    ) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalClassifiedSweepError> {
+        let mut outcomes = self
+            .evaluator
+            .box_classifier
+            .as_mut()
+            .map(|classifier| classifier.classify(subjects))
+            .unwrap_or_else(|| vec![None; subjects.len()]);
+        let residual = subjects
+            .iter()
+            .copied()
+            .zip(&outcomes)
+            .filter_map(|(subject, outcome)| outcome.is_none().then_some(subject))
+            .collect::<Vec<_>>();
+        if !residual.is_empty() {
+            let mut fallback = || self.evaluator.classify_ordered_batch(&residual, checked);
+            let concrete = match self.native {
+                Some(native) => native.classify_or_fallback(&residual, fallback)?.0,
+                None => fallback()?,
+            };
+            let mut concrete = concrete.into_vec().into_iter();
+            for outcome in &mut outcomes {
+                if outcome.is_none() {
+                    *outcome = concrete.next();
+                }
+            }
+            if concrete.next().is_some() {
+                return Err(RelationalClassifiedSweepError::InvalidQuestionSet);
+            }
+        }
+        outcomes
+            .into_iter()
+            .collect::<Option<Vec<_>>>()
+            .map(Vec::into_boxed_slice)
+            .ok_or(RelationalClassifiedSweepError::InvalidQuestionSet)
     }
 }
 

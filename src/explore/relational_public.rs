@@ -1392,14 +1392,17 @@ pub fn prepare_checked_relational_stream(
         });
     let native_classifier_shape_v2 = native_classifier_plan.is_some();
     trace_preparation_phase(started, "froze native classifier input");
-    drop(artifacts);
-    trace_preparation_phase(started, "released checking artifacts");
-
     let checked = owned_checked.view();
     let support_plan = RelationalSupportPlanner::from_checked(&checked)
         .and_then(|planner| planner.plan())
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
     trace_preparation_phase(started, "planned support");
+    let box_classifier = super::relational_endpoint_totality_proof::abstract_classification::CheckedBoxClassifier::new(
+        artifacts,
+        Arc::clone(&owned_checked),
+        &support_plan,
+    );
+    trace_preparation_phase(started, "retained bounded-box checked inputs");
     let classification_capsule = bind_relational_classification_capsule(&checked, &support_plan)?;
     let classification_call_cache_capacity = NonZeroUsize::new(CLASSIFICATION_CALL_CACHE_ENTRIES)
         .ok_or_else(|| {
@@ -1423,6 +1426,9 @@ pub fn prepare_checked_relational_stream(
         classification_capsule,
         classification_call_cache_capacity,
     ));
+    classification_evaluator
+        .borrow_mut()
+        .install_box_classifier(box_classifier);
     trace_preparation_phase(started, "bound classification capsule");
     let analysis_plan = RelationalAnalysisPlan::from_checked(&checked)
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
@@ -6650,6 +6656,33 @@ mod regional_stream_acceptance_tests {
         assert_product_stream_matches_oracle(&isolated, &[20, 7, 2], (280, 0, 280, 278, 2));
         let rounding = template.replace("METRIC", "s.income - (s.income / 3) * 4 + s.distance");
         assert_product_stream_matches_oracle(&rounding, &[20, 7, 2], (280, 0, 280, 238, 42));
+    }
+
+    #[test]
+    fn adjacent_box_outcomes_and_residuals_share_exact_ordered_accounting() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter, c: Step) -> Int {
+    s.income * 100 - (s.income * 8 / 100) * 100 + s.distance * 100 +
+        (if s.income == 7 && s.distance == 3 { 500 } else { 0 })
+}
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore adjacent_boxes {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 10)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+    transition after = advance(before, context)
+    where after after.income <= 19 && after.distance <= 9
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using net
+}
+"#;
+        assert_product_stream_matches_oracle(source, &[20, 10, 2], (400, 30, 370, 368, 2));
     }
 
     fn assert_product_stream_matches_oracle(

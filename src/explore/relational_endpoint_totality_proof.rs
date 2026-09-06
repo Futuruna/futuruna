@@ -15,6 +15,13 @@ use std::sync::Arc;
 
 use sha2::{Digest, Sha256};
 
+#[path = "relational_affine_interval.rs"]
+mod affine_interval;
+use affine_interval::Correlation;
+
+#[path = "relational_abstract_classification.rs"]
+pub(crate) mod abstract_classification;
+
 use super::mechanism::MechanismSiteId;
 use super::relational_endpoint_totality::{
     RelationalEndpointAbstractProofRoot, RelationalEndpointProofDomainRoot, RelationalEndpointRole,
@@ -95,6 +102,7 @@ const BINDER_PATTERN: u32 = 1;
 struct IntInterval {
     minimum: i128,
     maximum: i128,
+    correlation: Option<Correlation>,
 }
 
 impl IntInterval {
@@ -102,11 +110,16 @@ impl IntInterval {
         Self {
             minimum: i128::from(value),
             maximum: i128::from(value),
+            correlation: None,
         }
     }
 
     fn new(minimum: i128, maximum: i128) -> Option<Self> {
-        (minimum <= maximum).then_some(Self { minimum, maximum })
+        (minimum <= maximum).then_some(Self {
+            minimum,
+            maximum,
+            correlation: None,
+        })
     }
 
     fn runtime_int(self) -> Option<Self> {
@@ -128,23 +141,56 @@ impl IntInterval {
         Self {
             minimum: self.minimum.min(other.minimum),
             maximum: self.maximum.max(other.maximum),
+            correlation: (self.correlation == other.correlation)
+                .then_some(self.correlation)
+                .flatten(),
         }
     }
 
+    fn symbolic(self) -> Option<Correlation> {
+        self.correlation.or_else(|| {
+            self.singleton_value()
+                .map(|value| Correlation::constant(i128::from(value)))
+        })
+    }
+
+    fn correlated_difference(self, other: Self) -> Option<(i128, i128)> {
+        if self.correlation.is_none() && other.correlation.is_none() {
+            return None;
+        }
+        self.symbolic()?.difference(other.symbolic()?)
+    }
+
     fn checked_add(self, other: Self) -> Option<Self> {
-        Self::new(
+        let mut result = Self::new(
             self.minimum.checked_add(other.minimum)?,
             self.maximum.checked_add(other.maximum)?,
         )?
-        .runtime_int()
+        .runtime_int()?;
+        if self.correlation.is_some() || other.correlation.is_some() {
+            result.correlation = self
+                .symbolic()
+                .zip(other.symbolic())
+                .and_then(|(left, right)| left.add(right));
+        }
+        Some(result)
     }
 
     fn checked_sub(self, other: Self) -> Option<Self> {
-        Self::new(
-            self.minimum.checked_sub(other.maximum)?,
-            self.maximum.checked_sub(other.minimum)?,
-        )?
-        .runtime_int()
+        let mut minimum = self.minimum.checked_sub(other.maximum)?;
+        let mut maximum = self.maximum.checked_sub(other.minimum)?;
+        if let Some((low, high)) = self.correlated_difference(other) {
+            minimum = minimum.max(low);
+            maximum = maximum.min(high);
+        }
+        let mut result = Self::new(minimum, maximum)?.runtime_int()?;
+        if self.correlation.is_some() || other.correlation.is_some() {
+            result.correlation = self
+                .symbolic()
+                .zip(other.symbolic())
+                .and_then(|(left, right)| left.add(right.scale(-1)?));
+        }
+        Some(result)
     }
 
     fn checked_mul(self, other: Self) -> Option<Self> {
@@ -154,11 +200,27 @@ impl IntInterval {
             self.maximum.checked_mul(other.minimum)?,
             self.maximum.checked_mul(other.maximum)?,
         ];
-        Self::new(*products.iter().min()?, *products.iter().max()?)?.runtime_int()
+        let mut result =
+            Self::new(*products.iter().min()?, *products.iter().max()?)?.runtime_int()?;
+        result.correlation = match (
+            self.correlation,
+            other.singleton_value(),
+            other.correlation,
+            self.singleton_value(),
+        ) {
+            (Some(value), Some(scale), _, _) | (_, _, Some(value), Some(scale)) => {
+                value.scale(i128::from(scale))
+            }
+            _ => None,
+        };
+        Some(result)
     }
 
     fn checked_neg(self) -> Option<Self> {
-        Self::new(self.maximum.checked_neg()?, self.minimum.checked_neg()?)?.runtime_int()
+        let mut result =
+            Self::new(self.maximum.checked_neg()?, self.minimum.checked_neg()?)?.runtime_int()?;
+        result.correlation = self.correlation.and_then(|value| value.scale(-1));
+        Some(result)
     }
 
     fn checked_div(self, other: Self) -> Option<Self> {
@@ -171,7 +233,15 @@ impl IntInterval {
             self.maximum.checked_div(other.minimum)?,
             self.maximum.checked_div(other.maximum)?,
         ];
-        Self::new(*quotients.iter().min()?, *quotients.iter().max()?)?.runtime_int()
+        let mut result =
+            Self::new(*quotients.iter().min()?, *quotients.iter().max()?)?.runtime_int()?;
+        result.correlation =
+            self.correlation
+                .zip(other.singleton_value())
+                .and_then(|(value, divisor)| {
+                    value.divide(i128::from(divisor), (self.minimum, self.maximum))
+                });
+        Some(result)
     }
 
     fn checked_rem(self, other: Self) -> Option<Self> {
@@ -3500,6 +3570,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 Ok(AbstractValue::Int(IntInterval {
                     minimum: i128::from(*start),
                     maximum: i128::from(maximum),
+                    correlation: None,
                 }))
             }
             ExploreExactDomain::Enumerated { values, .. } => {
@@ -8771,6 +8842,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 AbstractValue::String(None) => AbstractValue::Int(IntInterval {
                     minimum: i128::from(i64::MIN),
                     maximum: i128::from(i64::MAX),
+                    correlation: None,
                 }),
                 _ => {
                     return Err(self.issue(
@@ -8847,6 +8919,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 AbstractValue::String(None) => AbstractValue::Int(IntInterval {
                     minimum: i128::from(i64::MIN),
                     maximum: i128::from(i64::MAX),
+                    correlation: None,
                 }),
                 _ => {
                     return Err(self.issue(
@@ -9009,6 +9082,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                     }
                     let endpoints = [interval.minimum.abs(), interval.maximum.abs()];
                     AbstractValue::Int(IntInterval {
+                        correlation: None,
                         minimum: if interval.contains(0) {
                             0
                         } else {
@@ -9091,6 +9165,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                             element: Box::new(AbstractValue::Int(IntInterval {
                                 minimum: i128::from(start),
                                 maximum: i128::from(maximum),
+                                correlation: None,
                             })),
                             minimum_length: length,
                             maximum_length: length,
@@ -9826,6 +9901,9 @@ fn abstract_value_root(value: &AbstractValue) -> [u8; 32] {
                         hash_segment(&mut hasher, &[0x02]);
                         hash_segment(&mut hasher, &interval.minimum.to_le_bytes());
                         hash_segment(&mut hasher, &interval.maximum.to_le_bytes());
+                        if let Some(correlation) = interval.correlation {
+                            hash_segment(&mut hasher, &correlation.digest());
+                        }
                     }
                     AbstractValue::Bool(truth) => {
                         hash_segment(&mut hasher, &[0x03, truth.0]);
@@ -10289,6 +10367,16 @@ fn compare_intervals(operator: &str, left: IntInterval, right: IntInterval) -> T
         TruthDomain::TRUE
     } else if always_false {
         TruthDomain::FALSE
+    } else if let Some((minimum, maximum)) = left.correlated_difference(right) {
+        compare_intervals(
+            operator,
+            IntInterval {
+                minimum,
+                maximum,
+                correlation: None,
+            },
+            IntInterval::singleton(0),
+        )
     } else {
         TruthDomain::BOTH
     }
@@ -10321,6 +10409,14 @@ fn abstract_equality(left: &AbstractValue, right: &AbstractValue) -> TruthDomain
     match (left, right) {
         (Unreachable, _) | (_, Unreachable) | (Unknown, _) | (_, Unknown) => TruthDomain::BOTH,
         (Int(left), Int(right)) => {
+            if let Some((minimum, maximum)) = left.correlated_difference(*right) {
+                if minimum == 0 && maximum == 0 {
+                    return TruthDomain::TRUE;
+                }
+                if minimum > 0 || maximum < 0 {
+                    return TruthDomain::FALSE;
+                }
+            }
             if left.maximum < right.minimum || right.maximum < left.minimum {
                 TruthDomain::FALSE
             } else if left.singleton_value().is_some()
@@ -10490,10 +10586,14 @@ fn refine_abstract_int_value(
     if fields.is_empty() {
         return match value {
             AbstractValue::Int(interval) => {
+                let correlation = interval.correlation;
                 let minimum = interval.minimum.max(minimum);
                 let maximum = interval.maximum.min(maximum);
                 *value = match IntInterval::new(minimum, maximum) {
-                    Some(interval) => AbstractValue::Int(interval),
+                    Some(mut interval) => {
+                        interval.correlation = correlation;
+                        AbstractValue::Int(interval)
+                    }
                     None => AbstractValue::Unreachable,
                 };
                 true
@@ -10636,6 +10736,7 @@ mod tests {
         let divisors = IntInterval {
             minimum: 2,
             maximum: 5,
+            correlation: None,
         };
         let remainder = dividend
             .checked_rem(divisors)
