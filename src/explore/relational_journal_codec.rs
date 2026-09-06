@@ -181,7 +181,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 23;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 24;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -3514,6 +3514,7 @@ fn encode_region_proof_artifact(
     artifact: &RelationalRegionProofArtifact,
 ) -> Result<(), RelationalJournalCodecError> {
     encoder.u32(artifact.schema_version())?;
+    encoder.tag(u8::from(artifact.product_rank()))?;
     encoder.digest(artifact.certificate_id())?;
     encoder.digest(artifact.replay_authority_id())?;
     encoder.digest(artifact.classification_capsule_id().bytes())?;
@@ -3561,6 +3562,15 @@ fn decode_region_proof_artifact(
     reader: &mut Reader<'_>,
 ) -> Result<RelationalRegionProofArtifact, RelationalJournalCodecError> {
     let schema_version = reader.u32()?;
+    let product_rank = match reader.tag()? {
+        0 => false,
+        1 => true,
+        _ => {
+            return Err(RelationalJournalCodecError::Malformed(
+                "invalid regional coordinate kind",
+            ))
+        }
+    };
     let certificate_id = reader.digest()?;
     let replay_authority_id = reader.digest()?;
     let classification_capsule_id = ClassificationCapsuleId::from_bytes(reader.digest()?);
@@ -3596,6 +3606,7 @@ fn decode_region_proof_artifact(
     )?;
     RelationalRegionProofArtifact::restore_from_canonical_parts(
         schema_version,
+        product_rank,
         certificate_id,
         replay_authority_id,
         classification_capsule_id,

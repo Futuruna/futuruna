@@ -296,28 +296,29 @@ impl<'query> RelationalClassifiedSweepStepDriver<'query> {
         let candidate_schedule = if questions.question_ids().len() == 1 {
             let strategy_inventory =
                 RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
-            let axis_plans = match strategy_inventory.axes() {
-                [axis] => {
-                    let classification_program = checked.classification_program();
-                    let lifted_atoms = derive_relational_lifted_affine_guard_atoms(
-                        checked,
-                        classification_program.as_ref(),
-                        axis,
-                    );
-                    let mut scheduling_atoms =
-                        derive_relational_source_event_guard_atoms(checked, axis).into_vec();
-                    scheduling_atoms.extend(lifted_atoms.into_vec());
-                    match strategy_inventory.plan_axis(axis.dimension_id(), &scheduling_atoms, None)
-                    {
-                        Ok(plan) => vec![plan],
-                        Err(_) if !scheduling_atoms.is_empty() => {
-                            vec![strategy_inventory.plan_axis(axis.dimension_id(), &[], None)?]
-                        }
-                        Err(error) => return Err(error.into()),
+            let mut axis_plans = Vec::new();
+            for axis in strategy_inventory.axes() {
+                let classification_program = checked.classification_program();
+                let lifted_atoms = derive_relational_lifted_affine_guard_atoms(
+                    checked,
+                    classification_program.as_ref(),
+                    axis,
+                );
+                let mut scheduling_atoms =
+                    derive_relational_source_event_guard_atoms(checked, axis).into_vec();
+                scheduling_atoms.extend(lifted_atoms.into_vec());
+                match strategy_inventory.plan_axis(axis.dimension_id(), &scheduling_atoms, None) {
+                    Ok(plan) => axis_plans.push(plan),
+                    Err(_) if !scheduling_atoms.is_empty() => {
+                        axis_plans.push(strategy_inventory.plan_axis(
+                            axis.dimension_id(),
+                            &[],
+                            None,
+                        )?);
                     }
+                    Err(error) => return Err(error.into()),
                 }
-                _ => Vec::new(),
-            };
+            }
             schedule_relational_candidate_chunks(
                 &strategy_inventory,
                 &axis_plans,

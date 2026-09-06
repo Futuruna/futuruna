@@ -27646,6 +27646,20 @@ pub(crate) enum CheckedBinderKind {
     HandlerParameter,
 }
 
+/// Reconstruct the checked binder identity for a simple local `Pat::Var`
+/// statement from that statement's structural site. Keeping this beside the
+/// checked binder ABI prevents analysis producers from copying the recorder's
+/// binder-path convention.
+pub(crate) fn checked_local_value_binder_site(statement_site: &ExprSiteId) -> CheckedBinderSiteId {
+    CheckedBinderSiteId::Structural {
+        analysis_program: statement_site.analysis_program.clone(),
+        declaration: statement_site.declaration.clone(),
+        normalized_declaration_ordinal: statement_site.normalized_declaration_ordinal,
+        ast_path: statement_site.ast_path.clone(),
+        binder_path: vec![CheckedResolutionRecorder::BINDER_PATTERN].into_boxed_slice(),
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct CheckedCallableId {
     pub(crate) declaration: CheckedDeclarationOccurrenceId,

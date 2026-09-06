@@ -61,6 +61,12 @@ pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION: u32 = 3;
 /// Semantic V1 ceiling for one later exhaustive classification chunk.
 pub(crate) const RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1: u128 = 256;
 
+// Until canonical partition artifacts are paged, cap their eager expansion.
+// At 112 encoded bytes per descriptor this keeps the descriptor array below
+// 8 MiB, leaving room inside the default 16-MiB journal entry limit. Declining
+// this accelerator preserves the ordinary bounded concrete scheduler.
+const MAX_EAGER_CASE_CHUNKS: u128 = 65_536;
+
 const CASE_CHUNK_ID_V1: &[u8] = b"futuruna.explore.relational-case-chunk.id.v1";
 const CASE_CHUNK_PARTITION_ARTIFACT_ID_V1: &[u8] =
     b"futuruna.explore.relational-case-chunk.partition-artifact.v1";
@@ -597,6 +603,10 @@ pub(crate) enum RelationalCaseChunkUnsupported {
     ProductHasNoVaryingOrdinalIntervalFactor,
     ProductHasNonSingletonRemainder,
     ProductRankFactorIsNotZeroBasedOrdinalInterval,
+    PartitionArtifactBudgetExceeded {
+        required_chunks: u128,
+        maximum_chunks: u128,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -698,6 +708,15 @@ pub(crate) fn plan_relational_bounded_case_chunks(
         });
     }
 
+    let required_chunks = canonical_chunk_count(interval_cardinality);
+    if required_chunks > MAX_EAGER_CASE_CHUNKS {
+        return Ok(RelationalCaseChunkPlanningOutcome::Unsupported(
+            RelationalCaseChunkUnsupported::PartitionArtifactBudgetExceeded {
+                required_chunks,
+                maximum_chunks: MAX_EAGER_CASE_CHUNKS,
+            },
+        ));
+    }
     let mut raw_chunks = Vec::with_capacity(chunk_capacity(interval_cardinality)?);
     let mut interval_start = recognized.start;
     let mut ordinal = 0u128;

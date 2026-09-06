@@ -7,17 +7,21 @@
 
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
+use std::sync::Arc;
 
 use crate::{
-    checked_explore_semantic_binders, checked_explore_semantic_dependency_root_digest, explore,
+    checked_explore_projection_constructor_digest, checked_explore_projection_field,
+    checked_explore_projection_literal_digest, checked_explore_semantic_binders,
+    checked_explore_semantic_dependency_root_digest, checked_local_value_binder_site, explore,
     named_arg_parts, typed_rule_head_argument, visit_ast_expr_children, AnalysisProgramId,
     AstChild, CheckedBinderKind, CheckedBinderSiteId, CheckedCallTarget,
     CheckedExploreQueryArtifactIssue, CheckedExploreQuerySites, CheckedExploreSemanticDependency,
-    CheckedExploreSemanticIndex, CheckedResolutionArtifacts, CheckedRuleCandidateResolution,
-    CheckedValueBinding, ExprKind, ExprSiteId, Literal, RuleDispatchKey, RuleDispatchTier, Ty,
+    CheckedExploreSemanticIndex, CheckedExploreSourceProjectionField, CheckedFieldResolution,
+    CheckedResolutionArtifacts, CheckedRuleCandidateResolution, CheckedValueBinding, ExprKind,
+    ExprSiteId, Literal, Pat, RuleDispatchKey, RuleDispatchTier, Stmt, Ty,
 };
 
-pub(crate) const CHECKED_EXPLORE_SOURCE_EVENT_INVENTORY_VERSION: u32 = 1;
+pub(crate) const CHECKED_EXPLORE_SOURCE_EVENT_INVENTORY_VERSION: u32 = 2;
 
 // Work counts entered syntax/call-expansion and condition nodes. Outputs count
 // pre-dedup events and residuals; the last slot is reserved for exhaustion.
@@ -173,10 +177,15 @@ pub(crate) enum CheckedExploreSourceEventResidualReason {
     ScopedReceiverNeedsBinding,
     RecursiveCall,
     EffectfulCallable,
+    InoutCallable,
     OpenCapture,
     MultipleAxes { count: u32 },
     NonAffine,
     ArithmeticOverflow,
+    FieldProjectionUnavailable,
+    FieldProjectionAmbiguous,
+    ConstructorShapeMismatch,
+    LocalBindingPatternUnsupported,
     UnsupportedShape(CheckedExploreSourceEventUnsupportedShape),
     ExtractionWorkBudgetExceeded { limit: u32 },
     ExtractionOutputBudgetExceeded { limit: u32 },
@@ -323,10 +332,29 @@ enum AffineError {
     NonAffine,
     Overflow,
     UnsupportedShape,
+    Residual(CheckedExploreSourceEventResidualReason),
+    Halted,
 }
 
 type AffineValue = Result<AffineTerm, AffineError>;
-type AffineEnvironment = BTreeMap<CheckedBinderSiteId, AffineValue>;
+
+/// Checked symbolic value used only while tracing one source-linked call
+/// route. Constructor children retain their own failures, so an opaque profile
+/// field cannot erase an independently affine salary field.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum SymbolicTerm {
+    Affine(AffineTerm),
+    Constructor {
+        constructor_digest: [u8; 32],
+        fields: Box<[(CheckedExploreSourceProjectionField, SymbolicValue)]>,
+    },
+    Ground {
+        digest: [u8; 32],
+    },
+}
+
+type SymbolicValue = Result<Arc<SymbolicTerm>, AffineError>;
+type SymbolicEnvironment = BTreeMap<CheckedBinderSiteId, SymbolicValue>;
 
 #[derive(Debug, Clone, Copy)]
 struct SourceEventExtractionLimits {
@@ -496,6 +524,44 @@ fn combine_coefficients(
     Ok(combined)
 }
 
+fn symbolic_value_is_exact(value: &SymbolicValue) -> bool {
+    match value {
+        Ok(value) => match value.as_ref() {
+            SymbolicTerm::Affine(_) | SymbolicTerm::Ground { .. } => true,
+            SymbolicTerm::Constructor {
+                constructor_digest,
+                fields,
+            } => {
+                let _ = constructor_digest;
+                fields
+                    .iter()
+                    .all(|(_, field)| symbolic_value_is_exact(field))
+            }
+        },
+        Err(_) => false,
+    }
+}
+
+fn symbolic_residual(error: AffineError) -> SymbolicValue {
+    Err(error)
+}
+
+fn symbolic_affine(value: AffineTerm) -> SymbolicValue {
+    Ok(Arc::new(SymbolicTerm::Affine(value)))
+}
+
+fn symbolic_affine_value(value: &SymbolicValue) -> AffineValue {
+    match value {
+        Ok(value) => match value.as_ref() {
+            SymbolicTerm::Affine(value) => Ok(value.clone()),
+            SymbolicTerm::Constructor { .. } | SymbolicTerm::Ground { .. } => {
+                Err(AffineError::UnsupportedShape)
+            }
+        },
+        Err(error) => Err(*error),
+    }
+}
+
 struct SourceEventProducer<'a, 'program> {
     resolutions: &'a CheckedResolutionArtifacts,
     index: &'a CheckedExploreSemanticIndex<'program>,
@@ -578,7 +644,7 @@ fn checked_explore_source_event_inventory_with_limits(
         remaining_output_items: limits.output_items,
         extraction_halted: false,
     };
-    let mut environment = AffineEnvironment::new();
+    let mut environment = SymbolicEnvironment::new();
 
     for (binding, checked) in query
         .source
@@ -596,13 +662,9 @@ fn checked_explore_source_event_inventory_with_limits(
         })?;
         let layer = CheckedExploreSourceEventLayer::SourceBinding { binding_index };
         let route = base_route(relation_id, layer);
-        producer.walk_expression(&checked.expression, &environment, layer, route, 0);
-        if producer.extraction_halted() {
-            break;
-        }
         let value = match &binding.kind {
             explore::ExploreSourceBindingKindIr::Singleton { .. } => {
-                producer.affine_expression(&checked.expression, &environment)
+                producer.walk_expression(&checked.expression, &environment, layer, route, 0)
             }
             explore::ExploreSourceBindingKindIr::Finite { domain } => {
                 let value = producer.source_axis_term(
@@ -611,14 +673,17 @@ fn checked_explore_source_event_inventory_with_limits(
                     domain,
                     &checked.expression,
                     &environment,
+                    layer,
+                    route,
+                    0,
                 );
-                if let Err(error) = value {
+                if let Err(error) = &value {
                     producer.record_residual(
                         layer,
                         extend_route(route, 0x08, 0, None),
                         Some(checked.expression.clone()),
                         None,
-                        residual_from_affine_error(error),
+                        residual_from_affine_error(*error),
                     );
                 }
                 value
@@ -630,31 +695,35 @@ fn checked_explore_source_event_inventory_with_limits(
     if !producer.extraction_halted() {
         let successor_layer = CheckedExploreSourceEventLayer::Successor;
         let successor_route = base_route(relation_id, successor_layer);
-        producer.walk_expression(
-            &sites.successor,
-            &environment,
-            successor_layer,
-            successor_route,
-            0,
-        );
+        let after_value = match &query.successor.kind {
+            explore::ExploreSuccessorKindIr::Singleton { .. } => producer.walk_expression(
+                &sites.successor,
+                &environment,
+                successor_layer,
+                successor_route,
+                0,
+            ),
+            explore::ExploreSuccessorKindIr::Finite { .. } => {
+                let _ = producer.walk_expression(
+                    &sites.successor,
+                    &environment,
+                    successor_layer,
+                    successor_route,
+                    0,
+                );
+                producer.record_residual(
+                    successor_layer,
+                    extend_route(successor_route, 0x09, 0, None),
+                    Some(sites.successor.clone()),
+                    None,
+                    CheckedExploreSourceEventResidualReason::UnsupportedShape(
+                        CheckedExploreSourceEventUnsupportedShape::Successor,
+                    ),
+                );
+                Err(AffineError::UnsupportedShape)
+            }
+        };
         if !producer.extraction_halted() {
-            let after_value = match &query.successor.kind {
-                explore::ExploreSuccessorKindIr::Singleton { .. } => {
-                    producer.affine_expression(&sites.successor, &environment)
-                }
-                explore::ExploreSuccessorKindIr::Finite { .. } => {
-                    producer.record_residual(
-                        successor_layer,
-                        extend_route(successor_route, 0x09, 0, None),
-                        Some(sites.successor.clone()),
-                        None,
-                        CheckedExploreSourceEventResidualReason::UnsupportedShape(
-                            CheckedExploreSourceEventUnsupportedShape::Successor,
-                        ),
-                    );
-                    Err(AffineError::UnsupportedShape)
-                }
-            };
             if let Some((after_binder, _)) = producer
                 .semantic_binders
                 .iter()
@@ -678,7 +747,8 @@ fn checked_explore_source_event_inventory_with_limits(
             admission_id,
             admission_index,
         };
-        producer.walk_expression(site, &environment, layer, base_route(relation_id, layer), 0);
+        let _ =
+            producer.walk_expression(site, &environment, layer, base_route(relation_id, layer), 0);
     }
     for ((find, site), question_id) in query
         .finds
@@ -698,7 +768,8 @@ fn checked_explore_source_event_inventory_with_limits(
             ));
         };
         let layer = CheckedExploreSourceEventLayer::Find { question_id };
-        producer.walk_expression(site, &environment, layer, base_route(relation_id, layer), 0);
+        let _ =
+            producer.walk_expression(site, &environment, layer, base_route(relation_id, layer), 0);
     }
 
     producer
@@ -833,17 +904,23 @@ impl SourceEventProducer<'_, '_> {
     }
 
     fn source_axis_term(
-        &self,
+        &mut self,
         binding_index: u32,
         ty: &Ty,
         domain: &explore::ExploreFiniteDomainIr,
         site: &ExprSiteId,
-        environment: &AffineEnvironment,
-    ) -> AffineValue {
-        if !matches!(ty, Ty::Name(name) if name == "Int") {
-            return Err(AffineError::UnsupportedSourceAxis);
+        environment: &SymbolicEnvironment,
+        layer: CheckedExploreSourceEventLayer,
+        route: [u8; 32],
+        depth: usize,
+    ) -> SymbolicValue {
+        if !self.consume_work_item(layer, route, Some(site.clone()), None) {
+            return symbolic_residual(AffineError::Halted);
         }
-        match domain {
+        if !matches!(ty, Ty::Name(name) if name == "Int") {
+            return symbolic_residual(AffineError::UnsupportedSourceAxis);
+        }
+        let result: AffineValue = (|| match domain {
             explore::ExploreFiniteDomainIr::Exact(explore::ExploreExactDomain::IntRange {
                 start,
                 end_exclusive,
@@ -857,23 +934,80 @@ impl SourceEventProducer<'_, '_> {
                 AffineTerm::axis(binding_index, *start, *end_exclusive)
             }
             explore::ExploreFiniteDomainIr::IntRange { .. } => {
-                let start = self
-                    .affine_expression(&child_site(site, 1), environment)?
-                    .constant_value()
-                    .and_then(|value| i64::try_from(value).ok())
-                    .ok_or(AffineError::UnsupportedSourceAxis)?;
-                let end = self
-                    .affine_expression(&child_site(site, 2), environment)?
-                    .constant_value()
-                    .and_then(|value| i64::try_from(value).ok())
-                    .ok_or(AffineError::UnsupportedSourceAxis)?;
-                AffineTerm::axis(binding_index, start, end)
+                let start_value = self.walk_expression(
+                    &child_site(site, 1),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 1, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                let end_value = self.walk_expression(
+                    &child_site(site, 2),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 2, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                match (
+                    symbolic_affine_value(&start_value),
+                    symbolic_affine_value(&end_value),
+                ) {
+                    (Ok(start), Ok(end)) => {
+                        let start = start
+                            .constant_value()
+                            .and_then(|value| i64::try_from(value).ok())
+                            .ok_or(AffineError::UnsupportedSourceAxis)?;
+                        let end = end
+                            .constant_value()
+                            .and_then(|value| i64::try_from(value).ok())
+                            .ok_or(AffineError::UnsupportedSourceAxis)?;
+                        AffineTerm::axis(binding_index, start, end)
+                    }
+                    (Err(error), _) | (_, Err(error)) => Err(error),
+                }
             }
             _ => Err(AffineError::UnsupportedSourceDomain),
+        })();
+        match result {
+            Ok(value) => symbolic_affine(value),
+            Err(error) => symbolic_residual(error),
         }
     }
 
-    fn affine_expression(&self, site: &ExprSiteId, environment: &AffineEnvironment) -> AffineValue {
+    fn affine_expression(
+        &mut self,
+        site: &ExprSiteId,
+        environment: &SymbolicEnvironment,
+        layer: CheckedExploreSourceEventLayer,
+        route: [u8; 32],
+        depth: usize,
+    ) -> AffineValue {
+        let value = self.walk_expression(site, environment, layer, route, depth);
+        symbolic_affine_value(&value)
+    }
+
+    fn walk_expression(
+        &mut self,
+        site: &ExprSiteId,
+        environment: &SymbolicEnvironment,
+        layer: CheckedExploreSourceEventLayer,
+        route: [u8; 32],
+        depth: usize,
+    ) -> SymbolicValue {
+        if !self.consume_work_item(layer, route, Some(site.clone()), None) {
+            return Err(AffineError::Halted);
+        }
+        if depth > 128 {
+            return Err(AffineError::Residual(
+                CheckedExploreSourceEventResidualReason::RecursiveCall,
+            ));
+        }
         if self.resolutions.unsupported_sites.get(site).is_some() {
             return Err(AffineError::MissingResolution);
         }
@@ -881,289 +1015,532 @@ impl SourceEventProducer<'_, '_> {
             .resolutions
             .expressions
             .get(site)
+            .cloned()
             .ok_or(AffineError::MissingResolution)?;
         let expression = self
             .index
             .expression(site)
+            .cloned()
             .ok_or(AffineError::MissingResolution)?;
         match &expression.kind {
-            ExprKind::Lit(Literal::Int(value)) => Ok(AffineTerm::constant(*value)),
-            ExprKind::Var(_) => match resolution.value_binding.as_ref() {
-                Some(CheckedValueBinding::Binder { kind, site }) => environment
-                    .get(site)
-                    .cloned()
-                    .unwrap_or(Err(if *kind == CheckedBinderKind::RuleHead {
-                        AffineError::BinderMismatch
-                    } else {
-                        AffineError::OpenCapture
-                    })),
-                _ => Err(AffineError::OpenCapture),
-            },
-            ExprKind::UnOp(operator, _) if operator == "+" => {
-                self.affine_expression(&child_site(site, 0), environment)
+            ExprKind::Lit(Literal::Int(value)) => {
+                Ok(Arc::new(SymbolicTerm::Affine(AffineTerm::constant(*value))))
             }
+            ExprKind::Lit(literal) => Ok(Arc::new(SymbolicTerm::Ground {
+                digest: checked_explore_projection_literal_digest(literal),
+            })),
+            ExprKind::Unit => Ok(Arc::new(SymbolicTerm::Ground {
+                digest: Sha256::digest(b"futuruna.checked-explore-source-value.unit.v1\0").into(),
+            })),
+            ExprKind::Var(_) => {
+                if let Some(CheckedValueBinding::Binder { kind, site }) =
+                    resolution.value_binding.as_ref()
+                {
+                    return environment.get(site).cloned().unwrap_or(Err(
+                        if *kind == CheckedBinderKind::RuleHead {
+                            AffineError::BinderMismatch
+                        } else {
+                            AffineError::OpenCapture
+                        },
+                    ));
+                }
+                let constructor = resolution
+                    .exact_constructor
+                    .as_ref()
+                    .ok_or(AffineError::OpenCapture)?;
+                if !constructor.fields.is_empty() {
+                    return Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::ConstructorShapeMismatch,
+                    ));
+                }
+                Ok(Arc::new(SymbolicTerm::Constructor {
+                    constructor_digest: checked_explore_projection_constructor_digest(constructor),
+                    fields: Box::new([]),
+                }))
+            }
+            ExprKind::UnOp(operator, _) if operator == "+" => self
+                .affine_expression(
+                    &child_site(site, 0),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 0, None),
+                    depth.saturating_add(1),
+                )
+                .map(|value| Arc::new(SymbolicTerm::Affine(value))),
             ExprKind::UnOp(operator, _) if operator == "-" => self
-                .affine_expression(&child_site(site, 0), environment)?
-                .negate(),
+                .affine_expression(
+                    &child_site(site, 0),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 0, None),
+                    depth.saturating_add(1),
+                )?
+                .negate()
+                .map(|value| Arc::new(SymbolicTerm::Affine(value))),
             ExprKind::BinOp(operator, _, _) if operator == "+" || operator == "-" => {
-                let left = self.affine_expression(&child_site(site, 0), environment)?;
-                let right = self.affine_expression(&child_site(site, 1), environment)?;
-                if operator == "+" {
-                    left.add(&right)
-                } else {
-                    left.subtract(&right)
+                let left = self.walk_expression(
+                    &child_site(site, 0),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 0, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                let right = self.walk_expression(
+                    &child_site(site, 1),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 1, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                match (symbolic_affine_value(&left), symbolic_affine_value(&right)) {
+                    (Ok(left), Ok(right)) if operator == "+" => left
+                        .add(&right)
+                        .map(|value| Arc::new(SymbolicTerm::Affine(value))),
+                    (Ok(left), Ok(right)) => left
+                        .subtract(&right)
+                        .map(|value| Arc::new(SymbolicTerm::Affine(value))),
+                    (Err(error), _) | (_, Err(error)) => Err(error),
                 }
             }
             ExprKind::BinOp(operator, _, _) if operator == "*" => {
-                let left = self.affine_expression(&child_site(site, 0), environment)?;
-                let right = self.affine_expression(&child_site(site, 1), environment)?;
-                if let Some(constant) = left.constant_value() {
-                    right.multiply_constant(constant)
-                } else if let Some(constant) = right.constant_value() {
-                    left.multiply_constant(constant)
-                } else {
-                    Err(AffineError::NonAffine)
+                let left = self.walk_expression(
+                    &child_site(site, 0),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 0, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                let right = self.walk_expression(
+                    &child_site(site, 1),
+                    environment,
+                    layer,
+                    extend_route(route, 0x21, 1, None),
+                    depth.saturating_add(1),
+                );
+                if self.extraction_halted() {
+                    return Err(AffineError::Halted);
+                }
+                match (symbolic_affine_value(&left), symbolic_affine_value(&right)) {
+                    (Ok(left), Ok(right)) => {
+                        if let Some(constant) = left.constant_value() {
+                            right
+                                .multiply_constant(constant)
+                                .map(|value| Arc::new(SymbolicTerm::Affine(value)))
+                        } else if let Some(constant) = right.constant_value() {
+                            left.multiply_constant(constant)
+                                .map(|value| Arc::new(SymbolicTerm::Affine(value)))
+                        } else {
+                            Err(AffineError::NonAffine)
+                        }
+                    }
+                    (Err(error), _) | (_, Err(error)) => Err(error),
                 }
             }
-            ExprKind::App(_, _) => Err(AffineError::NonAffine),
-            ExprKind::BinOp(_, _, _) => Err(AffineError::NonAffine),
-            ExprKind::Lit(_) | ExprKind::Unit => Err(AffineError::UnsupportedShape),
-            _ => Err(AffineError::UnsupportedShape),
+            ExprKind::App(_, arguments) => {
+                if let Some(constructor) = resolution.exact_constructor.as_ref() {
+                    if constructor.fields.len() != arguments.len() {
+                        return Err(AffineError::Residual(
+                            CheckedExploreSourceEventResidualReason::ConstructorShapeMismatch,
+                        ));
+                    }
+                    let actuals = self
+                        .walk_call_argument_values(
+                            site,
+                            constructor.fields.len(),
+                            environment,
+                            layer,
+                            route,
+                            depth,
+                            None,
+                        )
+                        .map_err(AffineError::Residual)?;
+                    let mut fields = Vec::with_capacity(constructor.fields.len());
+                    for (field, value) in constructor.fields.iter().zip(actuals.into_iter()) {
+                        let field =
+                            checked_explore_projection_field(field)
+                                .ok_or(AffineError::Residual(
+                                CheckedExploreSourceEventResidualReason::ConstructorShapeMismatch,
+                            ))?;
+                        fields.push((field, value));
+                    }
+                    return Ok(Arc::new(SymbolicTerm::Constructor {
+                        constructor_digest: checked_explore_projection_constructor_digest(
+                            constructor,
+                        ),
+                        fields: fields.into_boxed_slice(),
+                    }));
+                }
+                match resolution.call_target.as_ref() {
+                    Some(CheckedCallTarget::Function {
+                        callable, arity, ..
+                    }) => self.symbolic_callable_value(
+                        site,
+                        callable,
+                        *arity,
+                        environment,
+                        layer,
+                        route,
+                        depth,
+                    ),
+                    Some(CheckedCallTarget::RuleFamily(family)) => {
+                        self.walk_rule_family(site, family, environment, layer, route, depth);
+                        Err(AffineError::NonAffine)
+                    }
+                    Some(CheckedCallTarget::BoundCallable { .. }) => {
+                        self.record_residual(
+                            layer,
+                            route,
+                            Some(site.clone()),
+                            None,
+                            CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
+                        );
+                        let _ = self.walk_call_argument_values(
+                            site,
+                            arguments.len(),
+                            environment,
+                            layer,
+                            route,
+                            depth,
+                            None,
+                        );
+                        Err(AffineError::Residual(
+                            CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
+                        ))
+                    }
+                    Some(CheckedCallTarget::ScopedMember { .. }) => {
+                        self.record_residual(
+                            layer,
+                            route,
+                            Some(site.clone()),
+                            None,
+                            CheckedExploreSourceEventResidualReason::ScopedReceiverNeedsBinding,
+                        );
+                        let _ = self.walk_call_argument_values(
+                            site,
+                            arguments.len(),
+                            environment,
+                            layer,
+                            route,
+                            depth,
+                            None,
+                        );
+                        Err(AffineError::Residual(
+                            CheckedExploreSourceEventResidualReason::ScopedReceiverNeedsBinding,
+                        ))
+                    }
+                    Some(CheckedCallTarget::Builtin { arity, .. }) => {
+                        let _ = self.walk_call_argument_values(
+                            site,
+                            *arity,
+                            environment,
+                            layer,
+                            route,
+                            depth,
+                            None,
+                        );
+                        Err(AffineError::NonAffine)
+                    }
+                    Some(CheckedCallTarget::Constructor { .. }) => Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::ConstructorShapeMismatch,
+                    )),
+                    None => {
+                        self.record_residual(
+                            layer,
+                            route,
+                            Some(site.clone()),
+                            None,
+                            CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
+                        );
+                        Err(AffineError::Residual(
+                            CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
+                        ))
+                    }
+                }
+            }
+            ExprKind::Field(_, member) => {
+                let base = self.walk_expression(
+                    &child_site(site, 0),
+                    environment,
+                    layer,
+                    extend_route(route, 0x23, 0, None),
+                    depth.saturating_add(1),
+                )?;
+                let SymbolicTerm::Constructor {
+                    constructor_digest,
+                    fields,
+                } = base.as_ref()
+                else {
+                    return Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable,
+                    ));
+                };
+                let _constructor_digest = constructor_digest;
+                let CheckedFieldResolution::Data {
+                    fields: resolved_fields,
+                    ..
+                } = resolution.field.as_ref().ok_or(AffineError::Residual(
+                    CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable,
+                ))?
+                else {
+                    return Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable,
+                    ));
+                };
+                let candidates = resolved_fields
+                    .iter()
+                    .filter(|resolved| resolved.identity.name.as_ref() == member.as_str())
+                    .map(|resolved| {
+                        checked_explore_projection_field(&resolved.identity).ok_or(
+                            AffineError::Residual(
+                                CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable,
+                            ),
+                        )
+                    })
+                    .collect::<Result<BTreeSet<_>, _>>()?;
+                let selected = fields
+                    .iter()
+                    .filter(|(field, _)| candidates.contains(field))
+                    .map(|(_, value)| value.clone())
+                    .collect::<Vec<_>>();
+                match selected.as_slice() {
+                    [value] => value.clone(),
+                    [] => Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable,
+                    )),
+                    _ => Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::FieldProjectionAmbiguous,
+                    )),
+                }
+            }
+            ExprKind::Block(statements) => {
+                self.symbolic_block(site, statements, environment, layer, route, depth)
+            }
+            ExprKind::BinOp(_, _, _) => {
+                for child_index in [0_u32, 1] {
+                    let _ = self.walk_expression(
+                        &child_site(site, child_index),
+                        environment,
+                        layer,
+                        extend_route(route, 0x21, child_index, None),
+                        depth.saturating_add(1),
+                    );
+                    if self.extraction_halted() {
+                        return Err(AffineError::Halted);
+                    }
+                }
+                Err(AffineError::NonAffine)
+            }
+            _ => {
+                let mut expression_children = Vec::new();
+                let mut child_index = 0_u32;
+                visit_ast_expr_children(&expression, &mut |child| {
+                    if matches!(child, AstChild::Expr(_)) {
+                        expression_children.push(child_index);
+                    }
+                    child_index = child_index.saturating_add(1);
+                });
+                for child_index in expression_children {
+                    let _ = self.walk_expression(
+                        &child_site(site, child_index),
+                        environment,
+                        layer,
+                        extend_route(route, 0x21, child_index, None),
+                        depth.saturating_add(1),
+                    );
+                    if self.extraction_halted() {
+                        return Err(AffineError::Halted);
+                    }
+                }
+                Err(AffineError::UnsupportedShape)
+            }
         }
     }
 
-    fn walk_expression(
+    #[allow(clippy::too_many_arguments)]
+    fn walk_call_argument_values(
         &mut self,
-        site: &ExprSiteId,
-        environment: &AffineEnvironment,
+        call_site: &ExprSiteId,
+        arity: usize,
+        environment: &SymbolicEnvironment,
         layer: CheckedExploreSourceEventLayer,
         route: [u8; 32],
         depth: usize,
-    ) {
-        if !self.consume_work_item(layer, route, Some(site.clone()), None) {
-            return;
-        }
-        if depth > 128 {
-            self.record_residual(
-                layer,
-                route,
-                Some(site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::RecursiveCall,
-            );
-            return;
-        }
-        let Some(expression) = self.index.expression(site).cloned() else {
-            self.record_residual(
-                layer,
-                route,
-                Some(site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::MissingExpressionResolution,
-            );
-            return;
-        };
-        let is_application = matches!(expression.kind, ExprKind::App(_, _));
-        let call_target = self
-            .resolutions
-            .expressions
-            .get(site)
-            .and_then(|resolution| resolution.call_target.clone());
-        match call_target {
-            Some(CheckedCallTarget::RuleFamily(family)) => {
-                self.walk_rule_family(site, &family, environment, layer, route, depth)
-            }
-            Some(CheckedCallTarget::Function {
-                callable, arity, ..
-            }) => self.walk_callable(site, &callable, arity, environment, layer, route, depth),
-            Some(CheckedCallTarget::BoundCallable { .. }) => self.record_residual(
-                layer,
-                route,
-                Some(site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
-            ),
-            Some(CheckedCallTarget::ScopedMember { .. }) => self.record_residual(
-                layer,
-                route,
-                Some(site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::ScopedReceiverNeedsBinding,
-            ),
-            Some(CheckedCallTarget::Builtin { .. })
-            | Some(CheckedCallTarget::Constructor { .. }) => {}
-            None if is_application => self.record_residual(
-                layer,
-                route,
-                Some(site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::UnresolvedOrDynamicCall,
-            ),
-            None => {}
-        }
-        if self.extraction_halted {
-            return;
-        }
-
-        if let ExprKind::App(_, arguments) = &expression.kind {
-            self.walk_expression(
-                &child_site(site, 0),
+        dependency_digest: Option<[u8; 32]>,
+    ) -> Result<Vec<SymbolicValue>, CheckedExploreSourceEventResidualReason> {
+        let actuals = self.canonical_call_arguments(call_site, arity)?;
+        let mut values = Vec::with_capacity(actuals.len());
+        for (canonical_index, actual) in actuals.iter().enumerate() {
+            let canonical_index = u32::try_from(canonical_index)
+                .map_err(|_| CheckedExploreSourceEventResidualReason::ArithmeticOverflow)?;
+            values.push(self.walk_expression(
+                actual,
                 environment,
                 layer,
-                extend_route(route, 0x01, 0, None),
-                depth,
-            );
-            if self.extraction_halted {
-                return;
-            }
-            let actuals = match self.canonical_call_arguments(site, arguments.len()) {
-                Ok(actuals) => actuals,
-                Err(reason) => {
-                    self.record_residual(
-                        layer,
-                        extend_route(route, 0x01, u32::MAX, None),
-                        Some(site.clone()),
-                        None,
-                        reason,
-                    );
-                    return;
-                }
-            };
-            for (canonical_index, actual) in actuals.iter().enumerate() {
-                if self.extraction_halted {
-                    return;
-                }
-                let Ok(route_index) = u32::try_from(canonical_index.saturating_add(1)) else {
-                    self.record_residual(
-                        layer,
-                        extend_route(route, 0x01, u32::MAX, None),
-                        Some(site.clone()),
-                        None,
-                        CheckedExploreSourceEventResidualReason::ArithmeticOverflow,
-                    );
-                    return;
-                };
-                self.walk_expression(
-                    actual,
-                    environment,
-                    layer,
-                    extend_route(route, 0x01, route_index, None),
-                    depth,
+                extend_route(route, 0x22, canonical_index, dependency_digest),
+                depth.saturating_add(1),
+            ));
+            if self.extraction_halted() {
+                return Err(
+                    CheckedExploreSourceEventResidualReason::ExtractionWorkBudgetExceeded {
+                        limit: self.limits.work_items,
+                    },
                 );
             }
-            return;
         }
-
-        let mut expression_children = Vec::new();
-        let mut child_index = 0_u32;
-        visit_ast_expr_children(&expression, &mut |child| {
-            if matches!(child, AstChild::Expr(_)) {
-                expression_children.push(child_index);
-            }
-            child_index = child_index.saturating_add(1);
-        });
-
-        for child_index in expression_children {
-            if self.extraction_halted {
-                return;
-            }
-            let child = child_site(site, child_index);
-            self.walk_expression(
-                &child,
-                environment,
-                layer,
-                extend_route(route, 0x01, child_index, None),
-                depth,
-            );
-        }
+        Ok(values)
     }
 
-    fn walk_callable(
+    #[allow(clippy::too_many_arguments)]
+    fn symbolic_callable_value(
         &mut self,
         call_site: &ExprSiteId,
         callable: &crate::CheckedCallableId,
         arity: usize,
-        environment: &AffineEnvironment,
+        environment: &SymbolicEnvironment,
         layer: CheckedExploreSourceEventLayer,
         route: [u8; 32],
         depth: usize,
-    ) {
-        let Some(descriptor) = self.index.callables.get(callable).cloned() else {
-            self.record_residual(
-                layer,
-                route,
-                Some(call_site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::CallableUnsealed,
-            );
-            return;
-        };
+    ) -> SymbolicValue {
+        let descriptor =
+            self.index
+                .callables
+                .get(callable)
+                .cloned()
+                .ok_or(AffineError::Residual(
+                    CheckedExploreSourceEventResidualReason::CallableUnsealed,
+                ))?;
         if !descriptor.effects.is_empty() {
-            self.record_residual(
-                layer,
-                route,
-                Some(call_site.clone()),
-                None,
+            return Err(AffineError::Residual(
                 CheckedExploreSourceEventResidualReason::EffectfulCallable,
-            );
-            return;
+            ));
+        }
+        if descriptor
+            .parameters
+            .iter()
+            .any(|parameter| parameter.inout)
+        {
+            return Err(AffineError::Residual(
+                CheckedExploreSourceEventResidualReason::InoutCallable,
+            ));
         }
         if !self.active_callables.insert(callable.clone()) {
-            self.record_residual(
-                layer,
-                route,
-                Some(call_site.clone()),
-                None,
+            return Err(AffineError::Residual(
                 CheckedExploreSourceEventResidualReason::RecursiveCall,
-            );
-            return;
+            ));
         }
-        let digest = self.callable_digest(callable);
-        let Some(digest) = digest else {
-            self.active_callables.remove(callable);
-            self.record_residual(
-                layer,
-                route,
-                Some(call_site.clone()),
-                None,
-                CheckedExploreSourceEventResidualReason::CallableUnsealed,
-            );
-            return;
-        };
         let result = (|| {
-            let actuals = self.canonical_call_arguments(call_site, arity)?;
+            let digest = self.callable_digest(callable).ok_or(AffineError::Residual(
+                CheckedExploreSourceEventResidualReason::CallableUnsealed,
+            ))?;
+            let actuals = self
+                .walk_call_argument_values(
+                    call_site,
+                    arity,
+                    environment,
+                    layer,
+                    route,
+                    depth,
+                    Some(digest),
+                )
+                .map_err(AffineError::Residual)?;
             if actuals.len() != descriptor.parameter_sites.len() {
-                return Err(CheckedExploreSourceEventResidualReason::ArityMismatch {
-                    expected: u32::try_from(descriptor.parameter_sites.len()).unwrap_or(u32::MAX),
-                    actual: u32::try_from(actuals.len()).unwrap_or(u32::MAX),
-                });
+                return Err(AffineError::Residual(
+                    CheckedExploreSourceEventResidualReason::ArityMismatch {
+                        expected: u32::try_from(descriptor.parameter_sites.len())
+                            .unwrap_or(u32::MAX),
+                        actual: u32::try_from(actuals.len()).unwrap_or(u32::MAX),
+                    },
+                ));
             }
             let mut call_environment = environment.clone();
-            for (binder, actual) in descriptor.parameter_sites.iter().zip(actuals.iter()) {
-                call_environment
-                    .insert(binder.clone(), self.affine_expression(actual, environment));
+            for (binder, value) in descriptor.parameter_sites.iter().zip(actuals.into_iter()) {
+                call_environment.insert(binder.clone(), value);
             }
-            let callable_route = extend_route(route, 0x03, 0, Some(digest));
             self.walk_expression(
                 &descriptor.body_site,
                 &call_environment,
                 layer,
-                callable_route,
+                extend_route(route, 0x25, 0, Some(digest)),
                 depth.saturating_add(1),
-            );
-            Ok(())
+            )
         })();
         self.active_callables.remove(callable);
-        if let Err(reason) = result {
-            self.record_residual(layer, route, Some(call_site.clone()), Some(digest), reason);
+        result
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn symbolic_block(
+        &mut self,
+        block_site: &ExprSiteId,
+        statements: &[Stmt],
+        environment: &SymbolicEnvironment,
+        layer: CheckedExploreSourceEventLayer,
+        route: [u8; 32],
+        depth: usize,
+    ) -> SymbolicValue {
+        let mut block_environment = environment.clone();
+        let mut result = None;
+        for (statement_index, statement) in statements.iter().enumerate() {
+            let statement_index = u32::try_from(statement_index).map_err(|_| {
+                AffineError::Residual(CheckedExploreSourceEventResidualReason::ArithmeticOverflow)
+            })?;
+            let statement_site = child_site(block_site, statement_index);
+            let statement_route = extend_route(route, 0x26, statement_index, None);
+            match statement {
+                Stmt::Bind(Pat::Var(_), _, _) => {
+                    let initializer_site = child_site(&statement_site, 0);
+                    let value = self.walk_expression(
+                        &initializer_site,
+                        &block_environment,
+                        layer,
+                        extend_route(statement_route, 0x27, 0, None),
+                        depth.saturating_add(1),
+                    );
+                    if self.extraction_halted() {
+                        return Err(AffineError::Halted);
+                    }
+                    block_environment
+                        .insert(checked_local_value_binder_site(&statement_site), value);
+                    result = None;
+                }
+                Stmt::Bind(_, _, _) => {
+                    return Err(AffineError::Residual(
+                        CheckedExploreSourceEventResidualReason::LocalBindingPatternUnsupported,
+                    ));
+                }
+                Stmt::Expr(_) => {
+                    let expression_site = child_site(&statement_site, 0);
+                    result = Some(self.walk_expression(
+                        &expression_site,
+                        &block_environment,
+                        layer,
+                        extend_route(statement_route, 0x27, 0, None),
+                        depth.saturating_add(1),
+                    ));
+                    if self.extraction_halted() {
+                        return Err(AffineError::Halted);
+                    }
+                }
+                _ => return Err(AffineError::UnsupportedShape),
+            }
         }
+        result.unwrap_or(Err(AffineError::UnsupportedShape))
     }
 
     fn walk_rule_family(
         &mut self,
         call_site: &ExprSiteId,
         family_key: &RuleDispatchKey,
-        environment: &AffineEnvironment,
+        environment: &SymbolicEnvironment,
         layer: CheckedExploreSourceEventLayer,
         route: [u8; 32],
         depth: usize,
@@ -1198,8 +1575,7 @@ impl SourceEventProducer<'_, '_> {
             );
             return;
         }
-        let family_digest = self.family_digest(family_key);
-        if family_digest.is_none() {
+        let Some(family_digest) = self.family_digest(family_key) else {
             self.record_residual(
                 layer,
                 route,
@@ -1209,16 +1585,25 @@ impl SourceEventProducer<'_, '_> {
             );
             self.active_families.remove(family_key);
             return;
-        }
+        };
         let result = (|| {
-            let actuals = self.canonical_call_arguments(call_site, family_key.arity)?;
+            let actuals = self.walk_call_argument_values(
+                call_site,
+                family_key.arity,
+                environment,
+                layer,
+                route,
+                depth,
+                Some(family_digest),
+            )?;
             for (candidate_index, candidate) in family.candidates.iter().enumerate() {
                 if self.extraction_halted {
                     break;
                 }
                 let candidate_ordinal = u32::try_from(candidate_index)
                     .map_err(|_| CheckedExploreSourceEventResidualReason::ArithmeticOverflow)?;
-                let candidate_route = extend_route(route, 0x02, candidate_ordinal, family_digest);
+                let candidate_route =
+                    extend_route(route, 0x02, candidate_ordinal, Some(family_digest));
                 let candidate_environment =
                     match self.bind_rule_head(candidate, &actuals, environment) {
                         Ok(environment) => environment,
@@ -1227,15 +1612,13 @@ impl SourceEventProducer<'_, '_> {
                                 layer,
                                 candidate_route,
                                 Some(candidate.head_site.clone()),
-                                family_digest,
+                                Some(family_digest),
                                 reason,
                             );
                             continue;
                         }
                     };
-                if let (Some(condition), Some(family_digest)) =
-                    (&candidate.condition_site, family_digest)
-                {
+                if let Some(condition) = &candidate.condition_site {
                     self.collect_condition_atoms(
                         call_site,
                         condition,
@@ -1252,20 +1635,8 @@ impl SourceEventProducer<'_, '_> {
                 if self.extraction_halted {
                     break;
                 }
-                if let Some(condition) = &candidate.condition_site {
-                    self.walk_expression(
-                        condition,
-                        &candidate_environment,
-                        layer,
-                        extend_route(candidate_route, 0x04, 0, None),
-                        depth.saturating_add(1),
-                    );
-                }
-                if self.extraction_halted {
-                    break;
-                }
                 if let Some(value) = &candidate.value_site {
-                    self.walk_expression(
+                    let _ = self.walk_expression(
                         value,
                         &candidate_environment,
                         layer,
@@ -1278,16 +1649,22 @@ impl SourceEventProducer<'_, '_> {
         })();
         self.active_families.remove(family_key);
         if let Err(reason) = result {
-            self.record_residual(layer, route, Some(call_site.clone()), family_digest, reason);
+            self.record_residual(
+                layer,
+                route,
+                Some(call_site.clone()),
+                Some(family_digest),
+                reason,
+            );
         }
     }
 
     fn bind_rule_head(
         &self,
         candidate: &CheckedRuleCandidateResolution,
-        actuals: &[ExprSiteId],
-        caller_environment: &AffineEnvironment,
-    ) -> Result<AffineEnvironment, CheckedExploreSourceEventResidualReason> {
+        actuals: &[SymbolicValue],
+        caller_environment: &SymbolicEnvironment,
+    ) -> Result<SymbolicEnvironment, CheckedExploreSourceEventResidualReason> {
         let expression = self
             .index
             .expression(&candidate.head_site)
@@ -1304,7 +1681,7 @@ impl SourceEventProducer<'_, '_> {
             });
         }
         let mut environment = caller_environment.clone();
-        for (index, actual) in actuals.iter().enumerate() {
+        for (index, value) in actuals.iter().enumerate() {
             let head_argument = self.unwrap_argument_site(child_site(
                 &candidate.head_site,
                 u32::try_from(index + 1)
@@ -1332,13 +1709,12 @@ impl SourceEventProducer<'_, '_> {
             else {
                 return Err(CheckedExploreSourceEventResidualReason::RuleHeadBinderMismatch);
             };
-            let value = self.affine_expression(actual, caller_environment);
             if let Some(previous) = environment.get(binder) {
-                if previous != &value {
+                if previous != value || !symbolic_value_is_exact(previous) {
                     return Err(CheckedExploreSourceEventResidualReason::RuleHeadBinderMismatch);
                 }
             } else {
-                environment.insert(binder.clone(), value);
+                environment.insert(binder.clone(), value.clone());
             }
         }
         Ok(environment)
@@ -1350,7 +1726,7 @@ impl SourceEventProducer<'_, '_> {
         source_call_site: &ExprSiteId,
         condition_root: &ExprSiteId,
         site: &ExprSiteId,
-        environment: &AffineEnvironment,
+        environment: &SymbolicEnvironment,
         layer: CheckedExploreSourceEventLayer,
         call_route: [u8; 32],
         family_digest: [u8; 32],
@@ -1454,7 +1830,7 @@ impl SourceEventProducer<'_, '_> {
         &mut self,
         source_call_site: &ExprSiteId,
         site: &ExprSiteId,
-        environment: &AffineEnvironment,
+        environment: &SymbolicEnvironment,
         layer: CheckedExploreSourceEventLayer,
         call_route: [u8; 32],
         family_digest: [u8; 32],
@@ -1467,8 +1843,23 @@ impl SourceEventProducer<'_, '_> {
             return;
         }
         let atom_route = framed_atom_route(call_route, &atom_path);
-        let left = self.affine_expression(&child_site(site, 0), environment);
-        let right = self.affine_expression(&child_site(site, 1), environment);
+        let left = self.affine_expression(
+            &child_site(site, 0),
+            environment,
+            layer,
+            extend_route(atom_route, 0x2d, 0, Some(family_digest)),
+            0,
+        );
+        if self.extraction_halted() {
+            return;
+        }
+        let right = self.affine_expression(
+            &child_site(site, 1),
+            environment,
+            layer,
+            extend_route(atom_route, 0x2d, 1, Some(family_digest)),
+            0,
+        );
         let difference = match (left, right) {
             (Ok(left), Ok(right)) => comparison_difference(&left, &right),
             (Err(error), _) | (_, Err(error)) => Err(error),
@@ -1791,6 +2182,12 @@ fn residual_from_affine_error(error: AffineError) -> CheckedExploreSourceEventRe
         AffineError::UnsupportedShape => CheckedExploreSourceEventResidualReason::UnsupportedShape(
             CheckedExploreSourceEventUnsupportedShape::Expression,
         ),
+        AffineError::Residual(reason) => reason,
+        // The budget owner has already appended the sole terminal residual
+        // and latched extraction before this value can escape.
+        AffineError::Halted => {
+            CheckedExploreSourceEventResidualReason::ExtractionWorkBudgetExceeded { limit: 0 }
+        }
     }
 }
 
@@ -1925,6 +2322,7 @@ fn hash_residual_reason(hasher: &mut Sha256, reason: CheckedExploreSourceEventRe
         }
         CheckedExploreSourceEventResidualReason::RecursiveCall => hasher.update([0x0c]),
         CheckedExploreSourceEventResidualReason::EffectfulCallable => hasher.update([0x0d]),
+        CheckedExploreSourceEventResidualReason::InoutCallable => hasher.update([0x19]),
         CheckedExploreSourceEventResidualReason::OpenCapture => hasher.update([0x0e]),
         CheckedExploreSourceEventResidualReason::MultipleAxes { count } => {
             hasher.update([0x0f]);
@@ -1932,6 +2330,14 @@ fn hash_residual_reason(hasher: &mut Sha256, reason: CheckedExploreSourceEventRe
         }
         CheckedExploreSourceEventResidualReason::NonAffine => hasher.update([0x10]),
         CheckedExploreSourceEventResidualReason::ArithmeticOverflow => hasher.update([0x11]),
+        CheckedExploreSourceEventResidualReason::FieldProjectionUnavailable => {
+            hasher.update([0x15])
+        }
+        CheckedExploreSourceEventResidualReason::FieldProjectionAmbiguous => hasher.update([0x16]),
+        CheckedExploreSourceEventResidualReason::ConstructorShapeMismatch => hasher.update([0x17]),
+        CheckedExploreSourceEventResidualReason::LocalBindingPatternUnsupported => {
+            hasher.update([0x18])
+        }
         CheckedExploreSourceEventResidualReason::UnsupportedShape(shape) => {
             hasher.update([0x12]);
             hasher.update([match shape {
@@ -2204,6 +2610,156 @@ mod tests {
     }
 
     #[test]
+    fn checked_explore_source_event_propagates_personskat_shaped_value_paths() {
+        let inventory = checked_inventory(
+            r#"
+# MiniTaxProfile(commune: Int)
+# MiniTaxIncome(gross_kroner: Int, opaque_history: List(Int))
+# MiniTaxState(profile: MiniTaxProfile, income: MiniTaxIncome)
+# MiniTaxPromotion(increase_kroner: Int)
+
+> mini_tax_gross(state: MiniTaxState) -> Int {
+    = income = state.income
+    = gross = income.gross_kroner
+    gross
+}
+
+> mini_tax_promote(before: MiniTaxState, context: MiniTaxPromotion) -> MiniTaxState {
+    = income = before.income
+    = next_gross = income.gross_kroner + context.increase_kroner
+    MiniTaxState(
+        income = MiniTaxIncome(
+            opaque_history = income.opaque_history,
+            gross_kroner = next_gross
+        ),
+        profile = before.profile
+    )
+}
+
+| mini_tax_band(state: MiniTaxState) -> 0
+| exception threshold mini_tax_band(state: MiniTaxState) -> 1 under mini_tax_gross(state) >= 68000
+
+? explore mini_tax_value_paths {
+    from {
+        vary salary_hundred_step in range(0, 700)
+        let profile = MiniTaxProfile(commune = 101)
+        let income = MiniTaxIncome(
+            opaque_history = [salary_hundred_step],
+            gross_kroner = salary_hundred_step * 100
+        )
+        let before = MiniTaxState(income = income, profile = profile)
+        given context = MiniTaxPromotion(increase_kroner = 100)
+    }
+    transition after = mini_tax_promote(context = context, before = before)
+    find cases = matches of mini_tax_band(after) == 1
+}
+"#,
+        );
+        assert!(inventory.validate_identity(), "{inventory:#?}");
+        assert!(inventory.residuals().is_empty(), "{inventory:#?}");
+        let [event] = inventory.events() else {
+            panic!("expected one structured source event: {inventory:#?}");
+        };
+        assert_eq!(event.source_binding_index, 0);
+        assert_eq!(event.coefficient, 1);
+        assert_eq!(event.intercept, -679);
+        assert_eq!(
+            event.relation,
+            CheckedExploreSourceEventRelation::GreaterOrEqual
+        );
+        assert_eq!(event.origin.tier, RuleDispatchTier::Exception);
+        assert!(matches!(
+            event.layer,
+            CheckedExploreSourceEventLayer::Find { .. }
+        ));
+    }
+
+    #[test]
+    fn checked_explore_structured_value_path_identity_ignores_alpha_names_and_argument_order() {
+        let identity = |source: &str| {
+            let inventory = checked_inventory(source);
+            assert!(inventory.validate_identity(), "{inventory:#?}");
+            assert!(inventory.residuals().is_empty(), "{inventory:#?}");
+            let [event] = inventory.events() else {
+                panic!("expected one canonical structured event: {inventory:#?}");
+            };
+            assert_eq!(
+                (
+                    event.source_binding_index,
+                    event.coefficient,
+                    event.intercept,
+                    event.relation,
+                ),
+                (
+                    0,
+                    1,
+                    -680,
+                    CheckedExploreSourceEventRelation::GreaterOrEqual,
+                )
+            );
+            (
+                event.source_event_id,
+                event.occurrence_id,
+                inventory.inventory_root(),
+            )
+        };
+
+        let baseline = identity(
+            r#"
+# CanonicalInner(amount: Int, offset: Int)
+# CanonicalOuter(inner: CanonicalInner)
+
+> canonical_value(box: CanonicalOuter, adjustment: Int) -> Int {
+    = item = box.inner
+    item.amount + item.offset + adjustment
+}
+
+| canonical_band(box: CanonicalOuter) -> 0
+| exception boundary canonical_band(box: CanonicalOuter) -> 1 under canonical_value(adjustment = 0, box = box) >= 680
+
+? explore canonical_structured_boundary {
+    from {
+        vary coordinate in range(0, 700)
+        let before = CanonicalOuter(
+            inner = CanonicalInner(offset = 0, amount = coordinate)
+        )
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of canonical_band(before) == 1
+}
+"#,
+        );
+        let renamed_and_reordered = identity(
+            r#"
+# CanonicalInner(amount: Int, offset: Int)
+# CanonicalOuter(inner: CanonicalInner)
+
+> renamed_value(subject: CanonicalOuter, delta: Int) -> Int {
+    = renamed_item = subject.inner
+    renamed_item.amount + renamed_item.offset + delta
+}
+
+| renamed_band(subject: CanonicalOuter) -> 0
+| exception renamed_boundary renamed_band(subject: CanonicalOuter) -> 1 under renamed_value(subject = subject, delta = 0) >= 680
+
+? explore renamed_structured_boundary {
+    from {
+        vary renamed_coordinate in range(0, 700)
+        let before = CanonicalOuter(
+            inner = CanonicalInner(amount = renamed_coordinate, offset = 0)
+        )
+        given context = ()
+    }
+    transition after = before
+    find renamed_cases = matches of renamed_band(before) == 1
+}
+"#,
+        );
+        assert_eq!(baseline, renamed_and_reordered);
+    }
+
+    #[test]
     fn checked_explore_source_event_retains_nonlinear_condition_as_residual_without_cut() {
         let source = r#"
 | nonlinear_rate(value: Int) -> 0
@@ -2460,6 +3016,78 @@ mod tests {
                 CheckedExploreSourceEventResidualReason::MultipleAxes { count: 2 },
             ),
             (
+                "nonlinear selected constructor field",
+                r#"
+# NonlinearProfile(gross: Int)
+# NonlinearState(profile: NonlinearProfile)
+
+| nonlinear_structured_band(state: NonlinearState) -> 0
+| exception threshold nonlinear_structured_band(state: NonlinearState) -> 1 under state.profile.gross >= 4
+
+? explore nonlinear_structured_source {
+    from {
+        vary coordinate in range(0, 10)
+        let before = NonlinearState(
+            profile = NonlinearProfile(gross = coordinate * coordinate)
+        )
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of nonlinear_structured_band(before) == 1
+}
+"#,
+                CheckedExploreSourceEventResidualReason::NonAffine,
+            ),
+            (
+                "nonlinear block local",
+                r#"
+# BlockProfile(gross: Int)
+# BlockState(profile: BlockProfile)
+
+> nonlinear_block_income(state: BlockState) -> Int {
+    = gross = state.profile.gross
+    = squared = gross * gross
+    squared
+}
+
+| nonlinear_block_band(state: BlockState) -> 0
+| exception threshold nonlinear_block_band(state: BlockState) -> 1 under nonlinear_block_income(state) >= 4
+
+? explore nonlinear_block_source {
+    from {
+        vary coordinate in range(0, 10)
+        let before = BlockState(profile = BlockProfile(gross = coordinate))
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of nonlinear_block_band(before) == 1
+}
+"#,
+                CheckedExploreSourceEventResidualReason::NonAffine,
+            ),
+            (
+                "recursive pure callable",
+                r#"
+# RecursiveState(income: Int)
+
+> recursive_income(state: RecursiveState) -> Int { recursive_income(state) }
+
+| recursive_callable_band(state: RecursiveState) -> 0
+| exception threshold recursive_callable_band(state: RecursiveState) -> 1 under recursive_income(state) >= 4
+
+? explore recursive_callable_source {
+    from {
+        vary coordinate in range(0, 10)
+        let before = RecursiveState(income = coordinate)
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of recursive_callable_band(before) == 1
+}
+"#,
+                CheckedExploreSourceEventResidualReason::RecursiveCall,
+            ),
+            (
                 "scoped receiver",
                 r#"
 # ScopedBoundary(base: Int) {
@@ -2515,6 +3143,7 @@ mod tests {
         ];
         for (label, source, reason) in fixtures {
             let inventory = checked_inventory(source);
+            assert!(inventory.validate_identity(), "{label}: {inventory:#?}");
             assert!(inventory.events().is_empty(), "{label}: {inventory:#?}");
             assert!(
                 inventory

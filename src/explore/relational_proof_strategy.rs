@@ -460,6 +460,7 @@ impl RelationalResidualMaterialization {
 pub(crate) struct RelationalProofStrategyInventory {
     plan_root: RelationalSupportPlanRoot,
     relation_id: RelationId,
+    finite_binding_indices: Box<[u32]>,
     axes: Box<[RelationalIntegerAxis]>,
     guard_atoms: Box<[RelationalCheckedGuardAtom]>,
     residuals: Box<[RelationalResidualMaterialization]>,
@@ -729,6 +730,14 @@ impl RelationalProofStrategyInventory {
         Ok(Self {
             plan_root: support_plan.root(),
             relation_id: support_plan.relation_id(),
+            finite_binding_indices: support_plan
+                .stages()
+                .iter()
+                .filter_map(|stage| match stage {
+                    RelationalBindingStage::Finite(stage) => Some(stage.recipe().binding_index()),
+                    _ => None,
+                })
+                .collect(),
             axes: axes.into_boxed_slice(),
             guard_atoms: guard_atoms.into_boxed_slice(),
             residuals: residuals.into_boxed_slice(),
@@ -745,6 +754,12 @@ impl RelationalProofStrategyInventory {
 
     pub(crate) fn axes(&self) -> &[RelationalIntegerAxis] {
         &self.axes
+    }
+
+    /// Ordered finite producer slots are the mixed-radix factor order. Keep
+    /// singleton auxiliary construction out of that cardinality basis.
+    pub(crate) fn finite_binding_indices(&self) -> &[u32] {
+        &self.finite_binding_indices
     }
 
     pub(crate) fn guard_atoms(&self) -> &[RelationalCheckedGuardAtom] {

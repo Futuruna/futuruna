@@ -3897,6 +3897,13 @@ mod regional_stream_acceptance_tests {
     }
 
     fn canonical_exhaustive_three_chunk_oracle(source_text: &str) -> CanonicalExhaustiveCounts {
+        canonical_exhaustive_product_oracle(source_text, &[700])
+    }
+
+    fn canonical_exhaustive_product_oracle(
+        source_text: &str,
+        radices: &[u128],
+    ) -> CanonicalExhaustiveCounts {
         let mut prepared = prepare(source_text);
         let checked = prepared.checked.view();
         let question_id = checked.question_ids()[0];
@@ -3917,10 +3924,16 @@ mod regional_stream_acceptance_tests {
             selected_case_ids: BTreeSet::new(),
         };
 
-        for coordinate in 0..700 {
+        for rank in 0..radices.iter().product::<u128>() {
+            let mut remaining = rank;
+            let mut coordinates = vec![0; radices.len()];
+            for (coordinate, radix) in coordinates.iter_mut().zip(radices).rev() {
+                *coordinate = remaining % radix;
+                remaining /= radix;
+            }
             let completed = source
                 .completed_source_at_independent_finite_ordinals(
-                    &[coordinate],
+                    &coordinates,
                     &mut prepared.expression_runtime,
                 )
                 .expect("enumerate independent canonical source coordinate");
@@ -6314,6 +6327,137 @@ mod regional_stream_acceptance_tests {
         );
     }
 
+    #[test]
+    fn income_distance_unit_edges_match_independent_exhaustion_in_both_directions() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter, c: Step) -> Int {
+    s.income +
+    (if s.income < 13 { 10 } else { 0 }) +
+    (if s.distance < 17 { 3 } else { 0 })
+}
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore income_distance_edges {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 30)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+    transition after = advance(before, context)
+    where after after.income <= 19 && after.distance <= 29
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using net
+}
+"#;
+        assert_product_stream_matches_oracle(source, &[20, 30, 2], (1200, 50, 1150, 1100, 50));
+    }
+
+    #[test]
+    fn affine_income_distance_closure_matches_exhaustion_without_point_classification() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter, c: Step) -> Int { s.income * 3 + s.distance * 2 }
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore affine_income_distance_edges {
+    from {
+        vary income in range(100, 120)
+        vary distance in range(30, 50)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+
+
+    transition after = advance(before, context)
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using net
+}
+"#;
+        let run = assert_product_stream_matches_oracle(source, &[20, 20, 2], (800, 0, 800, 800, 0));
+        assert_eq!(
+            run.certified_fragment_count, 4,
+            "all four product chunks use verified closure"
+        );
+    }
+
+    #[test]
+    fn isolated_unit_cliffs_and_integer_rounding_remain_exact_product_residuals() {
+        let template = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter, c: Step) -> Int { METRIC }
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore narrow_product_cliffs {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 7)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+    transition after = advance(before, context)
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using net
+}
+"#;
+        let isolated = template.replace(
+            "METRIC",
+            "s.income + s.distance + (if s.income == 7 && s.distance == 3 { 4 } else { 0 })",
+        );
+        assert_product_stream_matches_oracle(&isolated, &[20, 7, 2], (280, 0, 280, 278, 2));
+        let rounding = template.replace("METRIC", "s.income - (s.income / 3) * 4 + s.distance");
+        assert_product_stream_matches_oracle(&rounding, &[20, 7, 2], (280, 0, 280, 238, 42));
+    }
+
+    fn assert_product_stream_matches_oracle(
+        source: &str,
+        radices: &[u128],
+        expected: (u128, u128, u128, u128, u128),
+    ) -> ThreeChunkScheduleRun {
+        let oracle = canonical_exhaustive_product_oracle(source, radices);
+        assert_eq!(
+            (
+                oracle.candidates,
+                oracle.rejected,
+                oracle.admitted,
+                oracle.admitted_not_selected,
+                oracle.admitted_selected
+            ),
+            expected
+        );
+        let candidate = execute_three_chunk_schedule(source, false);
+        let canonical = execute_three_chunk_schedule(source, true);
+        for run in [&candidate, &canonical] {
+            assert_eq!(run.counts, expected);
+            assert_eq!(run.selected_case_ids, oracle.selected_case_ids);
+        }
+        assert_eq!(
+            candidate.snapshot.core_evidence_root(),
+            canonical.snapshot.core_evidence_root()
+        );
+        assert_eq!(
+            candidate.snapshot.exploration_evidence_root(),
+            canonical.snapshot.exploration_evidence_root()
+        );
+        assert_eq!(candidate.target_commitment, canonical.target_commitment);
+        assert_eq!(
+            candidate.mechanism_closure_roots,
+            canonical.mechanism_closure_roots
+        );
+        candidate
+    }
+
+    #[test]
+    fn authored_income_distance_demo_closes_harmless_regions_and_finds_both_cliffs() {
+        let source = include_str!("../../examples/relational-explore-income-distance.runa");
+        let run = assert_product_stream_matches_oracle(source, &[20, 20, 2], (800, 0, 800, 798, 2));
+        assert_eq!(run.certified_fragment_count, 3);
+    }
+
     struct ThreeChunkScheduleRun {
         scheduled: Vec<(
             u128,
@@ -6322,6 +6466,7 @@ mod regional_stream_acceptance_tests {
         )>,
         chunk_count: usize,
         accepted_fragment_count: usize,
+        certified_fragment_count: usize,
         counts: (u128, u128, u128, u128, u128),
         selected_case_ids: BTreeSet<RelationalCaseId>,
         target_commitment: MechanismTargetCaseSetCommitment,
@@ -6334,7 +6479,7 @@ mod regional_stream_acceptance_tests {
         force_canonical_order: bool,
     ) -> ThreeChunkScheduleRun {
         let mut prepared = prepare(source_text);
-        let checked = prepared.checked.view();
+        let mut checked = prepared.checked.view();
         let question_id = checked.question_ids()[0];
         let mechanism_request_id = RelationalAnalysisPlan::from_checked(&checked)
             .expect("plan three-chunk mechanism consumer")
@@ -6365,8 +6510,9 @@ mod regional_stream_acceptance_tests {
         );
         let mut scheduled = Vec::new();
         let mut completed = false;
+        let mut reopened_product_prefix = false;
 
-        for _ in 0..256 {
+        for _ in 0..1024 {
             match driver
                 .step_with_base_member_limit(
                     &mut journal,
@@ -6399,6 +6545,9 @@ mod regional_stream_acceptance_tests {
                             RelationalCandidateScheduleReason::LowerRangeEndpoint => {
                                 RelationalSchedulerDecision::BaseCandidateLowerRangeEndpoint
                             }
+                            RelationalCandidateScheduleReason::UpperRangeEndpoint => {
+                                RelationalSchedulerDecision::BaseCandidateUpperRangeEndpoint
+                            }
                             RelationalCandidateScheduleReason::ResidualFallback => {
                                 RelationalSchedulerDecision::BaseCandidateResidual
                             }
@@ -6423,6 +6572,55 @@ mod regional_stream_acceptance_tests {
                         journal
                             .append(event)
                             .expect("append three-chunk candidate batch event");
+                    }
+                    if !reopened_product_prefix
+                        && source_text.contains("# Starter(")
+                        && journal
+                            .scheduler_view()
+                            .unwrap()
+                            .accepted_classified_fragment_count()
+                            > 0
+                    {
+                        use super::super::relational_journal_codec::{
+                            decode_relational_journal_entry, encode_relational_journal_entry,
+                            RelationalJournalCodecLimits,
+                        };
+                        let limits = RelationalJournalCodecLimits::default();
+                        let entries = journal
+                            .entries()
+                            .iter()
+                            .map(|entry| {
+                                let bytes = encode_relational_journal_entry(entry, limits).unwrap();
+                                decode_relational_journal_entry(
+                                    prepared.contract.clone(),
+                                    entry.sequence(),
+                                    entry.previous(),
+                                    &bytes,
+                                    limits,
+                                )
+                                .unwrap()
+                            })
+                            .collect::<Vec<_>>();
+                        let previous_head = journal.head();
+                        drop(driver);
+                        prepared = prepare(source_text);
+                        checked = prepared.checked.view();
+                        journal = RelationalJournal::replay_with_region_replay_authority(
+                            prepared.contract.clone(),
+                            entries,
+                            exact_one_region_replay_authority(&prepared),
+                        )
+                        .expect("cold product-prefix replay re-proves regional certificates");
+                        assert_eq!(journal.head(), previous_head);
+                        driver = RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                            &checked, &prepared.support_plan,
+                            RelationalStreamDriverLimits::default(), None,
+                            Some(&prepared.classification_evaluator),
+                        ).unwrap();
+                        if force_canonical_order {
+                            driver.force_canonical_chunk_order_for_test();
+                        }
+                        reopened_product_prefix = true;
                     }
                 }
                 RelationalStreamStepOutcome::Complete => {
@@ -6450,6 +6648,16 @@ mod regional_stream_acceptance_tests {
             .chunks()
             .len();
         let accepted_fragment_count = view.accepted_classified_fragment_count();
+        let certified_fragment_count = (0..chunk_count)
+            .filter(|ordinal| {
+                matches!(
+                    view.classified_support_fragment_at(*ordinal).unwrap(),
+                    Some(RelationalClassifiedSupportFragment::CertifiedZeroSelected(
+                        _
+                    ))
+                )
+            })
+            .count();
         let counts = view
             .classification_progress_counts(question_id)
             .expect("derive candidate-run classification counts")
@@ -6485,14 +6693,14 @@ mod regional_stream_acceptance_tests {
             .expect("three-chunk mechanism support is closed");
         assert_eq!(
             incidence_closure.counts().target_cases(),
-            MechanismCountEvidence::Exact(20)
+            MechanismCountEvidence::Exact(counts.4)
         );
         assert_eq!(
             incidence_closure.counts().incidence_cases(),
-            MechanismCountEvidence::Exact(20)
+            MechanismCountEvidence::Exact(counts.4)
         );
-        assert!(structural_closure.counts().mechanisms() > 0);
-        assert_eq!(support_closure.successful_case_count(), 20);
+        assert_eq!(structural_closure.counts().mechanisms() > 0, counts.4 > 0);
+        assert_eq!(support_closure.successful_case_count(), counts.4);
         assert_eq!(support_closure.unavailable_case_count(), 0);
         let mechanism_closure_roots = (
             incidence_closure.incidence_root().bytes(),
@@ -6506,6 +6714,7 @@ mod regional_stream_acceptance_tests {
             scheduled,
             chunk_count,
             accepted_fragment_count,
+            certified_fragment_count,
             counts,
             selected_case_ids,
             target_commitment,

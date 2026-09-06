@@ -1,0 +1,142 @@
+@ sprog da
+
+@ importer ./personskat_commuter_explore_support
+
+----
+2026 income cliffs and commuting-distance edges at unit resolution.
+
+Annual gross income endpoints: 0 through 400,000 DKK, inclusive.
+Daily round-trip commuting-distance endpoints: 0 through 200 km, inclusive.
+The two interventions are separate: +1 DKK with distance unchanged, or +1 km
+with income unchanged. They are not a simultaneous diagonal move.
+
+The full source product has 400,001 * 201 * 2 = 160,800,402 candidates.
+The upper-bound admission removes 400,202 outward-pointing edges, leaving
+160,400,200 in-bounds edges before model validity checks: 80,400,000 salary
+edges and 80,000,200 distance edges. Rejections remain visible in accounting.
+
+All other facts are conditioned, not inferred: Copenhagen, no church tax,
+birth date 1990-01-01, adult allowance status, 203 workdays, single wage earner,
+standard tax and deficit treatment, ordinary work travel with no employer-paid
+travel or reimbursement. The shared adapter supplies the explicitly empty
+other-income, pension, capital, property, spouse and special-regime inputs.
+Its historical 350k helper names do not constrain this query's domains.
+
+The metric is annual salary minus canonical Personskat final tax, in integer
+øre. Any decrease is selected, including losses smaller than one DKK. Travel
+costs and travel time are NOT modeled; a distance edge is a tax-model response,
+not a claim about the financial benefit of a longer commute.
+
+The source does not contain suspected thresholds or handpicked witness points.
+Mechanism replay explains selected edges; matching a known mechanism is not
+authority to discard an unvisited region. Unsupported proofs remain residual.
+See income-distance-exploration.md before starting the full grid on an 8-GiB
+machine. Frontend checking passes, but the current engine refuses canonical
+endpoint preparation before searching; this is not yet a working full-model
+run. The guide records that blocker and the independently working engine demo.
+The imported model retains legal provenance. This is a bounded research audit,
+not individual tax advice.
+----
+
+# PersonskatUnitIntervention(lønstigning_kroner: Heltal, afstandsstigning_km: Heltal)
+
+| personskat_unit_advance(
+    before: Personskat350kCommuterState,
+    context: PersonskatUnitIntervention
+) -> Personskat350kCommuterState(
+    profil = Personskat350kCommuterProfile(
+        skatteår = before.profil.skatteår,
+        kommune = before.profil.kommune,
+        betaler_kirkeskat = before.profil.betaler_kirkeskat,
+        fødselsdato = before.profil.fødselsdato,
+        personfradrag_alder_status = before.profil.personfradrag_alder_status,
+        arbejdsdage = before.profil.arbejdsdage,
+        daglige_befordringskilometer = before.profil.daglige_befordringskilometer +
+        context.afstandsstigning_km
+    ),
+    bruttoløn_kroner = before.bruttoløn_kroner + context.lønstigning_kroner
+)
+
+> personskat_unit_assess(
+    state: Personskat350kCommuterState,
+    context: PersonskatUnitIntervention
+) -> PersonskatBeregningResultat {
+    beregn_personskat(personskat_350k_commuter_input(state))
+}
+
+| personskat_unit_observation(
+    state: Personskat350kCommuterState,
+    context: PersonskatUnitIntervention
+) -> {
+    = resultat = personskat_unit_assess(state, context)
+    Personskat350kCommuterObservation(
+        netto_øre = state.bruttoløn_kroner * 100 - resultat.slutskat_øre,
+        input_gyldigt = personskat_350k_commuter_resultat_gyldigt(resultat)
+    )
+}
+
+| personskat_unit_loss_ore(
+    before: Personskat350kCommuterState,
+    after: Personskat350kCommuterState,
+    context: PersonskatUnitIntervention
+) -> personskat_unit_observation(before, context).netto_øre -
+    personskat_unit_observation(after, context).netto_øre
+
+? explore personskat_income_distance_unit_2026 {
+    from {
+        vary bruttoløn_kroner in range(0, 400001)
+        vary afstand_km in range(0, 201)
+        vary retning in range(0, 2)
+        let before = Personskat350kCommuterState(
+            profil = Personskat350kCommuterProfile(
+                skatteår = 2026,
+                kommune = København,
+                betaler_kirkeskat = Falskt,
+                fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+                personfradrag_alder_status = Fyldt18EllerGift,
+                arbejdsdage = 203,
+                daglige_befordringskilometer = afstand_km
+            ),
+            bruttoløn_kroner = bruttoløn_kroner
+        )
+        let context = PersonskatUnitIntervention(
+            lønstigning_kroner = 1 - retning,
+            afstandsstigning_km = retning
+        )
+    }
+
+    transition after = personskat_unit_advance(before, context)
+
+    where after after.bruttoløn_kroner <= 400000 &&
+    after.profil.daglige_befordringskilometer <= 200
+    where before personskat_unit_observation(before, context).input_gyldigt
+    where after personskat_unit_observation(after, context).input_gyldigt
+
+    find resource_losses = violations of personskat_unit_observation(
+        after,
+        context
+    ).netto_øre >= personskat_unit_observation(before, context).netto_øre
+
+    results losses from find resource_losses {
+        each case
+        measure [loss_ore = personskat_unit_loss_ore(before, after, context)]
+        select [case_id, intervention = context, before, after, loss_ore]
+    }
+
+    results losses_by_intervention from find resource_losses {
+        group by [intervention = context]
+        aggregate [cases = count_distinct(case_id)]
+        select [intervention, cases]
+    }
+
+    mechanisms loss_paths from find resource_losses using personskat_unit_assess
+
+    results mechanisms_by_intervention from mechanisms loss_paths {
+        group by [intervention = context]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            cases = count_distinct(case_id)
+        ]
+        select [intervention, mechanisms, cases]
+    }
+}

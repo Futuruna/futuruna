@@ -1,5 +1,11 @@
 # Exploring Law with Futuruna
 
+For the unit-resolution income × commuting extension, see
+[Income cliffs across income and commuting distance](income-distance-exploration.md)
+and its [2026 query declaration](personskat-income-distance-unit.explore.runa).
+It distinguishes checked multidimensional pruning from mechanism-led scheduling
+and records the remaining full-grid resource/proof limitations.
+
 Futuruna can turn an encoded rule model inside out. Instead of supplying one
 profile and asking for its result, declare a finite dependent relation of
 coherent profiles and permitted successors, run every case through the same

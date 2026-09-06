@@ -69,7 +69,10 @@ use crate::{
     CheckedExploreQueryView, OwnedCheckedExploreQuery,
 };
 
-pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 3;
+pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 4;
+
+#[path = "relational_product_region.rs"]
+mod product;
 
 const CERTIFICATE_ID_V3: &[u8] = b"futuruna.explore.relational-region.certificate.v3";
 const FORMULA_DIGEST_V3: &[u8] = b"futuruna.explore.relational-region.formula.v3";
@@ -211,6 +214,7 @@ impl RelationalRegionEvidenceBinding {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct RelationalRegionProofArtifact {
     schema_version: u32,
+    product_rank: bool,
     certificate_id: [u8; 32],
     replay_authority_id: [u8; 32],
     classification_capsule_id: ClassificationCapsuleId,
@@ -239,6 +243,10 @@ pub(crate) struct RelationalRegionProofArtifact {
 }
 
 impl RelationalRegionProofArtifact {
+    pub(crate) const fn product_rank(&self) -> bool {
+        self.product_rank
+    }
+
     pub(crate) const fn schema_version(&self) -> u32 {
         self.schema_version
     }
@@ -319,6 +327,9 @@ impl RelationalRegionProofArtifact {
         self.axis_cell_id
     }
 
+    /// Scalar source values, or exact mixed-radix ranks when `product_rank()`
+    /// is true. In that case the axis fields anchor the first finite binding;
+    /// the checked plan and proof subject bind the complete product geometry.
     pub(crate) const fn value_start(&self) -> i64 {
         self.value_start
     }
@@ -348,6 +359,7 @@ impl RelationalRegionProofArtifact {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn restore_from_canonical_parts(
         schema_version: u32,
+        product_rank: bool,
         certificate_id: [u8; 32],
         replay_authority_id: [u8; 32],
         classification_capsule_id: ClassificationCapsuleId,
@@ -376,6 +388,7 @@ impl RelationalRegionProofArtifact {
     ) -> Result<Self, RelationalRegionProofError> {
         let artifact = Self {
             schema_version,
+            product_rank,
             certificate_id,
             replay_authority_id,
             classification_capsule_id,
@@ -743,6 +756,7 @@ impl RelationalRegionReplayAuthority {
             return Err(RelationalRegionProofError::CanonicalChunkMismatch);
         }
         Ok(RelationalRegionProofTarget {
+            product_rank: artifact.shape() == super::relational_bounded_chunk_partition::RelationalCaseChunkShape::ProductRankInterval,
             subject: RelationalRegionProofSubject::CanonicalChunk {
                 partition_artifact_id: artifact.id(),
                 chunk_id: chunk.descriptor().id(),
@@ -761,6 +775,7 @@ impl RelationalRegionReplayAuthority {
 
 #[derive(Clone, Copy)]
 struct RelationalRegionProofTarget<'a> {
+    product_rank: bool,
     subject: RelationalRegionProofSubject,
     cell: &'a SupportCell,
     root_coordinate_start: u128,
@@ -838,6 +853,10 @@ fn prove_relational_region(
 ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
     let question_id = validate_relational_region_scope(checked, support_plan, capsule)?;
     let graph = capsule.graph();
+
+    if let Some(target) = target.filter(|target| target.product_rank) {
+        return product::prove(checked, support_plan, capsule, target, replay_authority_id);
+    }
 
     let inventory = RelationalProofStrategyInventory::from_checked(checked, support_plan)?;
     let [root_axis] = inventory.axes() else {
@@ -1032,8 +1051,9 @@ fn prove_relational_region(
     let case_cardinality = axis.cardinality();
 
     let selected_formula_digest = formula_digest(&selected_formula);
-    let mut artifact = RelationalRegionProofArtifact {
+    let artifact = RelationalRegionProofArtifact {
         schema_version: RELATIONAL_REGION_PROOF_VERSION,
+        product_rank: false,
         certificate_id: [0; 32],
         replay_authority_id,
         classification_capsule_id: capsule.id(),
@@ -1060,6 +1080,25 @@ fn prove_relational_region(
         case_cardinality,
         selected_formula_digest,
     };
+    seal_region_proof(
+        artifact,
+        cardinality_obligation,
+        admission_obligation,
+        selection_obligation,
+        proof_cell,
+        target.is_none(),
+    )
+}
+
+fn seal_region_proof(
+    mut artifact: RelationalRegionProofArtifact,
+    cardinality_obligation: SupportCellObligation<ExactCardinalityClaim>,
+    admission_obligation: SupportCellObligation<AdmissionClassificationClaim>,
+    selection_obligation: SupportCellObligation<SelectionClassificationClaim>,
+    proof_cell: &SupportCell,
+    root: bool,
+) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
+    let case_cardinality = artifact.case_cardinality;
     artifact.starter_region_id = derive_starter_region_id(&artifact);
     artifact.certificate_id = derive_certificate_id(&artifact);
     artifact.validate_identity()?;
@@ -1113,7 +1152,7 @@ fn prove_relational_region(
         SupportJournalEvent::evidence_accepted(SupportEvidenceRecord::Selection(selection)),
         SupportJournalEvent::leaf_sealed(proof_cell.id()),
     ];
-    if target.is_none() {
+    if root {
         events.push(SupportJournalEvent::ObligationFrontierSealed);
         events.push(SupportJournalEvent::CatalogSealed);
     }
@@ -2626,8 +2665,10 @@ fn formula_digest(formula: &RelationalBooleanFormula) -> [u8; 32] {
 }
 
 fn derive_starter_region_id(artifact: &RelationalRegionProofArtifact) -> RelationalStarterRegionId {
+    // Source-axis coordinates and mixed-radix ranks are different domains.
     let mut hasher = CanonicalProofHasher::new(STARTER_REGION_ID_V1);
     hasher.u32(artifact.schema_version);
+    hasher.u8(u8::from(artifact.product_rank));
     hasher.digest(artifact.replay_authority_id);
     hasher.digest(artifact.classification_capsule_id.bytes());
     hasher.digest(artifact.plan_root.bytes());
@@ -2665,6 +2706,7 @@ fn derive_starter_region_id(artifact: &RelationalRegionProofArtifact) -> Relatio
 fn derive_certificate_id(artifact: &RelationalRegionProofArtifact) -> [u8; 32] {
     let mut hasher = CanonicalProofHasher::new(CERTIFICATE_ID_V3);
     hasher.u32(artifact.schema_version);
+    hasher.u8(u8::from(artifact.product_rank));
     hasher.digest(artifact.replay_authority_id);
     hasher.digest(artifact.classification_capsule_id.bytes());
     hasher.digest(artifact.successor_root_id.bytes());
@@ -3369,15 +3411,39 @@ mod tests {
 
     #[test]
     fn canonical_child_certificate_preserves_correlated_starter_chain() {
-        let mut lexer = Lexer::new(CAPSULE_PARTITIONED_EMPTY_SOURCE);
-        let statements = Parser::new(lexer.tokenize(), CAPSULE_PARTITIONED_EMPTY_SOURCE)
+        assert_child_certificate_chain(CAPSULE_PARTITIONED_EMPTY_SOURCE, false);
+    }
+
+    #[test]
+    fn product_child_certificate_replays_exact_rank_weight_and_typed_starter_chain() {
+        assert_child_certificate_chain(
+            r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+> net(s: Starter) -> Int { s.income * 3 + s.distance * 2 }
+> advance(s: Starter, c: Step) -> Starter { Starter(s.income + c.income, s.distance + c.distance) }
+? explore product_certificate {
+    from {
+        vary income in range(100, 120)
+        vary distance in range(30, 70)
+        let before = Starter(income, distance)
+        given context = Step(1, 0)
+    }
+    transition after = advance(before, context)
+    where transition after.income > before.income
+    find cliffs = violations of net(after) >= net(before)
+}
+"#,
+            true,
+        );
+    }
+
+    fn assert_child_certificate_chain(source: &str, product_rank: bool) {
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
             .parse_program()
             .expect("parse partitioned exact-empty capsule fixture");
-        let artifacts = TypeChecker::check_with_explore_artifacts(
-            &statements,
-            None,
-            CAPSULE_PARTITIONED_EMPTY_SOURCE,
-        );
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
         assert!(
             artifacts.diagnostics.is_empty(),
             "{:?}",
@@ -3426,6 +3492,31 @@ mod tests {
             .expect("the first child is uniformly not selected");
         let proof = closure.proof();
         let artifact = proof.artifact();
+        assert_eq!(artifact.product_rank(), product_rank);
+        if product_rank {
+            // The first rank interval encloses more than 256 source points;
+            // enclosure must never inflate the certified cardinality.
+            let mut total = 0;
+            for ordinal in 0..verified_partition.partition().chunks().len() {
+                let outcome = authority
+                    .prove_canonical_child(&verified_partition, ordinal)
+                    .unwrap();
+                total += outcome
+                    .exact_empty()
+                    .expect("all affine product cells close")
+                    .proof()
+                    .case_cardinality();
+            }
+            assert_eq!(total, 800);
+            let mut forged = artifact.clone();
+            forged.product_rank = false;
+            forged.starter_region_id = derive_starter_region_id(&forged);
+            forged.certificate_id = derive_certificate_id(&forged);
+            assert!(matches!(
+                authority.reverify_canonical_child(&forged, &verified_partition),
+                Err(RelationalRegionProofError::ArtifactSemanticMismatch)
+            ));
+        }
         let child = &verified_partition.partition().chunks()[0];
         let RelationalBindingStage::Finite(axis_stage) = &support_plan.stages()[0] else {
             panic!("the first fixture binding must be its finite starter axis");

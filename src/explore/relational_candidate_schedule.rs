@@ -6,12 +6,11 @@
 //! chunk not nominated by an endpoint or a safely lifted split candidate is
 //! selected implicitly as residual fallback work.
 //!
-//! A source-axis coordinate is lifted only when there is exactly one integer
-//! axis, exactly one plan for that axis, and its coordinate interval is
-//! identical to the case partition's bare/product-factor interval. Ranked
-//! products and plural axes need a real mixed-radix/slab proof before their
-//! coordinates can be translated. Until then they simply receive endpoint
-//! and canonical residual scheduling, never an error and never less coverage.
+//! Scalar partitions use an exact axis/interval correspondence. Independent
+//! ranked products lift each axis boundary through its checked mixed-radix
+//! factor position into adjacent slabs. This is geometry, not classification.
+//! Unsupported geometry and exhausted nomination budgets retain endpoint and
+//! canonical residual scheduling, never less coverage.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -26,8 +25,13 @@ use super::relational_proof_strategy::{
     RelationalSplitOrigin, RelationalSplitPriority,
 };
 use super::relational_support_planner::RelationalDimensionId;
+use super::support_cell::SupportExprKind;
 
 pub(crate) const RELATIONAL_CANDIDATE_NOMINATION_VERSION: u32 = 1;
+
+// Advisory work must stay bounded even when a boundary crosses millions of
+// product chunks. Unnominated work retains the exact residual schedule.
+const MAX_PRODUCT_NOMINATIONS: usize = 16_384;
 
 const CANDIDATE_NOMINATION_ROOT_V1: &[u8] =
     b"futuruna.explore.relational-candidate-nomination-root.v1";
@@ -232,6 +236,8 @@ pub(crate) enum RelationalCandidateLiftDisposition {
     },
     PlanScopeMismatch,
     ProductRankNeedsSlabProof,
+    AppliedExactProductSlabs,
+    ProductNominationBudgetReached,
     NoIntegerAxis,
     PluralIntegerAxes,
     MissingAxisPlan,
@@ -243,7 +249,10 @@ pub(crate) enum RelationalCandidateLiftDisposition {
 
 impl RelationalCandidateLiftDisposition {
     pub(crate) const fn is_applied(self) -> bool {
-        matches!(self, Self::AppliedExactSingleAxis { .. })
+        matches!(
+            self,
+            Self::AppliedExactSingleAxis { .. } | Self::AppliedExactProductSlabs
+        )
     }
 }
 
@@ -588,7 +597,7 @@ fn nominate_exact_lifted_candidates(
         return RelationalCandidateLiftDisposition::PlanScopeMismatch;
     }
     if artifact.shape() == RelationalCaseChunkShape::ProductRankInterval {
-        return RelationalCandidateLiftDisposition::ProductRankNeedsSlabProof;
+        return nominate_product_slabs(inventory, axis_plans, partition, nominations);
     }
     let [axis] = inventory.axes() else {
         return if inventory.axes().is_empty() {
@@ -652,6 +661,131 @@ fn nominate_exact_lifted_candidates(
         dimension_id: axis.dimension_id(),
         shape: artifact.shape(),
     }
+}
+
+/// Lift a source coordinate to its exact mixed-radix slabs. The partition is
+/// already backed by the checked source-image injectivity proof. Its factor
+/// order is the ordered finite binding list, including non-integer factors.
+/// This proof concerns geometry only; nominations never classify a slab.
+fn nominate_product_slabs(
+    inventory: &RelationalProofStrategyInventory,
+    axis_plans: &[RelationalAxisProofPlan],
+    partition: &RelationalCaseChunkPartition,
+    nominations: &mut BTreeMap<u128, BTreeSet<RelationalCandidateChunkNomination>>,
+) -> RelationalCandidateLiftDisposition {
+    let Some(first) = partition.chunks().first() else {
+        return RelationalCandidateLiftDisposition::ProductRankNeedsSlabProof;
+    };
+    let SupportExprKind::ProductRankInterval { factors, .. } = first.cell().expression().kind()
+    else {
+        return RelationalCandidateLiftDisposition::ProductRankNeedsSlabProof;
+    };
+    if factors.len() != inventory.finite_binding_indices().len() {
+        return RelationalCandidateLiftDisposition::ProductRankNeedsSlabProof;
+    }
+    let radices = factors
+        .iter()
+        .map(|factor| match factor.kind() {
+            SupportExprKind::OrdinalInterval {
+                start: 0,
+                end_exclusive,
+            } if *end_exclusive > 0 => Some(*end_exclusive),
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>();
+    let Some(radices) = radices else {
+        return RelationalCandidateLiftDisposition::ProductRankNeedsSlabProof;
+    };
+    let total = radices
+        .iter()
+        .try_fold(1u128, |product, radix| product.checked_mul(*radix));
+    if total != Some(partition.artifact().interval_end_exclusive())
+        || partition.artifact().interval_start() != 0
+    {
+        return RelationalCandidateLiftDisposition::CoordinateIntervalMismatch;
+    }
+    // Validate every correspondence before adding any nomination. Equal-size
+    // axes must never be identified merely by matching cardinalities.
+    for axis_plan in axis_plans {
+        let axis = axis_plan.axis();
+        let Some(factor_index) = inventory
+            .finite_binding_indices()
+            .iter()
+            .position(|binding| *binding == axis.binding_index())
+        else {
+            return RelationalCandidateLiftDisposition::AxisPlanMismatch;
+        };
+        if inventory.axis(axis.dimension_id()) != Some(axis)
+            || axis.coordinate_start() != 0
+            || radices[factor_index] != axis.cardinality()
+        {
+            return RelationalCandidateLiftDisposition::AxisPlanMismatch;
+        }
+    }
+    let mut work = 0usize;
+    for axis_plan in axis_plans {
+        let axis = axis_plan.axis();
+        let factor_index = inventory
+            .finite_binding_indices()
+            .iter()
+            .position(|binding| *binding == axis.binding_index())
+            .expect("validated product axis");
+        let stride = radices[factor_index + 1..].iter().product::<u128>();
+        let period = stride * radices[factor_index];
+        for candidate in axis_plan.candidates() {
+            for (side, coordinate) in [
+                (
+                    RelationalCandidateBoundarySide::LowerAdjacent,
+                    candidate.coordinate().checked_sub(1),
+                ),
+                (
+                    RelationalCandidateBoundarySide::UpperAdjacent,
+                    Some(candidate.coordinate()),
+                ),
+            ] {
+                let Some(coordinate) =
+                    coordinate.filter(|coordinate| *coordinate < radices[factor_index])
+                else {
+                    continue;
+                };
+                let mut slab_start = coordinate * stride;
+                while slab_start < total.expect("validated product cardinality") {
+                    let slab_end = slab_start + stride;
+                    let mut rank = slab_start;
+                    while rank < slab_end {
+                        if work == MAX_PRODUCT_NOMINATIONS {
+                            return RelationalCandidateLiftDisposition::ProductNominationBudgetReached;
+                        }
+                        work += 1;
+                        let Some(chunk) = chunk_containing_coordinate(partition.chunks(), rank)
+                        else {
+                            return RelationalCandidateLiftDisposition::CoordinateIntervalMismatch;
+                        };
+                        nominations
+                            .entry(chunk.descriptor().ordinal())
+                            .or_default()
+                            .insert(RelationalCandidateChunkNomination::lifted(
+                                RelationalCandidateScheduleReason::from_split_priority(
+                                    candidate.priority(),
+                                ),
+                                side,
+                                axis.dimension_id(),
+                                candidate.coordinate(),
+                                candidate.value_boundary(),
+                                rank,
+                                candidate.origins(),
+                            ));
+                        rank = chunk.descriptor().interval_end_exclusive().min(slab_end);
+                    }
+                    let Some(next) = slab_start.checked_add(period) else {
+                        break;
+                    };
+                    slab_start = next;
+                }
+            }
+        }
+    }
+    RelationalCandidateLiftDisposition::AppliedExactProductSlabs
 }
 
 fn nominate_endpoint(
@@ -887,7 +1021,170 @@ impl CandidateNominationHasher {
 
 #[cfg(test)]
 mod tests {
+    use super::super::relational_bounded_chunk_partition::{
+        plan_relational_bounded_case_chunks, RelationalCaseChunkPlanningOutcome,
+    };
+    use super::super::relational_proof_strategy::{
+        RelationalCheckedGuardAtom, RelationalGuardRelation,
+    };
+    use super::super::relational_support_planner::{
+        prove_relational_case_image_injectivity, RelationalSupportPlanner,
+    };
     use super::*;
+    use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    fn product_slabs_use_binding_positions_with_equal_radices_and_nonzero_starts() {
+        assert_product_geometry(64, 64, 52, false);
+    }
+
+    #[test]
+    fn product_slab_nomination_budget_keeps_complete_residual_cover() {
+        assert_product_geometry(20_000, 2, 1, true);
+    }
+
+    #[test]
+    fn full_income_distance_grid_declines_eager_metadata_before_allocation() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+? explore full_grid {
+    from {
+        vary income in range(0, 400001)
+        vary distance in range(0, 201)
+        vary context in range(0, 2)
+        let before = Starter(income, distance)
+    }
+    transition after = before
+    find cases = all
+}
+"#;
+        let statements = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts.checked_exploration_query(0).unwrap();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let image = prove_relational_case_image_injectivity(&plan).unwrap();
+        assert!(matches!(plan_relational_bounded_case_chunks(&plan, &image).unwrap(),
+            RelationalCaseChunkPlanningOutcome::Unsupported(
+                super::super::relational_bounded_chunk_partition::RelationalCaseChunkUnsupported::PartitionArtifactBudgetExceeded {
+                    required_chunks: 628_127, maximum_chunks: 65_536,
+                }
+            )
+        ));
+    }
+
+    fn assert_product_geometry(first_radix: u128, second_radix: u128, cut: u128, capped: bool) {
+        let source = format!(
+            r#"
+? explore geometry {{
+    from {{
+        vary before in range(100, {})
+        vary context in range(-20, {})
+    }}
+    transition after = before + 1
+    find cases = matches of after > before
+}}
+"#,
+            first_radix + 100,
+            second_radix as i128 - 20
+        );
+        let statements = Parser::new(Lexer::new(&source).tokenize(), &source)
+            .parse_program()
+            .unwrap();
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts.checked_exploration_query(0).unwrap();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let image = prove_relational_case_image_injectivity(&plan).unwrap();
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(&plan, &image).unwrap()
+        else {
+            panic!("product partition")
+        };
+        let inventory = RelationalProofStrategyInventory::from_checked(&checked, &plan).unwrap();
+        let plans = inventory
+            .axes()
+            .iter()
+            .map(|axis| {
+                let atom = RelationalCheckedGuardAtom::from_frozen_classification_normal_form(
+                    axis,
+                    1,
+                    -(i128::from(axis.value_start()) + cut as i128),
+                    RelationalGuardRelation::GreaterOrEqual,
+                    [1; 32],
+                    [2; 32],
+                    Vec::<u32>::new(),
+                )
+                .unwrap();
+                inventory
+                    .plan_axis(axis.dimension_id(), &[atom], None)
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        let schedule = schedule_relational_candidate_chunks(&inventory, &plans, &partition, 4);
+        assert_eq!(
+            schedule.lift_disposition(),
+            if capped {
+                RelationalCandidateLiftDisposition::ProductNominationBudgetReached
+            } else {
+                RelationalCandidateLiftDisposition::AppliedExactProductSlabs
+            }
+        );
+        assert!(!schedule.establishes_complement_closure());
+        assert!(schedule.has_exact_nonoverlapping_cover(&partition));
+        let mut actual = BTreeSet::new();
+        let mut nominations = 0;
+        for target in schedule.nominated() {
+            for nomination in target.nominations() {
+                let Some(dimension) = nomination.dimension_id() else {
+                    continue;
+                };
+                nominations += 1;
+                let axis = inventory.axis(dimension).unwrap();
+                let rank = nomination.target_coordinate().unwrap();
+                let (stride, radix) = if axis.binding_index() == 0 {
+                    (second_radix, first_radix)
+                } else {
+                    (1, second_radix)
+                };
+                assert!([cut - 1, cut].contains(&((rank / stride) % radix)));
+                assert!(rank >= target.descriptor().interval_start());
+                assert!(rank < target.descriptor().interval_end_exclusive());
+                actual.insert((axis.binding_index(), target.descriptor().ordinal()));
+            }
+        }
+        assert!(nominations <= MAX_PRODUCT_NOMINATIONS);
+        if !capped {
+            let mut expected = BTreeSet::new();
+            for rank in 0..first_radix * second_radix {
+                for (binding, coordinate) in [(0, rank / second_radix), (1, rank % second_radix)] {
+                    if [cut - 1, cut].contains(&coordinate) {
+                        expected.insert((binding, rank / 256));
+                    }
+                }
+            }
+            assert_eq!(
+                actual, expected,
+                "every intersected chunk, on both axes, and no others"
+            );
+        }
+    }
 
     fn nomination_fixture_descriptor() -> RelationalCaseChunkDescriptor {
         RelationalCaseChunkDescriptor::restore_from_canonical_parts(
