@@ -14,6 +14,11 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
+#[path = "checked_explore_classification_rules.rs"]
+mod rule_dispatch;
+#[path = "checked_explore_classification_blocks.rs"]
+mod strict_blocks;
+
 use crate::explore::relational_classification_capsule::{
     ClassificationAdmissionScope, ClassificationBinaryOp, ClassificationCallableDefinition,
     ClassificationCallableId, ClassificationConstant, ClassificationInputSlot,
@@ -128,6 +133,7 @@ pub(crate) fn checked_explore_classification_program(
         roots: Vec::new(),
         residuals: Vec::new(),
         callable_states: BTreeMap::new(),
+        rule_states: BTreeMap::new(),
         callable_definitions: BTreeMap::new(),
         runtime_shapes: BTreeMap::new(),
         deferred_binder_types: BTreeMap::new(),
@@ -300,6 +306,7 @@ struct CheckedClassificationProducer<'program, 'query> {
     roots: Vec<ClassificationLaneRoot>,
     residuals: Vec<ClassificationResidual>,
     callable_states: BTreeMap<CheckedCallableId, CallableLoweringState>,
+    rule_states: BTreeMap<crate::RuleDispatchKey, CallableLoweringState>,
     callable_definitions: BTreeMap<ClassificationCallableId, ClassificationCallableDefinition>,
     runtime_shapes: BTreeMap<RuntimeShapeKey, CheckedConstructorIdentity>,
     deferred_binder_types: BTreeMap<CheckedBinderSiteId, ClassificationTypeId>,
@@ -855,27 +862,7 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
             ExprKind::Match(_, arms) => self.lower_match(site, &arms, ty, scalar, environment),
             ExprKind::Field(_, _) => self.lower_field(site, &resolution, ty, scalar, environment),
             ExprKind::Block(statements) => {
-                if matches!(statements.as_slice(), [Stmt::Expr(_)]) {
-                    let inner = child_site(&child_site(site, 0), 0);
-                    self.lower_expression(&inner, environment)
-                        .and_then(|value| {
-                            if value.ty == ty {
-                                Ok(value)
-                            } else {
-                                Err(self.residual_error(
-                                    site,
-                                    ClassificationResidualReason::UnsupportedType,
-                                    [ClassificationResidualDependency::Node(value.node)],
-                                ))
-                            }
-                        })
-                } else {
-                    Err(self.residual_error(
-                        site,
-                        ClassificationResidualReason::UnsupportedExpression,
-                        self.resolution_dependencies(&resolution),
-                    ))
-                }
+                self.lower_strict_block(site, &statements, ty, environment)
             }
             ExprKind::Unit => {
                 if scalar == Some(ScalarKind::Unit) {
@@ -988,6 +975,17 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                 ))
             }
             Some(CheckedValueBinding::RuleFamily(family)) => {
+                if family.arity == 0 {
+                    return self.lower_rule_application(
+                        site,
+                        &[],
+                        resolution,
+                        family,
+                        ty,
+                        scalar,
+                        environment,
+                    );
+                }
                 let mut dependencies = Vec::new();
                 if let Some(digest) = self.semantic_dependency_digest(
                     CheckedExploreSemanticDependency::RuleFamily(family.clone()),
@@ -1920,17 +1918,15 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                 ));
             }
             Some(CheckedCallTarget::RuleFamily(family)) => {
-                let mut dependencies = Vec::new();
-                if let Some(digest) = self.semantic_dependency_digest(
-                    CheckedExploreSemanticDependency::RuleFamily(family.clone()),
-                ) {
-                    dependencies.push(ClassificationResidualDependency::RuleFamily(digest));
-                }
-                return Err(self.residual_error(
+                return self.lower_rule_application(
                     site,
-                    ClassificationResidualReason::DynamicDispatch,
-                    dependencies,
-                ));
+                    arguments,
+                    resolution,
+                    family,
+                    ty,
+                    scalar,
+                    environment,
+                );
             }
             Some(CheckedCallTarget::ScopedMember { rule_family, .. }) => {
                 let mut dependencies = Vec::new();
@@ -1965,6 +1961,28 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
         }
 
         let callable_id = self.ensure_callable(callable, arity, site)?;
+        self.lower_prepared_call(
+            site,
+            arguments,
+            resolution,
+            ty,
+            scalar,
+            environment,
+            callable_id,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn lower_prepared_call(
+        &mut self,
+        site: &ExprSiteId,
+        arguments: &[crate::Expr],
+        resolution: &CheckedExpressionResolution,
+        ty: ClassificationTypeId,
+        scalar: Option<ScalarKind>,
+        environment: &BinderEnvironment,
+        callable_id: ClassificationCallableId,
+    ) -> LoweringResult {
         let definition = self
             .callable_definitions
             .get(&callable_id)

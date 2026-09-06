@@ -1604,6 +1604,8 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
 
     let descriptor = chunk.descriptor();
     let slice_start = accumulator.next_coordinate;
+    let trace_phases = std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some();
+    let materialization_started = std::time::Instant::now();
     let member_limit = u128::from(max_members.get()).min(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1);
     let slice_end_exclusive = slice_start
         .checked_add(member_limit)
@@ -1649,7 +1651,17 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
         .collect::<Vec<_>>();
     let mut checked_classifier =
         RelationalCheckedClassificationContext::new(&cases, &questions, runtime)?;
+    let materialization_elapsed = materialization_started.elapsed();
+    let classifier_started = std::time::Instant::now();
     let outcomes = backend.classify_ordered_batch(&subjects, &mut checked_classifier)?;
+    if trace_phases {
+        eprintln!(
+            "Explore classified slice phases: members={}; materialization={}us; classifier={}us",
+            subjects.len(),
+            materialization_elapsed.as_micros(),
+            classifier_started.elapsed().as_micros(),
+        );
+    }
     if outcomes.len() != materialized.len() {
         return Err(
             RelationalClassifiedSweepError::OrderedClassifierOutcomeCountMismatch {

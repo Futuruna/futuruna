@@ -151,10 +151,12 @@ scans can inform the order but cannot replace the unit-edge coverage obligation.
 
 The current product prover handles constructors, projections, typed source and
 context bindings, acyclic pure calls, checked affine arithmetic, supported
-integer division and decisive Boolean branches. The canonical Personskat graph
-still contains rule-family dispatch and collection/rounding behavior outside
-that proof fragment. Such unsupported optimizations must leave concrete
-residuals. The original endpoint-totality refusal has now been removed by
+integer division and decisive Boolean branches. Checked root-scoped, typed,
+acyclic rule families and strict pure local blocks now enter that graph too.
+Scoped dispatch, exhaustive constructor matches without a wildcard, complex
+rule heads and collection/rounding behavior in the canonical Personskat graph
+still exceed that proof fragment. Such unsupported optimizations must leave
+concrete residuals. The original endpoint-totality refusal has now been removed by
 supporting bounded `flat_map` summaries; a permanent test proves both endpoint
 roles over the unchanged full canonical query. The first real-model epoch has
 now classified cases, but this does **not** establish practical full-grid closure.
@@ -451,3 +453,123 @@ took 94.177s and maximum RSS was 1,373,880,320 bytes. Two CPU pauses totaled
 3.379s. This verifies recovery of the real partial-page checkpoint, but the
 resource pause supplies no additional classified cases. The next implementation
 step is canonical regional proof support, not an unattended point-only sweep.
+
+## Checked rule and local-block bridge
+
+The next bounded implementation (`td-f461df`, within the still-open
+`td-966941`) translates checked root-scoped rule families to the existing
+acyclic `Call`/`If` graph. It preserves exception, conditional-default, clause
+and unconditional-default order. A false Boolean clause tries the next
+candidate; a false exception or default returns immediately. A missing numeric
+fallback is not invented. Recursive families, open captures, scoped dispatch,
+unresolved parameter types and complex head patterns remain concrete residuals.
+The supported heads are exact scalar literals, wildcards and checked variable
+binders, with compatible checked type annotations.
+
+Pure local blocks use lexical binder identities, including shadowing. Every
+initializer and preceding expression is retained as an eagerly evaluated call
+argument. This matters for correctness: discarding an unused division or
+overflowing addition could otherwise certify a region in which the actual
+program fails. Effects, mutation and unsupported binding patterns remain
+residual. This extends Experimental proof acceptance, not the meaning of
+ordinary rules or tax calculations. It needs no new query syntax or graph-node
+encoding. The checked graph/capsule identities bind the changed lowering;
+use fresh run state when a compiler change alters those identities, rather
+than assuming that old certificates are portable.
+
+Six focused permanent tests compare checked-graph execution and regional
+closure with independent exhaustive interpretation. They cover an 800-edge
+affine product closed by four certificates, two isolated one-unit losses,
+false-clause backtracking versus false exceptions/defaults, alpha-renaming and
+local shadowing, and unused division-by-zero/overflow that must prevent closure.
+The unchanged canonical-query regression also checks that its unit successor
+enters the graph. Neither test population substitutes for real tax-grid closure.
+
+A **rule-only bridge** release, before adding local-block lowering, ran the
+unchanged full query with fresh state and `--time-limit 10m --json`, tracing,
+the ordinary governor and `nice -n 15`. It stopped normally at the runtime
+limit after **602.35s**, retaining **18,470** concrete unit transitions in
+**107** pending slices. The checkpoint has sequence **243**, **30** segments,
+head `bc6cc19fa9e6b64071761f3c8cda1c88d6f2e251158b1bc22da554f3bf98f6ea`,
+and about **464 KiB** of state / 84 KiB of output. No classified page finished;
+published classification counts remain lower-bound zero, and every closure is
+open. No real-model harmless-region certificate was produced.
+
+Preparation took 76.192s and native compilation 218.019s. Measured slice phases
+spent **227.072278s** classifying versus **2.669715s** constructing transitions:
+**98.838%** of those two phases was classification. Reported maximum RSS was
+2,353,594,368 bytes; three host-CPU pauses totaled 3.376s. This was a busy-host
+diagnostic with some low-priority test overlap, not a clean throughput benchmark.
+A one-second native-child profile confirmed real canonical computation and
+substantial copying/allocation: 223 of 751 top-of-stack samples were in
+`memmove`, alongside allocator, clone and destructor costs. The host was waiting
+for that native child, not repeatedly interpreting the tax model. Reducing
+repeated result construction is therefore a useful complementary performance
+route to investigate; the sample alone proves no achievable speedup.
+
+The main remaining requirement is unchanged: replayable proofs for actual
+canonical negative regions, exact mixed-admission partitioning, and exact
+residual evaluation around every unresolved branch and rounding boundary.
+Recognizing a mechanism, or making concrete evaluation faster, is not evidence
+that an unvisited region is harmless.
+
+The final **rule-plus-local-block** release was also run on the unchanged full
+query with fresh state and a ten-minute limit. It paused normally after
+601.37s, with **1,980** evaluated transitions in **37** pending slices,
+sequence **103**, five segments, head
+`6cc2b0afcbf2b6adaeecd635e9bb9df24475b1410411acf790fe11df6897d400`,
+and about 324 KiB of state / 84 KiB of output. Preparation took **238.786s**,
+native compilation 293.942s, and 65 CPU pauses totaled 97.842s. Maximum reported
+RSS was 2,215,575,552 bytes. Classification took 36.936729s and materialization
+0.364229s. These timings include the loaded host and other low-priority checks;
+the extended proof fragment is not a demonstrated canonical-model speedup.
+Its first surfaced canonical FIND residual is the exhaustive spouse-constructor
+match in `personskat_aktieavance_parresultat`: the existing match normalizer
+still requires an irrefutable last arm. Published classification counts remain
+lower-bound zero, with no finished page or closed tax-region certificate.
+
+Cold resume of that final-build checkpoint, with a five-minute limit, recovered
+sequence 103 and evaluated **12,032 new transitions** in 79 slices. It paused
+normally after **301.30s**, at sequence **261**, 23 segments, head
+`f79a1024ffdf50965ca420993109245d5725a5f0a65336cca7fda2497d98ec0e`,
+with about **444 KiB** of state / 84 KiB of output. This checkpoint retains
+**14,012** evaluated transitions across the two epochs, still inside its first
+unfinished page. Preparation took 121.518s, native-cache reuse 270ms, and one
+CPU pause 1.125s; maximum RSS was 1,506,082,816 bytes. The new slices spent
+130.598166s classifying and 1.519851s materializing. All published classification
+counts remain lower bounds and all closures remain open. This is successful
+real-model cold recovery and continuation, not an exhaustive cliff answer.
+
+A one-second-budget cold-open attempt on the earlier rule-only checkpoint was
+stopped by outer containment at 32.38s, before recovery. No uncommitted evidence
+was accepted, but this is **not** a successful cold-replay test. Preparation
+needs its own realistic time allowance on this model.
+
+Checks for this bridge (shared Cargo cache, one build job/test thread):
+
+- `cargo test --lib --jobs 1 -- checked_rule_dispatch_ --test-threads=1`:
+  six passed in 4.96s. The canonical
+  `personskat_unit_income_distance_endpoint_totality_certifies_without_execution`
+  test passed separately in 386.16s. Endpoint totality proves evaluability,
+  not admission validity for all generated tax inputs.
+- `cargo build --release --bin runa --jobs 1`: passed in 8m50s;
+  `cargo fmt --all --check`, `git diff --check`, and canonical query
+  `runa fmt --check` passed. `runa verify tests/verify_test.runa` proved 5/5.
+- `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 nice -n 15 ./scripts/mint.sh`:
+  **708 passed, 17 failed** in 918.91s in the library lane. The failure set
+  matches the independently reproduced baseline recorded above; later mint
+  stages were not reached. The six new tests also passed in this full run.
+- `CARGO_BUILD_JOBS=1 nice -n 15 ./scripts/canary.sh core`: formatting 12/12,
+  compiled execution 10/12, with the same two newline code-generation failures.
+- `RUNA_BIN=./target/release/runa CARGO_BUILD_JOBS=1 nice -n 15 ./scripts/differential.sh`:
+  ordinary corpus roundtrip 5/5 with no skips, then imported execution 3/4.
+  `import_mesh_consumer.runa` fails generated Rust with `Plan` versus
+  `Policy::Plan` at two calls. Running
+  `cargo run --quiet --bin runa --jobs 1 -- check tests/differential/corpus/imports/import_mesh_consumer.runa`
+  on untouched base `7bb4bc37` independently reproduced both errors.
+  Later differential stress and generated-import stages were not reached.
+
+The required gates remain red under `td-ce0146`; this is a scoped Experimental
+proof extension submitted for review, not a claim that Explore is fully shipped
+or that the broad Personskat audit is complete. No stable source/runtime
+semantics changed, so no stable compatibility-guide entry is required.

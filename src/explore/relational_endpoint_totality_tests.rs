@@ -1149,13 +1149,27 @@ fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
 
 #[test]
 fn personskat_unit_income_distance_endpoint_totality_certifies_without_execution() {
-    personskat_endpoint_totality_certifies(
+    use super::relational_classification_capsule::{
+        ClassificationLaneStatus, ClassificationSemanticLane,
+    };
+    let program = personskat_endpoint_totality_certifies(
         "personskat-income-distance-unit.explore.runa",
         "personskat_income_distance_unit_2026",
     );
+    assert!(
+        program
+            .lane_manifest()
+            .iter()
+            .any(|lane| lane.lane == ClassificationSemanticLane::Successor
+                && lane.status == ClassificationLaneStatus::Lowered),
+        "the unchanged canonical unit transition must enter the proof graph"
+    );
 }
 
-fn personskat_endpoint_totality_certifies(filename: &str, query_name: &str) {
+fn personskat_endpoint_totality_certifies(
+    filename: &str,
+    query_name: &str,
+) -> std::sync::Arc<super::relational_classification_capsule::FrozenClassificationProgram> {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax")
         .join(filename);
@@ -1199,4 +1213,5 @@ fn personskat_endpoint_totality_certifies(filename: &str, query_name: &str) {
         .expect("Personskat certificate identity");
     RelationalAnalysisPlan::from_checked(&checked)
         .expect("Personskat certificate must authorize plan construction");
+    checked.classification_program()
 }

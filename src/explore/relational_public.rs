@@ -6385,6 +6385,144 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn checked_rule_dispatch_product_closes_affine_regions_and_retains_unit_cliffs() {
+        let template = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+| coefficient() -> 3
+| net(s: Starter, c: Step) -> s.income * coefficient() + s.distance * 2
+| exception extra net(s: Starter, c: Step) -> s.income * coefficient() + s.distance * 2 + 10 under GUARD
+| advance(s: Starter, c: Step) -> Starter(s.income + c.income, s.distance + c.distance)
+> observe(s: Starter, c: Step) -> Int { net(s, c) }
+? explore rule_product {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 20)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+    transition after = advance(before, context)
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using observe
+}
+"#;
+        let affine = template.replace("GUARD", "s.income >= 1000");
+        let prepared = prepare(&affine);
+        assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
+            lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered),
+            "checked rule calls must enter the graph, not only the concrete fallback");
+        let run =
+            assert_product_stream_matches_oracle(&affine, &[20, 20, 2], (800, 0, 800, 800, 0));
+        assert_eq!(run.certified_fragment_count, 4);
+        let narrow = template.replace("GUARD", "s.income == 7 && s.distance == 3");
+        assert_product_stream_matches_oracle(&narrow, &[20, 20, 2], (800, 0, 800, 798, 2));
+    }
+
+    #[test]
+    fn checked_rule_dispatch_false_clauses_backtrack_but_false_defaults_return() {
+        let source = r#"
+| flag(x: Int) -> False
+| flag(x: Int) -> x % 5 == 0
+| flag(x: Int) -> False under x == 20
+| exception first flag(x: Int) -> False under x == 0
+| exception second flag(x: Int) -> False under x == 10
+> observe(s: Int, c: Unit) -> Int { s }
+? explore rule_backtracking {
+    from {
+        vary before in range(0, 300)
+        given context = ()
+    }
+    transition after = before + 1
+    find chosen = matches of flag(before)
+    mechanisms paths from find chosen using observe
+}
+"#;
+        let prepared = prepare(source);
+        assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
+            lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered));
+        let run = assert_product_stream_matches_oracle(source, &[300], (300, 0, 300, 243, 57));
+        assert!(
+            run.capsule_subjects > 0,
+            "exercise the graph evaluator as well as the interpreter oracle"
+        );
+    }
+
+    #[test]
+    fn checked_rule_dispatch_strict_blocks_match_oracle_and_keep_unused_failures() {
+        let template = r#"
+| value(x: Int) -> {
+    = unused = UNUSED
+    = y = x + 1
+    = y = y * 2
+    y - x
+}
+> observe(s: Int, c: Int) -> Int { s }
+? explore strict_blocks {
+    from {
+        vary before in range(0, 300)
+        vary context in range(0, 2)
+    }
+    transition after = before + 1
+    find chosen = violations of value(after) >= value(before)
+    mechanisms paths from find chosen using observe
+}
+"#;
+        let source = template.replace("UNUSED", "x * 3");
+        let run = assert_product_stream_matches_oracle(&source, &[300, 2], (600, 0, 600, 600, 0));
+        assert_eq!(run.certified_fragment_count, 3);
+
+        for expression in ["10 / (x - 7)", "9223372036854775807 + x"] {
+            let source = template.replace("UNUSED", expression);
+            let mut prepared = prepare(&source);
+            assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
+                lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered));
+            let checked = prepared.checked.view();
+            let mut driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .unwrap();
+            let mut journal = RelationalJournal::new_with_region_replay_authority(
+                prepared.contract.clone(),
+                exact_one_region_replay_authority(&prepared),
+            );
+            let mut failed = false;
+            for _ in 0..1024 {
+                match driver.step_with_base_member_limit(
+                    &mut journal,
+                    &mut prepared.expression_runtime,
+                    &mut prepared.mechanism_runtime,
+                    NonZeroU16::new(256).unwrap(),
+                ) {
+                    Ok(RelationalStreamStepOutcome::Emitted(batch)) => {
+                        assert_eq!(journal.next_sequence(), batch.expected_sequence());
+                        assert_eq!(journal.head(), batch.expected_head());
+                        for event in batch.into_events() {
+                            journal.append(event).unwrap();
+                        }
+                    }
+                    Err(error) => {
+                        let message = error.to_string();
+                        assert!(
+                            message.contains("division by zero") || message.contains("overflow"),
+                            "{message}"
+                        );
+                        failed = true;
+                        break;
+                    }
+                    _ => break,
+                }
+            }
+            assert!(failed, "unused eager calculation was erased: {expression}");
+        }
+    }
+
+    #[test]
     fn isolated_unit_cliffs_and_integer_rounding_remain_exact_product_residuals() {
         let template = r#"
 # Starter(income: Int, distance: Int)
@@ -6459,6 +6597,7 @@ mod regional_stream_acceptance_tests {
     }
 
     struct ThreeChunkScheduleRun {
+        capsule_subjects: u128,
         scheduled: Vec<(
             u128,
             RelationalCandidateScheduleReason,
@@ -6710,7 +6849,13 @@ mod regional_stream_acceptance_tests {
         let snapshot = journal
             .snapshot()
             .expect("snapshot completed three-chunk semantic evidence");
+        let capsule_subjects = prepared
+            .classification_evaluator
+            .borrow()
+            .stats()
+            .capsule_subjects;
         ThreeChunkScheduleRun {
+            capsule_subjects,
             scheduled,
             chunk_count,
             accepted_fragment_count,
