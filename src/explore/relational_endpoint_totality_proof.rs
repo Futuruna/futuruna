@@ -1966,10 +1966,15 @@ enum BuiltinStateKind {
         element: AbstractValue,
         minimum_length: u64,
     },
-    FlatMap {
+    FlatMapExact {
         values: Box<[AbstractValue]>,
         next: usize,
-        output: Vec<AbstractValue>,
+        output: Option<AbstractSequence>,
+    },
+    FlatMapSummary {
+        element: AbstractValue,
+        minimum_length: u64,
+        maximum_length: u64,
     },
 }
 
@@ -6598,8 +6603,13 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                                 "flat_map requires a proved finite List",
                             )),
                         };
-                    let values = match sequence {
-                        AbstractSequence::Exact(values) => values,
+                    self.check_flat_map_length(sequence.lengths().1, &site, "flat_map input")?;
+                    let kind = match sequence {
+                        AbstractSequence::Exact(values) => BuiltinStateKind::FlatMapExact {
+                            values,
+                            next: 0,
+                            output: None,
+                        },
                         AbstractSequence::Summary {
                             maximum_length: 0, ..
                         } => {
@@ -6610,13 +6620,15 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                                 AbstractValue::List(AbstractSequence::Exact(Box::new([]))),
                             )
                         }
-                        _ => {
-                            return Err(self.issue(
-                                &site,
-                                RelationalEndpointTotalityIssueReason::UnsupportedExpression,
-                                "flat_map requires an exact List unless it is proved empty",
-                            ))
-                        }
+                        AbstractSequence::Summary {
+                            element,
+                            minimum_length,
+                            maximum_length,
+                        } => BuiltinStateKind::FlatMapSummary {
+                            element: *element,
+                            minimum_length,
+                            maximum_length,
+                        },
                     };
                     BuiltinState {
                         site,
@@ -6626,11 +6638,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         input,
                         callable,
                         retained,
-                        kind: BuiltinStateKind::FlatMap {
-                            values,
-                            next: 0,
-                            output: Vec::new(),
-                        },
+                        kind,
                     }
                 }
                 _ => {
@@ -6759,15 +6767,17 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 vec![value]
             }
             BuiltinStateKind::FindSummary { element, .. } => vec![element.clone()],
-            BuiltinStateKind::FlatMap {
+            BuiltinStateKind::FlatMapExact {
                 values,
                 next,
                 output,
             } => {
                 let Some(value) = values.get(*next).cloned() else {
-                    let result = AbstractValue::List(AbstractSequence::Exact(
-                        std::mem::take(output).into_boxed_slice(),
-                    ));
+                    let result = AbstractValue::List(
+                        output
+                            .take()
+                            .unwrap_or(AbstractSequence::Exact(Box::new([]))),
+                    );
                     return self.finish_collection_builtin(
                         machine,
                         &state.site,
@@ -6778,6 +6788,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 *next += 1;
                 vec![value]
             }
+            BuiltinStateKind::FlatMapSummary { element, .. } => vec![element.clone()],
         };
         let callback_site = state.callback_site.clone();
         let callable = state.callable.clone();
@@ -6983,32 +6994,87 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                     self.finish_find_value(&state.site, possible_matches, none_possible)?;
                 self.finish_collection_builtin(machine, &state.site, state.input, result)?;
             }
-            BuiltinStateKind::FlatMap { output, .. } => {
+            BuiltinStateKind::FlatMapExact { output, .. } => {
                 self.retain_value(&mut state.retained, &value, &retention_site)?;
-                let AbstractValue::List(AbstractSequence::Exact(mapped)) = value else {
+                let AbstractValue::List(mapped) = value else {
                     return Err(self.issue(
                         &state.site,
                         RelationalEndpointTotalityIssueReason::UnsupportedExpression,
-                        "flat_map callback must return an exact finite List",
+                        "flat_map callback must return a proved finite List",
                     ));
                 };
-                let new_length = output.len().checked_add(mapped.len()).ok_or_else(|| {
-                    self.issue(
-                        &state.site,
-                        RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
-                        "flat_map result length overflowed",
-                    )
-                })?;
-                if new_length > MAX_EXACT_COLLECTION_ITEMS {
-                    return Err(self.issue(
-                        &state.site,
-                        RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
-                        "flat_map result exceeds the exact collection proof limit",
-                    ));
-                }
-                output.extend(mapped.into_vec());
+                // Concatenation adds length bounds; it must not mistake the
+                // join of [] and [x] for a single guaranteed output item.
+                // Keep exact positional values while every callback is exact.
+                let combined = match output.take() {
+                    Some(previous) => concat_sequences(previous, mapped, &state.site, self.role)?,
+                    None => mapped,
+                };
+                self.check_flat_map_length(combined.lengths().1, &state.site, "flat_map result")?;
+                *output = Some(combined);
                 self.set_control(machine, EvalControl::BuiltinNext(state))?;
             }
+            BuiltinStateKind::FlatMapSummary {
+                minimum_length,
+                maximum_length,
+                ..
+            } => {
+                let AbstractValue::List(mapped) = value else {
+                    return Err(self.issue(
+                        &state.site,
+                        RelationalEndpointTotalityIssueReason::UnsupportedExpression,
+                        "flat_map callback must return a proved finite List",
+                    ));
+                };
+                // The callback has been proved on the joined input element,
+                // hence on every possible item. Multiplying nonnegative
+                // bounds encloses every concatenation, including empty ones.
+                let (minimum_length, maximum_length) =
+                    flat_map_length_bounds((*minimum_length, *maximum_length), mapped.lengths())
+                        .ok_or_else(|| {
+                            self.issue(
+                                &state.site,
+                                RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+                                "flat_map result length overflowed",
+                            )
+                        })?;
+                self.check_flat_map_length(maximum_length, &state.site, "flat_map result")?;
+                let result = if maximum_length == 0 {
+                    AbstractSequence::Exact(Box::new([]))
+                } else {
+                    AbstractSequence::Summary {
+                        element: Box::new(
+                            mapped.joined_element().unwrap_or(AbstractValue::Unknown),
+                        ),
+                        minimum_length,
+                        maximum_length,
+                    }
+                };
+                self.finish_collection_builtin(
+                    machine,
+                    &state.site,
+                    state.input,
+                    AbstractValue::List(result),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    fn check_flat_map_length(
+        &self,
+        maximum_length: u64,
+        site: &ExprSiteId,
+        description: &str,
+    ) -> Result<(), RelationalEndpointTotalityIssue> {
+        // Widening a list's representation must not lift the existing
+        // input/output capacity boundaries or allocate its population.
+        if maximum_length > MAX_EXACT_COLLECTION_ITEMS as u64 {
+            return Err(self.issue(
+                site,
+                RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+                format!("{description} exceeds the bounded collection proof limit"),
+            ));
         }
         Ok(())
     }
@@ -10471,6 +10537,16 @@ fn refine_abstract_int_value(
     true
 }
 
+fn flat_map_length_bounds(source: (u64, u64), mapped: (u64, u64)) -> Option<(u64, u64)> {
+    if source.0 > source.1 || mapped.0 > mapped.1 {
+        return None;
+    }
+    Some((
+        source.0.checked_mul(mapped.0)?,
+        source.1.checked_mul(mapped.1)?,
+    ))
+}
+
 fn concat_sequences(
     left: AbstractSequence,
     right: AbstractSequence,
@@ -10543,6 +10619,16 @@ mod tests {
         CheckedDataFieldId, CheckedExploreQueryAccessError, CheckedExploreQueryArtifactIssue,
         Lexer, Parser, TypeChecker,
     };
+
+    #[test]
+    fn flat_map_bounds_include_empty_products_and_refuse_overflow() {
+        assert_eq!(flat_map_length_bounds((2, 3), (0, 2)), Some((0, 6)));
+        assert_eq!(flat_map_length_bounds((2, 3), (1, 2)), Some((2, 6)));
+        assert_eq!(flat_map_length_bounds((0, u64::MAX), (0, 0)), Some((0, 0)));
+        assert_eq!(flat_map_length_bounds((0, u64::MAX), (1, 2)), None);
+        assert_eq!(flat_map_length_bounds((2, 1), (0, 1)), None);
+        assert_eq!(flat_map_length_bounds((0, 1), (2, 1)), None);
+    }
 
     #[test]
     fn remainder_hull_keeps_zero_when_a_possible_divisor_equals_the_dividend() {

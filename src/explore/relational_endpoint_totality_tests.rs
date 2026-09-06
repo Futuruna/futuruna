@@ -386,6 +386,86 @@ fn distinct_nullary_variants_keep_filter_length_and_nested_guards_exact() {
     checked_plan_identity(source);
 }
 
+fn flat_map_observer_source(expression: &str) -> String {
+    format!(
+        r#"
+> endpoint_test_flat_map_observer(state: Int, context: Unit) -> Int {{
+    {expression}
+}}
+? explore flat_map_endpoint {{
+    from {{
+        vary before in range(0, 3)
+        given context = ()
+    }}
+    transition after = before + 1
+    find cases = all
+    mechanisms paths from find cases using endpoint_test_flat_map_observer
+}}
+"#
+    )
+}
+
+#[test]
+fn endpoint_totality_flat_map_accepts_bounded_callback_and_source_summaries() {
+    for expression in [
+        // Exact source, optional callback output (the canonical tax-model gap).
+        "length(flat_map([state, state + 1], |value: Int| if value > 0 { [value] } else { [] }))",
+        // Both source and callback vary in length.
+        "length(flat_map(filter([state, state + 1], |value: Int| value > 0), |value: Int| if value > 1 { [value, value + 1] } else { [] }))",
+        // Preserve a nonzero lower length and the output element domain.
+        "10 / head(flat_map([state, state + 1], |value: Int| if value > 1 { [1, 2] } else { [3] }))",
+        // A summary with guaranteed members can also preserve nonemptiness.
+        "10 / head(flat_map(if state > 0 { [1, 2] } else { [1] }, |value: Int| [value]))",
+        // Existing exact ordering must not be widened unnecessarily.
+        "10 / head(flat_map([1, 0], |value: Int| [value]))",
+        // A definitely empty source must not execute its partial callback.
+        "length(flat_map(range(0, 0), |value: Int| [1 / 0]))",
+        // A nonempty summary whose callback always returns [] is empty.
+        "length(flat_map(if state > 0 { [0, 1] } else { [0] }, |value: Int| filter([value], |item: Int| False)))",
+    ] {
+        let source = flat_map_observer_source(expression);
+        assert_eq!(checked_plan_identity(&source), checked_plan_identity(&source));
+    }
+}
+
+#[test]
+fn endpoint_totality_flat_map_does_not_hide_possible_errors_or_invent_nonemptiness() {
+    for (expression, reason) in [
+        (
+            "head(flat_map([state], |value: Int| if value > 0 { [value] } else { [] }))",
+            RelationalEndpointTotalityIssueReason::NonExhaustivePattern,
+        ),
+        (
+            "head(flat_map(filter([state], |value: Int| value > 0), |value: Int| [1]))",
+            RelationalEndpointTotalityIssueReason::NonExhaustivePattern,
+        ),
+        (
+            "length(flat_map(if state > 0 { [0, 1] } else { [] }, |value: Int| [10 / value]))",
+            RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded,
+        ),
+        (
+            "10 / head(flat_map([0, 1], |value: Int| [value]))",
+            RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded,
+        ),
+        (
+            "length(flat_map(range(0, 4097), |value: Int| [value]))",
+            RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+        ),
+        (
+            "length(flat_map(range(0, 4097), |value: Int| filter([value], |item: Int| False)))",
+            RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+        ),
+        (
+            "length(flat_map([state, state + 1], |value: Int| if value > 0 { range(0, 3000) } else { [] }))",
+            RelationalEndpointTotalityIssueReason::ProofCapacityExceeded,
+        ),
+    ] {
+        let source = flat_map_observer_source(expression);
+        let issue = endpoint_issue_before_plan(&source);
+        assert_eq!(issue.reason(), reason, "{expression}: {issue:?}");
+    }
+}
+
 #[test]
 fn endpoint_totality_attributes_callback_failure_to_the_callback_argument() {
     let source = r#"
@@ -1061,36 +1141,50 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
 
 #[test]
 fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
+    personskat_endpoint_totality_certifies(
+        "personskat-mechanism-landscape-200k.explore.runa",
+        "personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026",
+    );
+}
+
+#[test]
+fn personskat_unit_income_distance_endpoint_totality_certifies_without_execution() {
+    personskat_endpoint_totality_certifies(
+        "personskat-income-distance-unit.explore.runa",
+        "personskat_income_distance_unit_2026",
+    );
+}
+
+fn personskat_endpoint_totality_certifies(filename: &str, query_name: &str) {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("examples/danish-income-tax/personskat-mechanism-landscape-200k.explore.runa");
-    let source = fs::read_to_string(&fixture).expect("read Personskat 200k landscape fixture");
+        .join("examples/danish-income-tax")
+        .join(filename);
+    let source = fs::read_to_string(&fixture).expect("read Personskat fixture");
     let mut lexer = Lexer::new(&source);
     let user_statements = Parser::new(lexer.tokenize(), &source)
         .parse_program()
-        .expect("parse Personskat 200k landscape fixture");
+        .expect("parse Personskat fixture");
     let statements = prepend_prelude(parse_prelude(), &user_statements);
     let source_dir = fixture
         .parent()
-        .expect("Personskat landscape fixture directory")
+        .expect("Personskat fixture directory")
         .to_string_lossy()
         .into_owned();
     let artifacts =
         TypeChecker::check_with_explore_artifacts(&statements, Some(source_dir), &source);
     assert!(
         artifacts.diagnostics.is_empty(),
-        "unexpected Personskat 200k diagnostics: {:?}",
+        "unexpected Personskat diagnostics for {filename}: {:?}",
         artifacts.diagnostics
     );
     let query_index = artifacts
         .exploration_universes
         .iter()
-        .position(|query| {
-            query.name == "personskat_mechanism_landscape_conditioned_100_dkk_grid_200k_2026"
-        })
-        .expect("Personskat 200k landscape query");
+        .position(|query| query.name == query_name)
+        .expect("Personskat query");
     let checked = artifacts
         .checked_exploration_query(query_index)
-        .expect("Personskat 200k endpoint-totality certificate");
+        .expect("Personskat endpoint-totality certificate");
     let certificate = checked
         .analysis_nodes()
         .find_map(|(_, identity)| match identity {
@@ -1099,10 +1193,10 @@ fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
             } => Some(endpoint_totality),
             CheckedExploreAnalysisIdentity::View { .. } => None,
         })
-        .expect("Personskat 200k mechanism certificate");
+        .expect("Personskat mechanism certificate");
     certificate
         .validate_identity()
-        .expect("Personskat 200k certificate identity");
+        .expect("Personskat certificate identity");
     RelationalAnalysisPlan::from_checked(&checked)
-        .expect("Personskat 200k certificate must authorize plan construction");
+        .expect("Personskat certificate must authorize plan construction");
 }

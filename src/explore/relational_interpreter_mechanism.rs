@@ -905,6 +905,34 @@ mod tests {
         )
     }
 
+    #[test]
+    fn flat_map_summary_certificate_allows_deterministic_cold_endpoint_replay() {
+        let source = r#"
+> observe_optional_items(state: Int, context: Unit) -> Int {
+    length(flat_map(
+        filter([state, state + 1], |item: Int| item > 0),
+        |item: Int| if item > 1 { [item, item + 1] } else { [] }
+    ))
+}
+? explore optional_endpoint_items {
+    from {
+        vary before in range(0, 3)
+        given context = ()
+    }
+    transition after = before + 1
+    find cases = all
+    mechanisms paths from find cases using observe_optional_items
+}
+"#;
+        // Each call reconstructs both the checked proof and a fresh runtime.
+        // Cover all Before/After endpoint values, including the empty result.
+        for state in 0..=3 {
+            let cold = raw_checked_interpreter_mechanism_trace(source, state);
+            assert!(!cold.events.is_empty());
+            assert_eq!(cold, raw_checked_interpreter_mechanism_trace(source, state));
+        }
+    }
+
     fn rewrite_clause_as_unconditional_default(statement: &mut Stmt) {
         let Stmt::Rule(Rule::Clause {
             head,

@@ -3,9 +3,10 @@
 The full-domain query declaration is
 [`personskat-income-distance-unit.explore.runa`](personskat-income-distance-unit.explore.runa).
 It uses the canonical Personskat calculation, not a simplified tax formula.
-It passes frontend checking, but currently fails endpoint preparation before
-searching; it is not yet a working full-model run. Explore remains
-**Experimental**.
+It passes frontend checking and now has a regression proving endpoint totality
+across the full declared ranges, including mechanisms. The full-model query
+now executes governed epochs and writes a durable classified prefix. Exact
+full-grid closure remains unfinished. Explore remains **Experimental**.
 
 For a quick working example without the full tax corpus, run
 [`relational-explore-income-distance.runa`](../relational-explore-income-distance.runa)
@@ -106,10 +107,10 @@ Two practical bounds are now explicit:
 The affine evaluator also caps axes, evaluation work, call depth and retained
 value trees. These are optimization limits, not permission to omit cases.
 
-After resolving the preparation blockers below, use a short governed epoch to
-check source/case cardinality evidence, first concrete edges and pause/reopen
-behavior. This command currently reproduces the endpoint-proof refusal; it
-does not yet produce tax findings:
+Use governed epochs to check source/case cardinality evidence, concrete edges
+and pause/reopen behavior. Cold native preparation can exceed a short epoch;
+the initial failed attempts are recorded below. A successful preparation proof
+does not itself produce tax findings:
 
 ```sh
 ./target/release/runa explore \
@@ -124,9 +125,9 @@ Use distinct writable private directories. Repeat the same command to resume;
 changing the query requires fresh run state. A paused empty finding set is not
 an exact-empty answer. Check each count's status and all admission exclusions.
 
-For the next *useful cliff search*, first unblock canonical endpoint preparation,
-then finish proof lowering for the actual rule families and lazy/hierarchical
-regional partitions. Then let checked
+For the next *useful cliff search*, replace point-level full-grid accounting
+with compact batching and lazy/hierarchical regional partitions, then finish
+proof lowering for the actual rule families. Then let checked
 boundaries prioritize unit-resolution neighborhoods in **both** dimensions,
 and discharge the rest with regional proofs or concrete evaluation. Coarse
 scans can inform the order but cannot replace the unit-edge coverage obligation.
@@ -138,17 +139,15 @@ context bindings, acyclic pure calls, checked affine arithmetic, supported
 integer division and decisive Boolean branches. The canonical Personskat graph
 still contains rule-family dispatch and collection/rounding behavior outside
 that proof fragment. Such unsupported optimizations must leave concrete
-residuals. Independently, the full query currently fails endpoint-totality
-preparation for mechanism analysis, before any of those residuals can run.
-This change therefore supplies the unit-grid declaration and verified
-multidimensional foundation; it does **not** establish a working or practically
-closable full-grid Personskat search.
+residuals. The original endpoint-totality refusal has now been removed by
+supporting bounded `flat_map` summaries; a permanent test proves both endpoint
+roles over the unchanged full canonical query. The first real-model epoch has
+now classified cases, but this does **not** establish practical full-grid closure.
 
 The outstanding work is tracked explicitly:
 
 - `td-f699c8`: bounded finite-list callback proofs for canonical endpoint
-  preparation, or explanation-local unavailability that does not suppress the
-  independent finding question.
+  preparation; implemented and verified through real execution and cold resume.
 - `td-7ba30c`: paged/hierarchical product partitions with bounded retained state.
 - `td-966941`: checked rule-dispatch and required collection/rounding proof
   lowering, followed by measured canonical Personskat regional closure.
@@ -175,7 +174,7 @@ equal-size axes, nonzero starts, intersected slabs, nomination caps and the
 full-grid eager-metadata refusal. Forged coordinate-kind certificates cannot
 replay even after their structural hashes are recomputed.
 
-### Checks recorded on 2026-09-06
+### Initial foundation checks recorded on 2026-09-06
 
 | Command / check | Observed result |
 |---|---|
@@ -234,3 +233,90 @@ resident memory at containment was 1,237,843,968 bytes; the host still had
 therefore did not establish a working shortcut. Preparation throughput and
 cache reuse need a measured checkpoint of their own before promising useful
 short real-model runs.
+
+### Endpoint-proof continuation on 2026-09-06
+
+The `flat_map` proof now accepts exact or summarized finite input lists and
+callback results. Exact input concatenations add result-length bounds; summary
+inputs multiply input and callback bounds. Exact positional values stay exact
+until a variable-length result requires a summary. Empty inputs skip callbacks,
+possible empty outputs do not justify `head`, and possible callback errors
+still refuse totality. The existing 4,096-item proof boundaries apply to both
+input and output; length arithmetic and retained abstract values remain bounded.
+This extends Experimental proof acceptance without changing runtime list
+semantics, tax source, query domains, admission, or certificate encoding.
+
+Checks (using the existing shared Cargo target cache and one build job):
+
+- `cargo test --lib --jobs 1 -- flat_map_ personskat_unit_income_distance_endpoint_totality --test-threads=1`
+  passed all four tests in 231.00s in the debug build. The large test loads the
+  actual full-domain Personskat query and validates its mechanism certificate
+  and analysis-plan authorization, not a reduced tax formula.
+- After final input/output-limit guards and cold-runtime coverage,
+  `cargo test --lib --jobs 1 -- flat_map_ --test-threads=1` passed four tests in
+  0.24s. These exercise positive and adversarial list summaries, ordering,
+  nonemptiness, overflow/capacity refusal, and independently reconstructed
+  interpreter mechanism traces for every endpoint of a small fixture.
+- `cargo test --lib --jobs 1 -- endpoint_totality flat_map_ --skip personskat_ --test-threads=1`
+  passed 56 tests in 1.49s, including certificate/observation binding, codec,
+  cold replay, arithmetic, effects, recursion and resource boundaries. The
+  large canonical regression above is separate, not silently omitted.
+- `cargo build --release --bin runa --jobs 1` passed in 5m37s. The rebuilt
+  `runa verify tests/verify_test.runa` proved all five existing invariants.
+- `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 ./scripts/mint.sh` ran all 714 library
+  tests: **697 passed, 17 failed**, in 598.18s after compilation. Both canonical
+  Personskat endpoint regressions passed. The failure names are identical to
+  the 17 already reproduced on untouched baseline `7bb4bc37`; later mint stages
+  were not reached. This is still a red required gate, tracked by `td-ce0146`.
+- `cargo fmt --all --check`, `git diff --check`, and `runa fmt --check` on the
+  full-domain query passed. The differential lane was not rerun because this
+  continuation changes proof acceptance, not parsing, type inference, lowering,
+  ownership or generated-code semantics. Focused proof/replay tests and the
+  existing Z3 verifier check cover the directly affected deeper lane.
+- The published synthetic 800-edge run reopened under the rebuilt binary with
+  `--time-limit 45s --json`: 798 not selected, two selected, all closures exact.
+  It retained sequence 156, two journal segments, and journal head
+  `fe011ba2b7af79237f1099a291ffb9fa2efe01c9abb74d5aab7ceaf4546356fc`,
+  without appending semantic events. Existing codec-24 state remains readable.
+
+These are endpoint-proof and replay results, not classified tax cases or an
+exact answer for the full income/commuting grid.
+
+### First canonical full-domain execution
+
+Using the rebuilt compiler, the actual query ran with mechanisms enabled,
+unchanged validity checks, private run-state/output paths, `--time-limit 10m
+--json`, and `FUTURUNA_EXPLORE_TRACE=1` for phase diagnosis. It exited normally
+after 601.89s, paused at the runtime limit. Preparation took 77.824s; native
+classifier construction then took 197.272s and installed a compiled evaluator
+from 9,276 checked declarations. `/usr/bin/time -l` reported maximum resident
+set size 2,249,539,584 bytes; the supervisor retained its existing limits and
+recorded three CPU pauses totaling 3.380s.
+
+The engine proved the declared source/case population exactly **160,800,402**.
+The paused prefix classified **12,198** candidates: **12,168** admitted and
+not selected, plus **30** rejected. Selected count is a **lower bound of zero**,
+not an exact-empty answer. Relation, finding and analysis closure remain open.
+Its durable journal had 70 segments, next sequence 287,957, and head
+`2aa53f28940e7f2959f97d05085581953c5d5522b8512d376baa75af18809593`.
+
+This prefix retained about **174 MiB** of run state. The eager-partition cap
+currently sends this large grid through point-level records and one-subject
+native calls instead of compact classified sweeps. That measured representation
+cannot scale to the whole grid within the available disk. `td-7ba30c` must
+restore compact batching and bounded regional partitions before attempting
+long exhaustion. This was a preparation/durability checkpoint, not a clean
+throughput benchmark: verbose tracing was enabled and the required compiler
+test gate began during its final execution portion, after memory usage fell.
+
+A cold reopen of the same query and directories, without verbose tracing and
+with `--time-limit 3m --json`, also exited normally after 181.06s. It recovered
+the durable prefix and advanced to sequence **311,009**, head
+`52e4c32d2e5f4d531846b1b731e003befe7883d2e83f80776bc8114f608a6560`.
+Classified candidates grew to **13,187**: **13,154** admitted/not-selected and
+**33** rejected. These are still lower bounds within the unchanged exact
+160,800,402-candidate universe; no finding or closure is inferred from zero
+selected cases so far. The resumed state has 77 segments and occupies about
+188 MiB. Reported maximum RSS was 1,392,541,696 bytes; CPU pacing paused once
+for 1.124s. Further point-only exhaustion is intentionally deferred while the
+compact full-grid partition path is implemented.

@@ -31,9 +31,9 @@ The source does not contain suspected thresholds or handpicked witness points.
 Mechanism replay explains selected edges; matching a known mechanism is not
 authority to discard an unvisited region. Unsupported proofs remain residual.
 See income-distance-exploration.md before starting the full grid on an 8-GiB
-machine. Frontend checking passes, but the current engine refuses canonical
-endpoint preparation before searching; this is not yet a working full-model
-run. The guide records that blocker and the independently working engine demo.
+machine. Frontend and full-domain endpoint-totality checking pass, but exact
+full-model execution and closure remain unfinished. The guide records current
+evidence, preparation costs, and the independently working engine demo.
 The imported model retains legal provenance. This is a bounded research audit,
 not individual tax advice.
 ----
