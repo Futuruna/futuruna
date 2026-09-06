@@ -8,6 +8,12 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
+The first **all-distance boundary window is now closed exactly**: 176 income
+cliffs, zero commute-increase losses, 2,230 harmless transitions and six
+outward-boundary exclusions. Its largest annual loss is **144.09 DKK**. See
+[the completed boundary output](#completed-all-distance-boundary-output).
+That six-salary window does not close the full income range.
+
 For a quick working example without the full tax corpus, run
 [`relational-explore-income-distance.runa`](../relational-explore-income-distance.runa)
 with `--query income_distance_demo`. Its explicitly synthetic one-point
@@ -701,8 +707,8 @@ round-trip commute when salary increases from **342,499 to 342,500 DKK**.
 The saved loss is exactly **211 øre**, with the salary intervention `(1 DKK,
 0 km)`. Both endpoints pass canonical model validity. This is a result from
 the new boundary run, not an inference from a sampled mechanism signature.
-The boundary run is still open while the remaining cases and explanations are
-published; no complete-window count is claimed here yet.
+This initial witness has since become part of the exact completed boundary
+output recorded below.
 
 The encoded supplement reduction uses whole-thousand steps in
 [`ll9c_lavindkomst_aftrapningstrin_1000`](ligningsloven_fradrag.runa). This is why
@@ -741,3 +747,119 @@ Iteration checks deliberately follow the user's output-first instruction:
 Mint, differential, canary and the full Futuruna suite are deferred at the
 user's explicit request while pursuing real output. This does not mark the
 previous gate debt resolved or claim that the full Explore feature is finished.
+
+## Completed all-distance boundary output
+
+The unchanged boundary query completed with compiler commit `caf62976` on
+2026-09-06. All relation, finding, result and mechanism layers closed exactly.
+The query has six starting salaries, **342,497..342,502 DKK**, all integer
+daily round-trip distances **0..200 km**, and separate **+1 DKK / +1 km**
+interventions. Salary successors can reach 342,503 DKK. Fixed facts and the
+integer-øre metric remain those of the full query above.
+
+| Accounting | Exact count |
+| --- | ---: |
+| Directed candidates classified | 2,412 |
+| Valid in-bounds transitions | 2,406 |
+| Income cliffs | 176 |
+| Commute-increase losses | 0 |
+| Harmless transitions | 2,230 |
+| Outward 200→201-km exclusions | 6 |
+| Other model-validity exclusions | 0 |
+| Findings with successful mechanism replay | 176 |
+| Structural mechanisms / raw signatures | 4 / 4 |
+| Unavailable explanations | 0 |
+
+Every cliff occurs at **342,499→342,500 DKK**, one at each integer commute
+from **25 through 200 km**. All 1,200 in-bounds commute-increase edges are
+harmless within this six-salary window; this is not a full-income-range result.
+
+| Daily round-trip commute | Annual loss |
+| --- | ---: |
+| 25 km | 2.11 DKK |
+| 50 km | 50.06 DKK |
+| 75 km | 98.24 DKK |
+| 100 km | 144.08 DKK |
+| 150 km | 144.08 DKK |
+| 200 km | 144.09 DKK |
+
+The maximum is **14,409 øre**, first attained at 99 km and attained at 18
+distances in total. The encoded low-income commuting supplement steps down
+at this income boundary. The supplement cap explains the plateau at longer
+distances; integer rounding leaves one-øre differences within it. These are
+research-model results, not independently validated legal conclusions or
+individual advice.
+
+All four structural assignments report zero before/after differential nodes
+and edges. That describes unchanged execution structure, **not** unchanged
+amounts: these 176 numeric losses are direct evidence that path similarity
+alone cannot close unvisited income or distance routes.
+
+The final journal sequence is **19,384**, with head
+`648c327732bc9f0f274132a587d8b7fc21f3457f518621ee7844e3ad0047397d`.
+The selected-case result root is
+`692ddb6e3cffc2717b4f6a810dd2db74eb2a2e43aa74a38534f018a1cc6453e8`.
+The final governed completion epoch took about 25 minutes after earlier saved
+epochs; it is not a total cold-to-completion benchmark. State and output
+together occupied about 583 MiB, dominated by shared mechanism definitions.
+
+This run also exposed a concrete finalization cost: the first selected-result
+projection quantum took **494.082 seconds**, re-evaluating selected measures
+before accepting their deterministic projection. `td-ddc8bc` tracks bounded,
+resumable rehydration or a checked reuse gateway. Evidence agreement must stay
+intact; repeating every expensive calculation in one uninterruptible quantum
+is not a scalable publication strategy.
+
+## Preserve shared scalar results across branches
+
+The checked-box interpreter now gives a total pure scalar result an exact
+call identity when every argument and scoped capture is itself symbolically
+identified. This lets copied nonlinear results reconcile even when a branch
+join has lost their affine formula. Equal interval bounds alone never imply
+identity. Strict evaluation, partial-call rejection and overflow checks still
+precede any such identity.
+
+Spare slots in the existing eight-symbol correlation budget can represent
+these shared results, allowing cancellation inside larger expressions such
+as `(f(x) + 2) - (f(x) + 1)`. No numerical formula for `f` is invented.
+Capacity exhaustion falls back to a bounded opaque identity/interval and can
+lose precision, not coverage. This mode is confined to ephemeral box
+classification; ordinary endpoint-proof values and certificate roots retain
+their previous behavior. No source syntax or journal format changes.
+
+The actual canonical measurement now proves all three admission predicates
+for each of these boxes:
+
+| Starting income (DKK) | Starting commute (km) | Intervention |
+| --- | --- | --- |
+| 342,497 | 0..199 | +1 DKK |
+| 342,497 | 0..199 | +1 km |
+| 342,000..342,498 | 0..199 | +1 DKK |
+
+The last box contains 99,800 salary edges. Previously, the first high-income
+box left both endpoint-validity predicates unknown. **The loss predicate is
+still unknown on all three boxes**: they do not become harmless regions or
+regional journal certificates. The earlier two low-income harmless boxes and
+the singleton cliff remain provable. The six box calls took 8.77–9.41 seconds
+each in the debug measurement; total canonical preparation and measurement
+took 300.77 seconds. This is not a controlled speed comparison.
+
+Only focused checks were run for this patch, with one shared build job:
+
+- `cargo test --lib symbolic_scalar_calls_preserve_aliases_not_equal_enclosures -- --test-threads=1 --nocapture`:
+  passed in 0.11s after renaming the fixture's conflicting `Pair` constructor.
+  It covers shared calls, independent equal enclosures, translated copies and
+  distinct scoped captures. The initial fixture failed checked dependency
+  closure before exercising the new proof logic.
+- The existing library-test binary ran
+  `adjacent_box_outcomes_and_residuals_share_exact_ordered_accounting --nocapture`:
+  passed in 0.81s, retaining the independent 400-case oracle.
+- The same binary ran `canonical_2026_box_output --ignored --nocapture` once
+  for the actual-model measurement above; it is excluded from routine tests.
+- `cargo fmt --check` and `git diff --check` passed.
+
+Mint, canary, differential and the full suite remain deferred by the user's
+explicit output-first instruction. The library was compiled for these checks;
+another optimized CLI rebuild is deferred until the next production epoch.
+The completed boundary output above was produced by `caf62976`, before this
+additional proof-precision patch.

@@ -2158,6 +2158,11 @@ struct EndpointTotalityProver<'a, 'program> {
     top_level_cache:
         RefCell<BTreeMap<(RelationalEndpointRole, CheckedTopLevelBindingId), CachedAbstractValue>>,
     cache_admission_enabled: Cell<bool>,
+    // Optional classification precision. The ordinary endpoint-totality
+    // certificate mode retains its existing abstract values and roots.
+    track_scalar_call_identities: bool,
+    source_axis_count: usize,
+    scalar_call_axes: RefCell<Vec<[u8; 32]>>,
 }
 
 impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
@@ -2178,7 +2183,63 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             rule_family_cache: RefCell::new(BTreeMap::new()),
             top_level_cache: RefCell::new(BTreeMap::new()),
             cache_admission_enabled: Cell::new(true),
+            track_scalar_call_identities: false,
+            source_axis_count: 0,
+            scalar_call_axes: RefCell::new(Vec::new()),
         }
+    }
+
+    fn identify_scalar_call_result(
+        &self,
+        identity: &impl std::fmt::Debug,
+        input: &AbstractValue,
+        input_root: &[u8; 32],
+        value: &mut AbstractValue,
+    ) {
+        if !self.track_scalar_call_identities {
+            return;
+        }
+        let AbstractValue::Int(interval) = value else {
+            return;
+        };
+        if interval.correlation.is_some()
+            || interval.singleton_value().is_some()
+            || !abstract_inputs_have_exact_symbolic_identity(input)
+        {
+            return;
+        }
+        let mut hash = Sha256::new();
+        hash_segment(
+            &mut hash,
+            b"futuruna.checked-abstract-pure-scalar-call.v1\0",
+        );
+        // The identity is producer-owned, scoped to this checked program.
+        // Debug spelling is an ephemeral cache discriminator, not a durable
+        // proof format or a user-authored name lookup.
+        hash_segment(&mut hash, format!("{:?}", self.index.program.id).as_bytes());
+        hash_segment(&mut hash, format!("{identity:?}").as_bytes());
+        hash_segment(&mut hash, input_root);
+        let identity = hash.finalize().into();
+        // Unused correlation coordinates may name opaque integer results as
+        // well as source inputs. This preserves cancellation of a shared
+        // nonlinear value inside larger expressions, e.g. (f(x)+2)-(f(x)+1).
+        // No bounds for these symbols are assumed: difference proofs require
+        // every nonconstant coefficient to cancel. Allocation is local to one
+        // prover and bounded by the existing MAX_AXES limit.
+        let mut axes = self.scalar_call_axes.borrow_mut();
+        let position = axes
+            .iter()
+            .position(|value| *value == identity)
+            .or_else(|| {
+                (self.source_axis_count + axes.len() < affine_interval::MAX_AXES).then(|| {
+                    let position = axes.len();
+                    axes.push(identity);
+                    position
+                })
+            });
+        interval.correlation = position
+            .and_then(|position| Correlation::axis(self.source_axis_count + position))
+            .or_else(|| Correlation::opaque(identity, (interval.minimum, interval.maximum)));
     }
 
     fn issue(
@@ -4852,6 +4913,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 self.deliver_value(machine, value)?;
             }
             EvalContinuation::FinishCallable(mut state) => {
+                let mut value = value;
                 machine.active.remove(&state.active);
                 if let Some(expected_result) = state.expected_result.as_ref() {
                     self.require_value_type(
@@ -4862,6 +4924,12 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         &mut state.substitutions,
                     )?;
                 }
+                self.identify_scalar_call_result(
+                    &state.callable,
+                    &state.call_input,
+                    &state.argument_root,
+                    &mut value,
+                );
                 self.record(
                     &state.call_site,
                     ObligationKind::Callable,
@@ -6000,7 +6068,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 }
             }
         }
-        let value = join_values(state.results).ok_or_else(|| {
+        let mut value = join_values(state.results).ok_or_else(|| {
             self.issue(
                 &state.call_site,
                 RelationalEndpointTotalityIssueReason::PartialRuleDispatch,
@@ -6015,6 +6083,12 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             &value,
             &mut state.substitutions,
         )?;
+        self.identify_scalar_call_result(
+            &state.family,
+            &state.call_input,
+            &state.argument_root,
+            &mut value,
+        );
         self.record(
             &state.call_site,
             ObligationKind::Dispatch,
@@ -9625,6 +9699,47 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         self.obligations.insert(obligation);
         Ok(())
     }
+}
+
+/// A symbolic call key is exact only when it describes each actual argument,
+/// not just an interval/list summary that many different values can inhabit.
+/// The input has already passed the interpreter's bounded-value checks.
+fn abstract_inputs_have_exact_symbolic_identity(input: &AbstractValue) -> bool {
+    let mut pending = vec![input];
+    while let Some(value) = pending.pop() {
+        match value {
+            AbstractValue::Int(interval) => {
+                if interval.singleton_value().is_none() && interval.correlation.is_none() {
+                    return false;
+                }
+            }
+            AbstractValue::Bool(truth) if truth.singleton().is_some() => {}
+            AbstractValue::Float(Some(_))
+            | AbstractValue::String(Some(_))
+            | AbstractValue::Character(Some(_))
+            | AbstractValue::Unit => {}
+            AbstractValue::Constructors(variants) if variants.len() == 1 => {
+                pending.extend(
+                    variants
+                        .values()
+                        .next()
+                        .expect("one constructor")
+                        .fields
+                        .iter(),
+                );
+            }
+            AbstractValue::Tuple(values)
+            | AbstractValue::List(AbstractSequence::Exact(values))
+            | AbstractValue::Set(AbstractSequence::Exact(values)) => pending.extend(values.iter()),
+            AbstractValue::Map(entries) => {
+                for (key, value) in entries.iter() {
+                    pending.extend([key, value]);
+                }
+            }
+            _ => return false,
+        }
+    }
+    true
 }
 
 fn checked_expression_type_name(checked: &CheckedExpressionType) -> String {

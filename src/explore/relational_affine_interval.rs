@@ -54,6 +54,22 @@ fn ceil_ratio(value: i128, denominator: i128) -> Option<i128> {
 }
 
 impl Correlation {
+    /// An otherwise opaque, total pure result. Its interval is represented as
+    /// bounded error, not as an invented linear function. The checked caller
+    /// may supply an exact identity only when all inputs are symbolically
+    /// identified; equal numeric enclosures alone never establish identity.
+    pub(super) fn opaque(expression: [u8; 32], bounds: (i128, i128)) -> Option<Self> {
+        (bounds.0 <= bounds.1).then_some(Self {
+            coefficients: [0; MAX_AXES],
+            constant: 0,
+            denominator: 1,
+            error: bounds,
+            modulus: 1,
+            residue: 0,
+            expression,
+        })
+    }
+
     pub(super) fn axis(axis: usize) -> Option<Self> {
         let mut coefficients = [0; MAX_AXES];
         *coefficients.get_mut(axis)? = 1;

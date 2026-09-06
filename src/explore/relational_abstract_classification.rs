@@ -223,6 +223,13 @@ pub(crate) fn classify_box(
     let query = checked.closed_query;
     let sites = &checked.artifact.sites;
     let mut prover = EndpointTotalityProver::new(index, resolutions, checked.relation_id());
+    prover.track_scalar_call_identities = true;
+    prover.source_axis_count = query
+        .source
+        .bindings
+        .iter()
+        .filter(|binding| matches!(binding.kind, ExploreSourceBindingKindIr::Finite { .. }))
+        .count();
     let invalid = || {
         prover.issue(
             &sites.successor,
@@ -368,6 +375,100 @@ mod tests {
     use crate::{Lexer, Parser, TypeChecker};
 
     #[test]
+    fn symbolic_scalar_calls_preserve_aliases_not_equal_enclosures() {
+        let template = r#"
+# ScalarIdentityPair(left: Int, right: Int)
+DEFINITION
+> facts(x: Int) -> ScalarIdentityPair { ScalarIdentityPair(LEFT, RIGHT) }
+> valid(x: Int) -> Bool {
+    = pair = facts(x)
+    pair.left == pair.right
+}
+? explore scalar_identity {
+    from {
+        vary before in range(-10, 11)
+        given context = ()
+    }
+    transition after = before + 1
+    where before valid(before)
+    find rows = all
+}
+"#;
+        let definitions = [
+            "| positive(x: Int) -> 0\n| exception positive_case positive(x: Int) -> x under x > 0",
+            "> positive(x: Int) -> Int { if x > 0 { x } else { 0 } }",
+        ];
+        for definition in definitions {
+            for (left, right, expected) in [
+                ("positive(x)", "positive(x)", Some(true)),
+                ("positive(x)", "positive(-x)", None),
+                ("positive(x) + 1", "positive(x) + 2", Some(false)),
+            ] {
+                let source = template
+                    .replace("DEFINITION", definition)
+                    .replace("LEFT", left)
+                    .replace("RIGHT", right);
+                let mut lexer = Lexer::new(&source);
+                let statements = Parser::new(lexer.tokenize(), &source)
+                    .parse_program()
+                    .unwrap();
+                let artifacts =
+                    TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                assert!(
+                    artifacts.diagnostics.is_empty(),
+                    "{:?}",
+                    artifacts.diagnostics
+                );
+                let checked = artifacts.checked_exploration_query(0).unwrap();
+                let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+                let proof = classify_box(
+                    &index,
+                    &artifacts.checked_resolutions,
+                    &checked,
+                    &[Some((-10, 10)), None],
+                )
+                .unwrap();
+                assert_eq!(proof.admissions.as_ref(), [expected], "{source}");
+            }
+        }
+        let source = template
+            .replace(
+                "DEFINITION",
+                r#"
+# Offset(offset: Int) {
+    | value(x: Int) -> if x > 0 { x + offset } else { offset }
+}
+"#,
+            )
+            .replace("LEFT", "Offset(0).value(x)")
+            .replace("RIGHT", "Offset(1).value(x)");
+        let mut lexer = Lexer::new(&source);
+        let statements = Parser::new(lexer.tokenize(), &source)
+            .parse_program()
+            .unwrap();
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts.checked_exploration_query(0).unwrap();
+        let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+        let proof = classify_box(
+            &index,
+            &artifacts.checked_resolutions,
+            &checked,
+            &[Some((-10, 10)), None],
+        )
+        .unwrap();
+        assert_ne!(
+            proof.admissions.as_ref(),
+            [Some(true)],
+            "scoped captures must distinguish calls"
+        );
+    }
+
+    #[test]
     fn adjacent_rounding_box_preserves_integer_units() {
         let source = r#"
 > net(x: Int) -> Int {
@@ -448,6 +549,27 @@ mod tests {
                 None,
             ],
             [Some((1000, 1100)), Some((0, 199)), Some((1, 1)), None, None],
+            [
+                Some((342497, 342497)),
+                Some((0, 199)),
+                Some((0, 0)),
+                None,
+                None,
+            ],
+            [
+                Some((342497, 342497)),
+                Some((0, 199)),
+                Some((1, 1)),
+                None,
+                None,
+            ],
+            [
+                Some((342000, 342498)),
+                Some((0, 199)),
+                Some((0, 0)),
+                None,
+                None,
+            ],
         ] {
             let started = std::time::Instant::now();
             let result = classify_box(
