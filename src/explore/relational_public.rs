@@ -4032,6 +4032,224 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn row_local_publication_reuses_warm_receipts_and_resumes_each_cold_row() {
+        use super::super::relational_executor::{
+            RelationalBoundValue, RelationalExpressionRuntime,
+        };
+        use super::super::relational_result_executor::{
+            RelationalResultBinding, RelationalResultExpressionRuntime,
+        };
+        use super::super::ExploreValue;
+        struct CountingRuntime<'a> {
+            inner: &'a mut RelationalInterpreterExpressionRuntime,
+            result_calls: usize,
+        }
+        impl RelationalExpressionRuntime for CountingRuntime<'_> {
+            fn evaluate(
+                &mut self,
+                expression: &crate::Expr,
+                ty: &Ty,
+                bindings: &[RelationalBoundValue<'_>],
+            ) -> Result<ExploreValue, String> {
+                RelationalExpressionRuntime::evaluate(self.inner, expression, ty, bindings)
+            }
+        }
+        impl RelationalResultExpressionRuntime for CountingRuntime<'_> {
+            fn evaluate(
+                &mut self,
+                expression: &crate::Expr,
+                ty: &Ty,
+                bindings: &[RelationalResultBinding],
+            ) -> Result<ResultValue, String> {
+                self.result_calls += 1;
+                RelationalResultExpressionRuntime::evaluate(self.inner, expression, ty, bindings)
+            }
+        }
+        let source = r#"
+? explore row_local_resume {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = before + 1
+    find cases = all
+    results rows from find cases {
+        each case
+        measure [score = before * 7 - after]
+        select [case_id, before, after, score]
+    }
+}
+"#;
+        let mut roots = Vec::new();
+        for cold_resume in [false, true] {
+            let mut prepared = prepare(source);
+            let authority = exact_one_region_replay_authority(&prepared);
+            let checked = prepared.checked.view();
+            let make_driver = || {
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .unwrap()
+            };
+            let mut driver = make_driver();
+            let mut journal = RelationalJournal::new_with_region_replay_authority(
+                prepared.contract.clone(),
+                Arc::clone(&authority),
+            );
+            let mut runtime = CountingRuntime {
+                inner: &mut prepared.expression_runtime,
+                result_calls: 0,
+            };
+            let mut projected = 0;
+            for _ in 0..256 {
+                if journal
+                    .analysis_state()
+                    .is_some_and(|analysis| analysis.is_closed())
+                {
+                    break;
+                }
+                let before_calls = runtime.result_calls;
+                let outcome = driver
+                    .step(&mut journal, &mut runtime, &mut prepared.mechanism_runtime)
+                    .unwrap();
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("row-local stream quiesced before completion");
+                };
+                let is_projection = matches!(batch.quantum(), RelationalStreamQuantum::Result(
+                    RelationalResultStepQuantum::PublishSelectedProjectionRecords { record_count, .. }
+                ) if record_count.get() == 1);
+                if is_projection {
+                    assert_eq!(
+                        runtime.result_calls - before_calls,
+                        if cold_resume && projected > 0 { 5 } else { 0 }
+                    );
+                    projected += 1;
+                }
+                for event in batch.into_events() {
+                    journal.append(event).unwrap();
+                }
+                if is_projection && cold_resume && projected == 1 {
+                    use super::super::result_evidence::RelationalResultEvidenceRecord;
+                    use super::super::result_projection::{
+                        IndexedResultProjectionRecord, ResultProjectionRecord,
+                    };
+                    use super::super::result_view::{EvaluatedResultContribution, ResultOutputRow};
+                    let published_row = journal.entries().iter().find_map(|entry| {
+                        if let RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                            RelationalAnalysisEvidenceEvent::ResultProjectionRecordAccepted { record, .. }
+                        )) = entry.event() {
+                            record.record().row().map(|row| row.row_id())
+                        } else { None }
+                    }).unwrap();
+                    let next_row = journal
+                        .entries()
+                        .iter()
+                        .filter_map(|entry| {
+                            if let RelationalJournalEvent::Evidence(
+                                RelationalEvidenceEvent::Analysis(
+                                    RelationalAnalysisEvidenceEvent::ResultEvidenceAccepted {
+                                        record,
+                                        ..
+                                    },
+                                ),
+                            ) = entry.event()
+                            {
+                                (record.row_id() > published_row).then_some(record.row_id())
+                            } else {
+                                None
+                            }
+                        })
+                        .min()
+                        .unwrap();
+                    // Repair every affected record and journal hash: a stale
+                    // checksum must not be the reason these forgeries fail.
+                    for forge_projection in [true, false] {
+                        let mut forged = RelationalJournal::new_with_region_replay_authority(
+                            prepared.contract.clone(),
+                            Arc::clone(&authority),
+                        );
+                        for entry in journal.entries() {
+                            let event = match entry.event() {
+                                RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                                    RelationalAnalysisEvidenceEvent::ResultProjectionRecordAccepted { record, view_id, .. }
+                                )) if forge_projection => {
+                                    let row = record.record().row().unwrap();
+                                    let mut values = row.values().to_vec();
+                                    values[3] = ExploreValue::Int(999).into();
+                                    let changed = IndexedResultProjectionRecord::derive(
+                                        *view_id, record.spec_root(), record.ordinal(),
+                                        ResultProjectionRecord::Row(ResultOutputRow::from_projected_parts(row.row_id(), values.into_boxed_slice())),
+                                    );
+                                    RelationalJournalEvent::analysis(RelationalAnalysisEvidenceEvent::result_projection_record_accepted(*view_id, changed))
+                                }
+                                RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                                    RelationalAnalysisEvidenceEvent::ResultEvidenceAccepted { record, .. }
+                                )) if !forge_projection && record.row_id() == next_row => {
+                                    let contribution = EvaluatedResultContribution::new(
+                                        record.view_id(), record.row_id(), vec![],
+                                        vec![ExploreValue::Int(999).into()], vec![],
+                                    );
+                                    let mut selected = record.materialize_early_select();
+                                    selected[3] = Some(ExploreValue::Int(999).into());
+                                    let changed = RelationalResultEvidenceRecord::restore_from_journal_codec(
+                                        contribution, selected, Box::new([]),
+                                    );
+                                    RelationalJournalEvent::analysis(RelationalAnalysisEvidenceEvent::result_evidence_accepted(changed))
+                                }
+                                event => event.clone(),
+                            };
+                            forged.append(event).unwrap();
+                        }
+                        let calls = runtime.result_calls;
+                        let error = make_driver()
+                            .step(&mut forged, &mut runtime, &mut prepared.mechanism_runtime)
+                            .unwrap_err();
+                        let diagnostic = format!("{error:?}");
+                        assert!(
+                            diagnostic.contains(if forge_projection {
+                                "ExpectedRecordMismatch"
+                            } else {
+                                "DurableEvidenceMismatch"
+                            }),
+                            "{diagnostic}"
+                        );
+                        // Negative checks are outside the warm/cold work count.
+                        runtime.result_calls = calls;
+                    }
+                }
+                if is_projection && cold_resume {
+                    journal = RelationalJournal::replay_with_region_replay_authority(
+                        prepared.contract.clone(),
+                        journal.entries().to_vec(),
+                        Arc::clone(&authority),
+                    )
+                    .unwrap();
+                    driver = make_driver();
+                }
+            }
+            assert_eq!(
+                projected, 4,
+                "exactly one accepted row per projection quantum"
+            );
+            assert!(journal.analysis_state().unwrap().is_closed());
+            assert_eq!(runtime.result_calls, if cold_resume { 35 } else { 20 });
+            let layers = analysis_layers(&journal, &checked, &[0]).unwrap();
+            let ExploreStreamLayer::Result(result) = &layers[0] else {
+                panic!("expected the row-local result layer");
+            };
+            roots.push(result.evidence.as_ref().unwrap().result_root.clone());
+        }
+        assert_eq!(
+            roots[0], roots[1],
+            "warm and cold per-row publication retain the same exact root"
+        );
+    }
+
+    #[test]
     fn scheduler_proves_before_concrete_and_falls_back_for_nonempty_unsupported_and_partial_children(
     ) {
         assert!(matches!(

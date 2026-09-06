@@ -651,6 +651,15 @@ pub(crate) struct ResultOutputRow {
 }
 
 impl ResultOutputRow {
+    /// Plain projection data, not evaluation authority. The checked producer
+    /// must justify these values before submitting a projection record.
+    pub(crate) fn from_projected_parts(
+        row_id: ResultViewInputRowId,
+        values: Box<[ResultValue]>,
+    ) -> Self {
+        Self { row_id, values }
+    }
+
     pub(super) fn from_journal_codec_parts(
         row_id: ResultViewInputRowId,
         values: Box<[ResultValue]>,

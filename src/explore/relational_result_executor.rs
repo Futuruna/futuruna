@@ -22,14 +22,15 @@ use super::relational_ir::{
     ExploreAggregateReducerIr, ExploreResultChoiceIr, ExploreResultFieldIr, ExploreResultGrainIr,
     ExploreResultHavingIr, ExploreResultInputIr, ExploreResultViewIr,
 };
+use super::result_evidence::RelationalResultEvidenceRecord;
 use super::result_view::{
     close_exact_certified_groups, close_exact_certified_single_group,
     close_exact_grouped_without_choice_from_borrowed, CertifiedResultGroupSummary,
     CertifiedResultInputRoot, ClosedResultView, CompactClosedResultView,
     EvaluatedResultContribution, MechanismIncidenceRowId, ResultClosedGroupRef, ResultClosedRowRef,
-    ResultValue, ResultViewBuilder, ResultViewError, ResultViewFinishError, ResultViewGrain,
-    ResultViewHaving, ResultViewInputKind, ResultViewInputRowId, ResultViewProjectionError,
-    ResultViewProjector, ResultViewSnapshot, ResultViewSpec,
+    ResultOutputRow, ResultValue, ResultViewBuilder, ResultViewError, ResultViewFinishError,
+    ResultViewGrain, ResultViewHaving, ResultViewInputKind, ResultViewInputRowId,
+    ResultViewProjectionError, ResultViewProjector, ResultViewSnapshot, ResultViewSpec,
 };
 use super::structural_mechanism::{ExecutionProfileId, StructuralMechanismId};
 use super::transition::TransitionId;
@@ -249,6 +250,49 @@ impl<'ir> RelationalResultExecutor<'ir> {
 
     pub(crate) const fn spec(&self) -> &ResultViewSpec {
         &self.spec
+    }
+
+    /// No reduction, membership choice or deferred SELECT evaluation can
+    /// change one row's projection in this fragment.
+    pub(crate) fn supports_row_local_case_projection(&self) -> bool {
+        matches!(self.view.input, ExploreResultInputIr::Find { .. })
+            && matches!(self.view.grain, ExploreResultGrainIr::EachCase { .. })
+            && self.view.choose.is_none()
+            && self.view.having.is_none()
+            && self.view.aggregates.is_empty()
+            && self.objectives.is_empty()
+            && self
+                .select_stages
+                .iter()
+                .all(|stage| *stage == ProjectionStage::RowLocal)
+    }
+
+    /// Derive projection DATA from a row record. This does not attest that its
+    /// measures are correct. The driver checks every new row against a live
+    /// evaluation (or its own bounded warm receipt) before journal admission.
+    pub(crate) fn row_local_case_projection(
+        &self,
+        record: &RelationalResultEvidenceRecord,
+    ) -> Option<ResultOutputRow> {
+        if !self.supports_row_local_case_projection()
+            || record.view_id() != self.spec.view_id()
+            || !matches!(record.row_id(), ResultViewInputRowId::Case(_))
+            || !record.grain_values().is_empty()
+            || record.measures().len() != self.view.measures.len()
+            || !record.distinct_arguments().is_empty()
+            || record.early_select_len() != self.view.select.len()
+            || record.early_objectives_len() != 0
+        {
+            return None;
+        }
+        let values = record
+            .early_select_iter()
+            .map(|value| value.cloned())
+            .collect::<Option<Vec<_>>>()?;
+        Some(ResultOutputRow::from_projected_parts(
+            record.row_id(),
+            values.into_boxed_slice(),
+        ))
     }
 
     pub(crate) fn execution(&self) -> RelationalResultExecution<'_, 'ir> {

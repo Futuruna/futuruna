@@ -517,10 +517,23 @@ impl ResultProjectionCatalogBuilder {
         expected: &[IndexedResultProjectionRecord],
         validated: &mut Option<ValidatedResultProjectionPrefix>,
     ) -> Result<(), ResultProjectionError> {
-        if self.records.len() > expected.len() {
+        self.validate_expected_prefix_with(expected.len(), validated, |ordinal, durable| {
+            expected.get(ordinal) == Some(durable)
+        })
+    }
+
+    /// Lazy counterpart for row-preserving plans: validate the same canonical
+    /// prefix without first retaining an entire second output population.
+    pub(crate) fn validate_expected_prefix_with(
+        &self,
+        expected_len: usize,
+        validated: &mut Option<ValidatedResultProjectionPrefix>,
+        mut matches_expected: impl FnMut(usize, &IndexedResultProjectionRecord) -> bool,
+    ) -> Result<(), ResultProjectionError> {
+        if self.records.len() > expected_len {
             return Err(ResultProjectionError::ExpectedPrefixTooShort {
                 durable_records: self.records.len() as u128,
-                expected_records: expected.len() as u128,
+                expected_records: expected_len as u128,
             });
         }
 
@@ -529,7 +542,7 @@ impl ResultProjectionCatalogBuilder {
                 let mut root = previous.root;
                 for ordinal in previous.record_count..self.records.len() {
                     let durable = &self.records[ordinal];
-                    if expected.get(ordinal) != Some(durable) {
+                    if !matches_expected(ordinal, durable) {
                         return Err(ResultProjectionError::ExpectedRecordMismatch {
                             ordinal: ordinal as u128,
                         });
@@ -551,7 +564,7 @@ impl ResultProjectionCatalogBuilder {
         // the small cursor from durable authority exactly once.
         let mut root = projection_genesis_root(self.view_id, self.spec_root);
         for (ordinal, durable) in self.records.iter().enumerate() {
-            if expected.get(ordinal) != Some(durable) {
+            if !matches_expected(ordinal, durable) {
                 return Err(ResultProjectionError::ExpectedRecordMismatch {
                     ordinal: ordinal as u128,
                 });

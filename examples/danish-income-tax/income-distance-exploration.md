@@ -863,3 +863,76 @@ explicit output-first instruction. The library was compiled for these checks;
 another optimized CLI rebuild is deferred until the next production epoch.
 The completed boundary output above was produced by `caf62976`, before this
 additional proof-precision patch.
+
+## Resumable row-local result publication
+
+The `losses` result now publishes one canonical row per governed quantum.
+Previously, its first projection step re-evaluated every selected measure
+before returning any publication progress—the 494.082-second step measured
+above. A pause can now preserve each accepted row independently.
+
+The checked driver keeps at most 4,096 small, process-local evaluation
+receipts. A receipt is created only after evaluating the row's result
+expressions against its checked case; it avoids repeating that work when the
+same driver later projects the row. Eviction affects speed, not results.
+Receipts are never restored from disk.
+
+On a cold resume, the accepted projection prefix is checked for exact
+canonical order and agreement with the sealed row evidence. The next
+unpublished row is re-evaluated and must match its complete recorded measure
+and SELECT values before publication. Already accepted projection rows are
+durable completed work; their tax calculations are not executed again. This
+is reuse of authenticated execution progress, not a claim that hashes alone
+prove the semantics of an arbitrarily rewritten journal.
+
+This path applies to `each case` results from a find when every SELECT is
+row-local and there is no grouping, aggregate, choice or HAVING dependency.
+Grouped and deferred results retain the existing reducer and its cold-rebuild
+cost. Final result closure still uses the existing exact reduction check;
+source syntax, journal encoding and result-root definitions are unchanged.
+The full-grid numerical proof and coverage limitations above remain open.
+
+The permanent four-case edge check
+`row_local_publication_reuses_warm_receipts_and_resumes_each_cold_row` passes
+in 0.09 seconds. It verifies one row per projection quantum, identical final
+roots for warm execution and a fresh journal replay after each output row,
+and rejection of both a changed accepted projection and a changed unpublished
+measure/SELECT with repaired record and journal hashes. Warm execution makes
+20 result-expression calls total; repeated cold resumes make 35, rechecking
+only each next unpublished row rather than the entire population.
+
+The existing
+`answer_index_describes_ungrouped_grouped_and_exact_empty_results` edge check
+also passes (0.33 seconds). No mint, canary, differential or full-suite run
+was added: those remain explicitly deferred for the output-first work.
+
+The optimized CLI then completed an external two-transition canonical-model
+measurement, with the same conditioned profile and result/mechanism consumers:
+starting salary 342,499 DKK, commute 50 km, and separate +1 DKK / +1 km
+interventions. Both transitions were valid, the salary edge lost exactly
+**5,006 øre**, and the commute edge was harmless. All result and mechanism
+layers closed, with one successfully explained finding and no exclusions or
+unavailable explanations. This reproduces a witness in the completed boundary
+window; it does not add coverage of the complementary income ranges.
+
+The row-local projection quantum and its final result-close quantum each
+reported **0 ms** at millisecond resolution. This confirms the actual-model
+path executes without a bulk rehydration delay; it is not a controlled speedup
+comparison against the earlier 176-row cold publication. Preparation took
+75.745 seconds, and this small run used ordinary execution without building
+another native classifier. Its final journal sequence is **3,992**, head
+`7944cd7f8b172565e36f47e2d3fb10da4dc0d91e0146a024d67183ff8d2b98bc`,
+and its selected-case result root is
+`84a4645b3593a938cd35a43f3b7f742190795d4351658d1898f67a0cf403f3ea`.
+State and output together occupied about 317 MiB, predominantly mechanism
+definitions; row-local publication does not solve that separate storage cost.
+
+The one required optimized build was
+`env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target CARGO_BUILD_JOBS=1 nice -n 15 cargo build --release --bin runa --jobs 1`:
+it passed in 5m48s with only the two pre-existing unused CLI-helper warnings.
+The executable ran `explore publication-edge.explore.runa --query personskat_publication_edge_2026 --run-state state --output output --time-limit 20m --json`
+with `FUTURUNA_EXPLORE_TRACE=1`, returning success and complete output.
+The external fixture needed its import spacing formatted; `runa fmt` and then
+`runa fmt --check` passed. A separate `runa check` was omitted because this
+actual execution already performs checked frontend preparation. `cargo fmt
+--check` and `git diff --check` passed for the implementation.

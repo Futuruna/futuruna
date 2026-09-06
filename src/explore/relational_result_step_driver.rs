@@ -7,13 +7,14 @@
 //! The outer durable loop owns append, retries, deadlines, and resources.
 //!
 //! Row evidence remains owned exactly once by the analysis journal. At the
-//! publication boundary it is borrowed and deterministically re-evaluated
-//! against relation-owned case bindings before an ephemeral reducer is
-//! finished. The resulting output-record cache is invocation-local and may be
-//! discarded; durable resume is defined solely by the journaled prefix.
+//! publication boundary new row-local projections are checked one at a time
+//! against relation-owned case bindings, or reuse a bounded invocation-local
+//! receipt from their original checked evaluation. Accepted projection rows
+//! are durable progress. Grouped/deferred projections retain the reducer path.
+//! Durable resume is defined solely by the journaled prefix.
 
 use std::cell::RefCell;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
 use std::fmt;
 use std::num::NonZeroU16;
@@ -49,12 +50,12 @@ use super::relational_result_executor::{
     RelationalResultExecutor, RelationalResultExecutorError, RelationalResultExpressionRuntime,
 };
 use super::result_evidence::{
-    RelationalResultEvidenceCatalogBuilder, RelationalResultEvidenceRecord,
-    RelationalResultEvidenceRoot,
+    RelationalResultEvidenceCatalogBuilder, RelationalResultEvidenceId,
+    RelationalResultEvidenceRecord, RelationalResultEvidenceRoot,
 };
 use super::result_projection::{
     IndexedResultProjectionRecord, ResultProjectionCatalogBuilder, ResultProjectionError,
-    ValidatedResultProjectionPrefix,
+    ResultProjectionRecord, ValidatedResultProjectionPrefix,
 };
 use super::result_view::{ResultViewInputRowId, ResultViewRoot};
 
@@ -218,6 +219,36 @@ struct CachedSelectedProjection {
     validated_prefix: Option<ValidatedResultProjectionPrefix>,
 }
 
+const MAX_WARM_RESULT_ROW_RECEIPTS: usize = 4096;
+
+/// Only this driver inserts receipts, immediately after checked evaluation.
+/// They contain no population-sized values and are never restored from disk.
+#[derive(Default)]
+struct WarmResultRowReceipts {
+    ids: BTreeSet<RelationalResultEvidenceId>,
+    order: VecDeque<RelationalResultEvidenceId>,
+}
+
+impl WarmResultRowReceipts {
+    fn insert(&mut self, id: RelationalResultEvidenceId) {
+        if self.ids.contains(&id) {
+            return;
+        }
+        if self.order.len() == MAX_WARM_RESULT_ROW_RECEIPTS {
+            if let Some(oldest) = self.order.pop_front() {
+                self.ids.remove(&oldest);
+            }
+        }
+        self.ids.insert(id);
+        self.order.push_back(id);
+    }
+}
+
+struct RowLocalProjectionPrefix {
+    evidence_root: RelationalResultEvidenceRoot,
+    validated: Option<ValidatedResultProjectionPrefix>,
+}
+
 /// Checked-query-bound selected-result scheduler.
 pub(crate) struct RelationalResultStepDriver<'query> {
     checked: CheckedExploreQueryView<'query>,
@@ -236,6 +267,8 @@ pub(crate) struct RelationalResultStepDriver<'query> {
     /// restart the exact reduction is recomputed once from durable evidence,
     /// then bounded publication resumes at the journaled record ordinal.
     publication_cache: RefCell<BTreeMap<ViewId, CachedSelectedProjection>>,
+    warm_result_rows: RefCell<WarmResultRowReceipts>,
+    row_local_prefixes: RefCell<BTreeMap<ViewId, RowLocalProjectionPrefix>>,
     /// Invocation-local offsets into the journal-rebuilt selected discovery
     /// index. Durable evidence remains the resume authority; these offsets
     /// merely prevent each open-prefix turn from rescanning all earlier rows.
@@ -382,6 +415,8 @@ impl<'query> RelationalResultStepDriver<'query> {
             first_deferred_incidence: deferred.into_iter().next(),
             max_rows_per_quantum,
             publication_cache: RefCell::new(BTreeMap::new()),
+            warm_result_rows: RefCell::new(WarmResultRowReceipts::default()),
+            row_local_prefixes: RefCell::new(BTreeMap::new()),
             selected_discovery_cursors: RefCell::new(BTreeMap::new()),
             choice_discovery_cursors: RefCell::new(BTreeMap::new()),
             source_cursors: RefCell::new(BTreeMap::new()),
@@ -1126,10 +1161,10 @@ impl<'query> RelationalResultStepDriver<'query> {
                         case_id,
                     ))?;
             let evaluated = layer.executor.evaluate_concrete_case(case, runtime)?;
+            let record = RelationalResultEvidenceRecord::from_evaluated(&evaluated);
+            self.warm_result_rows.borrow_mut().insert(record.id());
             events.push(RelationalJournalEvent::analysis(
-                RelationalAnalysisEvidenceEvent::result_evidence_accepted(
-                    RelationalResultEvidenceRecord::from_evaluated(&evaluated),
-                ),
+                RelationalAnalysisEvidenceEvent::result_evidence_accepted(record),
             ));
         }
 
@@ -1439,6 +1474,9 @@ impl<'query> RelationalResultStepDriver<'query> {
                 view_id,
             ));
         }
+        if layer.executor.supports_row_local_case_projection() {
+            return self.publish_row_local_case(view, catalog, view_id, layer, evidence, runtime);
+        }
         let evidence_root = evidence.root();
         let needs_rebuild = self
             .publication_cache
@@ -1627,6 +1665,143 @@ impl<'query> RelationalResultStepDriver<'query> {
             RelationalResultStepQuantum::PublishSelectedResult {
                 view_id,
                 result_root,
+            },
+            vec![RelationalJournalEvent::analysis(event)],
+        ))
+    }
+
+    /// Project one row at a time, so an epoch can end between expensive
+    /// measure evaluations. A durable projection is already accepted work;
+    /// cold resume validates its canonical data against sealed row evidence,
+    /// then evaluates only the next unpublished row. A digest from disk never
+    /// becomes a warm receipt for a NEW projection.
+    fn publish_row_local_case<R: RelationalResultExpressionRuntime>(
+        &self,
+        view: RelationalSchedulerView<'_>,
+        catalog: &RelationalAnalysisCatalogBuilder,
+        view_id: ViewId,
+        layer: &SelectedResultLayer<'_>,
+        evidence: &RelationalResultEvidenceCatalogBuilder,
+        runtime: &mut R,
+    ) -> Result<RelationalResultStepOutcome, RelationalResultStepDriverError> {
+        let projection = catalog.result_projection(view_id)?;
+        let evidence_root = evidence.root();
+        let projected_after = |ordinal: usize| {
+            ordinal.checked_sub(1).and_then(|previous| {
+                projection
+                    .record(previous as u128)?
+                    .record()
+                    .row()
+                    .map(|row| row.row_id())
+            })
+        };
+        {
+            let mut prefixes = self.row_local_prefixes.borrow_mut();
+            let prefix = prefixes.entry(view_id).or_insert(RowLocalProjectionPrefix {
+                evidence_root,
+                validated: None,
+            });
+            if prefix.evidence_root != evidence_root {
+                prefix.evidence_root = evidence_root;
+                prefix.validated = None;
+            }
+            projection.validate_expected_prefix_with(
+                evidence.len(),
+                &mut prefix.validated,
+                |ordinal, durable| {
+                    evidence
+                        .records_after(projected_after(ordinal))
+                        .next()
+                        .and_then(|record| layer.executor.row_local_case_projection(record))
+                        .map(|row| {
+                            IndexedResultProjectionRecord::derive(
+                                view_id,
+                                layer.executor.spec().spec_root(),
+                                ordinal as u128,
+                                ResultProjectionRecord::Row(row),
+                            )
+                        })
+                        .as_ref()
+                        == Some(durable)
+                },
+            )?;
+        }
+
+        let ordinal = projection.len();
+        if let Some(record) = evidence.records_after(projected_after(ordinal)).next() {
+            let ResultViewInputRowId::Case(case_id) = record.row_id() else {
+                return Err(RelationalResultStepDriverError::UnexpectedResultRowKind(
+                    view_id,
+                ));
+            };
+            let case =
+                view.case(case_id)
+                    .ok_or(RelationalResultStepDriverError::UnknownSelectedCase(
+                        case_id,
+                    ))?;
+            if view.question_decision(layer.question_id, case_id)?
+                != Some(SelectionDecision::Selected)
+            {
+                return Err(
+                    RelationalResultStepDriverError::ResultEvidenceOutsideSelectedPopulation {
+                        view_id,
+                        case_id,
+                    },
+                );
+            }
+            if !self.warm_result_rows.borrow().ids.contains(&record.id()) {
+                let evaluated = layer.executor.evaluate_concrete_case(case, runtime)?;
+                if RelationalResultEvidenceRecord::from_evaluated(&evaluated) != *record {
+                    return Err(RelationalResultStepDriverError::DurableEvidenceMismatch {
+                        view_id,
+                        case_id,
+                    });
+                }
+                self.warm_result_rows.borrow_mut().insert(record.id());
+            }
+            let row = layer.executor.row_local_case_projection(record).ok_or(
+                RelationalResultStepDriverError::ResultLayerStateMismatch(view_id),
+            )?;
+            let record = IndexedResultProjectionRecord::derive(
+                view_id,
+                layer.executor.spec().spec_root(),
+                ordinal as u128,
+                ResultProjectionRecord::Row(row),
+            );
+            return Ok(self.batch(
+                view,
+                RelationalResultStepQuantum::PublishSelectedProjectionRecords {
+                    view_id,
+                    first_ordinal: ordinal as u128,
+                    record_count: NonZeroU16::MIN,
+                },
+                vec![RelationalJournalEvent::analysis(
+                    RelationalAnalysisEvidenceEvent::result_projection_record_accepted(
+                        view_id, record,
+                    ),
+                )],
+            ));
+        }
+        if ordinal != evidence.len() {
+            return Err(
+                RelationalResultStepDriverError::SelectedCoverageCountMismatch {
+                    expected: evidence.len() as u128,
+                    actual: ordinal as u128,
+                },
+            );
+        }
+        let event =
+            RelationalAnalysisEvidenceEvent::durable_result_view_published(catalog, view_id)?;
+        let RelationalAnalysisEvidenceEvent::ResultViewPublished { result_root, .. } = &event
+        else {
+            unreachable!("durable result publication returns its named variant")
+        };
+        self.row_local_prefixes.borrow_mut().remove(&view_id);
+        Ok(self.batch(
+            view,
+            RelationalResultStepQuantum::PublishSelectedResult {
+                view_id,
+                result_root: *result_root,
             },
             vec![RelationalJournalEvent::analysis(event)],
         ))

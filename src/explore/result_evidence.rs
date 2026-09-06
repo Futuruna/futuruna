@@ -810,6 +810,18 @@ impl RelationalResultEvidenceCatalogBuilder {
         self.records.values()
     }
 
+    /// Seek a canonical row suffix without walking the already-published
+    /// prefix. The cursor is operational; the sealed catalog owns membership.
+    pub(crate) fn records_after(
+        &self,
+        after: Option<ResultViewInputRowId>,
+    ) -> impl Iterator<Item = &RelationalResultEvidenceRecord> + '_ {
+        use std::ops::Bound::{Excluded, Unbounded};
+        self.records
+            .range((after.map_or(Unbounded, Excluded), Unbounded))
+            .map(|(_, record)| record)
+    }
+
     pub(crate) fn insert_evaluated(
         &mut self,
         evidence: &RelationalResultEvidence,
