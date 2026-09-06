@@ -22,7 +22,7 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunk, RelationalCaseChunkId, RelationalCaseChunkPartition,
     RelationalCaseChunkPartitionArtifactId, RelationalCaseChunkPartitionError,
     RelationalCaseChunkShape, VerifiedRelationalCaseChunkPartition,
-    RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1,
+    RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1, RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
 };
 use super::relational_case_executor::{
     RelationalCaseExecutor, RelationalCaseExecutorError, RelationalConcreteCase,
@@ -44,8 +44,8 @@ use super::support_cell::{
     SupportProofObligationId,
 };
 
-pub(crate) const RELATIONAL_CLASSIFIED_CHUNK_VERSION: u32 = 3;
-pub(crate) const RELATIONAL_CLASSIFIED_CHUNK_SLICE_VERSION: u32 = 2;
+pub(crate) const RELATIONAL_CLASSIFIED_CHUNK_VERSION: u32 = 4;
+pub(crate) const RELATIONAL_CLASSIFIED_CHUNK_SLICE_VERSION: u32 = 3;
 
 const CLASSIFIED_RUN_ID_V2: &[u8] = b"futuruna.explore.relational-classified-run.id.v2";
 const CLASSIFIED_CHUNK_ARTIFACT_ID_V2: &[u8] =
@@ -684,7 +684,7 @@ impl RelationalClassifiedChunkSliceArtifact {
         }
         let chunk_cardinality = self.chunk_interval_end_exclusive - self.chunk_interval_start;
         let slice_cardinality = self.evaluated_case_count();
-        if chunk_cardinality > RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1
+        if chunk_cardinality > RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES
             || slice_cardinality > RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1
             || u128::try_from(self.runs.len())
                 .ok()
@@ -703,10 +703,23 @@ impl RelationalClassifiedChunkSliceArtifact {
             run.outcome.validate(&self.question_set)?;
             if run.interval_start != next_start
                 || run.interval_end_exclusive > self.slice_interval_end_exclusive
+                || !selected_run_within_quantum(
+                    &run.outcome,
+                    run.interval_start,
+                    run.interval_end_exclusive,
+                    self.chunk_interval_start,
+                )
                 || index
                     .checked_sub(1)
                     .and_then(|previous| self.runs.get(previous))
-                    .is_some_and(|previous| previous.outcome.eq(&run.outcome))
+                    .is_some_and(|previous| {
+                        can_merge_run_outcomes(
+                            &previous.outcome,
+                            &run.outcome,
+                            run.interval_start,
+                            self.chunk_interval_start,
+                        )
+                    })
             {
                 return Err(RelationalClassifiedSweepError::InvalidSliceArtifactShape(
                     "classified slice runs are not a maximal contiguous cover",
@@ -1167,7 +1180,10 @@ impl RelationalClassifiedChunkArtifact {
             ));
         }
         let interval_cardinality = self.interval_end_exclusive - self.interval_start;
-        if self.evaluated_case_count != interval_cardinality || self.runs.len() > 256 {
+        if self.evaluated_case_count != interval_cardinality
+            || interval_cardinality > RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES
+            || self.runs.len() as u128 > interval_cardinality
+        {
             return Err(RelationalClassifiedSweepError::InvalidArtifactShape(
                 "classified chunk count or run bound is not canonical",
             ));
@@ -1187,10 +1203,23 @@ impl RelationalClassifiedChunkArtifact {
             if run.ordinal != expected_ordinal
                 || run.interval_start != next_start
                 || run.interval_end_exclusive > self.interval_end_exclusive
+                || !selected_run_within_quantum(
+                    &run.outcome,
+                    run.interval_start,
+                    run.interval_end_exclusive,
+                    self.interval_start,
+                )
                 || index
                     .checked_sub(1)
                     .and_then(|previous| self.runs.get(previous))
-                    .is_some_and(|previous| previous.outcome.eq(&run.outcome))
+                    .is_some_and(|previous| {
+                        can_merge_run_outcomes(
+                            &previous.outcome,
+                            &run.outcome,
+                            run.interval_start,
+                            self.interval_start,
+                        )
+                    })
             {
                 return Err(RelationalClassifiedSweepError::InvalidArtifactShape(
                     "classified runs are not a maximal contiguous cover",
@@ -1238,6 +1267,84 @@ impl RelationalClassifiedChunkArtifact {
         }
         Ok(())
     }
+}
+
+/// A worst-case structural codec fixture, deliberately not proof authority.
+/// Its scope/cell IDs are synthetic; journal acceptance must still reverify
+/// against an installed plan and durable injectivity evidence.
+#[cfg(test)]
+pub(super) fn alternating_maximum_page_codec_fixture() -> RelationalClassifiedChunkArtifact {
+    use super::relation::FindPolarity;
+    let relation_id = RelationId::from_canonical_semantic_preimage(b"maximum-page-codec");
+    let admission_id = AdmissionId::from_canonical_admission_preimage(relation_id, b"admit");
+    let question_id =
+        QuestionId::from_canonical_find_preimage(admission_id, b"alternate", FindPolarity::All);
+    let question_set = FrozenClassificationQuestionSet::freeze([question_id]).unwrap();
+    let outcomes = [SelectionDecision::NotSelected, SelectionDecision::Selected].map(|decision| {
+        RelationalClassifiedCaseOutcome::Admitted(
+            RelationalQuestionDecisionMask::from_ordered_decisions(
+                &question_set,
+                [(question_id, decision)],
+            )
+            .unwrap(),
+        )
+    });
+    let mut artifact = RelationalClassifiedChunkArtifact {
+        schema_version: RELATIONAL_CLASSIFIED_CHUNK_VERSION,
+        id: RelationalClassifiedChunkArtifactId([0; 32]),
+        plan_root: RelationalSupportPlanRoot::from_journal_codec_bytes([1; 32]),
+        relation_id,
+        admission_id,
+        question_set,
+        chunk_partition_id: RelationalCaseChunkPartitionArtifactId::from_canonical_bytes([2; 32]),
+        chunk_id: RelationalCaseChunkId::from_canonical_bytes([3; 32]),
+        chunk_ordinal: 0,
+        chunk_cell_id: SupportCellId::from_journal_codec_bytes([4; 32]),
+        chunk_materializer_id: SupportMaterializerId::from_journal_codec_bytes([5; 32]),
+        interval_start: 0,
+        interval_end_exclusive: RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
+        evaluated_case_count: RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
+        evaluated_cases_root: [6; 32],
+        rejected_count: 0,
+        admitted_count: RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
+        admitted_selected_counts: vec![RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES / 2]
+            .into_boxed_slice(),
+        runs: Box::new([]),
+        partition_id: Some(SupportPartitionId::from_journal_codec_bytes([7; 32])),
+    };
+    artifact.runs = (0..RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES)
+        .map(|index| {
+            let mut cell_bytes = [8; 32];
+            cell_bytes[..16].copy_from_slice(&index.to_be_bytes());
+            let cell_id = SupportCellId::from_journal_codec_bytes(cell_bytes);
+            let ordinal = u16::try_from(index).unwrap();
+            let outcome = outcomes[index as usize % 2].clone();
+            let id = derive_run_id(
+                artifact.plan_root,
+                artifact.chunk_partition_id,
+                artifact.chunk_id,
+                artifact.chunk_cell_id,
+                artifact.chunk_materializer_id,
+                ordinal,
+                cell_id,
+                index,
+                index + 1,
+                &outcome,
+            );
+            RelationalClassifiedRunDescriptor {
+                id,
+                ordinal,
+                cell_id,
+                interval_start: index,
+                interval_end_exclusive: index + 1,
+                outcome,
+            }
+        })
+        .collect::<Vec<_>>()
+        .into_boxed_slice();
+    artifact.id = derive_artifact_id(&artifact);
+    artifact.validate_identity().unwrap();
+    artifact
 }
 
 /// One run paired with its reconstructed support cell.
@@ -1370,9 +1477,8 @@ impl RelationalClassifiedChunk {
 
 /// Exhaustively evaluate one canonical chunk through the checked query.
 ///
-/// This compatibility entry point is intentionally a one-slice wrapper over
-/// [`classify_relational_case_chunk_slice`]. It therefore produces exactly the
-/// same final artifact as any other contiguous slice schedule.
+/// This compatibility entry point streams bounded slices even for a larger
+/// page. It produces the same final artifact as any contiguous slice schedule.
 pub(crate) fn classify_relational_case_chunk<R: RelationalExpressionRuntime>(
     checked: &CheckedExploreQueryView<'_>,
     plan: &RelationalSupportPlan,
@@ -1381,36 +1487,31 @@ pub(crate) fn classify_relational_case_chunk<R: RelationalExpressionRuntime>(
     chunk_injectivity: &SupportCellEvidence<InjectiveMappingClaim>,
     runtime: &mut R,
 ) -> Result<RelationalClassifiedChunk, RelationalClassifiedSweepError> {
-    let chunk = verified_chunk_partition
-        .partition()
-        .chunks()
-        .get(chunk_ordinal)
-        .ok_or(RelationalClassifiedSweepError::ChunkOrdinalOutOfBounds)?;
-    let member_count = u16::try_from(chunk.descriptor().cardinality()).map_err(|_| {
-        RelationalClassifiedSweepError::InvalidArtifactShape(
-            "canonical classified chunk exceeds the u16 slice bound",
-        )
-    })?;
-    let member_limit = NonZeroU16::new(member_count).ok_or(
-        RelationalClassifiedSweepError::InvalidArtifactShape("canonical classified chunk is empty"),
-    )?;
-    let slice = classify_relational_case_chunk_slice(
-        checked,
-        plan,
-        verified_chunk_partition,
-        chunk_ordinal,
-        chunk_injectivity,
-        None,
-        member_limit,
-        runtime,
-    )?;
-    finalize_relational_classified_case_chunk(
-        plan,
-        verified_chunk_partition,
-        chunk_ordinal,
-        chunk_injectivity,
-        slice.accumulator(),
-    )
+    let member_limit = NonZeroU16::new(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1 as u16)
+        .expect("the fixed execution quantum is nonzero and fits u16");
+    let mut prior = None;
+    loop {
+        let slice = classify_relational_case_chunk_slice(
+            checked,
+            plan,
+            verified_chunk_partition,
+            chunk_ordinal,
+            chunk_injectivity,
+            prior.as_ref(),
+            member_limit,
+            runtime,
+        )?;
+        if slice.accumulator().is_complete() {
+            return finalize_relational_classified_case_chunk(
+                plan,
+                verified_chunk_partition,
+                chunk_ordinal,
+                chunk_injectivity,
+                slice.accumulator(),
+            );
+        }
+        prior = Some(slice.accumulator().clone());
+    }
 }
 
 /// Evaluate a caller-bounded nonempty contiguous slice of one canonical chunk.
@@ -1503,8 +1604,9 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
 
     let descriptor = chunk.descriptor();
     let slice_start = accumulator.next_coordinate;
+    let member_limit = u128::from(max_members.get()).min(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1);
     let slice_end_exclusive = slice_start
-        .checked_add(u128::from(max_members.get()))
+        .checked_add(member_limit)
         .unwrap_or(u128::MAX)
         .min(descriptor.interval_end_exclusive());
     if slice_start >= slice_end_exclusive {
@@ -1514,7 +1616,7 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
     }
 
     let transcript_root_before = accumulator.transcript_root;
-    let mut materialized = Vec::with_capacity(usize::from(max_members.get()));
+    let mut materialized = Vec::with_capacity(member_limit as usize);
     for coordinate in slice_start..slice_end_exclusive {
         let finite_ordinals = decode_relational_case_chunk_finite_ordinals(
             chunk_partition,
@@ -1572,7 +1674,14 @@ pub(crate) fn classify_relational_case_chunk_slice_with_backend<
         );
 
         match raw_runs.last_mut() {
-            Some(previous) if previous.outcome.eq(outcome) => {
+            Some(previous)
+                if can_merge_run_outcomes(
+                    &previous.outcome,
+                    outcome,
+                    coordinate,
+                    descriptor.interval_start(),
+                ) =>
+            {
                 previous.interval_end_exclusive = coordinate
                     .checked_add(1)
                     .ok_or(RelationalClassifiedSweepError::CardinalityOverflow)?;
@@ -1692,7 +1801,12 @@ pub(crate) fn reverify_relational_classified_chunk_slice_artifact(
         match accumulator.runs.last_mut() {
             Some(previous)
                 if previous.interval_end_exclusive == run.interval_start
-                    && previous.outcome.eq(&run.outcome) =>
+                    && can_merge_run_outcomes(
+                        &previous.outcome,
+                        &run.outcome,
+                        run.interval_start,
+                        accumulator.interval_start,
+                    ) =>
             {
                 previous.interval_end_exclusive = run.interval_end_exclusive;
             }
@@ -1830,8 +1944,8 @@ fn validate_accumulator_scope(
         || accumulator.next_coordinate < accumulator.interval_start
         || accumulator.next_coordinate > accumulator.interval_end_exclusive
         || accumulator.runs.len()
-            > usize::try_from(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1)
-                .expect("the V1 classified chunk bound fits usize")
+            > usize::try_from(RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES)
+                .expect("the bounded page run limit fits usize")
     {
         return Err(RelationalClassifiedSweepError::ClassifiedAccumulatorScopeMismatch);
     }
@@ -1865,10 +1979,23 @@ fn validate_accumulator_scope(
         run.outcome.validate(&question_set)?;
         if run.interval_start != next_start
             || run.interval_end_exclusive > accumulator.next_coordinate
+            || !selected_run_within_quantum(
+                &run.outcome,
+                run.interval_start,
+                run.interval_end_exclusive,
+                accumulator.interval_start,
+            )
             || index
                 .checked_sub(1)
                 .and_then(|previous| accumulator.runs.get(previous))
-                .is_some_and(|previous| previous.outcome.eq(&run.outcome))
+                .is_some_and(|previous| {
+                    can_merge_run_outcomes(
+                        &previous.outcome,
+                        &run.outcome,
+                        run.interval_start,
+                        accumulator.interval_start,
+                    )
+                })
         {
             return Err(RelationalClassifiedSweepError::InvalidAccumulatorShape(
                 "classified accumulator runs are not a maximal contiguous prefix",
@@ -2320,6 +2447,46 @@ fn outcome_counts_from_descriptors(
         )?;
     }
     Ok((rejected, admitted, admitted_selected))
+}
+
+// Selected runs must remain bounded inputs to the existing concrete
+// materializer. Cut them at page-relative 256-coordinate boundaries, not at
+// operational slice boundaries, so changing a time quantum cannot change IDs.
+// Harmless/rejected runs may coalesce across the whole page.
+fn can_merge_run_outcomes(
+    left: &RelationalClassifiedCaseOutcome,
+    right: &RelationalClassifiedCaseOutcome,
+    boundary: u128,
+    page_start: u128,
+) -> bool {
+    left == right
+        && (!left.any_selected()
+            || boundary
+                .checked_sub(page_start)
+                .is_some_and(|offset| offset % RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1 != 0))
+}
+
+fn selected_run_within_quantum(
+    outcome: &RelationalClassifiedCaseOutcome,
+    start: u128,
+    end: u128,
+    page_start: u128,
+) -> bool {
+    if !outcome.any_selected() {
+        return true;
+    }
+    match (
+        start.checked_sub(page_start),
+        end.checked_sub(1)
+            .and_then(|last| last.checked_sub(page_start)),
+    ) {
+        (Some(first), Some(last)) => {
+            first <= last
+                && first / RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1
+                    == last / RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1
+        }
+        _ => false,
+    }
 }
 
 fn outcome_counts_from_slice_runs(

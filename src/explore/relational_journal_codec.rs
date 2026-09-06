@@ -58,6 +58,7 @@ use super::relational_bounded_chunk_partition::{
     RelationalCaseChunkDescriptor, RelationalCaseChunkId, RelationalCaseChunkPartitionArtifact,
     RelationalCaseChunkPartitionArtifactId, RelationalCaseChunkPartitionError,
     RelationalCaseChunkShape, RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1,
+    RELATIONAL_CASE_CHUNK_MAX_PAGES, RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
 };
 use super::relational_candidate_schedule::RelationalCandidateNominationRoot;
 use super::relational_case_executor::{
@@ -181,7 +182,7 @@ use crate::{
     ExploreOptimizeDirection,
 };
 
-pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 24;
+pub(crate) const RELATIONAL_JOURNAL_CODEC_SCHEMA_VERSION: u32 = 25;
 
 // Stable family marker; the following two u32 fields carry the independently
 // checked codec and semantic-journal schema generations.
@@ -3107,6 +3108,13 @@ fn decode_case_chunk_partition_artifact(
     let interval_end_exclusive = reader.u128()?;
     let max_chunk_coordinates = reader.u128()?;
     let chunk_count = reader.collection_len("case-chunk partition children")?;
+    if chunk_count as u128 > RELATIONAL_CASE_CHUNK_MAX_PAGES {
+        return Err(RelationalJournalCodecError::DeclaredLengthTooLarge {
+            component: "case-chunk partition children",
+            claimed: chunk_count as u64,
+            limit: RELATIONAL_CASE_CHUNK_MAX_PAGES as usize,
+        });
+    }
     let mut chunks = Vec::new();
     chunks.try_reserve_exact(chunk_count).map_err(|_| {
         RelationalJournalCodecError::AllocationFailed {
@@ -3439,11 +3447,11 @@ fn decode_classified_chunk_artifact(
         admitted_selected_counts.push(reader.u128()?);
     }
     let run_count = reader.collection_len("classified chunk runs")?;
-    if run_count > 256 {
+    if run_count as u128 > RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES {
         return Err(RelationalJournalCodecError::DeclaredLengthTooLarge {
             component: "classified chunk runs",
             claimed: run_count as u64,
-            limit: 256,
+            limit: RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES as usize,
         });
     }
     let mut runs = Vec::new();
@@ -7963,6 +7971,33 @@ mod tests {
     use super::super::relational_journal::{RelationalJournal, RelationalJournalContract};
     use super::*;
     use sha2::{Digest, Sha256};
+
+    #[test]
+    fn maximum_alternating_page_fits_bounded_durable_frame_and_round_trips() {
+        let artifact =
+            super::super::relational_classified_sweep::alternating_maximum_page_codec_fixture();
+        let limits =
+            super::super::relational_durable_journal::RelationalDurableJournalLimits::default();
+        let mut encoder = Encoder::new(limits.codec());
+        encode_classified_chunk_artifact(&mut encoder, &artifact).unwrap();
+        let bytes = encoder.finish();
+        assert!(
+            bytes.len() + ENTRY_FIXED_BYTES + RELATIONAL_JOURNAL_PACKED_ENTRY_PREFIX_BYTES
+                < limits.segment().max_frame_bytes()
+        );
+        assert_eq!(artifact.runs().len(), 65_536);
+        assert_eq!(artifact.runs().last().unwrap().ordinal(), u16::MAX);
+        assert!(
+            bytes.len() > 1 << 20,
+            "fixture must exercise more than the former physical frame cap"
+        );
+        let mut reader = Reader::new(&bytes, limits.codec());
+        assert_eq!(
+            decode_classified_chunk_artifact(&mut reader).unwrap(),
+            artifact
+        );
+        reader.finish().unwrap();
+    }
 
     fn mechanism_only_analysis_plan(
         certificate_id: RelationalEndpointTotalityCertificateId,

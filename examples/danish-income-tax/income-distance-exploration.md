@@ -95,14 +95,30 @@ needed concrete work. That is a rough extrapolation from the earlier workload,
 not a benchmark or completion estimate for this new query. Preparation,
 retained evidence, replay and publication also cost time and memory.
 
-Two practical bounds are now explicit:
+The execution uses a bounded two-level page layout:
 
 - Advisory slab nomination stops after 16,384 attempts. Unnominated chunks
   remain in the exact residual schedule.
-- The eager 256-rank partition accelerator stops before allocating more than
-  65,536 descriptors. The full grid would need 628,127. This keeps its descriptor
-  payload below 8 MiB within the default 16-MiB journal-entry limit; larger
-  searches retain the ordinary bounded concrete path.
+- A canonical directory contains at most 4,096 pages. Page width starts at 256
+  ranks and doubles until that directory fits, with a hard ceiling of 65,536
+  unit transitions per page. The declared grid therefore has **2,454 pages**,
+  not 628,127 retained fine-grained descriptors. The directory is eager but
+  bounded; concrete slices within a page are generated on demand.
+- Concrete classification slices and native batches remain at most **256**
+  transitions. Each slice is durably resumable. Equal harmless/rejected
+  outcomes coalesce across the page; selected runs are additionally split at
+  page-relative 256-rank boundaries so finding materialization stays bounded.
+  Those splits are independent of operational slice size and pause timing.
+- The physical journal frame is bounded to 8 MiB and its segment to 16 MiB.
+  A maximal 65,536-run alternating single-question page must fit even without
+  compression; the codec regression checks that worst case. This changes small
+  physical buffer limits, not the host-wide CPU/RAM governor. Larger question
+  vectors still have to satisfy the codec's byte limit.
+
+This two-level accelerator covers roots up to 268,435,456 raw candidates;
+larger roots conservatively retain the ordinary fallback. It is not an
+arbitrary-depth lazy partition tree. Page width is derived from population and
+fixed implementation bounds, never from tax thresholds or observed outcomes.
 
 The affine evaluator also caps axes, evaluation work, call depth and retained
 value trees. These are optimization limits, not permission to omit cases.
@@ -125,9 +141,8 @@ Use distinct writable private directories. Repeat the same command to resume;
 changing the query requires fresh run state. A paused empty finding set is not
 an exact-empty answer. Check each count's status and all admission exclusions.
 
-For the next *useful cliff search*, replace point-level full-grid accounting
-with compact batching and lazy/hierarchical regional partitions, then finish
-proof lowering for the actual rule families. Then let checked
+For the next *useful cliff search*, measure the new compact page path on the
+canonical model, then finish proof lowering for the actual rule families. Let checked
 boundaries prioritize unit-resolution neighborhoods in **both** dimensions,
 and discharge the rest with regional proofs or concrete evaluation. Coarse
 scans can inform the order but cannot replace the unit-edge coverage obligation.
@@ -148,7 +163,9 @@ The outstanding work is tracked explicitly:
 
 - `td-f699c8`: bounded finite-list callback proofs for canonical endpoint
   preparation; implemented and verified through real execution and cold resume.
-- `td-7ba30c`: paged/hierarchical product partitions with bounded retained state.
+- `td-7ba30c`: bounded two-level page partitions and native batches; implemented,
+  with focused tests and full-size synthetic closure passing; the real-model
+  page measurement is recorded below.
 - `td-966941`: checked rule-dispatch and required collection/rounding proof
   lowering, followed by measured canonical Personskat regional closure.
 
@@ -158,9 +175,13 @@ replay-derived mechanisms for findings, and measured operation within the host
 resource policy—not merely a small number of discovered mechanisms.
 
 This changes Experimental optimization behavior and artifacts, not core source
-syntax or tax semantics. Regional proof schema is now 4, scheduler policy 4 and
-journal schema 29 / codec 24. Old codec-23 journals are rejected explicitly; keep their
-artifacts for historical evidence and start fresh state with this compiler.
+syntax or tax semantics. Page-partition schema is now 4, classified-page schema
+4, slice schema 3, scheduler policy 5 and journal schema 30 / codec 25; regional
+proof schema remains 4. Codec-24 and earlier journals are rejected explicitly.
+Keep their artifacts for historical evidence and start fresh state in distinct
+directories. There is no in-place migration: the historical prefix below is not
+silently imported into a new page-based answer. Cold resume is verified within
+the new format.
 
 ## Verification
 
@@ -171,7 +192,7 @@ using four regional certificates rather than point classification. Candidate
 and canonical schedules preserve exact finding identities and evidence roots;
 product prefixes are encoded, cold-replayed and resumed. Geometry tests cover
 equal-size axes, nonzero starts, intersected slabs, nomination caps and the
-full-grid eager-metadata refusal. Forged coordinate-kind certificates cannot
+full-grid bounded page directory. Forged coordinate-kind certificates cannot
 replay even after their structural hashes are recomputed.
 
 ### Initial foundation checks recorded on 2026-09-06
@@ -277,7 +298,9 @@ Checks (using the existing shared Cargo target cache and one build job):
   `--time-limit 45s --json`: 798 not selected, two selected, all closures exact.
   It retained sequence 156, two journal segments, and journal head
   `fe011ba2b7af79237f1099a291ffb9fa2efe01c9abb74d5aab7ceaf4546356fc`,
-  without appending semantic events. Existing codec-24 state remains readable.
+  without appending semantic events. Codec-24 state remained readable at that
+  endpoint-proof revision (`0ce37766`); the subsequent paging revision requires
+  fresh codec-25 state, as explained above.
 
 These are endpoint-proof and replay results, not classified tax cases or an
 exact answer for the full income/commuting grid.
@@ -300,8 +323,8 @@ not an exact-empty answer. Relation, finding and analysis closure remain open.
 Its durable journal had 70 segments, next sequence 287,957, and head
 `2aa53f28940e7f2959f97d05085581953c5d5522b8512d376baa75af18809593`.
 
-This prefix retained about **174 MiB** of run state. The eager-partition cap
-currently sends this large grid through point-level records and one-subject
+This prefix retained about **174 MiB** of run state. At that revision, the
+eager-partition cap sent this large grid through point-level records and one-subject
 native calls instead of compact classified sweeps. That measured representation
 cannot scale to the whole grid within the available disk. `td-7ba30c` must
 restore compact batching and bounded regional partitions before attempting
@@ -320,3 +343,111 @@ selected cases so far. The resumed state has 77 segments and occupies about
 188 MiB. Reported maximum RSS was 1,392,541,696 bytes; CPU pacing paused once
 for 1.124s. Further point-only exhaustion is intentionally deferred while the
 compact full-grid partition path is implemented.
+
+### Bounded page continuation on 2026-09-06
+
+The two-level layout above replaces the fine-descriptor cutoff. It retains a
+bounded directory, not an arbitrary-depth lazy tree. A page proof must still
+hold throughout its exact region, and unsupported pages remain concrete work.
+Selected runs have canonical 256-coordinate cuts, so a long selected page
+cannot overflow the existing bounded finding-materialization path.
+
+Using the shared target cache and one build job:
+
+- `cargo test --lib --jobs 1 -- paged_ canonical_page_directory maximum_alternating_page full_income_distance_grid income_distance product_ relational_region_proof --skip personskat_ --test-threads=1`
+  passed **24 tests** in 10.32s. Coverage includes full-grid page geometry,
+  thresholds/capacity/overflow, repaired-hash child forgery, a 65,536-run
+  alternating codec payload, a 512-point cold resume at point 17, uniform
+  selection across differently sized slices, and the existing independent
+  small-product oracles. Selected materializations retain all 512 distinct
+  cases in two bounded runs. An earlier lane also passed the actual canonical
+  endpoint regression; its sole malformed test-source newline was corrected
+  and retested, not a compiler failure.
+- The already-built library test binary ran
+  `relational_public::regional_stream_acceptance_tests relational_journal_codec relational_durable_journal --test-threads=1`:
+  **35 passed, one failed** in 15.66s. That failure is the same baseline plural
+  publication test recorded above.
+- `cargo build --release --bin runa --jobs 1` passed in 5m39s. The rebuilt
+  `runa verify tests/verify_test.runa` proved 5/5 invariants. Rust formatting and
+  `git diff --check` passed.
+- `CARGO_BUILD_JOBS=1 nice -n 15 ./scripts/canary.sh core` passed formatting for
+  12 fixtures and compiled execution for 10/12. The same two baseline newline
+  fixtures failed generated-Rust compilation; later canary stages were not
+  reached.
+- `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 nice -n 15 ./scripts/mint.sh` stopped
+  at its library test stage: **702 passed, 17 failed** in 880.55s. The failure
+  set is unchanged from the independently reproduced baseline; later mint
+  stages were not reached. The required gate remains red under `td-ce0146`.
+  No gate or host-wide reserve was disabled. The differential lane was not
+  rerun because this change affects proof/partition/replay behavior, not
+  parsing, type inference, lowering, ownership or generated-code semantics.
+
+A full-size **synthetic affine** CLI fixture used the same 160,800,402 raw-rank
+product, with all successors admitted deliberately. It is an engine check,
+not Personskat and not the canonical endpoint-exclusion policy. The first two
+attempts stopped at sequence zero with `resource_reserve_backoff`; independent
+host samples showed CPU idle as low as 6–14 percent during macOS indexing and
+storage-management activity. Those attempts produced no classification evidence.
+
+A same-state retry with the ordinary governor and `nice -n 15`, `--time-limit
+3m --json`, completed in **29.56s**. All **160,800,402** candidates were exactly
+admitted and not selected, with zero selected and rejected; all closures were
+exact. The case/support seal independently reports **2,454** classified pages
+and **2,454** certified regions, zero authorized individual case records, and
+exact logical coverage 160,800,402. The run retained about **6.6 MiB** of state
+and 4.9 MiB of output. Reported maximum RSS was **95,076,352 bytes**. This was
+a governed correctness/resource checkpoint on a busy host with the low-priority
+test gate also active, not a clean throughput benchmark.
+
+Cold reopen with `--time-limit 45s --json` completed in **5.13s**, appended zero
+semantic events, and preserved sequence **22,112**, one segment, and head
+`1a5c61294d64a92557989f90f3671e8aa0fef65276121e6b9eeec9bb555ddd70`.
+Reported maximum RSS was 80,412,672 bytes; CPU pacing paused once for 1.128s.
+This proves that a full-size exact answer can be compact and replayable when
+the classification theorem is supported. Canonical tax-model closure remains
+the separate requirement below.
+
+Most real-query pages contain some outward-pointing successors, so admission
+is mixed even before tax validity is considered. The existing regional prover
+requires uniformly admitted, not-selected regions. Canonical scaling therefore
+needs proof-derived subregions or exact mixed-admission accounting as well as
+rule-dispatch/collection/rounding support (`td-966941`). Merely recognizing a
+repeated tax mechanism cannot discharge those obligations.
+
+The first actual Personskat invocation with fresh codec-25 state and a
+10-minute limit exited normally after **493.38s**, paused for
+`resource_reserve_backoff` at sequence zero. It recorded 37 CPU pauses totaling
+55.197s and maximum RSS 1,429,585,920 bytes. That attempt produced no semantic
+classification evidence.
+
+A same-state three-minute retry exited normally after **173.85s** at its
+runtime limit. It proved the exact **160,800,402** source/case population and
+appended 12 semantic batches / 31 events. The checkpoint had one segment, head
+`8602163e98fabd53ecd9b1316b04cf9c69cd68cf399a87f7beba020c02328142`,
+and about **284 KiB** of state. Maximum RSS was 1,403,699,200 bytes; two CPU
+pauses totaled 2.249s. No classified page was complete, so every published
+classification count remained a lower bound of zero and all closures remained
+open. A pending concrete slice is resumable evidence, but does not count as a
+completed page in the published totals. This is not a new exact-empty tax answer.
+
+A further cold resume, with a ten-minute limit and phase/slice tracing,
+recovered that checkpoint and evaluated **8,307 new unit transitions** in
+63 concrete slices, with a measured maximum of **256** transitions per slice.
+It appended 126 events, then exited normally after **316.57s** for
+`resource_reserve_backoff`. The checkpoint advanced to sequence **157**, head
+`0e4ff1a0c92d1ce11d7f6c30f3be7ac3602eb117c88ea0013fddfe77e5833d11`,
+18 segments and about **392 KiB** of retained state. Preparation took 109.395s;
+the cached native evaluator was reused in 227ms. Maximum RSS was
+1,382,547,456 bytes; 13 CPU pauses totaled 21.287s. The slice count comes from
+successful append traces, not a completed-page report. The first 65,536-point
+page remains unfinished and published classification counts remain lower bounds
+of zero. This is concrete evidence of bounded real-model batching and compact
+partial retention, not proof that the full tax grid is cliff-free.
+
+Cold reopen of that larger pending prefix, with a four-minute limit, recovered
+the same 18 segments, sequence 157 and journal head without appending events.
+It exited normally after 111.49s for `resource_reserve_backoff`; preparation
+took 94.177s and maximum RSS was 1,373,880,320 bytes. Two CPU pauses totaled
+3.379s. This verifies recovery of the real partial-page checkpoint, but the
+resource pause supplies no additional classified cases. The next implementation
+step is canonical regional proof support, not an unattended point-only sweep.

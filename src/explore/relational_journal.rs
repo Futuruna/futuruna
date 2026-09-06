@@ -133,11 +133,11 @@ use super::transition::canonical_explore_value_digest;
 use super::transition::{ContextSchemaId, StateSchemaId, TransitionTypeId};
 use super::ExploreValue;
 
-pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 29;
+pub(crate) const RELATIONAL_JOURNAL_SCHEMA_VERSION: u32 = 30;
 /// V3 adds distinct authenticated SourceEvent and LiftedCandidate decisions.
 /// The ordering and reason are observable journal policy, even though neither
 /// participates in arrival-order-independent semantic evidence roots.
-pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 4;
+pub(crate) const RELATIONAL_SCHEDULER_POLICY_VERSION: u32 = 5;
 
 const JOURNAL_CONTRACT_HASH_V28: &[u8] = b"futuruna.explore.relational-journal-contract.v28";
 const JOURNAL_GENESIS_HASH_V28: &[u8] = b"futuruna.explore.relational-journal-genesis.v28";

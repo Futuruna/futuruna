@@ -29,6 +29,12 @@
 //! question set. The partition remains shared structural scheduling data: it
 //! has no primary question, and an empty set is valid when the enclosing
 //! support plan permits one.
+//!
+//! V4 separates a bounded page directory from concrete execution quanta.
+//! The canonical page width doubles from 256 until at most 4,096 pages cover
+//! the exact root. A page contains at most 65,536 unit coordinates; its
+//! concrete slices remain at most 256 and are generated only when visited.
+//! Neither page width nor compression changes the underlying finite relation.
 
 use std::collections::BTreeSet;
 use std::error::Error;
@@ -56,16 +62,16 @@ use super::support_cell::{
 
 pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1: u32 = 1;
 pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2: u32 = 2;
-pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION: u32 = 3;
+pub(crate) const RELATIONAL_CASE_CHUNK_PARTITION_VERSION: u32 = 4;
 
 /// Semantic V1 ceiling for one later exhaustive classification chunk.
 pub(crate) const RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1: u128 = 256;
 
-// Until canonical partition artifacts are paged, cap their eager expansion.
-// At 112 encoded bytes per descriptor this keeps the descriptor array below
-// 8 MiB, leaving room inside the default 16-MiB journal entry limit. Declining
-// this accelerator preserves the ordinary bounded concrete scheduler.
-const MAX_EAGER_CASE_CHUNKS: u128 = 65_536;
+/// Bounded directory; fine-grained execution slices are never all allocated.
+pub(crate) const RELATIONAL_CASE_CHUNK_MAX_PAGES: u128 = 4_096;
+/// Includes the worst case of one distinct classification run per coordinate.
+/// The maximum run ordinal still fits u16; native batches remain <=256.
+pub(crate) const RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES: u128 = 65_536;
 
 const CASE_CHUNK_ID_V1: &[u8] = b"futuruna.explore.relational-case-chunk.id.v1";
 const CASE_CHUNK_PARTITION_ARTIFACT_ID_V1: &[u8] =
@@ -77,11 +83,11 @@ const CASE_CHUNK_PARTITION_ARTIFACT_ID_V2: &[u8] =
     b"futuruna.explore.relational-case-chunk.partition-artifact.v2";
 const CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V2: &[u8] =
     b"futuruna.explore.relational-case-chunk.restricted-injectivity-proof.v2";
-const CASE_CHUNK_ID_V3: &[u8] = b"futuruna.explore.relational-case-chunk.id.v3";
-const CASE_CHUNK_PARTITION_ARTIFACT_ID_V3: &[u8] =
-    b"futuruna.explore.relational-case-chunk.partition-artifact.v3";
-const CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V3: &[u8] =
-    b"futuruna.explore.relational-case-chunk.restricted-injectivity-proof.v3";
+const CASE_CHUNK_ID_V4: &[u8] = b"futuruna.explore.relational-case-chunk.id.v4";
+const CASE_CHUNK_PARTITION_ARTIFACT_ID_V4: &[u8] =
+    b"futuruna.explore.relational-case-chunk.partition-artifact.v4";
+const CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V4: &[u8] =
+    b"futuruna.explore.relational-case-chunk.restricted-injectivity-proof.v4";
 
 /// Canonical coordinate shape recognized by the versioned planner.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -371,11 +377,6 @@ impl RelationalCaseChunkPartitionArtifact {
                 "artifact question set is not canonical",
             ));
         }
-        if self.max_chunk_coordinates != RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1 {
-            return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
-                "artifact chunk maximum is not the fixed semantic maximum",
-            ));
-        }
         if !self.shape.factor_index_is_canonical(self.factor_index) {
             return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
                 "shape tag and factor index disagree",
@@ -392,12 +393,17 @@ impl RelationalCaseChunkPartitionArtifact {
             ));
         }
         let cardinality = self.interval_end_exclusive - self.interval_start;
+        if canonical_page_width(cardinality) != Some(self.max_chunk_coordinates) {
+            return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
+                "artifact page width is not the canonical bounded directory width",
+            ));
+        }
         if cardinality <= self.max_chunk_coordinates || self.chunks.len() < 2 {
             return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
                 "partition artifact must split a root larger than one bounded chunk",
             ));
         }
-        let expected_chunk_count = canonical_chunk_count(cardinality);
+        let expected_chunk_count = canonical_chunk_count(cardinality, self.max_chunk_coordinates);
         if u128::try_from(self.chunks.len()).ok() != Some(expected_chunk_count) {
             return Err(RelationalCaseChunkPartitionError::InvalidArtifactShape(
                 "artifact chunk count is not canonical",
@@ -441,6 +447,7 @@ impl RelationalCaseChunkPartitionArtifact {
                 self.root_materializer_id,
                 self.shape,
                 self.factor_index,
+                self.max_chunk_coordinates,
                 chunk.ordinal,
                 chunk.cell_id,
                 chunk.interval_start,
@@ -708,21 +715,23 @@ pub(crate) fn plan_relational_bounded_case_chunks(
         });
     }
 
-    let required_chunks = canonical_chunk_count(interval_cardinality);
-    if required_chunks > MAX_EAGER_CASE_CHUNKS {
+    let Some(max_chunk_coordinates) = canonical_page_width(interval_cardinality) else {
         return Ok(RelationalCaseChunkPlanningOutcome::Unsupported(
             RelationalCaseChunkUnsupported::PartitionArtifactBudgetExceeded {
-                required_chunks,
-                maximum_chunks: MAX_EAGER_CASE_CHUNKS,
+                required_chunks: canonical_chunk_count(
+                    interval_cardinality,
+                    RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES,
+                ),
+                maximum_chunks: RELATIONAL_CASE_CHUNK_MAX_PAGES,
             },
         ));
-    }
-    let mut raw_chunks = Vec::with_capacity(chunk_capacity(interval_cardinality)?);
+    };
+    let mut raw_chunks =
+        Vec::with_capacity(chunk_capacity(interval_cardinality, max_chunk_coordinates)?);
     let mut interval_start = recognized.start;
     let mut ordinal = 0u128;
     while interval_start < recognized.end_exclusive {
-        let width = (recognized.end_exclusive - interval_start)
-            .min(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1);
+        let width = (recognized.end_exclusive - interval_start).min(max_chunk_coordinates);
         let interval_end_exclusive = interval_start.checked_add(width).ok_or(
             RelationalCaseChunkPartitionError::ArtifactCapacityExceeded(
                 "chunk interval endpoint exceeds u128",
@@ -807,6 +816,7 @@ pub(crate) fn plan_relational_bounded_case_chunks(
                 root.materializer_id(),
                 recognized.shape,
                 factor_index,
+                max_chunk_coordinates,
                 ordinal,
                 cell.id(),
                 start,
@@ -846,7 +856,7 @@ pub(crate) fn plan_relational_bounded_case_chunks(
         factor_index,
         interval_start: recognized.start,
         interval_end_exclusive: recognized.end_exclusive,
-        max_chunk_coordinates: RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1,
+        max_chunk_coordinates,
         chunks: descriptors,
         partition_id: certificate.id(),
     };
@@ -1290,16 +1300,141 @@ fn child_expression(
     }
 }
 
-const fn canonical_chunk_count(cardinality: u128) -> u128 {
-    (cardinality - 1) / RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1 + 1
+const fn canonical_chunk_count(cardinality: u128, width: u128) -> u128 {
+    (cardinality - 1) / width + 1
 }
 
-fn chunk_capacity(cardinality: u128) -> Result<usize, RelationalCaseChunkPartitionError> {
-    usize::try_from(canonical_chunk_count(cardinality)).map_err(|_| {
+fn canonical_page_width(cardinality: u128) -> Option<u128> {
+    if cardinality == 0 {
+        return None;
+    }
+    let mut width = RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1;
+    while canonical_chunk_count(cardinality, width) > RELATIONAL_CASE_CHUNK_MAX_PAGES {
+        if width == RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES {
+            return None;
+        }
+        width = width.checked_mul(2)?;
+    }
+    Some(width)
+}
+
+fn chunk_capacity(
+    cardinality: u128,
+    width: u128,
+) -> Result<usize, RelationalCaseChunkPartitionError> {
+    usize::try_from(canonical_chunk_count(cardinality, width)).map_err(|_| {
         RelationalCaseChunkPartitionError::ArtifactCapacityExceeded(
             "canonical chunk count exceeds addressable memory",
         )
     })
+}
+
+#[cfg(test)]
+mod page_tests {
+    use super::super::relational_support_planner::RelationalSupportPlanner;
+    use super::*;
+    use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    fn canonical_page_directory_bounds_cover_thresholds_and_refuse_overflow() {
+        let base = RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1;
+        let directory = RELATIONAL_CASE_CHUNK_MAX_PAGES;
+        assert_eq!(canonical_page_width(0), None);
+        assert_eq!(canonical_page_width(1), Some(base));
+        assert_eq!(canonical_page_width(base * directory), Some(base));
+        assert_eq!(canonical_page_width(base * directory + 1), Some(base * 2));
+        assert_eq!(canonical_page_width(160_800_402), Some(65_536));
+        let maximum = directory * RELATIONAL_CASE_CHUNK_MAX_PAGE_COORDINATES;
+        assert_eq!(canonical_page_width(maximum), Some(65_536));
+        assert_eq!(canonical_page_width(maximum + 1), None);
+        assert_eq!(canonical_page_width(u128::MAX), None);
+        for power in 8..=16 {
+            let width = 1u128 << power;
+            for size in [width * directory - 1, width * directory] {
+                let actual = canonical_page_width(size).unwrap();
+                assert_eq!(actual, width);
+                assert!(canonical_chunk_count(size, actual) <= directory);
+                assert!(canonical_chunk_count(size, actual / 2) > directory);
+            }
+        }
+    }
+
+    #[test]
+    fn paged_partition_rejects_noncanonical_geometry_and_rehashed_child_forgery() {
+        let source = r#"
+? explore paged_partition {
+    from {
+        vary before in range(0, 1048577)
+        given context = ()
+    }
+    transition after = before + 1
+    find cases = all
+}
+"#;
+        let statements = Parser::new(Lexer::new(source).tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts.checked_exploration_query(0).unwrap();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let image = prove_relational_case_image_injectivity(&plan).unwrap();
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(&plan, &image).unwrap()
+        else {
+            panic!("large exact root must have pages");
+        };
+        assert_eq!(partition.artifact.max_chunk_coordinates, 512);
+        reverify_relational_case_chunk_partition_artifact(
+            partition.artifact(),
+            &plan,
+            image.injectivity(),
+        )
+        .unwrap();
+        for mutation in 0..4 {
+            let mut forged = partition.artifact.clone();
+            match mutation {
+                0 => forged.max_chunk_coordinates = 256,
+                1 => forged.chunks[0].interval_end_exclusive -= 1,
+                2 => forged.chunks[1].interval_start -= 1,
+                _ => forged.interval_end_exclusive = u128::MAX,
+            }
+            forged.id = derive_artifact_id(&forged);
+            assert!(forged.validate_identity().is_err());
+        }
+        let mut forged = partition.artifact.clone();
+        let chunk = &mut forged.chunks[0];
+        chunk.cell_id = SupportCellId::from_journal_codec_bytes([0xff; 32]);
+        chunk.id = derive_chunk_id(
+            forged.plan_root,
+            forged.case_image_certificate_id,
+            forged.injectivity_evidence_id,
+            forged.root_cell_id,
+            forged.root_materializer_id,
+            forged.shape,
+            forged.factor_index,
+            forged.max_chunk_coordinates,
+            chunk.ordinal,
+            chunk.cell_id,
+            chunk.interval_start,
+            chunk.interval_end_exclusive,
+        );
+        forged.id = derive_artifact_id(&forged);
+        forged
+            .validate_identity()
+            .expect("forgery repairs all structural hashes");
+        assert!(matches!(
+            reverify_relational_case_chunk_partition_artifact(&forged, &plan, image.injectivity()),
+            Err(RelationalCaseChunkPartitionError::ArtifactSemanticMismatch)
+        ));
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1311,6 +1446,7 @@ fn derive_chunk_id(
     root_materializer_id: SupportMaterializerId,
     shape: RelationalCaseChunkShape,
     factor_index: Option<u32>,
+    max_chunk_coordinates: u128,
     ordinal: u128,
     cell_id: SupportCellId,
     interval_start: u128,
@@ -1320,11 +1456,11 @@ fn derive_chunk_id(
     let mut hasher = CanonicalChunkHasher::new(match schema_version {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_ID_V1,
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_ID_V2,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_ID_V3,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_ID_V4,
         _ => unreachable!("case-chunk shape has a supported schema version"),
     });
     hasher.u32(schema_version);
-    hasher.u128(RELATIONAL_CASE_CHUNK_MAX_COORDINATES_V1);
+    hasher.u128(max_chunk_coordinates);
     hasher.digest(plan_root.bytes());
     hasher.digest(case_image_certificate_id);
     hasher.digest(injectivity_evidence_id.bytes());
@@ -1350,7 +1486,7 @@ fn derive_child_restricted_injectivity_proof_digest(
     let mut hasher = CanonicalChunkHasher::new(match artifact.schema_version() {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V1,
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V2,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V3,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_RESTRICTED_INJECTIVITY_PROOF_V4,
         _ => unreachable!("validated case-chunk artifact version"),
     });
     hasher.u32(artifact.schema_version());
@@ -1377,7 +1513,7 @@ fn derive_artifact_id(
     let mut hasher = CanonicalChunkHasher::new(match artifact.schema_version {
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V1 => CASE_CHUNK_PARTITION_ARTIFACT_ID_V1,
         RELATIONAL_CASE_CHUNK_PARTITION_VERSION_V2 => CASE_CHUNK_PARTITION_ARTIFACT_ID_V2,
-        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_PARTITION_ARTIFACT_ID_V3,
+        RELATIONAL_CASE_CHUNK_PARTITION_VERSION => CASE_CHUNK_PARTITION_ARTIFACT_ID_V4,
         _ => unreachable!("validated case-chunk artifact version"),
     });
     hasher.u32(artifact.schema_version);

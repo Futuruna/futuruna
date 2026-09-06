@@ -1044,7 +1044,7 @@ mod tests {
     }
 
     #[test]
-    fn full_income_distance_grid_declines_eager_metadata_before_allocation() {
+    fn full_income_distance_grid_has_bounded_page_directory_and_exact_cover() {
         let source = r#"
 # Starter(income: Int, distance: Int)
 ? explore full_grid {
@@ -1073,13 +1073,30 @@ mod tests {
             .plan()
             .unwrap();
         let image = prove_relational_case_image_injectivity(&plan).unwrap();
-        assert!(matches!(plan_relational_bounded_case_chunks(&plan, &image).unwrap(),
-            RelationalCaseChunkPlanningOutcome::Unsupported(
-                super::super::relational_bounded_chunk_partition::RelationalCaseChunkUnsupported::PartitionArtifactBudgetExceeded {
-                    required_chunks: 628_127, maximum_chunks: 65_536,
-                }
-            )
-        ));
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(&plan, &image).unwrap()
+        else {
+            panic!("full grid must retain compact classification");
+        };
+        assert_eq!(partition.artifact().max_chunk_coordinates(), 65_536);
+        assert_eq!(partition.chunks().len(), 2_454);
+        assert_eq!(partition.artifact().interval_end_exclusive(), 160_800_402);
+        assert_eq!(
+            partition
+                .chunks()
+                .last()
+                .unwrap()
+                .descriptor()
+                .cardinality(),
+            40_594
+        );
+        let schedule = schedule_relational_endpoint_chunks(
+            &partition,
+            RelationalCandidateLiftDisposition::QuestionSetNotUnary,
+            5,
+        );
+        assert!(schedule.has_exact_nonoverlapping_cover(&partition));
+        assert!(!schedule.establishes_complement_closure());
     }
 
     fn assert_product_geometry(first_radix: u128, second_radix: u128, cut: u128, capped: bool) {

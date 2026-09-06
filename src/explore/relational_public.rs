@@ -6950,6 +6950,268 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn paged_uniform_selection_materializes_bounded_runs_independent_of_slice_timing() {
+        use super::super::relational_bounded_chunk_partition::{
+            plan_relational_bounded_case_chunks, reverify_relational_case_chunk_partition_artifact,
+            RelationalCaseChunkPlanningOutcome,
+        };
+        use super::super::relational_classified_sweep::{
+            classify_relational_case_chunk, classify_relational_case_chunk_slice,
+            finalize_relational_classified_case_chunk,
+        };
+        use super::super::relational_selected_run_materialization::materialize_relational_selected_run;
+        use super::super::relational_support_planner::prove_relational_case_image_injectivity;
+        use super::super::support_cell::relational_case_chunk_partition_gateway;
+        let source = r#"
+? explore paged_selected {
+    from {
+        vary before in range(0, 1048577)
+        given context = ()
+    }
+    transition after = before + 1
+    find cases = all
+}
+"#;
+        let mut prepared = prepare(source);
+        let checked = prepared.checked.view();
+        let plan = &prepared.support_plan;
+        let image = prove_relational_case_image_injectivity(plan).unwrap();
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(plan, &image).unwrap()
+        else {
+            panic!("expected pages");
+        };
+        let verified = reverify_relational_case_chunk_partition_artifact(
+            partition.artifact(),
+            plan,
+            image.injectivity(),
+        )
+        .unwrap();
+        let injectivity =
+            relational_case_chunk_partition_gateway::injectivity(&verified, 0).unwrap();
+        let direct = classify_relational_case_chunk(
+            &checked,
+            plan,
+            &verified,
+            0,
+            &injectivity,
+            &mut prepared.expression_runtime,
+        )
+        .unwrap();
+        assert_eq!(direct.artifact().runs().len(), 2);
+        for run in direct.artifact().runs() {
+            assert_eq!(run.cardinality(), 256);
+            assert!(run.outcome().any_selected());
+        }
+        let mut prior = None;
+        loop {
+            let slice = classify_relational_case_chunk_slice(
+                &checked,
+                plan,
+                &verified,
+                0,
+                &injectivity,
+                prior.as_ref(),
+                NonZeroU16::new(61).unwrap(),
+                &mut prepared.expression_runtime,
+            )
+            .unwrap();
+            if slice.accumulator().is_complete() {
+                let sliced = finalize_relational_classified_case_chunk(
+                    plan,
+                    &verified,
+                    0,
+                    &injectivity,
+                    slice.accumulator(),
+                )
+                .unwrap();
+                assert_eq!(sliced.artifact(), direct.artifact());
+                break;
+            }
+            prior = Some(slice.accumulator().clone());
+        }
+        let mut ids = BTreeSet::new();
+        for ordinal in 0..2 {
+            let materialized = materialize_relational_selected_run(
+                &checked,
+                plan,
+                &verified,
+                direct.verified(),
+                ordinal,
+                &mut prepared.expression_runtime,
+            )
+            .unwrap();
+            assert_eq!(materialized.artifact().materialized_case_count(), 256);
+            for case in materialized.artifact().cases() {
+                assert!(ids.insert(case.case_id()));
+            }
+        }
+        assert_eq!(ids.len(), 512);
+    }
+
+    #[test]
+    fn paged_classification_cold_resume_preserves_every_unit_and_slice_bounds() {
+        use super::super::relational_classified_sweep::classify_relational_case_chunk;
+        use super::super::support_cell::relational_case_chunk_partition_gateway;
+
+        let source = r#"
+? explore paged_classification {
+    from {
+        vary before in range(0, 1048577)
+        given context = ()
+    }
+    transition after = before + 1
+    where before before % 2 == 0
+    find cliffs = matches of before % 4 == 0
+}
+"#;
+        let temp = TestDirectory::new();
+        let path = temp.path().join("paged-classification");
+        let mut completed_artifact = None;
+        for epoch in 0..2 {
+            // A new checked program, runtime, driver and disk fold each time.
+            let mut prepared = prepare(source);
+            let checked = prepared.checked.view();
+            let mut driver =
+                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                    &checked,
+                    &prepared.support_plan,
+                    RelationalStreamDriverLimits::default(),
+                    None,
+                    Some(&prepared.classification_evaluator),
+                )
+                .unwrap();
+            driver.force_canonical_chunk_order_for_test();
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &path,
+                    prepared.contract.clone(),
+                    prepared.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    exact_one_region_replay_authority(&prepared),
+                )
+                .unwrap();
+            if epoch == 1 {
+                let view = durable.journal().unwrap().scheduler_view().unwrap();
+                let prior = view.classified_chunk_accumulator().unwrap().unwrap();
+                assert_eq!(prior.next_coordinate(), 17);
+                assert_eq!(prior.interval_end_exclusive(), 512);
+            }
+            let mut reached_checkpoint = false;
+            for _ in 0..64 {
+                let limit = if epoch == 0 { 17 } else { u16::MAX };
+                let outcome = driver
+                    .step_with_base_member_limit(
+                        durable.journal_mut_for_event_planning().unwrap(),
+                        &mut prepared.expression_runtime,
+                        &mut prepared.mechanism_runtime,
+                        NonZeroU16::new(limit).unwrap(),
+                    )
+                    .unwrap();
+                let RelationalStreamStepOutcome::Emitted(batch) = outcome else {
+                    panic!("page prefix unexpectedly quiesced");
+                };
+                let quantum = batch.quantum();
+                durable
+                    .append_events(
+                        batch.expected_sequence(),
+                        batch.expected_head(),
+                        batch.into_events(),
+                    )
+                    .unwrap();
+                if let RelationalStreamQuantum::Base(RelationalStepQuantum::ClassifiedSweep(
+                    slice,
+                )) = quantum
+                {
+                    assert!(slice
+                        .evaluated_member_count()
+                        .map_or(true, |count| count.get() <= 256));
+                    let view = durable.journal().unwrap().scheduler_view().unwrap();
+                    if epoch == 0 {
+                        assert_eq!(
+                            view.classified_chunk_accumulator()
+                                .unwrap()
+                                .unwrap()
+                                .next_coordinate(),
+                            17
+                        );
+                        assert_eq!(view.accepted_classified_fragment_count(), 0);
+                        reached_checkpoint = true;
+                        break;
+                    }
+                    if let Some(fragment) = view.classified_support_fragment_at(0).unwrap() {
+                        let artifact = fragment.concrete().unwrap();
+                        assert_eq!(artifact.evaluated_case_count(), 512);
+                        assert_eq!(artifact.rejected_count(), 256);
+                        assert_eq!(artifact.admitted_count(), 256);
+                        assert_eq!(artifact.admitted_selected_counts(), &[128]);
+                        assert_eq!(artifact.runs().len(), 512);
+                        for (index, run) in artifact.runs().iter().enumerate() {
+                            assert_eq!(run.interval_start(), index as u128);
+                            assert_eq!(run.interval_end_exclusive(), index as u128 + 1);
+                            let expected_admission = if index % 2 == 0 {
+                                AdmissionDecision::Admitted
+                            } else {
+                                AdmissionDecision::Rejected
+                            };
+                            assert_eq!(run.outcome().admission(), expected_admission);
+                            if index % 2 == 0 {
+                                let expected_selection = if index % 4 == 0 {
+                                    SelectionDecision::Selected
+                                } else {
+                                    SelectionDecision::NotSelected
+                                };
+                                assert_eq!(run.outcome().selection(0), Some(expected_selection));
+                            }
+                        }
+                        let verified = view.verified_case_chunk_partition().unwrap().unwrap();
+                        let injectivity =
+                            relational_case_chunk_partition_gateway::injectivity(verified, 0)
+                                .unwrap();
+                        let direct = classify_relational_case_chunk(
+                            &checked,
+                            &prepared.support_plan,
+                            verified,
+                            0,
+                            &injectivity,
+                            &mut prepared.expression_runtime,
+                        )
+                        .unwrap();
+                        assert_eq!(
+                            direct.artifact(),
+                            artifact,
+                            "slice scheduling must not change exact evidence"
+                        );
+                        completed_artifact = Some(artifact.clone());
+                        reached_checkpoint = true;
+                        break;
+                    }
+                }
+            }
+            assert!(reached_checkpoint);
+            durable.flush_for_pause().unwrap();
+        }
+        let prepared = prepare(source);
+        let durable = RelationalDurableJournal::open_or_create_with_region_replay_authority(
+            &path,
+            prepared.contract.clone(),
+            prepared.analysis_plan_root,
+            RelationalDurableJournalLimits::default(),
+            exact_one_region_replay_authority(&prepared),
+        )
+        .unwrap();
+        let view = durable.journal().unwrap().scheduler_view().unwrap();
+        assert_eq!(
+            view.classified_support_fragment_at(0)
+                .unwrap()
+                .unwrap()
+                .concrete(),
+            completed_artifact.as_ref()
+        );
+        assert_eq!(view.accepted_classified_fragment_count(), 1);
+    }
+
+    #[test]
     fn candidate_partial_slice_reopens_on_the_same_canonical_chunk() {
         let temp = TestDirectory::new();
         let run_state = temp.path().join("candidate-partial-run-state");

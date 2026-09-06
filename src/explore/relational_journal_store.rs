@@ -138,8 +138,12 @@ impl RelationalJournalSegmentLimits {
 impl Default for RelationalJournalSegmentLimits {
     fn default() -> Self {
         Self {
-            max_segment_bytes: 4 << 20,
-            max_frame_bytes: 1 << 20,
+            // A bounded 65,536-coordinate page may alternate at every unit.
+            // Its authenticated run descriptors need <8 MiB for one question,
+            // even when there is no compression. This is a physical buffer
+            // bound, not a relaxation of the host-wide resource governor.
+            max_segment_bytes: 16 << 20,
+            max_frame_bytes: 8 << 20,
             max_frames_per_segment: 65_536,
             max_segments: 100_000,
         }
