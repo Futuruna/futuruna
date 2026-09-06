@@ -37,9 +37,24 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
             }
             values.push(value);
         }
-        let result = *values
-            .last()
-            .expect("a block ending in an expression is nonempty");
+        self.lower_strict_sequence(site, &values, ty)
+    }
+
+    /// Evaluate every value eagerly, then return the last. Shared by blocks
+    /// and matches: substitution must not erase an unused failing expression.
+    pub(super) fn lower_strict_sequence(
+        &mut self,
+        site: &ExprSiteId,
+        values: &[LoweredValue],
+        ty: ClassificationTypeId,
+    ) -> LoweringResult {
+        let Some(result) = values.last().copied().filter(|_| values.len() <= 256) else {
+            return Err(self.residual_error(
+                site,
+                ClassificationResidualReason::UnsupportedExpression,
+                [],
+            ));
+        };
         if result.ty != ty {
             return Err(self.residual_error(
                 site,
@@ -59,7 +74,7 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
         let mut hasher = Sha256::new();
         hasher.update(b"futuruna.checked-classification-strict-block.v1\0");
         hasher.update((values.len() as u32).to_le_bytes());
-        for value in &values {
+        for value in values {
             hasher.update(value.ty.bytes());
         }
         let callable_id =

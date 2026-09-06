@@ -6449,6 +6449,103 @@ mod regional_stream_acceptance_tests {
     }
 
     #[test]
+    fn checked_exhaustive_matches_product_proofs_preserve_both_unit_cliffs() {
+        let template = r#"
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+# Choice = Empty | Present(Starter)
+> affine(s: Starter) -> Int {
+    match s { | Starter(income: x, distance: y) -> x * 3 + y * 2 }
+}
+> bonus(flag: Bool) -> Int { match flag { | True -> 10 | False -> 0 } }
+> net(s: Starter, c: Step) -> Int {
+    match Present(s) {
+        | Present(state) if GUARD -> affine(state) + bonus(True)
+        | Empty -> 0
+        | Present(state) -> affine(state) + bonus(False)
+    }
+}
+> affine_observer(s: Starter, c: Step) -> Int { s.income }
+? explore exhaustive_match_product {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 20)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+    transition after = Starter(before.income + context.income, before.distance + context.distance)
+    find cliffs = violations of net(after, context) >= net(before, context)
+    mechanisms paths from find cliffs using affine_observer
+}
+"#;
+        // Endpoint-totality has its own conservative match fragment. Keep the
+        // observer simple so this fixture isolates classification/FIND proofs.
+        let affine = template.replace("GUARD", "state.income >= 1000");
+        let prepared = prepare(&affine);
+        assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
+            lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered));
+        let run =
+            assert_product_stream_matches_oracle(&affine, &[20, 20, 2], (800, 0, 800, 800, 0));
+        assert_eq!(run.certified_fragment_count, 4);
+        let narrow = template.replace("GUARD", "state.income == 7 && state.distance == 3");
+        let run =
+            assert_product_stream_matches_oracle(&narrow, &[20, 20, 2], (800, 0, 800, 798, 2));
+        assert!(run.capsule_subjects > 0);
+
+        // Exercise both variants and both guarded/fallback bodies, with an
+        // uncertain branch that requires concrete graph evaluation.
+        let alternating = template
+            .replace(
+                "Present(s)",
+                "if s.distance % 2 == 0 { Empty } else { Present(s) }",
+            )
+            .replace("GUARD", "state.income > 7")
+            .replace("affine(state) + bonus(True)", "affine(state)")
+            .replace("| Empty -> 0", "| Empty -> affine(s)");
+        let run =
+            assert_product_stream_matches_oracle(&alternating, &[20, 20, 2], (800, 0, 800, 800, 0));
+        assert!(run.capsule_subjects > 0);
+    }
+
+    #[test]
+    fn checked_exhaustive_matches_keep_unused_scrutinee_failures() {
+        let template = r#"
+# Single(value: Int)
+> value(x: Int) -> Int { BODY }
+> observe(s: Int, c: Int) -> Int { s }
+? explore strict_match_subject {
+    from {
+        vary before in range(0, 300)
+        vary context in range(0, 2)
+    }
+    transition after = before + 1
+    find chosen = violations of value(after) >= value(before)
+    mechanisms paths from find chosen using observe
+}
+"#;
+        for body in [
+            "match EXPR { | _ -> x }",
+            "match EXPR { | ignored -> x }",
+            "match Single(EXPR) { | Single(_) -> x }",
+        ] {
+            let source = template.replace("BODY", body);
+            let harmless = source.replace("EXPR", "x * 3");
+            let run =
+                assert_product_stream_matches_oracle(&harmless, &[300, 2], (600, 0, 600, 600, 0));
+            assert_eq!(run.certified_fragment_count, 3);
+            for expression in ["10 / (x - 7)", "9223372036854775807 + x"] {
+                let failing = source.replace("EXPR", expression);
+                assert_strict_graph_failure(&failing);
+                // The one-axis normalizer must retain eager failure as well.
+                assert_strict_graph_failure(
+                    &failing.replace("vary context in range(0, 2)", "given context = 0"),
+                );
+            }
+        }
+    }
+
+    #[test]
     fn checked_rule_dispatch_strict_blocks_match_oracle_and_keep_unused_failures() {
         let template = r#"
 | value(x: Int) -> {
@@ -6474,52 +6571,56 @@ mod regional_stream_acceptance_tests {
 
         for expression in ["10 / (x - 7)", "9223372036854775807 + x"] {
             let source = template.replace("UNUSED", expression);
-            let mut prepared = prepare(&source);
-            assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
-                lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered));
-            let checked = prepared.checked.view();
-            let mut driver =
-                RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
-                    &checked,
-                    &prepared.support_plan,
-                    RelationalStreamDriverLimits::default(),
-                    None,
-                    Some(&prepared.classification_evaluator),
-                )
-                .unwrap();
-            let mut journal = RelationalJournal::new_with_region_replay_authority(
-                prepared.contract.clone(),
-                exact_one_region_replay_authority(&prepared),
-            );
-            let mut failed = false;
-            for _ in 0..1024 {
-                match driver.step_with_base_member_limit(
-                    &mut journal,
-                    &mut prepared.expression_runtime,
-                    &mut prepared.mechanism_runtime,
-                    NonZeroU16::new(256).unwrap(),
-                ) {
-                    Ok(RelationalStreamStepOutcome::Emitted(batch)) => {
-                        assert_eq!(journal.next_sequence(), batch.expected_sequence());
-                        assert_eq!(journal.head(), batch.expected_head());
-                        for event in batch.into_events() {
-                            journal.append(event).unwrap();
-                        }
-                    }
-                    Err(error) => {
-                        let message = error.to_string();
-                        assert!(
-                            message.contains("division by zero") || message.contains("overflow"),
-                            "{message}"
-                        );
-                        failed = true;
-                        break;
-                    }
-                    _ => break,
-                }
-            }
-            assert!(failed, "unused eager calculation was erased: {expression}");
+            assert_strict_graph_failure(&source);
         }
+    }
+
+    fn assert_strict_graph_failure(source: &str) {
+        let mut prepared = prepare(source);
+        assert!(prepared.classification_evaluator.borrow().capsule().graph().lane_manifest().iter().all(|lane|
+                lane.status == super::super::relational_classification_capsule::ClassificationLaneStatus::Lowered));
+        let checked = prepared.checked.view();
+        let mut driver =
+            RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                &checked,
+                &prepared.support_plan,
+                RelationalStreamDriverLimits::default(),
+                None,
+                Some(&prepared.classification_evaluator),
+            )
+            .unwrap();
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            prepared.contract.clone(),
+            exact_one_region_replay_authority(&prepared),
+        );
+        let mut failed = false;
+        for _ in 0..1024 {
+            match driver.step_with_base_member_limit(
+                &mut journal,
+                &mut prepared.expression_runtime,
+                &mut prepared.mechanism_runtime,
+                NonZeroU16::new(256).unwrap(),
+            ) {
+                Ok(RelationalStreamStepOutcome::Emitted(batch)) => {
+                    assert_eq!(journal.next_sequence(), batch.expected_sequence());
+                    assert_eq!(journal.head(), batch.expected_head());
+                    for event in batch.into_events() {
+                        journal.append(event).unwrap();
+                    }
+                }
+                Err(error) => {
+                    let message = error.to_string();
+                    assert!(
+                        message.contains("division by zero") || message.contains("overflow"),
+                        "{message}"
+                    );
+                    failed = true;
+                    break;
+                }
+                _ => break,
+            }
+        }
+        assert!(failed, "unused eager calculation was erased: {source}");
     }
 
     #[test]

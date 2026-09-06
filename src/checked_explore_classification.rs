@@ -14,6 +14,8 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
+#[path = "checked_explore_classification_matches.rs"]
+mod exhaustive_matches;
 #[path = "checked_explore_classification_rules.rs"]
 mod rule_dispatch;
 #[path = "checked_explore_classification_blocks.rs"]
@@ -1408,7 +1410,7 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                 [],
             ));
         };
-        if last_arm.guard.is_some() || !pattern_is_irrefutable(&last_arm.pat) {
+        if last_arm.guard.is_some() || arms.len() > 256 {
             return Err(self.residual_error(
                 site,
                 ClassificationResidualReason::MatchNormalizationRequired,
@@ -1422,6 +1424,13 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
             .expression(&scrutinee_site)
             .is_some_and(|expression| matches!(&expression.kind, ExprKind::Var(_)))
             && arms.iter().all(|arm| pattern_is_tag_only(&arm.pat));
+        if !self.checked_match_is_exhaustive(site, arms, allow_bare_fielded_tag) {
+            return Err(self.residual_error(
+                site,
+                ClassificationResidualReason::MatchNormalizationRequired,
+                [],
+            ));
+        }
         let scrutinee = self.lower_expression(&scrutinee_site, environment)?;
         let arm_sites = match_arm_sites(site, arms);
 
@@ -1506,7 +1515,10 @@ impl<'program, 'query> CheckedClassificationProducer<'program, 'query> {
                 },
             )?;
         }
-        Ok(next)
+        // Matching evaluates the subject even if the selected body ignores it.
+        // In particular, a wildcard/one-variant match must not erase division
+        // or overflow failures and turn them into an all-negative region proof.
+        self.lower_strict_sequence(site, &[scrutinee, next], ty)
     }
 
     fn lower_pattern(

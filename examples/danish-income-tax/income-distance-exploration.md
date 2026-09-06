@@ -573,3 +573,85 @@ The required gates remain red under `td-ce0146`; this is a scoped Experimental
 proof extension submitted for review, not a claim that Explore is fully shipped
 or that the broad Personskat audit is complete. No stable source/runtime
 semantics changed, so no stable compatibility-guide entry is required.
+
+## Checked exhaustive-match bridge
+
+The next proof extension (`td-1a07b6`, under the still-open `td-966941`)
+recognizes exhaustive matches over Boolean values and closed, monomorphic
+declared ADTs. It reconciles every declared variant with the exact checked
+constructor owner, ordinal, layout and fields; a catalogue missing a constructor
+is not treated as a smaller universe. Unguarded whole-variant patterns establish
+coverage. Earlier guards retain first-match order, but a guarded case alone does
+not cover that variant. Named field projections are supported; partial matches,
+refutable or nested field patterns, conditional type evolution, type composition
+and unsupported schemas remain residual work.
+
+This also fixes a proof-safety gap in existing wildcard matches: the matched
+expression must still execute even when the result ignores it. Matches now share
+the strict call-argument sequence used for local blocks, preserving unused
+division-by-zero and overflow failures. No tax rule, public query syntax or
+graph-node encoding changes. Changed graph/capsule identities still require
+compatible replay state; old certificates are not silently upgraded.
+
+Five permanent tests cover exact constructor metadata, Boolean/record matches,
+guard order, lexical alpha-renaming, missing or refutable coverage, and strict
+evaluation in both one-axis and product searches. Independent exhaustive
+interpretation and cold journal replay agree with the accelerated runs: the
+800-edge affine fixture closes with four certificates, while its isolated bonus
+removal produces exactly two witnesses, one along each intervention axis.
+Alternating constructors exercise both guarded and fallback graph execution.
+The mechanism observer in this fixture is intentionally simple: endpoint-totality
+proof has a separate, narrower match fragment and does not yet accept the
+exhaustive Boolean helper used by the FIND expression. Classification support
+does not imply broader observer-totality support.
+
+The unchanged full-unit Personskat endpoint/graph regression passed in
+**457.36s** (debug, alongside low-priority builds). The trace progressed beyond
+the spouse match into `personskat_aktieavance_uden_par37_til40`, whose
+`filter(input.særlige_aktiver, ...)` is the next surfaced `DynamicDispatch`
+residual. This propagates through the pair calculation to the final observation;
+the complete FIND lane is still residual. The trace identifies the next barrier,
+not a completed regional certificate or a runtime speedup. Bounded collection
+reasoning, particularly propagating this query's explicitly empty asset inputs,
+is the next candidate extension (`td-a744af`). The observer-totality Boolean-match
+difference is separately tracked as `td-4e1cde`.
+
+These are synthetic compiler/proof results, not a full Personskat answer.
+Canonical negative-region closure and mixed-admission partitioning remain
+requirements of the parent task.
+
+Checks for the exhaustive-match extension used the shared Cargo target, one
+build job/test thread and `nice -n 15`:
+
+- `cargo test --lib --jobs 1 -- checked_exhaustive_matches_ --test-threads=1`:
+  five passed in 3.27s.
+- `cargo test --lib --jobs 1 -- checked_rule_dispatch_ --test-threads=1`:
+  six passed in 3.72s.
+- The built library test binary, with `FUTURUNA_EXPLORE_TRACE=1`, ran
+  `personskat_unit_income_distance_endpoint_totality_certifies_without_execution --test-threads=1 --nocapture`:
+  one passed in 457.36s as described above.
+- `cargo build --release --bin runa --jobs 1`: passed in 9m39s.
+  `cargo fmt --all --check`, `git diff --check`, and
+  `runa fmt --check examples/danish-income-tax/personskat-income-distance-unit.explore.runa`
+  passed. `runa verify tests/verify_test.runa` proved 5/5.
+- `CARGO_BUILD_JOBS=1 RUST_TEST_THREADS=1 nice -n 15 ./scripts/mint.sh`:
+  **713 passed, 17 failed** in 766.99s in the library lane, including all five
+  new tests passing. The complete failure-name set exactly matches the prior
+  bridge and its independently reproduced baseline. Later mint stages were
+  not reached; the required gate remains red under `td-ce0146`.
+- `RUNA_BIN=./target/release/runa CARGO_BUILD_JOBS=1 nice -n 15 ./scripts/differential.sh`:
+  ordinary roundtrip 5/5 with no skips; imported execution 3/4. A separate
+  `runa check tests/differential/corpus/imports/import_mesh_consumer.runa`
+  confirms the same two `E0308` `Plan`/`Policy::Plan` errors reproduced on
+  untouched `7bb4bc37` above. Later stress and generated-import stages were
+  not reached. Differential is the selected deeper lowering lane; core canary
+  was not rerun for this proof-only extension, which does not change ordinary
+  parser/runtime/codegen behavior.
+
+No new full-grid concrete epoch was started for this bridge: the known FIND
+residual would still force point-by-point work. The earlier 14,012-transition
+checkpoint is preserved unchanged; its partial progress is not promoted into
+an exact answer. The implementation follows the Futuruna semantic-change
+ratchet, with ordinary runtime behavior unchanged and only Experimental
+proof acceptance/artifacts affected; no stable compatibility-guide entry is
+needed.
