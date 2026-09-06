@@ -2163,6 +2163,8 @@ struct EndpointTotalityProver<'a, 'program> {
     track_scalar_call_identities: bool,
     source_axis_count: usize,
     scalar_call_axes: RefCell<Vec<[u8; 32]>>,
+    #[cfg(test)]
+    trace_comparison_site: Option<ExprSiteId>,
 }
 
 impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
@@ -2186,6 +2188,8 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             track_scalar_call_identities: false,
             source_axis_count: 0,
             scalar_call_axes: RefCell::new(Vec::new()),
+            #[cfg(test)]
+            trace_comparison_site: None,
         }
     }
 
@@ -4174,9 +4178,25 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
     fn deliver_value(
         &self,
         machine: &mut EndpointEvalMachine,
-        value: AbstractValue,
+        mut value: AbstractValue,
     ) -> Result<(), RelationalEndpointTotalityIssue> {
+        self.canonicalize_classification_constant(&mut value);
         self.set_control(machine, EvalControl::Value(value))
+    }
+
+    /// A singleton interval is a stronger exact fact than a retained affine
+    /// rounding enclosure. Do not propagate that enclosure's artificial
+    /// uncertainty through later arithmetic. This optional classification
+    /// normalization runs only after the operation has proved total/safe;
+    /// ordinary endpoint certificate values keep their existing encoding.
+    fn canonicalize_classification_constant(&self, value: &mut AbstractValue) {
+        if self.track_scalar_call_identities {
+            if let AbstractValue::Int(interval) = value {
+                if interval.singleton_value().is_some() {
+                    interval.correlation = None;
+                }
+            }
+        }
     }
 
     fn deliver_budgeted_value(
@@ -4184,7 +4204,8 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         machine: &mut EndpointEvalMachine,
         value: BudgetedAbstractValue,
     ) {
-        let (value, retained) = value.into_parts();
+        let (mut value, retained) = value.into_parts();
+        self.canonicalize_classification_constant(&mut value);
         machine.control = Some(EvalControl::Value(value));
         machine.control_retained = Some(retained);
     }
@@ -9362,6 +9383,13 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         let input = AbstractValue::Tuple(vec![left.clone(), right.clone()].into_boxed_slice());
         if matches!(operator, "<" | "<=" | ">" | ">=") {
             if let (Some(left), Some(right)) = (left.int(), right.int()) {
+                #[cfg(test)]
+                if self.trace_comparison_site.as_ref() == Some(site) {
+                    eprintln!(
+                        "CANONICAL_BOX_COMPARISON operator={operator}; left={left:?}; right={right:?}; difference={:?}; opaque_axes={}",
+                        left.correlated_difference(right), self.scalar_call_axes.borrow().len()
+                    );
+                }
                 return Ok(AbstractValue::Bool(compare_intervals(
                     operator, left, right,
                 )));

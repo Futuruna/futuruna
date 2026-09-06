@@ -346,6 +346,10 @@ pub(crate) fn classify_box(
         let decision = match (&find.find, site) {
             (ExploreFindIr::All { .. }, None) => Some(true),
             (ExploreFindIr::Matches { .. } | ExploreFindIr::Violations { .. }, Some(site)) => {
+                #[cfg(test)]
+                if std::env::var_os("FUTURUNA_EXPLORE_BOXES").is_some() {
+                    prover.trace_comparison_site = Some(site.clone());
+                }
                 let value = prover.eval_site(site, &env)?;
                 value
                     .value
@@ -469,6 +473,58 @@ DEFINITION
     }
 
     #[test]
+    fn constant_quotients_drop_rounding_uncertainty_without_hiding_step_cliffs() {
+        let source = r#"
+> net(x: Int) -> Int {
+    x * 100 - (x * 8 / 100) * 100 - (x / 1000) * 10000
+}
+? explore constant_quotient {
+    from {
+        vary before in range(-1000, 1001)
+        given context = ()
+    }
+    transition after = before + 1
+    find losses = violations of net(after) >= net(before)
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let parsed = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let checked = artifacts.checked_exploration_query(0).unwrap();
+        let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+        let net = |x: i64| x * 100 - (x * 8 / 100) * 100 - (x / 1000) * 10000;
+        for (low, high, expected) in [
+            (-998, -1, Some(false)),
+            (0, 998, Some(false)),
+            (999, 999, Some(true)),
+            (998, 1000, None),
+        ] {
+            let proof = classify_box(
+                &index,
+                &artifacts.checked_resolutions,
+                &checked,
+                &[Some((low, high)), None],
+            )
+            .unwrap();
+            assert_eq!(proof.selections.as_ref(), [expected], "{low}..{high}");
+            if let Some(selected) = expected {
+                assert!((low..=high).all(|x| (net(x + 1) < net(x)) == selected));
+            } else {
+                assert!((low..=high).any(|x| net(x + 1) < net(x)));
+                assert!((low..=high).any(|x| net(x + 1) >= net(x)));
+            }
+        }
+    }
+
+    #[test]
     fn adjacent_rounding_box_preserves_integer_units() {
         let source = r#"
 > net(x: Int) -> Int {
@@ -539,7 +595,7 @@ DEFINITION
         );
         let checked = artifacts.checked_exploration_query(0).unwrap();
         let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
-        for coordinates in [
+        let default_coordinates = [
             [Some((1000, 1100)), Some((50, 50)), Some((0, 0)), None, None],
             [
                 Some((349499, 349499)),
@@ -570,7 +626,28 @@ DEFINITION
                 None,
                 None,
             ],
-        ] {
+        ];
+        // Explicit measurement control, not query syntax or proof authority.
+        // Each supplied box still passes classify_box's checked-domain bounds.
+        let coordinates = std::env::var("FUTURUNA_EXPLORE_BOXES")
+            .ok()
+            .map(|json| {
+                serde_json::from_str::<Vec<[[i64; 2]; 3]>>(&json)
+                    .expect("FUTURUNA_EXPLORE_BOXES must contain income/km/direction bound pairs")
+                    .into_iter()
+                    .map(|axes| {
+                        [
+                            Some((axes[0][0], axes[0][1])),
+                            Some((axes[1][0], axes[1][1])),
+                            Some((axes[2][0], axes[2][1])),
+                            None,
+                            None,
+                        ]
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_else(|| default_coordinates.to_vec());
+        for coordinates in coordinates {
             let started = std::time::Instant::now();
             let result = classify_box(
                 &index,

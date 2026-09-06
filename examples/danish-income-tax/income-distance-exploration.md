@@ -936,3 +936,85 @@ The external fixture needed its import spacing formatted; `runa fmt` and then
 `runa fmt --check` passed. A separate `runa check` was omitted because this
 actual execution already performs checked frontend preparation. `cargo fmt
 --check` and `git diff --check` passed for the implementation.
+
+## Keep rounding uncertainty fractional
+
+Two bounded precision changes address the high-income loss predicate without
+changing the canonical tax calculation or its integer-øre outputs:
+
+- After checked evaluation proves an integer is one exact constant, optional
+  box classification discards any older, wider affine rounding enclosure for
+  that value. This also applies to cached-value delivery. It does not skip
+  evaluation, overflow checks or division-by-zero obligations, and ordinary
+  endpoint-totality mode retains its prior values.
+- The affine companion now carries error numerators under its existing exact
+  denominator. Nested division no longer rounds an already fractional error
+  bound outward to a whole integer at every intermediate step. Integer
+  congruences also establish when division is exact and adds no rounding
+  uncertainty. The representation has the same fields and bounded size; all
+  arithmetic remains checked `i128`, with loss of precision on capacity
+  exhaustion rather than permission to omit cases.
+
+The measured starting salary box, 342,000..342,498 DKK at 50 km with +1 DKK
+edges, initially had a net-change enclosure of **−5,157..5,272 øre**. Exact
+constant normalization alone tightened this to **−99..224 øre**: still
+unknown, not evidence of a cliff or a harmless region. It proved the narrower
+342,001..342,010-DKK box harmless, with net change **42..93 øre**. The
+342,497-DKK salary edge across 25..50 km initially remained unknown at
+**−7..136 øre**, motivating fractional error bounds.
+
+Focused permanent checks:
+
+```sh
+env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target \
+  CARGO_BUILD_JOBS=1 nice -n 15 cargo test --lib rounding_ -- --test-threads=1 --nocapture
+```
+
+All five matched edge checks passed in 1.78 seconds: signed adjacent rounding,
+constant quotient regions and their true thousand-step cliff, nested rounding,
+exact positive/negative rescaling, and isolated unit cliffs retained as exact
+product residuals. The standalone constant-quotient check also passed in
+0.06 seconds before the fractional-bound change. Mint, canary, differential
+and full-suite runs remain deferred at the user's request.
+
+The ignored `canonical_2026_box_output` experiment accepts test-only
+`FUTURUNA_EXPLORE_BOXES` JSON containing arrays of three inclusive bound pairs
+(income, commuting distance, intervention). It checks those bounds against
+the unchanged full query and prints the exact final comparison enclosure.
+This is measurement control, not public Explore syntax or new proof authority.
+These optional classifier decisions do not yet create durable regional
+certificates or close portions of the saved full-grid journal.
+
+The final canonical measurement with both changes produced:
+
+| Starting income (DKK) | Starting commute (km) | Intervention | Box size | Proved net change (øre) | Decision |
+| --- | --- | --- | ---: | --- | --- |
+| 342,497 | 25..50 | +1 DKK | 26 | 2..127 | Valid, harmless |
+| 342,000..342,498 | 25..50 | +1 km | 12,974 | 24,463..24,907 | Valid, harmless |
+| 342,499 | 50 | +1 DKK | 1 | −5,006 exactly | Valid, cliff |
+| 342,000..342,498 | 50 | +1 DKK | 499 | −98..223 | Valid, loss decision unknown |
+
+The first two regions contain 13,000 distinct harmless directed edges. The
+last probe overlaps one salary edge in the first region; this diagnostic
+table is not an additive whole-query coverage ledger. Each result follows
+from the full checked canonical model on the box, not sampled endpoints or
+matching mechanism paths. Bounds are inclusive; commute successors in the
+second row reach 51 km. The net-change intervals are safe enclosures, not
+claims that every value in the interval occurs.
+
+The four box calls took 8.97–10.21 seconds each in the debug measurement;
+including shared canonical preparation, the explicitly invoked experiment
+took 292.68 seconds. This used the existing library-test binary with
+`FUTURUNA_EXPLORE_BOXES='[[[342000,342498],[50,50],[0,0]],[[342497,342497],[25,50],[0,0]],[[342000,342498],[25,50],[1,1]],[[342499,342499],[50,50],[0,0]]]'`
+and `canonical_2026_box_output --ignored --nocapture`. The earlier baseline
+and constant-only measurements took 293.22 and 313.95 seconds respectively;
+these are diagnostic runs, not a controlled throughput comparison. No extra
+optimized CLI rebuild was performed for this precision patch.
+
+The next bridge is tracked as `td-ed3104`: retain the checked AST box proof
+as an honestly typed, replayable regional certificate. The existing journal
+producer requires complete lowered classification-graph lanes, while the
+canonical model still has residual collection/dispatch lanes that this box
+interpreter can handle. A residual AST expression must not be disguised as a
+graph node. Mixed admission and the remaining wide salary rounding dependency
+also remain open under `td-966941`; the full 0..400,000-DKK query is not closed.

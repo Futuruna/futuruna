@@ -11,6 +11,9 @@ pub(super) struct Correlation {
     coefficients: [i128; MAX_AXES],
     constant: i128,
     denominator: i128,
+    // Error numerators share `denominator` with the affine part. Preserve
+    // fractional error through nested rounding rather than rounding each
+    // intermediate error enclosure out to a whole integer again.
     error: (i128, i128),
     // Exact integer congruence: value = residue (mod modulus). Modulus zero
     // denotes a constant. This retains whole-krone rounding after scaling
@@ -104,8 +107,12 @@ impl Correlation {
         for coefficient in self.coefficients {
             divisor = gcd(divisor, coefficient)?;
         }
+        divisor = gcd(divisor, self.error.0)?;
+        divisor = gcd(divisor, self.error.1)?;
         self.denominator /= divisor;
         self.constant /= divisor;
+        self.error.0 /= divisor;
+        self.error.1 /= divisor;
         for coefficient in &mut self.coefficients {
             *coefficient /= divisor;
         }
@@ -148,8 +155,14 @@ impl Correlation {
                 .checked_add(other.constant.checked_mul(right_scale)?)?,
             denominator: self.denominator.checked_mul(left_scale)?,
             error: (
-                self.error.0.checked_add(other.error.0)?,
-                self.error.1.checked_add(other.error.1)?,
+                self.error
+                    .0
+                    .checked_mul(left_scale)?
+                    .checked_add(other.error.0.checked_mul(right_scale)?)?,
+                self.error
+                    .1
+                    .checked_mul(left_scale)?
+                    .checked_add(other.error.1.checked_mul(right_scale)?)?,
             ),
             modulus,
             residue: if modulus == 0 {
@@ -196,18 +209,17 @@ impl Correlation {
         let magnitude = divisor.checked_abs()?;
         let mut result = if divisor < 0 { self.scale(-1)? } else { self };
         result.denominator = result.denominator.checked_mul(magnitude)?;
-        result.error = (
-            floor_ratio(result.error.0, magnitude)?,
-            ceil_ratio(result.error.1, magnitude)?,
-        );
         // Truncation is exact only when the unrounded affine value is already
-        // integral for every integer coordinate and carries no unknown error.
-        let exact = result.error == (0, 0)
-            && result.constant.checked_rem(result.denominator)? == 0
-            && result
-                .coefficients
-                .iter()
-                .all(|coefficient| coefficient.checked_rem(result.denominator) == Some(0));
+        // integral, or the actual integer's congruence proves divisibility.
+        let divisible = result.modulus.checked_rem(magnitude)? == 0
+            && result.residue.checked_rem(magnitude)? == 0;
+        let exact = divisible
+            || (result.error == (0, 0)
+                && result.constant.checked_rem(result.denominator)? == 0
+                && result
+                    .coefficients
+                    .iter()
+                    .all(|coefficient| coefficient.checked_rem(result.denominator) == Some(0)));
         if !exact {
             let bounds = if divisor < 0 {
                 (
@@ -218,10 +230,10 @@ impl Correlation {
                 numerator_bounds
             };
             if bounds.1 > 0 {
-                result.error.0 = result.error.0.checked_sub(1)?;
+                result.error.0 = result.error.0.checked_sub(result.denominator)?;
             }
             if bounds.0 < 0 {
-                result.error.1 = result.error.1.checked_add(1)?;
+                result.error.1 = result.error.1.checked_add(result.denominator)?;
             }
         }
         result.expression = identity(
@@ -230,9 +242,7 @@ impl Correlation {
         );
         // Truncation through zero is not generally congruence-preserving.
         // Divisible residues and moduli need no truncation and are exact.
-        if result.modulus.checked_rem(magnitude)? == 0
-            && result.residue.checked_rem(magnitude)? == 0
-        {
+        if divisible {
             result.modulus /= magnitude;
             result.residue /= magnitude;
         } else {
@@ -256,10 +266,14 @@ impl Correlation {
         {
             return None;
         }
-        let mut low = ceil_ratio(difference.constant, difference.denominator)?
-            .checked_add(difference.error.0)?;
-        let mut high = floor_ratio(difference.constant, difference.denominator)?
-            .checked_add(difference.error.1)?;
+        let mut low = ceil_ratio(
+            difference.constant.checked_add(difference.error.0)?,
+            difference.denominator,
+        )?;
+        let mut high = floor_ratio(
+            difference.constant.checked_add(difference.error.1)?,
+            difference.denominator,
+        )?;
         if difference.modulus == 0 {
             low = low.max(difference.residue);
             high = high.min(difference.residue);
@@ -298,6 +312,48 @@ impl Correlation {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn nested_rounding_retains_fractional_error_and_exact_rescaling() {
+        let axis = Correlation::axis(0).unwrap();
+        let base = axis
+            .scale(46284)
+            .unwrap()
+            .divide(100, (0, 2_000_000))
+            .unwrap();
+        let supplement = base.scale(64).unwrap().divide(100, (0, 2_000_000)).unwrap();
+        let contribution = base.add(supplement).unwrap().scale(2339).unwrap();
+        let before = contribution.divide(100, (0, 100_000_000)).unwrap();
+        let after = contribution
+            .add(Correlation::constant(6461))
+            .unwrap()
+            .divide(100, (6461, 100_006_461))
+            .unwrap();
+        let (low, high) = after.difference(before).unwrap();
+        assert!(
+            low > 0,
+            "fractional error must not grow to a false loss: {low}..{high}"
+        );
+        for x in 0..=30 {
+            let base = x * 46284 / 100;
+            let contribution = (base + base * 64 / 100) * 2339;
+            let delta = (contribution + 6461) / 100 - contribution / 100;
+            assert!(low <= delta && delta <= high);
+        }
+        // Scaling an uncertain integer and exactly undoing that scaling
+        // introduces no new truncation error, including negative divisors.
+        for factor in [-100, 100] {
+            let restored = base
+                .scale(factor)
+                .unwrap()
+                .divide(factor, (-2_000_000, 2_000_000))
+                .unwrap();
+            assert_eq!(restored.coefficients, base.coefficients);
+            assert_eq!(restored.constant, base.constant);
+            assert_eq!(restored.denominator, base.denominator);
+            assert_eq!(restored.error, base.error);
+        }
+    }
 
     #[test]
     fn adjacent_integer_rounding_differences_enclose_concrete_edges() {
