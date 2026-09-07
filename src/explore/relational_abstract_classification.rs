@@ -78,12 +78,15 @@ impl CheckedBoxClassifier {
     pub(crate) fn shared_cover_scope(
         &self,
         coordinates: &[Option<(i64, i64)>],
+        refinement: u32,
     ) -> Option<Coordinates> {
-        if coordinates.len() > MAX_SCOPE_BINDINGS
+        if refinement > 6
+            || coordinates.len() > MAX_SCOPE_BINDINGS
             || !coordinates_contained(coordinates, &self.inputs.domains)
         {
             return None;
         }
+        let width = SHARED_SCOPE_WIDTH >> refinement;
         let mut scope = coordinates.to_vec();
         for (range, domain) in scope.iter_mut().zip(&self.inputs.domains) {
             let (Some((low, high)), Some((start, end))) = (*range, *domain) else {
@@ -92,16 +95,23 @@ impl CheckedBoxClassifier {
             if i128::from(end) - i128::from(start) < SHARED_SCOPE_WIDTH || high == end {
                 continue;
             }
-            let low_tile = (i128::from(low) - i128::from(start)) / SHARED_SCOPE_WIDTH;
-            let high_tile = (i128::from(high) - i128::from(start)) / SHARED_SCOPE_WIDTH;
+            let low_tile = (i128::from(low) - i128::from(start)) / width;
+            let high_tile = (i128::from(high) - i128::from(start)) / width;
             if low_tile != high_tile {
                 continue;
             }
-            let start = i128::from(start) + low_tile * SHARED_SCOPE_WIDTH;
-            let end = (start + SHARED_SCOPE_WIDTH - 1).min(i128::from(end) - 1);
+            let start = i128::from(start) + low_tile * width;
+            let end = (start + width - 1).min(i128::from(end) - 1);
             *range = Some((i64::try_from(start).ok()?, i64::try_from(end).ok()?));
         }
         (scope != coordinates).then_some(scope)
+    }
+
+    /// Scheduling budget only; presence never establishes an outcome.
+    pub(crate) fn cover_scope_is_cached(&self, scope: &[Option<(i64, i64)>]) -> bool {
+        self.scope_cache
+            .lock()
+            .is_ok_and(|cache| cache.iter().any(|(key, _)| key == scope))
     }
 
     /// Fresh source proof once per retained scope and checked snapshot. A cold
@@ -118,14 +128,14 @@ impl CheckedBoxClassifier {
         {
             return None;
         }
-        if let Some((_, proof)) = self
-            .scope_cache
-            .lock()
-            .ok()?
-            .iter()
-            .find(|(key, _)| key == scope)
         {
-            return proof.clone();
+            let mut cache = self.scope_cache.lock().ok()?;
+            if let Some(index) = cache.iter().position(|(key, _)| key == scope) {
+                let entry = cache.remove(index)?;
+                let proof = entry.1.clone();
+                cache.push_back(entry);
+                return proof;
+            }
         }
         let proof = self.prove_cover_coordinates(checked, scope).map(Arc::new);
         let mut cache = self.scope_cache.lock().ok()?;

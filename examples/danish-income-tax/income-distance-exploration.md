@@ -1532,3 +1532,59 @@ the runtime limit. Formatting and diff checks passed; mint/deeper gates and
 a standalone full canonical replay were deliberately deferred under the
 user's output-first instruction. The next real continuation can both replay
 these new scoped receipts and extend the answer.
+
+### Bounded refinement of reusable scopes
+
+When a wide shared box cannot classify the requested leaf and cannot suggest
+a useful checked split, scope nomination now tries source-relative widths
+32,768, 16,384, 8,192, 4,096, 2,048, 1,024 and 512. It considers at most seven
+nominations and performs at most three fresh shared-scope derivations per
+cover node; previously retained scope results can be consulted without
+reevaluating the model. The unchanged 64-entry cache now keeps recently used
+scope results, including unknown results, so repeated wide failures do not
+continually displace useful shared proofs. Exact local proof and concrete
+fallback remain available when the bounded nominations fail.
+
+This is an operational search refinement, not a proof-rule or artifact-format
+change. Every accepted scoped leaf still records its precise V7 domain and
+passes the same checked-domain, containment, outcome and derivation checks.
+Old receipts replay their recorded scopes regardless of the current search
+widths. Formatting and diff checks were selected for this heuristic-only
+change; no additional test suite was started. Its real effect must be
+measured on a continuation of the saved original query.
+
+The actual continuation succeeded: original coverage increased by **9,437,184
+candidates** to **23,109,266** — **23,051,580 admitted harmless transitions**
+and **57,686 exclusions**. It closed another 144 pages with 576 semantic
+batches / 1,296 events and no concrete sweeps or observer memo activity.
+Pages 0..351 plus 2453 are now accounted for, with 1,972 regional leaves and
+2,326 case-support graph records. The low prefix is exactly ranks
+`[0,23068672)`: all coordinates at incomes 0..57,383 DKK, then income
+57,384 at distances 0..151, for both interventions. There remain
+**137,691,136 unclassified candidates**; all analysis layers are open.
+
+The previous V7 checkpoint reopened successfully before new work. Scope
+refinement found reusable 32,768..49,151 and 49,152..57,343-DKK boxes for
+the previously unresolved leaves. Page 208 established its new cover in
+48.341 seconds; page 209 took 2 milliseconds, and other cached pages took
+roughly 2..4 milliseconds for the proof quantum. Page 301 straddled a tile
+boundary and used local proof in 14.439 seconds; page 302 established further
+shared scopes in 21.609 seconds. Page 351 also crossed a tile boundary and
+took 14.230 seconds. These are measured proof quanta, not end-to-end page
+publication times.
+
+The original journal is now sequence **3489**, 48 durable segments, head
+`47be83c213e32db9f88faa90bd21d3cd9ef8fe351b72e56f2b66853765d6c48c`.
+All 11 artifacts caught up; state/output occupy approximately 1.7/2.4 MiB.
+The optimized build took 5m00s. The same original query invocation used
+`--time-limit 5m`, `nice -n 15`, native classification disabled and the
+existing governor, writing `original-refined-report.json` and
+`original-refined-trace.log` under `/tmp/futuruna-refined-scope-output.5Theqy/`.
+The readable companion there is `original-refined-findings.md`.
+Preparation took 69.877 seconds; measured total time was **315.09 seconds
+wall, 275.49 user, 8.07 system**, maximum RSS 1,538,932,736 bytes, zero
+reported swaps. Exit status was zero, paused at the runtime limit. Formatting
+and diff checks passed; no new test run was added for this scheduling-only
+change. As before, zero selected cases in the original prefix is not a
+global no-cliff result, and the separate 176-cliff boundary evidence is not
+silently counted as original-query coverage.
