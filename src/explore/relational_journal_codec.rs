@@ -3710,7 +3710,7 @@ fn decode_region_cover(
 > {
     use super::relational_region_proof::{
         RelationalRegionCoverArtifact as Cover, RelationalRegionCoverNode as Node,
-        RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
+        MAX_RELATIONAL_REGION_COVER_NODES, RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
         RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION,
     };
     if !matches!(
@@ -3721,7 +3721,7 @@ fn decode_region_cover(
         return Ok(None);
     }
     let count = reader.collection_len("regional cover nodes")?;
-    if count == 0 || count > 31 {
+    if count == 0 || count > MAX_RELATIONAL_REGION_COVER_NODES {
         return Err(RelationalJournalCodecError::Malformed(
             "invalid cover node count",
         ));

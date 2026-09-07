@@ -10,7 +10,9 @@ use crate::explore::relational_endpoint_totality_proof::abstract_classification:
 };
 use crate::explore::support_cell::{RankedProductBox, SupportExpr};
 
-pub(crate) const MAX_COVER_NODES: usize = 31;
+// At most 32 leaves in a full binary cover. Share this bound with decoding:
+// larger checked covers must not be produced only to fail cold journal replay.
+pub(crate) const MAX_COVER_NODES: usize = 63;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum CoverNode {

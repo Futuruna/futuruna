@@ -145,6 +145,7 @@ mod product;
 mod cover;
 pub(crate) use cover::{
     CoverArtifact as RelationalRegionCoverArtifact, CoverNode as RelationalRegionCoverNode,
+    MAX_COVER_NODES as MAX_RELATIONAL_REGION_COVER_NODES,
 };
 
 const CERTIFICATE_ID_V3: &[u8] = b"futuruna.explore.relational-region.certificate.v3";
@@ -4117,6 +4118,203 @@ mod tests {
             forged.validate_identity().unwrap();
             assert!(cold.reverify_canonical_child(&forged, &verified).is_err());
         }
+    }
+
+    #[test]
+    fn expanded_cover_reconciles_partial_slice_and_cold_replays_at_bound() {
+        let source = r#"
+? explore alternating_admission {
+    from {
+        vary before in range(0, 144)
+        vary context in range(0, 2)
+    }
+    transition after = before + 1
+    where before before / 8 == (before / 16) * 2
+    find losses = violations of after >= before
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let parsed = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let owned = Arc::new(
+            artifacts
+                .checked_exploration_query(0)
+                .unwrap()
+                .to_owned_checked_query(),
+        );
+        let checked = owned.view();
+        let catalog = crate::calculate::TypeCatalog::collect_checked_analysis_program(
+            &artifacts.analysis_program,
+        )
+        .unwrap();
+        let definitions =
+            super::super::relational_interpreter_mechanism::checked_ground_definitions(
+                &artifacts.analysis_program,
+            )
+            .unwrap();
+        let mut runtime = super::super::RelationalInterpreterExpressionRuntime::new(
+            Arc::new(catalog),
+            &definitions,
+            checked.closed_query,
+            None,
+        )
+        .unwrap();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let capsule = Arc::new(bind_fixture_capsule(
+            &checked,
+            &plan,
+            ClassificationSpecializationRoot::none(),
+        ));
+        let image = prove_relational_case_image_injectivity(&plan).unwrap();
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(&plan, &image).unwrap()
+        else {
+            panic!("expected a canonical product page")
+        };
+        let verified = reverify_relational_case_chunk_partition_artifact(
+            partition.artifact(),
+            &plan,
+            image.injectivity(),
+        )
+        .unwrap();
+        let make_authority = |artifacts| {
+            Arc::new(
+                RelationalRegionReplayAuthority::new(owned.clone(), plan.clone(), capsule.clone())
+                    .unwrap()
+                    .with_checked_box_classifier(Some(
+                        CheckedBoxClassifier::new(artifacts, owned.clone(), &plan).unwrap(),
+                    )),
+            )
+        };
+        let authority = make_authority(artifacts);
+        let analysis = RelationalAnalysisPlan::from_checked(&checked).unwrap();
+        let contract = RelationalJournalContract::new(
+            checked.relation_id(),
+            checked.admission_id(),
+            checked.question_ids().iter().copied(),
+            checked.transition_schemas().state_schema_id(),
+            checked.transition_schemas().context_schema_id(),
+            checked.transition_schemas().transition_type_id(),
+            analysis.producer_graph_digest().bytes(),
+        );
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            contract.clone(),
+            authority.clone(),
+        );
+        for event in [
+            RelationalJournalEvent::analysis_plan_registered(analysis),
+            RelationalJournalEvent::support_plan_registered(plan.clone()),
+            RelationalJournalEvent::relational_case_image_injectivity_proof_accepted(
+                image.proof().artifact().clone(),
+            ),
+            RelationalJournalEvent::relational_case_chunk_partition_accepted(
+                partition.artifact().clone(),
+            ),
+        ] {
+            journal.append(event).unwrap();
+        }
+
+        // Preserve one concrete member just like the original page366 frontier.
+        let injectivity =
+            super::super::support_cell::relational_case_chunk_partition_gateway::injectivity(
+                &verified, 0,
+            )
+            .unwrap();
+        let slice =
+            super::super::relational_classified_sweep::classify_relational_case_chunk_slice(
+                &checked,
+                &plan,
+                &verified,
+                0,
+                &injectivity,
+                None,
+                std::num::NonZeroU16::new(1).unwrap(),
+                &mut runtime,
+            )
+            .unwrap();
+        journal
+            .append(
+                RelationalJournalEvent::relational_classified_chunk_slice_checkpointed(
+                    slice.artifact().clone(),
+                ),
+            )
+            .unwrap();
+        let outcome = authority.prove_resumed_cover(&verified, 0).unwrap();
+        let proof = outcome.exact_empty().unwrap().proof();
+        let artifact = proof.artifact();
+        let recipe = artifact.cover().unwrap();
+        assert_eq!(recipe.nodes().len(), 63);
+        assert_eq!(recipe.nodes().len(), MAX_RELATIONAL_REGION_COVER_NODES);
+        assert_eq!(
+            (
+                artifact.admitted_case_count(),
+                artifact.rejected_case_count()
+            ),
+            (128, 128)
+        );
+        assert!(proof
+            .reconciles_prefix(verified.partition().chunks()[0].cell(), slice.accumulator(),)
+            .unwrap());
+        journal
+            .append(RelationalJournalEvent::relational_region_proof_accepted(
+                artifact.clone(),
+            ))
+            .unwrap();
+        assert!(journal
+            .scheduler_view()
+            .unwrap()
+            .classified_chunk_accumulator()
+            .unwrap()
+            .is_none());
+
+        // Exercise the real codec above the old31-node bound, then use a fresh
+        // producer to re-derive all leaves and reconcile the retained prefix.
+        let limits = RelationalJournalCodecLimits::default();
+        let decoded = journal
+            .entries()
+            .iter()
+            .map(|entry| {
+                let bytes = encode_relational_journal_entry(entry, limits).unwrap();
+                decode_relational_journal_entry(
+                    contract.clone(),
+                    entry.sequence(),
+                    entry.previous(),
+                    &bytes,
+                    limits,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(&decoded, journal.entries());
+        let cold = make_authority(TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            source,
+        ));
+        let replayed =
+            RelationalJournal::replay_with_region_replay_authority(contract, decoded, cold)
+                .unwrap();
+        assert_eq!(replayed.head(), journal.head());
+        assert!(replayed
+            .scheduler_view()
+            .unwrap()
+            .classified_chunk_accumulator()
+            .unwrap()
+            .is_none());
+        let mut oversized = recipe.nodes().to_vec();
+        oversized.push(oversized.last().unwrap().clone());
+        assert!(RelationalRegionCoverArtifact::restore(oversized.into_boxed_slice(), 128).is_err());
     }
 
     fn assert_child_certificate_chain(

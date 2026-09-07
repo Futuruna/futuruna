@@ -1827,3 +1827,70 @@ the output-first instruction. State/output are approximately 1.8/2.6 MiB;
 a byte-compared snapshot plus these measurements is retained at
 `/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3624.it0NQt/`.
 No files were deleted; about 47 GiB remained free.
+
+### Letting a bounded cover finish after a concrete prefix
+
+The page-366 trace ended after exactly 31 probes, with further commuting and
+outward-edge branches still pending. The producer and journal decoder now
+share a **63-node limit**: at most 32 leaves in a full binary cover. The
+search remains finite and bounded; source domains, node semantics, solver
+statements, acceptance checks and CPU/RAM limits have not changed.
+
+This is an Experimental artifact-capacity extension, not a new query or a
+new proof recipe. Existing V4/V5/V6/V7 receipts retain their identities and
+replay paths. The V6/V7 encoding grammar is unchanged, but an older CLI with
+the 31-node decoder limit will correctly reject newly written larger covers;
+use the updated CLI when resuming them.
+
+The focused
+`expanded_cover_reconciles_partial_slice_and_cold_replays_at_bound` test
+passed in **0.15s**, following a 13.14s incremental test build. A 288-case
+fixture exercises its first 256-case page with exactly **63 nodes / 32
+leaves**, 128 harmless cases and 128 exclusions. It preserves one concrete
+member, reconciles it through the fresh cover, encodes and decodes the real
+journal, cold-replays with a fresh producer, and rejects a 64-node cover.
+Formatting and diff checks passed; mint/deeper suites remain deferred under
+the user's output-first instruction.
+
+The next actual continuation keeps the original sequence-3624 checkpoint,
+including its partial slice. A 30-minute operational window amortizes the
+observed roughly six-minute preparation/replay cost. It does not increase
+CPU/RAM limits or the per-obligation solver caps. Results will be retained
+under `/tmp/futuruna-cover63-output.gxRFa9/`; no additional original-grid
+coverage is implied by the focused fixture or this scheduling change.
+
+The actual continuation reconciled the saved one-member slice and committed
+**pages 366..371**, adding **393,216 candidates** through 82 checked leaves:
+392,238 admitted harmless and 978 excluded transitions. Page 366 needed
+17 leaves (33 nodes), confirming that the former 31-node cap was too small.
+The six proof quanta took 463.973, 49.627, 102.211, 43.301, 370.561 and
+337.745 seconds respectively. These differing costs are measured local
+progress, not a whole-grid throughput guarantee.
+
+The original answer now accounts for **24,419,986 candidates (15.1865%)**:
+**24,359,039 admitted harmless**, **60,947 excluded** and **136,380,416
+still unclassified**. Zero selected remains only a lower bound. The separate
+176-cliff boundary audit is not counted here. Independent chunk-row sums
+match the manifest: 373 pages (0..371 and 2453), 2,191 regional leaves and
+2,565 case-support records. The low covered prefix is `[0,24379392)`:
+all incomes 0..60,644, then income 60,645 at distances 0..50 for both
+interventions. The upper-endpoint certificate remains unchanged.
+
+The outer wall deadline stopped the unfinished page-372 proof (exit 1);
+the empty JSON report adds no evidence. The committed answer is intact at
+**sequence 3671**, **64 durable segments**, head
+`a3cde82250495d0cb8b35c5c48a1e8020dd361c22b1736fc3e93d15353160029`.
+Later scheduler events seen in the trace were not durably committed. All
+11 published artifacts caught up to the committed prefix. Preparation took
+81.821s; the invocation measured **1,832.89s wall, 1,751.88s user, 35.00s
+system**, maximum RSS **1,304,969,216 bytes**, zero swaps. The stop was a
+time limit, not memory pressure. Query semantics, proof statements, CPU/RAM
+limits and per-obligation solver caps stayed unchanged.
+
+State/output are approximately 1.8/2.7 MiB. A recursively byte-compared
+snapshot with logs and exact commands is retained outside temporary storage
+at `/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3671.hycPFk/`.
+This is research/checkpoint data, not disposable debug data. No files were
+deleted; about 47 GiB remained free. The focused edge, formatting, diff check
+and optimized build passed; mint/deeper lanes remain deferred as requested.
+The full original answer remains open.
