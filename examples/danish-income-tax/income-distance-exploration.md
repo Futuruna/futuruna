@@ -8,10 +8,10 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
-The latest original-grid checkpoint accounts for **66,428,562 candidates
-(41.3112%)**, with **94,371,840 still unclassified**. The latest productive
-window added 38,338,560 candidates through checked regional proofs; see
-[cached regional covers](#assembling-pages-from-already-proved-regions).
+The latest original-grid checkpoint accounts for **105,422,482 candidates
+(65.5611%)**, with **55,377,920 still unclassified**. The latest productive
+window added 38,993,920 candidates through checked regional proofs; see
+[the next salary frontier](#continuation-to-the-next-salary-frontier).
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -2078,3 +2078,57 @@ checkpoint, then continue page 1013. Its repeated local commute probes around
 25..118 and 72..118 km are measured remaining costs; their smaller proved
 children do not authorize skipping the parent. Full-grid closure and the
 deferred broader validation gates remain open.
+
+### Continuation to the next salary frontier
+
+The next run used the same source, query, binary and sequence-9440 checkpoint,
+with a 60-minute cap and unchanged CPU/RAM/solver limits. Preparation took
+76.178s; the native fallback reused its cached executable in 0.232s, without
+compilation. By the observation at 17m11s, all saved receipts had cold-replayed,
+including the new cached-cover recipes. The interrupted page-1012 completion
+bookkeeping recovered and new work resumed at page 1013. No verification-only
+epoch, rebuild or additional test suite was run.
+
+It committed **595 new pages (1013..1607)** through **8,921 checked leaves**:
+**38,993,920 candidates**, comprising **38,896,920 harmless** and **97,000
+excluded**. **591 pages** used cache-only covers, totalling **1.828s** of
+classification work (2..6ms each). Four fresh closures took **526.890s**
+(97.419..157.761s each). These timings exclude preparation, cold replay,
+publication and the later unsuccessful proof search.
+
+Independent chunk sums agree with the final manifest: **105,422,482
+classified (65.5611%)** = **105,160,036 harmless** + **262,446 excluded**.
+**55,377,920 remain unclassified**; zero selected is still only a lower bound.
+The separate completed 176-cliff boundary audit is unchanged and not counted
+here. The original graph contains 1,609 pages (0..1607 and 2453), 19,101
+regional leaves and 20,711 records. Its gap-free low prefix `[0,105381888)`
+covers every starting income **0..262,143 DKK**, every declared distance and
+both interventions, including the outward exclusions. The existing
+upper-endpoint certificate remains unchanged.
+
+The next page, **1608**, exhausted the 63-node cover budget while salary
+proofs repeatedly returned `Unknown`, even after distance and income splits.
+Its final `ClassifiedSweep` quantum took **1,525.887s** and included only
+**one concrete member** after the unsuccessful cover attempt. The recorded
+slice has no completed page artifact, so that member is not added to the
+published closure counts above. No selected observer work occurred. The
+262,144-DKK boundary is an operational scope boundary, not a discovered tax
+cliff; a timeout is neither a no-cliff proof nor a cliff witness.
+
+The run paused with **exit 0 / `runtime_limit`** after **3,083.69s wall,
+2,965.89s user and 54.28s system**, below its 60-minute cap. Maximum RSS was
+**1,463,894,016 bytes**, zero swaps; CPU pacing paused 5.677s. The JSON report
+and manifest agree on **sequence 14804**, **154 segments**, head
+`0808deebffa3b4653a63d7823e90fa54d35d4199670dd3c66c3b2f212844a1cc`.
+All 11 artifacts are caught up, and all workers stopped before preservation.
+
+A recursively byte-compared snapshot, including the one-member resume slice,
+state, output, exact command, report and trace, is retained at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq14804.nKJXxK/`.
+State/output occupy about 7.4/21.2 MiB; approximately 47 GiB remained free.
+Nothing was deleted. The next useful step is to inspect an exact failing
+salary obligation and a nearby passing child with the already-built bounded
+diagnostic, before another long run. A read-only inspection also found a
+literal-only min/max recognizer limitation, but that is not yet the diagnosed
+cause of these salary timeouts. No speculative precision or model change has
+been made; mint/deeper gates remain deferred under the output-first request.
