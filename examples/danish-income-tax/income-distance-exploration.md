@@ -1894,3 +1894,59 @@ This is research/checkpoint data, not disposable debug data. No files were
 deleted; about 47 GiB remained free. The focused edge, formatting, diff check
 and optimized build passed; mint/deeper lanes remain deferred as requested.
 The full original answer remains open.
+
+### Native fallback and a wider arithmetic proof
+
+A 45-minute continuation restored the existing default compiled residual
+classifier, without changing the original query or checkpoint. Preparation
+took 77.145s and the compiler-hash-keyed native setup took 209.381s. Saved
+receipts, including the larger covers, cold-replayed successfully. The run
+then committed **pages 372..377**, adding **393,216 candidates** through
+90 checked leaves: 392,238 harmless and 978 excluded. All six pages closed
+through proofs; no new concrete classification was needed. Native residual
+throughput therefore remains unmeasured, and proof time is still the observed
+bottleneck on this frontier.
+
+The committed original answer is **24,813,202 classified (15.4311%)**:
+**24,751,277 harmless**, **61,925 excluded**, **135,987,200 unclassified**.
+Zero selected is only a lower bound; the separate 176-cliff audit is unchanged
+and not included in these counts. Independent chunk sums match the manifest:
+379 pages (0..377 and 2453), 2,281 regional leaves, 2,661 records. The low
+covered prefix `[0,24772608)` includes all incomes 0..61,622, then income
+61,623 at distances 0..80 for both interventions.
+
+The outer wall deadline stopped unfinished page 378 (exit 1). Its uncommitted
+work is not accepted evidence, and the empty JSON report is not the answer.
+The durable result is **sequence 3725**, **70 segments**, head
+`922e030be13aea315f4facd35ebb6ec1fb63b350ac1614666a90d40f69f6acd4`.
+All 11 artifacts caught up. Total **2,731.45s wall, 2,666.33s user, 64.25s
+system**, maximum RSS **1,425,752,064 bytes**, zero swaps; CPU pacing paused
+4.507s. No CPU/RAM or solver caps were raised. A byte-compared stable snapshot
+with exact commands and logs is retained at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3725.k7vNU4/`.
+No files were deleted; about 47 GiB remained free.
+
+After that worker stopped, one targeted arithmetic diagnostic found a more
+promising route than faster pointwise evaluation. The retained
+32,768..65,535-DKK / 25..119-km salary obligation previously timed out after
+10 seconds with both arithmetic engines. Adding general order/difference
+lemmas for its exact integer divisions and clamps yielded **UNSAT in 0.03s**,
+using 28,590,080 bytes maximum RSS, with the same statement limits. These
+facts expose the coupled endpoint changes: when rounded AM contribution rises
+by one whole krone, post-AM income rises by zero. Bounding those changes
+independently loses that useful relationship.
+
+The diagnostic preserves the original problem and adds 144 entailed facts
+over 72 same-operation/parameter pairs; it does not add model assumptions or
+source-axis bounds. A focused counterexample search over unbounded signed
+inputs, arbitrary clamp threshold, both min/max and divisors 1, 2, 100 and
+10,000 also returned UNSAT in 0.05s. Sign crossings are included; truncation
+toward zero is not incorrectly treated as floor division.
+
+This is **not yet an engine change or new grid coverage**. The next task is
+bounded, checked-DAG-derived preprocessing that preserves the original
+obligation, old receipt identities and solver fallback, followed by the
+closest permanent edge and a productive same-checkpoint run. Exact commands,
+scripts, results and caveats are in
+`/tmp/futuruna-hybrid-cover-output.8DBiKZ/findings.md`. No compiler rebuild or
+broad test lane was added; mint/deeper gates remain deferred as requested.
