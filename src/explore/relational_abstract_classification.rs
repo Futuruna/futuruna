@@ -195,6 +195,25 @@ impl CheckedBoxClassifier {
         if !branch_constants || proof.classification.outcome(checked).is_some() {
             return Some(proof);
         }
+        let arithmetic = prove_box_with_precision(
+            &index,
+            &self.inputs.resolutions,
+            checked,
+            coordinates,
+            branch_constants,
+            true,
+            IntegerPrecision::Arithmetic,
+        )
+        .ok()?;
+        // A definite SAT in the old relaxation can never become UNSAT merely
+        // by giving that same obligation more time. Only that stable negative
+        // result permits a new recipe, preserving every previously closed root.
+        // Timeout/unavailable/unsupported do not authorize a recipe switch.
+        if arithmetic.classification.outcome(checked).is_some()
+            || !arithmetic.arithmetic_relaxation_sat
+        {
+            return Some(arithmetic);
+        }
         prove_box_with_precision(
             &index,
             &self.inputs.resolutions,
@@ -202,7 +221,7 @@ impl CheckedBoxClassifier {
             coordinates,
             branch_constants,
             true,
-            true,
+            IntegerPrecision::Clamps,
         )
         .ok()
     }
@@ -344,6 +363,8 @@ pub(crate) struct CheckedSourceBoxProof {
     classification: BoxClassification,
     derivation_root: [u8; 32],
     split_hints: Box<[(usize, i64)]>,
+    // Operational fallback eligibility, not durable proof authority.
+    arithmetic_relaxation_sat: bool,
 }
 
 impl CheckedSourceBoxProof {
@@ -429,6 +450,7 @@ fn finish_box_proof(
         classification,
         derivation_root: hash.finalize().into(),
         split_hints: prover.split_hints.iter().copied().collect(),
+        arithmetic_relaxation_sat: prover.arithmetic_relaxation_sat,
     }
 }
 
@@ -525,8 +547,15 @@ fn prove_box_with_clamp_identities(
         coordinates,
         branch_constants,
         clamp_identities,
-        false,
+        IntegerPrecision::None,
     )
+}
+
+#[derive(Clone, Copy)]
+enum IntegerPrecision {
+    None,
+    Arithmetic,
+    Clamps,
 }
 
 fn prove_box_with_precision(
@@ -536,14 +565,16 @@ fn prove_box_with_precision(
     coordinates: &[Option<(i64, i64)>],
     branch_constants: bool,
     clamp_identities: bool,
-    integer_solver: bool,
+    precision: IntegerPrecision,
 ) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
+    let integer_solver = !matches!(precision, IntegerPrecision::None);
     let query = checked.closed_query;
     let sites = &checked.artifact.sites;
     let mut prover = EndpointTotalityProver::new(index, resolutions, checked.relation_id());
     prover.track_scalar_call_identities = true;
     prover.refine_known_parameter_constants = branch_constants;
     prover.refine_checked_clamp_identities = clamp_identities;
+    prover.retain_checked_clamp_dependencies = matches!(precision, IntegerPrecision::Clamps);
     prover.collect_split_hints = integer_solver;
     if integer_solver {
         prover.arithmetic_trace = Some(arithmetic_trace::ArithmeticTrace::default());
@@ -754,6 +785,128 @@ fn prove_box_with_precision(
 mod tests {
     use super::*;
     use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    #[ignore = "explicit installed-solver checked clamp edge"]
+    fn checked_clamp_dependencies_cross_zero_preserve_polarity_and_legacy_roots() {
+        let template = r#"
+CLAMP
+EXTRA
+> tax(x: Int) -> Int { clamp(x * 8 / 100) * 100 }
+? explore clamp_boundary {
+    from {
+        vary before in range(-164, 164)
+        given context = ()
+    }
+    transition after = before + 1
+    where before true
+    find rows = FIND of after * 100 - tax(after) CMP before * 100 - tax(before)
+}
+"#;
+        for (operator, constant, bound, value, extra, exact) in [
+            (">", 0, 0, "x", "", true),
+            (">=", 3, 3, "x", "", true),
+            ("<", 0, 0, "x", "", true),
+            ("<=", -3, -3, "x", "", true),
+            (">", 0, 3, "x", "", false),
+            (">", 0, 0, "x + 3", "", false),
+            ("<", 0, 0, "0 - x", "", true),
+            ("<=", 0, -3, "-3 - x", "", true),
+            (">", 0, 3, "x - 3", "", true),
+            (">=", 0, -3, "x - (-3)", "", true),
+            ("<", 0, 0, "x - 0", "", false),
+            (
+                ">",
+                0,
+                0,
+                "x",
+                "| exception extra clamp(x: Int) -> 1000 under x == 10",
+                false,
+            ),
+        ] {
+            for (form, clamp) in [
+                (
+                    "rules",
+                    "| clamp(x: Int) -> DEFAULT\n| exception clamp_side clamp(x: Int) -> VALUE under x OP BOUND",
+                ),
+                (
+                    "if-rule",
+                    "| clamp(x: Int) -> if x OP BOUND { VALUE } else { DEFAULT }",
+                ),
+                (
+                    "if-function",
+                    "> clamp(x: Int) -> Int { if x OP BOUND { VALUE } else { DEFAULT } }",
+                ),
+            ] {
+                if !extra.is_empty() && form != "rules" {
+                    continue;
+                }
+                if value.contains('-') && form == "rules" {
+                    continue;
+                }
+                for (find, comparison) in [("matches", "<"), ("violations", ">=")] {
+                    let source = template
+                        .replace("CLAMP", clamp)
+                        .replace("DEFAULT", &constant.to_string())
+                        .replace("BOUND", &bound.to_string())
+                        .replace("VALUE", value)
+                        .replace(" OP ", &format!(" {operator} "))
+                        .replace("EXTRA", extra)
+                        .replace("FIND", find)
+                        .replace("CMP", comparison);
+                    let mut lexer = Lexer::new(&source);
+                    let statements = Parser::new(lexer.tokenize(), &source)
+                        .parse_program()
+                        .unwrap();
+                    let artifacts =
+                        TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                    assert!(
+                        artifacts.diagnostics.is_empty(),
+                        "{:?}",
+                        artifacts.diagnostics
+                    );
+                    let checked = artifacts.checked_exploration_query(0).unwrap();
+                    let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+                    let coordinates = [Some((-164, 163)), None];
+                    let prove = |precision, coordinates: &[Option<(i64, i64)>]| {
+                        prove_box_with_precision(
+                            &index,
+                            &artifacts.checked_resolutions,
+                            &checked,
+                            coordinates,
+                            true,
+                            true,
+                            precision,
+                        )
+                        .unwrap()
+                    };
+                    let legacy = prove(IntegerPrecision::Arithmetic, &coordinates);
+                    assert!(!legacy.all_admitted_not_selected(), "{source}");
+                    assert!(legacy.arithmetic_relaxation_sat, "{source}");
+                    let refined = prove(IntegerPrecision::Clamps, &coordinates);
+                    assert_eq!(refined.all_admitted_not_selected(), exact, "{source}");
+                    if exact {
+                        assert_eq!(
+                            refined.derivation_root(),
+                            prove(IntegerPrecision::Clamps, &coordinates).derivation_root(),
+                            "fresh producer replay: {source}"
+                        );
+                    }
+                    // Known identity-side proofs must retain the same old root;
+                    // retaining dependencies must not change already precise calls.
+                    if operator == ">" && constant == 0 && exact && value == "x" {
+                        let positive = [Some((if form == "rules" { 0 } else { 13 }, 163)), None];
+                        let old = prove(IntegerPrecision::Arithmetic, &positive);
+                        assert!(old.all_admitted_not_selected());
+                        assert_eq!(
+                            old.derivation_root(),
+                            prove(IntegerPrecision::Clamps, &positive).derivation_root()
+                        );
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn cover_checked_clamp_preserves_rounded_income_difference_only_for_exact_identity() {
@@ -1154,13 +1307,18 @@ DEFINITION
             .unwrap_or_else(|| default_coordinates.to_vec());
         let measure = |coordinates: Coordinates| {
             let started = std::time::Instant::now();
-            let result = prove_box_with_clamp_identities(
+            let result = prove_box_with_precision(
                 &index,
                 &artifacts.checked_resolutions,
                 &checked,
                 &coordinates,
                 std::env::var_os("FUTURUNA_EXPLORE_COVER_PROOF").is_some(),
                 std::env::var_os("FUTURUNA_EXPLORE_CLAMP_PROOF").is_some(),
+                if std::env::var_os("FUTURUNA_EXPLORE_CLAMP_DEPENDENCIES").is_some() {
+                    IntegerPrecision::Clamps
+                } else {
+                    IntegerPrecision::None
+                },
             )
             .map(|proof| proof.classification);
             eprintln!(

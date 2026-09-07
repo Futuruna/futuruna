@@ -4,7 +4,7 @@
 //! Unknown expressions are independent, unbounded integers, never constants
 //! inferred from equal enclosures. Only declared source axes receive bounds.
 
-use super::{affine_interval::MAX_AXES, IntInterval};
+use super::{affine_interval::MAX_AXES, Correlation, IntInterval};
 use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -82,13 +82,20 @@ enum Term {
     Sub(Id, Id),
     Scale(Id, i128),
     Divide(Id, i128),
+    Clamp(Id, i128, ClampKind),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(super) enum ClampKind {
+    Maximum,
+    Minimum,
 }
 
 impl Term {
     fn children(&self) -> Vec<Id> {
         match self {
             Self::Add(a, b) | Self::Sub(a, b) => vec![*a, *b],
-            Self::Scale(a, _) | Self::Divide(a, _) => vec![*a],
+            Self::Scale(a, _) | Self::Divide(a, _) | Self::Clamp(a, _, _) => vec![*a],
             _ => Vec::new(),
         }
     }
@@ -100,6 +107,45 @@ pub(super) struct ArithmeticTrace {
 }
 
 impl ArithmeticTrace {
+    /// Called only after strict checked dispatch has established this exact
+    /// rule shape. Enclosures remain local; the DAG records only the operation
+    /// on the original call input, never a branch-local bound or assumption.
+    pub(super) fn observe_clamp(
+        &mut self,
+        input: IntInterval,
+        constant: i128,
+        kind: ClampKind,
+        mut result: IntInterval,
+    ) -> Option<IntInterval> {
+        if result.singleton_value().is_some() {
+            return None;
+        }
+        let child = self.intern(input)?;
+        let mut hash = Sha256::new();
+        hash.update(b"futuruna.checked-integer-clamp.v1\0");
+        hash.update(child);
+        hash.update(constant.to_le_bytes());
+        hash.update([match kind {
+            ClampKind::Maximum => 0,
+            ClampKind::Minimum => 1,
+        }]);
+        result.correlation =
+            Correlation::opaque(hash.finalize().into(), (result.minimum, result.maximum));
+        let output = self.intern(result)?;
+        if output == child {
+            return None;
+        }
+        match self.terms.get(&output) {
+            Some(Term::Free) => {
+                self.terms
+                    .insert(output, Term::Clamp(child, constant, kind));
+            }
+            Some(Term::Clamp(..)) => {}
+            _ => return None,
+        }
+        Some(result)
+    }
+
     fn intern(&mut self, value: IntInterval) -> Option<Id> {
         let symbolic = value.symbolic()?;
         let id = symbolic.expression_id();
@@ -238,6 +284,19 @@ impl ArithmeticTrace {
                 Term::Sub(x, y) => format!("(- {} {})", name(*x), name(*y)),
                 Term::Scale(x, c) => format!("(* {} {})", name(*x), number(*c)),
                 Term::Divide(x, d) => truncate(&name(*x), *d)?,
+                Term::Clamp(x, c, kind) => {
+                    let operator = match kind {
+                        ClampKind::Maximum => ">",
+                        ClampKind::Minimum => "<",
+                    };
+                    format!(
+                        "(ite ({operator} {} {}) {} {})",
+                        name(*x),
+                        number(*c),
+                        name(*x),
+                        number(*c)
+                    )
+                }
             };
             script.push_str(&format!("(define-fun {} () Int {body})\n", name(id)));
             if script.len() > 1_048_576 {

@@ -1588,3 +1588,165 @@ and diff checks passed; no new test run was added for this scheduling-only
 change. As before, zero selected cases in the original prefix is not a
 global no-cliff result, and the separate 176-cliff boundary evidence is not
 silently counted as original-query coverage.
+
+### Retaining uncertain checked clamps
+
+A subsequent unchanged 8-minute continuation reached **23,633,554**
+classified candidates: **23,574,564 admitted harmless transitions** and
+**58,990 exclusions**, leaving **137,166,848** candidates unclassified.
+Pages 0..359 plus 2453 are accounted for (2,044 regional leaves, 2,406
+case-support records). All 11 artifacts caught up to sequence **3561**, 51
+durable segments, head
+`6e3e7ffd52db6eda64c9470d3ac8be1f1e96e0b459c8d66eea6ff42c868ca7a0`.
+The outer wall governor then stopped the child with exit 1 during page 360;
+no uncommitted evidence was accepted. Measured time was 511.73 seconds wall,
+471.30 user, 11.39 system, maximum RSS 1,344,323,584 bytes and zero swaps.
+The empty JSON report is not a final result; the trace and readable findings
+are under `/tmp/futuruna-next-income-output.dVxmt2/`.
+
+The failure localized a missing dependency: a salary box at
+58,689..58,851 DKK remained unknown even at zero commute kilometres, while
+58,689..58,770 closed. The prior checked clamp refinement recovered an input
+only on a known identity side. Crossing a clamp made the before/after results
+independent opaque integers, allowing spurious counterexamples in the solver
+relaxation. Such SAT results are not modeled income-cliff witnesses.
+
+The new fallback recognizes the same exact checked single-argument min/max
+rule shapes after ordinary strict dispatch and totality. It records the
+original input, constant and min/max operation as an integer conditional in
+the bounded dependency DAG. Identities come from that expression, never from
+equal result enclosures or tax-specific names. Intermediate/branch-local
+bounds are not asserted globally, and only fresh UNSAT can close a box.
+
+Previously successful recipes run unchanged. The new precision is attempted
+only after a definite SAT from the old integer relaxation, not after timeout,
+unavailability or unsupported input. A definite SAT cannot turn into UNSAT
+for the identical obligation merely with more time, so previously closed
+V4/V5/V6/V7 receipts keep their recipe and root. The new dependency identity
+and exact solver script are committed by the ordinary derivation root.
+
+The focused installed-solver edge passed in 0.85 seconds (1m22s test build):
+`cargo test --lib checked_clamp_dependencies_cross_zero_preserve_polarity_and_legacy_roots -- --ignored --nocapture --test-threads=1`.
+It checks crossing-zero max/min rules, strict and inclusive guards, negative
+constants, both FIND polarities, malformed look-alikes with real jumps,
+fresh producer replay and unchanged identity-side roots. It ran serially at
+`nice -n 15` with the shared target and `CARGO_BUILD_JOBS=1`. Formatting and
+diff checks passed. Mint and deeper lanes remain deliberately deferred under
+the user's output-first instruction; the real original-grid continuation is
+the next measurement, not implied by this small edge.
+
+That measurement did **not** extend coverage. The 5m42s optimized build
+reopened the original checkpoint, but the same salary box remained SAT in
+the stronger relaxation, even at zero kilometres. The unchanged 8-minute
+invocation stopped at the outer wall deadline (exit 1): 512.66 seconds wall,
+468.50 user, 10.34 system; maximum RSS 1,553,940,480 bytes and zero swaps.
+Sequence 3561 and all its counts remain intact. Trace, empty JSON report and
+readable findings are under `/tmp/futuruna-clamp-scope-output.qrI3OS/`.
+The single-argument clamp edge is therefore useful but insufficient; an
+explicit one-box diagnostic is tracing the remaining opaque expression.
+
+The one-box diagnostic identified the missing form exactly: the two free
+values still used by the final solver obligation came from
+`søbl5_positivt_beløb`, whose checked body is `if x > 0 { x } else { 0 }`.
+The 2,986-byte obligation and opaque-call trace are retained as
+`zero-km-clamp.smt2` and `zero-km-diagnostic.log` in that same directory.
+The canonical box proof took 9.378 seconds; loading the full model through
+the debug diagnostic dominated its 307.92-second total (including a 15.58s
+incremental build), maximum RSS 2,297,757,696 bytes, zero swaps. Admissions
+were all true; selection remained unknown. The diagnostic's test exit 0
+does not mean the box was proved harmless.
+
+Clamp dependency retention now also recognizes this conditional expression
+inside either a rule or an ordinary function. It saves the checked input
+from before branch narrowing, requires the same binder and literal bound in
+the guard/results, and permits only single-expression branch blocks. Every
+reachable branch still completes ordinary strict evaluation before the fact
+is used. Recognition depends on checked structure, not the helper's name.
+The expanded focused edge passed in 2.14 seconds after a 26.90-second
+incremental build, covering all three spellings and the same negative,
+polarity and fresh-root checks. An optimized original-grid continuation will
+measure whether this resolves the remaining canonical dependency.
+
+The next actual run did prove previously unknown salary scopes: income
+32,768..65,535 / distance 0..24, 49,152..65,535 / 25..48, and
+57,344..65,535 / 49..60, plus the local 58,689..58,851 / 61..66 box.
+However, the 61..72-km box remained unknown and page 360 did not finish.
+These transient proofs are **not additional committed coverage**. The outer
+wall deadline again stopped the unchanged 8-minute run (exit 1); sequence
+3561 and its counts remain unchanged. The second optimized build took
+5m43s; preparation took 79.980s; the run measured 512.66 seconds wall,
+467.75 user, 10.45 system, maximum RSS 1,554,579,456 bytes and zero swaps.
+The `original-conditional-clamp-*` files in the same external directory
+retain the trace, empty report and readable findings. A single diagnostic
+of the remaining commuting-dependent box follows; no full suite was run.
+
+That diagnostic found exactly two free terms in the final 7,027-byte solver
+obligation: before/after `par13_absolut_underskud`, written
+`if x < 0 { 0 - x } else { 0 }`. The other opaque min-call results in the
+trace were not reachable from this final obligation. The box proof took
+9.893s; total time was 259.27s wall, 250.43 user, 3.59 system, maximum RSS
+1,491,222,528 bytes, zero swaps. Its files are `commuting-clamp.smt2` and
+`commuting-diagnostic.log` in the same external directory.
+
+The conditional recognizer now also covers `if x < c { c - x } else { 0 }`
+and `if x > c { x - c } else { 0 }`, including inclusive guards. These
+are positive-part clamps of checked differences. Original operands are
+retained before branch narrowing; extending the subtraction outside its
+branch requires checked arithmetic to prove it total over the whole box.
+Otherwise refinement declines. The same focused edge, expanded for both
+directions, negative constants and wrong-direction refusal, passed in
+3.26s after a 27.11s incremental build. Original page 360 is still open
+pending the next actual continuation; these diagnostics do not add coverage.
+
+The positive-difference run proved the page's remaining salary regions:
+local 58,689..58,851 / 25..72 and / 73..119, and a reusable
+32,768..65,535 / 120..200 scope. The outer wall deadline stopped it before
+the commuting side completed, so sequence 3561 and its counts remained
+unchanged. Build 5m46s, preparation 80.277s; run 512.01s wall, 472.04 user,
+9.85 system, maximum RSS 1,538,113,536 bytes, zero swaps. CPU pacing logged
+one 1.123s pause; memory did not cause the stop. The external
+`original-difference-clamp-*` files preserve this attempt.
+
+The next actual-output continuation uses a 15-minute work window to allow
+replay plus the difficult page to finish. This changes only the operational
+epoch duration: the query, journal, CPU/RAM governor, solver timeout and
+proof acceptance conditions remain unchanged. No extra build or test run is
+needed for that change.
+
+The 15-minute continuation committed **five new pages (360..364)**, adding
+**327,680 candidates**. The original result is now **23,961,234 classified**
+(14.9012%), comprising **23,901,428 admitted harmless transitions** and
+**59,806 exclusions**; **136,839,168 candidates remain unclassified**.
+Pages 0..364 plus 2453 are accounted for, with 2,099 regional leaves and
+2,466 case-support records. The low prefix is `[0,23920640)`: all incomes
+0..59,503, then income 59,504 / distances 0..15, for both interventions.
+
+Page 360's 11-leaf certificate is
+`9688b8d277aa09dbfb1dc5a46ce8875b20a29268753c47b2f0c56961ede5f140`.
+It accounts for 65,373 harmless transitions and 163 exclusions. Proof quanta
+were 302.620s for page 360, then 120.135s, 44.557s, 22.211s and 34.803s
+for pages 361..364. There were no concrete sweeps or selected observer work
+in the trace. New local obligations were re-derived during certificate
+acceptance; a separate cold reopen is deferred to the next productive run.
+
+The committed journal is sequence **3606**, **56 durable segments**, head
+`4661c2b0a9b968e58810b7ec68afd603ffa1f7ebac1e0a312f71f2faef35fc5a`.
+All 11 artifacts caught up; state/output are approximately 1.7/2.6 MiB.
+Preparation took 73.029s; the invocation measured **931.92s wall, 873.58
+user, 18.10 system**, maximum RSS **1,386,053,632 bytes**, zero swaps.
+The outer deadline stopped page 365 with exit 1 and no uncommitted evidence
+accepted. Its empty JSON report is not the authoritative result; the
+manifest and `original-difference-clamp-15m-findings.md` under
+`/tmp/futuruna-clamp-scope-output.qrI3OS/` retain the committed answer.
+
+The next bottleneck is solver timeout cost at the 59,504..59,666-DKK /
+25..119-km salary box, not disk pressure. The whole original answer remains
+open; zero selected cases here is not a global no-cliff claim. The separate
+176-cliff boundary audit remains separate. Formatting, diff checks and the
+focused clamp edge passed; mint/deeper lanes remain deferred as requested.
+
+A 4.4-MiB, recursively byte-compared checkpoint/output/experiment snapshot
+is also retained outside temporary storage at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3606.b9kjjb/`.
+Its README identifies it as research/checkpoint data, not disposable debug
+data. The working `/tmp` paths remain untouched; no cleanup was needed.

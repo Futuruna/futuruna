@@ -1823,10 +1823,16 @@ struct ChildCollectionState {
 
 struct IfBranchState {
     site: ExprSiteId,
+    checked_clamp: Option<CheckedIfClamp>,
     branches: Vec<(ExprSiteId, SharedAbstractEnv)>,
     next_index: usize,
     results: Vec<AbstractValue>,
     retained: RetainedValueBudget,
+}
+
+enum CheckedIfClamp {
+    Bound(IntInterval, i128, arithmetic_trace::ClampKind),
+    PositiveDifference(IntInterval, IntInterval),
 }
 
 struct LogicalState {
@@ -2166,6 +2172,7 @@ struct EndpointTotalityProver<'a, 'program> {
     // V6 checked-cover precision; legacy V4/V5 proof recipes leave this off.
     refine_known_parameter_constants: bool,
     refine_checked_clamp_identities: bool,
+    retain_checked_clamp_dependencies: bool,
     source_axis_count: usize,
     scalar_call_axes: RefCell<Vec<[u8; 32]>>,
     #[cfg(test)]
@@ -2176,6 +2183,7 @@ struct EndpointTotalityProver<'a, 'program> {
     arithmetic_axes: Vec<(i64, i64)>,
     arithmetic_comparison: Option<(ExprSiteId, bool)>,
     arithmetic_proofs: Vec<arithmetic_trace::ArithmeticUnsat>,
+    arithmetic_relaxation_sat: bool,
     collect_split_hints: bool,
     split_hints: BTreeSet<(usize, i64)>,
 }
@@ -2201,6 +2209,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             track_scalar_call_identities: false,
             refine_known_parameter_constants: false,
             refine_checked_clamp_identities: false,
+            retain_checked_clamp_dependencies: false,
             source_axis_count: 0,
             scalar_call_axes: RefCell::new(Vec::new()),
             #[cfg(test)]
@@ -2211,6 +2220,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             arithmetic_axes: Vec::new(),
             arithmetic_comparison: None,
             arithmetic_proofs: Vec::new(),
+            arithmetic_relaxation_sat: false,
             collect_split_hints: false,
             split_hints: BTreeSet::new(),
         }
@@ -2246,6 +2256,8 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         hash_segment(&mut hash, format!("{:?}", self.index.program.id).as_bytes());
         hash_segment(&mut hash, format!("{identity:?}").as_bytes());
         hash_segment(&mut hash, input_root);
+        #[cfg(test)]
+        let diagnostic_identity = format!("{identity:?}");
         let identity = hash.finalize().into();
         // Unused correlation coordinates may name opaque integer results as
         // well as source inputs. This preserves cancellation of a shared
@@ -2267,6 +2279,10 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         interval.correlation = position
             .and_then(|position| Correlation::axis(self.source_axis_count + position))
             .or_else(|| Correlation::opaque(identity, (interval.minimum, interval.maximum)));
+        #[cfg(test)]
+        if std::env::var_os("FUTURUNA_EXPLORE_OPAQUE_TRACE").is_some() {
+            eprintln!("CANONICAL_BOX_OPAQUE call={diagnostic_identity}; output={interval:?}");
+        }
     }
 
     fn issue(
@@ -4857,6 +4873,10 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                     machine,
                     EvalControl::IfBranches(Box::new(IfBranchState {
                         site: site.clone(),
+                        checked_clamp: self
+                            .retain_checked_clamp_dependencies
+                            .then(|| self.checked_if_clamp(&site, &env))
+                            .flatten(),
                         branches,
                         next_index: 0,
                         results: Vec::new(),
@@ -5157,15 +5177,123 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             self.schedule_site(machine, site, env)?;
             return Ok(());
         }
-        let result = join_values(state.results).ok_or_else(|| {
+        let mut result = join_values(state.results).ok_or_else(|| {
             self.issue(
                 &state.site,
                 RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable,
                 "if expression has no abstractly reachable branch",
             )
         })?;
+        let clamp = state.checked_clamp.and_then(|clamp| match clamp {
+            CheckedIfClamp::Bound(input, constant, kind) => Some((input, constant, kind)),
+            CheckedIfClamp::PositiveDifference(left, right) => {
+                // Extend the subtraction outside its original branch only if
+                // checked arithmetic proves it total on the original box too.
+                let difference = left.checked_sub(right)?;
+                self.arithmetic_trace
+                    .as_mut()?
+                    .observe("-", left, right, difference);
+                Some((difference, 0, arithmetic_trace::ClampKind::Maximum))
+            }
+        });
+        if let (Some((input, constant, kind)), Some(value)) = (clamp, result.int()) {
+            let identity_side = match kind {
+                arithmetic_trace::ClampKind::Maximum => input.minimum >= constant,
+                arithmetic_trace::ClampKind::Minimum => input.maximum <= constant,
+            };
+            if identity_side {
+                result = AbstractValue::Int(input);
+            } else if let Some(refined) = self
+                .arithmetic_trace
+                .as_mut()
+                .and_then(|trace| trace.observe_clamp(input, constant, kind, value))
+            {
+                result = AbstractValue::Int(refined);
+            }
+        }
         self.deliver_value(machine, result)?;
         Ok(())
+    }
+
+    /// Recognize the conditional spelling of the same checked min/max. Read
+    /// the input before branch refinement; use the fact only after every
+    /// reachable branch has completed strict evaluation. No expression is
+    /// evaluated again here, and blocks with extra statements are not erased.
+    fn checked_if_clamp(&self, site: &ExprSiteId, env: &AbstractEnv) -> Option<CheckedIfClamp> {
+        let guard = child_site(site, 0);
+        let ExprKind::BinOp(operator, _, _) = &self.index.expression(&guard)?.kind else {
+            return None;
+        };
+        let place = self.abstract_int_place(&child_site(&guard, 0))?;
+        if !place.fields.is_empty() {
+            return None;
+        }
+        let input = env.get(&place.binder)?.int()?;
+        let constant = exact_int_literal(self.index.expression(&child_site(&guard, 1)))?;
+        let then_site = self.single_expression_site(child_site(site, 1))?;
+        let else_site = self.single_expression_site(child_site(site, 2))?;
+        // if x < c { c - x } else { 0 }, or its positive-side dual.
+        // Match original checked operands, never equal numeric enclosures.
+        if exact_int_literal(self.index.expression(&else_site)) == Some(0)
+            && matches!(&self.index.expression(&then_site)?.kind, ExprKind::BinOp(op, _, _) if op == "-")
+        {
+            let (literal_child, input_child, reverse) = match operator.as_str() {
+                "<" | "<=" => (0, 1, true),
+                ">" | ">=" => (1, 0, false),
+                _ => return None,
+            };
+            let operand = self.abstract_int_place(&child_site(&then_site, input_child))?;
+            if operand.binder == place.binder
+                && operand.fields.is_empty()
+                && exact_int_literal(
+                    self.index
+                        .expression(&child_site(&then_site, literal_child)),
+                ) == Some(constant)
+            {
+                let bound = IntInterval::singleton(i64::try_from(constant).ok()?);
+                return Some(if reverse {
+                    CheckedIfClamp::PositiveDifference(bound, input)
+                } else {
+                    CheckedIfClamp::PositiveDifference(input, bound)
+                });
+            }
+            return None;
+        }
+        let identity = self.abstract_int_place(&then_site)?;
+        if identity.binder != place.binder || !identity.fields.is_empty() {
+            return None;
+        }
+        if exact_int_literal(self.index.expression(&else_site)) != Some(constant) {
+            return None;
+        }
+        match operator.as_str() {
+            ">" | ">=" => Some(CheckedIfClamp::Bound(
+                input,
+                constant,
+                arithmetic_trace::ClampKind::Maximum,
+            )),
+            "<" | "<=" => Some(CheckedIfClamp::Bound(
+                input,
+                constant,
+                arithmetic_trace::ClampKind::Minimum,
+            )),
+            _ => None,
+        }
+    }
+
+    fn single_expression_site(&self, mut site: ExprSiteId) -> Option<ExprSiteId> {
+        for _ in 0..MAX_CALL_DEPTH {
+            match &self.index.expression(&site)?.kind {
+                ExprKind::Block(statements) => {
+                    if !matches!(statements.as_slice(), [Stmt::Expr(_)]) {
+                        return None;
+                    }
+                    site = child_site(&child_site(&site, 0), 0);
+                }
+                _ => return Some(site),
+            }
+        }
+        None
     }
 
     fn continue_logical(
@@ -6130,6 +6258,18 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
         if self.refine_checked_clamp_identities {
             if let Some(identity) = self.checked_rule_clamp_identity(&state) {
                 value = AbstractValue::Int(identity);
+            } else if self.retain_checked_clamp_dependencies {
+                if let (Some((input, constant, kind)), Some(result)) =
+                    (self.checked_rule_clamp(&state), value.int())
+                {
+                    if let Some(refined) = self
+                        .arithmetic_trace
+                        .as_mut()
+                        .and_then(|trace| trace.observe_clamp(input, constant, kind, result))
+                    {
+                        value = AbstractValue::Int(refined);
+                    }
+                }
             }
         }
         self.identify_scalar_call_result(
@@ -6159,6 +6299,18 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
     /// totality have completed before this optional refinement runs. In
     /// particular, equal result enclosures alone never authorize correlation.
     fn checked_rule_clamp_identity(&self, state: &RuleState) -> Option<IntInterval> {
+        let (input, constant, kind) = self.checked_rule_clamp(state)?;
+        match kind {
+            arithmetic_trace::ClampKind::Maximum if input.minimum >= constant => Some(input),
+            arithmetic_trace::ClampKind::Minimum if input.maximum <= constant => Some(input),
+            _ => None,
+        }
+    }
+
+    fn checked_rule_clamp(
+        &self,
+        state: &RuleState,
+    ) -> Option<(IntInterval, i128, arithmetic_trace::ClampKind)> {
         let [argument] = state.arguments.as_slice() else {
             return None;
         };
@@ -6203,8 +6355,8 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             return None;
         }
         match operator.as_str() {
-            ">" | ">=" if input.minimum >= constant => Some(input),
-            "<" | "<=" if input.maximum <= constant => Some(input),
+            ">" | ">=" => Some((input, constant, arithmetic_trace::ClampKind::Maximum)),
+            "<" | "<=" => Some((input, constant, arithmetic_trace::ClampKind::Minimum)),
             _ => None,
         }
     }
@@ -9540,9 +9692,15 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                                 if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
                                     eprintln!("Explore checked integer obligation: {result:?}");
                                 }
-                                if let arithmetic_trace::SolverResult::Unsat(proof) = result {
-                                    self.arithmetic_proofs.push(proof);
-                                    truth = TruthDomain::from_bool(*expected);
+                                match result {
+                                    arithmetic_trace::SolverResult::Unsat(proof) => {
+                                        self.arithmetic_proofs.push(proof);
+                                        truth = TruthDomain::from_bool(*expected);
+                                    }
+                                    arithmetic_trace::SolverResult::Sat => {
+                                        self.arithmetic_relaxation_sat = true;
+                                    }
+                                    _ => {}
                                 }
                             }
                         }
