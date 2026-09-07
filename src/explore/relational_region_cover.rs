@@ -5,6 +5,7 @@
 //! proof search gives no coverage and leaves the original page residual.
 
 use super::*;
+use crate::explore::relational_endpoint_totality_proof::abstract_classification::CheckedSourceBoxProof;
 use crate::explore::support_cell::{RankedProductBox, SupportExpr};
 
 pub(crate) const MAX_COVER_NODES: usize = 31;
@@ -270,12 +271,12 @@ pub(super) fn prove_artifact(
     ))
 }
 
-fn classify_leaf(
+fn probe_region(
     classifier: &CheckedBoxClassifier,
     checked: &CheckedExploreQueryView<'_>,
     inventory: &RelationalProofStrategyInventory,
     region: &RankedProductBox,
-) -> Option<CoverLeaf> {
+) -> Option<CheckedSourceBoxProof> {
     let enclosure = region.enclosure().ok()?;
     let mut coordinates = Vec::with_capacity(checked.closed_query.source.bindings.len());
     for binding in &checked.closed_query.source.bindings {
@@ -307,7 +308,21 @@ fn classify_leaf(
             }
         });
     }
-    let proof = classifier.prove_cover_coordinates(checked, &coordinates)?;
+    let proof = classifier.prove_cover_coordinates(checked, &coordinates);
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+        eprintln!(
+            "Explore checked cover probe: coordinates={coordinates:?}; outcome={:?}; cuts={:?}",
+            proof
+                .as_ref()
+                .and_then(|proof| proof_leaf(proof, region))
+                .map(|leaf| leaf.outcome),
+            proof.as_ref().map(|proof| proof.split_hints())
+        );
+    }
+    proof
+}
+
+fn proof_leaf(proof: &CheckedSourceBoxProof, region: &RankedProductBox) -> Option<CoverLeaf> {
     let outcome = if proof.all_rejected() {
         RelationalCertifiedRegionConclusion::Rejected
     } else if proof.all_admitted_not_selected() {
@@ -350,7 +365,8 @@ fn prove_node(
     if nodes.len() >= MAX_COVER_NODES {
         return None;
     }
-    if let Some(leaf) = classify_leaf(classifier, checked, inventory, region) {
+    let proof = probe_region(classifier, checked, inventory, region);
+    if let Some(leaf) = proof.as_ref().and_then(|proof| proof_leaf(proof, region)) {
         nodes.push(CoverNode::Leaf {
             outcome: leaf.outcome,
             derivation_root: leaf.derivation_root,
@@ -377,12 +393,49 @@ fn prove_node(
                 (1u8, 0)
             }
         })?;
-    let pivot = if high.checked_add(1)? == root.factors().get(axis)?.1 {
+    let default_pivot = if high.checked_add(1)? == root.factors().get(axis)?.1 {
         high
     } else {
         low.checked_add((high - low) / 2)?.checked_add(1)?
     };
-    let axis = u32::try_from(axis).ok()?;
+    // Preserve tiny categorical isolation. Prefer checked guard cuts that
+    // isolate a declared upper endpoint, then balanced interior guard cuts.
+    // Hints never bypass split validation or either child's semantic proof.
+    let hinted = (high - low > 1)
+        .then(|| {
+            proof
+                .as_ref()?
+                .split_hints()
+                .iter()
+                .filter_map(|&(ordinal, value)| {
+                    let binding = inventory.finite_binding_indices().get(ordinal)?;
+                    let source = inventory
+                        .axes()
+                        .iter()
+                        .find(|axis| axis.binding_index() == *binding)?;
+                    let pivot =
+                        u128::try_from(i128::from(value) - i128::from(source.value_start()))
+                            .ok()?;
+                    let axis = u32::try_from(ordinal).ok()?;
+                    let (left, right) = split(region, axis, pivot)?;
+                    let (_, high) = *enclosure.get(ordinal)?;
+                    let endpoint = pivot == high
+                        && high.checked_add(1) == Some(root.factors().get(ordinal)?.1);
+                    Some((
+                        endpoint,
+                        left.coordinate_count().min(right.coordinate_count()),
+                        axis,
+                        pivot,
+                    ))
+                })
+                .max_by_key(|&(endpoint, balance, axis, pivot)| {
+                    (endpoint, balance, axis, std::cmp::Reverse(pivot))
+                })
+        })
+        .flatten();
+    let (axis, pivot) = hinted
+        .map(|(_, _, axis, pivot)| (axis, pivot))
+        .unwrap_or((u32::try_from(axis).ok()?, default_pivot));
     let (left, right) = split(region, axis, pivot)?;
     nodes.push(CoverNode::Split { axis, pivot });
     prove_node(classifier, checked, inventory, root, &left, nodes, leaves)?;
@@ -411,7 +464,8 @@ fn reverify_node(
             derivation_root,
             coordinate_count,
         } => {
-            let leaf = classify_leaf(classifier, checked, inventory, region)?;
+            let proof = probe_region(classifier, checked, inventory, region)?;
+            let leaf = proof_leaf(&proof, region)?;
             if leaf.outcome != *outcome
                 || leaf.derivation_root != *derivation_root
                 || leaf.region.coordinate_count() != *coordinate_count
@@ -429,6 +483,116 @@ mod tests {
     use super::*;
     use crate::explore::relational_support_planner::RelationalSupportPlanner;
     use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    #[ignore = "explicit installed-solver cover authority edge"]
+    fn checked_integer_cover_replays_unsat_and_rejects_forged_roots() {
+        for predicate in [
+            "violations of after * 7 / 19 >= before * 7 / 19",
+            "matches of after * 7 / 19 < before * 7 / 19",
+        ] {
+            let source = format!(
+                r#"
+? explore rounding {{
+    from {{
+        vary before in range(-100, 101)
+        vary context in range(0, 2)
+    }}
+    transition after = before + 1
+    where after after <= 100
+    find losses = {predicate}
+}}
+"#
+            );
+            let mut lexer = Lexer::new(&source);
+            let parsed = Parser::new(lexer.tokenize(), &source)
+                .parse_program()
+                .unwrap();
+            let artifacts = TypeChecker::check_with_explore_artifacts(&parsed, None, &source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+            let owned = Arc::new(
+                artifacts
+                    .checked_exploration_query(0)
+                    .unwrap()
+                    .to_owned_checked_query(),
+            );
+            let checked = owned.view();
+            let plan = RelationalSupportPlanner::from_checked(&checked)
+                .unwrap()
+                .plan()
+                .unwrap();
+            let classifier = CheckedBoxClassifier::new(artifacts, owned.clone(), &plan).unwrap();
+            let coordinates = [Some((-100, 99)), Some((0, 1))];
+            let old = classifier
+                .prove_coordinates(&checked, &coordinates)
+                .unwrap();
+            assert!(
+                !old.all_admitted_not_selected(),
+                "fixture must need stronger rounding dependencies"
+            );
+            assert!(classifier
+                .prove_cover_coordinates(&checked, &coordinates)
+                .unwrap()
+                .all_admitted_not_selected());
+            let expression = plan.cases().cell().unwrap().expression();
+            let cover =
+                CheckedRegionCover::prove(&classifier, &checked, &plan, expression).unwrap();
+            assert_eq!(cover.artifact().unwrap().rejected_count(), 2);
+            assert_eq!(
+                cover
+                    .leaves()
+                    .iter()
+                    .filter(|leaf| leaf.outcome
+                        == RelationalCertifiedRegionConclusion::AdmittedNotSelected)
+                    .map(|leaf| leaf.region.coordinate_count())
+                    .sum::<u128>(),
+                400,
+            );
+            assert_eq!(
+                CheckedRegionCover::reverify(
+                    &classifier,
+                    &checked,
+                    &plan,
+                    expression,
+                    cover.nodes()
+                )
+                .unwrap(),
+                cover
+            );
+            let mut forged = cover.nodes().to_vec();
+            let leaf_index = forged
+                .iter()
+                .position(|node| {
+                    matches!(
+                        node,
+                        CoverNode::Leaf {
+                            outcome: RelationalCertifiedRegionConclusion::AdmittedNotSelected,
+                            ..
+                        }
+                    )
+                })
+                .unwrap();
+            let CoverNode::Leaf {
+                derivation_root, ..
+            } = &mut forged[leaf_index]
+            else {
+                panic!("expected proved leaf")
+            };
+            *derivation_root = old.derivation_root();
+            assert!(CheckedRegionCover::reverify(
+                &classifier,
+                &checked,
+                &plan,
+                expression,
+                &forged
+            )
+            .is_none());
+        }
+    }
 
     #[test]
     fn ranked_box_cover_proves_mixed_admission_and_replays_only_valid_leaf_proofs() {

@@ -17,6 +17,8 @@ use sha2::{Digest, Sha256};
 
 #[path = "relational_affine_interval.rs"]
 mod affine_interval;
+#[path = "relational_arithmetic_trace.rs"]
+mod arithmetic_trace;
 use affine_interval::Correlation;
 
 #[path = "relational_abstract_classification.rs"]
@@ -2170,6 +2172,12 @@ struct EndpointTotalityProver<'a, 'program> {
     trace_comparison_site: Option<ExprSiteId>,
     #[cfg(test)]
     trace_unknown_equalities: bool,
+    arithmetic_trace: Option<arithmetic_trace::ArithmeticTrace>,
+    arithmetic_axes: Vec<(i64, i64)>,
+    arithmetic_comparison: Option<(ExprSiteId, bool)>,
+    arithmetic_proofs: Vec<arithmetic_trace::ArithmeticUnsat>,
+    collect_split_hints: bool,
+    split_hints: BTreeSet<(usize, i64)>,
 }
 
 impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
@@ -2199,6 +2207,12 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             trace_comparison_site: None,
             #[cfg(test)]
             trace_unknown_equalities: false,
+            arithmetic_trace: None,
+            arithmetic_axes: Vec::new(),
+            arithmetic_comparison: None,
+            arithmetic_proofs: Vec::new(),
+            collect_split_hints: false,
+            split_hints: BTreeSet::new(),
         }
     }
 
@@ -9403,6 +9417,9 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         "integer negation may overflow on this endpoint domain",
                     )
                 })?;
+                if let Some(trace) = &mut self.arithmetic_trace {
+                    trace.observe("*", interval, IntInterval::singleton(-1), result);
+                }
                 let result = AbstractValue::Int(result);
                 self.record(site, ObligationKind::Negation, &value, &result)?;
                 Ok(result)
@@ -9484,10 +9501,54 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         "CANONICAL_BOX_COMPARISON operator={operator}; left={left:?}; right={right:?}; difference={:?}; opaque_axes={}",
                         left.correlated_difference(right), self.scalar_call_axes.borrow().len()
                     );
+                    if let Some(trace) = &mut self.arithmetic_trace {
+                        if let Some(script) = trace.counterexample_script(
+                            operator,
+                            left,
+                            right,
+                            &self.arithmetic_axes,
+                        ) {
+                            if let Some(path) = std::env::var_os("FUTURUNA_EXPLORE_SMT_DUMP") {
+                                std::fs::write(path, &script)
+                                    .expect("write explicit arithmetic diagnostic");
+                                eprintln!("CANONICAL_BOX_SMT_DUMP bytes={}", script.len());
+                            }
+                        } else {
+                            eprintln!("CANONICAL_BOX_SMT_DUMP unavailable");
+                        }
+                    }
                 }
-                return Ok(AbstractValue::Bool(compare_intervals(
-                    operator, left, right,
-                )));
+                let mut truth = compare_intervals(operator, left, right);
+                if truth.singleton().is_none() {
+                    if self.collect_split_hints && self.split_hints.len() < 64 {
+                        self.split_hints.extend(arithmetic_trace::split_hints(
+                            left,
+                            right,
+                            self.source_axis_count,
+                        ));
+                    }
+                    if let Some((target, expected)) = &self.arithmetic_comparison {
+                        if target == site {
+                            if let Some(trace) = &mut self.arithmetic_trace {
+                                let result = trace.prove(
+                                    operator,
+                                    left,
+                                    right,
+                                    &self.arithmetic_axes,
+                                    *expected,
+                                );
+                                if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                                    eprintln!("Explore checked integer obligation: {result:?}");
+                                }
+                                if let arithmetic_trace::SolverResult::Unsat(proof) = result {
+                                    self.arithmetic_proofs.push(proof);
+                                    truth = TruthDomain::from_bool(*expected);
+                                }
+                            }
+                        }
+                    }
+                }
+                return Ok(AbstractValue::Bool(truth));
             }
             if matches!(
                 (&left, &right),
@@ -9585,6 +9646,9 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 format!("integer operator `{operator}` may overflow on this endpoint domain"),
             )
         })?;
+        if let Some(trace) = &mut self.arithmetic_trace {
+            trace.observe(operator, left_interval, right_interval, result);
+        }
         let result = AbstractValue::Int(result);
         self.record(site, kind, &input, &result)?;
         Ok(result)

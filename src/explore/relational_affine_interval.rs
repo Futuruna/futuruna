@@ -57,6 +57,14 @@ fn ceil_ratio(value: i128, denominator: i128) -> Option<i128> {
 }
 
 impl Correlation {
+    pub(super) fn expression_id(self) -> [u8; 32] {
+        self.expression
+    }
+
+    pub(super) fn exact_form(self) -> Option<([i128; MAX_AXES], i128, i128)> {
+        (self.error == (0, 0)).then_some((self.coefficients, self.constant, self.denominator))
+    }
+
     /// An otherwise opaque, total pure result. Its interval is represented as
     /// bounded error, not as an invented linear function. The checked caller
     /// may supply an exact identity only when all inputs are symbolically

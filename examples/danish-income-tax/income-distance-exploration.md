@@ -1312,3 +1312,125 @@ the resulting test binary ran `ranked_box_mixed_cover_journals --test-threads=1 
 under `nice -n 15`. Both checks passed in 0.11 seconds each. Formatting and
 diff checks passed. Broad gates and another canonical cold replay were
 deliberately deferred in favor of actual output, at the user's request.
+
+### Checked integer dependencies across rounding
+
+The next V6 precision fallback retains a bounded integer-expression DAG while
+the existing checked interpreter evaluates the model. It preserves shared
+subexpressions through addition, subtraction, constant multiplication and
+constant division. Division truncates toward zero, including negative values
+and divisors. Unrecognized expressions remain independent, unbounded integer
+symbols unless their checked expression identities are identical. Equal
+numeric enclosures do not establish identity. Only the original source axes
+receive domain bounds; branch-local intermediate bounds are not asserted
+globally.
+
+An optional installed `z3` process may strengthen an unknown, direct ordered
+integer FIND comparison **only after every admission has been proved true**.
+It asks whether any assignment violates the desired non-selection predicate.
+Only a fresh successful `unsat` response grants that refinement. A `sat`
+response is merely a possible counterexample in an overapproximation, not an
+authenticated case or an income-cliff finding. Missing Z3, unsupported terms,
+timeouts, `unknown`, process failures and malformed output leave the region
+residual. No tax formula is copied into a separate solver model.
+
+Each obligation has a 10-second solver timeout, a 128-MB solver memory limit,
+at most 4,096 reachable terms and a one-MiB script limit. The capture graph is
+bounded at 65,536 nodes. Workers run serially under the calling process's
+priority and the existing Explore containment policy. Z3 is an additional
+trusted solver in this Experimental fallback, not a proof checked by the small
+Futuruna kernel. No dependency is installed automatically.
+
+The checked-box derivation commits the exact generated obligation and its
+non-selection polarity. The digest alone confers no authority: saved cover
+leaves are freshly proved on replay, including a fresh solver response when
+needed. Reopening solver-backed evidence therefore requires that obligation
+to succeed again; lack of a solver or a timeout cannot silently authorize it.
+Existing closed V4/V5/V6 derivations keep their prior recipes and roots. The
+new fallback only strengthens previously unknown comparisons.
+
+Unknown checked affine guards also nominate adjacent source-coordinate cuts.
+These are search hints, not evidence. The cover first separates tiny
+categorical axes, prefers checked cuts isolating declared upper endpoints,
+then uses balanced interior guard cuts. Every child still needs its own exact
+rank geometry and classification proof; replay follows the recorded partition
+rather than rerunning the search heuristic. Commuting boundaries are derived
+from checked expressions, not a hardcoded list of tax thresholds.
+
+The motivation is measured on the canonical model. For starting salaries
+399,900..399,999 DKK at every 0..200-km commute, the earlier interval comparison
+was unknown, with a -2,049,038..2,049,163-øre enclosure. The captured integer
+obligation instead proved all **20,100 salary transitions** harmless in
+5.92 seconds with about 29 MB maximum RSS. At a fixed zero-km commute, its
+100-transition counterpart proved harmless in 2.00 seconds. Conversely, the
+wide commuting-step relaxation returned `sat`, which was **not** reported as
+a real loss. These diagnostic obligations are retained under
+`/tmp/futuruna-high-income-regions.1ShEd7/`; they are not themselves saved
+coverage of the original full-grid journal.
+
+The focused `checked_integer_cover_replays_unsat_and_rejects_forged_roots`
+edge passed in 0.26 seconds: both FIND polarities, all 400 valid rounded
+transitions, two excluded endpoints, fresh cover replay and rejection of a
+forged prior derivation root. The separate signed-division, solver-polarity and
+distinct-opaque-expression edge passed in 0.11 seconds. Fixture setup and a
+fixed-partition-shape assertion were corrected before the passing cover run;
+the assertion now checks exact outcome totals rather than a particular search
+tree shape. A subsequent scheduling-only refinement prioritizes checked
+upper-endpoint cuts. Broad gates remain deferred at the user's request.
+
+### Original full-grid checkpoint after integer dependency proofs
+
+The subsequent production run increased saved original-query coverage from
+65,536 to **433,810 candidates**: **432,530 admitted, harmless transitions**
+and **1,280 excluded endpoints**. It closed pages 0..5 and 2453 with 28
+regional leaves. No new concrete sweeps were needed; the run's observer memo
+had zero entries, hits, misses and inserts. This is actual journal coverage,
+not the diagnostic solver measurements above.
+
+The previously blocked page 2453 covers original ranks
+`[160759808, 160800402)`. Its ten-leaf certificate accounts for **40,292
+harmless transitions and 302 exclusions**: 20,096 salary steps, 20,196 commute
+steps, 201 outward salary endpoints and 101 outward commuting endpoints.
+Its enclosing coordinates start at income 399,900 DKK and extend through
+400,000 DKK; exact rank clipping omits the first four commuting distances at
+income 399,900. The salary leaf uses the shared integer-dependency obligation;
+the commuting leaves split at checked guards. Its certificate is
+`d9ab19f7ab9df2557c0076952e5228c714faf1fe19b64e50994f47a0ebb5d6cb`.
+The existing page-0 certificate replayed unchanged, and new leaves were
+freshly reverified before acceptance.
+
+The original state now has sequence **375**, 39 durable segments and head
+`c1f42d5f34077ae8ef20a081c1c1df1f4f20d8382552152d91c24efb761fee91`.
+All 11 output artifacts caught up, with 36 case-support graph records. State
+and output occupy 520 and 120 KiB respectively on this filesystem. The run
+appended 20 semantic batches containing 45 events and paused normally at its
+runtime limit. All analysis layers remain open: **160,366,592 candidates are
+still unclassified**. Zero selected cases in this prefix is not a full-grid
+no-cliff result. The separately completed 176-cliff boundary experiment above
+has a different query identity and is not silently counted in this journal.
+
+The optimized build completed in 5m58s. The actual invocation was:
+
+```sh
+env FUTURUNA_EXPLORE_TRACE=1 FUTURUNA_EXPLORE_DISABLE_NATIVE_CLASSIFIER=1 \
+  /usr/bin/time -l nice -n 15 \
+  /Users/andreasrudolph/futuruna-explore-spec/target/release/runa explore \
+  examples/danish-income-tax/personskat-income-distance-unit.explore.runa \
+  --query personskat_income_distance_unit_2026 \
+  --run-state /tmp/futuruna-rule-regions.zIAuRQ/personskat-blocks-state \
+  --output /tmp/futuruna-rule-regions.zIAuRQ/personskat-blocks-output \
+  --time-limit 5m --json \
+  > /tmp/futuruna-high-income-regions.1ShEd7/original-integer-report.json \
+  2> /tmp/futuruna-high-income-regions.1ShEd7/original-integer-trace.log
+```
+
+Preparation took 90.006 seconds. The high-endpoint proof quantum took 75.915
+seconds; subsequent low-income page quanta took 19.4..20.5 seconds each.
+Measured process time was **606.30 seconds wall, 266.86 user, 8.56 system**,
+with maximum RSS 1,207,877,632 bytes and zero reported swaps. The declared
+five-minute runtime budget is not a five-minute wall-time measurement; the
+additional elapsed time has not been diagnosed. Host CPU pacing remained
+enabled and recorded one 1.121-second pause. Formatting and diff checks passed;
+mint and deeper suites remain deliberately unrun under the user's explicit
+output-first instruction. These are research results of the encoded model,
+not an independent verification of Danish tax law.

@@ -88,12 +88,13 @@ impl CheckedBoxClassifier {
         if !branch_constants || proof.classification.outcome(checked).is_some() {
             return Some(proof);
         }
-        prove_box_with_clamp_identities(
+        prove_box_with_precision(
             &index,
             &self.inputs.resolutions,
             checked,
             coordinates,
             branch_constants,
+            true,
             true,
         )
         .ok()
@@ -233,6 +234,7 @@ pub(crate) struct BoxClassification {
 pub(crate) struct CheckedSourceBoxProof {
     classification: BoxClassification,
     derivation_root: [u8; 32],
+    split_hints: Box<[(usize, i64)]>,
 }
 
 impl CheckedSourceBoxProof {
@@ -250,6 +252,11 @@ impl CheckedSourceBoxProof {
 
     pub(crate) const fn derivation_root(&self) -> [u8; 32] {
         self.derivation_root
+    }
+
+    /// Search nominations only. These confer no classification authority.
+    pub(crate) fn split_hints(&self) -> &[(usize, i64)] {
+        &self.split_hints
     }
 }
 
@@ -296,9 +303,23 @@ fn finish_box_proof(
         }
     }
     hash_segment(&mut hash, &prover.proof_root().bytes());
+    if !prover.arithmetic_proofs.is_empty() {
+        hash_segment(
+            &mut hash,
+            b"futuruna.explore.checked-source-box.integer-unsat.v1\0",
+        );
+        hash_segment(
+            &mut hash,
+            &(prover.arithmetic_proofs.len() as u64).to_le_bytes(),
+        );
+        for proof in &prover.arithmetic_proofs {
+            hash_segment(&mut hash, &proof.digest());
+        }
+    }
     CheckedSourceBoxProof {
         classification,
         derivation_root: hash.finalize().into(),
+        split_hints: prover.split_hints.iter().copied().collect(),
     }
 }
 
@@ -388,12 +409,42 @@ fn prove_box_with_clamp_identities(
     branch_constants: bool,
     clamp_identities: bool,
 ) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
+    prove_box_with_precision(
+        index,
+        resolutions,
+        checked,
+        coordinates,
+        branch_constants,
+        clamp_identities,
+        false,
+    )
+}
+
+fn prove_box_with_precision(
+    index: &CheckedExploreSemanticIndex<'_>,
+    resolutions: &CheckedResolutionArtifacts,
+    checked: &CheckedExploreQueryView<'_>,
+    coordinates: &[Option<(i64, i64)>],
+    branch_constants: bool,
+    clamp_identities: bool,
+    integer_solver: bool,
+) -> Result<CheckedSourceBoxProof, RelationalEndpointTotalityIssue> {
     let query = checked.closed_query;
     let sites = &checked.artifact.sites;
     let mut prover = EndpointTotalityProver::new(index, resolutions, checked.relation_id());
     prover.track_scalar_call_identities = true;
     prover.refine_known_parameter_constants = branch_constants;
     prover.refine_checked_clamp_identities = clamp_identities;
+    prover.collect_split_hints = integer_solver;
+    if integer_solver {
+        prover.arithmetic_trace = Some(arithmetic_trace::ArithmeticTrace::default());
+        prover.arithmetic_axes = coordinates.iter().flatten().copied().collect();
+    }
+    #[cfg(test)]
+    if std::env::var_os("FUTURUNA_EXPLORE_SMT_DUMP").is_some() {
+        prover.arithmetic_trace = Some(arithmetic_trace::ArithmeticTrace::default());
+        prover.arithmetic_axes = coordinates.iter().flatten().copied().collect();
+    }
     prover.source_axis_count = query
         .source
         .bindings
@@ -548,11 +599,21 @@ fn prove_box_with_clamp_identities(
         let decision = match (&find.find, site) {
             (ExploreFindIr::All { .. }, None) => Some(true),
             (ExploreFindIr::Matches { .. } | ExploreFindIr::Violations { .. }, Some(site)) => {
+                // Solver authority is confined to this direct FIND predicate,
+                // after the checked interpreter proved every admission true.
+                // Prove only non-selection; a relaxed SAT model is not a case.
+                if integer_solver && admissions.iter().all(|value| *value == Some(true)) {
+                    prover.arithmetic_comparison = Some((
+                        site.clone(),
+                        matches!(find.find, ExploreFindIr::Violations { .. }),
+                    ));
+                }
                 #[cfg(test)]
                 if std::env::var_os("FUTURUNA_EXPLORE_BOXES").is_some() {
                     prover.trace_comparison_site = Some(site.clone());
                 }
                 let value = prover.eval_site(site, &env)?;
+                prover.arithmetic_comparison = None;
                 value
                     .value
                     .truth()
