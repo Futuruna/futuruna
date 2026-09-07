@@ -18,8 +18,27 @@ use crate::{CheckedExploreQueryView, CheckedResolutionRecorder};
 type Coordinates = Vec<Option<(i64, i64)>>;
 
 pub(crate) const MAX_SCOPE_BINDINGS: usize = 64;
+pub(crate) const MAX_CACHED_COVER_SCOPES: usize = 64;
 const SHARED_SCOPE_WIDTH: i128 = 32_768;
 type ScopeCache = std::collections::VecDeque<(Coordinates, Option<Arc<CheckedSourceBoxProof>>)>;
+
+/// An immutable scope/proof pair minted only from this producer's cache.
+/// A decoded scope or digest cannot construct this authority.
+#[derive(Clone, Debug)]
+pub(crate) struct CachedCoverScope {
+    coordinates: Coordinates,
+    proof: Arc<CheckedSourceBoxProof>,
+}
+
+impl CachedCoverScope {
+    pub(crate) fn coordinates(&self) -> &[Option<(i64, i64)>] {
+        &self.coordinates
+    }
+
+    pub(crate) fn proof(&self) -> &CheckedSourceBoxProof {
+        &self.proof
+    }
+}
 
 /// Exact coordinate containment, including the finite/singleton binding shape.
 pub(crate) fn coordinates_contained(
@@ -114,6 +133,37 @@ impl CheckedBoxClassifier {
             .is_ok_and(|cache| cache.iter().any(|(key, _)| key == scope))
     }
 
+    /// Snapshot only already-closed producer proofs. No derivation, solver
+    /// attempt, cache insertion or decoded-artifact promotion occurs here.
+    pub(crate) fn cached_closed_cover_scopes(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+    ) -> Option<Vec<CachedCoverScope>> {
+        if !self.matches_checked(checked) {
+            return None;
+        }
+        let cache = self.scope_cache.lock().ok()?;
+        if cache.len() > MAX_CACHED_COVER_SCOPES {
+            return None;
+        }
+        Some(
+            cache
+                .iter()
+                .rev()
+                .filter_map(|(coordinates, proof)| {
+                    let proof = proof.as_ref()?;
+                    (coordinates.len() <= MAX_SCOPE_BINDINGS
+                        && coordinates_contained(coordinates, &self.inputs.domains)
+                        && (proof.all_rejected() || proof.all_admitted_not_selected()))
+                    .then(|| CachedCoverScope {
+                        coordinates: coordinates.clone(),
+                        proof: proof.clone(),
+                    })
+                })
+                .collect(),
+        )
+    }
+
     /// Fresh source proof once per retained scope and checked snapshot. A cold
     /// classifier has an empty cache and must run the producer (including any
     /// solver obligation) again. Scope bytes or digests cannot fill this cache.
@@ -139,7 +189,7 @@ impl CheckedBoxClassifier {
         }
         let proof = self.prove_cover_coordinates(checked, scope).map(Arc::new);
         let mut cache = self.scope_cache.lock().ok()?;
-        if cache.len() >= 64 {
+        if cache.len() >= MAX_CACHED_COVER_SCOPES {
             cache.pop_front();
         }
         cache.push_back((scope.to_vec(), proof.clone()));

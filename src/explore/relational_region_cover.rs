@@ -6,7 +6,8 @@
 
 use super::*;
 use crate::explore::relational_endpoint_totality_proof::abstract_classification::{
-    coordinates_contained, CheckedSourceBoxProof, MAX_SCOPE_BINDINGS,
+    coordinates_contained, CachedCoverScope, CheckedSourceBoxProof, MAX_CACHED_COVER_SCOPES,
+    MAX_SCOPE_BINDINGS,
 };
 use crate::explore::support_cell::{RankedProductBox, SupportExpr};
 
@@ -179,6 +180,17 @@ impl CheckedRegionCover {
         {
             return None;
         }
+        if let Some(cover) = Self::from_cached_scopes(classifier, checked, &inventory, &root) {
+            if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!(
+                    "Explore checked cached cover: nodes={}; leaves={}; cases={}",
+                    cover.nodes.len(),
+                    cover.leaves.len(),
+                    root.coordinate_count()
+                );
+            }
+            return Some(cover);
+        }
         let mut nodes = vec![];
         let mut leaves = vec![];
         prove_node(
@@ -190,6 +202,25 @@ impl CheckedRegionCover {
             &mut nodes,
             &mut leaves,
         )?;
+        Some(Self {
+            nodes: nodes.into_boxed_slice(),
+            leaves: leaves.into_boxed_slice(),
+        })
+    }
+
+    fn from_cached_scopes(
+        classifier: &CheckedBoxClassifier,
+        checked: &CheckedExploreQueryView<'_>,
+        inventory: &RelationalProofStrategyInventory,
+        root: &RankedProductBox,
+    ) -> Option<Self> {
+        let scopes = classifier.cached_closed_cover_scopes(checked)?;
+        if scopes.is_empty() || scopes.len() > MAX_CACHED_COVER_SCOPES {
+            return None;
+        }
+        let mut nodes = vec![];
+        let mut leaves = vec![];
+        cached_cover_node(checked, inventory, root, &scopes, &mut nodes, &mut leaves)?;
         Some(Self {
             nodes: nodes.into_boxed_slice(),
             leaves: leaves.into_boxed_slice(),
@@ -469,6 +500,83 @@ fn split(
     ))
 }
 
+/// One bounded geometry-only pass. Scope boundaries are split hints, never
+/// evidence about the parent. Every accepted leaf must fit a complete fresh
+/// cached theorem; any gap abandons this pass without spending a solver call.
+fn cached_cover_node(
+    checked: &CheckedExploreQueryView<'_>,
+    inventory: &RelationalProofStrategyInventory,
+    region: &RankedProductBox,
+    scopes: &[CachedCoverScope],
+    nodes: &mut Vec<CoverNode>,
+    leaves: &mut Vec<CoverLeaf>,
+) -> Option<()> {
+    if nodes.len() >= MAX_COVER_NODES {
+        return None;
+    }
+    let coordinates = region_coordinates(checked, inventory, region)?;
+    for scope in scopes {
+        if coordinates_contained(&coordinates, scope.coordinates()) {
+            let leaf = proof_leaf(scope.proof(), region)?;
+            nodes.push(CoverNode::ScopedLeaf {
+                outcome: leaf.outcome,
+                derivation_root: leaf.derivation_root,
+                coordinate_count: region.coordinate_count(),
+                scope: scope.coordinates().to_vec().into_boxed_slice(),
+            });
+            leaves.push(leaf);
+            return Some(());
+        }
+    }
+
+    let mut best = None;
+    // At most 63 nodes * 64 scopes * MAX_AXES * 2 boundaries. No backtracking
+    // or new proof attempts. Exact ranked intersections reject empty splits.
+    for scope in scopes {
+        let bounds = scope.coordinates();
+        if coordinates.len() != bounds.len()
+            || !coordinates.iter().zip(bounds).all(|(a, b)| match (a, b) {
+                (None, None) => true,
+                (Some((a, b)), Some((low, high))) => a <= high && low <= b,
+                _ => false,
+            })
+        {
+            continue;
+        }
+        for (ordinal, binding) in inventory.finite_binding_indices().iter().enumerate() {
+            let (low, high) = bounds.get(usize::try_from(*binding).ok()?)?.as_ref()?;
+            let source = inventory
+                .axes()
+                .iter()
+                .find(|axis| axis.binding_index() == *binding)?;
+            for value in [i128::from(*low), i128::from(*high) + 1] {
+                let Some(pivot) = value
+                    .checked_sub(i128::from(source.value_start()))
+                    .and_then(|offset| u128::try_from(offset).ok())
+                else {
+                    continue;
+                };
+                let axis = u32::try_from(ordinal).ok()?;
+                let Some((left, right)) = split(region, axis, pivot) else {
+                    continue;
+                };
+                let key = (
+                    left.coordinate_count().min(right.coordinate_count()),
+                    axis,
+                    std::cmp::Reverse(pivot),
+                );
+                if best.as_ref().is_none_or(|(previous, _, _)| key > *previous) {
+                    best = Some((key, left, right));
+                }
+            }
+        }
+    }
+    let ((_, axis, std::cmp::Reverse(pivot)), left, right) = best?;
+    nodes.push(CoverNode::Split { axis, pivot });
+    cached_cover_node(checked, inventory, &left, scopes, nodes, leaves)?;
+    cached_cover_node(checked, inventory, &right, scopes, nodes, leaves)
+}
+
 fn prove_node(
     classifier: &CheckedBoxClassifier,
     checked: &CheckedExploreQueryView<'_>,
@@ -633,7 +741,272 @@ fn reverify_node(
 mod tests {
     use super::*;
     use crate::explore::relational_support_planner::RelationalSupportPlanner;
+    use crate::explore::support_cell::SupportExprKind;
     use crate::{Lexer, Parser, TypeChecker};
+
+    #[test]
+    fn scoped_cover_cached_partition_projects_fringe_and_refuses_gaps() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+> net(s: Starter) -> Int { s.income * 3 + s.distance * 2 }
+? explore cache_geometry {
+    from {
+        vary income in range(-10, 100001)
+        let fixed = 7
+        vary distance in range(0, 3)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = direction
+    }
+    transition after = Starter(before.income + 1 - context, before.distance + context)
+    where after after.income <= 100000 && after.distance <= 2
+    find cliffs = violations of net(after) >= net(before)
+}
+"#;
+        let prepare = |source: &str| {
+            let mut lexer = Lexer::new(source);
+            let parsed = Parser::new(lexer.tokenize(), source)
+                .parse_program()
+                .unwrap();
+            let artifacts = TypeChecker::check_with_explore_artifacts(&parsed, None, source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+            let owned = Arc::new(
+                artifacts
+                    .checked_exploration_query(0)
+                    .unwrap()
+                    .to_owned_checked_query(),
+            );
+            (artifacts, owned)
+        };
+        let (artifacts, owned) = prepare(source);
+        let checked = owned.view();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let inventory = RelationalProofStrategyInventory::from_checked(&checked, &plan).unwrap();
+        let classifier = CheckedBoxClassifier::new(artifacts, owned.clone(), &plan).unwrap();
+        let SupportExprKind::Product(factors) = plan.cases().cell().unwrap().expression().kind()
+        else {
+            panic!("expected independent product")
+        };
+        let page =
+            |start, end| SupportExpr::product_rank_interval(factors.to_vec(), start, end).unwrap();
+        let first = RankedProductBox::from_expr(&page(5, 601)).unwrap();
+        let cached = |classifier: &CheckedBoxClassifier, root: &RankedProductBox| {
+            CheckedRegionCover::from_cached_scopes(classifier, &checked, &inventory, root)
+        };
+        assert!(cached(&classifier, &first).is_none());
+        assert!(classifier
+            .cached_closed_cover_scopes(&checked)
+            .unwrap()
+            .is_empty());
+        // Interposed singleton binding and a negative source origin exercise
+        // binding-to-factor and value-to-ordinal conversion independently.
+        let coordinates = |income, distance, direction| {
+            vec![
+                Some(income),
+                None,
+                Some(distance),
+                Some(direction),
+                None,
+                None,
+            ]
+        };
+        for income in [(-10, 39), (40, 99)] {
+            for (distance, direction) in [((0, 1), (0, 1)), ((2, 2), (0, 0)), ((2, 2), (1, 1))] {
+                let proof = classifier
+                    .prove_cached_cover_scope(&checked, &coordinates(income, distance, direction))
+                    .unwrap();
+                assert!(proof.all_rejected() || proof.all_admitted_not_selected());
+            }
+        }
+        // A mixed parent is cached too, but it must not enter the closed set.
+        classifier
+            .prove_cached_cover_scope(&checked, &coordinates((-10, 99), (2, 2), (0, 1)))
+            .unwrap();
+        assert_eq!(
+            classifier
+                .cached_closed_cover_scopes(&checked)
+                .unwrap()
+                .len(),
+            6
+        );
+        for (start, end) in [(5, 601), (8, 604)] {
+            let expression = page(start, end);
+            let root = RankedProductBox::from_expr(&expression).unwrap();
+            let cover =
+                cached(&classifier, &root).expect("all cached rectangles cover this fringe");
+            assert!(cover.nodes.len() <= MAX_COVER_NODES);
+            assert!(cover
+                .nodes
+                .iter()
+                .all(|node| !matches!(node, CoverNode::Leaf { .. })));
+            assert_eq!(
+                cover
+                    .leaves
+                    .iter()
+                    .map(|leaf| leaf.region.coordinate_count())
+                    .sum::<u128>(),
+                end - start
+            );
+            let rejected = (start..end).filter(|rank| rank % 6 == 5).count() as u128;
+            assert_eq!(cover.artifact().unwrap().rejected_count(), rejected);
+            // Only these small rank fringes are enumerated, not the large root.
+            for rank in start..end {
+                let hits = cover
+                    .leaves
+                    .iter()
+                    .filter(|leaf| {
+                        root.restricted_rank_count(&leaf.region, rank, rank + 1)
+                            .unwrap()
+                            == 1
+                    })
+                    .collect::<Vec<_>>();
+                assert_eq!(hits.len(), 1);
+                assert_eq!(
+                    hits[0].outcome == RelationalCertifiedRegionConclusion::Rejected,
+                    rank % 6 == 5
+                );
+            }
+            assert_eq!(
+                CheckedRegionCover::prove(&classifier, &checked, &plan, &expression).unwrap(),
+                cover
+            );
+            assert_eq!(
+                CheckedRegionCover::reverify(
+                    &classifier,
+                    &checked,
+                    &plan,
+                    &expression,
+                    cover.nodes()
+                )
+                .unwrap(),
+                cover
+            );
+        }
+        let gap_expression = page(660, 700); // incomes 100..106, beyond every cached rectangle
+        let gap = RankedProductBox::from_expr(&gap_expression).unwrap();
+        assert!(cached(&classifier, &gap).is_none());
+        assert_eq!(
+            classifier
+                .cached_closed_cover_scopes(&checked)
+                .unwrap()
+                .len(),
+            6
+        );
+        assert!(
+            CheckedRegionCover::prove(&classifier, &checked, &plan, &gap_expression).is_some(),
+            "cache miss retains ordinary proof path"
+        );
+
+        let (artifacts, _) = prepare(source);
+        let limited = CheckedBoxClassifier::new(artifacts, owned.clone(), &plan).unwrap();
+        for income in 0..33 {
+            limited
+                .prove_cached_cover_scope(&checked, &coordinates((income, income), (0, 1), (0, 0)))
+                .unwrap();
+        }
+        let over_budget = RankedProductBox::from_expr(plan.cases().cell().unwrap().expression())
+            .unwrap()
+            .restrict_factor(0, 10, 43)
+            .unwrap()
+            .unwrap()
+            .restrict_factor(1, 0, 2)
+            .unwrap()
+            .unwrap()
+            .restrict_factor(2, 0, 1)
+            .unwrap()
+            .unwrap();
+        assert_eq!(over_budget.coordinate_count(), 66);
+        assert_eq!(
+            limited.cached_closed_cover_scopes(&checked).unwrap().len(),
+            33
+        );
+        assert!(
+            cached(&limited, &over_budget).is_none(),
+            "33 distinct leaves exceed the shared 63-node cap"
+        );
+        assert_eq!(
+            limited.cached_closed_cover_scopes(&checked).unwrap().len(),
+            33
+        );
+        assert!(CheckedRegionCover::prove(
+            &limited,
+            &checked,
+            &plan,
+            &over_budget.expression().unwrap()
+        )
+        .is_some());
+
+        let selected_source = source.replace(
+            "violations of net(after) >= net(before)",
+            "matches of before.income == 100",
+        );
+        let (artifacts, other) = prepare(&selected_source);
+        let other_checked = other.view();
+        assert!(
+            classifier
+                .cached_closed_cover_scopes(&other_checked)
+                .is_none(),
+            "foreign checked snapshot cannot reuse proofs"
+        );
+        let other_plan = RelationalSupportPlanner::from_checked(&other_checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let other_inventory =
+            RelationalProofStrategyInventory::from_checked(&other_checked, &other_plan).unwrap();
+        let selected = CheckedBoxClassifier::new(artifacts, other.clone(), &other_plan).unwrap();
+        for income in [99, 100, 101] {
+            selected
+                .prove_cached_cover_scope(
+                    &other_checked,
+                    &coordinates((income, income), (0, 1), (0, 0)),
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            selected
+                .cached_closed_cover_scopes(&other_checked)
+                .unwrap()
+                .len(),
+            2,
+            "selected scope is not a no-cliff proof"
+        );
+        let hole = RankedProductBox::from_expr(other_plan.cases().cell().unwrap().expression())
+            .unwrap()
+            .restrict_factor(0, 109, 112)
+            .unwrap()
+            .unwrap()
+            .restrict_factor(1, 0, 2)
+            .unwrap()
+            .unwrap()
+            .restrict_factor(2, 0, 1)
+            .unwrap()
+            .unwrap();
+        assert!(CheckedRegionCover::from_cached_scopes(
+            &selected,
+            &other_checked,
+            &other_inventory,
+            &hole
+        )
+        .is_none());
+        assert!(
+            CheckedRegionCover::prove(
+                &selected,
+                &other_checked,
+                &other_plan,
+                &hole.expression().unwrap()
+            )
+            .is_none(),
+            "real selected members remain residual"
+        );
+    }
 
     #[test]
     #[ignore = "explicit installed-solver cover authority edge"]

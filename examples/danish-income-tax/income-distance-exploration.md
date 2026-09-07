@@ -8,10 +8,10 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
-The latest original-grid checkpoint accounts for **28,090,002 candidates
-(17.4689%)**, with **132,710,400 still unclassified**. The latest productive
-window added 3,276,800 candidates through checked regional proofs; see
-[paired-integer preprocessing](#checked-paired-integer-preprocessing).
+The latest original-grid checkpoint accounts for **66,428,562 candidates
+(41.3112%)**, with **94,371,840 still unclassified**. The latest productive
+window added 38,338,560 candidates through checked regional proofs; see
+[cached regional covers](#assembling-pages-from-already-proved-regions).
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -2016,3 +2016,65 @@ No files were deleted; about 47 GiB remained free. A remaining cost is repeated
 local commute probes whose smaller scopes are already proved. Reusing those
 checked partitions is a next investigation, not authority to skip an unproved
 region. The full original goal and the deferred mint/deeper gates remain open.
+
+### Assembling pages from already-proved regions
+
+The cover producer now tries one cache-only geometry pass before repeating
+local proof search. Its input consists only of immutable scope/proof pairs
+from the current checked producer. Every accepted leaf must fit completely
+inside a rejected or harmless theorem's scope. Cached boundaries may suggest
+splits, but cannot classify a parent or fill a gap. Exact ranked intersections
+recompute the page's members and counts, including clipped fringes.
+
+The pass is bounded to 64 cached scopes and the existing 63-node/32-leaf cover
+limit, without backtracking or new solver calls. If the cached pieces do not
+close the entire page, this pass is discarded and the existing prover keeps
+its original opportunity. It does not change the query, model, source bounds,
+resource limits, V4/V5/V6/V7 grammar or canonical statement identities. A cold
+reopen still re-derives the recorded scopes before they can supply authority.
+
+The new cache-geometry edge and existing V7 codec/cold-replay edge passed in
+2.05s; formatting, diff checks and the optimized build passed. Mint/deeper
+suites remain deferred as requested. The same-checkpoint 45-minute run
+cold-replayed the sequence-4175 receipts and committed **585 new pages
+(428..1012)** through **7,404 checked leaves**. It added **38,338,560
+candidates**: **38,243,190 harmless** and **95,370 excluded**. No concrete
+sweeps or selected observer work occurred; default native fallback was ready
+but not needed for the committed pages.
+
+Of those pages, **543 used the cache-only pass**. Their classification quanta
+totalled **1.412s**, ranging from 1 to 6 milliseconds per page. The remaining
+42 pages required ordinary proof work, totalling **1,759.431s**, with a range
+of 14.944..209.022s. These timings exclude startup, old-proof replay and
+publication. They demonstrate cheap reuse of proved regions, not a promise
+that fresh boundaries or the whole remaining grid will be equally cheap.
+
+Independent chunk sums match the terminal manifest: **66,428,562 classified**
+= **66,263,116 harmless** + **165,446 excluded**, with **94,371,840 still
+unclassified**. Zero selected is still a lower bound. The separate completed
+176-cliff boundary audit is unchanged and not included. The original graph
+contains 1,014 pages (0..1012 and 2453), 10,180 leaves and 11,195 records.
+Its gap-free low prefix `[0,66387968)` covers all incomes 0..165,143, then
+income 165,144 at distances 0..39 for both interventions. The upper-endpoint
+certificate remains unchanged.
+
+The worker reached its **outer wall deadline**, exiting **1** after
+**2,732.96s wall, 2,632.41s user and 78.93s system**. The final JSON report is
+empty; the durable manifest is the result source. Saved **sequence 9440** has
+**149 segments**, head
+`b905d3b7a7a540ff59109e9714031d1b5f016e66949ed54fcad9fcb832a036c0`;
+all 11 artifacts are caught up. The later in-memory sequence 9447 and
+unfinished page 1013 are not counted. Maximum RSS was **1,493,417,984 bytes**,
+zero swaps; CPU pacing paused 11.284s. At containment, the process group used
+554,663,936 bytes and host available memory was 1,960,853,504 bytes, above the
+unchanged 1-GiB guard floor. No resource limit was relaxed.
+
+All workers stopped before a recursively byte-compared snapshot was saved at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq9440.1mOfZL/`.
+It contains state, published output, commands, logs and the empty report.
+State/output occupy about 4.7/11.5 MiB. No files were deleted; about 47 GiB
+remained free. The next productive resume must recover and cold-replay this
+checkpoint, then continue page 1013. Its repeated local commute probes around
+25..118 and 72..118 km are measured remaining costs; their smaller proved
+children do not authorize skipping the parent. Full-grid closure and the
+deferred broader validation gates remain open.
