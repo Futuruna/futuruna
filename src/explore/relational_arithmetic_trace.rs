@@ -11,6 +11,9 @@ use std::collections::{BTreeMap, BTreeSet};
 type Id = [u8; 32];
 const MAX_NODES: usize = 65_536;
 const MAX_REACHABLE: usize = 4096;
+const MAX_SCRIPT_BYTES: usize = 1_048_576;
+const MAX_PAIRED_UNARY: usize = 128;
+const MAX_PAIRED_FACTS: usize = 256;
 
 /// Checked affine guard roots nominate adjacent source cuts. This is only a
 /// search heuristic: the resulting children still need independent proofs.
@@ -62,6 +65,13 @@ impl ArithmeticUnsat {
     pub(super) fn digest(&self) -> [u8; 32] {
         self.0
     }
+
+    fn for_script(script: &str) -> Self {
+        let mut hash = Sha256::new();
+        hash.update(b"futuruna.checked-integer-smt-unsat.v1\0");
+        hash.update(script.as_bytes());
+        Self(hash.finalize().into())
+    }
 }
 
 #[derive(Debug)]
@@ -85,10 +95,111 @@ enum Term {
     Clamp(Id, i128, ClampKind),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum ClampKind {
     Maximum,
     Minimum,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum UnaryOperation {
+    PositiveDivision(i128),
+    Clamp(i128, ClampKind),
+}
+
+#[derive(Clone, Debug)]
+struct PairedUnary {
+    operation: UnaryOperation,
+    input: String,
+    output: Id,
+}
+
+/// Minted together by the checked DAG emitter. Neither a caller-supplied
+/// statement/digest pair nor parsed SMT can manufacture an entailed input.
+struct ArithmeticObligation {
+    canonical: String,
+    unary: Option<Vec<PairedUnary>>,
+}
+
+impl ArithmeticObligation {
+    fn paired_facts(&self) -> Option<Vec<String>> {
+        let unary = self.unary.as_ref()?;
+        if unary.len() > MAX_PAIRED_UNARY || self.canonical.len() > MAX_SCRIPT_BYTES {
+            return None;
+        }
+        let mut facts = Vec::new();
+        let mut bytes = self.canonical.len();
+        // At most 128*127/2 comparisons, even when no operations match.
+        for (index, a) in unary.iter().enumerate() {
+            for b in &unary[index + 1..] {
+                if a.operation != b.operation {
+                    continue;
+                }
+                if facts.len() / 2 == MAX_PAIRED_FACTS {
+                    return None;
+                }
+                let dx = format!("(- {} {})", a.input, b.input);
+                let dy = format!("(- {} {})", name(a.output), name(b.output));
+                let (positive, negative) = match a.operation {
+                    UnaryOperation::PositiveDivision(d) if d > 0 => {
+                        // For x>=y and d>0, signed truncation is monotone and
+                        // its difference is at most ceil((x-y)/d). Crossing
+                        // zero can reduce that difference, never increase it.
+                        // Do NOT use the floor-division lower bound across zero.
+                        let slack = number(d.checked_sub(1)?);
+                        (
+                            format!("(<= (* {} {dy}) (+ {dx} {slack}))", number(d)),
+                            format!("(>= (* {} {dy}) (- {dx} {slack}))", number(d)),
+                        )
+                    }
+                    UnaryOperation::Clamp(..) => {
+                        // Equal-kind, equal-threshold clamps preserve order
+                        // and cannot increase the distance between inputs.
+                        (format!("(<= {dy} {dx})"), format!("(>= {dy} {dx})"))
+                    }
+                    _ => return None,
+                };
+                for fact in [
+                    format!("(=> (>= {dx} 0) (and (>= {dy} 0) {positive}))"),
+                    format!("(=> (<= {dx} 0) (and (<= {dy} 0) {negative}))"),
+                ] {
+                    bytes = bytes.checked_add(fact.len())?.checked_add(10)?;
+                    if bytes > MAX_SCRIPT_BYTES {
+                        return None;
+                    }
+                    facts.push(fact);
+                }
+            }
+        }
+        (!facts.is_empty()).then_some(facts)
+    }
+
+    fn paired_script(&self) -> Option<String> {
+        let facts = self.paired_facts()?;
+        let mut script = self.canonical.strip_suffix("(check-sat)\n")?.to_owned();
+        for fact in facts {
+            script.push_str(&format!("(assert {fact})\n"));
+        }
+        script.push_str("(check-sat)\n");
+        (script.len() <= MAX_SCRIPT_BYTES).then_some(script)
+    }
+
+    fn solve_paired(&self, deadline: std::time::Instant) -> Option<SolverResult> {
+        if std::time::Instant::now() >= deadline {
+            return Some(SolverResult::Unknown);
+        }
+        let script = self.paired_script()?;
+        Some(match solve_script(&script, true, deadline) {
+            // Every appended fact follows from definitions emitted into this
+            // same immutable obligation. UNSAT therefore proves the original
+            // statement, whose receipt identity must not depend on this
+            // optional preprocessing. No external digest can be substituted.
+            SolverResult::Unsat(_) => {
+                SolverResult::Unsat(ArithmeticUnsat::for_script(&self.canonical))
+            }
+            result => result,
+        })
+    }
 }
 
 impl Term {
@@ -213,6 +324,7 @@ impl ArithmeticTrace {
         self.script(operator, left, right, axes, true, 2000)
     }
 
+    #[cfg(test)]
     fn script(
         &mut self,
         operator: &str,
@@ -222,6 +334,19 @@ impl ArithmeticTrace {
         expected: bool,
         timeout_ms: u64,
     ) -> Option<String> {
+        self.obligation(operator, left, right, axes, expected, timeout_ms)
+            .map(|obligation| obligation.canonical)
+    }
+
+    fn obligation(
+        &mut self,
+        operator: &str,
+        left: IntInterval,
+        right: IntInterval,
+        axes: &[(i64, i64)],
+        expected: bool,
+        timeout_ms: u64,
+    ) -> Option<ArithmeticObligation> {
         if !matches!(operator, "<" | "<=" | ">" | ">=") || axes.len() > MAX_AXES {
             return None;
         }
@@ -263,6 +388,7 @@ impl ArithmeticTrace {
                 ));
             }
         }
+        let mut unary = Some(Vec::new());
         for id in ordered {
             let term = self.terms.get(&id)?;
             let body = match term {
@@ -271,13 +397,7 @@ impl ArithmeticTrace {
                     continue;
                 }
                 Term::Affine(coefficients, constant, denominator) => {
-                    let mut summands = vec![number(*constant)];
-                    for (axis, coefficient) in
-                        coefficients.iter().enumerate().filter(|(_, c)| **c != 0)
-                    {
-                        summands.push(format!("(* {} a{axis})", number(*coefficient)));
-                    }
-                    let sum = format!("(+ {})", summands.join(" "));
+                    let sum = affine_sum(coefficients, *constant);
                     truncate(&sum, *denominator)?
                 }
                 Term::Add(x, y) => format!("(+ {} {})", name(*x), name(*y)),
@@ -299,8 +419,35 @@ impl ArithmeticTrace {
                 }
             };
             script.push_str(&format!("(define-fun {} () Int {body})\n", name(id)));
-            if script.len() > 1_048_576 {
+            if script.len() > MAX_SCRIPT_BYTES {
                 return None;
+            }
+            // Record only the exact operation just emitted, never the abstract
+            // enclosure or a branch-local assumption. Negative/zero divisors
+            // get no paired facts; their original semantics are untouched.
+            let candidate = match term {
+                Term::Affine(coefficients, constant, denominator) if *denominator > 1 => Some((
+                    UnaryOperation::PositiveDivision(*denominator),
+                    affine_sum(coefficients, *constant),
+                )),
+                Term::Divide(input, divisor) if *divisor > 0 => {
+                    Some((UnaryOperation::PositiveDivision(*divisor), name(*input)))
+                }
+                Term::Clamp(input, constant, kind) => {
+                    Some((UnaryOperation::Clamp(*constant, *kind), name(*input)))
+                }
+                _ => None,
+            };
+            if let (Some(terms), Some((operation, input))) = (unary.as_mut(), candidate) {
+                if terms.len() == MAX_PAIRED_UNARY {
+                    unary = None;
+                } else {
+                    terms.push(PairedUnary {
+                        operation,
+                        input,
+                        output: id,
+                    });
+                }
             }
         }
         let predicate = format!("({operator} {} {})", name(a), name(b));
@@ -310,7 +457,10 @@ impl ArithmeticTrace {
             predicate
         };
         script.push_str(&format!("(assert {counterexample})\n(check-sat)\n"));
-        Some(script)
+        Some(ArithmeticObligation {
+            canonical: script,
+            unary,
+        })
     }
 
     pub(super) fn prove(
@@ -322,26 +472,42 @@ impl ArithmeticTrace {
         expected: bool,
     ) -> SolverResult {
         use std::time::{Duration, Instant};
-        let Some(script) = self.script(operator, left, right, axes, expected, 10_000) else {
+        let Some(obligation) = self.obligation(operator, left, right, axes, expected, 10_000)
+        else {
             return SolverResult::Unsupported;
         };
         let started = Instant::now();
         // Try a short simplex prefix only for the stronger clamp recipe.
         // Default LRA can time out on these, but simplex can also time out on
         // old successful obligations. Retain the original engine's full 10s
-        // opportunity within the existing 12s total process guard. Both
-        // attempts solve identical bytes; this never switches proof recipes.
+        // opportunity within the existing 12s total process guard. The old
+        // prefix still goes first; entailed preprocessing gets only the
+        // remaining time up to 1.5s, leaving room for the original 10s engine.
+        // All strategies prove the same canonical statement/receipt recipe.
         if self
             .terms
             .values()
             .any(|term| matches!(term, Term::Clamp(..)))
         {
-            let result = solve_script(&script, true, started + Duration::from_secs(1));
+            let result = solve_script(
+                &obligation.canonical,
+                true,
+                started + Duration::from_secs(1),
+            );
             if matches!(result, SolverResult::Unsat(_) | SolverResult::Sat) {
                 return result;
             }
+            if let Some(result @ (SolverResult::Unsat(_) | SolverResult::Sat)) =
+                obligation.solve_paired(started + Duration::from_millis(1500))
+            {
+                return result;
+            }
         }
-        solve_script(&script, false, started + Duration::from_secs(12))
+        solve_script(
+            &obligation.canonical,
+            false,
+            started + Duration::from_secs(12),
+        )
     }
 }
 
@@ -395,16 +561,19 @@ fn solve_script(script: &str, simplex: bool, deadline: std::time::Instant) -> So
         return SolverResult::Failed;
     }
     match output.stdout.as_slice() {
-        b"unsat\n" | b"unsat\r\n" => {
-            let mut hash = Sha256::new();
-            hash.update(b"futuruna.checked-integer-smt-unsat.v1\0");
-            hash.update(script.as_bytes());
-            SolverResult::Unsat(ArithmeticUnsat(hash.finalize().into()))
-        }
+        b"unsat\n" | b"unsat\r\n" => SolverResult::Unsat(ArithmeticUnsat::for_script(script)),
         b"sat\n" | b"sat\r\n" => SolverResult::Sat,
         b"unknown\n" | b"unknown\r\n" => SolverResult::Unknown,
         _ => SolverResult::Failed,
     }
+}
+
+fn affine_sum(coefficients: &[i128; MAX_AXES], constant: i128) -> String {
+    let mut summands = vec![number(constant)];
+    for (axis, coefficient) in coefficients.iter().enumerate().filter(|(_, c)| **c != 0) {
+        summands.push(format!("(* {} a{axis})", number(*coefficient)));
+    }
+    format!("(+ {})", summands.join(" "))
 }
 
 fn name(id: Id) -> String {
@@ -469,6 +638,197 @@ mod tests {
             String::from_utf8_lossy(&output.stderr)
         );
         String::from_utf8(output.stdout).unwrap()
+    }
+
+    fn paired_fixture() -> ArithmeticObligation {
+        let mut trace = ArithmeticTrace::default();
+        let axis = |index| IntInterval {
+            minimum: -20_000,
+            maximum: 20_000,
+            correlation: Some(Correlation::axis(index).unwrap()),
+        };
+        let (x, y) = (axis(0), axis(1));
+        let mut sums = [IntInterval::singleton(0); 2];
+        for (index, input) in [x, y].into_iter().enumerate() {
+            for divisor in [2, 100, 10_000] {
+                let d = IntInterval::singleton(divisor);
+                let value = input.checked_div(d).unwrap();
+                trace.observe("/", input, d, value);
+                let next = sums[index].checked_add(value).unwrap();
+                trace.observe("+", sums[index], value, next);
+                sums[index] = next;
+            }
+            for kind in [ClampKind::Maximum, ClampKind::Minimum] {
+                for threshold in [-3, 0, 7] {
+                    let value = trace
+                        .observe_clamp(
+                            input,
+                            threshold,
+                            kind,
+                            IntInterval {
+                                correlation: None,
+                                ..input
+                            },
+                        )
+                        .unwrap();
+                    let next = sums[index].checked_add(value).unwrap();
+                    trace.observe("+", sums[index], value, next);
+                    sums[index] = next;
+                }
+            }
+        }
+        // No source bounds: the emitted facts must hold for arbitrary signed
+        // inputs, not just for the intervals used to construct this fixture.
+        trace
+            .obligation(">=", sums[0], sums[1], &[], true, 1000)
+            .unwrap()
+    }
+
+    #[test]
+    fn paired_integer_augmentation_is_bounded_and_canonical() {
+        let mut obligation = paired_fixture();
+        assert_eq!(obligation.unary.as_ref().unwrap().len(), 18);
+        assert_eq!(obligation.paired_facts().unwrap().len(), 18);
+        let original = obligation.canonical.clone();
+        let augmented = obligation.paired_script().unwrap();
+        assert!(augmented.starts_with(original.strip_suffix("(check-sat)\n").unwrap()));
+        assert_eq!(obligation.canonical, original);
+        assert!(!augmented.contains("(<= (- 20000) a0)"));
+        assert_eq!(paired_fixture().canonical, original);
+        assert_eq!(paired_fixture().paired_script().unwrap(), augmented);
+
+        let sample = obligation.unary.as_ref().unwrap()[0].clone();
+        // Exact function parameters and clamp kinds must agree. Negative or
+        // zero divisors are unsupported, never extra assumptions.
+        for operation in [
+            UnaryOperation::PositiveDivision(0),
+            UnaryOperation::PositiveDivision(-2),
+        ] {
+            obligation.unary = Some(vec![
+                PairedUnary {
+                    operation,
+                    ..sample.clone()
+                };
+                2
+            ]);
+            assert!(obligation.paired_facts().is_none());
+        }
+        obligation.unary = Some(vec![
+            PairedUnary {
+                operation: UnaryOperation::Clamp(0, ClampKind::Maximum),
+                ..sample.clone()
+            },
+            PairedUnary {
+                operation: UnaryOperation::Clamp(1, ClampKind::Maximum),
+                ..sample.clone()
+            },
+            PairedUnary {
+                operation: UnaryOperation::Clamp(0, ClampKind::Minimum),
+                ..sample.clone()
+            },
+        ]);
+        assert!(obligation.paired_facts().is_none());
+        obligation.unary = Some(vec![sample.clone(); MAX_PAIRED_UNARY + 1]);
+        assert!(obligation.paired_facts().is_none());
+        // 24 equal unary operations require 276 pairs, above the 256 cap.
+        obligation.unary = Some(vec![sample.clone(); 24]);
+        assert!(obligation.paired_facts().is_none());
+        obligation.unary = Some(vec![sample; 2]);
+        obligation.canonical = "x".repeat(MAX_SCRIPT_BYTES);
+        assert!(obligation.paired_facts().is_none());
+        assert!(matches!(
+            obligation.solve_paired(std::time::Instant::now()),
+            Some(SolverResult::Unknown)
+        ));
+    }
+
+    #[test]
+    #[ignore = "explicit installed-solver paired arithmetic edge"]
+    fn paired_integer_facts_signed_sat_and_receipt_replay() {
+        use std::time::{Duration, Instant};
+        let obligation = paired_fixture();
+        let definitions = obligation.canonical.rsplit_once("(assert ").unwrap().0;
+        let facts = obligation.paired_facts().unwrap();
+        let counterexample = format!(
+            "{definitions}(assert (not (and {})))\n(check-sat)\n",
+            facts.join(" ")
+        );
+        // Includes negative inputs, equality, sign crossings, both orderings,
+        // multiple denominators, and positive/zero/negative clamp thresholds.
+        assert_eq!(solve(&counterexample).trim(), "unsat");
+        // Independent inputs may reverse order: no equal-enclosure shortcut
+        // may turn these real relaxed witnesses into an UNSAT receipt.
+        assert_eq!(solve(&obligation.canonical).trim(), "sat");
+        assert_eq!(solve(&obligation.paired_script().unwrap()).trim(), "sat");
+
+        let monotone = || {
+            let mut trace = ArithmeticTrace::default();
+            let before = IntInterval {
+                minimum: -20_000,
+                maximum: 20_000,
+                correlation: Some(Correlation::axis(0).unwrap()),
+            };
+            let after = before.checked_add(IntInterval::singleton(1)).unwrap();
+            let mut outputs = Vec::new();
+            for input in [before, after] {
+                let d = IntInterval::singleton(100);
+                let quotient = input.checked_div(d).unwrap();
+                trace.observe("/", input, d, quotient);
+                outputs.push(
+                    trace
+                        .observe_clamp(
+                            quotient,
+                            0,
+                            ClampKind::Maximum,
+                            IntInterval {
+                                minimum: 0,
+                                maximum: 201,
+                                correlation: None,
+                            },
+                        )
+                        .unwrap(),
+                );
+            }
+            let obligation = trace
+                .obligation(
+                    ">=",
+                    outputs[1],
+                    outputs[0],
+                    &[(-20_000, 20_000)],
+                    true,
+                    10_000,
+                )
+                .unwrap();
+            (trace, outputs, obligation)
+        };
+        let (mut trace, outputs, obligation) = monotone();
+        let SolverResult::Unsat(original) = solve_script(
+            &obligation.canonical,
+            false,
+            Instant::now() + Duration::from_secs(2),
+        ) else {
+            panic!("original monotone statement must close")
+        };
+        let Some(SolverResult::Unsat(paired)) =
+            obligation.solve_paired(Instant::now() + Duration::from_secs(2))
+        else {
+            panic!("entailed preprocessing must close")
+        };
+        let SolverResult::Unsat(preferred) =
+            trace.prove(">=", outputs[1], outputs[0], &[(-20_000, 20_000)], true)
+        else {
+            panic!("production policy must close")
+        };
+        assert_eq!(paired.digest(), original.digest());
+        assert_eq!(preferred.digest(), original.digest());
+        let (_, _, cold) = monotone();
+        assert_eq!(cold.canonical, obligation.canonical);
+        let Some(SolverResult::Unsat(replayed)) =
+            cold.solve_paired(Instant::now() + Duration::from_secs(2))
+        else {
+            panic!("fresh checked DAG must re-derive the receipt")
+        };
+        assert_eq!(replayed.digest(), original.digest());
     }
 
     #[test]

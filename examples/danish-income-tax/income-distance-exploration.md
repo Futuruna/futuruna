@@ -8,6 +8,11 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
+The latest original-grid checkpoint accounts for **28,090,002 candidates
+(17.4689%)**, with **132,710,400 still unclassified**. The latest productive
+window added 3,276,800 candidates through checked regional proofs; see
+[paired-integer preprocessing](#checked-paired-integer-preprocessing).
+
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
 outward-boundary exclusions. Its largest annual loss is **144.09 DKK**. See
@@ -1950,3 +1955,64 @@ closest permanent edge and a productive same-checkpoint run. Exact commands,
 scripts, results and caveats are in
 `/tmp/futuruna-hybrid-cover-output.8DBiKZ/findings.md`. No compiler rebuild or
 broad test lane was added; mint/deeper gates remain deferred as requested.
+
+### Checked paired-integer preprocessing
+
+The arithmetic emitter now derives those order/difference facts directly from
+its checked DAG, alongside the immutable original obligation. It pairs only
+positive constant divisions or clamps with exactly the same kind and threshold.
+The facts hold for signed inputs, including sign crossings; opaque values and
+branch-local interval bounds supply no extra assumptions. Generation is bounded
+by 128 candidate operations, 256 matched pairs and 1 MiB total input, with the
+existing 4,096-node reachable-DAG limit. Exceeding a limit declines augmentation,
+not the original proof attempt.
+
+The old one-second simplex prefix runs first. If unresolved, the paired attempt
+may use only the remaining time through 1.5 seconds; the original default
+engine retains its ten-second opportunity inside the twelve-second outer
+guard. Attempts remain serial and retain the 128-MB statement cap. The original
+statement bytes and receipt digest are unchanged: fresh augmented UNSAT proves
+that statement because every added fact follows from its own definitions.
+This is equivalent preprocessing, not a new semantic precision or receipt
+format. Legacy non-clamp arithmetic follows its unchanged solver path.
+
+The two permanent `paired_integer_` edges passed in 0.17s, covering signed
+validity, preserved SAT witnesses, generation limits, canonical identity and
+fresh-DAG receipt replay. Formatting/diff checks and the optimized build passed
+(346.39s wall, 2,081,390,592 bytes maximum RSS, zero swaps). Mint/deeper lanes
+remain deferred under the user's output-first instruction. The 30-minute
+continuation used the same original sequence-3725 checkpoint, with native
+residual setup disabled for this proof-focused measurement.
+
+The actual run cold-replayed the saved receipts and committed **50 new pages
+(378..427)** through **495 checked leaves**. It added **3,276,800 candidates**:
+**3,268,649 harmless** and **8,151 excluded**. No concrete sweeps or selected
+observer work occurred. Fresh salary scopes covered 32,768..65,535 and
+65,536..98,303 DKK across all 201 distances; only the exact accepted page
+members are counted, not every member of those wider scopes.
+
+The original answer now accounts for **28,090,002 candidates (17.4689%)**:
+**28,019,926 harmless**, **70,076 excluded**, **132,710,400 unclassified**.
+Zero selected remains a lower bound, not a global no-cliff result. The separate
+176-cliff boundary audit is unchanged and not included in these counts.
+Independent chunk sums match the manifest: 429 pages (0..427 and 2453),
+2,776 regional leaves and 3,206 case-support records. The low prefix
+`[0,28049408)` covers all incomes 0..69,773, then income 69,774 at distances
+0..129 for both interventions. The upper-endpoint certificate is unchanged.
+
+The run paused normally with **exit 0 / `runtime_limit`** at **sequence 4175**,
+**107 segments**, head
+`0eb311caaf63653059b365eac564791296d47368e184ab16624993aa70fbf1ef`.
+All 11 artifacts caught up. Preparation took 78.432s; total **1,808.23s wall,
+1,704.85s user, 50.61s system**, maximum RSS **1,435,058,176 bytes**, zero
+swaps. CPU pacing paused 1.115s. The 50 proof quanta totalled 1,192.441s,
+with median 24.931s and range 12.336..135.285s. This is measured local
+progress, not a whole-grid completion forecast.
+
+State/output are approximately 2.1/4.0 MiB. A recursively byte-compared
+snapshot with exact commands, JSON report and logs is retained at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq4175.zHJ8qR/`.
+No files were deleted; about 47 GiB remained free. A remaining cost is repeated
+local commute probes whose smaller scopes are already proved. Reusing those
+checked partitions is a next investigation, not authority to skip an unproved
+region. The full original goal and the deferred mint/deeper gates remain open.
