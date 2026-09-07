@@ -73,6 +73,7 @@ use crate::{
 pub(crate) const RELATIONAL_REGION_PROOF_VERSION: u32 = 4;
 pub(crate) const RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION: u32 = 5;
 pub(crate) const RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION: u32 = 6;
+pub(crate) const RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION: u32 = 7;
 
 /// Distinct proof subjects: a residual checked expression is never encoded
 /// as an executable classification-graph node. V4 graph artifacts retain
@@ -125,7 +126,8 @@ impl RelationalRegionProofBasis {
                 checked_program: first,
                 derivation_root: second,
             }),
-            RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION => Ok(Self::CheckedSourceCover {
+            RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION
+            | RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION => Ok(Self::CheckedSourceCover {
                 checked_program: first,
                 derivation_root: second,
             }),
@@ -319,7 +321,12 @@ impl RelationalRegionProofArtifact {
             cover
                 .nodes()
                 .iter()
-                .filter(|node| matches!(node, cover::CoverNode::Leaf { .. }))
+                .filter(|node| {
+                    matches!(
+                        node,
+                        cover::CoverNode::Leaf { .. } | cover::CoverNode::ScopedLeaf { .. }
+                    )
+                })
                 .count()
         })
     }
@@ -339,6 +346,11 @@ impl RelationalRegionProofArtifact {
                 .iter()
                 .filter_map(|node| match node {
                     cover::CoverNode::Leaf {
+                        coordinate_count,
+                        outcome,
+                        ..
+                    }
+                    | cover::CoverNode::ScopedLeaf {
                         coordinate_count,
                         outcome,
                         ..
@@ -568,7 +580,8 @@ impl RelationalRegionProofArtifact {
                 RELATIONAL_CHECKED_BOX_REGION_PROOF_VERSION,
                 RelationalRegionProofBasis::CheckedSourceBox { .. }
             ) | (
-                RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
+                RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION
+                    | RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION,
                 RelationalRegionProofBasis::CheckedSourceCover { .. }
             )
         ) {
@@ -584,12 +597,16 @@ impl RelationalRegionProofArtifact {
         {
             return Err(RelationalRegionProofError::InvalidArtifactShape);
         }
-        if self.schema_version == RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION {
+        if matches!(
+            self.schema_version,
+            RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION
+                | RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION
+        ) {
             if self.conclusion.is_some()
-                || self
-                    .cover
-                    .as_ref()
-                    .is_none_or(|cover| cover.rejected_count() > self.case_cardinality)
+                || self.cover.as_ref().is_none_or(|cover| {
+                    cover.rejected_count() > self.case_cardinality
+                        || cover.version() != self.schema_version
+                })
             {
                 return Err(RelationalRegionProofError::InvalidArtifactShape);
             }
@@ -929,6 +946,30 @@ impl RelationalRegionReplayAuthority {
         chunk_ordinal: usize,
     ) -> Result<RelationalRegionProofOutcome, RelationalRegionProofError> {
         let target = self.target(partition, chunk_ordinal)?;
+        // Large independent products may reuse one checked superset across
+        // pages. Try that bounded cover before repeating the local graph/box
+        // probes. Recorded V4/V5/V6 replay still selects its exact old recipe.
+        let shared = if let Some(classifier) = self
+            .checked_box
+            .as_ref()
+            .filter(|c| c.prefers_shared_cover())
+        {
+            let result = cover::prove_artifact(
+                &self.checked.view(),
+                &self.support_plan,
+                self.capsule.as_ref(),
+                &target,
+                self.id,
+                classifier,
+                None,
+            )?;
+            if result.exact_empty().is_some() {
+                return Ok(result);
+            }
+            Some(result)
+        } else {
+            None
+        };
         let graph = prove_relational_region(
             &self.checked.view(),
             &self.support_plan,
@@ -950,6 +991,9 @@ impl RelationalRegionReplayAuthority {
             )?;
             if boxed.exact_empty().is_some() {
                 return Ok(boxed);
+            }
+            if let Some(result) = shared {
+                return Ok(result);
             }
             return cover::prove_artifact(
                 &self.checked.view(),
@@ -3849,6 +3893,230 @@ mod tests {
             true,
             true,
         );
+    }
+
+    #[test]
+    fn scoped_cover_pages_replay_domains_codec_and_reject_forged_scope() {
+        let source = r#"
+# Starter(income: Int, distance: Int)
+> net(s: Starter) -> Int { sum_list([s.income * 3, s.distance * 2]) }
+? explore shared_cover {
+    from {
+        vary income in range(0, 100001)
+        vary distance in range(0, 3)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = direction
+    }
+    transition after = Starter(before.income + 1 - context, before.distance + context)
+    where after after.income <= 100000 && after.distance <= 2
+    find cliffs = violations of net(after) >= net(before)
+}
+"#;
+        let mut lexer = Lexer::new(source);
+        let parsed = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .unwrap();
+        let statements = crate::prepend_prelude(crate::parse_prelude(), &parsed);
+        let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, source);
+        assert!(
+            artifacts.diagnostics.is_empty(),
+            "{:?}",
+            artifacts.diagnostics
+        );
+        let owned = Arc::new(
+            artifacts
+                .checked_exploration_query(0)
+                .unwrap()
+                .to_owned_checked_query(),
+        );
+        let checked = owned.view();
+        let plan = RelationalSupportPlanner::from_checked(&checked)
+            .unwrap()
+            .plan()
+            .unwrap();
+        let capsule = Arc::new(bind_fixture_capsule(
+            &checked,
+            &plan,
+            ClassificationSpecializationRoot::none(),
+        ));
+        let image = prove_relational_case_image_injectivity(&plan).unwrap();
+        let RelationalCaseChunkPlanningOutcome::Partitioned(partition) =
+            plan_relational_bounded_case_chunks(&plan, &image).unwrap()
+        else {
+            panic!("expected canonical pages");
+        };
+        let verified = reverify_relational_case_chunk_partition_artifact(
+            partition.artifact(),
+            &plan,
+            image.injectivity(),
+        )
+        .unwrap();
+        let make_authority = |artifacts| {
+            Arc::new(
+                RelationalRegionReplayAuthority::new(owned.clone(), plan.clone(), capsule.clone())
+                    .unwrap()
+                    .with_checked_box_classifier(Some(
+                        CheckedBoxClassifier::new(artifacts, owned.clone(), &plan).unwrap(),
+                    )),
+            )
+        };
+        let authority = make_authority(artifacts);
+        let cold = make_authority(TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            source,
+        ));
+        let analysis = RelationalAnalysisPlan::from_checked(&checked).unwrap();
+        let contract = RelationalJournalContract::new(
+            checked.relation_id(),
+            checked.admission_id(),
+            checked.question_ids().iter().copied(),
+            checked.transition_schemas().state_schema_id(),
+            checked.transition_schemas().context_schema_id(),
+            checked.transition_schemas().transition_type_id(),
+            analysis.producer_graph_digest().bytes(),
+        );
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            contract.clone(),
+            authority.clone(),
+        );
+        for event in [
+            RelationalJournalEvent::analysis_plan_registered(analysis),
+            RelationalJournalEvent::support_plan_registered(plan.clone()),
+            RelationalJournalEvent::relational_case_image_injectivity_proof_accepted(
+                image.proof().artifact().clone(),
+            ),
+            RelationalJournalEvent::relational_case_chunk_partition_accepted(
+                partition.artifact().clone(),
+            ),
+        ] {
+            journal.append(event).unwrap();
+        }
+        let mut saved = vec![];
+        for ordinal in [0, 1, verified.partition().chunks().len() - 1] {
+            let result = authority.prove_canonical_child(&verified, ordinal).unwrap();
+            let artifact = result.exact_empty().unwrap().proof().artifact();
+            assert_eq!(
+                artifact.schema_version(),
+                RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION
+            );
+            let descriptor = verified.partition().chunks()[ordinal].descriptor();
+            // Only these three tiny pages are enumerated by this independent
+            // fixture oracle; the 600,006-coordinate root is not materialized.
+            let rejected = (descriptor.interval_start()..descriptor.interval_end_exclusive())
+                .filter(|rank| {
+                    let income = rank / 6;
+                    let distance = rank / 2 % 3;
+                    let direction = rank % 2;
+                    income + 1 - direction > 100000 || distance + direction > 2
+                })
+                .count() as u128;
+            assert_eq!(artifact.rejected_case_count(), rejected);
+            assert_eq!(
+                artifact.admitted_case_count(),
+                descriptor.cardinality() - rejected
+            );
+            assert_eq!(
+                cold.reverify_canonical_child(artifact, &verified)
+                    .unwrap()
+                    .artifact(),
+                artifact
+            );
+            journal
+                .append(RelationalJournalEvent::relational_region_proof_accepted(
+                    artifact.clone(),
+                ))
+                .unwrap();
+            saved.push(artifact.clone());
+        }
+        let scoped = |artifact: &RelationalRegionProofArtifact| {
+            artifact
+                .cover()
+                .unwrap()
+                .nodes()
+                .iter()
+                .filter_map(|node| match node {
+                    cover::CoverNode::ScopedLeaf {
+                        derivation_root,
+                        scope,
+                        ..
+                    } => Some((*derivation_root, scope.clone())),
+                    _ => None,
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            scoped(&saved[0]),
+            scoped(&saved[1]),
+            "adjacent pages share the same larger source theorems"
+        );
+        let limits = RelationalJournalCodecLimits::default();
+        let decoded = journal
+            .entries()
+            .iter()
+            .map(|entry| {
+                let bytes = encode_relational_journal_entry(entry, limits).unwrap();
+                decode_relational_journal_entry(
+                    contract.clone(),
+                    entry.sequence(),
+                    entry.previous(),
+                    &bytes,
+                    limits,
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(&decoded, journal.entries());
+        let colder = make_authority(TypeChecker::check_with_explore_artifacts(
+            &statements,
+            None,
+            source,
+        ));
+        let replayed =
+            RelationalJournal::replay_with_region_replay_authority(contract, decoded, colder)
+                .unwrap();
+        assert_eq!(replayed.head(), journal.head());
+
+        for mutation in 0..4 {
+            let mut forged = saved[0].clone();
+            let mut nodes = forged.cover().unwrap().nodes().to_vec();
+            let cover::CoverNode::ScopedLeaf {
+                scope,
+                derivation_root,
+                ..
+            } = nodes
+                .iter_mut()
+                .find(|node| matches!(node, cover::CoverNode::ScopedLeaf { .. }))
+                .unwrap()
+            else {
+                unreachable!();
+            };
+            match mutation {
+                0 => scope[0] = Some((1, 32767)),  // Does not contain this page.
+                1 => scope[0] = Some((-1, 32767)), // Outside declared source.
+                2 => scope[0] = None,              // Wrong finite/singleton binding shape.
+                _ => derivation_root[0] ^= 1,
+            }
+            let recipe = cover::CoverArtifact::restore(
+                nodes.into_boxed_slice(),
+                forged.rejected_case_count(),
+            )
+            .unwrap();
+            forged.selected_formula_digest = recipe.digest();
+            let RelationalRegionProofBasis::CheckedSourceCover {
+                derivation_root, ..
+            } = &mut forged.basis
+            else {
+                unreachable!();
+            };
+            *derivation_root = recipe.digest();
+            forged.cover = Some(Box::new(recipe));
+            forged.starter_region_id = derive_starter_region_id(&forged);
+            forged.certificate_id = derive_certificate_id(&forged);
+            forged.validate_identity().unwrap();
+            assert!(cold.reverify_canonical_child(&forged, &verified).is_err());
+        }
     }
 
     fn assert_child_certificate_chain(

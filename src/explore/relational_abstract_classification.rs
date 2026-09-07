@@ -17,6 +17,26 @@ use crate::{CheckedExploreQueryView, CheckedResolutionRecorder};
 
 type Coordinates = Vec<Option<(i64, i64)>>;
 
+pub(crate) const MAX_SCOPE_BINDINGS: usize = 64;
+const SHARED_SCOPE_WIDTH: i128 = 32_768;
+type ScopeCache = std::collections::VecDeque<(Coordinates, Option<Arc<CheckedSourceBoxProof>>)>;
+
+/// Exact coordinate containment, including the finite/singleton binding shape.
+pub(crate) fn coordinates_contained(
+    inner: &[Option<(i64, i64)>],
+    outer: &[Option<(i64, i64)>],
+) -> bool {
+    inner.len() == outer.len()
+        && inner
+            .iter()
+            .zip(outer)
+            .all(|(inner, outer)| match (inner, outer) {
+                (None, None) => true,
+                (Some((a, b)), Some((low, high))) => low <= a && a <= b && b <= high,
+                _ => false,
+            })
+}
+
 struct BoxInputs {
     program: CheckedAnalysisProgram,
     resolutions: CheckedResolutionArtifacts,
@@ -39,9 +59,91 @@ impl std::fmt::Debug for BoxInputs {
 pub(crate) struct CheckedBoxClassifier {
     inputs: Arc<BoxInputs>,
     cache: std::collections::VecDeque<(Coordinates, Option<RelationalClassifiedCaseOutcome>)>,
+    /// Contains only producer-created proofs from this checked snapshot, never
+    /// decoded artifacts. Clones share fresh derivations within one process.
+    scope_cache: Arc<std::sync::Mutex<ScopeCache>>,
 }
 
 impl CheckedBoxClassifier {
+    pub(crate) fn prefers_shared_cover(&self) -> bool {
+        self.inputs
+            .domains
+            .iter()
+            .flatten()
+            .any(|(low, high)| i128::from(*high) - i128::from(*low) >= SHARED_SCOPE_WIDTH)
+    }
+
+    /// Operational widening only. The chosen domain is recorded explicitly in
+    /// each scoped leaf, so replay never depends on this heuristic.
+    pub(crate) fn shared_cover_scope(
+        &self,
+        coordinates: &[Option<(i64, i64)>],
+    ) -> Option<Coordinates> {
+        if coordinates.len() > MAX_SCOPE_BINDINGS
+            || !coordinates_contained(coordinates, &self.inputs.domains)
+        {
+            return None;
+        }
+        let mut scope = coordinates.to_vec();
+        for (range, domain) in scope.iter_mut().zip(&self.inputs.domains) {
+            let (Some((low, high)), Some((start, end))) = (*range, *domain) else {
+                continue;
+            };
+            if i128::from(end) - i128::from(start) < SHARED_SCOPE_WIDTH || high == end {
+                continue;
+            }
+            let low_tile = (i128::from(low) - i128::from(start)) / SHARED_SCOPE_WIDTH;
+            let high_tile = (i128::from(high) - i128::from(start)) / SHARED_SCOPE_WIDTH;
+            if low_tile != high_tile {
+                continue;
+            }
+            let start = i128::from(start) + low_tile * SHARED_SCOPE_WIDTH;
+            let end = (start + SHARED_SCOPE_WIDTH - 1).min(i128::from(end) - 1);
+            *range = Some((i64::try_from(start).ok()?, i64::try_from(end).ok()?));
+        }
+        (scope != coordinates).then_some(scope)
+    }
+
+    /// Fresh source proof once per retained scope and checked snapshot. A cold
+    /// classifier has an empty cache and must run the producer (including any
+    /// solver obligation) again. Scope bytes or digests cannot fill this cache.
+    pub(crate) fn prove_cached_cover_scope(
+        &self,
+        checked: &CheckedExploreQueryView<'_>,
+        scope: &[Option<(i64, i64)>],
+    ) -> Option<Arc<CheckedSourceBoxProof>> {
+        if !self.matches_checked(checked)
+            || scope.len() > MAX_SCOPE_BINDINGS
+            || !coordinates_contained(scope, &self.inputs.domains)
+        {
+            return None;
+        }
+        if let Some((_, proof)) = self
+            .scope_cache
+            .lock()
+            .ok()?
+            .iter()
+            .find(|(key, _)| key == scope)
+        {
+            return proof.clone();
+        }
+        let proof = self.prove_cover_coordinates(checked, scope).map(Arc::new);
+        let mut cache = self.scope_cache.lock().ok()?;
+        if cache.len() >= 64 {
+            cache.pop_front();
+        }
+        cache.push_back((scope.to_vec(), proof.clone()));
+        proof
+    }
+
+    fn matches_checked(&self, checked: &CheckedExploreQueryView<'_>) -> bool {
+        let retained = self.inputs.checked.view();
+        checked.program_hash() == retained.program_hash()
+            && checked.relation_id() == retained.relation_id()
+            && checked.admission_id() == retained.admission_id()
+            && checked.question_ids() == retained.question_ids()
+    }
+
     /// This is a fresh proof over checked source coordinates, not a reuse of
     /// the operational tile cache. Regional replay must call it again.
     pub(crate) fn prove_coordinates(
@@ -66,12 +168,7 @@ impl CheckedBoxClassifier {
         coordinates: &[Option<(i64, i64)>],
         branch_constants: bool,
     ) -> Option<CheckedSourceBoxProof> {
-        let retained = self.inputs.checked.view();
-        if checked.program_hash() != retained.program_hash()
-            || checked.relation_id() != retained.relation_id()
-            || checked.admission_id() != retained.admission_id()
-            || checked.question_ids() != retained.question_ids()
-        {
+        if !self.matches_checked(checked) {
             return None;
         }
         let index = CheckedExploreSemanticIndex::build(&self.inputs.program);
@@ -144,6 +241,7 @@ impl CheckedBoxClassifier {
                 domains,
             }),
             cache: std::collections::VecDeque::new(),
+            scope_cache: Arc::new(std::sync::Mutex::new(std::collections::VecDeque::new())),
         })
     }
 
@@ -231,6 +329,7 @@ pub(crate) struct BoxClassification {
 
 /// Producer-owned abstract derivation. The root is an integrity commitment,
 /// not replay authority; durable consumers re-run the checked derivation.
+#[derive(Debug)]
 pub(crate) struct CheckedSourceBoxProof {
     classification: BoxClassification,
     derivation_root: [u8; 32],

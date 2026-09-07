@@ -3586,6 +3586,28 @@ fn encode_region_proof_artifact(
                     encoder.digest(*derivation_root)?;
                     encoder.u128(*coordinate_count)?;
                 }
+                Node::ScopedLeaf {
+                    outcome,
+                    derivation_root,
+                    coordinate_count,
+                    scope,
+                } => {
+                    encoder.tag(3)?;
+                    encoder.tag(outcome.canonical_tag())?;
+                    encoder.digest(*derivation_root)?;
+                    encoder.u128(*coordinate_count)?;
+                    encoder.collection_len(scope.len())?;
+                    for coordinate in scope {
+                        match coordinate {
+                            None => encoder.tag(0)?,
+                            Some((low, high)) => {
+                                encoder.tag(1)?;
+                                encoder.i64(*low)?;
+                                encoder.i64(*high)?;
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -3689,8 +3711,13 @@ fn decode_region_cover(
     use super::relational_region_proof::{
         RelationalRegionCoverArtifact as Cover, RelationalRegionCoverNode as Node,
         RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
+        RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION,
     };
-    if version != RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION {
+    if !matches!(
+        version,
+        RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION
+            | RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION
+    ) {
         return Ok(None);
     }
     let count = reader.collection_len("regional cover nodes")?;
@@ -3714,6 +3741,25 @@ fn decode_region_cover(
                     ))?,
                 derivation_root: reader.digest()?,
                 coordinate_count: reader.u128()?,
+            },
+            3 if version == RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION => {
+                let outcome = RelationalCertifiedRegionConclusion::from_canonical_tag(reader.tag()?)
+                    .ok_or(RelationalJournalCodecError::Malformed("invalid scoped leaf outcome"))?;
+                let derivation_root = reader.digest()?;
+                let coordinate_count = reader.u128()?;
+                let count = reader.collection_len("regional proof scope bindings")?;
+                if count == 0 || count > super::relational_endpoint_totality_proof::abstract_classification::MAX_SCOPE_BINDINGS {
+                    return Err(RelationalJournalCodecError::Malformed("invalid scoped leaf domain size"));
+                }
+                let mut scope = Vec::with_capacity(count);
+                for _ in 0..count {
+                    scope.push(match reader.tag()? {
+                        0 => None,
+                        1 => Some((reader.i64()?, reader.i64()?)),
+                        _ => return Err(RelationalJournalCodecError::Malformed("invalid scoped leaf coordinate")),
+                    });
+                }
+                Node::ScopedLeaf { outcome, derivation_root, coordinate_count, scope: scope.into_boxed_slice() }
             },
             _ => return Err(RelationalJournalCodecError::Malformed("invalid cover node")),
         });

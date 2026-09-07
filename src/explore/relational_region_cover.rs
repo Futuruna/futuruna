@@ -5,7 +5,9 @@
 //! proof search gives no coverage and leaves the original page residual.
 
 use super::*;
-use crate::explore::relational_endpoint_totality_proof::abstract_classification::CheckedSourceBoxProof;
+use crate::explore::relational_endpoint_totality_proof::abstract_classification::{
+    coordinates_contained, CheckedSourceBoxProof, MAX_SCOPE_BINDINGS,
+};
 use crate::explore::support_cell::{RankedProductBox, SupportExpr};
 
 pub(crate) const MAX_COVER_NODES: usize = 31;
@@ -20,6 +22,13 @@ pub(crate) enum CoverNode {
         outcome: RelationalCertifiedRegionConclusion,
         derivation_root: [u8; 32],
         coordinate_count: u128,
+    },
+    /// V7: a freshly checked superset domain plus exact page-leaf geometry.
+    ScopedLeaf {
+        outcome: RelationalCertifiedRegionConclusion,
+        derivation_root: [u8; 32],
+        coordinate_count: u128,
+        scope: Box<[Option<(i64, i64)>]>,
     },
 }
 
@@ -46,6 +55,16 @@ impl CoverArtifact {
         if nodes.is_empty() || nodes.len() > MAX_COVER_NODES {
             return Err(RelationalRegionProofError::InvalidArtifactShape);
         }
+        for node in &nodes {
+            if let CoverNode::ScopedLeaf { scope, .. } = node {
+                if scope.is_empty()
+                    || scope.len() > MAX_SCOPE_BINDINGS
+                    || scope.iter().flatten().any(|(low, high)| low > high)
+                {
+                    return Err(RelationalRegionProofError::InvalidArtifactShape);
+                }
+            }
+        }
         Ok(Self {
             nodes,
             rejected_count,
@@ -57,6 +76,17 @@ impl CoverArtifact {
     }
     pub(crate) const fn rejected_count(&self) -> u128 {
         self.rejected_count
+    }
+    pub(crate) fn version(&self) -> u32 {
+        if self
+            .nodes
+            .iter()
+            .any(|node| matches!(node, CoverNode::ScopedLeaf { .. }))
+        {
+            RELATIONAL_SCOPED_COVER_REGION_PROOF_VERSION
+        } else {
+            RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION
+        }
     }
     pub(crate) fn digest(&self) -> [u8; 32] {
         let mut hash =
@@ -79,6 +109,28 @@ impl CoverArtifact {
                     hash.u8(outcome.canonical_tag());
                     hash.digest(*derivation_root);
                     hash.u128(*coordinate_count);
+                }
+                CoverNode::ScopedLeaf {
+                    outcome,
+                    derivation_root,
+                    coordinate_count,
+                    scope,
+                } => {
+                    hash.u8(3);
+                    hash.u8(outcome.canonical_tag());
+                    hash.digest(*derivation_root);
+                    hash.u128(*coordinate_count);
+                    hash.u128(scope.len() as u128);
+                    for coordinate in scope {
+                        match coordinate {
+                            None => hash.u8(0),
+                            Some((low, high)) => {
+                                hash.u8(1);
+                                hash.i64(*low);
+                                hash.i64(*high);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -224,7 +276,7 @@ pub(super) fn prove_artifact(
         return Ok(residual());
     };
     let mut artifact = RelationalRegionProofArtifact {
-        schema_version: RELATIONAL_CHECKED_COVER_REGION_PROOF_VERSION,
+        schema_version: recipe.version(),
         product_rank: true,
         certificate_id: [0; 32],
         replay_authority_id,
@@ -271,12 +323,11 @@ pub(super) fn prove_artifact(
     ))
 }
 
-fn probe_region(
-    classifier: &CheckedBoxClassifier,
+fn region_coordinates(
     checked: &CheckedExploreQueryView<'_>,
     inventory: &RelationalProofStrategyInventory,
     region: &RankedProductBox,
-) -> Option<CheckedSourceBoxProof> {
+) -> Option<Vec<Option<(i64, i64)>>> {
     let enclosure = region.enclosure().ok()?;
     let mut coordinates = Vec::with_capacity(checked.closed_query.source.bindings.len());
     for binding in &checked.closed_query.source.bindings {
@@ -308,6 +359,51 @@ fn probe_region(
             }
         });
     }
+    Some(coordinates)
+}
+
+struct RegionProbe {
+    proof: Arc<CheckedSourceBoxProof>,
+    scope: Option<Box<[Option<(i64, i64)>]>>,
+}
+
+impl RegionProbe {
+    fn split_hints(&self) -> &[(usize, i64)] {
+        self.proof.split_hints()
+    }
+}
+
+fn probe_region(
+    classifier: &CheckedBoxClassifier,
+    checked: &CheckedExploreQueryView<'_>,
+    inventory: &RelationalProofStrategyInventory,
+    region: &RankedProductBox,
+) -> Option<RegionProbe> {
+    let coordinates = region_coordinates(checked, inventory, region)?;
+    if let Some(scope) = classifier.shared_cover_scope(&coordinates) {
+        if let Some(proof) = classifier.prove_cached_cover_scope(checked, &scope) {
+            let can_split = coordinates
+                .iter()
+                .flatten()
+                .any(|(low, high)| i128::from(*high) - i128::from(*low) == 1)
+                || proof.split_hints().iter().any(|&(axis, cut)| {
+                    coordinates
+                        .iter()
+                        .flatten()
+                        .nth(axis)
+                        .is_some_and(|&(low, high)| low < cut && cut <= high)
+                });
+            if proof_leaf(&proof, region).is_some() || can_split {
+                if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                    eprintln!("Explore checked shared scope: coordinates={coordinates:?}; scope={scope:?}; closed={}", proof_leaf(&proof, region).is_some());
+                }
+                return Some(RegionProbe {
+                    proof,
+                    scope: Some(scope.into_boxed_slice()),
+                });
+            }
+        }
+    }
     let proof = classifier.prove_cover_coordinates(checked, &coordinates);
     if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
         eprintln!(
@@ -319,7 +415,10 @@ fn probe_region(
             proof.as_ref().map(|proof| proof.split_hints())
         );
     }
-    proof
+    proof.map(|proof| RegionProbe {
+        proof: Arc::new(proof),
+        scope: None,
+    })
 }
 
 fn proof_leaf(proof: &CheckedSourceBoxProof, region: &RankedProductBox) -> Option<CoverLeaf> {
@@ -366,11 +465,22 @@ fn prove_node(
         return None;
     }
     let proof = probe_region(classifier, checked, inventory, region);
-    if let Some(leaf) = proof.as_ref().and_then(|proof| proof_leaf(proof, region)) {
-        nodes.push(CoverNode::Leaf {
-            outcome: leaf.outcome,
-            derivation_root: leaf.derivation_root,
-            coordinate_count: leaf.region.coordinate_count(),
+    if let Some(leaf) = proof
+        .as_ref()
+        .and_then(|probe| proof_leaf(&probe.proof, region))
+    {
+        nodes.push(match proof.as_ref()?.scope.as_ref() {
+            Some(scope) => CoverNode::ScopedLeaf {
+                outcome: leaf.outcome,
+                derivation_root: leaf.derivation_root,
+                coordinate_count: leaf.region.coordinate_count(),
+                scope: scope.clone(),
+            },
+            None => CoverNode::Leaf {
+                outcome: leaf.outcome,
+                derivation_root: leaf.derivation_root,
+                coordinate_count: leaf.region.coordinate_count(),
+            },
         });
         leaves.push(leaf);
         return Some(());
@@ -464,7 +574,31 @@ fn reverify_node(
             derivation_root,
             coordinate_count,
         } => {
-            let proof = probe_region(classifier, checked, inventory, region)?;
+            // Preserve V6's exact local derivation, even if today's producer
+            // would choose a wider scope for this leaf.
+            let coordinates = region_coordinates(checked, inventory, region)?;
+            let proof = classifier.prove_cover_coordinates(checked, &coordinates)?;
+            let leaf = proof_leaf(&proof, region)?;
+            if leaf.outcome != *outcome
+                || leaf.derivation_root != *derivation_root
+                || leaf.region.coordinate_count() != *coordinate_count
+            {
+                return None;
+            }
+            leaves.push(leaf);
+            Some(())
+        }
+        CoverNode::ScopedLeaf {
+            outcome,
+            derivation_root,
+            coordinate_count,
+            scope,
+        } => {
+            let coordinates = region_coordinates(checked, inventory, region)?;
+            if !coordinates_contained(&coordinates, scope) {
+                return None;
+            }
+            let proof = classifier.prove_cached_cover_scope(checked, scope)?;
             let leaf = proof_leaf(&proof, region)?;
             if leaf.outcome != *outcome
                 || leaf.derivation_root != *derivation_root

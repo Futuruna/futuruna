@@ -1434,3 +1434,101 @@ enabled and recorded one 1.121-second pause. Formatting and diff checks passed;
 mint and deeper suites remain deliberately unrun under the user's explicit
 output-first instruction. These are research results of the encoded model,
 not an independent verification of Danish tax law.
+
+### Reusing checked superset boxes across canonical pages
+
+V7 regional covers add a scoped leaf: the exact page restriction still owns
+its original coordinate count, but its classification may follow from a
+larger, explicitly recorded source box. Acceptance verifies that every
+coordinate in the leaf's enclosure belongs to that box, with the same
+finite/singleton binding shape, and that the box is inside the declared
+source domains. A producer-owned checked derivation must establish the
+claimed rejected or admitted/not-selected outcome on the whole box. An
+artifact digest or coincident mechanism signature cannot establish it.
+
+The proof producer retains at most 64 such scope results per checked query
+snapshot in memory. Clones share that cache; it cannot be filled from decoded
+artifacts. A fresh process starts empty and proves each needed scope again,
+including any required integer-solver obligation. Within that process, one
+checked theorem may justify many contained pages without reevaluating the
+same canonical model. Eviction can cause extra proof work, not missing
+coverage. Unknown or failed scope proofs supply no classification authority.
+
+The current widening heuristic uses source-relative 32,768-coordinate tiles
+for sufficiently wide independent integer axes, retaining narrower context
+and intervention ranges and isolating declared upper endpoints. The tile
+size is an operational choice, not a tax threshold or a new query step.
+Checked guard cuts can guide subsequent partitioning; a scope that cannot
+close a leaf retains local proof or concrete fallback. Replay follows the
+recorded scope, never this widening heuristic. At most 64 binding slots can
+be encoded per scope, and the existing 31-node cover bound is unchanged.
+
+This changes only the Experimental regional-proof artifact surface. New
+scoped leaves use regional version 7; unscoped covers remain version 6.
+V4/V5/V6 decoding, local replay recipes and identities are retained. Original
+query, case, page and partition identities are unchanged. Older executables
+that do not understand V7 must reject those new receipts; use an updated
+executable to resume a journal containing scoped leaves.
+
+The focused edge command was:
+
+```sh
+env CARGO_TARGET_DIR=/Users/andreasrudolph/futuruna-explore-spec/target \
+  CARGO_BUILD_JOBS=1 nice -n 15 \
+  cargo test --lib scoped_cover_pages -- --test-threads=1 --nocapture
+```
+
+It passed in 1.55 seconds after a 1m13s compile, with 747 other tests filtered
+out. Three tiny pages from a 600,006-coordinate fixture matched independent
+exact outcome counts; adjacent pages shared the same larger source theorem.
+Freshly constructed classifiers reproduced the proofs; journal codec
+roundtrip and cold replay preserved the saved head. Repaired artifact
+identities did not authorize forged roots, non-containing scopes,
+out-of-domain scopes or incorrect finite/singleton shapes. No full suite ran.
+
+### Original full-grid output with shared scopes
+
+The next actual five-minute-budget run accounts for **13,672,082 original
+candidates**, up by **13,238,272** from the integer-proof checkpoint. This is
+**13,637,871 admitted, harmless transitions and 34,211 exclusions**. Pages
+0..207 and 2453 are closed, with 676 regional leaves and 886 case-support
+records. The low-income prefix is exactly ranks `[0,13631488)`: all incomes
+0..33,908 DKK at all distances and both interventions, followed by income
+33,909 DKK at distances 0..34 for both interventions. The high endpoint page
+remains the previously proved, disjoint rank interval.
+
+No new concrete sweeps were needed, and the observer memo again had zero
+entries and activity. The run appended 808 semantic batches / 1,818 events,
+covering 202 more pages. Original V6 receipts, including the high-income
+integer obligation, replayed successfully. The shared-scope path's first new
+page (6) took 11.090 seconds; pages 7..200 then took approximately one
+millisecond each to certify, using the retained larger checked theorems.
+This timing covers the proof quantum, not the entire publication pipeline.
+
+The next income tile, 32,768..65,535 DKK, crosses additional checked branches.
+Some wide scope obligations returned `sat` in the relaxation; those were not
+reported as losses. The cover used local proofs where necessary. Page 201
+took 63.495 seconds and pages 202..207 took 14.25..14.52 seconds each.
+Adaptive narrowing of shared scopes is therefore the next measured
+opportunity; the one-krone and one-kilometre source grid is unchanged.
+
+The saved original state is now sequence **2193**, 44 durable segments, head
+`6a02592a4c4a92b4c2648c200b800a57f800232616bffbbb06934399d539b397`.
+All 11 output artifacts caught up. State/output occupy approximately 1.1/1.0
+MiB on this filesystem. The result remains a lower bound: **147,128,320
+candidates are unclassified**, all analysis layers remain open, and zero
+selected cases in this prefix is not a global no-cliff finding. The separately
+completed 176-cliff boundary result still has its own query identity.
+
+The optimized build took 4m58s. The invocation matched the previous original
+query command (`nice -n 15`, native classifier disabled, governor retained,
+`--time-limit 5m --json`) with report and trace redirected to
+`/tmp/futuruna-shared-scope-output.frTahz/original-scoped-report.json` and
+`original-scoped-trace.log`; `original-scoped-findings.md` there gives the
+readable checkpoint. Preparation took 68.623 seconds. Measured total time
+was **307.95 seconds wall, 272.29 user, 8.74 system**, maximum RSS
+1,544,749,056 bytes and zero reported swaps. Exit status was zero, paused at
+the runtime limit. Formatting and diff checks passed; mint/deeper gates and
+a standalone full canonical replay were deliberately deferred under the
+user's output-first instruction. The next real continuation can both replay
+these new scoped receipts and extend the answer.
