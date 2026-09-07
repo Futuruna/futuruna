@@ -321,62 +321,89 @@ impl ArithmeticTrace {
         axes: &[(i64, i64)],
         expected: bool,
     ) -> SolverResult {
-        use std::io::Write;
-        use std::process::{Command, Stdio};
         use std::time::{Duration, Instant};
         let Some(script) = self.script(operator, left, right, axes, expected, 10_000) else {
             return SolverResult::Unsupported;
         };
-        let mut child = match Command::new("z3")
-            .args(["-in", "-T:11"])
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-        {
-            Ok(child) => child,
-            Err(_) => return SolverResult::Unavailable,
-        };
         let started = Instant::now();
-        if child
-            .stdin
-            .take()
-            .is_none_or(|mut input| input.write_all(script.as_bytes()).is_err())
+        // Try a short simplex prefix only for the stronger clamp recipe.
+        // Default LRA can time out on these, but simplex can also time out on
+        // old successful obligations. Retain the original engine's full 10s
+        // opportunity within the existing 12s total process guard. Both
+        // attempts solve identical bytes; this never switches proof recipes.
+        if self
+            .terms
+            .values()
+            .any(|term| matches!(term, Term::Clamp(..)))
         {
-            let _ = child.kill();
-            let _ = child.wait();
-            return SolverResult::Failed;
-        }
-        loop {
-            match child.try_wait() {
-                Ok(Some(_)) => break,
-                Ok(None) if started.elapsed() < Duration::from_secs(12) => {
-                    std::thread::sleep(Duration::from_millis(10));
-                }
-                _ => {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return SolverResult::Unknown;
-                }
+            let result = solve_script(&script, true, started + Duration::from_secs(1));
+            if matches!(result, SolverResult::Unsat(_) | SolverResult::Sat) {
+                return result;
             }
         }
-        let Ok(output) = child.wait_with_output() else {
-            return SolverResult::Failed;
-        };
-        if !output.status.success() || !output.stderr.is_empty() || output.stdout.len() > 32 {
-            return SolverResult::Failed;
-        }
-        match output.stdout.as_slice() {
-            b"unsat\n" | b"unsat\r\n" => {
-                let mut hash = Sha256::new();
-                hash.update(b"futuruna.checked-integer-smt-unsat.v1\0");
-                hash.update(script.as_bytes());
-                SolverResult::Unsat(ArithmeticUnsat(hash.finalize().into()))
+        solve_script(&script, false, started + Duration::from_secs(12))
+    }
+}
+
+fn solve_script(script: &str, simplex: bool, deadline: std::time::Instant) -> SolverResult {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+    if Instant::now() >= deadline {
+        return SolverResult::Unknown;
+    }
+    let mut command = Command::new("z3");
+    command.args(["-in", "-T:11"]);
+    if simplex {
+        command.arg("smt.arith.solver=2");
+    }
+    let mut child = match command
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+    {
+        Ok(child) => child,
+        Err(_) => return SolverResult::Unavailable,
+    };
+    if child
+        .stdin
+        .take()
+        .is_none_or(|mut input| input.write_all(script.as_bytes()).is_err())
+    {
+        let _ = child.kill();
+        let _ = child.wait();
+        return SolverResult::Failed;
+    }
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => {
+                std::thread::sleep(Duration::from_millis(10));
             }
-            b"sat\n" | b"sat\r\n" => SolverResult::Sat,
-            b"unknown\n" | b"unknown\r\n" => SolverResult::Unknown,
-            _ => SolverResult::Failed,
+            _ => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return SolverResult::Unknown;
+            }
         }
+    }
+    let Ok(output) = child.wait_with_output() else {
+        return SolverResult::Failed;
+    };
+    if !output.status.success() || !output.stderr.is_empty() || output.stdout.len() > 32 {
+        return SolverResult::Failed;
+    }
+    match output.stdout.as_slice() {
+        b"unsat\n" | b"unsat\r\n" => {
+            let mut hash = Sha256::new();
+            hash.update(b"futuruna.checked-integer-smt-unsat.v1\0");
+            hash.update(script.as_bytes());
+            SolverResult::Unsat(ArithmeticUnsat(hash.finalize().into()))
+        }
+        b"sat\n" | b"sat\r\n" => SolverResult::Sat,
+        b"unknown\n" | b"unknown\r\n" => SolverResult::Unknown,
+        _ => SolverResult::Failed,
     }
 }
 
@@ -501,5 +528,42 @@ mod tests {
             solve(&trace.counterexample_script(">=", a1, b, &[]).unwrap()).trim(),
             "sat"
         );
+
+        // The short clamp strategy and the retained legacy engine must commit
+        // the exact same statement, not engine-specific receipt identities.
+        let clamp = trace
+            .observe_clamp(
+                x,
+                0,
+                ClampKind::Maximum,
+                IntInterval {
+                    minimum: 0,
+                    maximum: 101,
+                    correlation: None,
+                },
+            )
+            .unwrap();
+        let successor = clamp.checked_add(IntInterval::singleton(1)).unwrap();
+        trace.observe("+", clamp, IntInterval::singleton(1), successor);
+        let script = trace
+            .script(">=", successor, clamp, &[(-101, 101)], true, 10_000)
+            .unwrap();
+        let SolverResult::Unsat(preferred) =
+            trace.prove(">=", successor, clamp, &[(-101, 101)], true)
+        else {
+            panic!("clamp strategy must prove a strict successor");
+        };
+        let SolverResult::Unsat(legacy) = solve_script(
+            &script,
+            false,
+            std::time::Instant::now() + std::time::Duration::from_secs(12),
+        ) else {
+            panic!("legacy strategy must prove the same statement");
+        };
+        assert_eq!(preferred.digest(), legacy.digest());
+        assert!(matches!(
+            solve_script(&script, true, std::time::Instant::now()),
+            SolverResult::Unknown
+        ));
     }
 }

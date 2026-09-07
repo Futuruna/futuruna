@@ -1750,3 +1750,80 @@ is also retained outside temporary storage at
 `/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3606.b9kjjb/`.
 Its README identifies it as research/checkpoint data, not disposable debug
 data. The working `/tmp` paths remain untouched; no cleanup was needed.
+
+### Reducing repeated solver timeouts
+
+A fresh diagnostic of the stalled 59,504..59,666-DKK / 25..119-km salary
+box found a search-strategy bottleneck. Installed Z3 4.15.4's default
+arithmetic engine returned Unknown after 10.04s. The **identical statement**
+with `smt.arith.solver=2` returned **UNSAT in 0.14s**, using 27.5 MB maximum
+RSS. Only the invocation strategy changed; the 10-second/128-MB statement
+caps, signed integer arithmetic and strict proof acceptance stayed intact.
+Wider freshly derived scopes of 32,768, 4,096 and 512 incomes still timed
+out with both strategies. These diagnostics add no original-grid coverage.
+
+The implementation attempts at most **one new shared scope per node**
+before its exact local box. Cached
+facts at all seven dyadic widths remain available. This is an operational
+search change, not new query semantics or a new proof recipe: canonical
+statement bytes/digests and recorded V7 scope replay are unchanged.
+Scripts, measurements and readable findings are retained under
+`/tmp/futuruna-frontier-solver.RbZkSU/`. The next productive continuation
+will re-derive the saved receipts and measure actual coverage; the full
+result remains open. No cleanup was needed.
+
+The first actual continuation exposed a compatibility limitation in globally
+replacing the solver strategy: an older saved obligation now timed out.
+Replay stopped safely with `SelectionTruthVariesOverAxis` before accepting
+new work. Sequence 3606, its head and all counts remained unchanged.
+Preparation was 98.301s; the run ended after 122.71s wall, maximum RSS
+1,291,845,632 bytes, zero swaps. CPU pacing accounted for 16.805s.
+
+The revised policy preserves the original engine for legacy arithmetic.
+Clamp-bearing traces may first try simplex for **at most one second**;
+otherwise the original engine receives the identical statement, including
+its unchanged 10-second/128-MB limits. Both attempts share the existing
+12-second outer proof guard and run serially. Thus a fast clamp proof can
+avoid a long timeout while saved proofs retain the original strategy.
+This is same-statement solver scheduling, never a timeout-triggered switch
+to a stronger semantic recipe. The focused arithmetic edge additionally
+checks identical receipt digests across strategies and expired-guard refusal.
+
+The corrected continuation replayed all saved receipts and committed
+**page 365**, adding **65,536 candidates**. Its 10-leaf certificate is
+`497d3c23fbcd4126e50098fcabe0a5cb771cdbc075fcf4841c7e229adb82218a`:
+65,373 admitted harmless and 163 excluded transitions. That proof quantum
+took 137.612s. The original answer now accounts for **24,026,770 candidates
+(14.9420%)**: **23,966,801 admitted harmless**, **59,969 excluded** and
+**136,773,632 still unclassified**. Zero selected remains only a lower
+bound, not a global no-cliff result. The separate 176-cliff audit is unchanged.
+
+The low prefix is `[0,23986176)`: all incomes 0..59,666, then income 59,667
+at distances 0..20 for both interventions. Pages 0..365 plus the preserved
+upper-endpoint page 2453 comprise 367 pages, 2,109 regional leaves and
+2,477 case-support records. Independent chunk-row sums match the manifest.
+
+The run paused normally (exit 0, `runtime_limit`) at **sequence 3624**,
+**58 segments**, head
+`9936b197c42d7388067c4e29ef44ce30788e89477435258ba304b0f1fadafce0`.
+All 11 artifacts caught up. Its nonempty JSON report is
+`/tmp/futuruna-frontier-solver.RbZkSU/original-prefix-15m-report.json`.
+Preparation took 89.686s; total **921.74s wall, 834.15s user, 16.86s system**,
+maximum RSS **1,474,166,784 bytes**, zero swaps. CPU pacing paused 31.365s.
+
+The next page, 366, made exactly 31 cover probes before exhausting the
+current bounded tree. It then saved one concrete classification in a
+partial slice; this does **not** increase published support coverage yet.
+The combined failed-cover/one-member quantum took 395.163s. The existing
+driver can reconcile such a partial slice with a fresh checked cover on
+resume, so no checkpoint reset is needed. The next task is a resource-safe
+cover-budget improvement, not another blind full-grid run. This measurement
+clears the previous stall but does not establish a broad throughput speedup.
+
+The revised arithmetic edge passed in 0.16s; the scoped replay edge passed
+in 1.72s. Formatting/diff checks and the optimized build passed (6m13s,
+existing unrelated warning only). Mint/deeper lanes remain deferred under
+the output-first instruction. State/output are approximately 1.8/2.6 MiB;
+a byte-compared snapshot plus these measurements is retained at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq3624.it0NQt/`.
+No files were deleted; about 47 GiB remained free.

@@ -380,16 +380,18 @@ fn probe_region(
     region: &RankedProductBox,
 ) -> Option<RegionProbe> {
     let coordinates = region_coordinates(checked, inventory, region)?;
-    // Only scope nomination changes. Try up to seven dyadic widths, with at
-    // most three fresh scope derivations per node; cached outcomes cost no
-    // new model evaluation. Every accepted leaf keeps the same V7 checks.
+    // Try cached facts at all seven dyadic widths, but spend at most one new
+    // shared-scope derivation before the exact local box. Several intermediate
+    // widths can repeat the same solver timeout even when the local obligation
+    // is cheap. This only changes scheduling; recorded V7 scopes still replay
+    // independently of the current nomination policy.
     let mut fresh_scopes = 0;
     for refinement in 0..=6 {
         let Some(scope) = classifier.shared_cover_scope(&coordinates, refinement) else {
             continue;
         };
         if !classifier.cover_scope_is_cached(&scope) {
-            if fresh_scopes == 3 {
+            if fresh_scopes == 1 {
                 continue;
             }
             fresh_scopes += 1;
