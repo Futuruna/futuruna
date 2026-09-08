@@ -2173,6 +2173,7 @@ struct EndpointTotalityProver<'a, 'program> {
     refine_known_parameter_constants: bool,
     refine_checked_clamp_identities: bool,
     retain_checked_clamp_dependencies: bool,
+    retain_checked_bound_clamp_dependencies: bool,
     source_axis_count: usize,
     scalar_call_axes: RefCell<Vec<[u8; 32]>>,
     #[cfg(test)]
@@ -2210,6 +2211,7 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             refine_known_parameter_constants: false,
             refine_checked_clamp_identities: false,
             retain_checked_clamp_dependencies: false,
+            retain_checked_bound_clamp_dependencies: false,
             source_axis_count: 0,
             scalar_call_axes: RefCell::new(Vec::new()),
             #[cfg(test)]
@@ -4875,7 +4877,10 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                         site: site.clone(),
                         checked_clamp: self
                             .retain_checked_clamp_dependencies
-                            .then(|| self.checked_if_clamp(&site, &env))
+                            .then(|| {
+                                self.checked_if_clamp(&site, &env)
+                                    .or_else(|| self.checked_if_bound_clamp(&site, &env))
+                            })
                             .flatten(),
                         branches,
                         next_index: 0,
@@ -5279,6 +5284,48 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             )),
             _ => None,
         }
+    }
+
+    /// The stronger recipe also accepts `if x < bound { x } else { bound }`
+    /// when the checked bound binder is constant in the original environment.
+    /// Do not infer identity from equal enclosures or branch-local refinement.
+    /// As for literal clamps, every reachable strict branch must finish before
+    /// continue_if_branches can use the retained dependency.
+    fn checked_if_bound_clamp(
+        &self,
+        site: &ExprSiteId,
+        env: &AbstractEnv,
+    ) -> Option<CheckedIfClamp> {
+        if !self.retain_checked_bound_clamp_dependencies {
+            return None;
+        }
+        let guard = child_site(site, 0);
+        let ExprKind::BinOp(operator, _, _) = &self.index.expression(&guard)?.kind else {
+            return None;
+        };
+        let kind = match operator.as_str() {
+            "<" | "<=" => arithmetic_trace::ClampKind::Minimum,
+            ">" | ">=" => arithmetic_trace::ClampKind::Maximum,
+            _ => return None,
+        };
+        let input_place = self.abstract_int_place(&child_site(&guard, 0))?;
+        let bound_place = self.abstract_int_place(&child_site(&guard, 1))?;
+        let identity =
+            self.abstract_int_place(&self.single_expression_site(child_site(site, 1))?)?;
+        let returned_bound =
+            self.abstract_int_place(&self.single_expression_site(child_site(site, 2))?)?;
+        if !input_place.fields.is_empty()
+            || !bound_place.fields.is_empty()
+            || !identity.fields.is_empty()
+            || !returned_bound.fields.is_empty()
+            || input_place.binder != identity.binder
+            || bound_place.binder != returned_bound.binder
+        {
+            return None;
+        }
+        let input = env.get(&input_place.binder)?.int()?;
+        let constant = env.get(&bound_place.binder)?.int()?.singleton_value()?;
+        Some(CheckedIfClamp::Bound(input, i128::from(constant), kind))
     }
 
     fn single_expression_site(&self, mut site: ExprSiteId) -> Option<ExprSiteId> {

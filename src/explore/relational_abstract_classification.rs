@@ -264,7 +264,7 @@ impl CheckedBoxClassifier {
         {
             return Some(arithmetic);
         }
-        prove_box_with_precision(
+        let clamps = prove_box_with_precision(
             &index,
             &self.inputs.resolutions,
             checked,
@@ -272,6 +272,21 @@ impl CheckedBoxClassifier {
             branch_constants,
             true,
             IntegerPrecision::Clamps,
+        )
+        .ok()?;
+        // Bound-binder clamps are a separate stronger recipe. Never alter a
+        // previously successful literal-clamp root, including after a timeout.
+        if clamps.classification.outcome(checked).is_some() || !clamps.arithmetic_relaxation_sat {
+            return Some(clamps);
+        }
+        prove_box_with_precision(
+            &index,
+            &self.inputs.resolutions,
+            checked,
+            coordinates,
+            branch_constants,
+            true,
+            IntegerPrecision::BoundClamps,
         )
         .ok()
     }
@@ -606,6 +621,7 @@ enum IntegerPrecision {
     None,
     Arithmetic,
     Clamps,
+    BoundClamps,
 }
 
 fn prove_box_with_precision(
@@ -624,7 +640,12 @@ fn prove_box_with_precision(
     prover.track_scalar_call_identities = true;
     prover.refine_known_parameter_constants = branch_constants;
     prover.refine_checked_clamp_identities = clamp_identities;
-    prover.retain_checked_clamp_dependencies = matches!(precision, IntegerPrecision::Clamps);
+    prover.retain_checked_clamp_dependencies = matches!(
+        precision,
+        IntegerPrecision::Clamps | IntegerPrecision::BoundClamps
+    );
+    prover.retain_checked_bound_clamp_dependencies =
+        matches!(precision, IntegerPrecision::BoundClamps);
     prover.collect_split_hints = integer_solver;
     if integer_solver {
         prover.arithmetic_trace = Some(arithmetic_trace::ArithmeticTrace::default());
@@ -835,6 +856,165 @@ fn prove_box_with_precision(
 mod tests {
     use super::*;
     use crate::{Lexer, Parser, TypeChecker};
+
+    fn bound_clamp_fixture(clamp: &str, call: &str) -> String {
+        format!(
+            r#"
+{clamp}
+> tax(x: Int) -> Int {{ {call} * 100 }}
+? explore bound_clamp_boundary {{
+    from {{
+        vary before in range(-164, 164)
+        given context = ()
+    }}
+    transition after = before + 1
+    where before true
+    find rows = violations of after * 100 - tax(after) >= before * 100 - tax(before)
+}}
+"#
+        )
+    }
+
+    #[test]
+    #[ignore = "explicit installed-solver checked bound-clamp edge"]
+    fn checked_bound_clamp_dependencies_preserve_order_and_replay() {
+        for (operator, bound) in [("<", 3), ("<=", -3), (">", -3), (">=", 3)] {
+            for head in ["| cap(a: Int, b: Int) ->", "> cap(a: Int, b: Int) -> Int"] {
+                let source = bound_clamp_fixture(
+                    &format!("{head} {{ if a {operator} b {{ a }} else {{ b }} }}"),
+                    &format!("cap(x * 8 / 100, {bound})"),
+                );
+                let mut lexer = Lexer::new(&source);
+                let statements = Parser::new(lexer.tokenize(), &source)
+                    .parse_program()
+                    .unwrap();
+                let artifacts =
+                    TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+                assert!(
+                    artifacts.diagnostics.is_empty(),
+                    "{:?}",
+                    artifacts.diagnostics
+                );
+                let checked = artifacts.checked_exploration_query(0).unwrap();
+                let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+                let prove = |precision| {
+                    prove_box_with_precision(
+                        &index,
+                        &artifacts.checked_resolutions,
+                        &checked,
+                        &[Some((-164, 163)), None],
+                        true,
+                        true,
+                        precision,
+                    )
+                    .unwrap()
+                };
+                let legacy = prove(IntegerPrecision::Clamps);
+                assert!(!legacy.all_admitted_not_selected(), "{source}");
+                assert!(legacy.arithmetic_relaxation_sat, "{source}");
+                let refined = prove(IntegerPrecision::BoundClamps);
+                assert!(refined.all_admitted_not_selected(), "{source}");
+                assert_eq!(
+                    refined.derivation_root(),
+                    prove(IntegerPrecision::BoundClamps).derivation_root(),
+                    "fresh checked bound-clamp replay: {source}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    #[ignore = "explicit installed-solver checked bound-clamp edge"]
+    fn checked_bound_clamp_preserves_legacy_roots_and_strict_operand_identity() {
+        for (clamp, call, closed, total) in [
+            // A successful literal-clamp recipe must remain byte-identical.
+            (
+                "| cap(a: Int, b: Int) -> if a < 3 { a } else { 3 }",
+                "cap(x * 8 / 100, 3)",
+                Some(true),
+                true,
+            ),
+            // Changing either returned operand is not the checked min/max.
+            (
+                "| cap(a: Int, b: Int) -> if a < b { a } else { b + 1000 }",
+                "cap(x * 8 / 100, 3)",
+                Some(false),
+                true,
+            ),
+            (
+                "| cap(a: Int, b: Int) -> if a > b { a + 1000 } else { b }",
+                "cap(x * 8 / 100, -3)",
+                Some(false),
+                true,
+            ),
+            (
+                "| cap(a: Int, b: Int, c: Int) -> if a < b { a } else { c }",
+                "cap(x * 8 / 100, 3, 1003)",
+                Some(false),
+                true,
+            ),
+            // Even equal constant enclosures do not equate distinct binders.
+            (
+                "| cap(a: Int, b: Int, c: Int) -> if a < b { a } else { c }",
+                "cap(x * 8 / 100, 3, 3)",
+                None,
+                true,
+            ),
+            // A varying bound cannot become a constant after guard refinement.
+            (
+                "| cap(a: Int, b: Int) -> if a < b { a } else { b }",
+                "cap(x * 8 / 100, x * 9 / 100)",
+                None,
+                true,
+            ),
+            // Never erase a reachable strict failure in a branch's block.
+            (
+                "| cap(a: Int, b: Int) -> if a < b { = bad = 1 / (a - a); a } else { b }",
+                "cap(x * 8 / 100, 3)",
+                None,
+                false,
+            ),
+        ] {
+            let source = bound_clamp_fixture(clamp, call);
+            let mut lexer = Lexer::new(&source);
+            let statements = Parser::new(lexer.tokenize(), &source)
+                .parse_program()
+                .unwrap();
+            let artifacts = TypeChecker::check_with_explore_artifacts(&statements, None, &source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+            let checked = artifacts.checked_exploration_query(0).unwrap();
+            let index = CheckedExploreSemanticIndex::build(&artifacts.analysis_program);
+            let prove = |precision| {
+                prove_box_with_precision(
+                    &index,
+                    &artifacts.checked_resolutions,
+                    &checked,
+                    &[Some((-164, 163)), None],
+                    true,
+                    true,
+                    precision,
+                )
+            };
+            let legacy = prove(IntegerPrecision::Clamps);
+            let refined = prove(IntegerPrecision::BoundClamps);
+            assert_eq!(legacy.is_ok(), total, "{source}");
+            assert_eq!(refined.is_ok(), total, "{source}");
+            if let (Ok(legacy), Ok(refined)) = (legacy, refined) {
+                if let Some(closed) = closed {
+                    assert_eq!(refined.all_admitted_not_selected(), closed, "{source}");
+                }
+                assert_eq!(
+                    legacy.derivation_root(),
+                    refined.derivation_root(),
+                    "{source}"
+                );
+            }
+        }
+    }
 
     #[test]
     #[ignore = "explicit installed-solver checked clamp edge"]

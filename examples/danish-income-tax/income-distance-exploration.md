@@ -8,10 +8,12 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
-The latest original-grid checkpoint accounts for **122,265,234 candidates
-(76.0354%)**, with **38,535,168 still unclassified**. The latest productive
-window added 16,842,752 candidates through checked regional proofs; see
-[ordinary salary rounding](#applying-checked-rounding-facts-to-ordinary-salary-arithmetic).
+The latest original-grid checkpoint accounts for **137,731,730 candidates
+(85.6538%)**, with **23,068,672 still unclassified**. It now contains **176
+income-cliff classifications**, with 15 detailed cases and successful mechanism
+replays published so far. The latest productive window added 15,466,496
+candidates through regional proofs and one concrete cliff-containing page; see
+[checked cap dependencies](#keeping-capped-deductions-linked-to-their-checked-inputs).
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -2215,3 +2217,98 @@ Nothing was deleted. This new checkpoint has not yet been cold-replayed;
 the productive run recovered its starting sequence14804. No additional
 test suite was run while producing these results. Full-grid closure and the
 deferred broader gates remain open.
+
+### Keeping capped deductions linked to their checked inputs
+
+The next exact capture confirms a different gap at income
+**304,042..304,204 / 0 km / salary**. Its **304,042..304,082** child's
+canonical arithmetic receipt matches the original trace exactly. Across the
+cap, however, the reachable arithmetic DAG loses both job-deduction formulas:
+the before value becomes an independent axis and the after value a free
+integer. The solver returns `SAT` in **0.05s** by choosing deductions of
+13 and zero DKK at income 304,042. The encoded formula gives 3,097 DKK at
+both endpoints; that relaxed counterexample is not an actual income cliff.
+
+In a diagnostic copy, restoring only the two source-derived job-deduction
+dependencies and using the existing paired rounding facts closes the local
+obligation in **0.02s**. That manually reconstructed script is not checked
+proof authority and adds no original-grid coverage. Captures, commands,
+fingerprints and solver output are protected under
+`/Users/andreasrudolph/futuruna-explore-checkpoints/job-cap-diagnostic.OfLFX4/`.
+
+The engine now has an additional checked recipe for conditional min/max where
+the bound is a local binder known constant across the original box. It requires
+the same checked input and bound binders in the guard and returned operands,
+rejects field projections and merely coincident enclosures, and retains strict
+evaluation of every reachable branch. This recipe is tried only after a
+definite `SAT` in the old clamp relaxation. Old successful recipes and their
+roots remain unchanged; timeout or `Unknown` cannot switch recipes. No
+tax-model, query, domain, receipt-codec or solver-resource change is involved.
+
+Both focused `checked_bound_clamp_` tests passed in **0.86s**, covering signed
+min/max, rule/function forms, fresh replay, legacy roots, wrong operands,
+varying bounds and strict failure. Formatting and diff checks passed. The
+optimized build took **328.64s**, maximum RSS **1,996,652,544 bytes**, zero
+swaps. Commands and original-run logs are in
+`/tmp/futuruna-checked-bound-cap.lMcynr/findings.md`. No broad suite is being
+run under the output-first request.
+
+The original continuation recovered sequence17119, with preparation taking
+**75.061s** and native fallback setup **192.139s**. It then closed the wide
+**294,912..327,679-DKK salary scope across all 201 distances**. The existing
+resumed-cover path reconciled the one-member page1865 prefix and accepted
+that page in **71.352s**: **65,536 cases = 65,373 harmless + 163 excluded**,
+through seven leaves, certificate
+`3e3dc08d9efcd3ff577e70ec4688d561c94af6aa8bbb863429d71c19167fd5e9`.
+
+The run accepted **235 regional pages (1865..2099)**: **15,400,960 cases**
+through **2,671 checked leaves**. Its 222 cache-only covers took **0.470s**
+in total (1..4ms each); thirteen fresh closures took **930.470s**. These
+classification timings exclude preparation, cold replay and publication.
+
+Page **2100** contains a real cliff, so its zero-selected cover correctly did
+not close. The concrete fallback classified all **65,536 transitions**:
+**65,197 harmless + 176 selected + 163 excluded**, compressed into 678 runs.
+Its 306 slices took **975.209s**, including the initial unsuccessful regional
+attempt. Measured materialization/classifier phases totalled **662.998s**, or
+**98.85 transitions/s**; first-case setup is not per-case throughput. The
+completed concrete artifact is
+`5832dde4694e40675b788cf1687918f4060a4054b812434f89726831798a4077`.
+
+The original page's run lengths independently identify all 176 selected edges:
+salary **342,499 → 342,500 DKK at every distance 25..200 km**, with no selected
+distance-increase edge. This is original-grid evidence, not transferred coverage
+from the separate boundary audit. By the deadline, **15 typed case rows
+(25..39 km)** and **15 successful mechanism replays** were published, sharing
+one raw signature and one structural mechanism so far. The first case loses
+**211 øre** at 25 km. The remaining 161 details/replays and downstream support
+work are still open; grouped views have not closed. The separate completed
+boundary audit remains the source for the full loss table and its maximum.
+
+Independent chunk/region sums, report and manifest agree: **137,731,730
+classified = 137,388,737 harmless + 176 selected + 342,817 excluded**.
+**23,068,672 remain unclassified**, and all full-domain finding counts remain
+lower bounds. This window added **236 pages, 15,466,496 candidates and 3,349
+regions**. The graph has 2,102 pages (0..2100 and unchanged upper page2453),
+26,473 regions and 28,606 records, including 15 materializations and 15
+authorized cases. Its low prefix `[0,137691136)` covers every starting income
+**0..342,514 DKK**, then income342515 at distances0..52 for both interventions.
+
+The run stopped normally with **exit 0 / `runtime_limit`** after **3,605.06s
+wall, 3,434.63s user and 142.77s system**. Maximum RSS was **1,858,502,656
+bytes**, zero swaps; CPU pacing paused 3.394s. Final **sequence23987 / 240
+segments**, head
+`db266a62ee81ccdfb575589cc3642133952a699945186c7d7b15c1b317d5f0f7`.
+All eleven artifacts caught up to that prefix; this does not mean their
+semantic inputs are closed. Automatic support has 14 published observation
+points while the fifteenth replay is already committed.
+
+After all workers stopped, state, output, report and logs were preserved in
+the recursively byte-compared checkpoint
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq23987.wmqtjC/`.
+State/output occupy approximately **87.5/110.7 MiB**; about **46 GiB** remains
+free. Nothing was deleted. This new checkpoint has not yet been cold-replayed;
+the productive run recovered its starting sequence17119. Resume the same
+query/state to finish the pending selected details and continue from page2101.
+No extra suite ran during production. Full-grid closure and the broader
+validation gates remain open under the output-first request.
