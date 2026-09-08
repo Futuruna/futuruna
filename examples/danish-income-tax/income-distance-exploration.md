@@ -8,12 +8,18 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
-The latest original-grid checkpoint accounts for **137,731,730 candidates
-(85.6538%)**, with **23,068,672 still unclassified**. It now contains **176
-income-cliff classifications**, with 15 detailed cases and successful mechanism
-replays published so far. The latest productive window added 15,466,496
-candidates through regional proofs and one concrete cliff-containing page; see
-[checked cap dependencies](#keeping-capped-deductions-linked-to-their-checked-inputs).
+The original grid has established its **earliest salary cliff:
+342,499 → 342,500 DKK**, at every integer commute distance **25–200 km**.
+All **176 cases at that boundary** now have detailed records and successful
+mechanism replays. Annual losses range from **2.11 to 144.09 DKK**; see
+[the original-grid result](#original-grid-earliest-cliff-result).
+
+The latest stopped checkpoint now accounts for **138,190,482 candidates
+(85.9391%)**, with **22,609,920 still unclassified**. It contains **352 cliff
+classifications** across the first two income boundaries, with **312 detailed
+cases and successful replays**. See [the two-hour continuation](#two-hour-original-grid-continuation).
+The full-grid cliff count and maximum loss remain unresolved; the exact
+earliest-cliff conclusion does not require those later pages to close.
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -67,6 +73,64 @@ the query; they are not a representative sample of all taxpayers.
 
 The two finding summaries group by intervention. A salary cliff and a
 distance-induced loss must not become an indistinguishable aggregate.
+
+## Original-grid earliest-cliff result
+
+For the fixed profile above, a raise from **342,499 to 342,500 DKK** reduces
+annual salary minus final tax at every integer daily round-trip distance from
+**25 through 200 km**. These are the original full-grid run's own 176 cases,
+not coverage imported from the separately closed boundary window.
+
+| Daily round-trip commute | Annual loss from the 1-DKK raise |
+|---|---:|
+| 25 km | 2.11 DKK |
+| 50 km | 50.06 DKK |
+| 75 km | 98.24 DKK |
+| 100 km | 144.08 DKK |
+| 150 km | 144.08 DKK |
+| 200 km | 144.09 DKK |
+
+The maximum **at this boundary** is 144.09 DKK, attained at 18 distances,
+first at 99 km. It is not yet the maximum over the full income range.
+
+Why is this already the earliest cliff over the whole declared profile? The
+original continuous classified prefix covers every starting income
+**0–342,514 DKK**, every distance and both interventions. Its only selected
+edges are the 176 salary transitions above. All unclassified starting incomes
+are higher, so later work cannot introduce an earlier salary cliff. There are
+no commute-increase losses in that classified prefix; this does not settle
+distance edges at later incomes.
+
+The [encoded low-income supplement](ligningsloven_fradrag.runa) uses whole-
+thousand income phase-out steps. At this boundary the excess over 341,500 DKK
+changes from 999 to 1,000 DKK: the supplement falls from 64% to 62.72%, and
+its cap from 30,800 to 30,184 DKK. The resulting tax increase outweighs the
+extra krone. Longer commutes increase the underlying deduction until the cap
+binds; integer rounding retains the small differences along the loss plateau.
+This explains the current encoded research model, not an independently
+validated interpretation of current law or individual tax advice.
+
+All 176 mechanism replays succeeded, with zero unavailable explanations.
+Their four structural groups cover **25–98 km (74 cases)**, **99–119 km (21)**,
+**120 km (1)** and **121–200 km (80)**. Every group has zero before/after
+differential nodes and edges despite these numeric losses. A shared execution
+path is therefore not authority to close an unseen income or distance range.
+
+This completion milestone was observed at **sequence 38736 / 361 segments**,
+head `388ab4e48e4f18b12b1f05e64aea95f62c99cace3346dd2c536c541672306b94`.
+All eleven artifacts were caught up, and the manifest remained stable during
+the bounded read of its authorized case, mechanism and graph prefixes.
+The accounting was **137,388,737 harmless + 176 selected + 342,817 excluded**.
+All 176 coordinates, interventions and exact losses independently matched the
+earlier boundary audit, without transferring its coverage. The global FIND,
+grouped-result and mechanism-support layers remain open.
+
+The same governed two-hour run recovered its starting sequence 23987 and
+finished the 176 details by **62m05s**, then resumed later income pages. It did
+not rebuild the compiler or run an additional test suite. The readable result,
+exact joined statistics and live command log are retained externally in
+`/tmp/futuruna-original-cliffs-continuation.QobiGo/`; this milestone is not a
+stopped checkpoint or a full-domain completion claim.
 
 ## What can safely close a route?
 
@@ -2282,8 +2346,10 @@ from the separate boundary audit. By the deadline, **15 typed case rows
 (25..39 km)** and **15 successful mechanism replays** were published, sharing
 one raw signature and one structural mechanism so far. The first case loses
 **211 øre** at 25 km. The remaining 161 details/replays and downstream support
-work are still open; grouped views have not closed. The separate completed
-boundary audit remains the source for the full loss table and its maximum.
+work were still open at this checkpoint; grouped views had not closed. At that
+point the separate completed boundary audit supplied the full loss table and
+its maximum. The [later original-grid milestone](#original-grid-earliest-cliff-result)
+now has all 176 original details and replays as well.
 
 Independent chunk/region sums, report and manifest agree: **137,731,730
 classified = 137,388,737 harmless + 176 selected + 342,817 excluded**.
@@ -2312,3 +2378,67 @@ the productive run recovered its starting sequence17119. Resume the same
 query/state to finish the pending selected details and continue from page2101.
 No extra suite ran during production. Full-grid closure and the broader
 validation gates remain open under the output-first request.
+
+### Two-hour original-grid continuation
+
+The unchanged original query resumed sequence23987 in one governed
+**120-minute** epoch. Preparation took **72.005s**, and the cached native
+classifier was reused in **0.249s** without compilation. The saved proof
+prefix was recovered; by 30m07s fresh detail production was visible. All 176
+first-boundary records and successful mechanism replays were complete by
+62m05s, establishing the [original-grid result](#original-grid-earliest-cliff-result).
+
+The run then accepted six regional pages **2101..2106**, covering **393,216
+candidates through 72 leaves**, and concretely classified page **2107**:
+**65,536 = 65,197 harmless + 176 selected + 163 excluded**, in 678 runs.
+Its original artifact is
+`08e5a0ef7f79682637270bd474e20aaf39b8eebeedd608671d6b3e1e35419ab9`.
+Independent run-length reconstruction identifies every new selected edge as
+salary **343,499 → 343,500 DKK**, at each integer distance **25–200 km**.
+No distance-increase edge was selected. The original continuous prefix now
+covers all starting incomes **0–343,655 DKK** across both interventions.
+
+Page2107's 300 slice quanta totalled **1,076.801s**, including the initial
+**344.316s** quantum with unsuccessful regional search. Materialization and
+native classification took **8.689409s + 730.251108s**, or **88.689
+transitions/s** for those phases only. Producing detailed findings and their
+replays costs extra: the first 64 new cases averaged **4.723s** in selected
+materialization and **6.244s** in mechanism replay. Repeated structural-
+quotient chunks were not the dominant per-case cost. No checked classification
+or replay boundary was bypassed for speed.
+
+At the deadline, **312 typed cases and 312 successful replays** were published:
+all 176 at the first boundary, and **136 at the second (25–160 km)**. The
+remaining **40 second-boundary details** are queued for continuation. The
+second boundary's published losses include **1.87 DKK at 25 km**, **50.05 at
+50 km**, **98.47 at 75 km**, **144.09 at 100 km** and **144.08 at 150 km**.
+Its complete minimum/maximum remains unresolved. The observed replays reuse
+the same four raw/structural mechanisms, despite these numeric differences.
+There are zero unavailable explanations. Automatic support has 311 observation
+points; the last replay's downstream support work remains pending too.
+
+Report, manifest and an independent bounded-prefix reader agree:
+**138,190,482 classified = 137,846,172 harmless + 352 selected + 343,958
+excluded**, leaving **22,609,920 unknown**. This window added seven pages,
+458,752 candidates, 750 regions and 297 detailed cases/replays. The graph has
+2,109 chunks (low0..2107 plus unchanged upper2453), 27,223 regions and 29,957
+records. All eleven artifacts caught up; the full relation, FIND, grouped
+results and mechanism-support closures remain open.
+
+The run stopped normally with **exit 0 / `runtime_limit`** after **7,207.99s
+wall, 6,573.60s user and 462.63s system**. Maximum RSS was **1,839,693,824
+bytes**, zero swaps; CPU pacing paused 13.575s. Final **sequence42118 / 522
+segments**, head
+`b63592fd37791ec7ecd87d234211c3795f1d3dcba873032c4b4b4fce81444a9d`.
+
+Stopped state, output, reports and the read-only summary helper are preserved
+at `/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq42118.2tb8gk/`.
+Copy-on-write copies preserve independent future writes without hard links;
+the checkpoint README records recursive byte comparisons. State/output occupy
+about **323.6/303.4 MiB** logically; shared mechanism definitions dominate
+output storage, not individual finding rows. About **45 GiB** remains free;
+nothing was deleted. The starting sequence23987 was recovered, but this new
+checkpoint has not yet been cold-replayed. Resume its pending details/support
+before page2108. Only documentation and external read-only reporting changed
+during this window: no compiler build or additional tax-model/test-suite run.
+Full-grid completion and the previously deferred broader gates remain open.
