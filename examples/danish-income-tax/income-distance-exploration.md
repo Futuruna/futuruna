@@ -14,28 +14,30 @@ All **176 cases at that boundary** now have detailed records and successful
 mechanism replays. Annual losses range from **2.11 to 144.09 DKK**; see
 [the original-grid result](#original-grid-earliest-cliff-result).
 
-The latest stopped checkpoint now accounts for **139,763,346 candidates
-(86.9173%)**, with **21,037,056 still unclassified**. It contains **1,056 cliff
-classifications** across six income boundaries, with **906 detailed cases
-and successful replays**. The first five boundaries are fully explained;
-the sixth, **347,499 → 347,500 DKK**, has 26 of its 176 explanations published.
-The requested eight-hour continuation paused safely after 2h37m06s on
-`resource_reserve_backoff`, at **sequence 56570 / 1198 segments**. Ten of eleven
-artifacts are caught up; the `losses` view remains behind the last selected
-materialization. The stopped checkpoint is preserved externally at
-`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq56570.Ktvq33/`,
-with its partial-result report in the copied `futuruna-upper-grid-two-native.IrP142/`.
+The latest stopped checkpoint accounts for **139,959,954 candidates
+(87.0396%)**, with **20,840,448 still unclassified**. It contains **1,056 cliff
+classifications** across six income boundaries, all with detailed cases and
+successful mechanism replays. The requested eight-hour continuation paused
+after 1h17m21s on `resource_swap_counter_reset`, at **sequence 59593 / 1279
+segments**. All eleven artifacts are caught up. This epoch added 196,608
+classifications and completed the remaining 150 sixth-boundary explanations.
+The stopped checkpoint is preserved externally at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq59593.WKUrku/`,
+with its terminal report in the copied `futuruna-upper-grid-resume56570.qj9dPA/`.
 State, output, evidence and the exact executable were copied after termination;
 all three tree comparisons and the executable byte comparison passed. The
-pause report does not distinguish which reserve condition triggered it, and
-no separate build or test suite ran during this epoch. Keep all resource guards.
+pause denotes a swap-counter **generation increase**, not necessarily a decrease
+in swap bytes or an out-of-memory event. The old macOS provider derived that
+generation from a mutable boot timestamp; see [boot identity](#macos-boot-identity).
+The exact triggering clock event was not recorded. No separate build or test
+suite ran during this epoch. Earlier checkpoints remain protected.
 The full-grid cliff count and maximum loss remain unresolved; the exact
 earliest-cliff conclusion does not require those later pages to close.
 
 The earlier **four-boundary** answer at **sequence 51249** accounts for
 **139,042,450 candidates**, with **21,757,952 unclassified**. See
 [the first four complete boundaries](#first-four-complete-boundaries).
-That live answer prefix does not replace the independently preserved stopped
+That saved answer prefix does not replace the independently preserved stopped
 checkpoint above, and neither establishes full-grid closure.
 
 The newer **five-boundary** answer at **sequence 55457** contains **880 fully
@@ -43,8 +45,21 @@ explained cases**, with **139,632,274 classified** and **21,168,128 unclassified
 Its fifth boundary, **346,499 → 346,500 DKK**, loses **2.11–144.09 DKK** annually;
 the maximum occurs at 28 distances, first 117 km. The 50/100/150-km profiles
 reach only 144.08 DKK there. `five-boundaries-result.md` and all 880 finding
-rows are preserved in the checkpoint's evidence directory above. This saved
-answer is separate from the stopped checkpoint's later, partial sixth boundary.
+rows remain in the earlier `unit-grid-seq56570.Ktvq33/` checkpoint's
+`futuruna-upper-grid-two-native.IrP142/` evidence directory. That earlier stopped
+checkpoint contained a partial sixth boundary; the current one has all six
+fully explained.
+
+The complete **six-boundary** answer at **sequence 59562** contains **1,056
+fully explained cases**, with **139,763,346 classified** and **21,037,056
+unclassified**. The sixth boundary, **347,499 → 347,500 DKK**, loses
+**1.87–144.09 DKK** annually. Its maximum occurs at 23 distances, first 113 km;
+the 50/100/150-km profiles and even 200 km reach only 144.08 DKK. All six
+boundaries have the same four structural groups, but differing exact losses.
+`six-boundaries-result.md`, the summary and all 1,056 finding rows are preserved
+at `/Users/andreasrudolph/futuruna-explore-checkpoints/six-boundaries-seq59562.ksM6wq/`.
+All six copied evidence files matched their sources byte-for-byte. That saved
+answer prefix is separate from the later stopped state checkpoint above.
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -235,6 +250,26 @@ Discovery order does not change a closed answer's evidence roots.
 The development machine has 8 GiB RAM and six CPU cores. Keep the governed
 Explore supervisor enabled and use one build job. Do not launch a full-grid
 exhaustion as an unattended performance experiment yet.
+
+### macOS boot identity
+
+The macOS sampler brackets each complete host observation with
+`kern.bootsessionuuid`. Equal UUIDs retain the same provider-local generation;
+a changed UUID advances it without assuming UUID ordering. A bracket mismatch,
+malformed identity or generation overflow fails closed without committing a
+new identity. Real generation changes and decreasing cumulative swap counters
+retain the governor's existing backoff/error behavior.
+
+Previously this identity came from `kern.boottime`. Apple's
+[calendar-clock implementation](https://github.com/apple-oss-distributions/xnu/blob/main/osfmk/kern/clock.c)
+adjusts the boot timestamp when setting calendar time, while the
+[kernel sysctl](https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_sysctl.c)
+exposes a separate read-only boot-session UUID. A wall-clock timestamp is
+therefore unsuitable as a stable boot identity. This operational fix does not
+alter query, proof, journal, classification or resource-limit thresholds, and
+does not establish which clock event triggered the historical pause.
+
+### Classification work
 
 The old native measurement of roughly 120–135 cases/second would put even
 classification alone for this product around **14–16 days** if every edge

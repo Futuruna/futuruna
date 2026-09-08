@@ -68,7 +68,7 @@ impl SampleUnavailable {
                 _ => "telemetry_missing_host_fact",
             },
             Self::InvalidScalar(field) => match field {
-                "boot_time" | "boot_seconds" | "boot_microseconds" => "telemetry_invalid_boot_time",
+                "boot_session" => "telemetry_invalid_boot_session",
                 "host_scalars" => "telemetry_invalid_host_scalars",
                 "live_scalars" => "telemetry_invalid_live_scalars",
                 "logical_cpu_count" => "telemetry_invalid_logical_cpu_count",
@@ -639,7 +639,13 @@ pub(crate) trait HostFactProvider {
 /// optimistic edge transition from being joined into one published sample.
 #[cfg(target_os = "macos")]
 #[derive(Debug, Default)]
-pub(crate) struct MacOsCommandProvider;
+pub(crate) struct MacOsCommandProvider {
+    boot_session: Option<(MacOsBootSessionId, u64)>,
+}
+
+#[cfg(target_os = "macos")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct MacOsBootSessionId([u8; 16]);
 
 #[cfg(target_os = "macos")]
 impl MacOsCommandProvider {
@@ -654,8 +660,9 @@ impl MacOsCommandProvider {
     ) -> Result<RawHostFacts, SampleUnavailable> {
         let mut transaction = MacOsCommandTransaction::new(deadline)?;
 
-        let boot_before =
-            parse_macos_boot_generation(&transaction.run(Self::SYSCTL, &["-n", "kern.boottime"])?)?;
+        let boot_before = parse_macos_boot_session(
+            &transaction.run(Self::SYSCTL, &["-n", "kern.bootsessionuuid"])?,
+        )?;
         let before = parse_macos_host_scalars(&transaction.run(
             Self::SYSCTL,
             &[
@@ -672,12 +679,9 @@ impl MacOsCommandProvider {
             Self::SYSCTL,
             &["-n", "hw.activecpu", "kern.memorystatus_vm_pressure_level"],
         )?)?;
-        let boot_after =
-            parse_macos_boot_generation(&transaction.run(Self::SYSCTL, &["-n", "kern.boottime"])?)?;
-
-        if boot_before != boot_after {
-            return Err(SampleUnavailable::ProviderUnavailable);
-        }
+        let boot_after = parse_macos_boot_session(
+            &transaction.run(Self::SYSCTL, &["-n", "kern.bootsessionuuid"])?,
+        )?;
 
         let logical_cpu_count = u16::try_from(before.logical_cpu_count)
             .ok()
@@ -725,6 +729,9 @@ impl MacOsCommandProvider {
             .swapout_pages
             .checked_mul(vm.page_size_bytes)
             .ok_or(SampleUnavailable::IncoherentHostFacts)?;
+        // Commit the identity only after every command, parser and coherence
+        // check succeeds. A failed transaction cannot consume a generation.
+        let boot_generation = self.accept_boot_session(boot_before, boot_after)?;
 
         Ok(RawHostFacts {
             logical_cpu_count,
@@ -739,10 +746,32 @@ impl MacOsCommandProvider {
             // throttled pages are the fail-closed, actionable signals here.
             oom_risk: pressure == MemoryPressure::Critical || vm.throttled_pages != 0,
             swap_out: SwapOutCounter {
-                generation: super::resource_governor::SwapOutGeneration(boot_before),
+                generation: super::resource_governor::SwapOutGeneration(boot_generation),
                 cumulative_bytes: cumulative_swap_out_bytes,
             },
         })
+    }
+
+    fn accept_boot_session(
+        &mut self,
+        before: MacOsBootSessionId,
+        after: MacOsBootSessionId,
+    ) -> Result<u64, SampleUnavailable> {
+        if before != after {
+            return Err(SampleUnavailable::ProviderUnavailable);
+        }
+        // kern.boottime is a wall-clock timestamp: XNU adjusts it when calendar
+        // time changes. It is not a boot identity. Session UUID equality is
+        // stable across such adjustments; UUID ordering has no temporal meaning.
+        let generation = match self.boot_session {
+            None => 1,
+            Some((previous, generation)) if previous == after => generation,
+            Some((_, generation)) => generation
+                .checked_add(1)
+                .ok_or(SampleUnavailable::EpochOverflow("boot_session"))?,
+        };
+        self.boot_session = Some((after, generation));
+        Ok(generation)
     }
 }
 
@@ -945,35 +974,34 @@ fn parse_macos_live_scalars(bytes: &[u8]) -> Result<MacOsLiveScalars, SampleUnav
 }
 
 #[cfg(target_os = "macos")]
-fn parse_macos_boot_generation(bytes: &[u8]) -> Result<u64, SampleUnavailable> {
-    let line = parse_exact_ascii_lines(bytes, 1, "boot_time")?[0];
-    let body = line
-        .strip_prefix(b"{ sec = ")
-        .ok_or(SampleUnavailable::InvalidScalar("boot_time"))?;
-    let (seconds, body) = split_once_bytes(body, b", usec = ")
-        .ok_or(SampleUnavailable::InvalidScalar("boot_time"))?;
-    let (microseconds, suffix) =
-        split_once_bytes(body, b" }").ok_or(SampleUnavailable::InvalidScalar("boot_time"))?;
-    if !suffix.is_empty()
-        && (suffix.first() != Some(&b' ')
-            || suffix.len() == 1
-            || !suffix[1..]
-                .iter()
-                .all(|byte| byte.is_ascii_graphic() || *byte == b' '))
-    {
-        return Err(SampleUnavailable::InvalidScalar("boot_time"));
+fn parse_macos_boot_session(bytes: &[u8]) -> Result<MacOsBootSessionId, SampleUnavailable> {
+    let invalid = SampleUnavailable::InvalidScalar("boot_session");
+    let line = parse_exact_ascii_lines(bytes, 1, "boot_session")?[0];
+    if line.len() != 36 {
+        return Err(invalid);
     }
-
-    let seconds = parse_ascii_u64(seconds, "boot_seconds")?;
-    let microseconds = parse_ascii_u64(microseconds, "boot_microseconds")?;
-    if seconds == 0 || microseconds >= 1_000_000 {
-        return Err(SampleUnavailable::InvalidScalar("boot_time"));
+    let mut identity = [0_u8; 16];
+    let mut nibble = 0;
+    for (index, byte) in line.iter().copied().enumerate() {
+        if matches!(index, 8 | 13 | 18 | 23) {
+            if byte != b'-' {
+                return Err(invalid);
+            }
+            continue;
+        }
+        let value = match byte {
+            b'0'..=b'9' => byte - b'0',
+            b'a'..=b'f' => byte - b'a' + 10,
+            b'A'..=b'F' => byte - b'A' + 10,
+            _ => return Err(invalid),
+        };
+        identity[nibble / 2] = (identity[nibble / 2] << 4) | value;
+        nibble += 1;
     }
-    seconds
-        .checked_mul(1_000_000)
-        .and_then(|value| value.checked_add(microseconds))
-        .filter(|value| *value != 0)
-        .ok_or(SampleUnavailable::InvalidScalar("boot_time"))
+    if identity == [0; 16] {
+        return Err(invalid);
+    }
+    Ok(MacOsBootSessionId(identity))
 }
 
 #[cfg(target_os = "macos")]
@@ -1430,6 +1458,99 @@ mod source_canaries {
         assert_eq!(parse_macos_pressure(b"2\n"), Ok(MemoryPressure::Warning));
         assert_eq!(parse_macos_pressure(b"4\n"), Ok(MemoryPressure::Critical));
         assert!(parse_macos_pressure(b"5\n").is_err());
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_boot_session_parser_is_strict_and_case_insensitive() {
+        let upper = b"12345678-9ABC-4DEF-8123-456789ABCDEF\n";
+        let lower = b"12345678-9abc-4def-8123-456789abcdef";
+        assert_eq!(
+            parse_macos_boot_session(upper),
+            parse_macos_boot_session(lower)
+        );
+        assert_eq!(
+            parse_macos_boot_session(upper).unwrap(),
+            MacOsBootSessionId([
+                0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0x4d, 0xef, 0x81, 0x23, 0x45, 0x67, 0x89, 0xab,
+                0xcd, 0xef,
+            ])
+        );
+        for invalid in [
+            b"".as_slice(),
+            b"00000000-0000-0000-0000-000000000000",
+            b"123456789ABC4DEF8123456789ABCDEF",
+            b"12345678_9ABC-4DEF-8123-456789ABCDEF",
+            b"12345678-9ABC-4DEF-8123-456789ABCDEG",
+            b" 12345678-9ABC-4DEF-8123-456789ABCDEF",
+            b"12345678-9ABC-4DEF-8123-456789ABCDEF ",
+            b"12345678-9ABC-4DEF-8123-456789ABCDEF\n\n",
+            b"12345678-9ABC-4DEF-8123-456789ABCDE\xff",
+        ] {
+            assert!(parse_macos_boot_session(invalid).is_err(), "{invalid:?}");
+        }
+        assert_eq!(
+            SampleUnavailable::InvalidScalar("boot_session").diagnostic_code(),
+            "telemetry_invalid_boot_session"
+        );
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_boot_session_keeps_generation_independent_of_wall_clock() {
+        let identity = MacOsBootSessionId([1; 16]);
+        let mut provider = MacOsCommandProvider::default();
+        // No wall-clock timestamp enters the identity or generation decision.
+        for _ in 0..3 {
+            assert_eq!(provider.accept_boot_session(identity, identity), Ok(1));
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_boot_session_changes_advance_without_ordering_uuids() {
+        let high = MacOsBootSessionId([0xff; 16]);
+        let low = MacOsBootSessionId([1; 16]);
+        let mut provider = MacOsCommandProvider::default();
+        assert_eq!(provider.accept_boot_session(high, high), Ok(1));
+        assert_eq!(provider.accept_boot_session(low, low), Ok(2));
+        assert_eq!(provider.accept_boot_session(high, high), Ok(3));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_boot_session_bracket_race_does_not_commit() {
+        let first = MacOsBootSessionId([1; 16]);
+        let second = MacOsBootSessionId([2; 16]);
+        let mut provider = MacOsCommandProvider::default();
+        assert_eq!(
+            provider.accept_boot_session(first, second),
+            Err(SampleUnavailable::ProviderUnavailable)
+        );
+        assert_eq!(provider.boot_session, None);
+        assert_eq!(provider.accept_boot_session(first, first), Ok(1));
+        assert_eq!(
+            provider.accept_boot_session(second, first),
+            Err(SampleUnavailable::ProviderUnavailable)
+        );
+        assert_eq!(provider.boot_session, Some((first, 1)));
+        assert_eq!(provider.accept_boot_session(second, second), Ok(2));
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_boot_session_generation_overflow_does_not_commit() {
+        let first = MacOsBootSessionId([1; 16]);
+        let second = MacOsBootSessionId([2; 16]);
+        let mut provider = MacOsCommandProvider {
+            boot_session: Some((first, u64::MAX)),
+        };
+        assert_eq!(provider.accept_boot_session(first, first), Ok(u64::MAX));
+        assert_eq!(
+            provider.accept_boot_session(second, second),
+            Err(SampleUnavailable::EpochOverflow("boot_session"))
+        );
+        assert_eq!(provider.boot_session, Some((first, u64::MAX)));
     }
 
     #[cfg(target_os = "macos")]
