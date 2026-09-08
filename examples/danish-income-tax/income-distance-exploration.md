@@ -8,10 +8,10 @@ across the full declared ranges, including mechanisms. The full-model query
 now executes governed epochs and writes a durable classified prefix. Exact
 full-grid closure remains unfinished. Explore remains **Experimental**.
 
-The latest original-grid checkpoint accounts for **105,422,482 candidates
-(65.5611%)**, with **55,377,920 still unclassified**. The latest productive
-window added 38,993,920 candidates through checked regional proofs; see
-[the next salary frontier](#continuation-to-the-next-salary-frontier).
+The latest original-grid checkpoint accounts for **122,265,234 candidates
+(76.0354%)**, with **38,535,168 still unclassified**. The latest productive
+window added 16,842,752 candidates through checked regional proofs; see
+[ordinary salary rounding](#applying-checked-rounding-facts-to-ordinary-salary-arithmetic).
 
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
@@ -2132,3 +2132,86 @@ diagnostic, before another long run. A read-only inspection also found a
 literal-only min/max recognizer limitation, but that is not yet the diagnosed
 cause of these salary timeouts. No speculative precision or model change has
 been made; mint/deeper gates remain deferred under the output-first request.
+
+### Applying checked rounding facts to ordinary salary arithmetic
+
+The next diagnostic captured the original query's failing salary obligation
+at income **262,144..262,306 / 49 km** and its passing
+**262,144..262,225 / 49 km** child. After changing only the diagnostic's
+2-second timeout header to the production 10-second header, the child's
+canonical receipt exactly matched the previously saved proof. One retained
+checked model supplied both captures and a wider salary scope; no original
+state or result was changed by the diagnostic.
+
+The local obligation contains ten positive integer divisions and no clamps.
+Its original default solver returned `Unknown` in **10.04s**. The existing
+entailed rounding facts—21 matching-operation pairs, 42 facts—proved the
+same definitions `UNSAT` in **0.02s**, under a 500ms diagnostic cap. They also
+proved the **262,144..294,911-DKK salary scope across all 201 distances** in
+**0.04s**. Neither diagnostic proof counts as accepted original-grid coverage.
+This identifies an ordinary rounding-proof scheduling gap, not the earlier
+speculative min/max-recognition limitation.
+
+The engine now offers its existing paired-integer pass to ordinary arithmetic
+as well as clamped arithmetic. The legacy clamp simplex prefix stays first;
+the paired attempt still has only the remaining time through 1.5s, and the
+default solver retains its full 10s opportunity inside the 12s guard. Checked
+DAG entailment, 128-MB solver memory limit, generation bounds, original
+statement bytes and receipt identity are unchanged. No tax-model, query,
+domain, precision-tier or evidence-codec change is involved.
+
+Both focused `paired_integer_` checks passed in **0.23s**, including signed
+SAT/UNSAT and fresh receipt replay for both unclamped and clamped DAGs.
+Formatting and diff checks passed. The optimized build took **318.00s wall**,
+maximum RSS **1,825,603,584 bytes**, zero swaps. Broad gates remain deferred
+under the output-first request. Exact commands, captures, solver output and
+resource logs are in `/tmp/futuruna-salary-frontier.tS5mke/findings.md`.
+
+The productive 60-minute continuation recovered the same sequence-14804 state,
+including its one-member partial page. Preparation took **71.134s** and the
+native fallback compiled in **190.560s**. Saved receipts cold-replayed; by the
+19m47s observation the actual producer had reached fresh page-1608 work and
+proved the wider salary scope. The existing resumed-cover path reconciled
+the saved member against the new leaves, accepting page1608 in **154.468s**
+without discarding or double-counting the prior case.
+
+The run committed **257 new pages (1608..1864)** through **4,023 leaves**:
+**16,842,752 cases = 16,800,855 harmless + 41,897 excluded**. Every new page
+used a regional certificate. **247 cache-only covers** took **0.604s** in
+total (2..3ms each); ten fresh closures took **1,644.973s**. These are
+classification timings, not a whole-grid completion forecast: they exclude
+setup, cold replay, publication and the final failed cover.
+
+Report, manifest and independent graph sums agree: **122,265,234 classified
+(76.0354%) = 121,960,891 harmless + 304,343 excluded**. **38,535,168 remain
+unclassified**; selected zero is only a lower bound. The graph has 1,866
+pages (0..1864 and 2453), 23,124 leaves and 24,991 records. The gap-free low
+prefix `[0,122224640)` covers every starting income **0..304,040 DKK**, every
+declared distance and both interventions, with exclusions retained. The
+upper-endpoint certificate and separate completed 176-cliff audit are unchanged.
+
+The next page, **1865**, exhausted its cover attempt around a capped-deduction
+range. Its final quantum took **519.320s**, including only **one concrete
+member** after the failed cover. That retained slice has no completed page
+artifact and is not added to the closure counts. Smaller harmless children
+do not close their unresolved parent. An exact next diagnostic pair is
+income **304,042..304,204 / 0 km / salary** versus its passing
+**304,042..304,082** child. The source's 2026 LL9K cap and the literal-only
+min recognizer are a concrete follow-up hypothesis; the later failing SMT
+has not yet been captured, and no new tax cliff is claimed there.
+
+The run paused normally with **exit 0 / `runtime_limit`** after **3,321.55s
+wall, 3,241.30s user and 68.85s system**. Maximum RSS was **1,426,472,960
+bytes**, zero swaps; CPU pacing paused 7.832s. The final checkpoint is
+**sequence17119 / 165 segments**, head
+`602da9da4f57e6c3810a9667a95a27ed06c1096ed5fcf75d5100215538f5161d`.
+All 11 artifacts are caught up, and all workers stopped before preservation.
+
+The recursively byte-compared state, output, report, trace, diagnostics and
+one-member resume slice are protected at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq17119.sAZz0g/`.
+State/output occupy about 8.6/25.6 MiB; approximately 46 GiB remained free.
+Nothing was deleted. This new checkpoint has not yet been cold-replayed;
+the productive run recovered its starting sequence14804. No additional
+test suite was run while producing these results. Full-grid closure and the
+deferred broader gates remain open.

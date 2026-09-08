@@ -477,13 +477,12 @@ impl ArithmeticTrace {
             return SolverResult::Unsupported;
         };
         let started = Instant::now();
-        // Try a short simplex prefix only for the stronger clamp recipe.
-        // Default LRA can time out on these, but simplex can also time out on
-        // old successful obligations. Retain the original engine's full 10s
-        // opportunity within the existing 12s total process guard. The old
-        // prefix still goes first; entailed preprocessing gets only the
-        // remaining time up to 1.5s, leaving room for the original 10s engine.
-        // All strategies prove the same canonical statement/receipt recipe.
+        // Keep the old simplex prefix for clamp recipes. Paired integer
+        // preprocessing also applies to ordinary arithmetic: nested rounding
+        // can need its order/difference facts without any clamp in the DAG.
+        // It gets only the remaining time through 1.5s, leaving the original
+        // default engine its full 10s opportunity within the existing 12s
+        // guard. Every strategy proves the same canonical statement/receipt.
         if self
             .terms
             .values()
@@ -497,11 +496,11 @@ impl ArithmeticTrace {
             if matches!(result, SolverResult::Unsat(_) | SolverResult::Sat) {
                 return result;
             }
-            if let Some(result @ (SolverResult::Unsat(_) | SolverResult::Sat)) =
-                obligation.solve_paired(started + Duration::from_millis(1500))
-            {
-                return result;
-            }
+        }
+        if let Some(result @ (SolverResult::Unsat(_) | SolverResult::Sat)) =
+            obligation.solve_paired(started + Duration::from_millis(1500))
+        {
+            return result;
         }
         solve_script(
             &obligation.canonical,
@@ -761,7 +760,7 @@ mod tests {
         assert_eq!(solve(&obligation.canonical).trim(), "sat");
         assert_eq!(solve(&obligation.paired_script().unwrap()).trim(), "sat");
 
-        let monotone = || {
+        let monotone = |clamps| {
             let mut trace = ArithmeticTrace::default();
             let before = IntInterval {
                 minimum: -20_000,
@@ -774,7 +773,7 @@ mod tests {
                 let d = IntInterval::singleton(100);
                 let quotient = input.checked_div(d).unwrap();
                 trace.observe("/", input, d, quotient);
-                outputs.push(
+                outputs.push(if clamps {
                     trace
                         .observe_clamp(
                             quotient,
@@ -786,8 +785,10 @@ mod tests {
                                 correlation: None,
                             },
                         )
-                        .unwrap(),
-                );
+                        .unwrap()
+                } else {
+                    quotient
+                });
             }
             let obligation = trace
                 .obligation(
@@ -801,34 +802,43 @@ mod tests {
                 .unwrap();
             (trace, outputs, obligation)
         };
-        let (mut trace, outputs, obligation) = monotone();
-        let SolverResult::Unsat(original) = solve_script(
-            &obligation.canonical,
-            false,
-            Instant::now() + Duration::from_secs(2),
-        ) else {
-            panic!("original monotone statement must close")
-        };
-        let Some(SolverResult::Unsat(paired)) =
-            obligation.solve_paired(Instant::now() + Duration::from_secs(2))
-        else {
-            panic!("entailed preprocessing must close")
-        };
-        let SolverResult::Unsat(preferred) =
-            trace.prove(">=", outputs[1], outputs[0], &[(-20_000, 20_000)], true)
-        else {
-            panic!("production policy must close")
-        };
-        assert_eq!(paired.digest(), original.digest());
-        assert_eq!(preferred.digest(), original.digest());
-        let (_, _, cold) = monotone();
-        assert_eq!(cold.canonical, obligation.canonical);
-        let Some(SolverResult::Unsat(replayed)) =
-            cold.solve_paired(Instant::now() + Duration::from_secs(2))
-        else {
-            panic!("fresh checked DAG must re-derive the receipt")
-        };
-        assert_eq!(replayed.digest(), original.digest());
+        for clamps in [false, true] {
+            let (mut trace, outputs, obligation) = monotone(clamps);
+            assert_eq!(
+                trace
+                    .terms
+                    .values()
+                    .any(|term| matches!(term, Term::Clamp(..))),
+                clamps
+            );
+            let SolverResult::Unsat(original) = solve_script(
+                &obligation.canonical,
+                false,
+                Instant::now() + Duration::from_secs(2),
+            ) else {
+                panic!("original monotone statement must close")
+            };
+            let Some(SolverResult::Unsat(paired)) =
+                obligation.solve_paired(Instant::now() + Duration::from_secs(2))
+            else {
+                panic!("entailed preprocessing must close")
+            };
+            let SolverResult::Unsat(preferred) =
+                trace.prove(">=", outputs[1], outputs[0], &[(-20_000, 20_000)], true)
+            else {
+                panic!("production policy must close")
+            };
+            assert_eq!(paired.digest(), original.digest());
+            assert_eq!(preferred.digest(), original.digest());
+            let (_, _, cold) = monotone(clamps);
+            assert_eq!(cold.canonical, obligation.canonical);
+            let Some(SolverResult::Unsat(replayed)) =
+                cold.solve_paired(Instant::now() + Duration::from_secs(2))
+            else {
+                panic!("fresh checked DAG must re-derive the receipt")
+            };
+            assert_eq!(replayed.digest(), original.digest());
+        }
     }
 
     #[test]
