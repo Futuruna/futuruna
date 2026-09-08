@@ -386,18 +386,34 @@ impl PreparedRelationalExplore {
     }
 
     pub fn open_epoch(
-        self,
+        mut self,
         options: ExploreStreamEpochOptions,
     ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
         validate_epoch_options(&options)?;
         let outer_containment = exact_stream_outer_containment(options.outer_containment)?;
-        let resources = ExactStreamOneWorkerEnvelope::new_with_outer_containment(outer_containment)
+        // Read the operational request once. Unsupported/disabled native
+        // classifiers retain the serial resource policy; malformed settings
+        // are still errors rather than silently changing invocation policy.
+        let requested_native_workers =
+            parse_native_workers(std::env::var_os("FUTURUNA_EXPLORE_NATIVE_WORKERS").as_deref())?;
+        let native_workers = if self.native_classifier.is_some() {
+            requested_native_workers
+        } else {
+            1
+        };
+        let resources = ExactStreamOneWorkerEnvelope::new_with_native_workers(
+            outer_containment,
+            native_workers,
+        )
             .map_err(|reason| {
                 ExploreStreamPreparationError::Execution(format!(
-                    "cannot initialize Explore resource envelope: {}",
+                    "cannot initialize Explore resource envelope (two native workers require outer containment): {}",
                     reason.code()
                 ))
             })?;
+        if let Some(native) = &mut self.native_classifier {
+            native.configure_for_resource_envelope(&resources);
+        }
         let durable = match &self.region_replay_authority {
             Some(authority) => {
                 RelationalDurableJournal::open_or_create_with_region_replay_authority(
@@ -424,6 +440,18 @@ impl PreparedRelationalExplore {
             resources,
             driver_limits: RelationalStreamDriverLimits::default(),
         })
+    }
+}
+
+fn parse_native_workers(
+    value: Option<&std::ffi::OsStr>,
+) -> Result<u16, ExploreStreamPreparationError> {
+    match value.map(std::ffi::OsStr::to_str) {
+        None | Some(Some("1")) => Ok(1),
+        Some(Some("2")) => Ok(2),
+        _ => Err(ExploreStreamPreparationError::Execution(
+            "FUTURUNA_EXPLORE_NATIVE_WORKERS must be exactly 1 or 2".into(),
+        )),
     }
 }
 
@@ -3582,6 +3610,22 @@ mod regional_stream_acceptance_tests {
     use super::super::support_journal::SupportJournalEvent;
     use super::*;
     use crate::{Lexer, Parser};
+
+    #[test]
+    fn native_batch_worker_setting_defaults_to_serial_and_is_strict() {
+        use std::ffi::OsStr;
+        assert_eq!(parse_native_workers(None).unwrap(), 1);
+        assert_eq!(parse_native_workers(Some(OsStr::new("1"))).unwrap(), 1);
+        assert_eq!(parse_native_workers(Some(OsStr::new("2"))).unwrap(), 2);
+        for value in ["", "0", "3", "01", " 2", "2 ", "auto", "-1"] {
+            assert!(parse_native_workers(Some(OsStr::new(value))).is_err());
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            assert!(parse_native_workers(Some(OsStr::from_bytes(&[0xff]))).is_err());
+        }
+    }
 
     const EXACT_EMPTY: &str = r#"
 ? explore regional_exact_empty {

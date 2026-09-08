@@ -14,10 +14,17 @@ All **176 cases at that boundary** now have detailed records and successful
 mechanism replays. Annual losses range from **2.11 to 144.09 DKK**; see
 [the original-grid result](#original-grid-earliest-cliff-result).
 
-The latest stopped checkpoint now accounts for **138,190,482 candidates
-(85.9391%)**, with **22,609,920 still unclassified**. It contains **352 cliff
-classifications** across the first two income boundaries, with **312 detailed
-cases and successful replays**. See [the two-hour continuation](#two-hour-original-grid-continuation).
+The latest stopped checkpoint now accounts for **138,976,914 candidates
+(86.4282%)**, with **21,823,488 still unclassified**. It contains **704 cliff
+classifications** across four income boundaries, with **596 detailed cases
+and successful replays**. The first three boundaries are fully explained;
+the fourth, **345,499 → 345,500 DKK**, has 68 of its 176 explanations published.
+The requested eight-hour continuation paused safely after 2h33m28s on
+`resource_reserve_backoff`, at **sequence 49084 / 876 segments**. Ten of eleven
+artifacts are caught up; the `losses` view remains behind the last selected
+materialization. The stopped checkpoint is preserved externally at
+`/Users/andreasrudolph/futuruna-explore-checkpoints/unit-grid-seq49084.LzEH5l/`,
+with its partial-result report in the copied `futuruna-upper-grid-warm.zNecgh/`.
 The full-grid cliff count and maximum loss remain unresolved; the exact
 earliest-cliff conclusion does not require those later pages to close.
 
@@ -223,6 +230,41 @@ canonical model, then finish proof lowering for the actual rule families. Let ch
 boundaries prioritize unit-resolution neighborhoods in **both** dimensions,
 and discharge the rest with regional proofs or concrete evaluation. Coarse
 scans can inform the order but cannot replace the unit-edge coverage obligation.
+
+### Opt-in bounded native batches
+
+`FUTURUNA_EXPLORE_NATIVE_WORKERS=2` requests two native classification
+subprocesses inside one admitted work quantum. The default (unset or `1`)
+remains serial; other values, including empty or whitespace-padded values,
+are errors. The setting is read once when an epoch opens. If no native
+classifier is available, a valid setting leaves the serial resource policy
+in place.
+
+Two-process mode requires the supervised outer-containment receipt. It charges
+two CPU cores and 512 MiB per admitted quantum instead of one core and 256 MiB;
+the worker/journal-writer ceiling stays one. The existing 20% reserves,
+epoch-wide heap/RSS limits and host-memory floor are unchanged. If those
+charges cannot be admitted, the governor pauses work. Batches smaller than
+64 transitions remain serial within that conservative reservation.
+
+The host validates the whole input batch before splitting it into two ordered
+halves. Each response must pass the existing identity, count and framing
+checks. Both invocations finish before any outcomes are accepted; a failure
+discards the whole batch and disables the accelerator in favor of the checked
+fallback. First-batch checked parity and concrete finding/mechanism replay are
+unchanged. This option changes no query, native wire protocol, journal identity
+or pruning authority, and can be changed between resumable epochs.
+
+This is an experimental operational option, not parallel evidence production
+or a measured speedup claim. It was not enabled in the epoch ending at sequence
+49084; that run's binary and checkpoint remain protected. Broad mint/canary
+gates remain deferred during the requested output-first workflow.
+
+Focused coverage passed: `cargo test --lib native_batch_ -- --test-threads=1`
+ran nine protocol/order/failure/parity/settings/resource tests in 0.01s after
+a 20.19s incremental build (`CARGO_BUILD_JOBS=1`, shared target, `nice -n 15`).
+`cargo fmt --check` and `git diff --check` also passed. This does not substitute
+for the deferred runtime gates or a real-model throughput measurement.
 
 ## Delivered boundary and remaining work
 

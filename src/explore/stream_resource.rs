@@ -503,6 +503,40 @@ impl ExactStreamOneWorkerEnvelope {
         )
     }
 
+    /// Reserve one logical worker with up to two native invocations inside
+    /// its atomic quantum. This is not authority for a second journal writer.
+    /// Receipt algebra is still validated against live capacity before work
+    /// admission, and the outer heap/RSS/host-floor guards remain unchanged.
+    pub(super) fn new_with_native_workers(
+        outer_containment: Option<ExactStreamOuterContainmentReceipt>,
+        native_workers: u16,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        if !matches!(native_workers, 1 | 2)
+            || (native_workers == 2
+                && !outer_containment.is_some_and(|receipt| {
+                    receipt.rust_heap_limit_bytes.get() >= 2 * STREAM_QUANTUM_ACCOUNTED_WORKING_SET
+                }))
+        {
+            return Err(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
+        let mut envelope = Self::new_with_outer_containment(outer_containment)?;
+        envelope.policy.worker_cpu_charge_millicores = 1_000 * u32::from(native_workers);
+        envelope
+            .policy
+            .outer_contained_cold_worker_memory_charge_bytes = outer_containment
+            .map(|_| STREAM_QUANTUM_ACCOUNTED_WORKING_SET * u64::from(native_workers));
+        Ok(envelope)
+    }
+
+    /// Frozen operational limit configured before the governor can be opened.
+    pub(super) fn native_classifier_worker_limit(&self) -> u16 {
+        if self.policy.worker_cpu_charge_millicores == 2_000 {
+            2
+        } else {
+            1
+        }
+    }
+
     pub(super) fn with_epoch_seed(
         seed: ExactStreamResourceEpochSeed,
     ) -> Result<Self, ExactStreamResourcePauseReason> {
@@ -1571,6 +1605,72 @@ mod tests {
             safe_decision(SwapAssessment::Growth),
             envelope.policy,
         ));
+    }
+
+    #[test]
+    fn native_batch_resource_charge_is_frozen_and_keeps_one_logical_worker() {
+        let receipt = ExactStreamOuterContainmentReceipt::new(
+            11 * ONE_GIB / 2,
+            ONE_GIB / 2,
+            11 * ONE_GIB / 2,
+            ONE_GIB,
+        )
+        .unwrap();
+        for workers in [1, 2] {
+            let envelope =
+                ExactStreamOneWorkerEnvelope::new_with_native_workers(Some(receipt), workers)
+                    .unwrap();
+            let policy = envelope.policy;
+            assert_eq!(envelope.native_classifier_worker_limit(), workers);
+            assert_eq!(
+                policy.worker_cpu_charge_millicores,
+                u32::from(workers) * 1_000
+            );
+            assert_eq!(
+                policy.outer_contained_cold_worker_memory_charge_bytes,
+                Some(u64::from(workers) * STREAM_QUANTUM_ACCOUNTED_WORKING_SET)
+            );
+            assert_eq!(policy.configured_worker_ceiling, Some(1));
+            assert_eq!(policy.requested_jobs_ceiling, Some(1));
+            assert_eq!(policy.cpu_reserve_divisor, 5);
+            assert_eq!(policy.memory_reserve_divisor, 5);
+            assert_eq!(envelope.outer_containment, Some(receipt));
+            assert!(envelope.governor.is_none());
+            assert!(ResourceGovernor::new(
+                HostCapacity {
+                    logical_cpu_count: Some(6),
+                    total_memory_bytes: Some(8 * ONE_GIB),
+                },
+                policy,
+            )
+            .is_ok());
+        }
+        let default =
+            ExactStreamOneWorkerEnvelope::new_with_outer_containment(Some(receipt)).unwrap();
+        assert_eq!(default.native_classifier_worker_limit(), 1);
+        assert_eq!(default.policy.worker_cpu_charge_millicores, 1_000);
+        assert_eq!(
+            default
+                .policy
+                .outer_contained_cold_worker_memory_charge_bytes,
+            Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET)
+        );
+    }
+
+    #[test]
+    fn native_batch_two_workers_require_containment_and_a_full_double_quantum() {
+        assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(None, 1).is_ok());
+        for workers in [0, 2, 3, u16::MAX] {
+            assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(None, workers).is_err());
+        }
+        let too_small = ExactStreamOuterContainmentReceipt::new(
+            STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+            ONE_GIB / 2,
+            STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+            ONE_GIB,
+        )
+        .unwrap();
+        assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(Some(too_small), 2).is_err());
     }
 
     #[test]

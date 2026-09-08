@@ -40,6 +40,7 @@ use super::relational_classified_sweep::{
     RelationalOrderedClassificationSubject,
 };
 use super::relational_executor::RelationalExpressionRuntime;
+use super::stream_resource::ExactStreamOneWorkerEnvelope;
 use super::{
     relational_tys_equivalent, ExploreExactDomain, ExploreFiniteDomainIr,
     ExploreSourceBindingKindIr, ExploreSuccessorKindIr, ExploreValue,
@@ -78,11 +79,13 @@ const I64_BYTES: usize = RelationalNativeClassifierProtocolV2::FACTOR_INT_BYTES;
 const RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2: usize =
     RelationalNativeClassifierProtocolV2::MAX_BATCH_SUBJECTS;
 const INVOCATION_TIMEOUT_V2: Duration = Duration::from_secs(30);
-const MAX_REQUEST_BYTES_V2: usize = REQUEST_MAGIC_V2.len()
+const MIN_PARALLEL_BATCH_SUBJECTS_V2: usize = 64;
+const REQUEST_HEADER_BYTES_V2: usize = REQUEST_MAGIC_V2.len()
     + U32_BYTES
     + RelationalNativeClassifierProtocolV2::IDENTITY_DIGEST_COUNT * DIGEST_BYTES
     + RelationalNativeClassifierProtocolV2::FACTOR_COUNT_BYTES
-    + U32_BYTES
+    + U32_BYTES;
+const MAX_REQUEST_BYTES_V2: usize = REQUEST_HEADER_BYTES_V2
     + RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2
         * RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
         * I64_BYTES;
@@ -227,6 +230,7 @@ pub(crate) struct RelationalNativeClassifierV2 {
     finite_inputs: Arc<[RelationalNativeClassifierFiniteInputV2]>,
     enabled: Arc<AtomicBool>,
     parity_checked: Arc<AtomicBool>,
+    native_workers: u16,
 }
 
 impl RelationalNativeClassifierV2 {
@@ -241,7 +245,18 @@ impl RelationalNativeClassifierV2 {
             finite_inputs: finite_inputs.into(),
             enabled: Arc::new(AtomicBool::new(true)),
             parity_checked: Arc::new(AtomicBool::new(false)),
+            native_workers: 1,
         })
+    }
+
+    /// Called only while opening an epoch, with that epoch's frozen resource
+    /// envelope. Clones retain this limit; classification never reads the
+    /// environment or expands its own CPU/memory reservation.
+    pub(super) fn configure_for_resource_envelope(
+        &mut self,
+        resources: &ExactStreamOneWorkerEnvelope,
+    ) {
+        self.native_workers = resources.native_classifier_worker_limit();
     }
 
     pub(crate) fn executable(&self) -> &Path {
@@ -266,8 +281,9 @@ impl RelationalNativeClassifierV2 {
             return Err(RelationalNativeClassifierUnavailable::DisabledAfterUnavailable);
         }
         let request = encode_request(self.identity, &self.finite_inputs, subjects)?;
-        let response = invoke_once(&self.executable, &request)?;
-        decode_response(self.identity, subjects.len(), &response)
+        classify_encoded_batch(self.identity, request, self.native_workers, &|request| {
+            invoke_once(&self.executable, request)
+        })
     }
 
     /// Execute native classification and atomically fall back to a checked
@@ -284,7 +300,24 @@ impl RelationalNativeClassifierV2 {
         ),
         E,
     > {
-        match self.classify_ordered_batch(subjects) {
+        self.finish_or_fallback(self.classify_ordered_batch(subjects), fallback)
+    }
+
+    fn finish_or_fallback<E>(
+        &self,
+        native_result: Result<
+            Box<[RelationalClassifiedCaseOutcome]>,
+            RelationalNativeClassifierUnavailable,
+        >,
+        fallback: impl FnOnce() -> Result<Box<[RelationalClassifiedCaseOutcome]>, E>,
+    ) -> Result<
+        (
+            Box<[RelationalClassifiedCaseOutcome]>,
+            Option<RelationalNativeClassifierUnavailable>,
+        ),
+        E,
+    > {
+        match native_result {
             Ok(outcomes) if self.parity_checked() => Ok((outcomes, None)),
             Ok(outcomes) => {
                 let checked_outcomes = fallback()?;
@@ -387,6 +420,8 @@ pub(crate) enum RelationalNativeClassifierUnavailable {
         binding_index: usize,
     },
     RequestTooLarge,
+    InvocationThreadSpawnFailed,
+    InvocationThreadPanicked,
     SpawnFailed,
     RequestPipeUnavailable,
     RequestWriteFailed,
@@ -435,13 +470,8 @@ fn encode_request(
     identity: RelationalNativeClassifierIdentityV2,
     finite_inputs: &[RelationalNativeClassifierFiniteInputV2],
     subjects: &[RelationalOrderedClassificationSubject<'_>],
-) -> Result<Vec<u8>, RelationalNativeClassifierUnavailable> {
-    if subjects.len() > RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2 {
-        return Err(RelationalNativeClassifierUnavailable::BatchTooLarge {
-            actual: subjects.len(),
-            maximum: RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2,
-        });
-    }
+) -> Result<EncodedRequestV2, RelationalNativeClassifierUnavailable> {
+    let count = bounded_subject_count(subjects.len())?;
     if finite_inputs.is_empty()
         || finite_inputs.len() > RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
         || finite_inputs
@@ -450,12 +480,6 @@ fn encode_request(
     {
         return Err(RelationalNativeClassifierUnavailable::InvalidFiniteInputShape);
     }
-    let count = u32::try_from(subjects.len()).map_err(|_| {
-        RelationalNativeClassifierUnavailable::BatchTooLarge {
-            actual: subjects.len(),
-            maximum: RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2,
-        }
-    })?;
     let factor_count = u32::try_from(finite_inputs.len())
         .map_err(|_| RelationalNativeClassifierUnavailable::InvalidFiniteInputShape)?;
     let mut request = Vec::with_capacity(MAX_REQUEST_BYTES_V2);
@@ -516,7 +540,97 @@ fn encode_request(
     if request.len() > MAX_REQUEST_BYTES_V2 {
         return Err(RelationalNativeClassifierUnavailable::RequestTooLarge);
     }
-    Ok(request)
+    Ok(EncodedRequestV2 {
+        bytes: request,
+        factors: finite_inputs.len(),
+        subjects: subjects.len(),
+    })
+}
+
+fn bounded_subject_count(count: usize) -> Result<u32, RelationalNativeClassifierUnavailable> {
+    if count > RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2 {
+        return Err(RelationalNativeClassifierUnavailable::BatchTooLarge {
+            actual: count,
+            maximum: RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2,
+        });
+    }
+    Ok(count as u32)
+}
+
+/// Only the whole-batch encoder constructs this in production. Splitting
+/// therefore cannot bypass the global batch bound or finite-input validation.
+struct EncodedRequestV2 {
+    bytes: Vec<u8>,
+    factors: usize,
+    subjects: usize,
+}
+
+impl EncodedRequestV2 {
+    fn split(self) -> [Self; 2] {
+        let left_count = self.subjects / 2;
+        let middle = REQUEST_HEADER_BYTES_V2 + left_count * self.factors * I64_BYTES;
+        let part = |rows: &[u8], subjects: usize| {
+            let mut bytes = Vec::with_capacity(REQUEST_HEADER_BYTES_V2 + rows.len());
+            bytes.extend_from_slice(&self.bytes[..REQUEST_HEADER_BYTES_V2 - U32_BYTES]);
+            bytes.extend_from_slice(&(subjects as u32).to_be_bytes());
+            bytes.extend_from_slice(rows);
+            Self {
+                bytes,
+                factors: self.factors,
+                subjects,
+            }
+        };
+        [
+            part(&self.bytes[REQUEST_HEADER_BYTES_V2..middle], left_count),
+            part(&self.bytes[middle..], self.subjects - left_count),
+        ]
+    }
+}
+
+fn classify_encoded_batch(
+    identity: RelationalNativeClassifierIdentityV2,
+    request: EncodedRequestV2,
+    native_workers: u16,
+    invoke: &(impl Fn(&[u8]) -> Result<Vec<u8>, RelationalNativeClassifierUnavailable> + Sync),
+) -> Result<Box<[RelationalClassifiedCaseOutcome]>, RelationalNativeClassifierUnavailable> {
+    let classify = |request: &EncodedRequestV2, offset: usize| {
+        let response = invoke(&request.bytes)?;
+        decode_response(identity, request.subjects, &response).map_err(|error| match error {
+            RelationalNativeClassifierUnavailable::InvalidOutcomeTag { index, tag } => {
+                RelationalNativeClassifierUnavailable::InvalidOutcomeTag {
+                    index: offset + index,
+                    tag,
+                }
+            }
+            other => other,
+        })
+    };
+    if native_workers != 2 || request.subjects < MIN_PARALLEL_BATCH_SUBJECTS_V2 {
+        return classify(&request, 0);
+    }
+    let [left_request, right_request] = request.split();
+    thread::scope(|scope| {
+        // One scoped invocation plus the calling thread: at most two native
+        // children, in the same outer-contained process group. Join before
+        // inspecting either result, so failure cannot leak a successful prefix
+        // or leave an invocation racing the checked whole-batch fallback.
+        let left = thread::Builder::new()
+            .name("futuruna-native-batch".into())
+            .spawn_scoped(scope, || classify(&left_request, 0))
+            .map_err(|_| RelationalNativeClassifierUnavailable::InvocationThreadSpawnFailed)?;
+        let right = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            classify(&right_request, left_request.subjects)
+        }))
+        .unwrap_or(Err(
+            RelationalNativeClassifierUnavailable::InvocationThreadPanicked,
+        ));
+        let left = left.join().unwrap_or(Err(
+            RelationalNativeClassifierUnavailable::InvocationThreadPanicked,
+        ));
+        let mut outcomes = left?.into_vec();
+        outcomes.extend(right?.into_vec());
+        Ok(outcomes.into_boxed_slice())
+    })
 }
 
 fn invoke_once(
@@ -553,6 +667,7 @@ fn invoke_once(
     // the handle detaches that one blocked reader instead of hanging fallback.
     // The caller disables the classifier's shared latch before another
     // sequential batch can invoke it, preventing detached-reader accumulation.
+    // A two-invocation batch can detach at most two readers before that latch.
     let _reader = match thread::Builder::new()
         .name("futuruna-native-classifier".to_owned())
         .spawn(move || {
@@ -815,6 +930,309 @@ fn decode_lowercase_sha256(value: &str) -> Option<[u8; DIGEST_BYTES]> {
         *output = (high << 4) | low;
     }
     Some(digest)
+}
+
+#[cfg(test)]
+mod native_batch_tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+    use std::sync::{Condvar, Mutex};
+
+    fn identity() -> RelationalNativeClassifierIdentityV2 {
+        RelationalNativeClassifierIdentityV2 {
+            program_hash: [1; DIGEST_BYTES],
+            relation_id: [2; DIGEST_BYTES],
+            admission_id: [3; DIGEST_BYTES],
+            question_id: [4; DIGEST_BYTES],
+        }
+    }
+
+    fn request(count: usize, factors: usize) -> EncodedRequestV2 {
+        let inputs = (0..factors)
+            .map(|binding_index| RelationalNativeClassifierFiniteInputV2 {
+                binding_index,
+                kind: RelationalNativeClassifierFiniteInputKindV2::IntValue,
+            })
+            .collect::<Vec<_>>();
+        let mut request = encode_request(identity(), &inputs, &[]).unwrap();
+        request.subjects = count;
+        request.bytes[REQUEST_HEADER_BYTES_V2 - U32_BYTES..]
+            .copy_from_slice(&bounded_subject_count(count).unwrap().to_be_bytes());
+        for row in 0..count {
+            for factor in 0..factors {
+                let scalar = if factor == 0 {
+                    row as i64
+                } else {
+                    -(row as i64) - factor as i64
+                };
+                request.bytes.extend_from_slice(&scalar.to_be_bytes());
+            }
+        }
+        request
+    }
+
+    fn response(tags: &[u8]) -> Vec<u8> {
+        let mut response = RESPONSE_MAGIC_V2.to_vec();
+        response.extend_from_slice(&RelationalNativeClassifierProtocolV2::VERSION.to_be_bytes());
+        identity().encode_into(&mut response);
+        response.extend_from_slice(&(tags.len() as u32).to_be_bytes());
+        response.extend_from_slice(tags);
+        response
+    }
+
+    fn first_row(request: &[u8]) -> i64 {
+        i64::from_be_bytes(
+            request[REQUEST_HEADER_BYTES_V2..REQUEST_HEADER_BYTES_V2 + I64_BYTES]
+                .try_into()
+                .unwrap(),
+        )
+    }
+
+    fn classifier() -> RelationalNativeClassifierV2 {
+        RelationalNativeClassifierV2 {
+            executable: PathBuf::from("unused-native-batch-test"),
+            identity: identity(),
+            finite_inputs: Arc::from([]),
+            enabled: Arc::new(AtomicBool::new(true)),
+            parity_checked: Arc::new(AtomicBool::new(false)),
+            native_workers: 1,
+        }
+    }
+
+    #[test]
+    fn native_batch_frames_preserve_all_rows_header_and_global_bound() {
+        let maximum = RELATIONAL_NATIVE_CLASSIFIER_MAX_BATCH_SUBJECTS_V2;
+        for (count, factors) in [(0, 1), (1, 1), (63, 2), (64, 2), (65, 32), (maximum, 2)] {
+            let original = request(count, factors);
+            let [left, right] = request(count, factors).split();
+            let mut rows = Vec::new();
+            for part in [&left, &right] {
+                assert_eq!(
+                    &part.bytes[..REQUEST_HEADER_BYTES_V2 - U32_BYTES],
+                    &original.bytes[..REQUEST_HEADER_BYTES_V2 - U32_BYTES]
+                );
+                assert_eq!(
+                    &part.bytes[REQUEST_HEADER_BYTES_V2 - U32_BYTES..REQUEST_HEADER_BYTES_V2],
+                    &(part.subjects as u32).to_be_bytes()
+                );
+                assert_eq!(
+                    part.bytes.len(),
+                    REQUEST_HEADER_BYTES_V2 + part.subjects * factors * I64_BYTES
+                );
+                rows.extend_from_slice(&part.bytes[REQUEST_HEADER_BYTES_V2..]);
+            }
+            assert_eq!(left.subjects + right.subjects, count);
+            assert_eq!(rows, original.bytes[REQUEST_HEADER_BYTES_V2..]);
+        }
+        assert!(bounded_subject_count(maximum).is_ok());
+        for count in [maximum + 1, usize::MAX] {
+            assert_eq!(
+                bounded_subject_count(count),
+                Err(RelationalNativeClassifierUnavailable::BatchTooLarge {
+                    actual: count,
+                    maximum,
+                })
+            );
+        }
+    }
+
+    #[test]
+    fn native_batch_serial_default_and_small_batches_make_one_invocation() {
+        for (workers, count) in [(1, 65), (2, 0), (2, 1), (2, 63)] {
+            let calls = AtomicUsize::new(0);
+            let original = request(count, 2);
+            let outcomes =
+                classify_encoded_batch(identity(), request(count, 2), workers, &|bytes| {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    assert_eq!(bytes, original.bytes);
+                    Ok(response(&vec![1; count]))
+                })
+                .unwrap();
+            assert_eq!(outcomes.len(), count);
+            assert_eq!(calls.load(Ordering::SeqCst), 1);
+        }
+    }
+
+    #[test]
+    fn native_batch_parallel_completion_is_reordered_and_bounded_to_two() {
+        let completed = (Mutex::new(Vec::new()), Condvar::new());
+        let active = AtomicUsize::new(0);
+        let peak = AtomicUsize::new(0);
+        let outcomes = classify_encoded_batch(identity(), request(65, 2), 2, &|bytes| {
+            let active_now = active.fetch_add(1, Ordering::SeqCst) + 1;
+            peak.fetch_max(active_now, Ordering::SeqCst);
+            let first = first_row(bytes);
+            let mut done = completed.0.lock().unwrap();
+            if first == 0 {
+                let (guard, timeout) = completed
+                    .1
+                    .wait_timeout_while(done, Duration::from_secs(2), |done| done.is_empty())
+                    .unwrap();
+                assert!(!timeout.timed_out());
+                done = guard;
+            } else {
+                // Keep the second invocation resident until its peer starts,
+                // making actual overlap deterministic without a timed sleep.
+                drop(done);
+                let deadline = Instant::now() + Duration::from_secs(2);
+                while active.load(Ordering::SeqCst) < 2 {
+                    assert!(Instant::now() < deadline, "peer invocation did not start");
+                    thread::yield_now();
+                }
+                done = completed.0.lock().unwrap();
+            }
+            done.push(first);
+            completed.1.notify_all();
+            active.fetch_sub(1, Ordering::SeqCst);
+            Ok(response(&vec![
+                if first == 0 { 1 } else { 3 };
+                if first == 0 { 32 } else { 33 }
+            ]))
+        })
+        .unwrap();
+        assert_eq!(*completed.0.lock().unwrap(), [32, 0]);
+        assert_eq!(peak.load(Ordering::SeqCst), 2);
+        assert_eq!(active.load(Ordering::SeqCst), 0);
+        assert_eq!(
+            &*outcomes,
+            &*decode_response(
+                identity(),
+                65,
+                &response(&[vec![1; 32], vec![3; 33]].concat())
+            )
+            .unwrap()
+        );
+    }
+
+    #[test]
+    fn native_batch_rejects_bad_subresponses_atomically_and_disables_clones() {
+        let mut corruptions = Vec::new();
+        let good = response(&[3; 32]);
+        let identity_start = RESPONSE_MAGIC_V2.len() + U32_BYTES;
+        for field in 0..RelationalNativeClassifierProtocolV2::IDENTITY_DIGEST_COUNT {
+            let mut bad = good.clone();
+            bad[identity_start + field * DIGEST_BYTES] ^= 1;
+            corruptions.push(Ok(bad));
+        }
+        let mut bad_magic = good.clone();
+        bad_magic[0] ^= 1;
+        corruptions.push(Ok(bad_magic));
+        let mut bad_version = good.clone();
+        bad_version[RESPONSE_MAGIC_V2.len()] ^= 1;
+        corruptions.push(Ok(bad_version));
+        corruptions.extend([
+            Ok(response(&[3; 31])),
+            Ok(response(&[3; 33])),
+            Ok(good[..good.len() - 1].to_vec()),
+            Ok([good.clone(), vec![0]].concat()),
+            Ok(response(&[0; 32])),
+            Err(RelationalNativeClassifierUnavailable::InvocationTimedOut),
+            Err(RelationalNativeClassifierUnavailable::SpawnFailed),
+        ]);
+        for corrupt in corruptions {
+            for bad_first in [0, 32] {
+                let calls = AtomicUsize::new(0);
+                let result = classify_encoded_batch(identity(), request(64, 1), 2, &|bytes| {
+                    calls.fetch_add(1, Ordering::SeqCst);
+                    if first_row(bytes) == bad_first {
+                        corrupt.clone()
+                    } else {
+                        Ok(good.clone())
+                    }
+                });
+                assert!(result.is_err());
+                assert_eq!(calls.load(Ordering::SeqCst), 2);
+                if let Err(RelationalNativeClassifierUnavailable::InvalidOutcomeTag {
+                    index, ..
+                }) = &result
+                {
+                    assert_eq!(*index, bad_first as usize);
+                }
+                let native = classifier();
+                let clone = native.clone();
+                let fallback_calls = AtomicUsize::new(0);
+                let (outcomes, reason) = native
+                    .finish_or_fallback(result, || {
+                        fallback_calls.fetch_add(1, Ordering::SeqCst);
+                        Ok::<_, ()>(
+                            vec![RelationalClassifiedCaseOutcome::Rejected; 64].into_boxed_slice(),
+                        )
+                    })
+                    .unwrap();
+                assert_eq!(outcomes.len(), 64);
+                assert!(outcomes
+                    .iter()
+                    .all(|outcome| *outcome == RelationalClassifiedCaseOutcome::Rejected));
+                assert!(reason.is_some());
+                assert_eq!(fallback_calls.load(Ordering::SeqCst), 1);
+                assert!(!clone.is_enabled());
+                assert_eq!(
+                    clone.classify_ordered_batch(&[]),
+                    Err(RelationalNativeClassifierUnavailable::DisabledAfterUnavailable)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn native_batch_panics_join_both_invocations_before_fallback() {
+        for panic_first in [0, 32] {
+            let retired = AtomicUsize::new(0);
+            struct Retire<'a>(&'a AtomicUsize);
+            impl Drop for Retire<'_> {
+                fn drop(&mut self) {
+                    self.0.fetch_add(1, Ordering::SeqCst);
+                }
+            }
+            let result = classify_encoded_batch(identity(), request(64, 1), 2, &|bytes| {
+                let _retire = Retire(&retired);
+                assert_ne!(
+                    first_row(bytes),
+                    panic_first,
+                    "synthetic native invocation panic"
+                );
+                Ok(response(&[1; 32]))
+            });
+            assert_eq!(
+                result,
+                Err(RelationalNativeClassifierUnavailable::InvocationThreadPanicked)
+            );
+            assert_eq!(retired.load(Ordering::SeqCst), 2);
+        }
+    }
+
+    #[test]
+    fn native_batch_first_success_still_requires_whole_batch_checked_parity() {
+        let native = classifier();
+        let outcomes = decode_response(identity(), 65, &response(&[3; 65])).unwrap();
+        let calls = AtomicUsize::new(0);
+        let (accepted, unavailable) = native
+            .finish_or_fallback(Ok(outcomes.clone()), || {
+                calls.fetch_add(1, Ordering::SeqCst);
+                Ok::<_, ()>(outcomes.clone())
+            })
+            .unwrap();
+        assert_eq!(accepted, outcomes);
+        assert_eq!(unavailable, None);
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+        assert!(native.parity_checked());
+        native
+            .finish_or_fallback(Ok(outcomes.clone()), || -> Result<_, ()> {
+                panic!("checked parity must not repeat after its first success")
+            })
+            .unwrap();
+        let other = classifier();
+        let fallback = vec![RelationalClassifiedCaseOutcome::Rejected; 65].into_boxed_slice();
+        let (accepted, unavailable) = other
+            .finish_or_fallback(Ok(outcomes), || Ok::<_, ()>(fallback.clone()))
+            .unwrap();
+        assert_eq!(accepted, fallback);
+        assert_eq!(
+            unavailable,
+            Some(RelationalNativeClassifierUnavailable::ParityCanaryMismatch)
+        );
+        assert!(!other.is_enabled());
+    }
 }
 
 const fn decode_hex(byte: u8) -> Option<u8> {
