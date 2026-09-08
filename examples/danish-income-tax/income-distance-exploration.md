@@ -28,6 +28,13 @@ with its partial-result report in the copied `futuruna-upper-grid-warm.zNecgh/`.
 The full-grid cliff count and maximum loss remain unresolved; the exact
 earliest-cliff conclusion does not require those later pages to close.
 
+The successor epoch has now published **all 704 explanations** and resumed
+later income pages. Its saved **sequence 51249** answer prefix accounts for
+**139,042,450 candidates**, with **21,757,952 unclassified**. See
+[the first four complete boundaries](#first-four-complete-boundaries).
+That live answer prefix does not replace the independently preserved stopped
+checkpoint above, and neither establishes full-grid closure.
+
 The first **all-distance boundary window is now closed exactly**: 176 income
 cliffs, zero commute-increase losses, 2,230 harmless transitions and six
 outward-boundary exclusions. Its largest annual loss is **144.09 DKK**. See
@@ -138,6 +145,51 @@ not rebuild the compiler or run an additional test suite. The readable result,
 exact joined statistics and live command log are retained externally in
 `/tmp/futuruna-original-cliffs-continuation.QobiGo/`; this milestone is not a
 stopped checkpoint or a full-domain completion claim.
+
+## First four complete boundaries
+
+The original grid's first four salary boundaries now have **704 detailed
+findings and successful mechanism replays**, with zero unavailable explanations:
+
+| Annual salary transition | Cliff cases | Exact annual loss range |
+|---|---:|---:|
+| 342,499 → 342,500 DKK | 176 | 2.11–144.09 DKK |
+| 343,499 → 343,500 DKK | 176 | 1.87–144.09 DKK |
+| 344,499 → 344,500 DKK | 176 | 1.87–144.09 DKK |
+| 345,499 → 345,500 DKK | 176 | 1.87–144.09 DKK |
+
+Every boundary affects all integer round-trip distances **25–200 km**.
+Loss is the decrease in salary minus final tax after including the extra
+1 DKK of salary. These are boundary-specific extrema, not a full-grid maximum.
+
+Varying distance matters even along the apparent plateau. At the third
+boundary, the original **50/100/150-km profiles find at most 144.08 DKK** of
+loss; the full unit-km search finds **144.09 DKK at 107 km**, among other
+distances. Even 200 km loses only 144.08 DKK there. Fixed profiles would miss
+the exact maximum by one øre.
+
+The same four structural groups described above occur at every boundary,
+but their numeric losses vary. The encoded supplement rate progresses from
+64% through 62.72%, 61.44%, 60.16% and 58.88%; its cap progresses from
+30,800 through 30,184, 29,568, 28,952 and 28,336 DKK. Repeated mechanisms
+explain this shape without authorizing the omission of unseen cases.
+
+The saved result is **sequence 51249 / 949 segments**, head
+`85ee797e719fdb1a2429b100ee362a2e447eb5ae72c90f54c5af683d048b65b1`.
+Its manifest was unchanged during the read, and all eleven artifacts had
+caught up. The accounting is **138,695,669 harmless + 704 selected + 346,077
+excluded = 139,042,450 classified**, leaving **21,757,952 unclassified**.
+Every starting income **0–345,774 DKK** is covered across all declared
+distances and both interventions. No distance-increase losses were selected
+in this prefix; later incomes and final result/support closures remain open.
+
+The external directory `/tmp/futuruna-upper-grid-two-native.IrP142/` retains
+`four-boundaries-result.md`, the full summary, publication metadata and all
+704 finding rows in `four-boundaries-losses.ndjson`. That copy matches the
+authorized 1,611,226-byte prefix. Checks used the existing read-only output
+helper, byte comparison and saved table/link/count checks, not a canonical
+model rerun or another compiler test suite. This is an answer-prefix milestone
+from the encoded research model, not a stopped checkpoint or tax advice.
 
 ## What can safely close a route?
 
@@ -264,7 +316,20 @@ Focused coverage passed: `cargo test --lib native_batch_ -- --test-threads=1`
 ran nine protocol/order/failure/parity/settings/resource tests in 0.01s after
 a 20.19s incremental build (`CARGO_BUILD_JOBS=1`, shared target, `nice -n 15`).
 `cargo fmt --check` and `git diff --check` also passed. This does not substitute
-for the deferred runtime gates or a real-model throughput measurement.
+for the deferred runtime gates.
+
+The successor original-grid epoch has now exercised two-process mode on the
+real model. Three read-only samples observed two native children sharing the
+application worker's process group. At the first sample, the worker and both
+children together used about **724 MiB RSS**; this is not a peak-memory claim.
+Its first **28 full 256-member batches** had a median classifier time of
+**2.233011s**, versus **2.789018s** across 446 such batches in the previous
+single-process epoch. These are **different income pages**, not a controlled
+benchmark or an overall speedup estimate. The two saved trace prefixes have
+no native-unavailable diagnostics. Completed slices are operational progress;
+they do not add published page coverage until the page is accepted.
+`native-two-process-observation.json` and `native-first-batch-timings.json` in
+the external directory above retain the samples and raw observed timings.
 
 ## Delivered boundary and remaining work
 
