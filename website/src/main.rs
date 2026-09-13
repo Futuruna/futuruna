@@ -466,24 +466,19 @@ fn Nav() -> Element {
 
 #[component]
 fn Hero() -> Element {
+    use_effect(move || {
+        document::eval(include_str!("../assets/law-graph.js"));
+    });
+    use_drop(move || {
+        document::eval("window.__futurunaLawGraph?.destroy();");
+    });
+
     rsx! {
-        section { class: "hero",
+        section { class: "hero hero-with-graph",
+            div { class: "law-graph", id: "law-graph", aria_hidden: "true",
+                canvas { id: "law-graph-canvas" }
+            }
             div { class: "hero-inner",
-                div { class: "hero-runes",
-                    span { "data-doc": "rune_hash", class: "hl-rune-hash", "#" }
-                    " "
-                    span { "data-doc": "rune_gt", class: "hl-rune-gt", ">" }
-                    " "
-                    span { "data-doc": "rune_pipe", class: "hl-rune-pipe", "|" }
-                    " "
-                    span { "data-doc": "rune_eq", class: "hl-rune-eq", "=" }
-                    " "
-                    span { "data-doc": "rune_tilde", class: "hl-rune-tilde", "~" }
-                    " "
-                    span { "data-doc": "rune_at", class: "hl-rune-at", "@" }
-                    " "
-                    span { "data-doc": "rune_question", class: "hl-rune-question", "?" }
-                }
                 h1 { class: "hero-title",
                     span { class: "hero-f-wrap",
                         span { class: "hero-f-hidden", "F" }
@@ -502,6 +497,13 @@ fn Hero() -> Element {
                     a { class: "btn btn-secondary", href: "/why", "Learn More" }
                     a { class: "btn btn-tertiary", href: "/playground", "Try it yourself" }
                 }
+            }
+            button {
+                id: "law-graph-pause",
+                class: "law-graph-pause",
+                r#type: "button",
+                aria_pressed: "false",
+                "Pause motion"
             }
         }
     }

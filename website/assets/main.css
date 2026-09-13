@@ -242,6 +242,98 @@ body {
     flex-wrap: wrap;
 }
 
+/* A geometric network behind a quiet, centered wordmark. */
+.hero-with-graph {
+    --graph-ink: #aaa5ba;
+    --graph-active: #d3cde3;
+    --graph-ground: #08080d;
+    position: relative;
+    isolation: isolate;
+    width: 100%;
+    max-width: none;
+    min-height: 100svh;
+    padding: 7rem 2rem;
+    overflow: hidden;
+    background: var(--graph-ground);
+}
+
+.hero-with-graph::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        radial-gradient(ellipse 470px 250px at 50% 50%, #08080d 25%, rgba(8, 8, 13, 0.97) 55%, rgba(8, 8, 13, 0.65) 78%, transparent 120%),
+        linear-gradient(to bottom, rgba(8, 8, 13, 0.25), transparent 18%, transparent 83%, var(--bg-deep));
+}
+
+.hero-with-graph .hero-inner {
+    position: relative;
+    z-index: 2;
+}
+
+.hero-with-graph .hero-optimal {
+    color: var(--text-secondary);
+}
+
+.law-graph {
+    position: absolute;
+    /* Continue the network beyond the viewport, avoiding an inset edge. */
+    inset: -100px;
+    z-index: 0;
+    pointer-events: none;
+}
+
+.law-graph canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.hero-with-graph .btn:focus-visible,
+.law-graph-pause:focus-visible {
+    outline: 2px solid var(--accent-glow);
+    outline-offset: 4px;
+}
+
+.law-graph-pause {
+    position: absolute;
+    right: 1.5rem;
+    bottom: 1.25rem;
+    z-index: 2;
+    min-height: 44px;
+    background: rgba(8, 8, 13, 0.85);
+    border: 0;
+    border-radius: 5px;
+    padding: 0.5rem 0.75rem;
+    color: var(--text-secondary);
+    font: 400 0.65rem var(--font-mono);
+    cursor: pointer;
+}
+
+.law-graph-pause:hover { color: var(--text-primary); }
+
+/* Navigation stays on its own dark surface above the animated hero. */
+body:has(.hero-with-graph) .top-nav {
+    background: rgba(8, 8, 13, 0.92);
+    border-bottom-left-radius: 10px;
+}
+
+body:has(.hero-with-graph) .nav-link { color: var(--text-secondary); }
+body:has(.hero-with-graph) .nav-link:hover { color: var(--text-primary); }
+body:has(.hero-with-graph) .nav-link.active { color: var(--accent-glow); }
+
+@media (max-width: 600px) {
+    .hero-with-graph { padding: 6rem 1.5rem; }
+    .hero-with-graph::after {
+        background:
+            radial-gradient(ellipse 66% 37% at 50% 50%, #08080d 45%, rgba(8, 8, 13, 0.93) 78%, transparent 150%),
+            linear-gradient(to bottom, transparent 80%, var(--bg-deep));
+    }
+    .law-graph-pause { bottom: 0.5rem; right: 0.5rem; }
+}
+
 /* ---- Buttons ---- */
 
 .btn {
