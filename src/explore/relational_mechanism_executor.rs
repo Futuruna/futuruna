@@ -915,7 +915,7 @@ pub(crate) struct RelationalMechanismEndpointTraceEvidence {
     state_value_digest: [u8; 32],
     context_value_digest: [u8; 32],
     root: RelationalMechanismEndpointTraceRoot,
-    graph: CanonicalEndpointGraph,
+    graph: Arc<CanonicalEndpointGraph>,
 }
 
 impl RelationalMechanismEndpointTraceEvidence {
@@ -945,7 +945,10 @@ impl RelationalMechanismEndpointTraceEvidence {
 
     fn validate_identity(&self) -> Result<(), RelationalMechanismReplayError> {
         validate_canonical_endpoint_graph(&self.graph, None)?;
+        self.validate_root()
+    }
 
+    fn validate_root(&self) -> Result<(), RelationalMechanismReplayError> {
         let derived = derive_endpoint_trace_root(
             self.endpoint,
             self.observation_id,
@@ -1301,6 +1304,31 @@ pub(crate) struct RelationalMechanismReplayEvidence {
     after_trace: RelationalMechanismEndpointTraceEvidence,
 }
 
+/// One strictly checked, immutable signature exemplar, local to a journal.
+/// This is an expendable optimization, never persisted evidence or authority
+/// from a digest alone. Exact definition bytes and every signature-bound
+/// receipt field must match before its decoded graphs can be shared.
+/// Retention is bounded to one existing size-limited replay bundle, rather
+/// than growing with the population or the number of distinct signatures.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RelationalMechanismReplayCache {
+    previous: Option<RelationalMechanismReplayEvidence>,
+}
+
+impl RelationalMechanismReplayCache {
+    pub(crate) fn restore_incidence(
+        &mut self,
+        payload: &[u8],
+        interned_definition: Option<&MechanismSignatureDefinition>,
+    ) -> Result<RelationalMechanismReplayEvidence, RelationalMechanismReplayError> {
+        RelationalMechanismReplayEvidence::restore_incidence(
+            payload,
+            interned_definition,
+            Some(self),
+        )
+    }
+}
+
 impl RelationalMechanismReplayEvidence {
     pub(crate) fn transition(&self) -> &TransitionInstance {
         &self.transition
@@ -1347,21 +1375,26 @@ impl RelationalMechanismReplayEvidence {
     /// all cross-links between the transition, case coordinate, endpoint
     /// traces, normalized definition, and private replay receipt.
     pub(crate) fn validate_identity(&self) -> Result<(), RelationalMechanismReplayError> {
+        validate_signature_definition(&self.definition, self.receipt.scope.request_id())?;
+        self.before_trace.validate_identity()?;
+        self.after_trace.validate_identity()?;
+        ensure_unambiguous_pairing(&self.before_trace, &self.after_trace)?;
+        self.validate_case_identity()
+    }
+
+    /// Checks that depend on this concrete case, never memoized across cases.
+    fn validate_case_identity(&self) -> Result<(), RelationalMechanismReplayError> {
         let rehydrated = TransitionInstance::from_canonical_v1(self.transition.canonical_v1())
             .map_err(|_| RelationalMechanismReplayError::InvalidTransitionIdentity)?;
         if rehydrated != self.transition {
             return Err(RelationalMechanismReplayError::InvalidTransitionIdentity);
         }
 
-        validate_signature_definition(&self.definition, self.receipt.scope.request_id())?;
-        self.before_trace.validate_identity()?;
-        self.after_trace.validate_identity()?;
         if self.before_trace.endpoint != RelationalMechanismEndpoint::Before
             || self.after_trace.endpoint != RelationalMechanismEndpoint::After
         {
             return Err(RelationalMechanismReplayError::EndpointTraceRoleMismatch);
         }
-        ensure_unambiguous_pairing(&self.before_trace, &self.after_trace)?;
 
         let receipt = &self.receipt;
         if receipt.transition_id != self.transition.id()
@@ -1478,6 +1511,14 @@ impl RelationalMechanismReplayEvidence {
         payload: &[u8],
         interned_definition: Option<&MechanismSignatureDefinition>,
     ) -> Result<Self, RelationalMechanismReplayError> {
+        Self::restore_incidence(payload, interned_definition, None)
+    }
+
+    fn restore_incidence(
+        payload: &[u8],
+        interned_definition: Option<&MechanismSignatureDefinition>,
+        cache: Option<&mut RelationalMechanismReplayCache>,
+    ) -> Result<Self, RelationalMechanismReplayError> {
         if payload.len() > MAX_DURABLE_BLOB_BYTES {
             return Err(RelationalMechanismReplayError::DurablePayloadCapacity {
                 actual: payload.len(),
@@ -1512,11 +1553,37 @@ impl RelationalMechanismReplayEvidence {
                 .cloned()
                 .ok_or(RelationalMechanismReplayError::InternedSignatureDefinitionRequired)?,
         };
-        let (before_graph, after_graph) = decode_signature_endpoint_graphs(
-            definition.canonical_definition(),
-            &receipt,
-            &transition,
-        )?;
+        let checked = cache
+            .as_ref()
+            .and_then(|cache| cache.previous.as_ref())
+            .filter(|previous| {
+                // Include the complete canonical bytes, not just their digest.
+                // These are exactly the receipt/transition fields bound while
+                // decoding the signature header on the strict path.
+                previous.definition == definition
+                    && previous.receipt.scope == receipt.scope
+                    && previous.receipt.observation_id == receipt.observation_id
+                    && previous.receipt.state_type_digest == receipt.state_type_digest
+                    && previous.receipt.context_type_digest == receipt.context_type_digest
+                    && previous.receipt.observation_type_digest == receipt.observation_type_digest
+                    && previous.receipt.state_schema_id == transition.state_schema_id()
+                    && previous.receipt.context_schema_id == transition.context_schema_id()
+                    && previous.receipt.transition_type_id == transition.transition_type_id()
+            });
+        let reused = checked.is_some();
+        let (before_graph, after_graph) = if let Some(previous) = checked {
+            (
+                Arc::clone(&previous.before_trace.graph),
+                Arc::clone(&previous.after_trace.graph),
+            )
+        } else {
+            let (before, after) = decode_signature_endpoint_graphs(
+                definition.canonical_definition(),
+                &receipt,
+                &transition,
+            )?;
+            (Arc::new(before), Arc::new(after))
+        };
         let before_trace = RelationalMechanismEndpointTraceEvidence {
             endpoint: RelationalMechanismEndpoint::Before,
             observation_id: receipt.observation_id,
@@ -1544,9 +1611,181 @@ impl RelationalMechanismReplayEvidence {
             before_trace,
             after_trace,
         };
-        evidence.validate_identity()?;
+        if reused {
+            // Graph validity and pairing came from the strictly checked
+            // exemplar. Concrete endpoint roots and receipt links do not.
+            evidence.before_trace.validate_root()?;
+            evidence.after_trace.validate_root()?;
+            evidence.validate_case_identity()?;
+        } else {
+            evidence.validate_identity()?;
+            if let Some(cache) = cache {
+                cache.previous = Some(evidence.clone());
+            }
+        }
         Ok(evidence)
     }
+}
+
+#[cfg(test)]
+pub(crate) fn assert_checked_signature_replay_cache(
+    seed: &RelationalMechanismReplayEvidence,
+    schemas: &TransitionSchemaIdentities,
+) {
+    // Reuse the caller's genuinely minted fixture, then construct a second
+    // case with the same eventless signature and independently bound roots.
+    let mut next = seed.clone();
+    next.transition = schemas.instantiate(
+        seed.transition.context().clone(),
+        ExploreValue::Int(10),
+        ExploreValue::Int(11),
+    );
+    let source = SourceRow::new(
+        next.transition.context().clone(),
+        next.transition.before().clone(),
+        RelationProvenance::new([], []),
+    );
+    next.receipt.source_key = SourceKey::derive(next.receipt.relation_id, &source);
+    let successor = SuccessorRow::new(
+        next.transition.after().clone(),
+        RelationProvenance::new([], []),
+    );
+    next.receipt.successor_key = SuccessorKey::derive(
+        next.receipt.relation_id,
+        next.receipt.source_key,
+        &successor,
+    );
+    next.receipt.case_id = RelationalCaseId::derive(
+        next.receipt.relation_id,
+        next.receipt.source_key,
+        next.receipt.successor_key,
+    );
+    next.receipt.transition_id = next.transition.id();
+    for (trace, state) in [
+        (&mut next.before_trace, next.transition.before()),
+        (&mut next.after_trace, next.transition.after()),
+    ] {
+        trace.case_id = next.receipt.case_id;
+        trace.transition_id = next.receipt.transition_id;
+        trace.state_value_digest = canonical_explore_value_digest(state);
+        trace.root = derive_endpoint_trace_root(
+            trace.endpoint,
+            trace.observation_id,
+            trace.case_id,
+            trace.transition_id,
+            trace.state_value_digest,
+            trace.context_value_digest,
+            &trace.graph,
+        )
+        .expect("second fixture root");
+    }
+    next.receipt.before_trace_root = next.before_trace.root;
+    next.receipt.after_trace_root = next.after_trace.root;
+    next.receipt.id =
+        derive_replay_receipt_id(&next.receipt, &next.before_trace, &next.after_trace);
+    next.validate_identity()
+        .expect("second case independently validates");
+    assert_ne!(seed.case_id(), next.case_id());
+
+    let seed_payload = seed.canonical_compact_incidence_durable_payload().unwrap();
+    let next_payload = next.canonical_compact_incidence_durable_payload().unwrap();
+    let mut cache = RelationalMechanismReplayCache::default();
+    let cold = cache
+        .restore_incidence(&seed_payload, Some(seed.definition()))
+        .unwrap();
+    assert_eq!(&cold, seed);
+    let warm = cache
+        .restore_incidence(&next_payload, Some(next.definition()))
+        .unwrap();
+    assert_eq!(warm, next);
+    assert!(Arc::ptr_eq(
+        &cold.before_trace.graph,
+        &warm.before_trace.graph
+    ));
+    assert!(Arc::ptr_eq(
+        &cold.after_trace.graph,
+        &warm.after_trace.graph
+    ));
+    let strict = RelationalMechanismReplayEvidence::restore_incidence_from_durable_payload(
+        &next_payload,
+        Some(next.definition()),
+    )
+    .unwrap();
+    assert_eq!(strict, warm);
+    assert!(!Arc::ptr_eq(
+        &strict.before_trace.graph,
+        &warm.before_trace.graph
+    ));
+
+    // Self-contained payloads use the same exact-byte binding, and legacy
+    // strict restoration remains independently available.
+    let full = next.canonical_durable_payload().unwrap();
+    assert_eq!(cache.restore_incidence(&full, None).unwrap(), next);
+    assert_eq!(
+        RelationalMechanismReplayEvidence::restore_from_durable_payload(&full).unwrap(),
+        next
+    );
+
+    let encode_unchecked = |evidence: &RelationalMechanismReplayEvidence| {
+        let mut encoder = Encoder::new(REPLAY_COMPACT_INCIDENCE_DURABLE_PAYLOAD_V3);
+        encoder.u32(RELATIONAL_MECHANISM_REPLAY_ABI_VERSION);
+        encode_transition_canonical(&mut encoder, &evidence.transition.canonical_v1()).unwrap();
+        encode_replay_receipt(&mut encoder, &evidence.receipt);
+        encoder.finish()
+    };
+    let mutations: &[fn(&mut RelationalMechanismReplayEvidence)] = &[
+        |e| e.receipt.id.0[0] ^= 1,
+        |e| e.receipt.before_trace_root.0[0] ^= 1,
+        |e| e.receipt.after_trace_root.0[0] ^= 1,
+        |e| e.receipt.state_type_digest[0] ^= 1,
+        |e| e.receipt.context_type_digest[0] ^= 1,
+        |e| e.receipt.observation_type_digest[0] ^= 1,
+        |e| e.receipt.observation_id.0[0] ^= 1,
+        |e| e.receipt.signature_definition_digest[0] ^= 1,
+    ];
+    for mutate in mutations {
+        let mut forged = next.clone();
+        mutate(&mut forged);
+        let payload = encode_unchecked(&forged);
+        assert!(cache
+            .restore_incidence(&payload, Some(next.definition()))
+            .is_err());
+        assert!(
+            RelationalMechanismReplayEvidence::restore_incidence_from_durable_payload(
+                &payload,
+                Some(next.definition()),
+            )
+            .is_err()
+        );
+    }
+    let mut mixed = next.clone();
+    mixed.receipt = seed.receipt.clone();
+    assert!(cache
+        .restore_incidence(&encode_unchecked(&mixed), Some(next.definition()))
+        .is_err());
+    assert!(cache.restore_incidence(&next_payload, None).is_err());
+    let mut changed_bytes = next.definition.canonical_definition().to_vec();
+    changed_bytes.push(0);
+    let changed_definition = MechanismSignatureDefinition::from_canonical_definition(
+        next.scope().request_id(),
+        changed_bytes,
+    );
+    assert!(cache
+        .restore_incidence(&next_payload, Some(&changed_definition))
+        .is_err());
+    // Rejected inputs neither poison nor replace the one checked exemplar.
+    let again = cache
+        .restore_incidence(&next_payload, Some(next.definition()))
+        .unwrap();
+    assert!(Arc::ptr_eq(
+        &cold.before_trace.graph,
+        &again.before_trace.graph
+    ));
+    let mut empty = RelationalMechanismReplayCache::default();
+    assert!(empty
+        .restore_incidence(&next_payload, Some(&changed_definition))
+        .is_err());
+    assert!(empty.previous.is_none());
 }
 
 /// Collision-checkable permanent-unavailability evidence. Its reason bytes
@@ -2254,7 +2493,7 @@ fn validate_endpoint_trace(
         state_value_digest,
         context_value_digest,
         root,
-        graph,
+        graph: Arc::new(graph),
     })
 }
 

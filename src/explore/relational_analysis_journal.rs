@@ -59,10 +59,11 @@ use super::relational_certified_source_summary::{
     RelationalCertifiedSourceSummaryArtifact, RelationalCertifiedSourceSummaryArtifactId,
 };
 use super::relational_mechanism_executor::{
-    derive_relational_structural_mechanism_v1, RelationalMechanismReplayError,
-    RelationalMechanismReplayEvidence, RelationalMechanismReplayObservationId,
-    RelationalMechanismReplayReceiptId, RelationalMechanismSignatureDagIndex,
-    RelationalMechanismUnavailableEvidence, RelationalStructuralMechanismError,
+    derive_relational_structural_mechanism_v1, RelationalMechanismReplayCache,
+    RelationalMechanismReplayError, RelationalMechanismReplayEvidence,
+    RelationalMechanismReplayObservationId, RelationalMechanismReplayReceiptId,
+    RelationalMechanismSignatureDagIndex, RelationalMechanismUnavailableEvidence,
+    RelationalStructuralMechanismError,
 };
 use super::relational_population::{
     CertifiedSelectedPopulationRoot, ClosedCertifiedSelectedPopulation,
@@ -1657,6 +1658,9 @@ pub(crate) struct RelationalAnalysisJournalState {
     closed_mechanism_publication_discoveries:
         Box<[(MechanismRequestId, MechanismPublicationDiscovery)]>,
     pending_mechanism_artifact: Option<PendingMechanismArtifact>,
+    /// Bounded, discardable reuse of an exactly checked signature. Not part
+    /// of any durable identity; new journals and cold replay start empty.
+    mechanism_replay_cache: RelationalMechanismReplayCache,
     closed: Option<ClosedRelationalAnalysisCatalog>,
 }
 
@@ -1706,6 +1710,7 @@ impl RelationalAnalysisJournalState {
             closed_closure_set_root: None,
             closed_mechanism_publication_discoveries: Box::default(),
             pending_mechanism_artifact: None,
+            mechanism_replay_cache: RelationalMechanismReplayCache::default(),
             closed: None,
         })
     }
@@ -3902,11 +3907,9 @@ impl RelationalAnalysisJournalState {
                     .mechanism_incidence(request_id)?
                     .signature_definition(signature_id)
                     .cloned();
-                let evidence =
-                    RelationalMechanismReplayEvidence::restore_incidence_from_durable_payload(
-                        payload,
-                        interned_definition.as_ref(),
-                    )?;
+                let evidence = self
+                    .mechanism_replay_cache
+                    .restore_incidence(payload, interned_definition.as_ref())?;
                 if evidence.scope().request_id() != request_id
                     || evidence.observation_id() != replay_observation_id
                     || evidence.case_id() != case_id

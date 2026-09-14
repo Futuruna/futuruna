@@ -387,6 +387,13 @@ impl RelationalDurableJournal {
             ),
             None => RelationalJournal::new_streaming(contract.clone()),
         };
+        let replay_started = std::env::var_os("FUTURUNA_EXPLORE_TRACE")
+            .is_some()
+            .then(std::time::Instant::now);
+        let mut next_trace_sequence = 10_000_u64;
+        if replay_started.is_some() {
+            eprintln!("Explore journal recovery: begin semantic replay");
+        }
         {
             let segments = store.replay_segments()?;
             for segment in segments {
@@ -456,9 +463,26 @@ impl RelationalDurableJournal {
                         );
                     }
                 }
+                if let Some(started) = replay_started {
+                    if journal.next_sequence() >= next_trace_sequence {
+                        eprintln!(
+                            "Explore journal recovery: next_sequence={}; elapsed={}ms",
+                            journal.next_sequence(),
+                            started.elapsed().as_millis(),
+                        );
+                        next_trace_sequence = journal.next_sequence().saturating_add(10_000);
+                    }
+                }
             }
         }
         validate_durable_cursor(&journal, &store)?;
+        if let Some(started) = replay_started {
+            eprintln!(
+                "Explore journal recovery: complete; next_sequence={}; elapsed={}ms",
+                journal.next_sequence(),
+                started.elapsed().as_millis(),
+            );
+        }
         Ok(Self {
             contract,
             expected_analysis_plan_root,

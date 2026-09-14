@@ -1686,6 +1686,10 @@ mod tests {
         };
         let transition_id = evidence.transition_id();
         let signature_id = evidence.signature_id();
+        super::super::relational_mechanism_executor::assert_checked_signature_replay_cache(
+            &evidence,
+            checked.transition_schemas(),
+        );
         for event in RelationalAnalysisEvidenceEvent::mechanism_signature_artifact_events(
             evidence.definition(),
         )

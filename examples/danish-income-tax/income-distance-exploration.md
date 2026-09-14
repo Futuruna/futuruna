@@ -1607,6 +1607,14 @@ proof events assumed. Preserve that provenance with exported results. Without
 the option, recovery remains strict; a later successful strict recovery can
 publish a report without the assumption.
 
+Both recovery modes also reuse the most recently strictly checked mechanism
+signature in memory. Exact canonical definition bytes and signature-bound
+receipt fields must match; only the immutable decoded graphs and their
+structural checks are reused. Every concrete case, endpoint root and replay
+receipt is checked again. The cache retains at most one size-limited replay
+bundle, starts empty on recovery, and writes no files. It does not change
+journal identities, model results, or the trust boundary above.
+
 Unknown checked affine guards also nominate adjacent source-coordinate cuts.
 These are search hints, not evidence. The cover first separates tiny
 categorical axes, prefers checked cuts isolating declared upper endpoints,
