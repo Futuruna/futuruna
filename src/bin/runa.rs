@@ -4,6 +4,7 @@
 //! Core language implementation is in the library crate (src/lib.rs).
 
 mod runa_explore_heap;
+mod runa_explore_retry;
 mod runa_explore_supervisor;
 
 use futuruna::*;
@@ -7956,6 +7957,7 @@ fn run_relational_explore_stream(
             },
         ),
     };
+    let epoch_is_supervised = epoch_options.outer_containment.is_some();
     if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
         if let Some(containment) = epoch_options.outer_containment {
             eprintln!(
@@ -8031,6 +8033,7 @@ fn run_relational_explore_stream(
     let mut last_checkpoint: Option<(u64, String)> = None;
     let mut last_publication_frontier: Option<(usize, usize)> = None;
     let mut next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+    let mut telemetry_retry = runa_explore_retry::TelemetryRetryBudget::default();
     let mut semantic_batches_appended = 0_u64;
     let mut semantic_events_appended = 0_u64;
     let mut projection_records_appended = BTreeMap::<String, u128>::new();
@@ -8105,10 +8108,38 @@ fn run_relational_explore_stream(
             .is_some_and(|publication| !publication.is_caught_up());
         let overall_time_remains =
             max_runtime.is_none_or(|limit| preparation_started.elapsed() < limit);
+        let resource_pause_code = match (&next_report.lifecycle, &next_report.pause_reason) {
+            (
+                explore::ExploreStreamLifecycle::Paused,
+                Some(explore::ExploreStreamPauseReason::ResourceAdmission { code }),
+            ) => Some(code.as_str()),
+            _ => None,
+        };
+        let retry_delay = telemetry_retry.next_delay(
+            epoch_is_supervised,
+            resource_pause_code,
+            journal_progressed || publication_progressed,
+            max_runtime.map(|limit| limit.saturating_sub(preparation_started.elapsed())),
+        );
 
         last_checkpoint = Some(checkpoint);
         last_publication_frontier = publication_frontier;
         final_report = Some(next_report);
+        if let Some(delay) = retry_delay {
+            eprintln!(
+                "Explore telemetry: warm retry {}/{} after {}ms; fresh complete admission remains required",
+                telemetry_retry.attempts(),
+                runa_explore_retry::MAX_TELEMETRY_RETRIES,
+                delay.as_millis(),
+            );
+            // run_slice has checkpointed its accepted work and the resource
+            // envelope revoked stale dispatch authority before returning.
+            // Retain the epoch while idle; the independent outer supervisor
+            // continues enforcing all heap/RSS/host-pressure and CPU guards.
+            std::thread::sleep(delay);
+            next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+            continue;
+        }
         if !(continue_semantics || continue_publication) || !overall_time_remains {
             break;
         }

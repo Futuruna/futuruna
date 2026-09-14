@@ -1615,6 +1615,19 @@ receipt is checked again. The cache retains at most one size-limited replay
 bundle, starts empty on recovery, and writes no files. It does not change
 journal identities, model results, or the trust boundary above.
 
+A supervised CLI invocation also keeps its current epoch warm across up to
+three consecutive `telemetry_provider_unavailable` pauses without useful
+journal/publication progress. Cooldowns are one, two and four seconds, all
+inside the original invocation deadline. No exploration runs during a
+cooldown; the next slice must obtain fresh complete telemetry and a new
+resource permit through the unchanged governor. Stale samples/permits are
+not reused, and the independent outer CPU/RAM guards remain active. Other
+resource, configuration, proof and mechanism pauses still return normally;
+unsupervised invocations do not retry. Exhaustion returns the saved pause and
+checkpoint. This handles transient provider loss without automatically paying
+for another full journal reconstruction, but cannot recover an already-exited
+process or replace checkpoint restoration.
+
 Unknown checked affine guards also nominate adjacent source-coordinate cuts.
 These are search hints, not evidence. The cover first separates tiny
 categorical axes, prefers checked cuts isolating declared upper endpoints,
