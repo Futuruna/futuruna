@@ -247,6 +247,7 @@ body {
     --graph-ink: #aaa5ba;
     --graph-active: #d3cde3;
     --graph-ground: #08080d;
+    --graph-clearing: radial-gradient(ellipse 470px 250px at 50% 50%, #08080d 25%, rgba(8, 8, 13, 0.97) 55%, rgba(8, 8, 13, 0.65) 78%, transparent 120%);
     position: relative;
     isolation: isolate;
     width: 100%;
@@ -263,9 +264,11 @@ body {
     inset: 0;
     z-index: 1;
     pointer-events: none;
+    /* Fade above the center clearing so the lower edge matches the page. */
     background:
-        radial-gradient(ellipse 470px 250px at 50% 50%, #08080d 25%, rgba(8, 8, 13, 0.97) 55%, rgba(8, 8, 13, 0.65) 78%, transparent 120%),
-        linear-gradient(to bottom, rgba(8, 8, 13, 0.25), transparent 18%, transparent 83%, var(--bg-deep));
+        linear-gradient(to bottom, rgba(10, 10, 15, 0) 65%, rgba(10, 10, 15, 0.28) 78%, rgba(10, 10, 15, 0.8) 90%, var(--bg-deep) calc(100% - 2rem)),
+        var(--graph-clearing),
+        linear-gradient(to bottom, rgba(8, 8, 13, 0.25), transparent 18%);
 }
 
 .hero-with-graph .hero-inner {
@@ -325,11 +328,9 @@ body:has(.hero-with-graph) .nav-link:hover { color: var(--text-primary); }
 body:has(.hero-with-graph) .nav-link.active { color: var(--accent-glow); }
 
 @media (max-width: 600px) {
-    .hero-with-graph { padding: 6rem 1.5rem; }
-    .hero-with-graph::after {
-        background:
-            radial-gradient(ellipse 66% 37% at 50% 50%, #08080d 45%, rgba(8, 8, 13, 0.93) 78%, transparent 150%),
-            linear-gradient(to bottom, transparent 80%, var(--bg-deep));
+    .hero-with-graph {
+        --graph-clearing: radial-gradient(ellipse 66% 37% at 50% 50%, #08080d 45%, rgba(8, 8, 13, 0.93) 78%, transparent 150%);
+        padding: 6rem 1.5rem;
     }
     .law-graph-pause { bottom: 0.5rem; right: 0.5rem; }
 }
@@ -401,6 +402,9 @@ body:has(.hero-with-graph) .nav-link.active { color: var(--accent-glow); }
 /* ---- Discovery ---- */
 
 .discovery-section {
+    /* The negative margin overlaps the hero; keep the card above its layers. */
+    position: relative;
+    z-index: 1;
     padding: 0 2rem 5rem;
     max-width: 640px;
     margin: -2rem auto 0;
