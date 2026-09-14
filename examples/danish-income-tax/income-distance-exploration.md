@@ -1621,8 +1621,16 @@ journal/publication progress. Cooldowns are one, two and four seconds, all
 inside the original invocation deadline. No exploration runs during a
 cooldown; the next slice must obtain fresh complete telemetry and a new
 resource permit through the unchanged governor. Stale samples/permits are
-not reused, and the independent outer CPU/RAM guards remain active. Other
-resource, configuration, proof and mechanism pauses still return normally;
+not reused, and the independent outer CPU/RAM guards remain active. During an
+already-started telemetry recovery episode, a subsequent reserve backoff may
+also wait up to six times, five seconds each. Neither kind of wait replenishes
+the other's budget; only useful journal/publication progress ends the episode.
+A reserve pause alone does not start retries. The governor-rejected stability
+window is discarded without resetting telemetry, swap or ownership history;
+the next complete sample starts a newer window at age zero. Fresh samples must
+establish the full stability duration and intact reserves before a new permit
+can authorize work. Persistent shortages still exhaust the bounded patience.
+Other resource, configuration, proof and mechanism pauses return normally;
 unsupervised invocations do not retry. Exhaustion returns the saved pause and
 checkpoint. This handles transient provider loss without automatically paying
 for another full journal reconstruction, but cannot recover an already-exited

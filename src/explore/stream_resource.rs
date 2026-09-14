@@ -857,7 +857,13 @@ impl ExactStreamOneWorkerEnvelope {
         let calibration_peak = self.calibration_peak;
         let decision = match self.governor.as_mut() {
             Some(governor) => {
-                match drive_governor(governor, self.policy, reduced.sample, calibration_peak) {
+                match drive_governor(
+                    governor,
+                    self.policy,
+                    reduced.sample,
+                    calibration_peak,
+                    &mut self.reducer,
+                ) {
                     Ok(decision) => decision,
                     Err(_) => return self.fail(ExactStreamResourcePauseReason::GovernorFailed),
                 }
@@ -1114,6 +1120,7 @@ fn drive_governor(
     policy: ResourcePolicy,
     sample: ResourceSample,
     calibration_peak: Option<CalibrationPeak>,
+    reducer: &mut StabilityWindowReducer,
 ) -> Result<GovernorDecision, ResourceGovernorError> {
     let phase = governor.phase();
     let previous = governor.decision();
@@ -1165,7 +1172,7 @@ fn drive_governor(
         }
         _ => ResourceGovernorEvent::Observe(sample),
     };
-    match governor.transition(event) {
+    let decision = match governor.transition(event) {
         Ok(decision) => Ok(decision),
         Err(error)
             if phase == GovernorPhase::Idle
@@ -1180,7 +1187,26 @@ fn drive_governor(
             Ok(governor.decision())
         }
         Err(error) => Err(error),
+    }?;
+    if decision.reason == DecisionReason::ReserveBackoff {
+        // The governor blocked this epoch. If it already has zero workers,
+        // another lease boundary will not arrive to reset the reducer's
+        // cumulative minima. Keep the backoff, but require a wholly new
+        // window on the next sample instead of retaining the rejected minimum
+        // forever. This grants no permit and changes no reserve threshold.
+        reducer.discard_stability_window();
+        if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+            eprintln!(
+                "Explore resources: reserve backoff; discarded stability window; memory current/min={:?}/{:?}; CPU idle current/min={:?}/{:?}; capacity={:?}",
+                sample.available_memory_bytes,
+                sample.stability.minimum_available_memory_bytes,
+                sample.cpu.map(|cpu| cpu.idle_millicores),
+                sample.stability.minimum_idle_cpu_millicores,
+                decision.metadata.capacity,
+            );
+        }
     }
+    Ok(decision)
 }
 
 fn sample_has_complete_stability_window(sample: ResourceSample, policy: ResourcePolicy) -> bool {
@@ -1578,6 +1604,125 @@ mod tests {
                 },
             },
             force_zero_admission: false,
+        }
+    }
+
+    #[test]
+    fn telemetry_then_reserve_backoff_requires_a_fresh_window_before_readmission() {
+        fn observe(
+            reducer: &mut StabilityWindowReducer,
+            governor: &mut ResourceGovernor,
+            policy: ResourcePolicy,
+            at: u64,
+            host: Option<RawHostFacts>,
+        ) -> GovernorDecision {
+            let reduced = reducer
+                .reduce(RawHostSample {
+                    source_generation: NonZeroU64::MIN,
+                    observed_at_millis: at,
+                    host,
+                    owned: OwnedProcessSnapshot {
+                        evaluator: EvaluatorObservation {
+                            lease_generation: governor.lease_generation(),
+                            resident_workers: governor.target_worker_leases(),
+                            draining_workers: 0,
+                            reserved_workers: 0,
+                            aggregate_rss_bytes: Some(0),
+                            aggregate_cpu_millicores: Some(0),
+                        },
+                        compiler: CompilerObservation {
+                            rss_bytes: Some(0),
+                            cpu_millicores: Some(0),
+                        },
+                        compile_epoch: None,
+                    },
+                })
+                .unwrap();
+            let decision = drive_governor(governor, policy, reduced.sample, None, reducer).unwrap();
+            if reduced.force_zero_admission {
+                assert!(!decision_allows_scan_case(decision, policy));
+            }
+            decision
+        }
+
+        // Exercise both reserve dimensions using real reducer/governor logic,
+        // a deterministic clock and no host commands, sleeps or model replay.
+        for memory_shortfall in [false, true] {
+            let host = RawHostFacts {
+                logical_cpu_count: 8,
+                total_memory_bytes: 8 * ONE_GIB,
+                live_capacity_millicores: 8_000,
+                idle_millicores: 6_000,
+                available_memory_bytes: 6 * ONE_GIB,
+                outer_contained_available_memory_bytes: 6 * ONE_GIB,
+                pressure: MemoryPressure::Normal,
+                oom_risk: false,
+                swap_out: SwapOutCounter {
+                    generation: SwapOutGeneration(1),
+                    cumulative_bytes: 4_096,
+                },
+            };
+            let mut policy = policy(SwapGrowthAuthority::ValidatedOuterContainmentAdvisory);
+            policy.configured_worker_ceiling = Some(1);
+            policy.stable_window_millis = 5_000;
+            let mut governor = ResourceGovernor::new(
+                HostCapacity {
+                    logical_cpu_count: Some(8),
+                    total_memory_bytes: Some(8 * ONE_GIB),
+                },
+                policy,
+            )
+            .unwrap();
+            let mut reducer = StabilityWindowReducer::new(
+                ReducerEpochSeed {
+                    telemetry: NonZeroU64::MIN,
+                    stability: NonZeroU64::MIN,
+                },
+                StabilityPressurePolicy::NormalOrOuterContainedWarning,
+                policy.swap_growth_authority,
+            );
+            let mut decision = governor.decision();
+            for at in [1_000, 6_000, 11_000, 16_000, 21_000, 26_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(host));
+            }
+            assert!(decision_allows_scan_case(decision, policy));
+
+            decision = observe(&mut reducer, &mut governor, policy, 31_000, None);
+            assert!(!decision_allows_scan_case(decision, policy));
+            assert_eq!(decision.target_worker_leases, 0);
+            decision = observe(&mut reducer, &mut governor, policy, 36_000, Some(host));
+            assert_eq!(decision.reason, DecisionReason::WaitingForSwapBaseline);
+            assert!(!decision_allows_scan_case(decision, policy));
+            let mut low = host;
+            if memory_shortfall {
+                low.available_memory_bytes = ONE_GIB;
+                low.outer_contained_available_memory_bytes = ONE_GIB;
+            } else {
+                low.idle_millicores = 0;
+            }
+            for at in [41_000, 46_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(low));
+                assert_eq!(decision.reason, DecisionReason::ReserveBackoff);
+                assert_eq!(decision.target_worker_leases, 0);
+                assert!(!decision_allows_scan_case(decision, policy));
+            }
+            let rejected_epoch = decision.metadata.stability_epoch.unwrap();
+            for at in [51_000, 56_000, 61_000, 66_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(host));
+                assert!(decision.metadata.stability_epoch.unwrap() > rejected_epoch);
+                assert!(!decision_allows_scan_case(decision, policy));
+                if at == 51_000 {
+                    assert_eq!(decision.metadata.stable_duration_millis, 0);
+                    assert!(!decision.metadata.stable);
+                }
+            }
+            decision = observe(&mut reducer, &mut governor, policy, 71_000, Some(host));
+            assert!(decision_allows_scan_case(decision, policy));
+            let mut critical = host;
+            critical.pressure = MemoryPressure::Critical;
+            decision = observe(&mut reducer, &mut governor, policy, 76_000, Some(critical));
+            assert_eq!(decision.target_worker_leases, 0);
+            assert!(!decision_allows_scan_case(decision, policy));
         }
     }
 

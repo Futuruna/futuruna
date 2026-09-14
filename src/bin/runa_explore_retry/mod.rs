@@ -5,10 +5,12 @@
 use std::time::Duration;
 
 pub(crate) const MAX_TELEMETRY_RETRIES: u8 = 3;
+pub(crate) const MAX_RECOVERY_RESERVE_WAITS: u8 = 6;
 
 #[derive(Default)]
 pub(crate) struct TelemetryRetryBudget {
     retries_without_progress: u8,
+    reserve_waits_without_progress: u8,
 }
 
 impl TelemetryRetryBudget {
@@ -20,26 +22,52 @@ impl TelemetryRetryBudget {
         remaining_runtime: Option<Duration>,
     ) -> Option<Duration> {
         if made_progress {
-            self.retries_without_progress = 0;
+            *self = Self::default();
         }
-        if !supervised
-            || resource_pause_code != Some("telemetry_provider_unavailable")
-            || self.retries_without_progress >= MAX_TELEMETRY_RETRIES
-        {
+        if !supervised {
             return None;
         }
-        let delay = Duration::from_secs(1_u64 << self.retries_without_progress);
+        let reserve_wait = match resource_pause_code {
+            Some("telemetry_provider_unavailable")
+                if self.retries_without_progress < MAX_TELEMETRY_RETRIES =>
+            {
+                false
+            }
+            Some("resource_reserve_backoff")
+                if self.retries_without_progress > 0
+                    && self.reserve_waits_without_progress < MAX_RECOVERY_RESERVE_WAITS =>
+            {
+                true
+            }
+            _ => return None,
+        };
+        // Reserve patience exists only inside an already-started telemetry
+        // recovery episode. Five seconds matches the contained host sampling
+        // cadence; each subsequent slice still needs entirely fresh admission.
+        let delay = if reserve_wait {
+            Duration::from_secs(5)
+        } else {
+            Duration::from_secs(1_u64 << self.retries_without_progress)
+        };
         // Leave time for a fresh call. Never extend the original invocation
         // deadline, including when a cooldown consumes the remaining budget.
         if remaining_runtime.is_some_and(|remaining| remaining <= delay) {
             return None;
         }
-        self.retries_without_progress += 1;
+        if reserve_wait {
+            self.reserve_waits_without_progress += 1;
+        } else {
+            self.retries_without_progress += 1;
+        }
         Some(delay)
     }
 
     pub(crate) fn attempts(&self) -> u8 {
         self.retries_without_progress
+    }
+
+    pub(crate) fn reserve_waits(&self) -> u8 {
+        self.reserve_waits_without_progress
     }
 }
 
@@ -48,6 +76,75 @@ mod tests {
     use super::*;
 
     const PROVIDER_FAILURE: Option<&str> = Some("telemetry_provider_unavailable");
+    const RESERVE_BACKOFF: Option<&str> = Some("resource_reserve_backoff");
+
+    #[test]
+    fn telemetry_recovery_has_bounded_reserve_patience_without_resetting_either_budget() {
+        let mut budget = TelemetryRetryBudget::default();
+        assert!(budget
+            .next_delay(true, PROVIDER_FAILURE, false, None)
+            .is_some());
+        for attempt in 1..=MAX_RECOVERY_RESERVE_WAITS {
+            assert_eq!(
+                budget.next_delay(true, RESERVE_BACKOFF, false, None),
+                Some(Duration::from_secs(5))
+            );
+            assert_eq!(budget.reserve_waits(), attempt);
+            assert_eq!(budget.next_delay(true, None, false, None), None);
+        }
+        assert_eq!(budget.next_delay(true, RESERVE_BACKOFF, false, None), None);
+        assert_eq!(budget.attempts(), 1);
+        for seconds in [2, 4] {
+            assert_eq!(
+                budget.next_delay(true, PROVIDER_FAILURE, false, None),
+                Some(Duration::from_secs(seconds))
+            );
+            assert_eq!(budget.next_delay(true, RESERVE_BACKOFF, false, None), None);
+        }
+        assert_eq!(budget.next_delay(true, PROVIDER_FAILURE, false, None), None);
+        // Useful work ends the episode; a reserve pause alone cannot start one.
+        assert_eq!(budget.next_delay(true, RESERVE_BACKOFF, true, None), None);
+        assert_eq!(budget.reserve_waits(), 0);
+        assert!(budget
+            .next_delay(true, PROVIDER_FAILURE, false, None)
+            .is_some());
+        assert!(budget
+            .next_delay(true, RESERVE_BACKOFF, false, None)
+            .is_some());
+    }
+
+    #[test]
+    fn reserve_recovery_keeps_deadline_supervision_and_other_failure_boundaries() {
+        let mut budget = TelemetryRetryBudget::default();
+        assert!(budget
+            .next_delay(true, PROVIDER_FAILURE, false, None)
+            .is_some());
+        assert_eq!(budget.next_delay(false, RESERVE_BACKOFF, false, None), None);
+        assert_eq!(
+            budget.next_delay(true, RESERVE_BACKOFF, false, Some(Duration::from_secs(5))),
+            None
+        );
+        for code in [
+            "resource_memory_pressure_critical",
+            "resource_oom_risk",
+            "resource_swap_growth",
+            "telemetry_incoherent_host_facts",
+            "resource_governor_failed",
+            "mechanism_replay_failed",
+        ] {
+            assert_eq!(budget.next_delay(true, Some(code), false, None), None);
+        }
+        assert_eq!(budget.reserve_waits(), 0);
+        assert_eq!(
+            budget.next_delay(
+                true,
+                RESERVE_BACKOFF,
+                false,
+                Some(Duration::from_millis(5001))
+            ),
+            Some(Duration::from_secs(5))
+        );
+    }
 
     #[test]
     fn supervised_provider_failure_has_three_bounded_warm_retries() {

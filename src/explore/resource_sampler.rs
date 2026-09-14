@@ -231,6 +231,14 @@ impl StabilityWindowReducer {
         }
     }
 
+    /// A governor-rejected reserve window cannot authorize future work. Drop
+    /// only its accumulated minima/duration; preserve telemetry, swap and
+    /// ownership history. The next complete sample starts a newer epoch at
+    /// age zero and must establish the full stability duration again.
+    pub(crate) fn discard_stability_window(&mut self) {
+        self.stable = None;
+    }
+
     /// Transactional reduction. Errors leave reducer state unchanged and mean
     /// automatic admission is zero; callers must not replay an older sample.
     pub(crate) fn reduce(

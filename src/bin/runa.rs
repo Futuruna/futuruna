@@ -8127,9 +8127,11 @@ fn run_relational_explore_stream(
         final_report = Some(next_report);
         if let Some(delay) = retry_delay {
             eprintln!(
-                "Explore telemetry: warm retry {}/{} after {}ms; fresh complete admission remains required",
+                "Explore telemetry recovery: provider retries {}/{}; reserve waits {}/{}; cooldown {}ms; fresh complete admission remains required",
                 telemetry_retry.attempts(),
                 runa_explore_retry::MAX_TELEMETRY_RETRIES,
+                telemetry_retry.reserve_waits(),
+                runa_explore_retry::MAX_RECOVERY_RESERVE_WAITS,
                 delay.as_millis(),
             );
             // run_slice has checkpointed its accepted work and the resource
