@@ -194,6 +194,13 @@ impl RelationalDurableJournalFinalized {
     }
 }
 
+/// Exact durable prefix whose recorded regional conclusions are explicitly trusted.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct AssumedVerifiedCheckpoint {
+    pub(crate) next_sequence: u64,
+    pub(crate) head: [u8; 32],
+}
+
 /// One writer and one memory-bounded semantic fold. This type is intentionally
 /// not cloneable: duplicating it would duplicate both writer authority and the
 /// meaning of its provisional tail.
@@ -209,6 +216,7 @@ pub(crate) struct RelationalDurableJournal {
     /// are released as soon as the matching immutable segment is installed.
     pending_heads: VecDeque<PendingSemanticHead>,
     poisoned: bool,
+    assumed_verified_checkpoint: Option<AssumedVerifiedCheckpoint>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -277,6 +285,7 @@ impl RelationalDurableJournal {
             limits.codec(),
             store,
             None,
+            None,
         )
     }
 
@@ -300,6 +309,7 @@ impl RelationalDurableJournal {
             limits.codec(),
             store,
             Some(authority),
+            None,
         )
     }
 
@@ -322,6 +332,35 @@ impl RelationalDurableJournal {
             limits.codec(),
             store,
             None,
+            None,
+        )
+    }
+
+    /// # Safety
+    /// The caller explicitly accepts the recorded regional conclusions in this
+    /// exact checkpoint as trusted input, and must disclose that assumption.
+    pub(crate) unsafe fn open_assuming_verified_checkpoint(
+        directory: impl AsRef<Path>,
+        contract: RelationalJournalContract,
+        expected_analysis_plan_root: RelationalAnalysisPlanRoot,
+        limits: RelationalDurableJournalLimits,
+        authority: Arc<RelationalRegionReplayAuthority>,
+        checkpoint: AssumedVerifiedCheckpoint,
+    ) -> Result<Self, RelationalDurableJournalError> {
+        // Unlike ordinary open-or-create, assumption mode cannot create a run.
+        let store = RelationalJournalSegmentStore::open(
+            directory,
+            limits.run_store(),
+            limits.segment(),
+            journal_store_anchor(&contract),
+        )?;
+        Self::from_store(
+            contract,
+            expected_analysis_plan_root,
+            limits.codec(),
+            store,
+            Some(authority),
+            Some(checkpoint),
         )
     }
 
@@ -331,7 +370,16 @@ impl RelationalDurableJournal {
         codec_limits: RelationalJournalCodecLimits,
         store: RelationalJournalSegmentStore,
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
+        assumed_verified_checkpoint: Option<AssumedVerifiedCheckpoint>,
     ) -> Result<Self, RelationalDurableJournalError> {
+        if let Some(checkpoint) = assumed_verified_checkpoint {
+            if checkpoint.next_sequence == 0
+                || !store
+                    .authenticates_durable_checkpoint(checkpoint.next_sequence, checkpoint.head)
+            {
+                return Err(RelationalDurableJournalError::AssumedCheckpointMismatch);
+            }
+        }
         let mut journal = match region_replay_authority {
             Some(authority) => RelationalJournal::new_streaming_with_region_replay_authority(
                 contract.clone(),
@@ -377,7 +425,18 @@ impl RelationalDurableJournal {
                             journal.analysis_state().is_some(),
                             entry.event(),
                         )?;
-                        journal.replay_streaming_entry(entry)?;
+                        if assumed_verified_checkpoint
+                            .is_some_and(|checkpoint| entry.sequence() < checkpoint.next_sequence)
+                        {
+                            // SAFETY: the opt-in checkpoint was authenticated
+                            // against installed, hash-validated segments above.
+                            // Only entries inside that exact prefix use assumptions.
+                            unsafe {
+                                journal.replay_streaming_entry_assuming_verified_regions(entry)
+                            }?;
+                        } else {
+                            journal.replay_streaming_entry(entry)?;
+                        }
                         replayed = replayed.checked_add(1).ok_or(
                             RelationalDurableJournalError::ArithmeticOverflow(
                                 "replayed semantic event count",
@@ -410,7 +469,12 @@ impl RelationalDurableJournal {
             codec_limits,
             pending_heads: VecDeque::new(),
             poisoned: false,
+            assumed_verified_checkpoint,
         })
+    }
+
+    pub(crate) const fn assumed_verified_checkpoint(&self) -> Option<AssumedVerifiedCheckpoint> {
+        self.assumed_verified_checkpoint
     }
 
     pub(crate) const fn contract(&self) -> &RelationalJournalContract {
@@ -898,6 +962,7 @@ pub(crate) enum RelationalDurableJournalError {
         sequence: u64,
     },
     DurableCursorMismatch,
+    AssumedCheckpointMismatch,
     InitialAnalysisPlanMissing,
     ExpectedAnalysisPlanRootMismatch {
         expected: RelationalAnalysisPlanRoot,
@@ -954,6 +1019,9 @@ impl fmt::Display for RelationalDurableJournalError {
             Self::DurableCursorMismatch => formatter.write_str(
                 "installed relational segments and the semantic journal disagree at their tail",
             ),
+            Self::AssumedCheckpointMismatch => formatter.write_str(
+                "assumed verified checkpoint does not match an installed, hash-authenticated journal boundary",
+            ),
             Self::InitialAnalysisPlanMissing => formatter.write_str(
                 "relational journal must register the checked analysis plan before semantic work",
             ),
@@ -986,6 +1054,7 @@ impl Error for RelationalDurableJournalError {
             | Self::FramePreviousHeadMismatch { .. }
             | Self::FrameSemanticEnvelopeMismatch { .. }
             | Self::DurableCursorMismatch
+            | Self::AssumedCheckpointMismatch
             | Self::InitialAnalysisPlanMissing
             | Self::ExpectedAnalysisPlanRootMismatch { .. } => None,
         }

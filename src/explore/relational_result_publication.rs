@@ -12133,85 +12133,86 @@ fn build_manifest(
         artifact_descriptors.into_iter().unzip();
     let answer = build_manifest_answer_index(plan, report, &artifacts)?;
 
-    Ok((
-        json!({
-            "schema_version": RELATIONAL_PUBLICATION_SCHEMA_VERSION,
-            "authority": "durable_relational_journal",
-            "query": report.query_name,
-            "identity": {
-                "checked_program": report.identity.checked_program,
-                "presentation_plan_digest": hex(plan.presentation_plan_digest),
-                "relation_id": report.identity.relation_id,
-                "admission_id": report.identity.admission_id,
-                "question_ids": report.identity.question_ids,
-                "analysis_graph_digest": report.identity.analysis_graph_digest,
-                "source_coverage_manifest_digest": hex(
-                    plan.source_coverage_manifest_digest,
-                ),
-                "support_observation_demand_set_id": hex(
-                    plan.support_observation_demand_set_id,
-                ),
-                "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
-                "transition_graph_consumer_set_id": hex(plan.transition_graph_consumer_set_id),
-                "journal_id": report.identity.journal_id,
-            },
-            "source_coverage": public_source_coverage_json(report),
-            "journal": {
-                "next_sequence": report.checkpoint.next_sequence,
-                "head": report.checkpoint.journal_head,
-                "durable_segment_count": report.checkpoint.durable_segment_count,
-            },
-            "lifecycle": lifecycle_name(report.lifecycle),
-            "pause_reason": report.pause_reason.as_ref().map(public_pause_reason_json),
-            "closure": {
-                "relation": if report.relation_closed { "exact" } else { "open" },
-                "analysis": if report.analysis_closed { "exact" } else { "open" },
-            },
+    let mut manifest = json!({
+        "schema_version": RELATIONAL_PUBLICATION_SCHEMA_VERSION,
+        "authority": "durable_relational_journal",
+        "query": report.query_name,
+        "identity": {
+            "checked_program": report.identity.checked_program,
+            "presentation_plan_digest": hex(plan.presentation_plan_digest),
+            "relation_id": report.identity.relation_id,
+            "admission_id": report.identity.admission_id,
+            "question_ids": report.identity.question_ids,
+            "analysis_graph_digest": report.identity.analysis_graph_digest,
+            "source_coverage_manifest_digest": hex(
+                plan.source_coverage_manifest_digest,
+            ),
+            "support_observation_demand_set_id": hex(
+                plan.support_observation_demand_set_id,
+            ),
+            "starter_consumer_set_id": hex(plan.starter_consumer_set_id),
+            "transition_graph_consumer_set_id": hex(plan.transition_graph_consumer_set_id),
+            "journal_id": report.identity.journal_id,
+        },
+        "source_coverage": public_source_coverage_json(report),
+        "journal": {
+            "next_sequence": report.checkpoint.next_sequence,
+            "head": report.checkpoint.journal_head,
+            "durable_segment_count": report.checkpoint.durable_segment_count,
+        },
+        "lifecycle": lifecycle_name(report.lifecycle),
+        "pause_reason": report.pause_reason.as_ref().map(public_pause_reason_json),
+        "closure": {
+            "relation": if report.relation_closed { "exact" } else { "open" },
+            "analysis": if report.analysis_closed { "exact" } else { "open" },
+        },
+        "counts": {
+            "U_S_sources": public_count_json(report.counts.sources),
+            "U_C_cases": public_count_json(report.counts.cases),
+            "admission_classified": public_count_json(report.counts.admission_classified),
+            "D_C_admitted": public_count_json(report.counts.admitted),
+            "rejected": public_count_json(report.counts.rejected),
+        },
+        "finds": report.finds.iter().map(|find| json!({
+            "name": find.name,
+            "question_id": find.question_id,
+            "closure": if find.closed { "exact" } else { "open" },
             "counts": {
-                "U_S_sources": public_count_json(report.counts.sources),
-                "U_C_cases": public_count_json(report.counts.cases),
-                "admission_classified": public_count_json(report.counts.admission_classified),
-                "D_C_admitted": public_count_json(report.counts.admitted),
-                "rejected": public_count_json(report.counts.rejected),
+                "find_classified": public_count_json(find.find_classified),
+                "S_C_selected": public_count_json(find.selected),
+                "not_selected": public_count_json(find.not_selected),
             },
-            "finds": report.finds.iter().map(|find| json!({
-                "name": find.name,
-                "question_id": find.question_id,
-                "closure": if find.closed { "exact" } else { "open" },
-                "counts": {
-                    "find_classified": public_count_json(find.find_classified),
-                    "S_C_selected": public_count_json(find.selected),
-                    "not_selected": public_count_json(find.not_selected),
-                },
-            })).collect::<Vec<_>>(),
-            "analysis_scope_root": report.analysis_scope_root,
-            "analysis_terminal_root": report.analysis_terminal_root,
-            "analysis_closure_set_root": report.analysis_closure_set_root,
-            "answer": answer,
-            "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
-            "artifacts": artifacts,
-            "publication_cursor": {
-                "file": CURSOR_FILE,
-                "digest": hex(cursor_digest),
-                "checkpoint": cursor.checkpoint,
-                "pending": cursor.pending.is_some(),
-            },
-            "limitations": [
-                "This is a materialized view; the durable journal is the recovery authority.",
-                "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
-                "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
-                "Mechanism-support observations publish immutable hard-bounded signature-fiber summaries in one shared request artifact: automatic whole-mechanism points form core closure authority, while explicitly demanded node/edge points remain an extension lane; only incident ready slices become dirty, and capped scans widen bounds rather than falling back to a full case/starter union.",
-                "The structural sidecar contains assignments, structural closure, and at most one constant-size support closure receipt; support-slice summaries live in the observation artifact.",
-                "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet, optionally within one enclosing mechanism, through its named checked value view.",
-                "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
-                "Each typed subject-support region companion contains the same confidential values as its source starter artifact; it is a bounded navigation index over complete correlated source fibers, and any capped suffix remains available only through the canonical starter pages.",
-                "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
-                "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
-                "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
-            ],
-        }),
-        artifact_summaries,
-    ))
+        })).collect::<Vec<_>>(),
+        "analysis_scope_root": report.analysis_scope_root,
+        "analysis_terminal_root": report.analysis_terminal_root,
+        "analysis_closure_set_root": report.analysis_closure_set_root,
+        "answer": answer,
+        "layers": report.layers.iter().map(public_layer_json).collect::<Vec<_>>(),
+        "artifacts": artifacts,
+        "publication_cursor": {
+            "file": CURSOR_FILE,
+            "digest": hex(cursor_digest),
+            "checkpoint": cursor.checkpoint,
+            "pending": cursor.pending.is_some(),
+        },
+        "limitations": [
+            "This is a materialized view; the durable journal is the recovery authority.",
+            "Mechanism signature descriptors and canonical raw-definition chunks contain structural control evidence only; state/context values remain absent unless a checked SELECT publishes them.",
+            "The structural-definition catalog publishes normalized quotient topology and exact multiplicities in bounded typed chunks; it contains no raw signatures, cases, starter values, or allocating origin preimages.",
+            "Mechanism-support observations publish immutable hard-bounded signature-fiber summaries in one shared request artifact: automatic whole-mechanism points form core closure authority, while explicitly demanded node/edge points remain an extension lane; only incident ready slices become dirty, and capped scans widen bounds rather than falling back to a full case/starter union.",
+            "The structural sidecar contains assignments, structural closure, and at most one constant-size support closure receipt; support-slice summaries live in the observation artifact.",
+            "The compact structural sidecar never serializes or links correlated (Context, Before) -> After cells. Only an explicit single-subject starters declaration can materialize one mechanism/node/edge facet, optionally within one enclosing mechanism, through its named checked value view.",
+            "Typed subject-starter artifacts contain authorized state and context values and must be treated as confidential output.",
+            "Each typed subject-support region companion contains the same confidential values as its source starter artifact; it is a bounded navigation index over complete correlated source fibers, and any capped suffix remains available only through the canonical starter pages.",
+            "The selected case-transition graph contains authorized typed Context, Before, and After values and must be treated as confidential output; its line order is journal discovery order while its closure root commits canonical set content.",
+            "Authenticated support roots and structural IDs are audit commitments, not anonymization; low-entropy or externally known inputs may still permit membership inference even when cells are not serialized.",
+            "The case/support graph does not serialize raw case state, context, intervals, materializers, or proof payloads; its deterministic artifact IDs and roots are audit commitments rather than hiding commitments, so output containing private low-entropy inputs remains confidential.",
+        ],
+    });
+    if let Some(assumption) = &report.recovery_assumption {
+        manifest["recovery_assumption"] = json!(assumption);
+    }
+    Ok((manifest, artifact_summaries))
 }
 
 fn available_source_record_count(

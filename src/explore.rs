@@ -401,11 +401,12 @@ pub use relational_public::{
     ExploreStreamObserverMemoStats, ExploreStreamOuterContainment, ExploreStreamPauseReason,
     ExploreStreamPopulationCounts, ExploreStreamPreparationError, ExploreStreamPreviewLimit,
     ExploreStreamPreviewStatus, ExploreStreamProjectedValue, ExploreStreamPublication,
-    ExploreStreamPublicationArtifact, ExploreStreamResultColumn, ExploreStreamResultEvidence,
-    ExploreStreamResultField, ExploreStreamResultGrain, ExploreStreamResultGroupRow,
-    ExploreStreamResultInput, ExploreStreamResultLayer, ExploreStreamSliceOptions,
-    ExploreStreamSliceReport, ExploreStreamSourceCoverage, PreparedRelationalExplore,
-    RelationalExploreEpoch, EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
+    ExploreStreamPublicationArtifact, ExploreStreamRecoveryAssumption, ExploreStreamResultColumn,
+    ExploreStreamResultEvidence, ExploreStreamResultField, ExploreStreamResultGrain,
+    ExploreStreamResultGroupRow, ExploreStreamResultInput, ExploreStreamResultLayer,
+    ExploreStreamSliceOptions, ExploreStreamSliceReport, ExploreStreamSourceCoverage,
+    ExploreTrustedCheckpoint, PreparedRelationalExplore, RelationalExploreEpoch,
+    EXPLORE_RELATIONAL_STREAM_REPORT_VERSION,
 };
 pub(crate) use relational_result_step_driver::{
     RelationalResultStepBatch, RelationalResultStepDriver, RelationalResultStepDriverError,

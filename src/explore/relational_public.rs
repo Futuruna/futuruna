@@ -190,6 +190,53 @@ pub struct ExploreStreamEpochOptions {
     pub outer_containment: Option<ExploreStreamOuterContainment>,
 }
 
+/// Explicit local trust anchor, written as `NEXT_SEQUENCE:LOWERCASE_SHA256`.
+/// Parsing identifies a checkpoint; it does not establish its truth or existence.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExploreTrustedCheckpoint(super::relational_durable_journal::AssumedVerifiedCheckpoint);
+
+impl std::str::FromStr for ExploreTrustedCheckpoint {
+    type Err = String;
+
+    fn from_str(raw: &str) -> Result<Self, Self::Err> {
+        let invalid = || {
+            "assumed checkpoint must be a positive canonical sequence followed by ':' and 64 lowercase SHA-256 digits".to_string()
+        };
+        let (sequence, digest) = raw.split_once(':').ok_or_else(invalid)?;
+        let next_sequence = sequence.parse::<u64>().map_err(|_| invalid())?;
+        if next_sequence == 0
+            || sequence != next_sequence.to_string()
+            || digest.len() != 64
+            || !digest
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(invalid());
+        }
+        let mut head = [0; 32];
+        for (index, byte) in head.iter_mut().enumerate() {
+            *byte =
+                u8::from_str_radix(&digest[index * 2..index * 2 + 2], 16).map_err(|_| invalid())?;
+        }
+        Ok(Self(
+            super::relational_durable_journal::AssumedVerifiedCheckpoint {
+                next_sequence,
+                head,
+            },
+        ))
+    }
+}
+
+/// Operational assumption provenance; never a claim of independent verification.
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
+pub struct ExploreStreamRecoveryAssumption {
+    pub mode: &'static str,
+    pub next_sequence: u64,
+    pub journal_head: String,
+    pub regional_proof_events_assumed: u64,
+    pub new_work: &'static str,
+}
+
 /// Immutable checked preparation plus process-local evaluator caches.
 ///
 /// This is intentionally an in-memory artifact. Durable resumption is still
@@ -386,8 +433,32 @@ impl PreparedRelationalExplore {
     }
 
     pub fn open_epoch(
+        self,
+        options: ExploreStreamEpochOptions,
+    ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
+        self.open_epoch_with_assumption(options, None)
+    }
+
+    /// Resume an existing journal while assuming its recorded region-cover
+    /// conclusions through one explicitly pinned, hash-authenticated checkpoint.
+    /// All other replay checks, unsupported recipes and new work remain strict.
+    ///
+    /// # Safety
+    /// The caller must accept this exact checkpoint's regional conclusions as
+    /// trusted input. Reports and publication retain the recovery assumption;
+    /// they must not be presented as independently reverified evidence.
+    pub unsafe fn open_epoch_assuming_verified_checkpoint(
+        self,
+        options: ExploreStreamEpochOptions,
+        checkpoint: ExploreTrustedCheckpoint,
+    ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
+        self.open_epoch_with_assumption(options, Some(checkpoint))
+    }
+
+    fn open_epoch_with_assumption(
         mut self,
         options: ExploreStreamEpochOptions,
+        assumed: Option<ExploreTrustedCheckpoint>,
     ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
         validate_epoch_options(&options)?;
         let outer_containment = exact_stream_outer_containment(options.outer_containment)?;
@@ -414,22 +485,43 @@ impl PreparedRelationalExplore {
         if let Some(native) = &mut self.native_classifier {
             native.configure_for_resource_envelope(&resources);
         }
-        let durable = match &self.region_replay_authority {
-            Some(authority) => {
-                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+        let durable = if let Some(checkpoint) = assumed {
+            let authority = self.region_replay_authority.as_ref().ok_or_else(|| {
+                ExploreStreamPreparationError::Execution(
+                    "assumed checkpoint recovery requires a checked regional replay authority"
+                        .into(),
+                )
+            })?;
+            // SAFETY: the public unsafe entry point above supplies explicit trust;
+            // storage authenticates its exact checkpoint before semantic replay.
+            unsafe {
+                RelationalDurableJournal::open_assuming_verified_checkpoint(
                     &options.run_state,
                     self.contract.clone(),
                     self.analysis_plan_root,
                     RelationalDurableJournalLimits::default(),
                     Arc::clone(authority),
+                    checkpoint.0,
                 )
             }
-            None => RelationalDurableJournal::open_or_create(
-                &options.run_state,
-                self.contract.clone(),
-                self.analysis_plan_root,
-                RelationalDurableJournalLimits::default(),
-            ),
+        } else {
+            match &self.region_replay_authority {
+                Some(authority) => {
+                    RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                        &options.run_state,
+                        self.contract.clone(),
+                        self.analysis_plan_root,
+                        RelationalDurableJournalLimits::default(),
+                        Arc::clone(authority),
+                    )
+                }
+                None => RelationalDurableJournal::open_or_create(
+                    &options.run_state,
+                    self.contract.clone(),
+                    self.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                ),
+            }
         }
         .map_err(|error| ExploreStreamPreparationError::Execution(error.to_string()))?;
         Ok(RelationalExploreEpoch {
@@ -1295,6 +1387,7 @@ pub struct ExploreStreamSliceReport {
     pub semantic_batches_appended: u64,
     pub semantic_events_appended: u64,
     pub observer_memo: ExploreStreamObserverMemoStats,
+    pub recovery_assumption: Option<ExploreStreamRecoveryAssumption>,
     pub relation_closed: bool,
     pub analysis_closed: bool,
     pub counts: ExploreStreamPopulationCounts,
@@ -2129,6 +2222,15 @@ fn build_report(
         semantic_batches_appended: progress.semantic_batches_appended(),
         semantic_events_appended: progress.semantic_events_appended(),
         observer_memo,
+        recovery_assumption: durable.assumed_verified_checkpoint().map(|checkpoint| {
+            ExploreStreamRecoveryAssumption {
+                mode: "assume_verified_local_checkpoint",
+                next_sequence: checkpoint.next_sequence,
+                journal_head: hex(checkpoint.head),
+                regional_proof_events_assumed: journal.assumed_region_proof_events(),
+                new_work: "checked_normally",
+            }
+        }),
         relation_closed,
         analysis_closed: scheduler.analysis_is_closed(),
         counts: ExploreStreamPopulationCounts {
@@ -4585,6 +4687,153 @@ mod regional_stream_acceptance_tests {
         fn drop(&mut self) {
             fs::remove_dir_all(&self.0).ok();
         }
+    }
+
+    #[test]
+    fn assumed_checkpoint_parser_requires_one_canonical_anchor() {
+        let hash = "ab".repeat(32);
+        assert!(format!("42:{hash}")
+            .parse::<ExploreTrustedCheckpoint>()
+            .is_ok());
+        for invalid in [
+            format!("0:{hash}"),
+            format!("042:{hash}"),
+            format!("+42:{hash}"),
+            format!("42:{}", hash.to_uppercase()),
+            format!("42:{hash}:extra"),
+            "42:abc".into(),
+            format!("18446744073709551616:{hash}"),
+        ] {
+            assert!(
+                invalid.parse::<ExploreTrustedCheckpoint>().is_err(),
+                "{invalid}"
+            );
+        }
+    }
+
+    #[test]
+    fn assumed_checkpoint_recovery_binds_prefix_and_discloses_assumptions() {
+        const SOURCE: &str = r#"
+# Starter(income: Int, distance: Int)
+> net(s: Starter) -> Int { sum_list([s.income * 3, s.distance * 2]) }
+? explore trusted_recovery {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 20)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = direction
+    }
+    transition after = Starter(before.income + 1 - context, before.distance + context)
+    where after after.income <= 19 && after.distance <= 19
+    find cliffs = violations of net(after) >= net(before)
+}
+"#;
+        fn prepare(source: &str) -> PreparedRelationalExplore {
+            let statements = crate::prepend_prelude(crate::parse_prelude(), &parse(source));
+            prepare_checked_relational_stream(&statements, None, source, None)
+                .expect("prepare regional-cover recovery fixture")
+        }
+        let temp = TestDirectory::new();
+        let options = ExploreStreamEpochOptions {
+            run_state: temp.path().join("state"),
+            output_directory: Some(temp.path().join("output")),
+            outer_containment: None,
+        };
+        let mut original = prepare(SOURCE).open_epoch(options.clone()).unwrap();
+        original.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test().unwrap();
+        let original_report = original.run_slice(None).unwrap();
+        assert_eq!(original_report.lifecycle, ExploreStreamLifecycle::Complete);
+        assert!(original_report.recovery_assumption.is_none());
+        let checkpoint: ExploreTrustedCheckpoint = format!(
+            "{}:{}",
+            original_report.checkpoint.next_sequence, original_report.checkpoint.journal_head
+        )
+        .parse()
+        .unwrap();
+        drop(original);
+
+        let mut missing_options = options.clone();
+        missing_options.run_state = temp.path().join("missing-state");
+        // SAFETY: negative test; no assumption can authorize a nonexistent run.
+        assert!(unsafe {
+            prepare(SOURCE).open_epoch_assuming_verified_checkpoint(missing_options, checkpoint)
+        }
+        .is_err());
+        assert!(!temp.path().join("missing-state").exists());
+        // The same anchor cannot cross into a different checked question/model.
+        assert!(unsafe {
+            prepare(&SOURCE.replace("s.income * 3", "s.income * 4"))
+                .open_epoch_assuming_verified_checkpoint(options.clone(), checkpoint)
+        }
+        .is_err());
+
+        for bad in [
+            ExploreTrustedCheckpoint(
+                super::super::relational_durable_journal::AssumedVerifiedCheckpoint {
+                    next_sequence: checkpoint.0.next_sequence + 1,
+                    ..checkpoint.0
+                },
+            ),
+            ExploreTrustedCheckpoint(
+                super::super::relational_durable_journal::AssumedVerifiedCheckpoint {
+                    head: [0; 32],
+                    ..checkpoint.0
+                },
+            ),
+        ] {
+            // SAFETY: deliberate negative test; the supplied anchor must be rejected.
+            let error = unsafe {
+                prepare(SOURCE).open_epoch_assuming_verified_checkpoint(options.clone(), bad)
+            }
+            .err()
+            .expect("wrong checkpoint must fail closed");
+            assert!(error.to_string().contains("checkpoint"));
+        }
+        // SAFETY: this exact local checkpoint was just computed above.
+        let mut resumed = unsafe {
+            prepare(SOURCE).open_epoch_assuming_verified_checkpoint(options.clone(), checkpoint)
+        }
+        .unwrap();
+        resumed.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test().unwrap();
+        let report = resumed.run_slice(None).unwrap();
+        assert_eq!(report.checkpoint, original_report.checkpoint);
+        assert_eq!(report.counts, original_report.counts);
+        assert_eq!(report.finds, original_report.finds);
+        assert_eq!(report.semantic_events_appended, 0);
+        let assumption = report.recovery_assumption.as_ref().unwrap();
+        assert!(assumption.regional_proof_events_assumed > 0);
+        assert_eq!(
+            assumption.journal_head,
+            original_report.checkpoint.journal_head
+        );
+        let manifest: serde_json::Value = serde_json::from_slice(
+            &fs::read(report.publication.as_ref().unwrap().manifest_path.clone()).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            manifest["recovery_assumption"]["mode"],
+            "assume_verified_local_checkpoint"
+        );
+        assert_eq!(
+            manifest["recovery_assumption"]["new_work"],
+            "checked_normally"
+        );
+        drop(resumed);
+
+        let mut strict = prepare(SOURCE).open_epoch(options).unwrap();
+        strict.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test().unwrap();
+        let strict_report = strict.run_slice(None).unwrap();
+        assert!(strict_report.recovery_assumption.is_none());
+        assert_eq!(strict_report.checkpoint, original_report.checkpoint);
+        assert_eq!(
+            strict
+                .durable
+                .journal()
+                .unwrap()
+                .assumed_region_proof_events(),
+            0
+        );
     }
 
     #[test]

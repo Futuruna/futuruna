@@ -141,7 +141,8 @@ impl CoverArtifact {
     }
 }
 
-/// Fresh producer authority; cannot be constructed by the journal decoder.
+/// Producer authority, or an explicitly assumed conclusion from an authenticated
+/// local checkpoint. The ordinary journal decoder cannot construct this token.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct CheckedRegionCover {
     nodes: Box<[CoverNode]>,
@@ -149,6 +150,92 @@ pub(crate) struct CheckedRegionCover {
 }
 
 impl CheckedRegionCover {
+    /// Restore only the recorded geometry. Mathematical leaf conclusions are
+    /// assumptions, not freshly checked proofs, and never populate a proof cache.
+    ///
+    /// # Safety
+    /// The caller must explicitly trust this exact artifact as part of a
+    /// hash-authenticated checkpoint and disclose that assumption to consumers.
+    pub(super) unsafe fn restore_assuming_verified(
+        checked: &CheckedExploreQueryView<'_>,
+        plan: &RelationalSupportPlan,
+        expression: &SupportExpr,
+        recorded: &CoverArtifact,
+    ) -> Option<Self> {
+        let inventory = RelationalProofStrategyInventory::from_checked(checked, plan).ok()?;
+        let root = RankedProductBox::from_expr(expression).ok()?;
+        if root.factors().len() != inventory.axes().len()
+            || root.factors().len() != inventory.finite_binding_indices().len()
+            || recorded.nodes().is_empty()
+            || recorded.nodes().len() > MAX_COVER_NODES
+        {
+            return None;
+        }
+        fn restore_node(
+            checked: &CheckedExploreQueryView<'_>,
+            inventory: &RelationalProofStrategyInventory,
+            region: &RankedProductBox,
+            nodes: &[CoverNode],
+            next: &mut usize,
+            leaves: &mut Vec<CoverLeaf>,
+        ) -> Option<()> {
+            let node = nodes.get(*next)?;
+            *next += 1;
+            match node {
+                CoverNode::Split { axis, pivot } => {
+                    let (left, right) = split(region, *axis, *pivot)?;
+                    restore_node(checked, inventory, &left, nodes, next, leaves)?;
+                    restore_node(checked, inventory, &right, nodes, next, leaves)
+                }
+                CoverNode::Leaf {
+                    outcome,
+                    derivation_root,
+                    coordinate_count,
+                }
+                | CoverNode::ScopedLeaf {
+                    outcome,
+                    derivation_root,
+                    coordinate_count,
+                    ..
+                } => {
+                    if *coordinate_count != region.coordinate_count() {
+                        return None;
+                    }
+                    if let CoverNode::ScopedLeaf { scope, .. } = node {
+                        let coordinates = region_coordinates(checked, inventory, region)?;
+                        if !coordinates_contained(&coordinates, scope) {
+                            return None;
+                        }
+                    }
+                    leaves.push(CoverLeaf {
+                        region: region.clone(),
+                        outcome: *outcome,
+                        derivation_root: *derivation_root,
+                    });
+                    Some(())
+                }
+            }
+        }
+        let mut next = 0;
+        let mut leaves = vec![];
+        restore_node(
+            checked,
+            &inventory,
+            &root,
+            recorded.nodes(),
+            &mut next,
+            &mut leaves,
+        )?;
+        if next != recorded.nodes().len() {
+            return None;
+        }
+        let cover = Self {
+            nodes: recorded.nodes.clone(),
+            leaves: leaves.into_boxed_slice(),
+        };
+        (cover.artifact().ok()?.eq(recorded)).then_some(cover)
+    }
+
     pub(crate) fn artifact(&self) -> Result<CoverArtifact, RelationalRegionProofError> {
         let rejected_count = self
             .leaves

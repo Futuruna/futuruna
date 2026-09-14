@@ -643,7 +643,8 @@ impl RelationalRegionProofArtifact {
     }
 }
 
-/// Authority token obtained only by replay-verifying the canonical artifact.
+/// Authority token obtained by verification, or by the explicitly disclosed
+/// trusted-local-checkpoint recovery boundary. Decoding alone grants neither.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct VerifiedRelationalRegionProof {
     artifact: RelationalRegionProofArtifact,
@@ -1045,6 +1046,61 @@ impl RelationalRegionReplayAuthority {
             classifier,
             None,
         )
+    }
+
+    /// Restore a recorded cover without repeating its mathematical derivation.
+    /// Geometry and all artifact/query identities are still checked. Other proof
+    /// recipes retain strict replay; assumed scopes never enter the proof cache.
+    ///
+    /// # Safety
+    /// The artifact must belong to the exact hash-authenticated prefix the user
+    /// explicitly elected to trust. New events must never use this entry point.
+    pub(crate) unsafe fn restore_assuming_verified_canonical_child(
+        &self,
+        artifact: &RelationalRegionProofArtifact,
+        partition: &VerifiedRelationalCaseChunkPartition,
+    ) -> Result<VerifiedRelationalRegionProof, RelationalRegionProofError> {
+        let Some(recorded) = artifact.cover() else {
+            return self.reverify_canonical_child(artifact, partition);
+        };
+        artifact.validate_identity()?;
+        if artifact.replay_authority_id() != self.id
+            || artifact.classification_capsule_id() != self.capsule.id()
+            || artifact.plan_root() != self.support_plan.root()
+        {
+            return Err(RelationalRegionProofError::ReplayAuthorityMismatch);
+        }
+        let RelationalRegionProofSubject::CanonicalChunk { chunk_ordinal, .. } = artifact.subject()
+        else {
+            return Err(RelationalRegionProofError::ArtifactSemanticMismatch);
+        };
+        let target = self.target(
+            partition,
+            usize::try_from(chunk_ordinal)
+                .map_err(|_| RelationalRegionProofError::InvalidArtifactShape)?,
+        )?;
+        if !target.product_rank
+            || artifact.subject() != target.subject
+            || artifact.coordinate_start() != target.coordinate_start
+            || artifact.coordinate_end_exclusive() != target.coordinate_end_exclusive
+        {
+            return Err(RelationalRegionProofError::ArtifactSemanticMismatch);
+        }
+        // SAFETY: inherited explicit checkpoint assumption; this path restores
+        // only authenticated conclusions and validates their exact geometry.
+        let cover = unsafe {
+            cover::CheckedRegionCover::restore_assuming_verified(
+                &self.checked.view(),
+                &self.support_plan,
+                target.cell.expression(),
+                recorded,
+            )
+        }
+        .ok_or(RelationalRegionProofError::InvalidArtifactShape)?;
+        Ok(VerifiedRelationalRegionProof {
+            artifact: artifact.clone(),
+            evidence: VerifiedRegionEvidence::Cover(cover),
+        })
     }
 
     pub(crate) fn reverify_canonical_child(
@@ -4487,6 +4543,20 @@ mod tests {
             assert!(graph_only
                 .reverify_canonical_child(artifact, &verified_partition)
                 .is_err());
+            if mixed {
+                // SAFETY: the exact artifact was freshly produced by this test.
+                // There is deliberately no mathematical producer installed here.
+                let assumed = unsafe {
+                    graph_only
+                        .restore_assuming_verified_canonical_child(artifact, &verified_partition)
+                }
+                .expect("trusted covers restore without proof search");
+                assert_eq!(assumed, *closure.proof());
+                // The strict entry point remains strict after assumed restoration.
+                assert!(graph_only
+                    .reverify_canonical_child(artifact, &verified_partition)
+                    .is_err());
+            }
         }
         if product_rank {
             // The first rank interval encloses more than 256 source points;
@@ -4738,6 +4808,26 @@ mod tests {
         }
 
         let entries = journal.entries().to_vec();
+        if mixed {
+            let mut without_producer = (*authority).clone();
+            without_producer.checked_box = None;
+            let mut assumed = RelationalJournal::new_streaming_with_region_replay_authority(
+                contract.clone(),
+                Arc::new(without_producer),
+            );
+            for entry in entries.iter().cloned() {
+                // SAFETY: this test explicitly trusts its freshly produced prefix.
+                unsafe { assumed.replay_streaming_entry_assuming_verified_regions(entry) }.unwrap();
+            }
+            assert_eq!(assumed.head(), journal.head());
+            assert!(assumed.assumed_region_proof_events() > 0);
+            // A later append must NOT inherit the prefix's assumption authority.
+            assert!(assumed
+                .append_streaming(RelationalJournalEvent::relational_region_proof_accepted(
+                    artifact.clone(),
+                ))
+                .is_err());
+        }
         assert!(matches!(
             RelationalJournal::replay(contract.clone(), entries.clone()),
             Err(RelationalJournalError::RegionProofReplayAuthorityMissing)

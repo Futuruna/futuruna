@@ -99,6 +99,7 @@ fn main_inner() {
     let mut explore_json = false;
     let mut explore_query = None;
     let mut explore_run_state = None;
+    let mut explore_assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint> = None;
     let mut explore_output_directory = None;
     let mut explore_max_runtime = None;
     let mut calculation_entry = None;
@@ -229,6 +230,32 @@ fn main_inner() {
                     std::process::exit(1);
                 }
                 explore_query = Some(value.to_string());
+                i += 1;
+            }
+            "--assume-verified-checkpoint" if mode == "explore" => {
+                if i + 1 >= args.len() || explore_assumed_checkpoint.is_some() {
+                    eprintln!("error: --assume-verified-checkpoint requires one NEXT_SEQUENCE:SHA256 anchor");
+                    std::process::exit(1);
+                }
+                explore_assumed_checkpoint = Some(args[i + 1].parse().unwrap_or_else(|error| {
+                    eprintln!("error: {error}");
+                    std::process::exit(1);
+                }));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--assume-verified-checkpoint=") => {
+                if explore_assumed_checkpoint.is_some() {
+                    eprintln!("error: --assume-verified-checkpoint may be supplied only once");
+                    std::process::exit(1);
+                }
+                explore_assumed_checkpoint = Some(
+                    arg["--assume-verified-checkpoint=".len()..]
+                        .parse()
+                        .unwrap_or_else(|error| {
+                            eprintln!("error: {error}");
+                            std::process::exit(1);
+                        }),
+                );
                 i += 1;
             }
             "--run-state" if mode == "explore" => {
@@ -486,6 +513,7 @@ fn main_inner() {
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
+                eprintln!("  explore --assume-verified-checkpoint N:SHA256  Explicitly trust recorded region proofs in a pinned local prefix");
                 eprintln!(
                     "  explore --output PATH  Materialize resumable manifest and NDJSON results"
                 );
@@ -907,7 +935,7 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--output PATH] [--time-limit DURATION] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--assume-verified-checkpoint N:SHA256] [--output PATH] [--time-limit DURATION] [--json]"
         );
         std::process::exit(1);
     }
@@ -1032,6 +1060,7 @@ fn main_inner() {
                         .expect("stream dispatch requires --run-state"),
                     explore_output_directory.as_deref(),
                     explore_max_runtime,
+                    explore_assumed_checkpoint,
                 ),
                 _ => run_source(&source, path, use_prelude),
             },
@@ -7188,7 +7217,7 @@ fn relational_explore_report_json(
     report: &explore::ExploreStreamSliceReport,
     run_state: &Path,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut payload = serde_json::json!({
         "schema": "futuruna.explore.relational-stream.v11",
         "schema_version": report.schema_version,
         "answer": relational_explore_answer_json(report),
@@ -7292,7 +7321,11 @@ fn relational_explore_report_json(
                 }))
                 .collect::<Vec<_>>(),
         })),
-    })
+    });
+    if let Some(assumption) = &report.recovery_assumption {
+        payload["run"]["recovery_assumption"] = serde_json::json!(assumption);
+    }
+    payload
 }
 
 fn relational_explore_result_input_text(input: &explore::ExploreStreamResultInput) -> String {
@@ -7583,6 +7616,14 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
         relational_explore_lifecycle_name(report.lifecycle).to_uppercase()
     );
     println!("  run state: {}", run_state.display());
+    if let Some(assumption) = &report.recovery_assumption {
+        println!(
+            "  recovery assumption: {} regional proof events trusted through {}:{}; new work checked normally",
+            assumption.regional_proof_events_assumed,
+            assumption.next_sequence,
+            assumption.journal_head,
+        );
+    }
     if let Some(publication) = &report.publication {
         println!(
             "  results: {} ({} of {} artifacts caught up; +{} line{} this invocation)",
@@ -7862,6 +7903,7 @@ fn run_relational_explore_stream(
     run_state: &Path,
     output_directory: Option<&Path>,
     max_runtime: Option<std::time::Duration>,
+    assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint>,
 ) {
     let preparation_started = std::time::Instant::now();
     let mut lexer = Lexer::new(source);
@@ -7964,8 +8006,16 @@ fn run_relational_explore_stream(
             }
         }
     }
-    let mut epoch =
-        relational_explore_or_exit(prepared.open_epoch(epoch_options), source, filename);
+    let opened = if let Some(checkpoint) = assumed_checkpoint {
+        eprintln!("warning: assuming previously verified region-cover conclusions in the explicitly pinned local checkpoint; hashes, identity, geometry and new work remain checked");
+        // SAFETY: the user explicitly selected this exact trust anchor with
+        // --assume-verified-checkpoint. The runtime validates its journal binding
+        // and reports the assumption in every resulting report and manifest.
+        unsafe { prepared.open_epoch_assuming_verified_checkpoint(epoch_options, checkpoint) }
+    } else {
+        prepared.open_epoch(epoch_options)
+    };
+    let mut epoch = relational_explore_or_exit(opened, source, filename);
     let preparation_wall_time = preparation_started.elapsed();
     let execution_runtime_budget =
         max_runtime.map(|limit| limit.saturating_sub(preparation_wall_time));

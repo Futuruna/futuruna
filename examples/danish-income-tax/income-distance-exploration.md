@@ -1566,12 +1566,46 @@ trusted solver in this Experimental fallback, not a proof checked by the small
 Futuruna kernel. No dependency is installed automatically.
 
 The checked-box derivation commits the exact generated obligation and its
-non-selection polarity. The digest alone confers no authority: saved cover
-leaves are freshly proved on replay, including a fresh solver response when
-needed. Reopening solver-backed evidence therefore requires that obligation
+non-selection polarity. The digest alone confers no authority: in default
+strict recovery, saved cover leaves are freshly proved on replay, including a
+fresh solver response when needed. Reopening solver-backed evidence requires that obligation
 to succeed again; lack of a solver or a timeout cannot silently authorize it.
 Existing closed V4/V5/V6 derivations keep their prior recipes and roots. The
 new fallback only strengthens previously unknown comparisons.
+
+#### Explicit trusted-checkpoint recovery
+
+For a previously verified local run, an operator may explicitly accept the old
+regional conclusions instead of repeating their mathematical proof searches:
+
+```bash
+runa explore examples/danish-income-tax/personskat-income-distance-unit.explore.runa \
+  --query personskat_income_distance_unit_2026 \
+  --run-state /path/to/existing-state --output /path/to/existing-output \
+  --assume-verified-checkpoint NEXT_SEQUENCE:LOWERCASE_SHA256 \
+  --time-limit 8h --json
+```
+
+Replace the anchor with an independently retained checkpoint's `next_sequence`
+and journal head, not a digest blindly obtained from an untrusted directory.
+The sequence must be positive and the head exactly 64 lowercase hexadecimal
+digits. This option cannot create a run: the anchor must match an installed
+segment boundary in the existing, hash-validated journal. Program, query,
+analysis, event-chain and cover geometry checks remain mandatory.
+
+Only recorded region-cover conclusions inside that prefix are assumed. Any
+newer journal tail, other proof recipes, and all new work retain their normal
+checks. Assumed covers do not populate reusable proof caches. Recovery still
+reads and folds the journal; this is not a constant-time snapshot restore or
+a persisted independently checkable solver proof.
+
+This is an explicit trust tradeoff, not independent re-verification. The CLI
+warns at startup, the human report names the assumption, JSON reports include
+`run.recovery_assumption`, and the publication manifest includes
+`recovery_assumption`. These record the pinned prefix and number of regional
+proof events assumed. Preserve that provenance with exported results. Without
+the option, recovery remains strict; a later successful strict recovery can
+publish a report without the assumption.
 
 Unknown checked affine guards also nominate adjacent source-coordinate cuts.
 These are search hints, not evidence. The cover first separates tiny

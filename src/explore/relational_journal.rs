@@ -2179,6 +2179,10 @@ struct RelationalEvidenceState {
     /// from journal hashes and snapshots; a retained region event cannot be
     /// replayed at all unless this exact authority is rebound by preparation.
     region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
+    /// Enabled only around one hash-authenticated, explicitly trusted replay
+    /// entry. Never retained across calls or used by ordinary event appends.
+    assume_verified_region_replay: bool,
+    assumed_region_proof_events: u64,
     constructor_interner: RelationalConstructorInterner,
     relation: RelationCatalogBuilder,
     admission: AdmissionCatalogBuilder,
@@ -2513,6 +2517,8 @@ impl RelationalEvidenceState {
             contract: contract.clone(),
             scheduler_decision_counts: [0; 10],
             region_replay_authority,
+            assume_verified_region_replay: false,
+            assumed_region_proof_events: 0,
             constructor_interner: RelationalConstructorInterner::default(),
             relation: RelationCatalogBuilder::new(contract.relation_id),
             admission: AdmissionCatalogBuilder::new(contract.relation_id, contract.admission_id),
@@ -4055,7 +4061,20 @@ impl RelationalEvidenceState {
             _ => return Err(RelationalJournalError::ClassifiedChunkAdmissionObligationMissing),
         }
 
-        let verified = authority.reverify_canonical_child(artifact, verified_partition)?;
+        let verified = if self.assume_verified_region_replay && artifact.cover().is_some() {
+            // SAFETY: only the durable, explicitly pinned checkpoint replay
+            // boundary enables this flag, and only for an existing prefix entry.
+            let verified = unsafe {
+                authority.restore_assuming_verified_canonical_child(artifact, verified_partition)
+            }?;
+            self.assumed_region_proof_events = self
+                .assumed_region_proof_events
+                .checked_add(1)
+                .ok_or(RelationalJournalError::SequenceOverflow)?;
+            verified
+        } else {
+            authority.reverify_canonical_child(artifact, verified_partition)?
+        };
         let events = if verified.checked_cover().is_some() {
             verified.cover_events(chunk.cell())?
         } else {
@@ -8151,6 +8170,30 @@ impl RelationalJournal {
         Ok(())
     }
 
+    /// # Safety
+    /// `supplied` must be inside the exact installed checkpoint prefix explicitly
+    /// trusted by the caller, after validating its storage chain and anchor.
+    /// The recovery assumption must remain visible in reports/publication.
+    pub(crate) unsafe fn replay_streaming_entry_assuming_verified_regions(
+        &mut self,
+        supplied: RelationalJournalEntry,
+    ) -> Result<(), RelationalJournalError> {
+        assert!(!self.state.assume_verified_region_replay);
+        self.state.assume_verified_region_replay = true;
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.replay_streaming_entry(supplied)
+        }));
+        self.state.assume_verified_region_replay = false;
+        match result {
+            Ok(result) => result,
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    }
+
+    pub(crate) fn assumed_region_proof_events(&self) -> u64 {
+        self.state.assumed_region_proof_events
+    }
+
     fn replay_with_retention(
         contract: RelationalJournalContract,
         entries: impl IntoIterator<Item = RelationalJournalEntry>,
@@ -8449,6 +8492,8 @@ impl RelationalJournal {
             contract: state_contract,
             scheduler_decision_counts: _,
             region_replay_authority: _,
+            assume_verified_region_replay: _,
+            assumed_region_proof_events: _,
             constructor_interner: _,
             relation,
             admission,
