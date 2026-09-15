@@ -3,10 +3,63 @@
 The full-domain query declaration is
 [`personskat-income-distance-unit.explore.runa`](personskat-income-distance-unit.explore.runa).
 It uses the canonical Personskat calculation, not a simplified tax formula.
-It passes frontend checking and now has a regression proving endpoint totality
-across the full declared ranges, including mechanisms. The full-model query
-now executes governed epochs and writes a durable classified prefix. Exact
-full-grid closure remains unfinished. Explore remains **Experimental**.
+It passes frontend checking and has a regression proving endpoint totality
+across the full declared ranges, including mechanisms. The full-model run
+completed the declared grid on **2026-09-15**, including result, mechanism,
+support and analysis closure. Explore remains **Experimental**; the completed
+answer does not establish release conformance or remove its recovery assumptions.
+
+## Completed full-grid answer
+
+The exact domain is annual salary **0–400,000 DKK** and daily round-trip
+commuting distance **0–200 km**, inclusive, with separate **+1 DKK** and
+**+1 km** interventions. All other inputs remain explicitly conditioned below.
+
+| Classification | Candidates |
+| --- | ---: |
+| Harmless | 160,391,400 |
+| Income-loss cases | 8,800 |
+| Excluded outward edges | 400,202 |
+| Unknown | 0 |
+| Total | 160,800,402 |
+
+There are **50 salary boundaries**, from **342,499 → 342,500** through
+**391,499 → 391,500 DKK** at 1,000-DKK intervals. Each has 176 losing distances,
+25–200 km. Annual losses range from **1.87 to 144.09 DKK**. No distance-only
+loss occurs in this encoded model and fixed context; travel costs/time are not
+part of the metric. The 50/100/150-km profiles detect every cliff boundary but
+miss the exact maximum at 26; adding 200 km still misses 21 maxima.
+
+The final accounting covers 2,454 disjoint chunks and 63,128 regions.
+Regional certificates cover 157,523,602 candidates; concrete sweeps cover
+3,276,800. Every chunk's exclusions reconcile to the declared outward edges:
+201 salary edges and 400,001 distance edges, with no additional in-bounds
+exclusions. All 8,800 findings join successful canonical mechanism incidences
+and source-derived arithmetic explanations, with zero unexplained cases and
+zero øre residual. The explanation reduction is hand-transcribed deterministic
+BigInt arithmetic, not an independent causal proof or pruning authority.
+
+Completed checkpoint **276485 / 8,317 segments** and its final report,
+executable, publication cursor, full journal, output and audit records are
+preserved locally in
+`/Users/andreasrudolph/futuruna-explore-checkpoints/complete-unit-grid-seq276485.q7IKqH/`.
+Start with `result.md`, `boundary-comparison.md` and `restoration.md` there.
+All eleven artifacts are caught up; byte-equal copy comparisons, whole-artifact
+commitment checks, physical journal hash/chain checks, and finding/region/
+exclusion/support/explanation joins passed. The final invocation exited 0.
+
+Recovery explicitly trusted checkpoint 258991: 2,404 regional proof events and,
+with the separate result-row option, 26,400 saved records eligible for row-local
+reuse. This inherits earlier regional assumptions and is not independent
+mathematical re-verification; new work retained normal checks. Journal recovery
+took 45m59.379s, while final byte-integrity checks took seconds. True state
+snapshot/tail-only restoration remains unimplemented. Broad compiler/release
+gates remain deferred under `td-511340`, not passed, per the output-first request.
+
+## Earlier partial results (historical)
+
+The snapshots below record progress toward the completed answer above.
+Their unknown counts, open closures and then-current status are historical.
 
 The original grid has established its **earliest salary cliff:
 342,499 → 342,500 DKK**, at every integer commute distance **25–200 km**.
@@ -14,7 +67,7 @@ All **176 cases at that boundary** now have detailed records and successful
 mechanism replays. Annual losses range from **2.11 to 144.09 DKK**; see
 [the original-grid result](#original-grid-earliest-cliff-result).
 
-The latest stopped checkpoint accounts for **139,959,954 candidates
+An earlier stopped checkpoint accounts for **139,959,954 candidates
 (87.0396%)**, with **20,840,448 still unclassified**. It contains **1,056 cliff
 classifications** across six income boundaries, all with detailed cases and
 successful mechanism replays. The requested eight-hour continuation paused
@@ -31,8 +84,8 @@ in swap bytes or an out-of-memory event. The old macOS provider derived that
 generation from a mutable boot timestamp; see [boot identity](#macos-boot-identity).
 The exact triggering clock event was not recorded. No separate build or test
 suite ran during this epoch. Earlier checkpoints remain protected.
-The full-grid cliff count and maximum loss remain unresolved; the exact
-earliest-cliff conclusion does not require those later pages to close.
+At that stage the full-grid cliff count and maximum loss were unresolved;
+the exact earliest-cliff conclusion did not require those later pages to close.
 
 The earlier **four-boundary** answer at **sequence 51249** accounts for
 **139,042,450 candidates**, with **21,757,952 unclassified**. See
