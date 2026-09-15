@@ -234,6 +234,10 @@ pub struct ExploreStreamRecoveryAssumption {
     pub next_sequence: u64,
     pub journal_head: String,
     pub regional_proof_events_assumed: u64,
+    /// Number of pinned records authorized for row-local value reuse, not a
+    /// count of evaluations skipped. Other result execution paths stay strict.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub row_local_result_records_trusted: Option<usize>,
     pub new_work: &'static str,
 }
 
@@ -436,7 +440,7 @@ impl PreparedRelationalExplore {
         self,
         options: ExploreStreamEpochOptions,
     ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
-        self.open_epoch_with_assumption(options, None)
+        self.open_epoch_with_assumption(options, None, false)
     }
 
     /// Resume an existing journal while assuming its recorded region-cover
@@ -452,13 +456,30 @@ impl PreparedRelationalExplore {
         options: ExploreStreamEpochOptions,
         checkpoint: ExploreTrustedCheckpoint,
     ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
-        self.open_epoch_with_assumption(options, Some(checkpoint))
+        self.open_epoch_with_assumption(options, Some(checkpoint), false)
+    }
+
+    /// Resume with explicit regional trust plus reuse of pinned result values
+    /// during row-local publication. New/unpinned records remain checked normally.
+    ///
+    /// # Safety
+    /// In addition to the regional conclusions, the caller accepts the exact
+    /// checkpoint's recorded result values as trusted input. Integrity, identity,
+    /// typed evidence, selected membership and projection checks remain required.
+    /// Reports disclose this additional assumption, not independent verification.
+    pub unsafe fn open_epoch_assuming_verified_checkpoint_and_result_rows(
+        self,
+        options: ExploreStreamEpochOptions,
+        checkpoint: ExploreTrustedCheckpoint,
+    ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
+        self.open_epoch_with_assumption(options, Some(checkpoint), true)
     }
 
     fn open_epoch_with_assumption(
         mut self,
         options: ExploreStreamEpochOptions,
         assumed: Option<ExploreTrustedCheckpoint>,
+        assume_verified_result_rows: bool,
     ) -> Result<RelationalExploreEpoch, ExploreStreamPreparationError> {
         validate_epoch_options(&options)?;
         let outer_containment = exact_stream_outer_containment(options.outer_containment)?;
@@ -502,6 +523,7 @@ impl PreparedRelationalExplore {
                     RelationalDurableJournalLimits::default(),
                     Arc::clone(authority),
                     checkpoint.0,
+                    assume_verified_result_rows,
                 )
             }
         } else {
@@ -2228,6 +2250,9 @@ fn build_report(
                 next_sequence: checkpoint.next_sequence,
                 journal_head: hex(checkpoint.head),
                 regional_proof_events_assumed: journal.assumed_region_proof_events(),
+                row_local_result_records_trusted: durable
+                    .assumes_verified_result_rows()
+                    .then(|| journal.assumed_result_record_count()),
                 new_work: "checked_normally",
             }
         }),
@@ -4364,6 +4389,24 @@ mod regional_stream_acceptance_tests {
                             }),
                             "{diagnostic}"
                         );
+                        if forge_projection {
+                            let mut trusted =
+                                RelationalJournal::new_streaming_with_region_replay_authority(
+                                    prepared.contract.clone(),
+                                    Arc::clone(&authority),
+                                );
+                            for entry in forged.entries() {
+                                // SAFETY: deliberately trust this fixture's
+                                // row values, never its inconsistent projection.
+                                unsafe {
+                                    trusted.replay_streaming_entry_assuming_verified_regions_and_result_rows(entry.clone())
+                                }.unwrap();
+                            }
+                            let error = make_driver()
+                                .step(&mut trusted, &mut runtime, &mut prepared.mechanism_runtime)
+                                .unwrap_err();
+                            assert!(format!("{error:?}").contains("ExpectedRecordMismatch"));
+                        }
                         // Negative checks are outside the warm/cold work count.
                         runtime.result_calls = calls;
                     }
@@ -4394,6 +4437,308 @@ mod regional_stream_acceptance_tests {
             roots[0], roots[1],
             "warm and cold per-row publication retain the same exact root"
         );
+    }
+
+    #[test]
+    fn assumed_result_rows_reuse_only_pinned_values_and_preserve_exact_projection() {
+        use super::super::relational_executor::{
+            RelationalBoundValue, RelationalExpressionRuntime,
+        };
+        use super::super::relational_result_executor::{
+            RelationalResultBinding, RelationalResultExpressionRuntime,
+        };
+        use super::super::ExploreValue;
+        struct CountingRuntime<'a> {
+            inner: &'a mut RelationalInterpreterExpressionRuntime,
+            result_calls: usize,
+        }
+        impl RelationalExpressionRuntime for CountingRuntime<'_> {
+            fn evaluate(
+                &mut self,
+                expression: &crate::Expr,
+                ty: &Ty,
+                bindings: &[RelationalBoundValue<'_>],
+            ) -> Result<ExploreValue, String> {
+                RelationalExpressionRuntime::evaluate(self.inner, expression, ty, bindings)
+            }
+        }
+        impl RelationalResultExpressionRuntime for CountingRuntime<'_> {
+            fn evaluate(
+                &mut self,
+                expression: &crate::Expr,
+                ty: &Ty,
+                bindings: &[RelationalResultBinding],
+            ) -> Result<ResultValue, String> {
+                self.result_calls += 1;
+                RelationalResultExpressionRuntime::evaluate(self.inner, expression, ty, bindings)
+            }
+        }
+        const SOURCE: &str = r#"
+? explore pinned_rows {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = before + 1
+    find cases = all
+    results rows from find cases {
+        each case
+        measure [score = before * 7 - after]
+        select [case_id, before, after, score]
+    }
+}
+"#;
+        let mut original = prepare(SOURCE);
+        let checked = original.checked.view();
+        let authority = exact_one_region_replay_authority(&original);
+        let mut journal = RelationalJournal::new_with_region_replay_authority(
+            original.contract.clone(),
+            Arc::clone(&authority),
+        );
+        let mut driver =
+            RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                &checked,
+                &original.support_plan,
+                RelationalStreamDriverLimits::default(),
+                None,
+                Some(&original.classification_evaluator),
+            )
+            .unwrap();
+        for _ in 0..256 {
+            let RelationalStreamStepOutcome::Emitted(batch) = driver
+                .step(
+                    &mut journal,
+                    &mut original.expression_runtime,
+                    &mut original.mechanism_runtime,
+                )
+                .unwrap()
+            else {
+                panic!("fixture quiesced before projection");
+            };
+            if matches!(
+                batch.quantum(),
+                RelationalStreamQuantum::Result(
+                    RelationalResultStepQuantum::PublishSelectedProjectionRecords { .. }
+                )
+            ) {
+                break;
+            }
+            for event in batch.into_events() {
+                journal.append(event).unwrap();
+            }
+        }
+        let result_entries = journal
+            .entries()
+            .iter()
+            .filter_map(|entry| {
+                if let RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                    RelationalAnalysisEvidenceEvent::ResultEvidenceAccepted { record, .. },
+                )) = entry.event()
+                {
+                    Some((entry.sequence(), record.id()))
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(result_entries.len(), 4);
+        let partial_sequence = result_entries[1].0 + 1;
+        let mut roots = Vec::new();
+        // Strict, old region-only mode, partial pin with existing tail, partial
+        // pin with newly appended tail, and a fully pinned cold publication.
+        for (trust_regions, trust_rows, full_pin, append_tail_later) in [
+            (false, false, false, false),
+            (true, false, false, false),
+            (true, true, false, false),
+            (true, true, false, true),
+            (true, true, true, false),
+        ] {
+            let temp = TestDirectory::new();
+            let options = ExploreStreamEpochOptions {
+                run_state: temp.path().join("state"),
+                output_directory: Some(temp.path().join("output")),
+                outer_containment: None,
+            };
+            let mut durable =
+                RelationalDurableJournal::open_or_create_with_region_replay_authority(
+                    &options.run_state,
+                    original.contract.clone(),
+                    original.analysis_plan_root,
+                    RelationalDurableJournalLimits::default(),
+                    Arc::clone(&authority),
+                )
+                .unwrap();
+            let mut pin = None;
+            for entry in journal.entries() {
+                if append_tail_later && entry.sequence() >= partial_sequence {
+                    break;
+                }
+                durable
+                    .append_events(entry.sequence(), entry.previous(), [entry.event().clone()])
+                    .unwrap();
+                if entry.sequence() + 1 == partial_sequence {
+                    pin = Some(durable.flush_for_pause().unwrap());
+                }
+            }
+            let terminal = durable.flush_for_pause().unwrap();
+            let pin = if full_pin { terminal } else { pin.unwrap() };
+            let checkpoint = ExploreTrustedCheckpoint(
+                super::super::relational_durable_journal::AssumedVerifiedCheckpoint {
+                    next_sequence: pin.next_sequence(),
+                    head: pin.head().bytes(),
+                },
+            );
+            drop(durable);
+            let mut resumed = if trust_rows {
+                // SAFETY: the fixture computed and retained this exact pin.
+                unsafe {
+                    prepare(SOURCE).open_epoch_assuming_verified_checkpoint_and_result_rows(
+                        options, checkpoint,
+                    )
+                }
+            } else if trust_regions {
+                unsafe {
+                    prepare(SOURCE).open_epoch_assuming_verified_checkpoint(options, checkpoint)
+                }
+            } else {
+                prepare(SOURCE).open_epoch(options)
+            }
+            .unwrap();
+            if append_tail_later {
+                for entry in journal
+                    .entries()
+                    .iter()
+                    .filter(|entry| entry.sequence() >= partial_sequence)
+                {
+                    resumed
+                        .durable
+                        .append_events(entry.sequence(), entry.previous(), [entry.event().clone()])
+                        .unwrap();
+                }
+            }
+            let expected_trusted = if !trust_rows {
+                0
+            } else if full_pin {
+                4
+            } else {
+                2
+            };
+            assert_eq!(
+                resumed
+                    .durable
+                    .journal()
+                    .unwrap()
+                    .assumed_result_record_count(),
+                expected_trusted
+            );
+            for (sequence, id) in &result_entries {
+                assert_eq!(
+                    resumed
+                        .durable
+                        .journal()
+                        .unwrap()
+                        .scheduler_view()
+                        .unwrap()
+                        .assumes_result_row(*id),
+                    trust_rows && *sequence < checkpoint.0.next_sequence
+                );
+            }
+            let checked = resumed.prepared.checked.view();
+            let mut runtime = CountingRuntime {
+                inner: &mut resumed.prepared.expression_runtime,
+                result_calls: 0,
+            };
+            let mut projected = 0;
+            for _ in 0..64 {
+                if resumed
+                    .durable
+                    .journal()
+                    .unwrap()
+                    .analysis_state()
+                    .unwrap()
+                    .is_closed()
+                {
+                    break;
+                }
+                // Every step is cold: this test cannot accidentally pass by
+                // carrying ordinary warm receipts across publication quanta.
+                let mut driver =
+                    RelationalStreamDriver::from_checked_with_limits_and_classification_backends(
+                        &checked,
+                        &resumed.prepared.support_plan,
+                        RelationalStreamDriverLimits::default(),
+                        None,
+                        Some(&resumed.prepared.classification_evaluator),
+                    )
+                    .unwrap();
+                let RelationalStreamStepOutcome::Emitted(batch) = driver
+                    .step(
+                        resumed.durable.journal_mut_for_event_planning().unwrap(),
+                        &mut runtime,
+                        &mut resumed.prepared.mechanism_runtime,
+                    )
+                    .unwrap()
+                else {
+                    panic!("cold recovered fixture quiesced");
+                };
+                if matches!(
+                    batch.quantum(),
+                    RelationalStreamQuantum::Result(
+                        RelationalResultStepQuantum::PublishSelectedProjectionRecords { .. }
+                    )
+                ) {
+                    projected += 1;
+                }
+                let j = resumed.durable.journal().unwrap();
+                resumed
+                    .durable
+                    .append_events(j.next_sequence(), j.head(), batch.into_events())
+                    .unwrap();
+            }
+            assert_eq!(projected, 4);
+            assert_eq!(runtime.result_calls, (4 - expected_trusted) * 5);
+            assert!(resumed
+                .durable
+                .journal()
+                .unwrap()
+                .analysis_state()
+                .unwrap()
+                .is_closed());
+            assert_eq!(
+                resumed
+                    .durable
+                    .journal()
+                    .unwrap()
+                    .assumed_result_record_count(),
+                expected_trusted
+            );
+            resumed.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test().unwrap();
+            let report = resumed.run_slice(None).unwrap();
+            let assumed_count = report
+                .recovery_assumption
+                .as_ref()
+                .and_then(|assumption| assumption.row_local_result_records_trusted);
+            assert_eq!(assumed_count, trust_rows.then_some(expected_trusted));
+            let manifest: serde_json::Value = serde_json::from_slice(
+                &fs::read(&report.publication.as_ref().unwrap().manifest_path).unwrap(),
+            )
+            .unwrap();
+            assert_eq!(
+                manifest["recovery_assumption"]["row_local_result_records_trusted"],
+                serde_json::json!(assumed_count)
+            );
+            let layers = analysis_layers(
+                resumed.durable.journal().unwrap(),
+                &resumed.prepared.checked.view(),
+                &[0],
+            )
+            .unwrap();
+            let ExploreStreamLayer::Result(result) = &layers[0] else {
+                panic!("expected result layer");
+            };
+            roots.push(result.evidence.as_ref().unwrap().result_root.clone());
+        }
+        assert!(roots.iter().all(|root| root == &roots[0]));
     }
 
     #[test]
@@ -4761,10 +5106,29 @@ mod regional_stream_acceptance_tests {
         }
         .is_err());
         assert!(!temp.path().join("missing-state").exists());
+        let mut missing_rows_options = options.clone();
+        missing_rows_options.run_state = temp.path().join("missing-result-state");
+        assert!(unsafe {
+            prepare(SOURCE).open_epoch_assuming_verified_checkpoint_and_result_rows(
+                missing_rows_options,
+                checkpoint,
+            )
+        }
+        .is_err());
+        assert!(!temp.path().join("missing-result-state").exists());
         // The same anchor cannot cross into a different checked question/model.
         assert!(unsafe {
             prepare(&SOURCE.replace("s.income * 3", "s.income * 4"))
                 .open_epoch_assuming_verified_checkpoint(options.clone(), checkpoint)
+        }
+        .is_err());
+
+        assert!(unsafe {
+            prepare(&SOURCE.replace("s.income * 3", "s.income * 4"))
+                .open_epoch_assuming_verified_checkpoint_and_result_rows(
+                    options.clone(),
+                    checkpoint,
+                )
         }
         .is_err());
 
@@ -4788,6 +5152,13 @@ mod regional_stream_acceptance_tests {
             }
             .err()
             .expect("wrong checkpoint must fail closed");
+            assert!(error.to_string().contains("checkpoint"));
+            let error = unsafe {
+                prepare(SOURCE)
+                    .open_epoch_assuming_verified_checkpoint_and_result_rows(options.clone(), bad)
+            }
+            .err()
+            .expect("result-row trust must reject a wrong checkpoint");
             assert!(error.to_string().contains("checkpoint"));
         }
         // SAFETY: this exact local checkpoint was just computed above.

@@ -101,6 +101,7 @@ fn main_inner() {
     let mut explore_query = None;
     let mut explore_run_state = None;
     let mut explore_assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint> = None;
+    let mut explore_assume_verified_result_rows = false;
     let mut explore_output_directory = None;
     let mut explore_max_runtime = None;
     let mut calculation_entry = None;
@@ -231,6 +232,14 @@ fn main_inner() {
                     std::process::exit(1);
                 }
                 explore_query = Some(value.to_string());
+                i += 1;
+            }
+            "--assume-verified-result-rows" if mode == "explore" => {
+                if explore_assume_verified_result_rows {
+                    eprintln!("error: --assume-verified-result-rows may be supplied only once");
+                    std::process::exit(1);
+                }
+                explore_assume_verified_result_rows = true;
                 i += 1;
             }
             "--assume-verified-checkpoint" if mode == "explore" => {
@@ -515,6 +524,7 @@ fn main_inner() {
                 eprintln!("  explore --query NAME  Select one named exploration");
                 eprintln!("  explore --run-state PATH  Required durable journal directory");
                 eprintln!("  explore --assume-verified-checkpoint N:SHA256  Explicitly trust recorded region proofs in a pinned local prefix");
+                eprintln!("  explore --assume-verified-result-rows  Also trust pinned result values for row-local publication (requires checkpoint pin)");
                 eprintln!(
                     "  explore --output PATH  Materialize resumable manifest and NDJSON results"
                 );
@@ -936,13 +946,23 @@ fn main_inner() {
 
     if mode == "explore" && filename.is_none() {
         eprintln!(
-            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--assume-verified-checkpoint N:SHA256] [--output PATH] [--time-limit DURATION] [--json]"
+            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--assume-verified-checkpoint N:SHA256 [--assume-verified-result-rows]] [--output PATH] [--time-limit DURATION] [--json]"
         );
         std::process::exit(1);
     }
 
     if mode == "explore" && explore_run_state.is_none() {
         eprintln!("error: relational exploration requires a durable --run-state path");
+        std::process::exit(1);
+    }
+
+    if mode == "explore"
+        && explore_assume_verified_result_rows
+        && explore_assumed_checkpoint.is_none()
+    {
+        eprintln!(
+            "error: --assume-verified-result-rows requires --assume-verified-checkpoint N:SHA256"
+        );
         std::process::exit(1);
     }
 
@@ -1062,6 +1082,7 @@ fn main_inner() {
                     explore_output_directory.as_deref(),
                     explore_max_runtime,
                     explore_assumed_checkpoint,
+                    explore_assume_verified_result_rows,
                 ),
                 _ => run_source(&source, path, use_prelude),
             },
@@ -7624,6 +7645,9 @@ fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, r
             assumption.next_sequence,
             assumption.journal_head,
         );
+        if let Some(count) = assumption.row_local_result_records_trusted {
+            println!("  additional recovery assumption: {count} pinned result records authorized for row-local value reuse; not independently re-evaluated (not a skipped-evaluation count)");
+        }
     }
     if let Some(publication) = &report.publication {
         println!(
@@ -7905,6 +7929,7 @@ fn run_relational_explore_stream(
     output_directory: Option<&Path>,
     max_runtime: Option<std::time::Duration>,
     assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint>,
+    assume_verified_result_rows: bool,
 ) {
     let preparation_started = std::time::Instant::now();
     let mut lexer = Lexer::new(source);
@@ -8013,7 +8038,19 @@ fn run_relational_explore_stream(
         // SAFETY: the user explicitly selected this exact trust anchor with
         // --assume-verified-checkpoint. The runtime validates its journal binding
         // and reports the assumption in every resulting report and manifest.
-        unsafe { prepared.open_epoch_assuming_verified_checkpoint(epoch_options, checkpoint) }
+        if assume_verified_result_rows {
+            eprintln!("warning: additionally trusting pinned result values for row-local publication; typed evidence, selected membership and projection checks remain required; new/unpinned rows are checked normally");
+            // SAFETY: this distinct opt-in explicitly extends the same pin's
+            // trust to saved result values; reports retain the additional scope.
+            unsafe {
+                prepared.open_epoch_assuming_verified_checkpoint_and_result_rows(
+                    epoch_options,
+                    checkpoint,
+                )
+            }
+        } else {
+            unsafe { prepared.open_epoch_assuming_verified_checkpoint(epoch_options, checkpoint) }
+        }
     } else {
         prepared.open_epoch(epoch_options)
     };

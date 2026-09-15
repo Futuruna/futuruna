@@ -114,7 +114,7 @@ use super::relational_uniform_admission_proof::{
     reverify_relational_uniform_admission_artifact, RelationalUniformAdmissionProofArtifact,
     RelationalUniformAdmissionProofError,
 };
-use super::result_evidence::RelationalResultInputSeal;
+use super::result_evidence::{RelationalResultEvidenceId, RelationalResultInputSeal};
 use super::support_cell::{
     relational_case_chunk_partition_gateway, relational_case_image_proof_gateway,
     relational_classified_sweep_gateway, relational_region_proof_gateway,
@@ -6477,6 +6477,10 @@ pub(crate) struct RelationalJournal {
     entries: Vec<RelationalJournalEntry>,
     retain_history: bool,
     state: RelationalEvidenceState,
+    /// Process-local assumption authority, never ordinary verified receipts.
+    /// Only authenticated-prefix replay populates this index. It retains IDs,
+    /// not duplicate row payloads, and cannot authorize a different record.
+    assumed_result_rows: BTreeSet<RelationalResultEvidenceId>,
 }
 
 /// One bounded request-local support lifecycle proposal. Every independently
@@ -6540,6 +6544,10 @@ pub(crate) struct RelationalSchedulerView<'a> {
 }
 
 impl<'a> RelationalSchedulerView<'a> {
+    pub(crate) fn assumes_result_row(self, id: RelationalResultEvidenceId) -> bool {
+        self.journal.assumed_result_rows.contains(&id)
+    }
+
     pub(crate) const fn contract(self) -> &'a RelationalJournalContract {
         &self.journal.contract
     }
@@ -7302,6 +7310,7 @@ impl RelationalJournal {
             entries: Vec::new(),
             retain_history,
             state,
+            assumed_result_rows: BTreeSet::new(),
         }
     }
 
@@ -8192,6 +8201,32 @@ impl RelationalJournal {
 
     pub(crate) fn assumed_region_proof_events(&self) -> u64 {
         self.state.assumed_region_proof_events
+    }
+
+    /// # Safety
+    /// The caller must authenticate and explicitly trust this exact prefix for
+    /// both regional conclusions and recorded row-local result values. Ordinary
+    /// semantic replay still validates the event before granting row authority.
+    pub(crate) unsafe fn replay_streaming_entry_assuming_verified_regions_and_result_rows(
+        &mut self,
+        supplied: RelationalJournalEntry,
+    ) -> Result<(), RelationalJournalError> {
+        let result_id = match supplied.event() {
+            RelationalJournalEvent::Evidence(RelationalEvidenceEvent::Analysis(
+                RelationalAnalysisEvidenceEvent::ResultEvidenceAccepted { record, .. },
+            )) => Some(record.id()),
+            _ => None,
+        };
+        // SAFETY: this entry point requires the same exact regional trust pin.
+        unsafe { self.replay_streaming_entry_assuming_verified_regions(supplied) }?;
+        if let Some(id) = result_id {
+            self.assumed_result_rows.insert(id);
+        }
+        Ok(())
+    }
+
+    pub(crate) fn assumed_result_record_count(&self) -> usize {
+        self.assumed_result_rows.len()
     }
 
     fn replay_with_retention(

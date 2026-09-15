@@ -217,6 +217,7 @@ pub(crate) struct RelationalDurableJournal {
     pending_heads: VecDeque<PendingSemanticHead>,
     poisoned: bool,
     assumed_verified_checkpoint: Option<AssumedVerifiedCheckpoint>,
+    assume_verified_result_rows: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -286,6 +287,7 @@ impl RelationalDurableJournal {
             store,
             None,
             None,
+            false,
         )
     }
 
@@ -310,6 +312,7 @@ impl RelationalDurableJournal {
             store,
             Some(authority),
             None,
+            false,
         )
     }
 
@@ -333,12 +336,15 @@ impl RelationalDurableJournal {
             store,
             None,
             None,
+            false,
         )
     }
 
     /// # Safety
     /// The caller explicitly accepts the recorded regional conclusions in this
     /// exact checkpoint as trusted input, and must disclose that assumption.
+    /// If `assume_verified_result_rows` is true, the caller additionally trusts
+    /// its recorded result values for row-local publication without evaluation.
     pub(crate) unsafe fn open_assuming_verified_checkpoint(
         directory: impl AsRef<Path>,
         contract: RelationalJournalContract,
@@ -346,6 +352,7 @@ impl RelationalDurableJournal {
         limits: RelationalDurableJournalLimits,
         authority: Arc<RelationalRegionReplayAuthority>,
         checkpoint: AssumedVerifiedCheckpoint,
+        assume_verified_result_rows: bool,
     ) -> Result<Self, RelationalDurableJournalError> {
         // Unlike ordinary open-or-create, assumption mode cannot create a run.
         let store = RelationalJournalSegmentStore::open(
@@ -361,6 +368,7 @@ impl RelationalDurableJournal {
             store,
             Some(authority),
             Some(checkpoint),
+            assume_verified_result_rows,
         )
     }
 
@@ -371,7 +379,11 @@ impl RelationalDurableJournal {
         store: RelationalJournalSegmentStore,
         region_replay_authority: Option<Arc<RelationalRegionReplayAuthority>>,
         assumed_verified_checkpoint: Option<AssumedVerifiedCheckpoint>,
+        assume_verified_result_rows: bool,
     ) -> Result<Self, RelationalDurableJournalError> {
+        if assume_verified_result_rows && assumed_verified_checkpoint.is_none() {
+            return Err(RelationalDurableJournalError::AssumedCheckpointMismatch);
+        }
         if let Some(checkpoint) = assumed_verified_checkpoint {
             if checkpoint.next_sequence == 0
                 || !store
@@ -439,7 +451,11 @@ impl RelationalDurableJournal {
                             // against installed, hash-validated segments above.
                             // Only entries inside that exact prefix use assumptions.
                             unsafe {
-                                journal.replay_streaming_entry_assuming_verified_regions(entry)
+                                if assume_verified_result_rows {
+                                    journal.replay_streaming_entry_assuming_verified_regions_and_result_rows(entry)
+                                } else {
+                                    journal.replay_streaming_entry_assuming_verified_regions(entry)
+                                }
                             }?;
                         } else {
                             journal.replay_streaming_entry(entry)?;
@@ -494,11 +510,16 @@ impl RelationalDurableJournal {
             pending_heads: VecDeque::new(),
             poisoned: false,
             assumed_verified_checkpoint,
+            assume_verified_result_rows,
         })
     }
 
     pub(crate) const fn assumed_verified_checkpoint(&self) -> Option<AssumedVerifiedCheckpoint> {
         self.assumed_verified_checkpoint
+    }
+
+    pub(crate) const fn assumes_verified_result_rows(&self) -> bool {
+        self.assume_verified_result_rows
     }
 
     pub(crate) const fn contract(&self) -> &RelationalJournalContract {

@@ -1749,7 +1749,9 @@ impl<'query> RelationalResultStepDriver<'query> {
                     },
                 );
             }
-            if !self.warm_result_rows.borrow().ids.contains(&record.id()) {
+            if !view.assumes_result_row(record.id())
+                && !self.warm_result_rows.borrow().ids.contains(&record.id())
+            {
                 let evaluated = layer.executor.evaluate_concrete_case(case, runtime)?;
                 if RelationalResultEvidenceRecord::from_evaluated(&evaluated) != *record {
                     return Err(RelationalResultStepDriverError::DurableEvidenceMismatch {

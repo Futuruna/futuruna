@@ -1607,6 +1607,26 @@ proof events assumed. Preserve that provenance with exported results. Without
 the option, recovery remains strict; a later successful strict recovery can
 publish a report without the assumption.
 
+For an additional, separate trust decision, add `--assume-verified-result-rows`
+alongside that checkpoint pin. This allows row-local result publication to
+reuse the recorded evaluated values inside the authenticated prefix rather
+than evaluating the same expressions again after their warm receipts have
+expired. The existing checkpoint option alone remains regional-only. Missing
+or mismatched pins fail closed; unpinned/new rows retain ordinary evaluation.
+Typed evidence, selected-case membership, existing projection consistency and
+all byte/model/query identity checks remain mandatory. Grouped, Choice and
+other non-row-local result execution paths retain their existing checks.
+
+The CLI warns about this extra scope, and reports/manifests add
+`recovery_assumption.row_local_result_records_trusted`. This is the number of
+pinned evidence records authorized for row-local reuse, not the number of
+evaluations actually skipped; a record may belong to another execution path
+or already be published. This process-local index retains only content IDs,
+never duplicates row payloads, never enters the ordinary verified-receipt
+cache, and is not extended by new work. The saved values are explicitly
+trusted, not independently reverified. This still does not provide snapshot
+or tail-only restoration.
+
 Both recovery modes also reuse the most recently strictly checked mechanism
 signature in memory. Exact canonical definition bytes and signature-bound
 receipt fields must match; only the immutable decoded graphs and their
