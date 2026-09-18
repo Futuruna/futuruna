@@ -14284,6 +14284,28 @@ fn runtime_map_entry_parts<'a>(
     }
 }
 
+// Collection identity uses structural hash buckets, but iteration is a public
+// operation: retain the display-key ordering used by the native backend. Never
+// use display text for lookup or equality (distinct values can render alike).
+fn runtime_map_ordered_entries(entries: &BTreeMap<String, Value>) -> Vec<(&str, &Value)> {
+    let mut ordered = entries
+        .iter()
+        .map(|(key, value)| (key.as_str(), value))
+        .collect::<Vec<_>>();
+    ordered.sort_by_cached_key(|(stored_key, stored_value)| {
+        runtime_map_entry_parts(stored_key, stored_value)
+            .map(|(key, _)| key.to_string())
+            .unwrap_or_else(|| stored_key.to_string())
+    });
+    ordered
+}
+
+fn runtime_set_ordered_values(entries: &BTreeMap<String, Value>) -> Vec<&Value> {
+    let mut ordered = entries.values().collect::<Vec<_>>();
+    ordered.sort_by_cached_key(|value| value.to_string());
+    ordered
+}
+
 fn runtime_map_find_storage_key<'a>(
     entries: &'a BTreeMap<String, Value>,
     key: &Value,
@@ -14553,7 +14575,9 @@ impl fmt::Display for Value {
             }
             Value::Map(entries) => {
                 write!(f, "{{")?;
-                for (i, (stored_key, stored_value)) in entries.iter().enumerate() {
+                for (i, (stored_key, stored_value)) in
+                    runtime_map_ordered_entries(entries).into_iter().enumerate()
+                {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
@@ -14567,7 +14591,7 @@ impl fmt::Display for Value {
             }
             Value::Set(items) => {
                 write!(f, "{{")?;
-                for (i, (_, v)) in items.iter().enumerate() {
+                for (i, v) in runtime_set_ordered_values(items).into_iter().enumerate() {
                     if i > 0 {
                         write!(f, ", ")?;
                     }
@@ -22349,12 +22373,12 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     Value::List(
-                        entries
-                            .iter()
+                        runtime_map_ordered_entries(entries)
+                            .into_iter()
                             .map(|(stored_key, stored_value)| {
                                 runtime_map_entry_parts(stored_key, stored_value)
                                     .map(|(key, _)| key.clone())
-                                    .unwrap_or_else(|| Value::Str(stored_key.clone()))
+                                    .unwrap_or_else(|| Value::Str(stored_key.to_string()))
                             })
                             .collect(),
                     )
@@ -22367,8 +22391,8 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     Value::List(
-                        entries
-                            .iter()
+                        runtime_map_ordered_entries(entries)
+                            .into_iter()
                             .map(|(stored_key, stored_value)| {
                                 runtime_map_entry_parts(stored_key, stored_value)
                                     .map(|(_, value)| value.clone())
@@ -22385,8 +22409,8 @@ impl Interpreter {
                         return Value::Unit;
                     }
                     Value::List(
-                        entries
-                            .iter()
+                        runtime_map_ordered_entries(entries)
+                            .into_iter()
                             .map(|(stored_key, stored_value)| {
                                 if let Some((key, value)) =
                                     runtime_map_entry_parts(stored_key, stored_value)
@@ -22394,7 +22418,7 @@ impl Interpreter {
                                     Value::Tuple(vec![key.clone(), value.clone()])
                                 } else {
                                     Value::Tuple(vec![
-                                        Value::Str(stored_key.clone()),
+                                        Value::Str(stored_key.to_string()),
                                         stored_value.clone(),
                                     ])
                                 }
@@ -22524,7 +22548,12 @@ impl Interpreter {
                     if !self.ground_collection_allowed(items.len(), "set_to_list") {
                         return Value::Unit;
                     }
-                    Value::List(items.values().cloned().collect())
+                    Value::List(
+                        runtime_set_ordered_values(items)
+                            .into_iter()
+                            .cloned()
+                            .collect(),
+                    )
                 }
                 _ => Value::List(vec![]),
             },
@@ -28574,6 +28603,10 @@ pub struct TypeChecker {
     var_types: Vec<BTreeMap<String, String>>,
     /// qualified import module name -> exported member names
     module_exports: BTreeMap<String, BTreeSet<String>>,
+    /// Primitive result ABIs from checked qualified sources. Nominal results
+    /// require namespace ownership and must not be flattened into root names.
+    module_primitive_return_types: BTreeMap<(String, String, usize), String>,
+    module_return_sources_in_progress: BTreeSet<String>,
     /// structured diagnostics accumulated during checking
     pub diagnostics: Vec<Diagnostic>,
     /// current variable scope stack
@@ -45164,6 +45197,8 @@ impl TypeChecker {
             canonical_dispatch_definite_error: Cell::new(false),
             var_types: vec![BTreeMap::new()],
             module_exports: BTreeMap::new(),
+            module_primitive_return_types: BTreeMap::new(),
+            module_return_sources_in_progress: BTreeSet::new(),
             diagnostics: Vec::new(),
             scopes: vec![BTreeSet::new()],
             user_functions: BTreeSet::new(),
@@ -46100,7 +46135,15 @@ impl TypeChecker {
             .constructor_signatures
             .entry(constructor.to_string())
             .or_default();
-        if !signatures.contains(&signature) {
+        // Broad hints may omit a generic variable while field_tys retains it.
+        // The builtin and authored prelude then describe one declaration, not
+        // two ambiguous constructors. Compare the authoritative field schemas.
+        if !signatures.iter().any(|known| {
+            known.parent == signature.parent
+                && known.positional == signature.positional
+                && known.fields == signature.fields
+                && known.field_tys == signature.field_tys
+        }) {
             signatures.push(signature.clone());
         }
 
@@ -49255,6 +49298,15 @@ impl TypeChecker {
                 }
 
                 if let ExprKind::Field(base, member) = &func.as_ref().kind {
+                    if let ExprKind::Var(module) = &base.kind {
+                        if !locals.contains_key(module) && self.module_exports.contains_key(module)
+                        {
+                            return self
+                                .module_primitive_return_types
+                                .get(&(module.clone(), member.clone(), args.len()))
+                                .cloned();
+                        }
+                    }
                     let base_type = self.infer_expr_type_name_with_locals_in_scope(
                         base,
                         locals,
@@ -49295,13 +49347,19 @@ impl TypeChecker {
                         left,
                         locals,
                         active_rule_scope,
-                    )?;
+                    );
                     let right_type = self.infer_expr_type_name_with_locals_in_scope(
                         right,
                         locals,
                         active_rule_scope,
-                    )?;
-                    Self::merge_inferred_type_names(&left_type, &right_type)
+                    );
+                    if operator == "+"
+                        && (left_type.as_deref() == Some("String")
+                            || right_type.as_deref() == Some("String"))
+                    {
+                        return Some("String".to_string());
+                    }
+                    Self::merge_inferred_type_names(&left_type?, &right_type?)
                 }
             },
             ExprKind::UnOp(operator, inner) => {
@@ -50802,10 +50860,12 @@ impl TypeChecker {
         match pattern {
             Pat::Wild | Pat::Var(_) => true,
             Pat::As(inner, _) => Self::canonical_pattern_is_irrefutable(inner),
-            Pat::Con(_, fields) => fields.iter().all(Self::canonical_pattern_is_irrefutable),
+            Pat::Con(_, fields) => fields
+                .iter()
+                .all(Self::canonical_pattern_is_subject_catchall),
             Pat::NamedCon(_, fields) => fields
                 .iter()
-                .all(|(_, pattern)| Self::canonical_pattern_is_irrefutable(pattern)),
+                .all(|(_, pattern)| Self::canonical_pattern_is_subject_catchall(pattern)),
             Pat::Lit(_) => false,
         }
     }
@@ -52376,12 +52436,75 @@ impl TypeChecker {
     fn prepare_rule_dispatch_metadata(&mut self, stmts: &[Stmt]) {
         self.infer_top_level_binding_types(stmts);
         self.infer_rule_return_types(stmts);
+        self.infer_top_level_binding_types(stmts);
         self.infer_canonical_rule_dispatch_metadata(stmts);
         self.establish_explore_function_return_types();
         self.infer_explore_rule_return_types(stmts);
         self.validate_explore_function_return_types();
         self.infer_canonical_rule_dispatch_metadata(stmts);
         self.infer_explore_rule_return_types(stmts);
+    }
+
+    fn collect_qualified_primitive_return_types(
+        &mut self,
+        module: &str,
+        statements: &[Stmt],
+        file_path: &str,
+    ) {
+        self.module_primitive_return_types
+            .retain(|(owner, _, _), _| owner != module);
+        let source = std::fs::canonicalize(file_path)
+            .map(|path| path.to_string_lossy().to_string())
+            .unwrap_or_else(|_| file_path.to_string());
+        if self.module_return_sources_in_progress.contains(&source) {
+            return;
+        }
+        let mut child = Self::new();
+        child.source_dir = std::path::Path::new(file_path)
+            .parent()
+            .map(|path| path.to_string_lossy().to_string());
+        // Cyclic imports may expose names, but do not recursively manufacture
+        // a result ABI for a cycle that has not been checked.
+        child.imported = self.module_return_sources_in_progress.clone();
+        child.imported.insert(source.clone());
+        child.module_return_sources_in_progress = self.module_return_sources_in_progress.clone();
+        child.module_return_sources_in_progress.insert(source);
+        child.install_constructor_prepass(statements);
+        child.collect_declarations(statements);
+        child.prepare_rule_dispatch_metadata(statements);
+        child.check_program(statements);
+        if !child.diagnostics.is_empty() {
+            return;
+        }
+        let Some(exports) = self.module_exports.get(module) else {
+            return;
+        };
+        let results = child
+            .rule_dispatch_backend_return_types
+            .iter()
+            .filter(|(key, _)| {
+                key.scope.is_none()
+                    && (child.rule_dispatch_runtime_irrefutable_keys.contains(*key)
+                        || child.rule_dispatch_boolean_miss_safe_keys.contains(*key))
+            })
+            .map(|(key, result)| ((key.name.clone(), key.arity), result.clone()))
+            .chain(
+                child
+                    .explore_function_return_types_by_arity
+                    .iter()
+                    .map(|(key, result)| (key.clone(), Self::canonical_explore_ty_name(result))),
+            );
+        for ((name, arity), result) in results {
+            if exports.contains(&name)
+                && matches!(
+                    result.as_str(),
+                    "Int" | "Float" | "String" | "Bool" | "Char" | "()"
+                )
+            {
+                self.module_primitive_return_types
+                    .insert((module.to_string(), name, arity), result);
+            }
+        }
     }
 
     fn rule_scope_return_candidate(rule: &Rule) -> Option<(String, String)> {
@@ -52824,11 +52947,15 @@ impl TypeChecker {
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
                     }
+                    Stmt::Rule(rule) => {
+                        if let Some((name, _)) = rule.callable_name_arity() {
+                            exported.insert(name);
+                        }
+                    }
                     Stmt::TypeDecl(TypeDecl::WhenType { .. })
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
-                    | Stmt::Rule(_)
                     | Stmt::Use(_)
                     | Stmt::Import(_)
                     | Stmt::QualifiedImport(_, _)
@@ -53740,15 +53867,18 @@ impl TypeChecker {
                             let canon = std::fs::canonicalize(&file_path)
                                 .map(|p| p.to_string_lossy().to_string())
                                 .unwrap_or(file_path.clone());
-                            if !self.imported.contains(&canon) {
-                                self.imported.insert(canon);
-                            }
+                            self.imported.insert(canon);
                             if let Some(import_stmts) =
                                 self.parse_imported_source_for_tc(path, &file_path, false)
                             {
                                 let exported =
                                     Self::exported_names_from_stmts(import_stmts.statements());
                                 self.module_exports.insert(mod_name.clone(), exported);
+                                self.collect_qualified_primitive_return_types(
+                                    mod_name,
+                                    import_stmts.statements(),
+                                    &file_path,
+                                );
                             }
                         }
                     }
@@ -63584,6 +63714,145 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     #[test]
+    fn canonical_nested_constructor_patterns_do_not_overclaim_exhaustiveness() {
+        let source = r#"
+# Option(a) = None | Some(a)
+# Event = Dated(date: Option(Int)) | Empty
+| year(event: Event) -> match event {
+    | Dated(Some(date)) -> date
+    | Empty -> 0
+}
+"#;
+        let statements = parse_test_program(source).unwrap();
+        let mut checker = TypeChecker::new();
+        checker.collect_declarations(&statements);
+        assert_eq!(
+            checker.constructor_signatures["Some"].len(),
+            1,
+            "builtin and authored prelude signatures represent one constructor"
+        );
+        checker.prepare_rule_dispatch_metadata(&statements);
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "year".into(),
+            arity: 1,
+        };
+        assert_eq!(
+            checker
+                .rule_dispatch_backend_return_types
+                .get(&key)
+                .map(String::as_str),
+            Some("Int")
+        );
+        assert!(
+            !checker.rule_dispatch_return_types.contains_key(&key),
+            "Dated(None) is not covered by Dated(Some(date))"
+        );
+    }
+
+    #[test]
+    fn qualified_primitive_result_abis_preserve_alias_exports_and_arity() {
+        let temp_dir = std::env::temp_dir().join(format!(
+            "futuruna-qualified-primitive-abi-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+| answer(value: Int) -> value
+| private_value() -> 7
+@ export
+| partial(0) -> 7
+@ export
+# Token = Token
+@ export
+| make() -> Token
+"#,
+        )
+        .unwrap();
+        let source = "@ import A from ./dep\n@ import B from ./dep\n| a(value: Int) -> A.answer(value)\n| b(value: Int) -> B.answer(value)\n";
+        let statements = parse_test_program(source).unwrap();
+        let mut checker = TypeChecker::new();
+        checker.source_dir = Some(temp_dir.to_string_lossy().to_string());
+        checker.collect_declarations(&statements);
+        checker.prepare_rule_dispatch_metadata(&statements);
+        for alias in ["A", "B"] {
+            assert_eq!(
+                checker
+                    .module_primitive_return_types
+                    .get(&(alias.into(), "answer".into(), 1))
+                    .map(String::as_str),
+                Some("Int")
+            );
+            for (member, arity) in [
+                ("answer", 0),
+                ("private_value", 0),
+                ("make", 0),
+                ("partial", 1),
+            ] {
+                assert!(!checker.module_primitive_return_types.contains_key(&(
+                    alias.into(),
+                    member.into(),
+                    arity
+                )));
+            }
+        }
+        for name in ["a", "b"] {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: name.into(),
+                arity: 1,
+            };
+            assert_eq!(
+                checker
+                    .rule_dispatch_backend_return_types
+                    .get(&key)
+                    .map(String::as_str),
+                Some("Int")
+            );
+            assert!(
+                !checker.rule_dispatch_return_types.contains_key(&key),
+                "qualified return typing is not a totality proof"
+            );
+        }
+        let shadowed = parse_test_program("= result = A.answer(1)").unwrap();
+        let Stmt::Bind(_, _, call) = &shadowed[0] else {
+            panic!("call binding")
+        };
+        assert_eq!(
+            checker.infer_expr_type_name_with_locals(
+                call,
+                &BTreeMap::from([("A".into(), "Token".into())])
+            ),
+            None,
+            "a local receiver must not borrow a module's return ABI"
+        );
+
+        std::fs::write(
+            temp_dir.join("cycle.runa"),
+            "@ import Again from ./cycle\n@ export\n| value() -> Again.value()\n",
+        )
+        .unwrap();
+        let cycle = parse_test_program("@ import Cycle from ./cycle").unwrap();
+        checker.collect_declarations(&cycle);
+        assert!(
+            !checker.module_primitive_return_types.contains_key(&(
+                "Cycle".into(),
+                "value".into(),
+                0
+            )),
+            "a recursive import cannot invent its own return ABI"
+        );
+        std::fs::remove_dir_all(temp_dir).unwrap();
+    }
+
+    #[test]
     fn canonical_rule_dispatch_return_types_are_exact_and_fail_closed() {
         let source = r#"
 | overloaded() -> True
@@ -64242,6 +64511,46 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn structural_collection_iteration_preserves_display_order_and_key_identity() {
+        let source = r#"
+= entries = map_from([("gamma", 3), ("alfa", 1), ("beta", 2)])
+= keys = map_keys(entries)
+= values = map_values(entries)
+= pairs = map_entries(entries)
+= members = set_from_list([3, 10, 2])
+= ordered = set_to_list(members)
+"#;
+        let statements = parse_test_program(source).unwrap();
+        let mut interpreter = Interpreter::new();
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&statements, &mut env);
+        for (binding, expected) in [
+            ("entries", "{alfa: 1, beta: 2, gamma: 3}"),
+            ("keys", "[alfa, beta, gamma]"),
+            ("values", "[1, 2, 3]"),
+            ("pairs", "[(alfa, 1), (beta, 2), (gamma, 3)]"),
+            ("members", "{10, 2, 3}"),
+            ("ordered", "[10, 2, 3]"),
+        ] {
+            assert_eq!(env.get(binding).unwrap().to_string(), expected, "{binding}");
+        }
+
+        // Identical display text is not structural equality.
+        let mut entries = BTreeMap::new();
+        runtime_map_insert_value(&mut entries, Value::Int(1), Value::Int(10));
+        runtime_map_insert_value(&mut entries, Value::Str("1".into()), Value::Int(20));
+        assert_eq!(runtime_map_ordered_entries(&entries).len(), 2);
+        assert!(matches!(
+            runtime_map_get_value(&entries, &Value::Int(1)),
+            Some(Value::Int(10))
+        ));
+        assert!(matches!(
+            runtime_map_get_value(&entries, &Value::Str("1".into())),
+            Some(Value::Int(20))
+        ));
     }
 
     #[test]

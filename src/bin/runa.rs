@@ -24694,8 +24694,8 @@ enum StaticRuleCallResolution {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum RustCodegenRuleDispatchMissMode {
-    /// Ordinary generated programs may consume only a statically total or
-    /// checked-False-miss RuleDispatch family.
+    /// Ordinary generated programs require a total dispatch family, a checked
+    /// False-miss certificate, or a provably matched Bool head at this call.
     RequireStaticTotality,
     /// Explore's classifier is an isolated accelerator. A partial value miss
     /// aborts its process, after which the coordinator retries the whole batch
@@ -50809,6 +50809,54 @@ impl RustCodegen {
         StaticRuleParamRelation::CompatibleOrUnknown
     }
 
+    // A matched ordinary Bool clause returns False even when its body is not
+    // eligible for the context-closed *miss* certificate. Establish the match
+    // from this call's typed arguments; do not broaden canonical proof metadata
+    // or authorize genuine misses, ground heads, or repeated-variable heads.
+    fn static_bool_rule_head_matches_call(&self, rules: &[Rule], args: &[Expr]) -> bool {
+        rules.iter().any(|rule| {
+            let Rule::Clause {
+                head,
+                body: Some(_),
+            } = rule
+            else {
+                return false;
+            };
+            let head_args = match &head.kind {
+                ExprKind::App(_, arguments) => arguments.as_slice(),
+                ExprKind::Var(_) if args.is_empty() => &[],
+                _ => return false,
+            };
+            if head_args.len() != args.len() {
+                return false;
+            }
+            let mut names = BTreeSet::new();
+            head_args.iter().zip(args).all(|(head_arg, argument)| {
+                let inner = Self::typed_rule_arg_parts(head_arg)
+                    .map(|(inner, _)| inner)
+                    .unwrap_or(head_arg);
+                let ExprKind::Var(name) = &inner.kind else {
+                    return false;
+                };
+                if name.chars().next().is_some_and(char::is_uppercase)
+                    || (name != "_" && !names.insert(name))
+                {
+                    return false;
+                }
+                let Some(expected) = self.typed_rule_arg_fir_ty(head_arg) else {
+                    return Self::typed_rule_arg_parts(head_arg).is_none();
+                };
+                let argument = named_arg_parts(argument)
+                    .map(|(_, value)| value)
+                    .unwrap_or(argument);
+                let actual = self.infer_expr_fir_ty(argument);
+                !matches!(expected, FirTy::Unknown | FirTy::Var(_))
+                    && expected == actual
+                    && !Self::static_rule_ty_contains_qualified_nominal(&expected)
+            })
+        })
+    }
+
     fn static_rule_call_resolution(&self, func: &Expr, args: &[Expr]) -> StaticRuleCallResolution {
         let Some((rules, owner_path, return_type)) =
             self.static_rule_family_for_call(func, args.len())
@@ -50856,6 +50904,8 @@ impl RustCodegen {
                     if self.canonical_rule_return_types.contains_key(&key)
                         && !self.runtime_rule_irrefutable_keys.contains(&key)
                         && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
+                        && !(return_type == FirTy::Bool
+                            && self.static_bool_rule_head_matches_call(&rules, args))
                     {
                         return StaticRuleCallResolution::Unsupported(
                             "RuleDispatch cannot be consumed without a canonical total/miss-safe contract",
@@ -63064,6 +63114,51 @@ for x in [1, 2] {
     }
 
     #[test]
+    fn compiled_matched_boolean_heads_do_not_require_a_global_miss_certificate() {
+        let declarations = r#"
+# Left = Left
+# Right = Right
+= flag = False
+| captured(value: Left) -> flag
+| nullary() -> flag
+# Switch(flag: Bool) {
+    | value() -> flag
+}
+"#;
+        let source = format!("{declarations}\n@ print(show(captured(Left)))\n@ print(show(nullary()))\n@ print(show(Switch(False).value()))\n");
+        assert_eq!(
+            compile_and_run_test_program(&source).trim(),
+            "false\nfalse\nfalse"
+        );
+        assert_eq!(
+            interpret_test_source(&source, None).trim(),
+            "false\nfalse\nfalse"
+        );
+        for probe in [
+            "= miss = captured(Right)",
+            "| repeated(value: Int, value: Int) -> flag\n= miss = repeated(1, 2)",
+            "| ground(1) -> flag\n= miss = ground(2)",
+        ] {
+            let (mut codegen, statements) =
+                scan_with_codegen(&format!("{declarations}\n{probe}\n"));
+            let rust = codegen.emit_program(&statements);
+            assert!(
+                rust.contains(
+                    "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+                ),
+                "{rust}"
+            );
+            assert!(!codegen
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&RuleDispatchKey {
+                    scope: None,
+                    name: "captured".into(),
+                    arity: 1,
+                }));
+        }
+    }
+
+    #[test]
     fn compiled_nullary_rule_reads_top_level_bindings_through_hidden_globals() {
         let output = compile_and_run_test_program(
             r#"
@@ -64049,7 +64144,7 @@ for x in [1, 2] {
     }
 
     #[test]
-    fn legacy_emit_rulescope_value_uses_return_parent_for_duplicate_nullary_constructor() {
+    fn checked_emit_rulescope_rejects_conflicting_duplicate_nullary_constructor() {
         let source = r#"
 # Desired = Shared | DesiredOnly
 # Other = Shared | OtherOnly
@@ -64061,21 +64156,13 @@ for x in [1, 2] {
 "#;
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
+        // Bare runtime lookup selects the later Other::Shared declaration.
+        // Silently qualifying it as Desired::Shared would change the program.
         assert!(
-            rust.contains("fn pick(&self) -> Desired {"),
-            "RuleScope method should infer the enum return type: {}",
-            rust
+            rust.contains("conflicting return types `Desired` and `Other`"),
+            "{rust}"
         );
-        assert!(
-            rust.contains("return Desired::Shared;"),
-            "RuleScope exception value should qualify duplicate constructor with the return enum: {}",
-            rust
-        );
-        assert!(
-            !rust.contains("return Other::Shared;"),
-            "RuleScope exception value must not use the later duplicate constructor parent: {}",
-            rust
-        );
+        compile_generated_test_code_expect_failure(&rust);
     }
 
     #[test]
@@ -66541,6 +66628,7 @@ readings <- "score"
             r#"
 @ export
 | label("x") -> "ok"
+| label(value: String) -> ""
 
 @ export
 > borrowed(value: String) -> Int { length(value) }
@@ -68974,7 +69062,8 @@ routes <- "b"
             rust
         );
         assert!(
-            rust.contains("format!(\"{}!\", _p0)"),
+            rust.contains("let name = __fut_rule_head_0.to_string();")
+                && rust.contains("format!(\"{}!\", name)"),
             "prolog fallback body should emit string concat from seeded head var type: {}",
             rust
         );
@@ -69001,7 +69090,8 @@ routes <- "b"
             rust
         );
         assert!(
-            rust.contains("format!(\"{}!\", _p0)"),
+            rust.contains("let lang = __fut_rule_head_0.to_string();")
+                && rust.contains("format!(\"{}!\", lang)"),
             "variable-head prolog value body should emit string concat from seeded head var type: {}",
             rust
         );
@@ -69028,7 +69118,7 @@ routes <- "b"
             rust
         );
         assert!(
-            rust.contains("if _p0 == 2.0"),
+            rust.contains("if (__fut_rule_head_0 - 2.0).abs() < f64::EPSILON"),
             "computed ground-body prolog value rule should emit a head guard: {}",
             rust
         );
@@ -69641,13 +69731,14 @@ routes <- "b"
         bool_program.push(bool_probe);
         let mut strict_bool_codegen = RustCodegen::new();
         strict_bool_codegen.install_explore_native_classifier_rule_metadata(&metadata);
-        let rejected_bool = strict_bool_codegen.emit_program(&bool_program);
+        let matched_bool = strict_bool_codegen.emit_program(&bool_program);
         assert!(
-            rejected_bool.contains(
-                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
-            ),
-            "ordinary codegen must reject the context-dependent Bool call: {rejected_bool}"
+            !matched_bool.contains("compile_error!"),
+            "a nullary Bool clause head matches this call without a miss certificate: {matched_bool}"
         );
+        assert!(!strict_bool_codegen
+            .canonical_rule_boolean_miss_safe_keys
+            .contains(&partial_bool_key));
         let mut classifier_bool_codegen = RustCodegen::new();
         classifier_bool_codegen.rule_dispatch_miss_mode =
             RustCodegenRuleDispatchMissMode::ProcessFailure;
