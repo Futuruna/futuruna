@@ -1,0 +1,1860 @@
+//! One-worker resource orchestration for a durable exact Explore stream.
+//!
+//! This module does not launch a worker and it does not duplicate resource
+//! arithmetic. It turns one complete host-provider transaction plus one
+//! complete coordinator-owned process snapshot into the existing sampler
+//! reducer and resource governor. The only execution authority it emits is a
+//! short-lived, generation-bound capability for one explicit work subject.
+//!
+//! The worker ceilings are fixed at one. Consequently the governor's private
+//! durable-shard evidence seam is not needed here: that evidence exists only
+//! to authorize scale-up. Durable case/result installation remains a separate
+//! coordinator responsibility.
+//!
+//! A v1 in-process coordinator may deliberately report the logical evaluator
+//! as resident with aggregate RSS/CPU `Some(0)` only when the host sample
+//! already includes the whole process's consumption. Zero then means “credit
+//! none of this process back into headroom”, which is conservative. Such a run
+//! must never invent a separable calibration peak. Standalone execution remains
+//! in the cold `max(2 GiB, ceil(total RAM / 4))` one-worker mode. A validated
+//! outer child instead charges one explicitly bounded stream quantum while the
+//! synchronous Rust-heap ceiling, independent reserve, process-group guard and
+//! live host-pressure checks contain the whole epoch. This is admission, not
+//! hard containment; an unbounded work item must fail closed until it is
+//! resumably sliced or isolated in a child.
+
+use std::num::{NonZeroU16, NonZeroU64};
+use std::time::{Duration, Instant};
+
+use super::resource_governor::{
+    CalibrationPeakEvidence, CompilerObservation, DecisionReason, EvaluatorObservation,
+    GovernorDecision, GovernorPhase, HostCapacity, LeaseAuthority, LeaseGeneration, MemoryPressure,
+    ResourceGovernor, ResourceGovernorError, ResourceGovernorEvent, ResourcePolicy, ResourceSample,
+    StabilityEpoch, SwapAssessment, SwapGrowthAuthority, TelemetryCursor,
+};
+#[cfg(target_os = "macos")]
+use super::resource_sampler::{HostFactProvider, MacOsCommandProvider};
+use super::resource_sampler::{
+    OwnedProcessSnapshot, RawHostFacts, RawHostSample, ReducedResourceSample, ReducerEpochSeed,
+    SampleUnavailable, SamplerWatchdog, StabilityPressurePolicy, StabilityWindowReducer,
+};
+/// Conservative resident-set allowance used by one admitted stream quantum.
+/// This belongs to resource admission, not to any particular publication or
+/// snapshot format.
+const STREAM_QUANTUM_ACCOUNTED_WORKING_SET: u64 = 256 * 1024 * 1024;
+const ONE_GIB: u64 = 1024 * 1024 * 1024;
+const OUTER_OPERATOR_MEMORY_CEILING: u64 = 6 * ONE_GIB;
+const MIN_OUTER_UNTRACKED_RESERVE: u64 = 512 * 1024 * 1024;
+const OUTER_ABSOLUTE_CEILING_PERCENT: u64 = 80;
+const OUTER_UNTRACKED_RESERVE_PERCENT: u64 = 5;
+
+const SAMPLE_DEADLINE: Duration = Duration::from_secs(3);
+const SAMPLE_CADENCE: Duration = Duration::from_secs(5);
+
+/// Invocation-local proof values minted by the validated CLI supervisor.
+///
+/// The receipt is not semantic state and is never journaled. Its algebra is
+/// checked against the first complete host-capacity sample before it can admit
+/// work. `R` is the synchronously installed Rust-heap ceiling; `U`, `G`, and
+/// `F` are respectively the outer untracked reserve, sampled group-RSS trip,
+/// and host available-memory floor.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ExactStreamOuterContainmentReceipt {
+    rust_heap_limit_bytes: NonZeroU64,
+    untracked_memory_reserve_bytes: NonZeroU64,
+    group_rss_limit_bytes: NonZeroU64,
+    available_memory_floor_bytes: NonZeroU64,
+}
+
+impl ExactStreamOuterContainmentReceipt {
+    pub(super) fn new(
+        rust_heap_limit_bytes: u64,
+        untracked_memory_reserve_bytes: u64,
+        group_rss_limit_bytes: u64,
+        available_memory_floor_bytes: u64,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        let receipt = Self {
+            rust_heap_limit_bytes: NonZeroU64::new(rust_heap_limit_bytes)
+                .ok_or(ExactStreamResourcePauseReason::InvalidConfiguration)?,
+            untracked_memory_reserve_bytes: NonZeroU64::new(untracked_memory_reserve_bytes)
+                .ok_or(ExactStreamResourcePauseReason::InvalidConfiguration)?,
+            group_rss_limit_bytes: NonZeroU64::new(group_rss_limit_bytes)
+                .ok_or(ExactStreamResourcePauseReason::InvalidConfiguration)?,
+            available_memory_floor_bytes: NonZeroU64::new(available_memory_floor_bytes)
+                .ok_or(ExactStreamResourcePauseReason::InvalidConfiguration)?,
+        };
+        if receipt.rust_heap_limit_bytes.get() < STREAM_QUANTUM_ACCOUNTED_WORKING_SET {
+            return Err(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
+        Ok(receipt)
+    }
+
+    fn validates_for(self, capacity: HostCapacity) -> bool {
+        let (Some(logical_cpu_count), Some(total_memory_bytes)) =
+            (capacity.logical_cpu_count, capacity.total_memory_bytes)
+        else {
+            return false;
+        };
+        if logical_cpu_count == 0 || total_memory_bytes == 0 {
+            return false;
+        }
+        let expected_floor = ONE_GIB;
+        let Some(expected_untracked_reserve) =
+            percent_ceil(total_memory_bytes, OUTER_UNTRACKED_RESERVE_PERCENT)
+                .map(|reserve| reserve.max(MIN_OUTER_UNTRACKED_RESERVE))
+        else {
+            return false;
+        };
+        let Some(percent_memory_ceiling) =
+            percent_floor(total_memory_bytes, OUTER_ABSOLUTE_CEILING_PERCENT)
+        else {
+            return false;
+        };
+        let Some(physical_memory_ceiling) = total_memory_bytes.checked_sub(expected_floor) else {
+            return false;
+        };
+        let operator_memory_ceiling = OUTER_OPERATOR_MEMORY_CEILING
+            .min(percent_memory_ceiling)
+            .min(physical_memory_ceiling);
+        let Some(hard_group_ceiling) = self
+            .rust_heap_limit_bytes
+            .get()
+            .checked_add(self.untracked_memory_reserve_bytes.get())
+        else {
+            return false;
+        };
+        let Some(reserve_plus_hard_group) = expected_floor.checked_add(hard_group_ceiling) else {
+            return false;
+        };
+
+        self.available_memory_floor_bytes.get() == expected_floor
+            && self.untracked_memory_reserve_bytes.get() == expected_untracked_reserve
+            && hard_group_ceiling == operator_memory_ceiling
+            && reserve_plus_hard_group <= total_memory_bytes
+            && self.group_rss_limit_bytes.get() == self.rust_heap_limit_bytes.get()
+    }
+}
+
+fn percent_floor(value: u64, percent: u64) -> Option<u64> {
+    let scaled = u128::from(value).checked_mul(u128::from(percent))? / 100;
+    u64::try_from(scaled).ok()
+}
+
+fn percent_ceil(value: u64, percent: u64) -> Option<u64> {
+    let scaled = u128::from(value).checked_mul(u128::from(percent))?;
+    let rounded = scaled.checked_add(99)? / 100;
+    u64::try_from(rounded).ok()
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ExactStreamResourcePauseReason {
+    InvalidConfiguration,
+    UnsupportedPlatform,
+    TelemetryUnavailable(&'static str),
+    IncoherentTelemetry,
+    HostCapacityChanged,
+    WaitingForSwapBaseline,
+    WaitingForStableWindow,
+    WaitingForWorkerReconciliation,
+    WaitingForCalibrationPeak,
+    WaitingForWorkSubject,
+    InvalidWorkSubject,
+    Draining,
+    ResourceBackoff(&'static str),
+    GovernorFailed,
+    RuntimeLimit,
+    PermitOutstanding,
+    WorkInFlight,
+}
+
+impl ExactStreamResourcePauseReason {
+    pub(super) const fn code(self) -> &'static str {
+        match self {
+            Self::InvalidConfiguration => "invalid_configuration",
+            Self::UnsupportedPlatform => "unsupported_platform",
+            Self::TelemetryUnavailable(code) => code,
+            Self::IncoherentTelemetry => "incoherent_telemetry",
+            Self::HostCapacityChanged => "host_capacity_changed",
+            Self::WaitingForSwapBaseline => "waiting_for_swap_baseline",
+            Self::WaitingForStableWindow => "waiting_for_stable_window",
+            Self::WaitingForWorkerReconciliation => "waiting_for_worker_reconciliation",
+            Self::WaitingForCalibrationPeak => "waiting_for_calibration_peak",
+            Self::WaitingForWorkSubject => "waiting_for_work_subject",
+            Self::InvalidWorkSubject => "invalid_work_subject",
+            Self::Draining => "draining",
+            Self::ResourceBackoff(code) => code,
+            Self::GovernorFailed => "governor_failed",
+            Self::RuntimeLimit => "runtime_limit",
+            Self::PermitOutstanding => "permit_outstanding",
+            Self::WorkInFlight => "work_in_flight",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) struct ExactStreamResourceEpochSeed {
+    pub(super) source_generation: NonZeroU64,
+    pub(super) telemetry_epoch: NonZeroU64,
+    pub(super) stability_epoch: NonZeroU64,
+}
+
+impl ExactStreamResourceEpochSeed {
+    pub(super) fn initial() -> Result<Self, ExactStreamResourcePauseReason> {
+        let one = NonZeroU64::new(1).ok_or(ExactStreamResourcePauseReason::InvalidConfiguration)?;
+        Ok(Self {
+            source_generation: one,
+            telemetry_epoch: one,
+            stability_epoch: one,
+        })
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct PermitIdentity {
+    sequence: u64,
+    subject: ExactStreamWorkSubject,
+    purpose: ExactStreamWorkPurpose,
+    lease_generation: LeaseGeneration,
+    telemetry_cursor: TelemetryCursor,
+    stability_epoch: StabilityEpoch,
+    expires_at: Instant,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ExactStreamWorkSubject {
+    /// One bounded stream-open preparation phase: typecheck plus authenticated
+    /// replay. It is admitted only under the conservative calibration policy.
+    PreparationPhase,
+    /// One bounded materialized-view phase. Snapshot lowering and canonical
+    /// serialization may allocate tens of MiB, so they require the same
+    /// sampled worker authority as semantic evaluation. If this phase is not
+    /// admitted, the journal can still pause without minting a snapshot.
+    SnapshotPublicationPhase,
+    /// The explicitly requested atomic v1 terminal phase: fresh replay of the
+    /// complete selected witness set, full answer publication, and sealing.
+    /// Its retained replay bodies are hard-capped at 65,536 observations /
+    /// 32 MiB; a process
+    /// kill abandons the unit and durable recovery retries from its last
+    /// committed replay/publication/seal boundary.
+    FinalizationPhase,
+    /// One bounded relational scheduler quantum planned from this exact
+    /// journal prefix. The semantic driver may choose base, result, mechanism,
+    /// or closure work only after this prefix-bound authority is consumed.
+    /// Reusing a permit after any committed event necessarily changes either
+    /// the sequence or head and therefore fails identity comparison.
+    RelationalJournalQuantum {
+        expected_sequence: u64,
+        expected_head: [u8; 32],
+    },
+    /// One canonical mixed-radix CaseId rank.
+    CaseIdRank(u128),
+    /// One canonical mixed-radix CaseId rank evaluated as an individually
+    /// admitted mechanism-discovery case. Keeping this subject distinct from
+    /// `CaseIdRank` prevents authority for an ordinary case evaluation from
+    /// being reused to mint mechanism evidence at the same numeric rank.
+    MechanismCaseIdRank(u128),
+    /// One deterministic candidate-first batch beginning at `first_rank` and
+    /// evaluating no more than `case_cap` whole CaseIds.
+    BoundedCaseIdBatch {
+        first_rank: u128,
+        case_cap: NonZeroU16,
+    },
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ExactStreamWorkPurpose {
+    /// Representative work while the conservative cold charge is active.
+    Calibration,
+    /// Normal residual work after a measured calibration was sealed.
+    Scan,
+}
+
+/// A non-cloneable capability for beginning exactly one whole work subject.
+///
+/// The coordinator must move this value into
+/// [`ExactStreamOneWorkerEnvelope::begin_work`]. It is bound to
+/// the explicit subject selected by the coordinator, the current worker
+/// lease generation, and the exact stable telemetry observation that admitted
+/// it. No permit remains valid at or after `expires_at`.
+#[derive(Debug)]
+pub(super) struct ExactStreamWorkDispatchPermit {
+    identity: PermitIdentity,
+}
+
+impl ExactStreamWorkDispatchPermit {
+    pub(super) const fn subject(&self) -> ExactStreamWorkSubject {
+        self.identity.subject
+    }
+
+    pub(super) const fn case_id_rank(&self) -> Option<u128> {
+        match self.identity.subject {
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::PreparationPhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
+            | ExactStreamWorkSubject::FinalizationPhase
+            | ExactStreamWorkSubject::RelationalJournalQuantum { .. }
+            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. } => None,
+        }
+    }
+
+    pub(super) const fn first_case_id_rank(&self) -> Option<u128> {
+        match self.identity.subject {
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. } => Some(first_rank),
+            ExactStreamWorkSubject::PreparationPhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
+            | ExactStreamWorkSubject::FinalizationPhase
+            | ExactStreamWorkSubject::RelationalJournalQuantum { .. } => None,
+        }
+    }
+
+    pub(super) const fn lease_generation(&self) -> LeaseGeneration {
+        self.identity.lease_generation
+    }
+
+    pub(super) const fn purpose(&self) -> ExactStreamWorkPurpose {
+        self.identity.purpose
+    }
+
+    pub(super) const fn telemetry_cursor(&self) -> TelemetryCursor {
+        self.identity.telemetry_cursor
+    }
+
+    pub(super) const fn stability_epoch(&self) -> StabilityEpoch {
+        self.identity.stability_epoch
+    }
+
+    pub(super) const fn expires_at(&self) -> Instant {
+        self.identity.expires_at
+    }
+}
+
+/// Linear token retained across one whole admitted work subject.
+#[derive(Debug)]
+pub(super) struct ExactStreamWorkInFlight {
+    identity: PermitIdentity,
+}
+
+/// Linear proof that the governor currently owns one admitted snapshot
+/// materialization phase. It consumes the in-flight work unit, authorizes one
+/// preparation attempt, and must be converted back into that same work unit
+/// before the governor can finish it.
+#[derive(Debug)]
+pub(super) struct ExactStreamSnapshotPublicationAuthority {
+    in_flight: ExactStreamWorkInFlight,
+    preparation_consumed: bool,
+}
+
+impl ExactStreamWorkInFlight {
+    pub(super) const fn subject(&self) -> ExactStreamWorkSubject {
+        self.identity.subject
+    }
+
+    pub(super) fn into_snapshot_publication_authority(
+        self,
+    ) -> Result<ExactStreamSnapshotPublicationAuthority, Self> {
+        if self.subject() != ExactStreamWorkSubject::SnapshotPublicationPhase {
+            return Err(self);
+        }
+        Ok(ExactStreamSnapshotPublicationAuthority {
+            in_flight: self,
+            preparation_consumed: false,
+        })
+    }
+
+    pub(super) const fn case_id_rank(&self) -> Option<u128> {
+        match self.identity.subject {
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::PreparationPhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
+            | ExactStreamWorkSubject::FinalizationPhase
+            | ExactStreamWorkSubject::RelationalJournalQuantum { .. }
+            | ExactStreamWorkSubject::BoundedCaseIdBatch { .. } => None,
+        }
+    }
+
+    pub(super) const fn first_case_id_rank(&self) -> Option<u128> {
+        match self.identity.subject {
+            ExactStreamWorkSubject::CaseIdRank(rank)
+            | ExactStreamWorkSubject::MechanismCaseIdRank(rank) => Some(rank),
+            ExactStreamWorkSubject::BoundedCaseIdBatch { first_rank, .. } => Some(first_rank),
+            ExactStreamWorkSubject::PreparationPhase
+            | ExactStreamWorkSubject::SnapshotPublicationPhase
+            | ExactStreamWorkSubject::FinalizationPhase
+            | ExactStreamWorkSubject::RelationalJournalQuantum { .. } => None,
+        }
+    }
+
+    pub(super) const fn lease_generation(&self) -> LeaseGeneration {
+        self.identity.lease_generation
+    }
+
+    pub(super) const fn purpose(&self) -> ExactStreamWorkPurpose {
+        self.identity.purpose
+    }
+}
+
+impl ExactStreamSnapshotPublicationAuthority {
+    pub(super) fn consume_preparation(&mut self) -> bool {
+        if self.preparation_consumed {
+            return false;
+        }
+        self.preparation_consumed = true;
+        true
+    }
+
+    pub(super) fn into_in_flight(self) -> ExactStreamWorkInFlight {
+        self.in_flight
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(super) enum ExactStreamPermitError {
+    Revoked,
+    Expired,
+    WrongPermit,
+    WorkAlreadyInFlight,
+    WrongInFlightWork,
+}
+
+#[derive(Debug)]
+pub(super) enum ExactStreamResourceAction {
+    Dispatch(ExactStreamWorkDispatchPermit),
+    /// No safety transition occurred; the caller already owns the referenced
+    /// permit/work unit or has not supplied the next subject yet.
+    Wait(ExactStreamResourcePauseReason),
+    Pause(ExactStreamResourcePauseReason),
+}
+
+/// One coordinator directive. `target_worker_leases` and
+/// `lease_generation` are the worker reconciliation contract; this adapter
+/// never starts, signals, or kills the worker itself.
+#[derive(Debug)]
+pub(super) struct ExactStreamResourcePoll {
+    pub(super) target_worker_leases: u16,
+    pub(super) lease_generation: LeaseGeneration,
+    /// Scheduling hint only. The outer max-runtime deadline always wins.
+    pub(super) next_host_sample_due: Option<Instant>,
+    pub(super) action: ExactStreamResourceAction,
+    pub(super) governor_decision: Option<GovernorDecision>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CalibrationPeak {
+    lease_generation: LeaseGeneration,
+    rss_bytes: u64,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct CachedAdmission {
+    purpose: ExactStreamWorkPurpose,
+    pressure: MemoryPressure,
+    lease_generation: LeaseGeneration,
+    telemetry_cursor: TelemetryCursor,
+    stability_epoch: StabilityEpoch,
+    expires_at: Instant,
+}
+
+/// Stateful resource boundary for one synchronous evaluator worker.
+///
+/// `poll` is called only between admitted work units. During calibration the coordinator
+/// supplies a measured process high-water RSS; it is never inferred from a
+/// current RSS sample. Once work starts, the whole subject is atomic. The
+/// coordinator must finish or abandon its in-flight token before polling for
+/// another work unit.
+pub(super) struct ExactStreamOneWorkerEnvelope {
+    policy: ResourcePolicy,
+    outer_containment: Option<ExactStreamOuterContainmentReceipt>,
+    source_generation: NonZeroU64,
+    reducer: StabilityWindowReducer,
+    watchdog: SamplerWatchdog,
+    governor: Option<ResourceGovernor>,
+    host_capacity: Option<HostCapacity>,
+    clock_origin: Instant,
+    last_observed_at_millis: Option<u64>,
+    last_sample_started: Option<Instant>,
+    calibration_peak: Option<CalibrationPeak>,
+    cached_admission: Option<CachedAdmission>,
+    outstanding_permit: Option<PermitIdentity>,
+    in_flight: Option<PermitIdentity>,
+    next_permit_sequence: u64,
+    terminal_reason: Option<ExactStreamResourcePauseReason>,
+    revoked_lease_generation: Option<LeaseGeneration>,
+    #[cfg(test)]
+    unmetered_test_mode: bool,
+    #[cfg(target_os = "macos")]
+    provider: MacOsCommandProvider,
+}
+
+impl ExactStreamOneWorkerEnvelope {
+    pub(super) fn new() -> Result<Self, ExactStreamResourcePauseReason> {
+        Self::with_epoch_seed_and_outer_containment(ExactStreamResourceEpochSeed::initial()?, None)
+    }
+
+    pub(super) fn new_with_outer_containment(
+        outer_containment: Option<ExactStreamOuterContainmentReceipt>,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        Self::with_epoch_seed_and_outer_containment(
+            ExactStreamResourceEpochSeed::initial()?,
+            outer_containment,
+        )
+    }
+
+    /// Reserve one logical worker with up to two native invocations inside
+    /// its atomic quantum. This is not authority for a second journal writer.
+    /// Receipt algebra is still validated against live capacity before work
+    /// admission, and the outer heap/RSS/host-floor guards remain unchanged.
+    pub(super) fn new_with_native_workers(
+        outer_containment: Option<ExactStreamOuterContainmentReceipt>,
+        native_workers: u16,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        if !matches!(native_workers, 1 | 2)
+            || (native_workers == 2
+                && !outer_containment.is_some_and(|receipt| {
+                    receipt.rust_heap_limit_bytes.get() >= 2 * STREAM_QUANTUM_ACCOUNTED_WORKING_SET
+                }))
+        {
+            return Err(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
+        let mut envelope = Self::new_with_outer_containment(outer_containment)?;
+        envelope.policy.worker_cpu_charge_millicores = 1_000 * u32::from(native_workers);
+        envelope
+            .policy
+            .outer_contained_cold_worker_memory_charge_bytes = outer_containment
+            .map(|_| STREAM_QUANTUM_ACCOUNTED_WORKING_SET * u64::from(native_workers));
+        Ok(envelope)
+    }
+
+    /// Frozen operational limit configured before the governor can be opened.
+    pub(super) fn native_classifier_worker_limit(&self) -> u16 {
+        if self.policy.worker_cpu_charge_millicores == 2_000 {
+            2
+        } else {
+            1
+        }
+    }
+
+    pub(super) fn with_epoch_seed(
+        seed: ExactStreamResourceEpochSeed,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        Self::with_epoch_seed_and_outer_containment(seed, None)
+    }
+
+    pub(super) fn with_epoch_seed_and_outer_containment(
+        seed: ExactStreamResourceEpochSeed,
+        outer_containment: Option<ExactStreamOuterContainmentReceipt>,
+    ) -> Result<Self, ExactStreamResourcePauseReason> {
+        let mut policy = ResourcePolicy::default();
+        // The default reserve divisors independently retain at least 20% of
+        // installed/live CPU and physical RAM. These caps cannot be raised by
+        // this adapter. Standalone work uses the general conservative cold
+        // charge; validated outer containment substitutes one bounded quantum
+        // and retains the epoch-wide heap/RSS guards independently.
+        policy.configured_worker_ceiling = Some(1);
+        policy.requested_jobs_ceiling = Some(1);
+        policy.outer_contained_cold_worker_memory_charge_bytes =
+            outer_containment.map(|_| STREAM_QUANTUM_ACCOUNTED_WORKING_SET);
+        policy.swap_growth_authority = if outer_containment.is_some() {
+            SwapGrowthAuthority::ValidatedOuterContainmentAdvisory
+        } else {
+            SwapGrowthAuthority::StrictStandalone
+        };
+        if outer_containment.is_some() {
+            policy.stable_window_millis = u64::try_from(SAMPLE_CADENCE.as_millis())
+                .map_err(|_| ExactStreamResourcePauseReason::InvalidConfiguration)?;
+        }
+        if policy.minimum_cold_calibration_memory_charge_bytes
+            < STREAM_QUANTUM_ACCOUNTED_WORKING_SET
+        {
+            return Err(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
+        let watchdog = SamplerWatchdog::new(SAMPLE_CADENCE, SAMPLE_DEADLINE)
+            .map_err(|_| ExactStreamResourcePauseReason::InvalidConfiguration)?;
+        Ok(Self {
+            policy,
+            outer_containment,
+            source_generation: seed.source_generation,
+            reducer: StabilityWindowReducer::new(
+                ReducerEpochSeed {
+                    telemetry: seed.telemetry_epoch,
+                    stability: seed.stability_epoch,
+                },
+                if outer_containment.is_some() {
+                    StabilityPressurePolicy::NormalOrOuterContainedWarning
+                } else {
+                    StabilityPressurePolicy::NormalOnly
+                },
+                policy.swap_growth_authority,
+            ),
+            watchdog,
+            governor: None,
+            host_capacity: None,
+            clock_origin: Instant::now(),
+            last_observed_at_millis: None,
+            last_sample_started: None,
+            calibration_peak: None,
+            cached_admission: None,
+            outstanding_permit: None,
+            in_flight: None,
+            next_permit_sequence: 0,
+            terminal_reason: None,
+            revoked_lease_generation: None,
+            #[cfg(test)]
+            unmetered_test_mode: false,
+            #[cfg(target_os = "macos")]
+            provider: MacOsCommandProvider::default(),
+        })
+    }
+
+    /// Deterministic authority source for scheduler protocol tests. It keeps
+    /// the same linear subject/rank capability checks but deliberately does
+    /// not make a claim about live host telemetry; resource-governor behavior
+    /// is tested at its own boundary.
+    #[cfg(test)]
+    pub(super) fn new_unmetered_for_test() -> Result<Self, ExactStreamResourcePauseReason> {
+        let mut envelope = Self::new()?;
+        envelope.unmetered_test_mode = true;
+        Ok(envelope)
+    }
+
+    pub(super) fn target_worker_leases(&self) -> u16 {
+        if self.terminal_reason.is_some() {
+            0
+        } else {
+            self.governor
+                .as_ref()
+                .map(ResourceGovernor::target_worker_leases)
+                .unwrap_or(0)
+        }
+    }
+
+    pub(super) fn lease_generation(&self) -> LeaseGeneration {
+        self.revoked_lease_generation.unwrap_or_else(|| {
+            self.governor
+                .as_ref()
+                .map(ResourceGovernor::lease_generation)
+                .unwrap_or(LeaseGeneration(1))
+        })
+    }
+
+    /// Complete zero-credit attribution for an in-process v1 coordinator.
+    ///
+    /// Use only when the host provider's availability and idleness already
+    /// include the whole process. Keep `measured_calibration_peak_rss_bytes`
+    /// as `None`; this mode intentionally remains conservatively uncalibrated.
+    pub(super) fn conservative_in_process_owned_snapshot(&self) -> OwnedProcessSnapshot {
+        let resident_workers = self.target_worker_leases();
+        OwnedProcessSnapshot {
+            evaluator: EvaluatorObservation {
+                lease_generation: self.lease_generation(),
+                resident_workers,
+                draining_workers: 0,
+                reserved_workers: 0,
+                aggregate_rss_bytes: Some(0),
+                aggregate_cpu_millicores: Some(0),
+            },
+            compiler: CompilerObservation {
+                rss_bytes: Some(0),
+                cpu_millicores: Some(0),
+            },
+            compile_epoch: None,
+        }
+    }
+
+    /// Revoke all local authority at an outer runtime boundary. Call this only
+    /// between work units; an already-started subject remains atomic.
+    pub(super) fn stop_at_work_boundary(&mut self) -> ExactStreamResourcePoll {
+        if self.in_flight.is_some() {
+            return self.wait(ExactStreamResourcePauseReason::WorkInFlight);
+        }
+        self.latch_terminal(ExactStreamResourcePauseReason::RuntimeLimit);
+        self.pause(ExactStreamResourcePauseReason::RuntimeLimit)
+    }
+
+    /// Collect one due sample and advance the calibration/scan state machine,
+    /// or reuse a still-fresh stable observation for the next work subject.
+    ///
+    /// `owned` must atomically account for every coordinator-owned evaluator
+    /// and compiler process. `measured_calibration_peak_rss_bytes` is a true
+    /// process high-water observation for completed representative calibration
+    /// work in the current lease, not an estimate or an idle-worker RSS. The
+    /// coordinator withholds it while requesting individual calibration-case
+    /// permits, then supplies it once the representative calibration slice is
+    /// complete. `next_work_subject` is required only when the caller wants a
+    /// dispatch permit.
+    pub(super) fn poll(
+        &mut self,
+        owned: OwnedProcessSnapshot,
+        measured_calibration_peak_rss_bytes: Option<u64>,
+        next_work_subject: Option<ExactStreamWorkSubject>,
+    ) -> ExactStreamResourcePoll {
+        let now = Instant::now();
+        if let Some(reason) = self.terminal_reason {
+            return self.pause(reason);
+        }
+        if self.in_flight.is_some() {
+            return self.wait(ExactStreamResourcePauseReason::WorkInFlight);
+        }
+        // A caller may reach another work boundary before the host cadence is
+        // due. Its fresh owned-process snapshot must still agree with the
+        // cached authority. A resident/generation/compiler change forces an
+        // immediate complete sample instead of granting from stale ownership.
+        let ownership_changed = self
+            .cached_admission
+            .is_some_and(|cached| !owned_supports_cached_admission(owned, cached));
+        if ownership_changed {
+            self.revoke_dispatch_authority();
+        }
+        if let Some(outstanding) = self.outstanding_permit {
+            if now < outstanding.expires_at {
+                return self.wait(ExactStreamResourcePauseReason::PermitOutstanding);
+            }
+            self.revoke_dispatch_authority();
+        }
+
+        #[cfg(test)]
+        if self.unmetered_test_mode {
+            let Some(subject) = next_work_subject else {
+                return self.wait(ExactStreamResourcePauseReason::WaitingForWorkSubject);
+            };
+            if !work_subject_allowed(ExactStreamWorkPurpose::Calibration, subject) {
+                return self.wait(ExactStreamResourcePauseReason::InvalidWorkSubject);
+            }
+            let Some(sequence) = self.next_permit_sequence.checked_add(1) else {
+                return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            };
+            self.next_permit_sequence = sequence;
+            let identity = PermitIdentity {
+                sequence,
+                subject,
+                purpose: ExactStreamWorkPurpose::Calibration,
+                lease_generation: LeaseGeneration(1),
+                telemetry_cursor: TelemetryCursor {
+                    epoch: super::resource_governor::TelemetryEpoch(1),
+                    sequence,
+                    observed_at_millis: sequence,
+                },
+                stability_epoch: StabilityEpoch(1),
+                expires_at: now.checked_add(Duration::from_secs(60)).unwrap_or(now),
+            };
+            self.outstanding_permit = Some(identity);
+            return self.directive(ExactStreamResourceAction::Dispatch(
+                ExactStreamWorkDispatchPermit { identity },
+            ));
+        }
+
+        let calibration_confirmation = measured_calibration_peak_rss_bytes.is_some()
+            && self
+                .governor
+                .as_ref()
+                .is_some_and(|governor| governor.phase() == GovernorPhase::CalibratingOneWorker);
+        let due = ownership_changed
+            || calibration_confirmation
+            || match self.last_sample_started {
+                None => true,
+                Some(last) => match self.watchdog.is_due(last, now) {
+                    Ok(due) => due,
+                    Err(_) => {
+                        return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry);
+                    }
+                },
+            };
+        if !due {
+            return self.dispatch_or_wait(now, next_work_subject);
+        }
+
+        // Every fresh sample invalidates authority derived from the preceding
+        // cursor before collection starts. Provider failure, unknown facts,
+        // pressure, swap growth/reset, or governor backoff cannot leave an old
+        // permit live.
+        self.revoke_dispatch_authority();
+        self.last_sample_started = Some(now);
+        let deadline = match self.watchdog.deadline(now) {
+            Ok(deadline) => deadline,
+            Err(_) => return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry),
+        };
+        let mut host_result = collect_complete_host_facts(self, deadline);
+        if self.outer_containment.is_some() {
+            if let Ok(host) = &mut host_result {
+                host.available_memory_bytes = host.outer_contained_available_memory_bytes;
+            }
+        }
+        let provider_error = host_result.as_ref().err().copied();
+        let completed = Instant::now();
+        let elapsed_millis = match u64::try_from(
+            completed
+                .saturating_duration_since(self.clock_origin)
+                .as_millis(),
+        ) {
+            Ok(value) => value,
+            Err(_) => return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry),
+        };
+        let observed_at_millis = match self.last_observed_at_millis {
+            Some(previous) => match previous.checked_add(1) {
+                Some(next) => elapsed_millis.max(next),
+                None => return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry),
+            },
+            None => elapsed_millis,
+        };
+        let raw = RawHostSample::from_provider_result(
+            self.source_generation,
+            observed_at_millis,
+            host_result,
+            owned,
+        );
+        let reduced = match self.reducer.reduce(raw) {
+            Ok(reduced) => reduced,
+            Err(_) => return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry),
+        };
+        self.last_observed_at_millis = Some(observed_at_millis);
+
+        if capacity_is_complete(reduced.capacity)
+            && self
+                .outer_containment
+                .is_some_and(|receipt| !receipt.validates_for(reduced.capacity))
+        {
+            return self.fail(ExactStreamResourcePauseReason::InvalidConfiguration);
+        }
+
+        if let Some(expected) = self.host_capacity {
+            if capacity_is_complete(reduced.capacity) && reduced.capacity != expected {
+                return self.fail(ExactStreamResourcePauseReason::HostCapacityChanged);
+            }
+        } else if !reduced.force_zero_admission && capacity_is_complete(reduced.capacity) {
+            let governor = match ResourceGovernor::new(reduced.capacity, self.policy) {
+                Ok(governor) => governor,
+                Err(_) => return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry),
+            };
+            self.host_capacity = Some(reduced.capacity);
+            self.governor = Some(governor);
+        }
+
+        let (governor_phase, governor_lease_generation) = match self.governor.as_ref() {
+            Some(governor) => (governor.phase(), governor.lease_generation()),
+            None => {
+                let reason = if platform_supported() {
+                    ExactStreamResourcePauseReason::TelemetryUnavailable(
+                        provider_error
+                            .map(SampleUnavailable::diagnostic_code)
+                            .unwrap_or("telemetry_unavailable"),
+                    )
+                } else {
+                    ExactStreamResourcePauseReason::UnsupportedPlatform
+                };
+                return self.pause(reason);
+            }
+        };
+        self.update_calibration_peak(
+            governor_phase,
+            governor_lease_generation,
+            reduced.sample,
+            measured_calibration_peak_rss_bytes,
+        );
+
+        let calibration_peak = self.calibration_peak;
+        let decision = match self.governor.as_mut() {
+            Some(governor) => {
+                match drive_governor(
+                    governor,
+                    self.policy,
+                    reduced.sample,
+                    calibration_peak,
+                    &mut self.reducer,
+                ) {
+                    Ok(decision) => decision,
+                    Err(_) => return self.fail(ExactStreamResourcePauseReason::GovernorFailed),
+                }
+            }
+            None => return self.fail(ExactStreamResourcePauseReason::GovernorFailed),
+        };
+        if decision.phase != GovernorPhase::CalibratingOneWorker {
+            self.calibration_peak = None;
+        }
+
+        let admission_purpose = if decision_allows_scan_case(decision, self.policy) {
+            Some(ExactStreamWorkPurpose::Scan)
+        } else if self.calibration_peak.is_none()
+            && decision_allows_calibration_case(decision, self.policy)
+        {
+            Some(ExactStreamWorkPurpose::Calibration)
+        } else {
+            None
+        };
+        if let Some(purpose) = admission_purpose.filter(|_| !reduced.force_zero_admission) {
+            let expires_at = match self.watchdog.next_due(now) {
+                Ok(deadline) if completed < deadline => deadline,
+                _ => {
+                    return self.pause(ExactStreamResourcePauseReason::TelemetryUnavailable(
+                        "telemetry_sample_expired",
+                    ));
+                }
+            };
+            let (Some(cursor), Some(stability_epoch)) =
+                (decision.metadata.cursor, decision.metadata.stability_epoch)
+            else {
+                return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            };
+            self.cached_admission = Some(CachedAdmission {
+                purpose,
+                pressure: decision.metadata.pressure,
+                lease_generation: decision.metadata.lease_generation,
+                telemetry_cursor: cursor,
+                stability_epoch,
+                expires_at,
+            });
+            return self.dispatch_or_wait(completed, next_work_subject);
+        }
+
+        self.revoke_dispatch_authority();
+        let reason = pause_reason_for_decision(
+            decision,
+            reduced,
+            provider_error,
+            self.calibration_peak,
+            self.policy,
+        );
+        if is_coordination_wait(reason) {
+            self.wait(reason)
+        } else {
+            self.pause(reason)
+        }
+    }
+
+    /// Consume one permit immediately before starting its work subject.
+    pub(super) fn begin_work(
+        &mut self,
+        permit: ExactStreamWorkDispatchPermit,
+    ) -> Result<ExactStreamWorkInFlight, ExactStreamPermitError> {
+        if self.terminal_reason.is_some() {
+            self.revoke_dispatch_authority();
+            return Err(ExactStreamPermitError::Revoked);
+        }
+        if self.in_flight.is_some() {
+            return Err(ExactStreamPermitError::WorkAlreadyInFlight);
+        }
+        let now = Instant::now();
+        let Some(outstanding) = self.outstanding_permit else {
+            return Err(ExactStreamPermitError::Revoked);
+        };
+        if outstanding != permit.identity {
+            self.latch_terminal(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            return Err(ExactStreamPermitError::WrongPermit);
+        }
+        if now >= permit.identity.expires_at {
+            self.revoke_dispatch_authority();
+            return Err(ExactStreamPermitError::Expired);
+        }
+        let admission_is_current = self.cached_admission.is_some_and(|cached| {
+            cached.purpose == permit.identity.purpose
+                && cached.lease_generation == permit.identity.lease_generation
+                && cached.telemetry_cursor == permit.identity.telemetry_cursor
+                && cached.stability_epoch == permit.identity.stability_epoch
+                && cached.expires_at == permit.identity.expires_at
+        }) && self.governor.as_ref().is_some_and(|governor| {
+            let decision = governor.decision();
+            self.cached_admission
+                .is_some_and(|cached| cached.pressure == decision.metadata.pressure)
+                && decision_allows_case_for_purpose(decision, permit.identity.purpose, self.policy)
+        });
+        #[cfg(test)]
+        let admission_is_current = admission_is_current || self.unmetered_test_mode;
+        if !admission_is_current {
+            self.latch_terminal(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            return Err(ExactStreamPermitError::Revoked);
+        }
+        self.outstanding_permit = None;
+        self.in_flight = Some(permit.identity);
+        Ok(ExactStreamWorkInFlight {
+            identity: permit.identity,
+        })
+    }
+
+    /// Close either a successful or abandoned atomic work unit. Resource safety
+    /// does not assert that a semantic result was durably installed.
+    pub(super) fn finish_or_abandon_work(
+        &mut self,
+        work: ExactStreamWorkInFlight,
+    ) -> Result<(), ExactStreamPermitError> {
+        if self.in_flight != Some(work.identity) {
+            self.latch_terminal(ExactStreamResourcePauseReason::IncoherentTelemetry);
+            return Err(ExactStreamPermitError::WrongInFlightWork);
+        }
+        self.in_flight = None;
+        if matches!(
+            work.identity.subject,
+            ExactStreamWorkSubject::PreparationPhase
+                | ExactStreamWorkSubject::SnapshotPublicationPhase
+                | ExactStreamWorkSubject::FinalizationPhase
+        ) {
+            // Never carry host headroom across a potentially heavy
+            // preparation, view-publication, or finalization phase.
+            // The next poll samples immediately.
+            self.revoke_dispatch_authority();
+            self.last_sample_started = None;
+        }
+        Ok(())
+    }
+
+    fn update_calibration_peak(
+        &mut self,
+        phase: GovernorPhase,
+        lease_generation: LeaseGeneration,
+        sample: ResourceSample,
+        measured_peak: Option<u64>,
+    ) {
+        if phase != GovernorPhase::CalibratingOneWorker
+            || sample.evaluator.lease_generation != lease_generation
+        {
+            return;
+        }
+        let Some(measured_peak) = measured_peak.filter(|value| *value != 0) else {
+            return;
+        };
+        self.calibration_peak = Some(match self.calibration_peak {
+            Some(previous) if previous.lease_generation == lease_generation => CalibrationPeak {
+                lease_generation,
+                rss_bytes: previous.rss_bytes.max(measured_peak),
+            },
+            _ => CalibrationPeak {
+                lease_generation,
+                rss_bytes: measured_peak,
+            },
+        });
+    }
+
+    fn dispatch_or_wait(
+        &mut self,
+        now: Instant,
+        next_work_subject: Option<ExactStreamWorkSubject>,
+    ) -> ExactStreamResourcePoll {
+        let Some(cached) = self.cached_admission else {
+            return self.wait(ExactStreamResourcePauseReason::WaitingForStableWindow);
+        };
+        if now >= cached.expires_at {
+            self.revoke_dispatch_authority();
+            return self.pause(ExactStreamResourcePauseReason::TelemetryUnavailable(
+                "telemetry_cached_admission_expired",
+            ));
+        }
+        let Some(subject) = next_work_subject else {
+            return self.wait(ExactStreamResourcePauseReason::WaitingForWorkSubject);
+        };
+        if !work_subject_allowed(cached.purpose, subject) {
+            return self.wait(ExactStreamResourcePauseReason::InvalidWorkSubject);
+        }
+        let Some(sequence) = self.next_permit_sequence.checked_add(1) else {
+            return self.fail(ExactStreamResourcePauseReason::IncoherentTelemetry);
+        };
+        self.next_permit_sequence = sequence;
+        let identity = PermitIdentity {
+            sequence,
+            subject,
+            purpose: cached.purpose,
+            lease_generation: cached.lease_generation,
+            telemetry_cursor: cached.telemetry_cursor,
+            stability_epoch: cached.stability_epoch,
+            expires_at: cached.expires_at,
+        };
+        self.outstanding_permit = Some(identity);
+        self.directive(ExactStreamResourceAction::Dispatch(
+            ExactStreamWorkDispatchPermit { identity },
+        ))
+    }
+
+    fn revoke_dispatch_authority(&mut self) {
+        self.cached_admission = None;
+        self.outstanding_permit = None;
+    }
+
+    fn fail(&mut self, reason: ExactStreamResourcePauseReason) -> ExactStreamResourcePoll {
+        self.latch_terminal(reason);
+        self.pause(reason)
+    }
+
+    fn latch_terminal(&mut self, reason: ExactStreamResourcePauseReason) {
+        if self.terminal_reason.is_none() {
+            let current = self.lease_generation();
+            self.revoked_lease_generation = Some(
+                current
+                    .0
+                    .checked_add(1)
+                    .map(LeaseGeneration)
+                    .unwrap_or(current),
+            );
+            self.terminal_reason = Some(reason);
+        }
+        self.revoke_dispatch_authority();
+    }
+
+    fn pause(&self, reason: ExactStreamResourcePauseReason) -> ExactStreamResourcePoll {
+        self.directive(ExactStreamResourceAction::Pause(reason))
+    }
+
+    fn wait(&self, reason: ExactStreamResourcePauseReason) -> ExactStreamResourcePoll {
+        self.directive(ExactStreamResourceAction::Wait(reason))
+    }
+
+    fn directive(&self, action: ExactStreamResourceAction) -> ExactStreamResourcePoll {
+        let governor_decision = self
+            .terminal_reason
+            .is_none()
+            .then(|| self.governor.as_ref().map(ResourceGovernor::decision))
+            .flatten();
+        ExactStreamResourcePoll {
+            target_worker_leases: self.target_worker_leases(),
+            lease_generation: self.lease_generation(),
+            next_host_sample_due: self
+                .last_sample_started
+                .and_then(|started| self.watchdog.next_due(started).ok()),
+            action,
+            governor_decision,
+        }
+    }
+}
+
+fn drive_governor(
+    governor: &mut ResourceGovernor,
+    policy: ResourcePolicy,
+    sample: ResourceSample,
+    calibration_peak: Option<CalibrationPeak>,
+    reducer: &mut StabilityWindowReducer,
+) -> Result<GovernorDecision, ResourceGovernorError> {
+    let phase = governor.phase();
+    let previous = governor.decision();
+    let stable_transition_ready =
+        previous.metadata.stable && sample_has_complete_stability_window(sample, policy);
+    let event = match phase {
+        GovernorPhase::Idle
+            if governor.calibration().is_none()
+                && policy
+                    .outer_contained_cold_worker_memory_charge_bytes
+                    .is_some()
+                && stable_transition_ready =>
+        {
+            // A contained stream is permanently one-worker and already has a
+            // fixed per-quantum charge plus continuous outer CPU/RSS guards.
+            // Calibration exists to price later worker scaling, so it has no
+            // authority-relevant role in this mode.
+            ResourceGovernorEvent::BeginScan(sample)
+        }
+        GovernorPhase::Idle if governor.calibration().is_none() && stable_transition_ready => {
+            ResourceGovernorEvent::BeginOneWorkerCalibration(sample)
+        }
+        GovernorPhase::Idle if governor.calibration().is_some() && stable_transition_ready => {
+            ResourceGovernorEvent::BeginScan(sample)
+        }
+        GovernorPhase::CalibratingOneWorker
+            if stable_transition_ready
+                && sample_has_one_fully_active_worker(sample)
+                && calibration_peak.is_some_and(|peak| {
+                    peak.lease_generation == governor.lease_generation()
+                        && sample
+                            .evaluator
+                            .aggregate_rss_bytes
+                            .is_some_and(|rss| peak.rss_bytes >= rss)
+                }) =>
+        {
+            let peak = calibration_peak.ok_or(ResourceGovernorError::InvalidCalibration(
+                "calibration peak disappeared before transition",
+            ))?;
+            ResourceGovernorEvent::FinishOneWorkerCalibration {
+                sample,
+                evidence: CalibrationPeakEvidence {
+                    lease_generation: peak.lease_generation,
+                    measured_at: sample.cursor,
+                    stability_epoch: sample.stability.epoch,
+                    measured_peak_rss_bytes: peak.rss_bytes,
+                },
+            }
+        }
+        _ => ResourceGovernorEvent::Observe(sample),
+    };
+    let decision = match governor.transition(event) {
+        Ok(decision) => Ok(decision),
+        Err(error)
+            if phase == GovernorPhase::Idle
+                && matches!(
+                    &error,
+                    ResourceGovernorError::NotStable
+                        | ResourceGovernorError::CapacityUnavailable
+                        | ResourceGovernorError::ResidentsNotStopped
+                        | ResourceGovernorError::PostCompileWindowNotEstablished
+                ) =>
+        {
+            Ok(governor.decision())
+        }
+        Err(error) => Err(error),
+    }?;
+    if decision.reason == DecisionReason::ReserveBackoff {
+        // The governor blocked this epoch. If it already has zero workers,
+        // another lease boundary will not arrive to reset the reducer's
+        // cumulative minima. Keep the backoff, but require a wholly new
+        // window on the next sample instead of retaining the rejected minimum
+        // forever. This grants no permit and changes no reserve threshold.
+        reducer.discard_stability_window();
+        if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+            eprintln!(
+                "Explore resources: reserve backoff; discarded stability window; memory current/min={:?}/{:?}; CPU idle current/min={:?}/{:?}; capacity={:?}",
+                sample.available_memory_bytes,
+                sample.stability.minimum_available_memory_bytes,
+                sample.cpu.map(|cpu| cpu.idle_millicores),
+                sample.stability.minimum_idle_cpu_millicores,
+                decision.metadata.capacity,
+            );
+        }
+    }
+    Ok(decision)
+}
+
+fn sample_has_complete_stability_window(sample: ResourceSample, policy: ResourcePolicy) -> bool {
+    policy.evaluator_pressure_is_admissible(sample.pressure)
+        && !sample.oom_risk
+        && sample.swap_out.is_some()
+        && sample.compiler.rss_bytes == Some(0)
+        && sample.compiler.cpu_millicores == Some(0)
+        && sample.compile_epoch.is_none()
+        && sample.stability.minimum_available_memory_bytes.is_some()
+        && sample.stability.minimum_idle_cpu_millicores.is_some()
+        && sample
+            .stability
+            .minimum_memory_before_evaluator_charge_bytes
+            .is_some()
+        && sample
+            .stability
+            .minimum_cpu_before_evaluator_charge_millicores
+            .is_some()
+        && sample
+            .cursor
+            .observed_at_millis
+            .saturating_sub(sample.stability.stable_since_millis)
+            >= policy.stable_window_millis
+}
+
+fn sample_has_one_fully_active_worker(sample: ResourceSample) -> bool {
+    sample.evaluator.resident_workers == 1
+        && sample.evaluator.draining_workers == 0
+        && sample.evaluator.reserved_workers == 0
+        && sample.evaluator.aggregate_rss_bytes.is_some()
+        && sample.evaluator.aggregate_cpu_millicores.is_some()
+}
+
+fn capacity_is_complete(capacity: HostCapacity) -> bool {
+    capacity.logical_cpu_count.is_some() && capacity.total_memory_bytes.is_some()
+}
+
+fn work_subject_allowed(purpose: ExactStreamWorkPurpose, subject: ExactStreamWorkSubject) -> bool {
+    match (purpose, subject) {
+        (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::PreparationPhase)
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::SnapshotPublicationPhase)
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::FinalizationPhase)
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::CaseIdRank(_))
+        | (ExactStreamWorkPurpose::Calibration, ExactStreamWorkSubject::MechanismCaseIdRank(_))
+        | (
+            ExactStreamWorkPurpose::Calibration,
+            ExactStreamWorkSubject::RelationalJournalQuantum { .. },
+        )
+        | (
+            ExactStreamWorkPurpose::Calibration,
+            ExactStreamWorkSubject::BoundedCaseIdBatch { .. },
+        )
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::CaseIdRank(_))
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::MechanismCaseIdRank(_))
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::RelationalJournalQuantum { .. })
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::BoundedCaseIdBatch { .. })
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::FinalizationPhase) => true,
+        (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::PreparationPhase)
+        | (ExactStreamWorkPurpose::Scan, ExactStreamWorkSubject::SnapshotPublicationPhase) => false,
+    }
+}
+
+fn owned_supports_cached_admission(owned: OwnedProcessSnapshot, cached: CachedAdmission) -> bool {
+    owned.evaluator.lease_generation == cached.lease_generation
+        && owned.evaluator.resident_workers == 1
+        && owned.evaluator.draining_workers == 0
+        && owned.evaluator.reserved_workers == 0
+        && owned.evaluator.aggregate_rss_bytes.is_some()
+        && owned.evaluator.aggregate_cpu_millicores.is_some()
+        && owned.compiler.rss_bytes == Some(0)
+        && owned.compiler.cpu_millicores == Some(0)
+        && owned.compile_epoch.is_none()
+}
+
+fn decision_allows_case_for_purpose(
+    decision: GovernorDecision,
+    purpose: ExactStreamWorkPurpose,
+    policy: ResourcePolicy,
+) -> bool {
+    match purpose {
+        ExactStreamWorkPurpose::Calibration => decision_allows_calibration_case(decision, policy),
+        ExactStreamWorkPurpose::Scan => decision_allows_scan_case(decision, policy),
+    }
+}
+
+fn decision_allows_calibration_case(decision: GovernorDecision, policy: ResourcePolicy) -> bool {
+    decision.phase == GovernorPhase::CalibratingOneWorker
+        && (decision_allows_cold_calibration_case(decision, policy)
+            || decision_allows_one_resident_worker(decision, policy))
+}
+
+fn decision_allows_scan_case(decision: GovernorDecision, policy: ResourcePolicy) -> bool {
+    decision.phase == GovernorPhase::Scanning
+        && decision_allows_one_resident_worker(decision, policy)
+}
+
+fn decision_allows_one_resident_worker(decision: GovernorDecision, policy: ResourcePolicy) -> bool {
+    decision_has_safe_one_worker_capacity(decision, policy)
+        && decision.metadata.observed_lease_generation == Some(decision.metadata.lease_generation)
+        && decision.metadata.resident_workers == Some(1)
+        && decision.metadata.draining_workers == Some(0)
+        && decision.metadata.reserved_workers == Some(0)
+}
+
+fn decision_allows_cold_calibration_case(
+    decision: GovernorDecision,
+    policy: ResourcePolicy,
+) -> bool {
+    decision.reason == DecisionReason::CalibrationStarted
+        && decision_has_safe_one_worker_capacity(decision, policy)
+        && decision.metadata.lease_observation_cutoff == decision.metadata.cursor
+}
+
+fn decision_has_safe_one_worker_capacity(
+    decision: GovernorDecision,
+    policy: ResourcePolicy,
+) -> bool {
+    decision.target_worker_leases == 1
+        && decision.metadata.failure.is_none()
+        && decision.metadata.lease_authority == LeaseAuthority::Active
+        && decision.metadata.stable
+        && policy.swap_growth_authority.admits(decision.metadata.swap)
+        && policy.evaluator_pressure_is_admissible(decision.metadata.pressure)
+        && decision.metadata.capacity.is_some_and(|capacity| {
+            capacity.telemetry_complete
+                && capacity.safe_worker_ceiling >= 1
+                && capacity.charged_worker_commitments <= capacity.safe_worker_ceiling
+        })
+}
+
+fn pause_reason_for_decision(
+    decision: GovernorDecision,
+    reduced: ReducedResourceSample,
+    provider_error: Option<SampleUnavailable>,
+    calibration_peak: Option<CalibrationPeak>,
+    policy: ResourcePolicy,
+) -> ExactStreamResourcePauseReason {
+    if !platform_supported() {
+        return ExactStreamResourcePauseReason::UnsupportedPlatform;
+    }
+    if let Some(error) = provider_error {
+        return ExactStreamResourcePauseReason::TelemetryUnavailable(error.diagnostic_code());
+    }
+    if reduced.force_zero_admission {
+        return ExactStreamResourcePauseReason::TelemetryUnavailable("telemetry_unavailable");
+    }
+    if decision.phase == GovernorPhase::Failed
+        || decision.metadata.failure.is_some()
+        || decision.metadata.lease_authority == LeaseAuthority::Revoked
+    {
+        return ExactStreamResourcePauseReason::GovernorFailed;
+    }
+    match decision.metadata.swap {
+        SwapAssessment::Unknown | SwapAssessment::Baseline => {
+            return ExactStreamResourcePauseReason::WaitingForSwapBaseline;
+        }
+        SwapAssessment::CounterReset => {
+            return ExactStreamResourcePauseReason::ResourceBackoff("resource_swap_counter_reset");
+        }
+        SwapAssessment::Growth if policy.swap_growth_authority.admits(SwapAssessment::Growth) => {}
+        SwapAssessment::Growth => {
+            return ExactStreamResourcePauseReason::ResourceBackoff("resource_swap_growth");
+        }
+        SwapAssessment::Unchanged => {}
+    }
+    if !policy.evaluator_pressure_is_admissible(decision.metadata.pressure) {
+        let code = match decision.metadata.pressure {
+            MemoryPressure::Warning => "resource_memory_pressure_warning",
+            MemoryPressure::Critical => "resource_memory_pressure_critical",
+            MemoryPressure::Unknown => "resource_memory_pressure_unknown",
+            MemoryPressure::Normal => "resource_pressure_policy_mismatch",
+        };
+        return ExactStreamResourcePauseReason::ResourceBackoff(code);
+    }
+    let backoff_code = match decision.reason {
+        DecisionReason::WarningBackoff => Some("resource_memory_pressure_warning"),
+        DecisionReason::CriticalBackoff => Some("resource_memory_pressure_critical"),
+        DecisionReason::UnknownPressureBackoff => Some("resource_memory_pressure_unknown"),
+        DecisionReason::OomRiskBackoff => Some("resource_oom_risk"),
+        DecisionReason::ReserveBackoff => Some("resource_reserve_backoff"),
+        DecisionReason::CapacityLimited => Some(capacity_limit_code(decision, false)),
+        DecisionReason::ColdCalibrationMemoryLimited => Some(capacity_limit_code(decision, true)),
+        _ => None,
+    };
+    if let Some(code) = backoff_code {
+        return ExactStreamResourcePauseReason::ResourceBackoff(code);
+    }
+    match decision.phase {
+        GovernorPhase::CalibratingOneWorker
+            if decision.metadata.observed_lease_generation
+                != Some(decision.metadata.lease_generation)
+                || decision.metadata.resident_workers != Some(1)
+                || decision.metadata.draining_workers != Some(0)
+                || decision.metadata.reserved_workers != Some(0) =>
+        {
+            ExactStreamResourcePauseReason::WaitingForWorkerReconciliation
+        }
+        GovernorPhase::CalibratingOneWorker if !decision.metadata.stable => {
+            ExactStreamResourcePauseReason::WaitingForStableWindow
+        }
+        GovernorPhase::CalibratingOneWorker
+            if calibration_peak
+                .filter(|peak| peak.lease_generation == decision.metadata.lease_generation)
+                .is_none() =>
+        {
+            ExactStreamResourcePauseReason::WaitingForCalibrationPeak
+        }
+        GovernorPhase::CalibratingOneWorker => {
+            ExactStreamResourcePauseReason::WaitingForStableWindow
+        }
+        GovernorPhase::Draining => ExactStreamResourcePauseReason::Draining,
+        GovernorPhase::Scanning
+            if decision.metadata.resident_workers != Some(1)
+                || decision.metadata.draining_workers != Some(0)
+                || decision.metadata.reserved_workers != Some(0) =>
+        {
+            ExactStreamResourcePauseReason::WaitingForWorkerReconciliation
+        }
+        GovernorPhase::Failed | GovernorPhase::Compiling { .. } => {
+            ExactStreamResourcePauseReason::GovernorFailed
+        }
+        _ => ExactStreamResourcePauseReason::WaitingForStableWindow,
+    }
+}
+
+fn capacity_limit_code(decision: GovernorDecision, cold: bool) -> &'static str {
+    let Some(capacity) = decision.metadata.capacity else {
+        return "resource_capacity_telemetry_incomplete";
+    };
+    match (
+        capacity.memory_worker_ceiling == 0,
+        capacity.cpu_worker_ceiling == 0,
+        cold,
+    ) {
+        (true, true, true) => "resource_cold_worker_memory_and_cpu_limited",
+        (true, false, true) => "resource_cold_worker_memory_limited",
+        (false, true, true) => "resource_cold_worker_cpu_limited",
+        (true, true, false) => "resource_worker_memory_and_cpu_limited",
+        (true, false, false) => "resource_worker_memory_limited",
+        (false, true, false) => "resource_worker_cpu_limited",
+        (false, false, _) => "resource_policy_capacity_limited",
+    }
+}
+
+fn is_coordination_wait(reason: ExactStreamResourcePauseReason) -> bool {
+    matches!(
+        reason,
+        ExactStreamResourcePauseReason::WaitingForSwapBaseline
+            | ExactStreamResourcePauseReason::WaitingForStableWindow
+            | ExactStreamResourcePauseReason::WaitingForWorkerReconciliation
+            | ExactStreamResourcePauseReason::WaitingForCalibrationPeak
+            | ExactStreamResourcePauseReason::WaitingForWorkSubject
+            | ExactStreamResourcePauseReason::InvalidWorkSubject
+            | ExactStreamResourcePauseReason::Draining
+            | ExactStreamResourcePauseReason::PermitOutstanding
+            | ExactStreamResourcePauseReason::WorkInFlight
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn collect_complete_host_facts(
+    envelope: &mut ExactStreamOneWorkerEnvelope,
+    deadline: Instant,
+) -> Result<RawHostFacts, SampleUnavailable> {
+    envelope.provider.collect(deadline)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn collect_complete_host_facts(
+    _envelope: &mut ExactStreamOneWorkerEnvelope,
+    _deadline: Instant,
+) -> Result<RawHostFacts, SampleUnavailable> {
+    Err(SampleUnavailable::ProviderUnavailable)
+}
+
+#[cfg(target_os = "macos")]
+const fn platform_supported() -> bool {
+    true
+}
+
+#[cfg(not(target_os = "macos"))]
+const fn platform_supported() -> bool {
+    false
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::resource_governor::{
+        CapacityAssessment, CpuHeadroom, DecisionMetadata, StabilityObservation, SwapOutCounter,
+        SwapOutGeneration, TelemetryEpoch,
+    };
+    use super::*;
+
+    fn policy(authority: SwapGrowthAuthority) -> ResourcePolicy {
+        let mut policy = ResourcePolicy::default();
+        if authority == SwapGrowthAuthority::ValidatedOuterContainmentAdvisory {
+            policy.outer_contained_cold_worker_memory_charge_bytes =
+                Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET);
+        }
+        policy.swap_growth_authority = authority;
+        policy
+    }
+
+    fn safe_decision(swap: SwapAssessment) -> GovernorDecision {
+        let cursor = TelemetryCursor {
+            epoch: TelemetryEpoch(1),
+            sequence: 3,
+            observed_at_millis: 10_000,
+        };
+        GovernorDecision {
+            phase: GovernorPhase::Scanning,
+            target_worker_leases: 1,
+            reason: DecisionReason::Holding,
+            metadata: DecisionMetadata {
+                cursor: Some(cursor),
+                stability_epoch: Some(StabilityEpoch(1)),
+                stable_duration_millis: 10_000,
+                stable: true,
+                swap,
+                pressure: MemoryPressure::Normal,
+                lease_generation: LeaseGeneration(2),
+                lease_authority: LeaseAuthority::Active,
+                lease_observation_cutoff: Some(cursor),
+                observed_lease_generation: Some(LeaseGeneration(2)),
+                resident_workers: Some(1),
+                draining_workers: Some(0),
+                reserved_workers: Some(0),
+                committed_shards_in_ramp_window: 0,
+                calibration: None,
+                capacity: Some(CapacityAssessment {
+                    telemetry_complete: true,
+                    memory_reserve_bytes: ONE_GIB,
+                    cpu_reserve_millicores: 2_000,
+                    worker_memory_charge_bytes: STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+                    worker_cpu_charge_millicores: 1_000,
+                    current_memory_before_worker_charge_bytes: Some(6 * ONE_GIB),
+                    current_cpu_before_worker_charge_millicores: Some(6_000),
+                    memory_worker_ceiling: 1,
+                    cpu_worker_ceiling: 1,
+                    policy_worker_ceiling: 1,
+                    charged_worker_commitments: 1,
+                    safe_worker_ceiling: 1,
+                }),
+                post_compile_cutoff: None,
+                failure: None,
+                drain_trigger: None,
+            },
+        }
+    }
+
+    fn reduced_sample() -> ReducedResourceSample {
+        ReducedResourceSample {
+            capacity: HostCapacity {
+                logical_cpu_count: Some(8),
+                total_memory_bytes: Some(8 * ONE_GIB),
+            },
+            sample: ResourceSample {
+                cursor: TelemetryCursor {
+                    epoch: TelemetryEpoch(1),
+                    sequence: 3,
+                    observed_at_millis: 10_000,
+                },
+                stability: StabilityObservation {
+                    epoch: StabilityEpoch(1),
+                    stable_since_millis: 0,
+                    minimum_available_memory_bytes: Some(6 * ONE_GIB),
+                    minimum_idle_cpu_millicores: Some(6_000),
+                    minimum_memory_before_evaluator_charge_bytes: Some(6 * ONE_GIB),
+                    minimum_cpu_before_evaluator_charge_millicores: Some(6_000),
+                },
+                compile_epoch: None,
+                pressure: MemoryPressure::Normal,
+                oom_risk: false,
+                available_memory_bytes: Some(6 * ONE_GIB),
+                cpu: Some(CpuHeadroom {
+                    live_capacity_millicores: 8_000,
+                    idle_millicores: 6_000,
+                }),
+                swap_out: Some(SwapOutCounter {
+                    generation: SwapOutGeneration(1),
+                    cumulative_bytes: 4_096,
+                }),
+                evaluator: EvaluatorObservation {
+                    lease_generation: LeaseGeneration(2),
+                    resident_workers: 1,
+                    draining_workers: 0,
+                    reserved_workers: 0,
+                    aggregate_rss_bytes: Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET),
+                    aggregate_cpu_millicores: Some(1_000),
+                },
+                compiler: CompilerObservation {
+                    rss_bytes: Some(0),
+                    cpu_millicores: Some(0),
+                },
+            },
+            force_zero_admission: false,
+        }
+    }
+
+    #[test]
+    fn telemetry_then_reserve_backoff_requires_a_fresh_window_before_readmission() {
+        fn observe(
+            reducer: &mut StabilityWindowReducer,
+            governor: &mut ResourceGovernor,
+            policy: ResourcePolicy,
+            at: u64,
+            host: Option<RawHostFacts>,
+        ) -> GovernorDecision {
+            let reduced = reducer
+                .reduce(RawHostSample {
+                    source_generation: NonZeroU64::MIN,
+                    observed_at_millis: at,
+                    host,
+                    owned: OwnedProcessSnapshot {
+                        evaluator: EvaluatorObservation {
+                            lease_generation: governor.lease_generation(),
+                            resident_workers: governor.target_worker_leases(),
+                            draining_workers: 0,
+                            reserved_workers: 0,
+                            aggregate_rss_bytes: Some(0),
+                            aggregate_cpu_millicores: Some(0),
+                        },
+                        compiler: CompilerObservation {
+                            rss_bytes: Some(0),
+                            cpu_millicores: Some(0),
+                        },
+                        compile_epoch: None,
+                    },
+                })
+                .unwrap();
+            let decision = drive_governor(governor, policy, reduced.sample, None, reducer).unwrap();
+            if reduced.force_zero_admission {
+                assert!(!decision_allows_scan_case(decision, policy));
+            }
+            decision
+        }
+
+        // Exercise both reserve dimensions using real reducer/governor logic,
+        // a deterministic clock and no host commands, sleeps or model replay.
+        for memory_shortfall in [false, true] {
+            let host = RawHostFacts {
+                logical_cpu_count: 8,
+                total_memory_bytes: 8 * ONE_GIB,
+                live_capacity_millicores: 8_000,
+                idle_millicores: 6_000,
+                available_memory_bytes: 6 * ONE_GIB,
+                outer_contained_available_memory_bytes: 6 * ONE_GIB,
+                pressure: MemoryPressure::Normal,
+                oom_risk: false,
+                swap_out: SwapOutCounter {
+                    generation: SwapOutGeneration(1),
+                    cumulative_bytes: 4_096,
+                },
+            };
+            let mut policy = policy(SwapGrowthAuthority::ValidatedOuterContainmentAdvisory);
+            policy.configured_worker_ceiling = Some(1);
+            policy.stable_window_millis = 5_000;
+            let mut governor = ResourceGovernor::new(
+                HostCapacity {
+                    logical_cpu_count: Some(8),
+                    total_memory_bytes: Some(8 * ONE_GIB),
+                },
+                policy,
+            )
+            .unwrap();
+            let mut reducer = StabilityWindowReducer::new(
+                ReducerEpochSeed {
+                    telemetry: NonZeroU64::MIN,
+                    stability: NonZeroU64::MIN,
+                },
+                StabilityPressurePolicy::NormalOrOuterContainedWarning,
+                policy.swap_growth_authority,
+            );
+            let mut decision = governor.decision();
+            for at in [1_000, 6_000, 11_000, 16_000, 21_000, 26_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(host));
+            }
+            assert!(decision_allows_scan_case(decision, policy));
+
+            decision = observe(&mut reducer, &mut governor, policy, 31_000, None);
+            assert!(!decision_allows_scan_case(decision, policy));
+            assert_eq!(decision.target_worker_leases, 0);
+            decision = observe(&mut reducer, &mut governor, policy, 36_000, Some(host));
+            assert_eq!(decision.reason, DecisionReason::WaitingForSwapBaseline);
+            assert!(!decision_allows_scan_case(decision, policy));
+            let mut low = host;
+            if memory_shortfall {
+                low.available_memory_bytes = ONE_GIB;
+                low.outer_contained_available_memory_bytes = ONE_GIB;
+            } else {
+                low.idle_millicores = 0;
+            }
+            for at in [41_000, 46_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(low));
+                assert_eq!(decision.reason, DecisionReason::ReserveBackoff);
+                assert_eq!(decision.target_worker_leases, 0);
+                assert!(!decision_allows_scan_case(decision, policy));
+            }
+            let rejected_epoch = decision.metadata.stability_epoch.unwrap();
+            for at in [51_000, 56_000, 61_000, 66_000] {
+                decision = observe(&mut reducer, &mut governor, policy, at, Some(host));
+                assert!(decision.metadata.stability_epoch.unwrap() > rejected_epoch);
+                assert!(!decision_allows_scan_case(decision, policy));
+                if at == 51_000 {
+                    assert_eq!(decision.metadata.stable_duration_millis, 0);
+                    assert!(!decision.metadata.stable);
+                }
+            }
+            decision = observe(&mut reducer, &mut governor, policy, 71_000, Some(host));
+            assert!(decision_allows_scan_case(decision, policy));
+            let mut critical = host;
+            critical.pressure = MemoryPressure::Critical;
+            decision = observe(&mut reducer, &mut governor, policy, 76_000, Some(critical));
+            assert_eq!(decision.target_worker_leases, 0);
+            assert!(!decision_allows_scan_case(decision, policy));
+        }
+    }
+
+    #[test]
+    fn mechanism_case_rank_is_individually_admitted_for_calibration_and_scan() {
+        let subject = ExactStreamWorkSubject::MechanismCaseIdRank(37);
+
+        assert!(work_subject_allowed(
+            ExactStreamWorkPurpose::Calibration,
+            subject
+        ));
+        assert!(work_subject_allowed(ExactStreamWorkPurpose::Scan, subject));
+    }
+
+    #[test]
+    fn safe_standalone_envelope_keeps_swap_growth_strict() {
+        let envelope = ExactStreamOneWorkerEnvelope::new().unwrap();
+
+        assert_eq!(envelope.outer_containment, None);
+        assert_eq!(
+            envelope.policy.swap_growth_authority,
+            SwapGrowthAuthority::StrictStandalone
+        );
+        assert!(!decision_has_safe_one_worker_capacity(
+            safe_decision(SwapAssessment::Growth),
+            envelope.policy,
+        ));
+    }
+
+    #[test]
+    fn native_batch_resource_charge_is_frozen_and_keeps_one_logical_worker() {
+        let receipt = ExactStreamOuterContainmentReceipt::new(
+            11 * ONE_GIB / 2,
+            ONE_GIB / 2,
+            11 * ONE_GIB / 2,
+            ONE_GIB,
+        )
+        .unwrap();
+        for workers in [1, 2] {
+            let envelope =
+                ExactStreamOneWorkerEnvelope::new_with_native_workers(Some(receipt), workers)
+                    .unwrap();
+            let policy = envelope.policy;
+            assert_eq!(envelope.native_classifier_worker_limit(), workers);
+            assert_eq!(
+                policy.worker_cpu_charge_millicores,
+                u32::from(workers) * 1_000
+            );
+            assert_eq!(
+                policy.outer_contained_cold_worker_memory_charge_bytes,
+                Some(u64::from(workers) * STREAM_QUANTUM_ACCOUNTED_WORKING_SET)
+            );
+            assert_eq!(policy.configured_worker_ceiling, Some(1));
+            assert_eq!(policy.requested_jobs_ceiling, Some(1));
+            assert_eq!(policy.cpu_reserve_divisor, 5);
+            assert_eq!(policy.memory_reserve_divisor, 5);
+            assert_eq!(envelope.outer_containment, Some(receipt));
+            assert!(envelope.governor.is_none());
+            assert!(ResourceGovernor::new(
+                HostCapacity {
+                    logical_cpu_count: Some(6),
+                    total_memory_bytes: Some(8 * ONE_GIB),
+                },
+                policy,
+            )
+            .is_ok());
+        }
+        let default =
+            ExactStreamOneWorkerEnvelope::new_with_outer_containment(Some(receipt)).unwrap();
+        assert_eq!(default.native_classifier_worker_limit(), 1);
+        assert_eq!(default.policy.worker_cpu_charge_millicores, 1_000);
+        assert_eq!(
+            default
+                .policy
+                .outer_contained_cold_worker_memory_charge_bytes,
+            Some(STREAM_QUANTUM_ACCOUNTED_WORKING_SET)
+        );
+    }
+
+    #[test]
+    fn native_batch_two_workers_require_containment_and_a_full_double_quantum() {
+        assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(None, 1).is_ok());
+        for workers in [0, 2, 3, u16::MAX] {
+            assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(None, workers).is_err());
+        }
+        let too_small = ExactStreamOuterContainmentReceipt::new(
+            STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+            ONE_GIB / 2,
+            STREAM_QUANTUM_ACCOUNTED_WORKING_SET,
+            ONE_GIB,
+        )
+        .unwrap();
+        assert!(ExactStreamOneWorkerEnvelope::new_with_native_workers(Some(too_small), 2).is_err());
+    }
+
+    #[test]
+    fn outer_contained_swap_growth_keeps_permit_authority_and_never_names_swap_backoff() {
+        let decision = safe_decision(SwapAssessment::Growth);
+        let advisory = policy(SwapGrowthAuthority::ValidatedOuterContainmentAdvisory);
+        let strict = policy(SwapGrowthAuthority::StrictStandalone);
+
+        assert!(decision_has_safe_one_worker_capacity(decision, advisory));
+        assert!(!decision_has_safe_one_worker_capacity(decision, strict));
+        assert_eq!(
+            pause_reason_for_decision(decision, reduced_sample(), None, None, strict).code(),
+            "resource_swap_growth"
+        );
+        assert_ne!(
+            pause_reason_for_decision(decision, reduced_sample(), None, None, advisory).code(),
+            "resource_swap_growth"
+        );
+    }
+
+    #[test]
+    fn advisory_swap_growth_preserves_the_validated_outer_memory_envelope() {
+        let group_rss_trip = (11 * ONE_GIB) / 2;
+        let receipt = ExactStreamOuterContainmentReceipt::new(
+            group_rss_trip,
+            ONE_GIB / 2,
+            group_rss_trip,
+            ONE_GIB,
+        )
+        .unwrap();
+        let host = HostCapacity {
+            logical_cpu_count: Some(8),
+            total_memory_bytes: Some(8 * ONE_GIB),
+        };
+        assert!(receipt.validates_for(host));
+
+        let over_envelope =
+            ExactStreamOuterContainmentReceipt::new(6 * ONE_GIB, ONE_GIB / 2, 6 * ONE_GIB, ONE_GIB)
+                .unwrap();
+        assert!(!over_envelope.validates_for(host));
+    }
+}

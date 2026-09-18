@@ -10,6 +10,14 @@
 | reverse_ordered_band(amount: Int) -> 80 under amount > 8
 | reverse_ordered_band(amount: Int) -> 70 under amount > 7
 
+| overloaded_result() -> True
+| overloaded_result(value: Int) -> value + 1
+
+| conflicting_result(value: Int) -> value
+| conflicting_result(value: Int) -> True under value > 0
+
+| unresolved_result(value: Int) -> []
+
 # OrderedCase(base: Int) {
     | band(amount: Int) -> base
     | band(amount: Int) -> 70 under amount > 7
@@ -63,8 +71,10 @@
 | local_exception_extends_imported_chain: imported_nine -> imported_nine == 80
 | first_overlapping_guard_wins: ordered_nine -> ordered_nine == 70
 | reversing_guards_changes_dispatch: reverse_ordered_nine -> reverse_ordered_nine == 80
-| scoped_first_overlapping_guard_wins: scoped_nine -> scoped_nine == 70
+| scoped_first_overlapping_guard_wins: OrderedCase(base = 0).band(amount) -> if amount > 8 { OrderedCase(base = 0).band(amount) == 70 } else { True }
 | scoped_exception_precedes_conditions: scoped_exception -> scoped_exception == 99
+| boolean_overload_is_well_sorted: overloaded_result() -> overloaded_result()
+| integer_overload_is_well_sorted: overloaded_result(41) -> overloaded_result(41) == 42
 | imported_exception_is_symbolic: imported_band(amount) -> if amount > 8 { imported_band(amount) == 80 } else { True }
 | first_guard_is_symbolic: ordered_band(amount) -> if amount > 8 { ordered_band(amount) == 70 } else { True }
 | constructor_payload_head_is_lowered: paper_value -> paper_value == 42
@@ -75,4 +85,7 @@
 | partial_dispatch_is_rejected: partial_value(amount) -> partial_value(amount) >= 0
 | recursive_dispatch_is_rejected: recursive_value(amount) -> recursive_value(amount) >= 0
 | higher_order_dispatch_is_rejected: higher_order_projected -> higher_order_projected == 42
+| conflicting_return_dispatch_is_rejected: conflicting_result(value) -> True
+| unresolved_return_dispatch_is_rejected: unresolved_result(value) -> True
 | intentional_wrong_order_claim: ordered_nine -> ordered_nine == 80
+| scoped_intentional_wrong_order_claim: OrderedCase(base = 0).band(amount) -> if amount > 8 { OrderedCase(base = 0).band(amount) == 80 } else { True }

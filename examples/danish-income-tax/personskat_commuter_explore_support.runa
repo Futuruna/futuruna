@@ -1,0 +1,238 @@
+@ sprog da
+
+@ importer ./personskat.calculate
+
+----
+Shared canonical Personskat adapter for bounded commuting explorations.
+The historical 350k names are retained so existing query code stays compatible.
+Only the importing query defines its income/distance domains and intervention.
+These constructors encode declared audit facts, not replacement tax formulas.
+----
+
+# Personskat350kCommuterProfile(
+    skatteår: Heltal,
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    fødselsdato: Dato,
+    personfradrag_alder_status: PersonfradragAlderStatus,
+    arbejdsdage: Heltal,
+    daglige_befordringskilometer: Heltal
+)
+
+# Personskat350kCommuterState(
+    profil: Personskat350kCommuterProfile,
+    bruttoløn_kroner: Heltal
+)
+
+# Personskat350kSalaryPromotion(lønstigning_kroner: Heltal)
+
+# Personskat350kCommuterObservation(
+    netto_øre: Heltal,
+    input_gyldigt: Boolsk
+)
+
+| personskat_350k_commuter_ingen_pension(
+    fødselsdato: Dato
+) -> PersonskatPensionsInput(
+    fødselsdato = fødselsdato,
+    pbl18_indbetalinger = [],
+    pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
+    pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
+    ambl_par2_stk1_nr5_årsgrundlag = ambl_par2_nr5_tomt_årsgrundlag(),
+    pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(
+        afståelser = [],
+        ordninger = [],
+        kvalifikationsår = [],
+        tidligere_indbetalinger = []
+    ),
+    pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
+    øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
+)
+
+| personskat_350k_commuter_ligningsfradrag(
+    profil: Personskat350kCommuterProfile
+) -> PersonskatLigningsfradragInput(
+    sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
+    sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
+    fiskerfradrag = ligningslov9g_intet_årsinput(),
+    øvrige_lønmodtagerudgifter = ligningslov9_stk1_intet_årsinput(),
+    befordring = PersonskatBefordringsfradragInput(
+        forhold = [PersonskatBefordringsfradragFakta(
+            identifikation = "explore-350k-commuter",
+            befordringsmål_identifikation = "explore-350k-workplace",
+            arbejdsdage = profil.arbejdsdage,
+            daglige_befordringskilometer = profil.daglige_befordringskilometer,
+            bopæl_i_yderkommune_eller_lille_ø = ligningslov9a_par9c_stk3_kommune_omfattet(
+                profil.kommune
+            ),
+            befordringsformål = IndtægtsgivendeArbejdsplads,
+            modtaget_skattefri_befordringsgodtgørelse_for_strækning = Falskt,
+            modtaget_uddannelsesbefordringsrabat_eller_godtgørelse_for_strækning = Falskt,
+            ligningslov9d = UdenLigningslov9D,
+            fradrag_udelukket_folketingshverv_m_v = Falskt,
+            arbejdsgiverbetalt_befordring = UdenArbejdsgiverbetaltBefordring,
+            broer = ll9c_ingen_bropassager(),
+            særlig_transport = ll9c_ingen_særlig_transport()
+        )]
+    ),
+    rejser = ligningslov9a_intet_årsinput(),
+    faglige_kontingenter = Ligningslov13Årsinput(
+        skatteyderstatus = Ll13Lønmodtager,
+        kontingenter = []
+    ),
+    arbejdsløshed_efterløn_og_fleksydelse = Pbl49Til49BÅrsinput(
+        skattepligtsposition = Pbl49FuldtSkattepligtigOgHjemmehørendeIDanmark,
+        bidrag = []
+    ),
+    gaver = LigningslovGaveÅrsinput(gaver = [])
+)
+
+| personskat_350k_commuter_lønmodtager(
+    state: Personskat350kCommuterState
+) -> PersonskatLønmodtagerInput(
+    skatteår = state.profil.skatteår,
+    kommune = state.profil.kommune,
+    bruttoløn_kroner = state.bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_350k_commuter_ligningsfradrag(state.profil),
+    pension = personskat_350k_commuter_ingen_pension(state.profil.fødselsdato),
+    personfradrag_alder_status = state.profil.personfradrag_alder_status,
+    betaler_kirkeskat = state.profil.betaler_kirkeskat
+)
+
+| personskat_350k_commuter_input(
+    state: Personskat350kCommuterState
+) -> PersonskatInput(
+    lønmodtager = personskat_350k_commuter_lønmodtager(state),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = StandardSkatteforhold,
+    underskudsforhold = StandardUnderskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+| personskat_350k_commuter_apply_promotion(
+    before: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> Personskat350kCommuterState(
+    profil = before.profil,
+    bruttoløn_kroner = before.bruttoløn_kroner + context.lønstigning_kroner
+)
+
+> personskat_350k_commuter_assess(
+    state: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> PersonskatBeregningResultat {
+    beregn_personskat(personskat_350k_commuter_input(state))
+}
+
+| personskat_350k_commuter_udenlandske_sociale_bidrag_gyldige(
+    resultat: PersonskatUdenlandskeSocialeBidragResultat
+) -> match resultat {
+    | IngenUdenlandskeSocialeBidragEfterLigningslov8M -> Sandt
+    | BeregnetUdenlandskSocialbidragsfradrag(_, _, _, _, _, _) -> Sandt
+    | UgyldigtUdenlandskSocialbidragsgrundlag(_, _, _) -> Falskt
+}
+
+| personskat_350k_commuter_kursgevinst_par32_gyldig(
+    resultat: PersonskatKursgevinstPar32ParResultat
+) -> match resultat {
+    | IntetPar32Kontraktforløb -> Sandt
+    | BeregnetPar32Kontraktforløb(_, _, _, _, input_gyldigt) -> input_gyldigt
+}
+
+| personskat_350k_commuter_pension_gyldig(
+    resultat: PersonskatPensionsResultat
+) -> resultat.pensionsalder_resultat.input_gyldigt &&
+    resultat.pbl18_årsresultat.input_gyldigt &&
+    resultat.ambl_par2_stk1_nr5_resultat.input_gyldigt &&
+    resultat.udbetalingsresultat.aktuelle_input_gyldige &&
+    resultat.udbetalingsresultat.foregående_input_gyldige
+
+| personskat_350k_commuter_resultatgrundlag_gyldigt(
+    resultat: PersonskatBeregningResultat
+) -> resultat.personlig_indkomst.alle_input_gyldige &&
+    resultat.erhvervsbefordring.alle_input_gyldige &&
+    resultat.ligningsfradrag.alle_input_gyldige &&
+    resultat.selvstændig_arbejdsmarkedsbidrag.input_gyldigt &&
+    resultat.kapitalindkomst.alle_input_gyldige &&
+    resultat.aktieavance.alle_input_gyldige &&
+    resultat.cfc.alle_input_gyldige &&
+    personskat_350k_commuter_pension_gyldig(resultat.pension) &&
+    personskat_350k_commuter_udenlandske_sociale_bidrag_gyldige(
+        resultat.udenlandske_sociale_bidrag
+    ) &&
+    personskat_350k_commuter_kursgevinst_par32_gyldig(
+        resultat.kursgevinst_par32
+    ) &&
+    resultat.kildeskat25a.alle_input_gyldige &&
+    resultat.underskudsår.alle_åbningsgrundlag_gyldige &&
+    resultat.personskattelov13a.alle_kildegrundlag_gyldige &&
+    resultat.personskattelov13a.stk2_nedsættelser_stabile &&
+    resultat.aktieindkomst_parår.input_gyldigt &&
+    resultat.negativ_aktieindkomstskat.input_gyldigt &&
+    resultat.negativ_aktieskat_fremførselsår.alle_åbningsgrundlag_gyldige &&
+    resultat.ejendomsskatter.alle_input_gyldige &&
+    resultat.ejendomsskatter.regelgrundlag_understøttet &&
+    resultat.ligningslov33.input_gyldigt &&
+    resultat.ligningslov33a.input_gyldigt &&
+    resultat.kildeskat_par8a_kredit_input_gyldigt &&
+    resultat.kildeskat_ambl_par6_kredit_input_gyldigt &&
+    resultat.kildeskat_al40c_acontoskat_input_gyldigt &&
+    resultat.afskrivningslov40c_acontoskat.kildefakta_gyldige
+
+| personskat_350k_commuter_resultat_afstemt(
+    resultat: PersonskatBeregningResultat
+) -> resultat.sømandsbeskatning.input_gyldigt &&
+    resultat.sømandsbeskatning_eksakt.input_gyldigt &&
+    resultat.eksakt_ordinær_skat_efter_dis_øre ==
+    resultat.sømandsbeskatning_eksakt.samlet_skat_inkl_am_efter_dis_lempelse_øre &&
+    resultat.sømandsbeskatning_eksakt.indkomstskat_før_dis_lempelse_øre ==
+    resultat.hovedskat_eksakt.samlet_indkomstskat_øre &&
+    resultat.sømandsbeskatning_eksakt.arbejdsmarkedsbidrag_øre ==
+    resultat.hovedskat_eksakt.arbejdsmarkedsbidrag_øre
+
+| personskat_350k_commuter_resultat_gyldigt(
+    resultat: PersonskatBeregningResultat
+) -> personskat_350k_commuter_resultatgrundlag_gyldigt(resultat) &&
+    personskat_350k_commuter_resultat_afstemt(resultat)
+
+| personskat_350k_commuter_observation(
+    state: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> {
+    = resultat = personskat_350k_commuter_assess(state, context)
+    Personskat350kCommuterObservation(
+        netto_øre = state.bruttoløn_kroner * 100 - resultat.slutskat_øre,
+        input_gyldigt = personskat_350k_commuter_resultat_gyldigt(resultat)
+    )
+}
+
+| personskat_350k_commuter_ressourcer_falder_ikke(
+    before: Personskat350kCommuterState,
+    after: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> personskat_350k_commuter_observation(after, context).netto_øre >=
+    personskat_350k_commuter_observation(before, context).netto_øre
+
+| personskat_350k_commuter_tab_øre(
+    before: Personskat350kCommuterState,
+    after: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> personskat_350k_commuter_observation(before, context).netto_øre -
+    personskat_350k_commuter_observation(after, context).netto_øre
+
+| personskat_350k_commuter_tab_50_kroner_bin_start_øre(
+    before: Personskat350kCommuterState,
+    after: Personskat350kCommuterState,
+    context: Personskat350kSalaryPromotion
+) -> personskat_350k_commuter_tab_øre(before, after, context) / 5000 * 5000

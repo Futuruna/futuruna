@@ -1,0 +1,148 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs.audit
+
+----
+Full boundary-reduced 2026 Personskat income-cliff oracle.
+
+The declared income horizon is 0 through 3,000,000 DKK.  The reachable-model
+finite-difference proof reduces that axis to the 50 lower endpoints at which
+the section 9 C low-income commute supplement can fall:
+
+    342,499 + 1,000 * k, for k = 0 through 49.
+
+Every other adjacent income pair is outside this executable oracle only under
+that proof obligation; the canonical Personskat model still evaluates every
+retained endpoint.  The other axes are all 98 supported 2026 communes, both
+church-tax states, and the two declared commute profiles (60 and 130 km).
+----
+
+# PersonskatIndkomstklintHistogramPunkt(nettotab_øre: Heltal, antal: Heltal)
+
+= personskat_indkomstklint_fuldt_grænser: List(Heltal) = concat(
+    [342499],
+    personskat_indkomstklint_resterende_grænser
+)
+
+= personskat_indkomstklint_fuldt_overgange: List(PersonskatIndkomstovergang) = flat_map(
+    personskat_indkomstklint_nationale_profiler,
+    |profil: PersonskatIndkomstklintProfil| map(
+        personskat_indkomstklint_fuldt_grænser,
+        |indkomst_før_kroner: Heltal| personskat_indkomstklint_overgang(
+            profil,
+            indkomst_før_kroner
+        )
+    )
+)
+
+= personskat_indkomstklint_fuldt_gyldige = filter(
+    personskat_indkomstklint_fuldt_overgange,
+    |overgang: PersonskatIndkomstovergang| overgang.ligningsfradrag_input_gyldige
+)
+
+= personskat_indkomstklint_fuldt_fund = filter(
+    personskat_indkomstklint_fuldt_gyldige,
+    |overgang: PersonskatIndkomstovergang| overgang.netto_efter_øre < overgang.netto_før_øre
+)
+
+= personskat_indkomstklint_fuldt_60_km = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.profil.daglige_befordringskilometer == 60
+)
+
+= personskat_indkomstklint_fuldt_130_km = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.profil.daglige_befordringskilometer == 130
+)
+
+= personskat_indkomstklint_fuldt_histogram_0_til_50_kroner = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 0 && overgang.nettotab_øre < 5000
+)
+
+= personskat_indkomstklint_fuldt_histogram_50_til_100_kroner = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 5000 && overgang.nettotab_øre < 10000
+)
+
+= personskat_indkomstklint_fuldt_histogram_100_til_150_kroner = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 10000 && overgang.nettotab_øre < 15000
+)
+
+= personskat_indkomstklint_fuldt_histogram_150_til_200_kroner = filter(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre >= 15000 && overgang.nettotab_øre < 20000
+)
+
+= personskat_indkomstklint_fuldt_nettotab = distinct(map(
+    personskat_indkomstklint_fuldt_fund,
+    |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre
+))
+
+= personskat_indkomstklint_fuldt_præcist_histogram = map(
+    personskat_indkomstklint_fuldt_nettotab,
+    |nettotab_øre: Heltal| PersonskatIndkomstklintHistogramPunkt(
+        nettotab_øre = nettotab_øre,
+        antal = length(filter(
+            personskat_indkomstklint_fuldt_fund,
+            |overgang: PersonskatIndkomstovergang| overgang.nettotab_øre == nettotab_øre
+        ))
+    )
+)
+
+= personskat_indkomstklint_fuldt_mindste = personskat_indkomstklint_mindste(
+    personskat_indkomstklint_fuldt_fund
+)
+
+= personskat_indkomstklint_fuldt_største = personskat_indkomstklint_største(
+    personskat_indkomstklint_fuldt_fund
+)
+
+= personskat_indkomstklint_fuldt_histogramantal =
+    length(personskat_indkomstklint_fuldt_histogram_0_til_50_kroner) +
+    length(personskat_indkomstklint_fuldt_histogram_50_til_100_kroner) +
+    length(personskat_indkomstklint_fuldt_histogram_100_til_150_kroner) +
+    length(personskat_indkomstklint_fuldt_histogram_150_til_200_kroner)
+
+| personskat_indkomstklint_fuldt_søgerum: personskat_indkomstklint_fuldt_overgange ->
+    length(personskat_indkomstklint_fuldt_overgange) == 19600
+
+| personskat_indkomstklint_fuldt_alle_input_gyldige: personskat_indkomstklint_fuldt_gyldige ->
+    length(personskat_indkomstklint_fuldt_gyldige) == 19600
+
+| personskat_indkomstklint_fuldt_alle_kandidater_er_klinter: personskat_indkomstklint_fuldt_fund ->
+    length(personskat_indkomstklint_fuldt_fund) == 19600
+
+| personskat_indkomstklint_fuldt_begge_beregningsgrene: personskat_indkomstklint_fuldt_60_km ->
+    length(personskat_indkomstklint_fuldt_60_km) == 9800 &&
+    length(personskat_indkomstklint_fuldt_130_km) == 9800
+
+| personskat_indkomstklint_fuldt_histogram_bevarer_antal: personskat_indkomstklint_fuldt_histogramantal ->
+    personskat_indkomstklint_fuldt_histogramantal == 19600 &&
+    sum(map(
+        personskat_indkomstklint_fuldt_præcist_histogram,
+        |punkt: PersonskatIndkomstklintHistogramPunkt| punkt.antal
+    )) == 19600
+
+? personskat_indkomstklint_fuldt_søgerum
+? personskat_indkomstklint_fuldt_alle_input_gyldige
+? personskat_indkomstklint_fuldt_alle_kandidater_er_klinter
+? personskat_indkomstklint_fuldt_begge_beregningsgrene
+? personskat_indkomstklint_fuldt_histogram_bevarer_antal
+
+@ print("personskat fuld klintsøgning profiler: " + vis(length(personskat_indkomstklint_nationale_profiler)))
+@ print("personskat fuld klintsøgning kandidatgrænser: " + vis(length(personskat_indkomstklint_fuldt_grænser)))
+@ print("personskat fuld klintsøgning overgange: " + vis(length(personskat_indkomstklint_fuldt_overgange)))
+@ print("personskat fuld klintsøgning gyldige: " + vis(length(personskat_indkomstklint_fuldt_gyldige)))
+@ print("personskat fuld klintsøgning fund: " + vis(length(personskat_indkomstklint_fuldt_fund)))
+@ print("personskat fuld klintsøgning 60 km mekanismesignatur: " + vis(length(personskat_indkomstklint_fuldt_60_km)))
+@ print("personskat fuld klintsøgning 130 km mekanismesignatur: " + vis(length(personskat_indkomstklint_fuldt_130_km)))
+@ print("personskat fuld klintsøgning histogram 0,00-49,99 kr.: " + vis(length(personskat_indkomstklint_fuldt_histogram_0_til_50_kroner)))
+@ print("personskat fuld klintsøgning histogram 50,00-99,99 kr.: " + vis(length(personskat_indkomstklint_fuldt_histogram_50_til_100_kroner)))
+@ print("personskat fuld klintsøgning histogram 100,00-149,99 kr.: " + vis(length(personskat_indkomstklint_fuldt_histogram_100_til_150_kroner)))
+@ print("personskat fuld klintsøgning histogram 150,00-199,99 kr.: " + vis(length(personskat_indkomstklint_fuldt_histogram_150_til_200_kroner)))
+@ print("personskat fuld klintsøgning forskellige tab: " + vis(length(personskat_indkomstklint_fuldt_nettotab)))
+@ print("personskat fuld klintsøgning præcist histogram: " + vis(personskat_indkomstklint_fuldt_præcist_histogram))
+@ print("personskat fuld klintsøgning mindste fund: " + vis(personskat_indkomstklint_fuldt_mindste))
+@ print("personskat fuld klintsøgning største fund: " + vis(personskat_indkomstklint_fuldt_største))

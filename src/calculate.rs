@@ -419,7 +419,7 @@ impl CalculationInputLayout {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum CatalogType {
     Adt {
         parameters: Vec<String>,
@@ -431,32 +431,170 @@ enum CatalogType {
     },
 }
 
-#[derive(Default)]
-struct TypeCatalog {
+const EXACT_TYPE_VARIANT_EXPANSION_LIMIT: usize = 1_000_000;
+const EXACT_TYPE_RESOLUTION_DEPTH_LIMIT: usize = 64;
+
+#[derive(Debug, Default)]
+pub(crate) struct TypeCatalog {
     types: BTreeMap<String, CatalogType>,
+    conditional_types: BTreeSet<String>,
+    duplicate_types: BTreeSet<String>,
+    type_origins: BTreeMap<String, String>,
+    type_order: BTreeMap<String, usize>,
+    next_type_order: usize,
+    exact_mode: bool,
 }
 
 impl TypeCatalog {
+    /// Rebuild the exact runtime type catalog from the immutable declaration
+    /// graph retained by type checking.
+    ///
+    /// Unlike [`Self::collect_checked`], this path performs no filesystem I/O:
+    /// flat/hash imports have already been resolved into `program`, while
+    /// qualified imports deliberately remain opaque. Equal declaration IDs
+    /// reached through repeated flat imports are consumed once, matching the
+    /// import-visited behavior of the source collector without trusting paths.
+    pub(crate) fn collect_checked_analysis_program(
+        program: &CheckedAnalysisProgram,
+    ) -> Result<Self, Vec<String>> {
+        let root_modules = program
+            .declarations
+            .iter()
+            .filter(|declaration| matches!(declaration.import_kind, SourcedImportKind::Root))
+            .map(|declaration| declaration.id.module.clone())
+            .collect::<BTreeSet<_>>();
+        if root_modules.len() != 1 {
+            return Err(vec![
+                "checked analysis does not identify exactly one root module for exact type replay"
+                    .to_string(),
+            ]);
+        }
+        let root_module = root_modules
+            .iter()
+            .next()
+            .expect("one checked analysis root module");
+
+        let mut catalog = Self::default();
+        catalog.exact_mode = true;
+        let mut consumed = BTreeSet::new();
+        let mut imported = BTreeSet::new();
+        let mut diagnostics = Vec::new();
+        for declaration in program.declarations.iter() {
+            if !matches!(declaration.statement.as_ref(), Stmt::TypeDecl(_))
+                || !consumed.insert(declaration.id.clone())
+            {
+                continue;
+            }
+            let origin = if &declaration.id.module == root_module {
+                "<root>".to_string()
+            } else {
+                let import_kind = match &declaration.import_kind {
+                    SourcedImportKind::Root => "root",
+                    SourcedImportKind::PlainImport => "plain",
+                    SourcedImportKind::HashImport { selected_hash } => selected_hash.as_ref(),
+                    SourcedImportKind::QualifiedImport { module_name } => module_name.as_ref(),
+                };
+                format!(
+                    "<checked:{import_kind}:{}:{}>",
+                    declaration.id.module.content_hash,
+                    declaration.id.module.internal_path.join("/")
+                )
+            };
+            catalog.collect_inner(
+                std::slice::from_ref(declaration.statement.as_ref()),
+                None,
+                &origin,
+                &mut imported,
+                &mut diagnostics,
+                true,
+            );
+        }
+        if diagnostics.is_empty() {
+            Ok(catalog)
+        } else {
+            Err(diagnostics)
+        }
+    }
+
+    /// Collect the named types visible through this program's flat imports.
+    ///
+    /// Unlike the calculation contract collector's compatibility path, this
+    /// constructor fails closed when an import cannot be located, read, or
+    /// parsed. Consumers that use the catalog to claim a complete finite type
+    /// universe must not silently continue with a partial declaration graph.
+    pub(crate) fn collect_checked(
+        stmts: &[Stmt],
+        source_dir: Option<&str>,
+    ) -> Result<Self, Vec<String>> {
+        let mut catalog = Self::default();
+        catalog.exact_mode = true;
+        let mut imported = BTreeSet::new();
+        let mut diagnostics = Vec::new();
+        catalog.collect_inner(
+            stmts,
+            source_dir,
+            "<root>",
+            &mut imported,
+            &mut diagnostics,
+            true,
+        );
+        if diagnostics.is_empty() {
+            Ok(catalog)
+        } else {
+            Err(diagnostics)
+        }
+    }
+
     fn collect(&mut self, stmts: &[Stmt], source_dir: Option<&str>) {
         let mut imported = BTreeSet::new();
-        self.collect_inner(stmts, source_dir, &mut imported);
+        let mut ignored_diagnostics = Vec::new();
+        self.collect_inner(
+            stmts,
+            source_dir,
+            "<root>",
+            &mut imported,
+            &mut ignored_diagnostics,
+            false,
+        );
     }
 
     fn collect_inner(
         &mut self,
         stmts: &[Stmt],
         source_dir: Option<&str>,
+        origin: &str,
         imported: &mut BTreeSet<String>,
+        diagnostics: &mut Vec<String>,
+        checked: bool,
     ) {
         for stmt in stmts {
             match stmt {
-                Stmt::TypeDecl(TypeDecl::ADT {
-                    name,
-                    params,
-                    variants,
-                    except_from,
-                    ..
-                }) => {
+                Stmt::TypeDecl(
+                    declaration @ TypeDecl::ADT {
+                        name,
+                        params,
+                        variants,
+                        except_from,
+                        ..
+                    },
+                ) => {
+                    if checked
+                        && is_exact_runtime_type_name(name)
+                        && !is_canonical_exact_runtime_declaration(declaration)
+                    {
+                        diagnostics.push(format!(
+                            "declared type `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
+                            name
+                        ));
+                    }
+                    if checked && self.types.contains_key(name) {
+                        self.duplicate_types.insert(name.clone());
+                    }
+                    if !self.type_order.contains_key(name) {
+                        self.type_order.insert(name.clone(), self.next_type_order);
+                        self.type_origins.insert(name.clone(), origin.to_string());
+                        self.next_type_order += 1;
+                    }
                     self.types.insert(
                         name.clone(),
                         CatalogType::Adt {
@@ -467,6 +605,20 @@ impl TypeCatalog {
                     );
                 }
                 Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                    if checked && is_exact_runtime_type_name(name) {
+                        diagnostics.push(format!(
+                            "declared rule scope `{}` shadows a built-in primitive or structural type and cannot define an exact exploration universe",
+                            name
+                        ));
+                    }
+                    if checked && self.types.contains_key(name) {
+                        self.duplicate_types.insert(name.clone());
+                    }
+                    if !self.type_order.contains_key(name) {
+                        self.type_order.insert(name.clone(), self.next_type_order);
+                        self.type_origins.insert(name.clone(), origin.to_string());
+                        self.next_type_order += 1;
+                    }
                     self.types.insert(
                         name.clone(),
                         CatalogType::RuleScope {
@@ -474,49 +626,247 @@ impl TypeCatalog {
                         },
                     );
                 }
+                Stmt::TypeDecl(TypeDecl::WhenType { name, .. }) => {
+                    if checked {
+                        if is_exact_runtime_type_name(name) {
+                            diagnostics.push(format!(
+                                "conditional type evolution for `{}` changes a built-in primitive or structural type and cannot define an exact exploration universe",
+                                name
+                            ));
+                        }
+                        self.conditional_types.insert(name.clone());
+                    }
+                }
                 Stmt::Import(path) => {
                     let Some(dir) = source_dir else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve flat import `{}` without a source directory",
+                                path
+                            ));
+                        }
                         continue;
                     };
                     let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir)
                     else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve flat import `{}` from `{}`",
+                                path, dir
+                            ));
+                        }
                         continue;
                     };
                     let canonical = std::fs::canonicalize(&file_path)
                         .unwrap_or_else(|_| Path::new(&file_path).to_path_buf());
                     let canonical = canonical.to_string_lossy().to_string();
-                    if !imported.insert(canonical) {
+                    if !imported.insert(canonical.clone()) {
                         continue;
                     }
-                    let Ok(source) = std::fs::read_to_string(&file_path) else {
-                        continue;
+                    let source = match std::fs::read_to_string(&file_path) {
+                        Ok(source) => source,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot resolve flat import `{}`: {} ({})",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
                     };
                     let mut lexer = Lexer::new(&source);
                     let tokens = lexer.tokenize();
                     let mut parser = Parser::new(tokens, &source);
-                    let Ok(imported_stmts) = parser.parse_program() else {
-                        continue;
+                    let imported_stmts = match parser.parse_program() {
+                        Ok(imported_stmts) => imported_stmts,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot parse flat imported module `{}` at {}: {}",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
                     };
                     let nested_dir = Path::new(&file_path)
                         .parent()
                         .map(|parent| parent.to_string_lossy().to_string())
                         .unwrap_or_else(|| ".".to_string());
-                    self.collect_inner(&imported_stmts, Some(&nested_dir), imported);
+                    self.collect_inner(
+                        &imported_stmts,
+                        Some(&nested_dir),
+                        &canonical,
+                        imported,
+                        diagnostics,
+                        checked,
+                    );
+                }
+                Stmt::HashImport(hash, path) => {
+                    let Some(dir) = source_dir else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}` without a source directory",
+                                hash, path
+                            ));
+                        }
+                        continue;
+                    };
+                    let Some(file_path) = Interpreter::resolve_import_path_for_source(path, dir)
+                    else {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}`",
+                                hash, path
+                            ));
+                        }
+                        continue;
+                    };
+                    let canonical = std::fs::canonicalize(&file_path)
+                        .unwrap_or_else(|_| Path::new(&file_path).to_path_buf())
+                        .to_string_lossy()
+                        .to_string();
+                    let import_key = format!("{}#{}", canonical, hash);
+                    if !imported.insert(import_key.clone()) {
+                        continue;
+                    }
+                    let module = match parse_source_module_file_cached(Path::new(&file_path)) {
+                        Ok(module) => module,
+                        Err(error) => {
+                            if checked {
+                                diagnostics.push(format!(
+                                    "cannot parse hash imported module `{}` at {}: {}",
+                                    path, file_path, error
+                                ));
+                            }
+                            continue;
+                        }
+                    };
+                    let matched = module
+                        .statements()
+                        .iter()
+                        .filter(|statement| match statement {
+                            Stmt::Defn(definition) => content_hash_defn(definition) == *hash,
+                            Stmt::TypeDecl(declaration) => content_hash_type(declaration) == *hash,
+                            _ => false,
+                        })
+                        .cloned()
+                        .collect::<Vec<_>>();
+                    if matched.len() != 1 {
+                        if checked {
+                            diagnostics.push(format!(
+                                "cannot resolve hash import `#{}` from `{}`: expected exactly one matching definition, found {}",
+                                hash,
+                                path,
+                                matched.len()
+                            ));
+                        }
+                        continue;
+                    }
+                    let nested_dir = Path::new(&file_path)
+                        .parent()
+                        .map(|parent| parent.to_string_lossy().to_string())
+                        .unwrap_or_else(|| ".".to_string());
+                    self.collect_inner(
+                        &matched,
+                        Some(&nested_dir),
+                        &import_key,
+                        imported,
+                        diagnostics,
+                        checked,
+                    );
                 }
                 _ => {}
             }
         }
     }
 
-    fn resolved_variants(&self, name: &str) -> Result<Vec<Variant>, String> {
-        self.resolved_variants_inner(name, &mut BTreeSet::new())
+    /// Resolve an ADT's variants in source expansion order.
+    pub(crate) fn resolved_variants(&self, name: &str) -> Result<Vec<Variant>, String> {
+        let mut budget = self
+            .exact_mode
+            .then_some(EXACT_TYPE_VARIANT_EXPANSION_LIMIT);
+        self.resolved_variants_inner(name, &mut BTreeSet::new(), &mut budget)
+    }
+
+    /// Return the declared generic parameters for an ADT.
+    ///
+    /// RuleScope inputs are value fields rather than type parameters, so a
+    /// RuleScope has an empty generic-parameter list.
+    pub(crate) fn type_parameters(&self, name: &str) -> Result<Vec<String>, String> {
+        if self.duplicate_types.contains(name) {
+            return Err(format!(
+                "type `{}` has multiple declarations and cannot define one exact universe",
+                name
+            ));
+        }
+        match self.types.get(name) {
+            Some(CatalogType::Adt { parameters, .. }) => Ok(parameters.clone()),
+            Some(CatalogType::RuleScope { .. }) => Ok(Vec::new()),
+            None => Err(format!("unknown type `{}`", name)),
+        }
+    }
+
+    pub(crate) fn is_rule_scope(&self, name: &str) -> bool {
+        matches!(self.types.get(name), Some(CatalogType::RuleScope { .. }))
+    }
+
+    pub(crate) fn contains_type(&self, name: &str) -> bool {
+        self.types.contains_key(name)
+    }
+
+    fn ensure_inclusion_source_visible(&self, owner: &str, source: &str) -> Result<(), String> {
+        if !self.exact_mode {
+            return Ok(());
+        }
+        if matches!(self.types.get(source), Some(CatalogType::RuleScope { .. })) {
+            return Err(format!(
+                "type `{}` includes open rule scope `{}`, which cannot define a finite value universe",
+                owner, source
+            ));
+        }
+        self.type_origins
+            .get(owner)
+            .ok_or_else(|| format!("unknown type `{}`", owner))?;
+        self.type_origins
+            .get(source)
+            .ok_or_else(|| format!("unknown included type `{}`", source))?;
+        let owner_order = self.type_order.get(owner).copied().unwrap_or(usize::MAX);
+        let source_order = self.type_order.get(source).copied().unwrap_or(usize::MAX);
+        if source_order >= owner_order {
+            return Err(format!(
+                "type `{}` includes `{}` outside its already initialized declaration prefix; exact finite universes require an earlier visible type declaration",
+                owner, source
+            ));
+        }
+        Ok(())
     }
 
     fn resolved_variants_inner(
         &self,
         name: &str,
         active: &mut BTreeSet<String>,
+        budget: &mut Option<usize>,
     ) -> Result<Vec<Variant>, String> {
+        if self.exact_mode && active.len() >= EXACT_TYPE_RESOLUTION_DEPTH_LIMIT {
+            return Err(format!(
+                "finite type `{}` exceeds the exact resolution depth limit {}",
+                name, EXACT_TYPE_RESOLUTION_DEPTH_LIMIT
+            ));
+        }
+        if self.duplicate_types.contains(name) {
+            return Err(format!(
+                "type `{}` has multiple declarations and cannot define one exact universe",
+                name
+            ));
+        }
+        if self.conditional_types.contains(name) {
+            return Err(format!(
+                "type `{}` has conditional variants and cannot define a complete static universe",
+                name
+            ));
+        }
         if !active.insert(name.to_string()) {
             return Err(format!("cyclic type inclusion involving `{}`", name));
         }
@@ -528,8 +878,10 @@ impl TypeCatalog {
             }) => {
                 let mut resolved = Vec::new();
                 if let Some((source, excluded)) = except_from {
-                    for variant in self.resolved_variants_inner(source, active)? {
+                    self.ensure_inclusion_source_visible(name, source)?;
+                    for variant in self.resolved_variants_inner(source, active, budget)? {
                         if !excluded.contains(&variant.name) {
+                            charge_exact_variant_expansion(budget, 1, name)?;
                             resolved.push(variant);
                         }
                     }
@@ -537,11 +889,16 @@ impl TypeCatalog {
                 for variant in variants {
                     match variant.from_type.as_deref() {
                         Some("__maybe_include") if self.types.contains_key(&variant.name) => {
-                            resolved.extend(self.resolved_variants_inner(&variant.name, active)?);
+                            self.ensure_inclusion_source_visible(name, &variant.name)?;
+                            let included =
+                                self.resolved_variants_inner(&variant.name, active, budget)?;
+                            charge_exact_variant_expansion(budget, included.len(), name)?;
+                            resolved.extend(included);
                         }
                         Some(source) if source != "__maybe_include" => {
+                            self.ensure_inclusion_source_visible(name, source)?;
                             let source_variant = self
-                                .resolved_variants_inner(source, active)?
+                                .resolved_variants_inner(source, active, budget)?
                                 .into_iter()
                                 .find(|candidate| candidate.name == variant.name)
                                 .ok_or_else(|| {
@@ -550,29 +907,300 @@ impl TypeCatalog {
                                         source, variant.name, name
                                     )
                                 })?;
+                            charge_exact_variant_expansion(budget, 1, name)?;
                             resolved.push(source_variant);
                         }
-                        _ => resolved.push(variant.clone()),
+                        _ => {
+                            charge_exact_variant_expansion(budget, 1, name)?;
+                            resolved.push(variant.clone());
+                        }
                     }
                 }
                 Ok(resolved)
             }
-            Some(CatalogType::RuleScope { parameters }) => Ok(vec![Variant {
-                name: name.to_string(),
-                fields: parameters
-                    .iter()
-                    .map(|parameter| Field {
-                        name: parameter.name.clone(),
-                        ty: parameter.ty.clone().unwrap_or(Ty::Hole),
-                    })
-                    .collect(),
-                positional: false,
-                from_type: None,
-            }]),
+            Some(CatalogType::RuleScope { parameters }) => {
+                charge_exact_variant_expansion(budget, 1, name)?;
+                Ok(vec![Variant {
+                    name: name.to_string(),
+                    fields: parameters
+                        .iter()
+                        .map(|parameter| Field {
+                            name: parameter.name.clone(),
+                            ty: parameter.ty.clone().unwrap_or(Ty::Hole),
+                        })
+                        .collect(),
+                    positional: false,
+                    from_type: None,
+                }])
+            }
             None => Err(format!("unknown type `{}`", name)),
         };
         active.remove(name);
         result
+    }
+}
+
+fn charge_exact_variant_expansion(
+    budget: &mut Option<usize>,
+    amount: usize,
+    owner: &str,
+) -> Result<(), String> {
+    let Some(remaining) = budget else {
+        return Ok(());
+    };
+    let Some(next) = remaining.checked_sub(amount) else {
+        return Err(format!(
+            "finite type `{}` exceeds the exact variant-expansion work limit {}",
+            owner, EXACT_TYPE_VARIANT_EXPANSION_LIMIT
+        ));
+    };
+    *remaining = next;
+    Ok(())
+}
+
+#[cfg(test)]
+mod type_catalog_tests {
+    use super::*;
+
+    fn parse(source: &str) -> Vec<Stmt> {
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        parser.parse_program().expect("parse type catalog fixture")
+    }
+
+    #[test]
+    fn checked_catalog_exposes_exact_type_shape_and_variant_order() {
+        let statements = parse(
+            r#"
+# Base = First | Second
+# Wrapped(a) = Empty | Present(value: a)
+# Combined = Base | Third
+# Evolving = Initial
+# Evolving WHEN True -> Later
+
+# Case(flag: Base) {
+    | current() -> flag
+}
+"#,
+        );
+
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect complete local catalog");
+        assert_eq!(catalog.type_parameters("Wrapped").unwrap(), vec!["a"]);
+        assert_eq!(
+            catalog.type_parameters("Case").unwrap(),
+            Vec::<String>::new()
+        );
+        assert!(catalog.is_rule_scope("Case"));
+        assert!(!catalog.is_rule_scope("Wrapped"));
+        assert_eq!(
+            catalog
+                .resolved_variants("Combined")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First", "Second", "Third"]
+        );
+        assert_eq!(
+            catalog.resolved_variants("Evolving").unwrap_err(),
+            "type `Evolving` has conditional variants and cannot define a complete static universe"
+        );
+        assert_eq!(
+            catalog.type_parameters("Missing").unwrap_err(),
+            "unknown type `Missing`"
+        );
+
+        let mut calculation_compatibility_catalog = TypeCatalog::default();
+        calculation_compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            calculation_compatibility_catalog
+                .resolved_variants("Evolving")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Initial"]
+        );
+    }
+
+    #[test]
+    fn exact_variant_resolution_rejects_forward_includes_and_except_sources() {
+        let statements = parse(
+            r#"
+# Combined = Base | Third
+# Base = First | Second
+# Trimmed = Later EXCEPT Skip
+# Later = Keep | Skip
+"#,
+        );
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect forward-reference catalog");
+        for name in ["Combined", "Trimmed"] {
+            let error = catalog
+                .resolved_variants(name)
+                .expect_err("forward type composition must fail closed");
+            assert!(
+                error.contains("outside its already initialized declaration prefix"),
+                "{error}"
+            );
+        }
+
+        let mut compatibility_catalog = TypeCatalog::default();
+        compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            compatibility_catalog
+                .resolved_variants("Combined")
+                .expect("legacy calculation catalog keeps completed-map resolution")
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["First", "Second", "Third"]
+        );
+    }
+
+    #[test]
+    fn exact_variant_resolution_has_a_total_expansion_budget() {
+        let statements = parse(
+            r#"
+# T0 = A | B
+# T1Left = T0
+# T1Right = T0
+# T2 = T1Left | T1Right
+"#,
+        );
+        let catalog = TypeCatalog::collect_checked(&statements, None)
+            .expect("collect inclusion-diamond catalog");
+        let mut budget = Some(8);
+        let error = catalog
+            .resolved_variants_inner("T2", &mut BTreeSet::new(), &mut budget)
+            .expect_err("diamond expansion must exhaust the test budget");
+        assert!(error.contains("variant-expansion work limit"), "{error}");
+    }
+
+    #[test]
+    fn exact_variant_resolution_has_a_depth_limit() {
+        let mut source = "# T0 = Leaf\n".to_string();
+        for index in 1..=70 {
+            source.push_str(&format!("# T{} = T{}\n", index, index - 1));
+        }
+        let statements = parse(&source);
+        let catalog =
+            TypeCatalog::collect_checked(&statements, None).expect("collect deep inclusion chain");
+        let error = catalog
+            .resolved_variants("T70")
+            .expect_err("deep inclusion chains must fail before stack recursion");
+        assert!(error.contains("exact resolution depth limit"), "{error}");
+
+        let mut compatibility_catalog = TypeCatalog::default();
+        compatibility_catalog.collect(&statements, None);
+        assert_eq!(
+            compatibility_catalog
+                .resolved_variants("T70")
+                .expect("legacy calculation catalog keeps its prior deep-chain behavior")
+                .into_iter()
+                .map(|variant| variant.name)
+                .collect::<Vec<_>>(),
+            vec!["Leaf"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_collects_nested_flat_import_types() {
+        let statements = parse("@ import ./import_mesh_shared\n");
+        let source_dir = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/tests/differential/corpus/imports"
+        );
+
+        let catalog = TypeCatalog::collect_checked(&statements, Some(source_dir))
+            .expect("collect nested flat imports");
+
+        assert_eq!(
+            catalog
+                .resolved_variants("Lane")
+                .unwrap()
+                .iter()
+                .map(|variant| variant.name.as_str())
+                .collect::<Vec<_>>(),
+            vec!["Draft", "Review", "Ship"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_composes_an_earlier_imported_type() {
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna_exact_type_import_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).expect("create imported-type directory");
+        std::fs::write(directory.join("domain.runa"), "# Base = A | B\n")
+            .expect("write imported type");
+        let statements = parse("@ import ./domain\n# Combined = Base | C\n");
+        let catalog =
+            TypeCatalog::collect_checked(&statements, Some(directory.to_string_lossy().as_ref()))
+                .expect("collect imported-prefix composition");
+        std::fs::remove_dir_all(&directory).ok();
+        assert_eq!(
+            catalog
+                .resolved_variants("Combined")
+                .expect("resolve imported-prefix composition")
+                .into_iter()
+                .map(|variant| variant.name)
+                .collect::<Vec<_>>(),
+            vec!["A", "B", "C"]
+        );
+    }
+
+    #[test]
+    fn checked_catalog_reports_unavailable_and_malformed_flat_imports() {
+        let missing = parse("@ import ./type_catalog_fixture_that_does_not_exist\n");
+        let errors = match TypeCatalog::collect_checked(&missing, None) {
+            Err(errors) => errors,
+            Ok(_) => panic!("missing import must fail closed"),
+        };
+        assert_eq!(
+            errors,
+            vec!["cannot resolve flat import `./type_catalog_fixture_that_does_not_exist` without a source directory"]
+        );
+
+        let source_dir = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/errors");
+        let malformed = parse("@ import ./multi_parse_error\n");
+        let errors = match TypeCatalog::collect_checked(&malformed, Some(source_dir)) {
+            Err(errors) => errors,
+            Ok(_) => panic!("malformed import must fail closed"),
+        };
+        assert_eq!(errors.len(), 1);
+        assert!(
+            errors[0].contains("cannot parse flat imported module `./multi_parse_error`"),
+            "unexpected diagnostic: {}",
+            errors[0]
+        );
+    }
+
+    #[test]
+    fn type_substitution_rewrites_nested_type_parameters() {
+        let ty = Ty::App(
+            Box::new(Ty::Name("Result".to_string())),
+            vec![
+                Ty::Optional(Box::new(Ty::Var("value".to_string()))),
+                Ty::Var("error".to_string()),
+            ],
+        );
+        let substitutions = BTreeMap::from([
+            ("value".to_string(), Ty::Name("Bool".to_string())),
+            ("error".to_string(), Ty::Name("UnitError".to_string())),
+        ]);
+
+        assert_eq!(
+            substitute_type(&ty, &substitutions).to_string(),
+            "Result(Bool?, UnitError)"
+        );
     }
 }
 
@@ -1041,6 +1669,38 @@ fn primitive_name(name: &str) -> Option<&'static str> {
     }
 }
 
+fn is_builtin_runtime_type_name(name: &str) -> bool {
+    primitive_name(name).is_some() || matches!(name, "Nat" | "Unit" | "Any" | "_")
+}
+
+fn is_exact_runtime_type_name(name: &str) -> bool {
+    is_builtin_runtime_type_name(name) || matches!(name, "Tuple" | "Option")
+}
+
+/// `Option` is source-shadowable, but the interpreter always seeds `Some` and
+/// `None` before loading declarations. Exact exploration can therefore trust
+/// only the canonical prelude declaration; a different user/imported shape
+/// would omit runtime inhabitants from `values(Option(T))`.
+fn is_canonical_exact_runtime_declaration(declaration: &TypeDecl) -> bool {
+    let TypeDecl::ADT {
+        name, except_from, ..
+    } = declaration
+    else {
+        return false;
+    };
+    if name != "Option" || except_from.is_some() {
+        return false;
+    }
+    let declaration_hash = content_hash_type(declaration);
+    parse_prelude().iter().any(|statement| {
+        matches!(
+            statement,
+            Stmt::TypeDecl(canonical @ TypeDecl::ADT { name, .. })
+                if name == "Option" && content_hash_type(canonical) == declaration_hash
+        )
+    })
+}
+
 fn ty_to_contract_ref(ty: &Ty, allow_parameters: bool) -> Result<CalculationTypeRef, String> {
     match ty {
         Ty::Name(name) => {
@@ -1195,7 +1855,7 @@ fn validate_named_type(
         .collect();
     for variant in catalog.resolved_variants(name)? {
         for field in variant.fields {
-            let field_ty = substitute_ty(&field.ty, &substitutions);
+            let field_ty = substitute_type(&field.ty, &substitutions);
             validate_type_inner(&field_ty, catalog, active)?;
         }
     }
@@ -1213,27 +1873,27 @@ fn input_is_domain_object(ty: &Ty, catalog: &TypeCatalog) -> bool {
     }
 }
 
-fn substitute_ty(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
+pub(crate) fn substitute_type(ty: &Ty, substitutions: &BTreeMap<String, Ty>) -> Ty {
     match ty {
         Ty::Var(name) => substitutions
             .get(name)
             .cloned()
             .unwrap_or_else(|| ty.clone()),
         Ty::App(base, arguments) => Ty::App(
-            Box::new(substitute_ty(base, substitutions)),
+            Box::new(substitute_type(base, substitutions)),
             arguments
                 .iter()
-                .map(|argument| substitute_ty(argument, substitutions))
+                .map(|argument| substitute_type(argument, substitutions))
                 .collect(),
         ),
         Ty::Arrow(input, output) => Ty::Arrow(
-            Box::new(substitute_ty(input, substitutions)),
-            Box::new(substitute_ty(output, substitutions)),
+            Box::new(substitute_type(input, substitutions)),
+            Box::new(substitute_type(output, substitutions)),
         ),
-        Ty::Ref(inner) => Ty::Ref(Box::new(substitute_ty(inner, substitutions))),
-        Ty::MutRef(inner) => Ty::MutRef(Box::new(substitute_ty(inner, substitutions))),
-        Ty::Shared(inner) => Ty::Shared(Box::new(substitute_ty(inner, substitutions))),
-        Ty::Optional(inner) => Ty::Optional(Box::new(substitute_ty(inner, substitutions))),
+        Ty::Ref(inner) => Ty::Ref(Box::new(substitute_type(inner, substitutions))),
+        Ty::MutRef(inner) => Ty::MutRef(Box::new(substitute_type(inner, substitutions))),
+        Ty::Shared(inner) => Ty::Shared(Box::new(substitute_type(inner, substitutions))),
+        Ty::Optional(inner) => Ty::Optional(Box::new(substitute_type(inner, substitutions))),
         _ => ty.clone(),
     }
 }
@@ -1283,7 +1943,7 @@ fn collect_named_reachable(
         for variant in variants {
             for field in variant.fields {
                 collect_reachable_type_names(
-                    &substitute_ty(&field.ty, &substitutions),
+                    &substitute_type(&field.ty, &substitutions),
                     catalog,
                     reachable,
                 );
@@ -2313,8 +2973,9 @@ fn decode_value(
                 .ok_or_else(|| value_error(path, "expected an object"))?;
             let mut values = BTreeMap::new();
             for (name, value) in object {
-                values.insert(
-                    name.clone(),
+                runtime_map_insert_value(
+                    &mut values,
+                    Value::Str(name.clone()),
                     decode_value(
                         value,
                         &item,
@@ -2339,11 +3000,11 @@ fn decode_value(
                     substitutions,
                     &format!("{}[{}]", path, index),
                 )?;
-                let key = decoded.to_string();
-                if values.insert(key.clone(), decoded).is_some() {
+                let rendered = decoded.to_string();
+                if !runtime_set_insert_value(&mut values, decoded) {
                     return Err(value_error(
                         format!("{}[{}]", path, index),
-                        format!("duplicate set value `{}`", key),
+                        format!("duplicate set value `{}`", rendered),
                     ));
                 }
             }
@@ -2628,17 +3289,26 @@ fn encode_value(
                 return Err(runtime_type_error(path, "Map", value));
             };
             let mut object = JsonMap::new();
-            for (name, value) in values {
-                object.insert(
-                    name.clone(),
-                    encode_value(
-                        value,
-                        &item,
-                        contract,
-                        substitutions,
-                        &field_path(path, name),
-                    )?,
-                );
+            for (stored_key, stored_value) in values {
+                let Some((name, value)) = runtime_map_string_entry(stored_key, stored_value) else {
+                    return Err(value_error(
+                        path,
+                        "Map(String, T) contains a non-String key",
+                    ));
+                };
+                let encoded = encode_value(
+                    value,
+                    &item,
+                    contract,
+                    substitutions,
+                    &field_path(path, name),
+                )?;
+                if object.insert(name.to_string(), encoded).is_some() {
+                    return Err(value_error(
+                        field_path(path, name),
+                        format!("duplicate map key `{}`", name),
+                    ));
+                }
             }
             Ok(JsonValue::Object(object))
         }
@@ -3505,10 +4175,22 @@ struct CalculationWorker {
 }
 
 impl CalculationWorker {
-    fn new(entry: &str, stmts: &[Stmt], source_dir: Option<String>) -> Self {
+    fn new(
+        entry: &str,
+        stmts: &[Stmt],
+        source_dir: Option<String>,
+        rule_dispatch_return_types: &BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_return_issues: &BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
+    ) -> Self {
         let mut interpreter = Interpreter::new();
         interpreter.suppress_output = true;
         interpreter.source_dir = source_dir;
+        interpreter.install_rule_dispatch_return_metadata(
+            rule_dispatch_return_types,
+            rule_dispatch_return_issues,
+            rule_dispatch_boolean_miss_safe_keys,
+        );
         let mut base_env = interpreter.default_env();
         interpreter.initialize_calculation_program(entry, stmts, &mut base_env);
         let base_actor_instances = interpreter.actor_instances.clone();
@@ -3675,9 +4357,24 @@ fn invoke_calculation_cases_with_jobs(
         return output;
     }
 
+    // Contract extraction already validated the program. Recompute only the
+    // exact import-aware rule classification needed by runtime dispatch.
+    let (
+        rule_dispatch_return_types,
+        rule_dispatch_return_issues,
+        rule_dispatch_boolean_miss_safe_keys,
+    ) = TypeChecker::rule_dispatch_metadata_for_runtime(stmts, source_dir.clone());
+
     // Prime the shared parsed-module cache before peers initialize their own
     // isolated interpreters. The primary worker also serves the serial path.
-    let mut primary = CalculationWorker::new(&contract.entry, stmts, source_dir.clone());
+    let mut primary = CalculationWorker::new(
+        &contract.entry,
+        stmts,
+        source_dir.clone(),
+        &rule_dispatch_return_types,
+        &rule_dispatch_return_issues,
+        &rule_dispatch_boolean_miss_safe_keys,
+    );
     let initialized_after = started.elapsed();
     let mut outcomes = if worker_count == 1 {
         invoke_calculation_case_stride(&mut primary, contract, &envelope.cases, 0, 1)
@@ -3685,6 +4382,9 @@ fn invoke_calculation_cases_with_jobs(
         #[cfg(not(target_arch = "wasm32"))]
         {
             let next_case = AtomicUsize::new(0);
+            let rule_dispatch_return_types = &rule_dispatch_return_types;
+            let rule_dispatch_return_issues = &rule_dispatch_return_issues;
+            let rule_dispatch_boolean_miss_safe_keys = &rule_dispatch_boolean_miss_safe_keys;
             std::thread::scope(|scope| {
                 let mut handles = Vec::with_capacity(worker_count - 1);
                 for worker_index in 1..worker_count {
@@ -3699,6 +4399,9 @@ fn invoke_calculation_cases_with_jobs(
                                     &contract.entry,
                                     stmts,
                                     worker_source_dir,
+                                    rule_dispatch_return_types,
+                                    rule_dispatch_return_issues,
+                                    rule_dispatch_boolean_miss_safe_keys,
                                 );
                                 invoke_calculation_case_queue(
                                     &mut worker,
@@ -3855,8 +4558,240 @@ mod calculation_execution_tests {
         let mut parser = Parser::new(tokens, source);
         let stmts = parser.parse_program().expect("parse scenario calculation");
 
-        let worker = CalculationWorker::new("calculate_scenario", &stmts, None);
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, None, source);
+        let worker = CalculationWorker::new(
+            "calculate_scenario",
+            &stmts,
+            None,
+            &artifacts.rule_dispatch_return_types,
+            &artifacts.rule_dispatch_return_issues,
+            &artifacts.rule_dispatch_boolean_miss_safe_keys,
+        );
 
         assert!(worker.interpreter.output.is_empty());
+    }
+
+    #[test]
+    fn calculation_runtime_uses_canonical_boolean_rule_misses() {
+        let source = r#"
+# BoolInput(value: Int)
+# BoolResult(conditional: Bool, exception_only: Bool)
+
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+@ calculate("Boolean miss calculation")
+| calculate_boolean_misses(input: BoolInput) -> BoolResult(
+    conditional = conditional(input.value),
+    exception_only = exception_only(input.value)
+)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser.parse_program().expect("parse Boolean calculation");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("extract Boolean calculation")
+            .pop()
+            .expect("Boolean calculation contract");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: vec![CalculationInputCase {
+                case_id: "miss".to_string(),
+                input: serde_json::json!({"value": 0}),
+            }],
+        };
+
+        let output =
+            invoke_calculation_cases_with_jobs(&contract, &stmts, None, &envelope, Some(1));
+
+        assert!(
+            output.diagnostics.is_empty(),
+            "unexpected diagnostics: {:?}",
+            output.diagnostics
+        );
+        assert_eq!(
+            output.results[0].result,
+            serde_json::json!({"conditional": false, "exception_only": false})
+        );
+    }
+
+    #[test]
+    fn calculation_collections_round_trip_through_structural_runtime_keys() {
+        let source = r#"
+# CollectionInput(values: Map(String, Int), tags: Set(String))
+
+@ calculate("Collection calculation")
+| calculate_collections(input: CollectionInput) -> CollectionInput(
+    values = input.values,
+    tags = input.tags
+)
+"#;
+        let mut lexer = Lexer::new(source);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, source);
+        let stmts = parser
+            .parse_program()
+            .expect("parse collection calculation");
+        let contract = extract_calculation_contracts(&stmts, source, None)
+            .expect("extract collection calculation")
+            .pop()
+            .expect("collection calculation contract");
+        let input = serde_json::json!({
+            "values": {"alpha": 1, "beta": 2},
+            "tags": ["first", "second"]
+        });
+        let decoded = contract.decode_input(&input).expect("decode collections");
+        let Value::NamedConstructor(record_name, fields) = &decoded else {
+            panic!("expected decoded collection record");
+        };
+        let values = fields
+            .iter()
+            .find(|(name, _)| name == "values")
+            .map(|(_, value)| value.clone())
+            .expect("decoded map");
+        let tags = fields
+            .iter()
+            .find(|(name, _)| name == "tags")
+            .map(|(_, value)| value.clone())
+            .expect("decoded set");
+
+        let mut interpreter = Interpreter::new();
+        let env = interpreter.default_env();
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_get_or",
+                vec![values.clone(), Value::Str("alpha".into()), Value::Int(-1)],
+                &env,
+            ),
+            Value::Int(1)
+        ));
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_contains",
+                vec![values.clone(), Value::Str("beta".into())],
+                &env,
+            ),
+            Value::Bool(true)
+        ));
+        let replaced = interpreter.eval_builtin(
+            "map_insert",
+            vec![values.clone(), Value::Str("alpha".into()), Value::Int(9)],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin("map_len", vec![replaced.clone()], &env),
+            Value::Int(2)
+        ));
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_get_or",
+                vec![replaced.clone(), Value::Str("alpha".into()), Value::Int(-1)],
+                &env,
+            ),
+            Value::Int(9)
+        ));
+        let removed_values = interpreter.eval_builtin(
+            "map_remove",
+            vec![replaced, Value::Str("beta".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "map_contains",
+                vec![removed_values.clone(), Value::Str("beta".into())],
+                &env,
+            ),
+            Value::Bool(false)
+        ));
+
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "set_contains",
+                vec![tags.clone(), Value::Str("first".into())],
+                &env,
+            ),
+            Value::Bool(true)
+        ));
+        let duplicate = interpreter.eval_builtin(
+            "set_insert",
+            vec![tags.clone(), Value::Str("first".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin("set_len", vec![duplicate.clone()], &env),
+            Value::Int(2)
+        ));
+        let removed_tags = interpreter.eval_builtin(
+            "set_remove",
+            vec![duplicate, Value::Str("second".into())],
+            &env,
+        );
+        assert!(matches!(
+            interpreter.eval_builtin(
+                "set_contains",
+                vec![removed_tags.clone(), Value::Str("second".into())],
+                &env,
+            ),
+            Value::Bool(false)
+        ));
+
+        let encoded = contract
+            .encode_output(&decoded)
+            .expect("encode collections");
+        assert_eq!(encoded["values"], input["values"]);
+        let mut encoded_tags = encoded["tags"]
+            .as_array()
+            .expect("encoded set array")
+            .iter()
+            .map(|value| value.as_str().expect("encoded String set").to_string())
+            .collect::<Vec<_>>();
+        encoded_tags.sort();
+        assert_eq!(encoded_tags, ["first", "second"]);
+        let encoded_json = serde_json::to_string(&encoded).expect("serialize encoded collections");
+        assert!(!encoded_json.contains(RUNTIME_COLLECTION_KEY_PREFIX));
+        assert!(!encoded_json.contains(RUNTIME_MAP_ENTRY_MARKER));
+
+        let mutated = Value::NamedConstructor(
+            record_name.clone(),
+            fields
+                .iter()
+                .map(|(name, value)| {
+                    let value = match name.as_str() {
+                        "values" => removed_values.clone(),
+                        "tags" => removed_tags.clone(),
+                        _ => value.clone(),
+                    };
+                    (name.clone(), value)
+                })
+                .collect::<Vec<_>>()
+                .into(),
+        );
+        let mutated_encoded = contract
+            .encode_output(&mutated)
+            .expect("encode mutated collections");
+        assert_eq!(
+            mutated_encoded,
+            serde_json::json!({
+                "values": {"alpha": 9},
+                "tags": ["first"]
+            })
+        );
+        let mutated_json =
+            serde_json::to_string(&mutated_encoded).expect("serialize mutated collections");
+        assert!(!mutated_json.contains(RUNTIME_COLLECTION_KEY_PREFIX));
+        assert!(!mutated_json.contains(RUNTIME_MAP_ENTRY_MARKER));
+
+        let duplicate_error = contract
+            .decode_input(&serde_json::json!({
+                "values": {},
+                "tags": ["first", "first"]
+            }))
+            .expect_err("duplicate Set members must be rejected");
+        assert!(duplicate_error.to_string().contains("duplicate set value"));
     }
 }

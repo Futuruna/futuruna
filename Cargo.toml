@@ -2,6 +2,7 @@
 name = "futuruna"
 version = "0.1.1"
 edition = "2021"
+autobins = false
 rust-version = "1.94"
 description = "A programming language for law"
 authors = ["Andreas Rudolph <research@futuruna.com>"]

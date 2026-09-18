@@ -1,0 +1,54 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs.audit
+
+----
+Canonical Personskat evaluation at the 50 source-derived § 9 C whole-thousand
+transition candidates. This is an experiment, not a complement-closure proof:
+it classifies only the declared 2 × 2 × 2 × 50 candidate matrix.
+----
+
+| personskat_native_kandidatovergang(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_indkomstklint_overgang(
+    personskat_indkomstklint_profil(
+        kommunale_parametre_for(2026, kommune),
+        betaler_kirkeskat,
+        daglige_befordringskilometer
+    ),
+    341499 + grænse_nummer * 1000
+)
+
+@ print("PERSONSKAT_NATIVE_CANDIDATES_BEGIN 400")
+
+for kommune in [København, Læsø] {
+    for betaler_kirkeskat in [Falskt, Sandt] {
+        for daglige_befordringskilometer in [60, 130] {
+            for grænse_nummer in range(1, 51) {
+                = indkomst_før_kroner = 341499 + grænse_nummer * 1000
+                = overgang = personskat_native_kandidatovergang(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+                if overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre {
+                    @ print(
+                        "PERSONSKAT_NATIVE_CANDIDATE_CLIFF "
+                        + vis(kommunale_parametre_for(2026, kommune).kommunekode)
+                        + " " + vis(betaler_kirkeskat)
+                        + " " + vis(daglige_befordringskilometer)
+                        + " " + vis(grænse_nummer)
+                        + " " + vis(indkomst_før_kroner)
+                        + " " + vis(overgang.nettotab_øre)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@ print("PERSONSKAT_NATIVE_CANDIDATES_END")

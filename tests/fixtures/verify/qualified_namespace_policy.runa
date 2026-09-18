@@ -1,0 +1,19 @@
+= private_bias = 100
+
+> hidden_step(value: Int) -> Int { value + private_bias }
+
+| hidden_rule(value: Int) -> value + private_bias
+
+@ export
+> collide(value: Int) -> Int { value + 100 }
+
+@ export
+> through_private_function(value: Int) -> Int { hidden_step(value) }
+
+@ export
+> through_private_rule(value: Int) -> Int { hidden_rule(value) }
+
+| family(value: Int) -> value + 100
+| family(left: Int, right: Int) -> left + right + 200
+
+@ export family

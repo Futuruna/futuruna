@@ -1,0 +1,5 @@
+@ import Policy from ./qualified_namespace_policy
+
+= lifted = Policy.collide
+
+| qualified_function_value_is_unsupported: lifted -> True

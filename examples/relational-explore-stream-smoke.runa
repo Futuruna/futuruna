@@ -1,0 +1,98 @@
+----
+Tiny nonempty oracle for the relational Explore stream.
+
+The declared relation has four transitions. One named FIND selects all four;
+another selects exactly two, and those two execute the same checked
+rule/branch path at Before and After. A correct run traverses the four
+endpoints once, closes both question catalogs, and produces one replay-derived
+mechanism plus one mechanism-incidence aggregate containing the two
+interesting cases.
+
+This fixture is intentionally small enough for pause/reopen checks. It is not
+a probe phase and it is not evidence about Personskat. Its source deliberately
+routes one finite coordinate through a derived singleton before constructing
+Before alongside an independent finite coordinate. That keeps support-plan
+journal restoration honest about transitive finite-dimension dependencies.
+----
+
+| relational_smoke_route(value: Int) -> True under value >= 0
+
+> relational_smoke_observe(state: Int, context: Unit) -> Bool {
+    relational_smoke_route(state)
+}
+
+? explore relational_stream_nonempty_smoke {
+    from {
+        vary axis in range(0, 2)
+        let derived = axis * 2
+        vary offset in range(0, 2)
+        let before = derived + offset
+        given context = ()
+    }
+
+    transition after = before + 1
+
+    where transition after == before + 1
+    find all_cases = all
+    find interesting = matches of before == 1 || before == 2
+
+    results all_case_summary from find all_cases {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+
+    results selected_cases from find interesting {
+        each case
+        measure [increase = after - before]
+        select [case_id, context, before, after, increase]
+    }
+
+    results case_summary from find interesting {
+        group all
+        aggregate [cases = count_distinct(case_id)]
+        select [cases]
+    }
+
+    mechanisms paths from find interesting using relational_smoke_observe
+
+    results structural_incidences from mechanisms paths {
+        each incidence
+        select [
+            case_id,
+            signature_id,
+            structural_mechanism_id,
+            execution_profile_id
+        ]
+    }
+
+    results mechanism_summary from mechanisms paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            execution_profiles = count_distinct(execution_profile_id),
+            raw_signatures = count_distinct(signature_id),
+            explained_cases = count_distinct(case_id)
+        ]
+        select [mechanisms, execution_profiles, raw_signatures, explained_cases]
+    }
+
+    transitions case_graph from all cases
+}
+
+? explore relational_stream_empty_smoke {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+
+    transition after = before + 1
+
+    where transition after == before + 1
+    find impossible = matches of before < 0
+
+    results selected_cases_empty from find impossible {
+        each case
+        select [case_id, context, before, after]
+    }
+}

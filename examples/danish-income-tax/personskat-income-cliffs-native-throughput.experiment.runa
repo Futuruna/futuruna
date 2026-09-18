@@ -1,0 +1,36 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs.audit
+
+----
+Native residual-classification throughput probe.
+
+This is not an Explore answer and cannot close an unevaluated region. It runs
+the canonical Personskat transition helper over a small contiguous prefix so
+we can measure whether a checked native residual evaluator is worth building
+before attempting any broad singleton fallback. The bound is deliberately
+small and is increased only after measuring the prior stage.
+----
+
+| personskat_native_probe_overgang(indkomst_før_kroner: Heltal) -> personskat_indkomstklint_overgang(
+    personskat_indkomstklint_profil(
+        kommunale_parametre_for(2026, København),
+        Falskt,
+        60
+    ),
+    indkomst_før_kroner
+)
+
+= personskat_native_probe_start = fortolk_heltal(miljø_var("FUTURUNA_PROBE_START"))
+= personskat_native_probe_slut_eksklusiv = fortolk_heltal(miljø_var("FUTURUNA_PROBE_END"))
+
+@ print("PERSONSKAT_NATIVE_PROBE_BEGIN " + vis(personskat_native_probe_start) + " " + vis(personskat_native_probe_slut_eksklusiv))
+
+for indkomst_før_kroner in range(personskat_native_probe_start, personskat_native_probe_slut_eksklusiv) {
+    = overgang = personskat_native_probe_overgang(indkomst_før_kroner)
+    if overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre {
+        @ print("PERSONSKAT_NATIVE_CLIFF " + vis(indkomst_før_kroner) + " " + vis(overgang.nettotab_øre))
+    }
+}
+
+@ print("PERSONSKAT_NATIVE_PROBE_END")
