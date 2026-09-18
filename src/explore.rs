@@ -2149,6 +2149,24 @@ fn append_required_binding(
         ));
     };
     for dependency in expression_query_dependencies(&declaration.expression, names, definitions) {
+        if let Some([target]) = definitions.bindings.get(&dependency).map(Vec::as_slice) {
+            let current_order = definitions
+                .origin_order
+                .get(&declaration.origin)
+                .copied()
+                .unwrap_or(usize::MAX);
+            let target_order = definitions
+                .origin_order
+                .get(&target.origin)
+                .copied()
+                .unwrap_or(usize::MAX);
+            if declaration.origin != target.origin && target_order > current_order {
+                return Err(format!(
+                    "relational exploration binding `{name}` from `{}` depends on later declaration `{dependency}` from `{}`; imported finite data must be closed over its initialized dependency prefix",
+                    declaration.origin, target.origin
+                ));
+            }
+        }
         append_required_binding(&dependency, names, definitions, visiting, visited, order)?;
     }
     visiting.remove(name);
@@ -2589,13 +2607,16 @@ fn runtime_value_to_explore_value(
             let mut converted = Vec::with_capacity(items.len());
             for (index, item) in items.into_iter().enumerate() {
                 converted.push(
-                    runtime_value_to_explore_value(item, &arguments[0], catalog).map_err(|_| {
-                        format!(
-                            "ground list member {} does not have declared type `{}`",
-                            index + 1,
-                            arguments[0]
-                        )
-                    })?,
+                    runtime_value_to_explore_value(item, &arguments[0], catalog).map_err(
+                        |cause| {
+                            format!(
+                                "ground list member {} does not have declared type `{}`: {}",
+                                index + 1,
+                                arguments[0],
+                                cause
+                            )
+                        },
+                    )?,
                 );
             }
             return Ok(ExploreValue::List(converted));
@@ -2610,13 +2631,16 @@ fn runtime_value_to_explore_value(
             let mut converted = Vec::with_capacity(items.len());
             for (index, item) in items.values().enumerate() {
                 converted.push(
-                    runtime_value_to_explore_value(item, &arguments[0], catalog).map_err(|_| {
-                        format!(
-                            "ground set member {} does not have declared type `{}`",
-                            index + 1,
-                            arguments[0]
-                        )
-                    })?,
+                    runtime_value_to_explore_value(item, &arguments[0], catalog).map_err(
+                        |cause| {
+                            format!(
+                                "ground set member {} does not have declared type `{}`: {}",
+                                index + 1,
+                                arguments[0],
+                                cause
+                            )
+                        },
+                    )?,
                 );
             }
             return Ok(ExploreValue::Set(converted));
@@ -5276,7 +5300,7 @@ mod tests {
     find invalid_cases = all
 }
 "#,
-                "FilingStatus.Paper.copies",
+                "source.before.Paper.copies",
             ),
             (
                 r#"
@@ -5292,23 +5316,6 @@ mod tests {
 }
 "#,
                 "multiple declarations",
-            ),
-            (
-                r#"
-# Profile(x: Int) {
-    | amount() -> x
-}
-= profiles: List(Profile) = [Profile(1)]
-? explore invalid {
-    from {
-        vary before in profiles
-        given context = ()
-    }
-    transition after = before
-    find invalid_cases = all
-}
-"#,
-                "rule scope",
             ),
             (
                 r#"
@@ -5344,7 +5351,10 @@ mod tests {
 
         for (source, expected) in fixtures {
             let artifacts = artifacts(source);
-            assert!(artifacts.exploration_universes.is_empty());
+            assert!(
+                artifacts.exploration_universes.is_empty(),
+                "expected {expected:?} for {source}"
+            );
             assert!(
                 artifacts
                     .diagnostics
@@ -5628,42 +5638,33 @@ mod tests {
 }
 "#;
         let artifacts = artifacts_with_dir(capture, &directory);
+        // Collection producers are retained symbolically at elaboration; their
+        // initialized dependency prefix is checked when the domain is evaluated.
+        assert_eq!(artifacts.exploration_universes.len(), 1);
+        let mut lexer = Lexer::new(capture);
+        let statements = Parser::new(lexer.tokenize(), capture)
+            .parse_program()
+            .unwrap();
+        let directory_name = directory.to_string_lossy();
+        let catalog =
+            calculate::TypeCatalog::collect_checked(&statements, Some(&directory_name)).unwrap();
+        let definitions = collect_ground_bindings(&statements, Some(&directory_name)).unwrap();
+        let failure = ExploreGroundEvaluator::new(&catalog, definitions)
+            .eval_binding("captured", None)
+            .expect_err("later import capture must not evaluate");
         std::fs::remove_dir_all(&directory).ok();
-        assert!(artifacts.exploration_universes.is_empty());
         assert!(
-            artifacts
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.message.contains("depends on later declaration")),
+            failure.contains("depends on later declaration"),
             "{:?}",
-            artifacts.diagnostics
+            failure
         );
     }
 
     #[test]
-    fn canonical_collection_domains_preserve_checked_range_and_member_failures() {
-        let invalid_members = r#"
-> choices() -> List(Int) { [True] }
-= declared_choices: List(Int) = choices()
-? explore invalid_members {
-    from {
-        vary before in declared_choices
-        given context = ()
-    }
-    transition after = before
-    find invalid_cases = all
-}
-"#;
-        let artifacts = artifacts(invalid_members);
-        assert!(artifacts.exploration_universes.is_empty());
-        assert!(
-            artifacts.diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("member 1 does not have declared type")),
-            "{:?}",
-            artifacts.diagnostics
-        );
-
+    fn ground_collection_domains_preserve_checked_range_failures() {
+        // Symbolic collections are validated on consumption by the relational
+        // runtime; the corresponding malformed-member/open-scope guards live
+        // in relational_public's executable stream tests.
         let reversed = ground_binding_value("= choices: List(Int) = range(3, 1)\n", "choices")
             .expect_err("reversed range must fail closed");
         assert!(reversed.contains("greater than end"), "{reversed}");

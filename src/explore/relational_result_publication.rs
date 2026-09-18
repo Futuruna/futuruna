@@ -2586,7 +2586,7 @@ struct RelationalClassificationSummaryClosureMetadata {
     projection_id: RelationalCaseSupportProjectionId,
     active_set_root: RelationalCaseSupportActiveSetRoot,
     classification_authority: RelationalPublishedClassificationAuthority,
-    support_evidence_root: [u8; 32],
+    support_evidence_root: Option<[u8; 32]>,
     selected_question_seal_id: RelationalSelectedQuestionSealId,
     selected_population_authority: RelationalPublishedSelectedPopulationAuthority,
     exact_logical_case_count: u128,
@@ -3708,12 +3708,10 @@ fn derive_classification_summary_for_publication<'journal>(
     let scheduler = journal
         .scheduler_view()
         .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
-    // A classification summary is a sealed fallback, not an open projection.
-    // Wait until support can no longer change its evidence root and concrete
-    // traversal has irreversibly selected the non-partitioned branch. Without
-    // both authorities, a later journal prefix could change already-addressed
-    // rows or replace this projection basis with a chunk partition.
-    if !scheduler.support_catalog_is_sealed() || !scheduler.relation_enumeration_is_complete() {
+    // Completed concrete traversal irreversibly selects the non-partitioned
+    // branch. Its extensional seal needs no symbolic-support evidence root:
+    // that independent proof frontier may remain open or gain evidence later.
+    if !scheduler.relation_enumeration_is_complete() {
         return Ok(None);
     }
     let Some(selected_question) = journal
@@ -3725,6 +3723,20 @@ fn derive_classification_summary_for_publication<'journal>(
     selected_question
         .validate_identity()
         .map_err(|error| RelationalPublicationError::CaseSupport(error.to_string()))?;
+    let extensional = matches!(
+        selected_question.authority(),
+        RelationalSelectedPopulationAuthority::ExtensionalQuestion { .. }
+    );
+    if extensional {
+        if !scheduler
+            .concrete_base_is_classified(question_id)
+            .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
+        {
+            return Ok(None);
+        }
+    } else if !scheduler.support_catalog_is_sealed() {
+        return Ok(None);
+    }
     let selected_population_authority = match selected_question.authority() {
         RelationalSelectedPopulationAuthority::ExtensionalQuestion { content_root } => {
             RelationalPublishedSelectedPopulationAuthority::ExtensionalQuestion {
@@ -3764,7 +3776,10 @@ fn derive_classification_summary_for_publication<'journal>(
     let sealed_selected_case_count = selected_question.result_input_seal().coverage().row_count();
     let relation_closed = scheduler.relation_enumeration_is_complete();
     let observed_logical_case_count = scheduler.case_count() as u128;
-    let exact_logical_case_count = match scheduler.certified_root_case_cardinality() {
+    let exact_logical_case_count = match scheduler
+        .certified_root_case_cardinality()
+        .filter(|_| !extensional)
+    {
         Some(certified) if relation_closed && observed_logical_case_count != certified => {
             return Err(RelationalPublicationError::CaseSupport(
                 "closed relation size disagrees with its certified case cardinality".into(),
@@ -3784,17 +3799,22 @@ fn derive_classification_summary_for_publication<'journal>(
     });
     let extensional_admission_is_closed = relation_closed
         && scheduler.admission_decision_count() as u128 == observed_logical_case_count;
-    let exact_admitted_case_count = match scheduler.certified_root_admission_decision() {
+    let exact_admitted_case_count = match scheduler
+        .certified_root_admission_decision()
+        .filter(|_| !extensional)
+    {
         Some(super::relation::AdmissionDecision::Admitted) => exact_logical_case_count,
         Some(super::relation::AdmissionDecision::Rejected) => 0,
-        None if certified_classification.is_some() => certified_classification
+        None if !extensional && certified_classification.is_some() => certified_classification
             .expect("branch checked the certified classification")
             .admitted(),
         None if extensional_admission_is_closed => scheduler.admitted_count() as u128,
         None => return Ok(None),
     };
     let exact_selected_case_count = sealed_selected_case_count;
-    let classification_authority = if certified_classification.is_some() {
+    let classification_authority = if extensional {
+        RelationalPublishedClassificationAuthority::ExtensionalCatalog
+    } else if certified_classification.is_some() {
         RelationalPublishedClassificationAuthority::CertifiedSupport
     } else if scheduler
         .concrete_base_is_classified(question_id)
@@ -3829,9 +3849,16 @@ fn derive_classification_summary_for_publication<'journal>(
         .checked_add(RelationalClassificationSummaryProjection::REGION_COUNT)
         .and_then(|count| count.checked_add(authorized_case_record_count))
         .ok_or(RelationalPublicationError::ArithmeticOverflow)?;
-    let support_evidence_root = scheduler
-        .support_evidence_root()
-        .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?;
+    let support_evidence_root = if extensional {
+        None
+    } else {
+        Some(
+            scheduler
+                .support_evidence_root()
+                .map_err(|error| RelationalPublicationError::Journal(error.to_string()))?
+                .bytes(),
+        )
+    };
     let mut active_set = RelationalCaseSupportActiveSetFold::new(projection_id, data_record_count);
     let root_row = RelationalClassificationSummaryRow::Root {
         contract: contract.clone(),
@@ -3901,7 +3928,7 @@ fn derive_classification_summary_for_publication<'journal>(
         projection_id,
         active_set_root,
         classification_authority,
-        support_evidence_root: support_evidence_root.bytes(),
+        support_evidence_root,
         selected_question_seal_id: selected_question.id(),
         selected_population_authority,
         exact_logical_case_count,
@@ -8267,7 +8294,7 @@ fn public_classification_summary_record(
                 closure.classification_authority,
             ),
             "frontier": "exact",
-            "support_evidence_root": hex(closure.support_evidence_root),
+            "support_evidence_root": closure.support_evidence_root.map(hex),
             "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
             "selected_population_authority": public_published_selected_population_authority(
                 closure.selected_population_authority,
@@ -8456,7 +8483,7 @@ fn public_case_support_projection_metadata(
                     "classification_authority": public_classification_authority(
                         closure.classification_authority,
                     ),
-                    "support_evidence_root": hex(closure.support_evidence_root),
+                    "support_evidence_root": closure.support_evidence_root.map(hex),
                     "selected_question_seal_id": hex(closure.selected_question_seal_id.bytes()),
                     "selected_population_authority": public_published_selected_population_authority(
                         closure.selected_population_authority,
@@ -12559,7 +12586,7 @@ fn artifact_layer_roots(
                 "classification_authority": public_classification_authority(
                     projection.closure.classification_authority,
                 ),
-                "support_evidence_root": hex(projection.closure.support_evidence_root),
+                "support_evidence_root": projection.closure.support_evidence_root.map(hex),
                 "selected_question_seal_id": hex(
                     projection.closure.selected_question_seal_id.bytes()
                 ),

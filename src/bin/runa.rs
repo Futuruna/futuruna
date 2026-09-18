@@ -66269,13 +66269,16 @@ readings <- "score"
             r#"
 > private_offset() -> Int { 100 }
 | private_adjust(value: Int) -> value + private_offset() under value > 0
+| private_adjust(value: Int) -> 0
 | route(left: Int, right: Int) -> private_adjust(left) + right under left > 0
+| route(left: Int, right: Int) -> 0
 @ export route
 
 | tagged("remote")
 @ export tagged
 
 | label("remote") -> "found"
+| label(value: String) -> ""
 @ export label
 
 @ export
@@ -66293,6 +66296,7 @@ readings <- "score"
 | private_adjust(value: Int, extra: Int) -> value + extra + 1000 under value > 0
 = root_delta = 1
 | route(value: Int) -> value + root_delta under value > 0
+| route(value: Int) -> 0
 > private_offset() -> Int { 1 }
 
 @ print(show(route(4)))
@@ -66411,6 +66415,62 @@ readings <- "score"
             .unwrap();
             assert_eq!(interpret_test_file(&main_path).trim(), "7");
             assert_eq!(compile_and_run_test_file(&main_path).trim(), "7");
+        }
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_shared_enum_preserves_patterns_types_and_equality() {
+        let temp_dir = unique_temp_workspace("futuruna-shared-enum-owner");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("types.runa"),
+            r#"
+@ export
+# Item = Item(Int)
+@ export
+> item_value(item: Item) -> Int { match item { | Item(value) -> value } }
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("policy.runa"),
+            r#"
+@ import ./types
+@ export
+> read(item: Item) -> Int { item_value(item) }
+@ export
+> make() -> Item { Item(7) }
+| accepts(item: Item) -> True
+@ export accepts
+@ export
+= stored: Item = Item(7)
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        for imports in [
+            "@ import ./types\n@ import Policy from ./policy\n",
+            "@ import Policy from ./policy\n@ import ./types\n",
+        ] {
+            let source = format!(
+                "{imports}\n{}",
+                r#"
+@ print(show(Policy.read(Item(7))))
+@ print(show(Policy.accepts(Item(7))))
+@ print(show(Item(7) == Policy.make()))
+@ print(show(Policy.stored == Item(7)))
+"#
+            );
+            std::fs::write(&main_path, source).unwrap();
+            assert_eq!(
+                interpret_test_file(&main_path).trim(),
+                "7\ntrue\ntrue\ntrue"
+            );
+            assert_eq!(
+                compile_and_run_test_file(&main_path).trim(),
+                "7\ntrue\ntrue\ntrue"
+            );
         }
         let _ = std::fs::remove_dir_all(temp_dir);
     }
@@ -67192,6 +67252,7 @@ Q.append_shared(value = 3, values = shared_values)
 @ export
 # Policy(offset: Int, bonus: Int) {
     | score(value: Int) -> value + offset + bonus under value > 0
+    | score(value: Int) -> 0
 }
 
 @ export
@@ -67207,6 +67268,7 @@ Q.append_shared(value = 3, values = shared_values)
             r#"
 # Policy(offset: Int) {
     | score(value: Int) -> value + offset under value > 0
+    | score(value: Int) -> 0
 }
 @ import Remote from ./dep
 

@@ -2278,6 +2278,11 @@ mod tests {
         forward.seal_catalog().unwrap();
 
         let mut reverse = SupportEvidenceCatalogBuilder::new();
+        // Cursor insertion validates its referenced cell immediately. Compare
+        // reverse arrival orders that both respect this dependency contract.
+        for cell in [right.clone(), left.clone(), parent.clone()] {
+            reverse.insert_cell(cell).unwrap();
+        }
         reverse.insert_cursor(cursor4).unwrap();
         reverse.insert_cursor(cursor0).unwrap();
         reverse.declare_root_obligation(obligation_id).unwrap();
@@ -2286,9 +2291,6 @@ mod tests {
         reverse.seal_leaf(left.id()).unwrap();
         reverse.insert_partition(partition).unwrap();
         reverse.declare_root_cell(parent.id()).unwrap();
-        for cell in [right, left, parent] {
-            reverse.insert_cell(cell).unwrap();
-        }
         reverse.seal_obligation_frontier().unwrap();
         reverse.seal_root_frontier().unwrap();
         reverse.seal_catalog().unwrap();
