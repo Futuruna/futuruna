@@ -46138,9 +46138,10 @@ impl TypeChecker {
         // Broad hints may omit a generic variable while field_tys retains it.
         // The builtin and authored prelude then describe one declaration, not
         // two ambiguous constructors. Compare the authoritative field schemas.
+        // Nullary constructors have no positional/named layout to distinguish.
         if !signatures.iter().any(|known| {
             known.parent == signature.parent
-                && known.positional == signature.positional
+                && (known.positional == signature.positional || signature.fields.is_empty())
                 && known.fields == signature.fields
                 && known.field_tys == signature.field_tys
         }) {
@@ -51796,8 +51797,13 @@ impl TypeChecker {
         // revalidated below after the fixed point, so a provisional type can
         // never hide a later conflict or unresolved dependency.
         let previous_active_scope = self.active_rule_scope_inference.clone();
-        for _ in 0..groups.len().saturating_add(1) {
-            let mut changed = false;
+        // Global bindings and rule results can depend on each other without
+        // an initialization cycle (for example a later literal feeding a
+        // RuleScope member). Infer both in the same bounded fixed point.
+        // The independent canonical pass below still rejects unsafe proofs.
+        for _ in 0..groups.len().saturating_add(stmts.len()).saturating_add(1) {
+            self.active_rule_scope_inference = None;
+            let mut changed = self.infer_top_level_binding_types(stmts);
             for (key, (captures, rules)) in &groups {
                 self.active_rule_scope_inference = key.scope.clone();
                 let inferred = infer_group_provisionally(self, captures, rules);
@@ -52411,7 +52417,9 @@ impl TypeChecker {
         }
     }
 
-    fn infer_top_level_binding_types(&mut self, stmts: &[Stmt]) {
+    fn infer_top_level_binding_types(&mut self, stmts: &[Stmt]) -> bool {
+        // Compare completed passes, not transient writes to a shadowed name.
+        let previous = self.var_types.last().cloned();
         for stmt in stmts {
             if let Stmt::Bind(Pat::Var(name), ty, expr) = stmt {
                 let inferred = ty
@@ -52423,6 +52431,7 @@ impl TypeChecker {
                 }
             }
         }
+        self.var_types.last() != previous.as_ref()
     }
 
     fn infer_canonical_rule_dispatch_metadata(&mut self, stmts: &[Stmt]) {
@@ -63731,6 +63740,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             1,
             "builtin and authored prelude signatures represent one constructor"
         );
+        assert_eq!(checker.constructor_signatures["None"].len(), 1);
         checker.prepare_rule_dispatch_metadata(&statements);
         let key = RuleDispatchKey {
             scope: None,
@@ -63747,6 +63757,68 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert!(
             !checker.rule_dispatch_return_types.contains_key(&key),
             "Dated(None) is not covered by Dated(Some(date))"
+        );
+    }
+
+    #[test]
+    fn rule_backend_keeps_find_and_forward_scope_results() {
+        let mut checker = TypeChecker::new();
+        let repeated = parse_test_program("= value = 0\n= value = \"final\"\n").unwrap();
+        assert!(checker.infer_top_level_binding_types(&repeated));
+        assert!(
+            !checker.infer_top_level_binding_types(&repeated),
+            "shadowed bindings must converge after a complete pass"
+        );
+        for (source, scope, name, arity) in [
+            (
+                include_str!("../tests/expect/run/rule_find_return_option.runa"),
+                None,
+                "entry_amount",
+                2,
+            ),
+            (
+                include_str!(
+                    "../tests/expect/run/forward_top_level_rulescope_dependency_compiled.runa"
+                ),
+                Some("ForwardScope"),
+                "unused_cycle",
+                0,
+            ),
+        ] {
+            let statements = prepend_prelude(parse_prelude(), &parse_test_program(source).unwrap());
+            let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+            let key = RuleDispatchKey {
+                scope: scope.map(str::to_string),
+                name: name.into(),
+                arity,
+            };
+            assert_eq!(
+                artifacts
+                    .rule_dispatch_backend_return_types
+                    .get(&key)
+                    .map(String::as_str),
+                Some("Int"),
+                "{:?}",
+                artifacts.rule_dispatch_backend_return_issues
+            );
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "backend ABI recovery must not invent a totality proof"
+            );
+        }
+        let source = "# Cycle() { | member() -> value }\n= value = Cycle().member()\n";
+        let statements = parse_test_program(source).unwrap();
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        let key = RuleDispatchKey {
+            scope: Some("Cycle".into()),
+            name: "member".into(),
+            arity: 0,
+        };
+        assert!(
+            !artifacts
+                .rule_dispatch_backend_return_types
+                .contains_key(&key),
+            "an unanchored cycle must not invent a result type"
         );
     }
 
