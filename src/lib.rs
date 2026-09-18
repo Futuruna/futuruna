@@ -48779,6 +48779,19 @@ impl TypeChecker {
                 Some("Bool".to_string())
             }
             ("map_len" | "set_len", 1) | ("count_by", 2) => Some("Int".to_string()),
+            ("sum", 1) => {
+                let collection_type = argument_type(0)?;
+                let item_type =
+                    ["List", "Stream", "Subject"]
+                        .into_iter()
+                        .find_map(|constructor| {
+                            Self::applied_type_argument(&collection_type, constructor, 0)
+                        })?;
+                // Integer collection sums retain an Int ABI, including empty
+                // collections. This is return typing, not a proof of arithmetic
+                // safety or an extension of the exact Explore intrinsic set.
+                (item_type == "Int").then(|| "Int".to_string())
+            }
             ("tail", 1)
             | ("push", 2)
             | ("map_insert", 3)
@@ -63324,6 +63337,62 @@ starters first from mechanisms paths for node activation "{digest}" using values
             .get(None, "doubled", 1)
             .expect("block-valued global rule group");
         assert_eq!(block_value.return_type.as_deref(), Some("Int"));
+    }
+
+    #[test]
+    fn rule_dispatch_backend_types_integer_collection_sums_without_certifying_them() {
+        let source = r#"
+# SumCase(values: List(Int)) {
+    | total(extra: Int) -> sum(values) + extra
+}
+| total(values: List(Int)) -> sum(values)
+| unsupported(values: List(String)) -> sum(values)
+"#;
+        let statements = parse_test_program(source).expect("parse sum return fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+        for (scope, name, expected) in [
+            (Some("SumCase"), "total", Some("Int")),
+            (None, "total", Some("Int")),
+            (None, "unsupported", None),
+        ] {
+            let key = RuleDispatchKey {
+                scope: scope.map(str::to_string),
+                name: name.to_string(),
+                arity: 1,
+            };
+            assert_eq!(
+                artifacts
+                    .rule_dispatch_backend_return_types
+                    .get(&key)
+                    .map(String::as_str),
+                expected,
+                "incorrect sum ABI for {key:?}"
+            );
+            assert!(
+                !artifacts.rule_dispatch_return_types.contains_key(&key),
+                "return typing must not certify sum as an exact dispatch intrinsic"
+            );
+        }
+
+        let shadowed = r#"
+> sum(values: List(Int)) -> String { "shadowed" }
+| total(values: List(Int)) -> sum(values)
+"#;
+        let statements = parse_test_program(shadowed).expect("parse shadowed sum fixture");
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, shadowed);
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "total".into(),
+            arity: 1,
+        };
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&key)
+                .map(String::as_str),
+            Some("String"),
+            "a same-named authored function must outrank the intrinsic"
+        );
     }
 
     #[test]
