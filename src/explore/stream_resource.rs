@@ -1828,7 +1828,11 @@ mod tests {
         assert!(!decision_has_safe_one_worker_capacity(decision, strict));
         assert_eq!(
             pause_reason_for_decision(decision, reduced_sample(), None, None, strict).code(),
-            "resource_swap_growth"
+            if platform_supported() {
+                "resource_swap_growth"
+            } else {
+                "unsupported_platform"
+            }
         );
         assert_ne!(
             pause_reason_for_decision(decision, reduced_sample(), None, None, advisory).code(),

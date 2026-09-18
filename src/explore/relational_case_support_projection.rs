@@ -40,12 +40,12 @@ use super::relational_selected_run_materialization::{
 use super::relational_support_planner::RelationalSupportPlanRoot;
 use super::support_evidence::SupportEvidenceRoot;
 
-pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION: u32 = 4;
+pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION: u32 = 5;
 pub(crate) const RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA: &str =
-    "futuruna.relational-case-support-graph.v4";
+    "futuruna.relational-case-support-graph.v5";
 pub(crate) const RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA: &str = "stable_key_add_seal.v1";
 
-const PROJECTION_ID_HASH_V4: &[u8] = b"futuruna.explore.relational-case-support-projection-id.v4";
+const PROJECTION_ID_HASH_V5: &[u8] = b"futuruna.explore.relational-case-support-projection-id.v5";
 const ROW_HASH_V1: &[u8] = b"futuruna.explore.relational-case-support-row.v1";
 const ACTIVE_SET_ROOT_HASH_V1: &[u8] = b"futuruna.explore.relational-case-support-active-set.v1";
 
@@ -77,7 +77,7 @@ impl RelationalCaseSupportActiveSetRoot {
 }
 
 /// The semantic basis distinguishes the bounded-partition projection from the
-/// exact classification-summary fallback while retaining one v4 envelope.
+/// exact classification-summary fallback while retaining one v5 envelope.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RelationalCaseSupportProjectionBasis {
     Partition(RelationalCaseChunkPartitionArtifactId),
@@ -1540,7 +1540,7 @@ pub(crate) fn derive_relational_case_support_projection_id(
     authorization: Option<RelationalCaseIdPublicationAuthorization>,
 ) -> RelationalCaseSupportProjectionId {
     let mut hasher = Sha256::new();
-    hasher.update(PROJECTION_ID_HASH_V4);
+    hasher.update(PROJECTION_ID_HASH_V5);
     hasher.update(RELATIONAL_CASE_SUPPORT_PROJECTION_SCHEMA.as_bytes());
     hasher.update(RELATIONAL_CASE_SUPPORT_PROJECTION_VERSION.to_be_bytes());
     hasher.update(RELATIONAL_CASE_SUPPORT_UPDATE_ALGEBRA.as_bytes());

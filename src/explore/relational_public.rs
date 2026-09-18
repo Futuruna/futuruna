@@ -4018,6 +4018,70 @@ mod regional_stream_acceptance_tests {
             .expect("prepare regional stream fixture")
     }
 
+    #[test]
+    fn symbolic_import_collection_rejects_later_root_capture() {
+        let temp = TestDirectory::new();
+        fs::write(
+            temp.path().join("capturing.runa"),
+            "= captured: List(Int) = root_values\n",
+        )
+        .unwrap();
+        let source = r#"
+@ import ./capturing
+= root_values: List(Int) = [1, 2]
+? explore invalid_capture {
+    from { vary before in captured
+        given context = () }
+    transition after = before
+    find cases = all
+}
+"#;
+        let failure = prepare_checked_relational_stream(
+            &parse(source),
+            Some(temp.path().to_string_lossy().into_owned()),
+            source,
+            None,
+        )
+        .err()
+        .expect("checked preparation must preserve imported binding prefixes");
+        assert!(
+            failure.to_string().contains("depends on later declaration"),
+            "{failure}"
+        );
+    }
+
+    #[test]
+    fn symbolic_collection_domains_reject_invalid_values_before_classification() {
+        for (declarations, domain, expected) in [
+            (
+                "> choices() -> List(Int) { [True] }\n= choices_value: List(Int) = choices()\n",
+                "choices_value",
+                "declared type",
+            ),
+            (
+                "# Profile(x: Int) { | amount() -> x }\n= profiles: List(Profile) = [Profile(1)]\n",
+                "profiles",
+                "rule scope",
+            ),
+        ] {
+            let source = format!("{declarations}\n? explore invalid {{\nfrom {{ vary before in {domain}\ngiven context = () }}\ntransition after = before\nfind invalid_cases = all\n}}\n");
+            let temp = TestDirectory::new();
+            let mut epoch = prepare(&source)
+                .open_epoch(ExploreStreamEpochOptions {
+                    run_state: temp.path().join("run-state"),
+                    output_directory: None,
+                    outer_containment: None,
+                })
+                .unwrap();
+            epoch.resources = ExactStreamOneWorkerEnvelope::new_unmetered_for_test().unwrap();
+            let error = epoch
+                .run_slice(None)
+                .err()
+                .expect("invalid domains must never complete");
+            assert!(error.to_string().contains(expected), "{error}");
+        }
+    }
+
     fn exact_one_region_replay_authority(
         prepared: &PreparedRelationalExplore,
     ) -> Arc<RelationalRegionReplayAuthority> {
@@ -5329,6 +5393,28 @@ mod regional_stream_acceptance_tests {
             })
             .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(published_question_ids, expected_question_ids);
+        for artifact in &manifest_case_support {
+            assert_eq!(artifact["record_schema_version"], 5);
+            let frontier = &artifact["graph_projection"]["frontier"];
+            assert_eq!(frontier["status"], "exact");
+            assert_eq!(frontier["classification_authority"], "extensional_catalog");
+            assert_eq!(
+                frontier["selected_population_authority"]["kind"],
+                "extensional_question"
+            );
+            assert!(frontier["selected_question_seal_id"].as_str().is_some());
+            assert!(frontier["support_evidence_root"].is_null());
+        }
+        assert!(
+            !epoch
+                .durable
+                .journal()
+                .unwrap()
+                .scheduler_view()
+                .unwrap()
+                .support_catalog_is_sealed(),
+            "this regression needs exact concrete answers with an open symbolic-support frontier"
+        );
         let selected_counts = manifest_case_support
             .iter()
             .map(|artifact| {
@@ -5338,7 +5424,9 @@ mod regional_stream_acceptance_tests {
                         .expect("case-support question identity"),
                     artifact["graph_projection"]["counts"]["selected_cases"]["value"]
                         .as_str()
-                        .expect("exact case-support selected count"),
+                        .unwrap_or_else(|| {
+                            panic!("exact case-support selected count: {artifact:#}")
+                        }),
                 )
             })
             .collect::<std::collections::BTreeMap<_, _>>();

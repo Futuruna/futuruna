@@ -3414,13 +3414,12 @@ mod tests {
 # Profile = Worker | Student
 | eligible(profile: Profile, income: Int) -> income >= 0
 ? explore scan {
-    over eligible(profile, income)
-    find matches
-    bounds {
-        profile in values(Profile)
-        income in range(0, 3)
+    from {
+        vary before in values(Profile)
+        given context = ()
     }
-    output { key [profile, income] representative first }
+    transition after = before
+    find eligible_cases = matches of eligible(before, 0)
 }
 "#;
         let mut lexer = Lexer::new(source);

@@ -13898,8 +13898,15 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             arguments,
             ..
         } => {
-            hasher.update([12]);
-            runtime_hash_str(hasher, namespace.semantic_identity());
+            if namespace.constructor_source(name).is_some() {
+                // Shared plain-import values and their legacy root values must
+                // enter the same bucket, even if the root import arrives later.
+                // Provenance remains an equality witness, not a hash shortcut.
+                hasher.update([8]);
+            } else {
+                hasher.update([12]);
+                runtime_hash_str(hasher, namespace.semantic_identity());
+            }
             runtime_hash_str(hasher, name);
             runtime_hash_len(hasher, arguments.len());
             for value in arguments.iter() {
@@ -13912,8 +13919,12 @@ fn runtime_hash_value(hasher: &mut Sha256, value: &Value) {
             fields,
             ..
         } => {
-            hasher.update([13]);
-            runtime_hash_str(hasher, namespace.semantic_identity());
+            if namespace.constructor_source(name).is_some() {
+                hasher.update([9]);
+            } else {
+                hasher.update([13]);
+                runtime_hash_str(hasher, namespace.semantic_identity());
+            }
             runtime_hash_str(hasher, name);
             runtime_hash_len(hasher, fields.len());
             for (field, value) in fields.iter() {
@@ -14034,7 +14045,84 @@ pub(crate) fn runtime_value_semantic_key(value: &Value) -> String {
     key
 }
 
+fn runtime_constructor_owners_equal(left: &Value, right: &Value) -> Option<bool> {
+    fn owner(value: &Value) -> Option<(Option<&RuntimeNamespace>, &str)> {
+        match value {
+            Value::Constructor(name, _) | Value::NamedConstructor(name, _) => Some((None, name)),
+            Value::NamespacedConstructor {
+                namespace, name, ..
+            }
+            | Value::NamespacedNamedConstructor {
+                namespace, name, ..
+            } => Some((Some(namespace), name)),
+            _ => None,
+        }
+    }
+    let (left_owner, left_name) = owner(left)?;
+    let Some((right_owner, right_name)) = owner(right) else {
+        return Some(false);
+    };
+    Some(
+        left_name == right_name
+            && match (left_owner, right_owner) {
+                (None, None) => true,
+                (Some(left), Some(right)) => left.same_constructor_owner(right, left_name),
+                (Some(owner), None) | (None, Some(owner)) => {
+                    owner.constructor_matches_root(left_name)
+                }
+            },
+    )
+}
+
+fn runtime_constructor_values_equal(
+    left: &Value,
+    right: &Value,
+    equal: fn(&Value, &Value) -> bool,
+) -> Option<bool> {
+    if !runtime_constructor_owners_equal(left, right)? {
+        return Some(false);
+    }
+    Some(match (left, right) {
+        (
+            Value::Constructor(_, left)
+            | Value::NamespacedConstructor {
+                arguments: left, ..
+            },
+            Value::Constructor(_, right)
+            | Value::NamespacedConstructor {
+                arguments: right, ..
+            },
+        ) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|(left, right)| equal(left, right))
+        }
+        (
+            Value::NamedConstructor(_, left)
+            | Value::NamespacedNamedConstructor { fields: left, .. },
+            Value::NamedConstructor(_, right)
+            | Value::NamespacedNamedConstructor { fields: right, .. },
+        ) => {
+            left.len() == right.len()
+                && left
+                    .iter()
+                    .zip(right.iter())
+                    .all(|((left_name, left), (right_name, right))| {
+                        left_name == right_name && equal(left, right)
+                    })
+        }
+        _ => false,
+    })
+}
+
 fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
+    if let Some(equal) =
+        runtime_constructor_values_equal(left, right, runtime_values_semantically_equal)
+    {
+        return equal;
+    }
     match (left, right) {
         (Value::Int(left), Value::Int(right)) => left == right,
         (Value::Float(left), Value::Float(right)) => (left - right).abs() < f64::EPSILON,
@@ -14051,70 +14139,6 @@ fn runtime_values_semantically_equal(left: &Value, right: &Value) -> bool {
                     .iter()
                     .zip(right)
                     .all(|(left, right)| runtime_values_semantically_equal(left, right))
-        }
-        (Value::Constructor(left_name, left), Value::Constructor(right_name, right)) => {
-            left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right.iter())
-                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
-        }
-        (Value::NamedConstructor(left_name, left), Value::NamedConstructor(right_name, right)) => {
-            left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right.iter())
-                    .all(|((left_name, left), (right_name, right))| {
-                        left_name == right_name && runtime_values_semantically_equal(left, right)
-                    })
-        }
-        (
-            Value::NamespacedConstructor {
-                namespace: left_namespace,
-                name: left_name,
-                arguments: left,
-                ..
-            },
-            Value::NamespacedConstructor {
-                namespace: right_namespace,
-                name: right_name,
-                arguments: right,
-                ..
-            },
-        ) => {
-            left_namespace.same_instance(right_namespace)
-                && left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right.iter())
-                    .all(|(left, right)| runtime_values_semantically_equal(left, right))
-        }
-        (
-            Value::NamespacedNamedConstructor {
-                namespace: left_namespace,
-                name: left_name,
-                fields: left,
-                ..
-            },
-            Value::NamespacedNamedConstructor {
-                namespace: right_namespace,
-                name: right_name,
-                fields: right,
-                ..
-            },
-        ) => {
-            left_namespace.same_instance(right_namespace)
-                && left_name == right_name
-                && left.len() == right.len()
-                && left
-                    .iter()
-                    .zip(right.iter())
-                    .all(|((left_name, left), (right_name, right))| {
-                        left_name == right_name && runtime_values_semantically_equal(left, right)
-                    })
         }
         (Value::Map(left), Value::Map(right)) => {
             left.len() == right.len()
@@ -14825,6 +14849,9 @@ enum RuleMissFallback {
 pub struct RuntimeNamespace {
     semantic_key: Rc<str>,
     state: Rc<RefCell<RuntimeNamespaceState>>,
+    root_state: Weak<RefCell<RuntimeNamespaceState>>,
+    constructor_value_source: Option<(String, Option<Rc<str>>)>,
+    constructor_root_owner: Option<Rc<RefCell<RuntimeNamespaceState>>>,
     declaration_env: Rc<RefCell<Weak<Env>>>,
 }
 
@@ -14839,9 +14866,13 @@ impl std::fmt::Debug for RuntimeNamespace {
 
 impl RuntimeNamespace {
     fn root() -> Self {
+        let state = Rc::new(RefCell::new(RuntimeNamespaceState::root()));
         Self {
             semantic_key: Rc::from("root"),
-            state: Rc::new(RefCell::new(RuntimeNamespaceState::root())),
+            root_state: Rc::downgrade(&state),
+            constructor_value_source: None,
+            constructor_root_owner: None,
+            state,
             declaration_env: Rc::new(RefCell::new(Weak::new())),
         }
     }
@@ -14850,6 +14881,9 @@ impl RuntimeNamespace {
         Self {
             semantic_key: Rc::from(format!("{}/{}", self.semantic_key, semantic_component)),
             state: Rc::new(RefCell::new(RuntimeNamespaceState::child(self.clone()))),
+            root_state: self.root_state.clone(),
+            constructor_value_source: None,
+            constructor_root_owner: None,
             declaration_env: Rc::new(RefCell::new(Weak::new())),
         }
     }
@@ -14862,6 +14896,9 @@ impl RuntimeNamespace {
         Self {
             semantic_key: Rc::from(format!("{}/{}", self.semantic_key, semantic_component)),
             state: Rc::new(RefCell::new(RuntimeNamespaceState::child(registry_parent))),
+            root_state: self.root_state.clone(),
+            constructor_value_source: None,
+            constructor_root_owner: None,
             declaration_env: Rc::new(RefCell::new(Weak::new())),
         }
     }
@@ -14870,6 +14907,9 @@ impl RuntimeNamespace {
         Self {
             semantic_key: semantic_key.into(),
             state: Rc::new(RefCell::new(RuntimeNamespaceState::childless(None))),
+            root_state: Weak::new(),
+            constructor_value_source: None,
+            constructor_root_owner: None,
             declaration_env: Rc::new(RefCell::new(Weak::new())),
         }
     }
@@ -14880,6 +14920,45 @@ impl RuntimeNamespace {
 
     fn same_instance(&self, other: &Self) -> bool {
         self.semantic_key == other.semantic_key
+    }
+
+    fn constructor_source(&self, name: &str) -> Option<Rc<str>> {
+        if let Some((value_name, source)) = &self.constructor_value_source {
+            if value_name == name {
+                return source.clone();
+            }
+        }
+        self.state.borrow().constructor_sources.get(name).cloned()
+    }
+
+    fn for_constructor_value(&self, name: &str) -> Self {
+        let mut owner = self.clone();
+        owner.constructor_value_source = Some((name.to_string(), self.constructor_source(name)));
+        // Escaped values retain the root's declaration provenance even after
+        // the Interpreter is dropped. Namespace registries contain no values,
+        // so this owner does not create a declaration-environment cycle.
+        owner.constructor_root_owner = self.root_state.upgrade();
+        owner
+    }
+
+    fn same_constructor_owner(&self, other: &Self, name: &str) -> bool {
+        self.same_instance(other)
+            || self
+                .constructor_source(name)
+                .is_some_and(|source| other.constructor_source(name).as_ref() == Some(&source))
+    }
+
+    fn constructor_matches_root(&self, name: &str) -> bool {
+        if self.semantic_identity() == "root" {
+            return true;
+        }
+        let Some(source) = self.constructor_source(name) else {
+            return false;
+        };
+        self.constructor_root_owner
+            .clone()
+            .or_else(|| self.root_state.upgrade())
+            .is_some_and(|root| root.borrow().constructor_sources.get(name) == Some(&source))
     }
 
     fn parent(&self) -> Option<Self> {
@@ -14940,6 +15019,10 @@ struct RuntimeNamespaceState {
     exact_prepared_rule_dispatch: BTreeMap<RuleDispatchKey, Rc<PreparedRuntimeRuleDispatch>>,
     constructors: BTreeMap<String, (usize, bool)>,
     constructor_signatures: BTreeMap<String, Vec<RuntimeConstructorSignature>>,
+    // Plain/hash imports retain declaration provenance independently of the
+    // callable namespace into which they are flattened. Qualified declarations
+    // themselves deliberately have no shared-source entry.
+    constructor_sources: BTreeMap<String, Rc<str>>,
     field_names: BTreeMap<String, Vec<String>>,
     type_variants: BTreeMap<String, Vec<String>>,
     ctor_to_type: BTreeMap<String, String>,
@@ -14997,6 +15080,7 @@ impl RuntimeNamespaceState {
             exact_prepared_rule_dispatch: BTreeMap::new(),
             constructors: BTreeMap::new(),
             constructor_signatures: BTreeMap::new(),
+            constructor_sources: BTreeMap::new(),
             field_names: BTreeMap::new(),
             type_variants: BTreeMap::new(),
             ctor_to_type: BTreeMap::new(),
@@ -15190,6 +15274,9 @@ pub struct Interpreter {
     /// Canonical source files successfully initialized through any runtime
     /// import mode. This is inspection-only and never controls completion.
     runtime_loaded_sources: BTreeSet<String>,
+    /// Source identity and importing namespace while flattening a plain/hash
+    /// source. A qualified source resets this context, preserving alias identity.
+    runtime_plain_type_source: Option<(Rc<str>, String)>,
     /// Strong owners for declaration snapshots whose registry slots hold only
     /// weak references. Keying by slot identity keeps independent `default_env`
     /// trees isolated even when they share one RuntimeNamespace registry.
@@ -15274,6 +15361,7 @@ impl Interpreter {
             runtime_qualified_modules: BTreeMap::new(),
             runtime_active_import_paths: BTreeSet::new(),
             runtime_loaded_sources: BTreeSet::new(),
+            runtime_plain_type_source: None,
             runtime_declaration_env_snapshots: BTreeMap::new(),
             exact_prepared_rule_dispatch_enabled: false,
             checked_exact_observer_memo: None,
@@ -15653,7 +15741,7 @@ impl Interpreter {
             Value::Constructor(name, arguments.into())
         } else {
             Value::NamespacedConstructor {
-                namespace: namespace.clone(),
+                namespace: namespace.for_constructor_value(&name),
                 name,
                 arguments: arguments.into(),
                 declaration_env: namespace.declaration_env(),
@@ -15671,7 +15759,7 @@ impl Interpreter {
             Value::NamedConstructor(name, fields.into())
         } else {
             Value::NamespacedNamedConstructor {
-                namespace: namespace.clone(),
+                namespace: namespace.for_constructor_value(&name),
                 name,
                 fields: fields.into(),
                 declaration_env: namespace.declaration_env(),
@@ -16656,6 +16744,23 @@ impl Interpreter {
                 .collect(),
         };
         let mut state = namespace.state.borrow_mut();
+        if let Some((source, base)) = &self.runtime_plain_type_source {
+            if let Some(relative) = namespace.semantic_identity().strip_prefix(base.as_str()) {
+                state.constructor_sources.insert(
+                    variant.name.clone(),
+                    Rc::from(format!(
+                        "{}:{}{}:{}{}",
+                        source.len(),
+                        source,
+                        relative.len(),
+                        relative,
+                        parent
+                    )),
+                );
+            }
+        } else {
+            state.constructor_sources.remove(&variant.name);
+        }
         let signatures = state
             .constructor_signatures
             .entry(variant.name.clone())
@@ -16921,6 +17026,20 @@ impl Interpreter {
         }
     }
 
+    fn with_runtime_plain_type_source<T>(
+        &mut self,
+        source: Option<(Rc<str>, String)>,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> T {
+        let previous = std::mem::replace(&mut self.runtime_plain_type_source, source);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
+        self.runtime_plain_type_source = previous;
+        match result {
+            Ok(value) => value,
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    }
+
     fn with_active_runtime_import<T>(
         &mut self,
         canonical: &str,
@@ -17045,11 +17164,19 @@ impl Interpreter {
                     let value = interpreter.with_runtime_source_dir(
                         Self::imported_source_dir(&file_path),
                         |interpreter| {
-                            interpreter.run_imported_runtime_statements(
-                                &definitions,
-                                env,
-                                initialization_mode,
-                                roots,
+                            interpreter.with_runtime_plain_type_source(
+                                Some((
+                                    Rc::from(format!("{canonical:?}#{}", module.content_hash())),
+                                    namespace.identity_key(),
+                                )),
+                                |interpreter| {
+                                    interpreter.run_imported_runtime_statements(
+                                        &definitions,
+                                        env,
+                                        initialization_mode,
+                                        roots,
+                                    )
+                                },
                             )
                         },
                     );
@@ -17151,12 +17278,14 @@ impl Interpreter {
                 interpreter.with_runtime_source_dir(
                     Self::imported_source_dir(&file_path),
                     |interpreter| {
-                        interpreter.run_imported_runtime_statements(
-                            &definitions,
-                            &mut module_env,
-                            initialization_mode,
-                            roots,
-                        )
+                        interpreter.with_runtime_plain_type_source(None, |interpreter| {
+                            interpreter.run_imported_runtime_statements(
+                                &definitions,
+                                &mut module_env,
+                                initialization_mode,
+                                roots,
+                            )
+                        })
                     },
                 )
             }));
@@ -17273,11 +17402,22 @@ impl Interpreter {
                         let value = interpreter.with_runtime_source_dir(
                             Self::imported_source_dir(&file_path),
                             |interpreter| {
-                                interpreter.run_imported_runtime_statements(
-                                    &matching,
-                                    env,
-                                    initialization_mode,
-                                    None,
+                                interpreter.with_runtime_plain_type_source(
+                                    Some((
+                                        Rc::from(format!(
+                                            "{canonical:?}#{}",
+                                            module.content_hash()
+                                        )),
+                                        namespace.identity_key(),
+                                    )),
+                                    |interpreter| {
+                                        interpreter.run_imported_runtime_statements(
+                                            &matching,
+                                            env,
+                                            initialization_mode,
+                                            None,
+                                        )
+                                    },
                                 )
                             },
                         );
@@ -24186,7 +24326,7 @@ impl Interpreter {
         let value_namespace = self.runtime_value_namespace(value);
         let declaration_namespace = self.namespace_for_env(env);
         self.runtime_constructor_signatures(&declaration_namespace, name)
-            .map(|(owner, _)| owner.same_instance(&value_namespace))
+            .map(|(owner, _)| owner.same_constructor_owner(&value_namespace, name))
             .unwrap_or_else(|| value_namespace.same_instance(&self.runtime_root))
     }
 
@@ -25542,7 +25682,8 @@ impl Interpreter {
                     return self
                         .runtime_constructor_signatures(&type_owner, constructor_name)
                         .is_some_and(|(constructor_owner, _)| {
-                            constructor_owner.same_instance(&actual_owner)
+                            constructor_owner
+                                .same_constructor_owner(&actual_owner, constructor_name)
                         });
                 }
                 if let Some((scope_owner, _, _)) =
@@ -25902,7 +26043,7 @@ impl Interpreter {
                 };
                 match val {
                     Value::Constructor(value_ctor, values) if value_ctor == ctor_name => {
-                        owner.same_instance(&self.runtime_value_namespace(val))
+                        owner.same_constructor_owner(&self.runtime_value_namespace(val), ctor_name)
                             && pattern_args.len() == values.len()
                             && pattern_args
                                 .iter()
@@ -25910,7 +26051,9 @@ impl Interpreter {
                                 .all(|(param, value)| self.match_rule_param(param, value, env))
                     }
                     Value::NamedConstructor(value_ctor, fields) if value_ctor == ctor_name => {
-                        if !owner.same_instance(&self.runtime_value_namespace(val)) {
+                        if !owner
+                            .same_constructor_owner(&self.runtime_value_namespace(val), ctor_name)
+                        {
                             return false;
                         }
                         let field_order = &signature.fields;
@@ -25933,7 +26076,7 @@ impl Interpreter {
                         arguments: values,
                         ..
                     } if value_ctor == ctor_name => {
-                        owner.same_instance(&self.runtime_value_namespace(val))
+                        owner.same_constructor_owner(&self.runtime_value_namespace(val), ctor_name)
                             && pattern_args.len() == values.len()
                             && pattern_args
                                 .iter()
@@ -25945,7 +26088,9 @@ impl Interpreter {
                         fields,
                         ..
                     } if value_ctor == ctor_name => {
-                        if !owner.same_instance(&self.runtime_value_namespace(val)) {
+                        if !owner
+                            .same_constructor_owner(&self.runtime_value_namespace(val), ctor_name)
+                        {
                             return false;
                         }
                         let field_order = &signature.fields;
@@ -26689,6 +26834,9 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
     if let Some(equal) = list_values_equal(a, b) {
         return equal;
     }
+    if let Some(equal) = runtime_constructor_values_equal(a, b, values_equal) {
+        return equal;
+    }
 
     match (a, b) {
         (Value::Int(x), Value::Int(y)) => x == y,
@@ -26696,64 +26844,6 @@ pub fn values_equal(a: &Value, b: &Value) -> bool {
         (Value::Str(x), Value::Str(y)) => x == y,
         (Value::Bool(x), Value::Bool(y)) => x == y,
         (Value::Char(x), Value::Char(y)) => x == y,
-        (Value::Constructor(n1, f1), Value::Constructor(n2, f2)) => {
-            n1 == n2
-                && f1.len() == f2.len()
-                && f1.iter().zip(f2.iter()).all(|(a, b)| values_equal(a, b))
-        }
-        (Value::NamedConstructor(n1, f1), Value::NamedConstructor(n2, f2)) => {
-            n1 == n2
-                && f1.len() == f2.len()
-                && f1
-                    .iter()
-                    .zip(f2.iter())
-                    .all(|((k1, v1), (k2, v2))| k1 == k2 && values_equal(v1, v2))
-        }
-        (
-            Value::NamespacedConstructor {
-                namespace: namespace_a,
-                name: name_a,
-                arguments: arguments_a,
-                ..
-            },
-            Value::NamespacedConstructor {
-                namespace: namespace_b,
-                name: name_b,
-                arguments: arguments_b,
-                ..
-            },
-        ) => {
-            namespace_a.same_instance(namespace_b)
-                && name_a == name_b
-                && arguments_a.len() == arguments_b.len()
-                && arguments_a
-                    .iter()
-                    .zip(arguments_b.iter())
-                    .all(|(left, right)| values_equal(left, right))
-        }
-        (
-            Value::NamespacedNamedConstructor {
-                namespace: namespace_a,
-                name: name_a,
-                fields: fields_a,
-                ..
-            },
-            Value::NamespacedNamedConstructor {
-                namespace: namespace_b,
-                name: name_b,
-                fields: fields_b,
-                ..
-            },
-        ) => {
-            namespace_a.same_instance(namespace_b)
-                && name_a == name_b
-                && fields_a.len() == fields_b.len()
-                && fields_a.iter().zip(fields_b.iter()).all(
-                    |((field_a, value_a), (field_b, value_b))| {
-                        field_a == field_b && values_equal(value_a, value_b)
-                    },
-                )
-        }
         (Value::List(a), Value::List(b)) => {
             a.len() == b.len() && a.iter().zip(b.iter()).all(|(x, y)| values_equal(x, y))
         }
@@ -42346,6 +42436,24 @@ impl<'a> CheckedResolutionRecorder<'a> {
             return None;
         }
         if self.checker.constructor_signatures.contains_key(name) {
+            // A bare value is installed by name, not selected by call arity.
+            // A nullary signature must not hide a same-named constructor
+            // function installed by another declaration.
+            if self.checker.constructor_signatures[name]
+                .iter()
+                .any(|signature| signature.arity() == 0)
+                && self.checker.constructor_signatures[name]
+                    .iter()
+                    .any(|signature| signature.arity() != 0)
+            {
+                self.issue(
+                    &site,
+                    CheckedResolutionIssue::AmbiguousValueBinding(
+                        name.to_string().into_boxed_str(),
+                    ),
+                );
+                return None;
+            }
             let signature = match self.exact_constructor_signature(name, &[], 0) {
                 ExactConstructorSignature::Unique(signature) if signature.arity() == 0 => signature,
                 ExactConstructorSignature::Unique(_) => {
@@ -44425,6 +44533,12 @@ impl<'a> CheckedResolutionRecorder<'a> {
         let Some(signatures) = self.checker.constructor_signatures.get(name) else {
             return;
         };
+        // A type annotation cannot turn a runtime constructor function into
+        // a nullary value. Only nullary-only spelling collisions can be
+        // refined by an expected ADT owner.
+        if signatures.iter().any(|signature| signature.arity() != 0) {
+            return;
+        }
         let matching = signatures
             .iter()
             .filter(|signature| signature.parent == owner_type && signature.arity() == 0)
@@ -59742,14 +59856,31 @@ __FINDS__
             .iter()
             .find(|declaration| declaration.id.name.as_ref() == "pipe_lambda")
             .expect("pipe-lambda declaration");
+        let paths = checked_expression_paths(&declaration.statement);
+        let lambda_body_path = paths
+            .iter()
+            .find_map(|(path, expression)| {
+                matches!(&expression.kind, ExprKind::App(function, _)
+                if matches!(&function.kind, ExprKind::Var(name) if name == "increment"))
+                .then(|| path.clone())
+            })
+            .expect("increment call in canonical lambda body");
         let lambda_body = artifacts
             .analysis_program
-            .expression_site(declaration, vec![0, 1, 0]);
+            .expression_site(declaration, lambda_body_path);
         assert!(artifacts
             .checked_resolutions
             .expressions
             .contains_key(&lambda_body));
-        for path in [vec![0], vec![0, 1]] {
+        let pipe_path = paths
+            .iter()
+            .find_map(|(path, expression)| {
+                matches!(&expression.kind, ExprKind::Pipe(_, _)).then(|| path.clone())
+            })
+            .expect("canonical pipe site");
+        let mut transform_path = pipe_path.clone();
+        transform_path.push(1);
+        for path in [pipe_path, transform_path] {
             let pipe_site = artifacts
                 .analysis_program
                 .expression_site(declaration, path);
@@ -59865,6 +59996,7 @@ __FINDS__
     = captured = Mixed
     0
 }
+> contextual_mixed() -> Marker { Mixed }
 > flag() -> Bool { True }
 "#;
         let artifacts = explore_artifacts_for_source(source);
@@ -59878,28 +60010,57 @@ __FINDS__
                     arity: 1,
                 })
             ));
-        assert!(artifacts
+        for name in ["mixed_value", "contextual_mixed"] {
+            let declaration = artifacts
+                .analysis_program
+                .declarations
+                .iter()
+                .find(|declaration| declaration.id.name.as_ref() == name)
+                .unwrap();
+            let path = checked_expression_paths(&declaration.statement)
+                .into_iter()
+                .find_map(|(path, expression)| {
+                    matches!(&expression.kind, ExprKind::Var(name) if name == "Mixed")
+                        .then_some(path)
+                })
+                .unwrap();
+            let site = artifacts
+                .analysis_program
+                .expression_site(declaration, path);
+            assert!(
+                artifacts
+                    .checked_resolutions
+                    .unsupported_sites
+                    .get(&site)
+                    .is_some_and(|issues| issues.contains(
+                        &CheckedResolutionIssue::AmbiguousValueBinding("Mixed".into())
+                    )),
+                "{name} must not turn an arity collision into an exact value"
+            );
+        }
+        let flag = artifacts
+            .analysis_program
+            .declarations
+            .iter()
+            .find(|declaration| declaration.id.name.as_ref() == "flag")
+            .unwrap();
+        let boolean_path = checked_expression_paths(&flag.statement)
+            .into_iter()
+            .find_map(|(path, expression)| {
+                matches!(expression.kind, ExprKind::Lit(Literal::Bool(true))).then_some(path)
+            })
+            .expect("True is a canonical Bool literal");
+        let site = artifacts
+            .analysis_program
+            .expression_site(flag, boolean_path);
+        assert!(
+            matches!(&artifacts.checked_resolutions.expressions.get(&site).unwrap().resolved_type,
+            CheckedExpressionType::Resolved(Ty::Name(name)) if name == "Bool")
+        );
+        assert!(!artifacts
             .checked_resolutions
             .unsupported_sites
-            .values()
-            .any(
-                |issues| issues.contains(&CheckedResolutionIssue::AmbiguousValueBinding(
-                    "Mixed".into(),
-                ))
-            ));
-        assert!(artifacts
-            .checked_resolutions
-            .expressions
-            .values()
-            .any(|resolution| matches!(
-                &resolution.value_binding,
-                Some(CheckedValueBinding::Constructor {
-                    declaration: None,
-                    owner_type,
-                    variant,
-                    variant_index: None,
-                }) if owner_type.as_ref() == "Bool" && variant.as_ref() == "True"
-            )));
+            .contains_key(&site));
     }
 
     #[test]
@@ -60261,11 +60422,18 @@ __FINDS__
             Some(temp_dir.to_string_lossy().to_string()),
             &source,
         );
-        assert!(
-            artifacts.diagnostics.is_empty(),
-            "unexpected import-origin diagnostics: {:?}",
+        // Phase A preserves origin/override identities even when the legacy
+        // exact-replay boundary rejects a helper declared in multiple sources.
+        assert_eq!(
+            artifacts.diagnostics.len(),
+            1,
+            "{:?}",
             artifacts.diagnostics
         );
+        assert!(artifacts.diagnostics[0]
+            .message
+            .contains("ordinary runtime functions resolve by bare name"));
+        assert!(artifacts.exploration_universes.is_empty());
         let declarations = artifacts.analysis_program.declarations.as_ref();
         assert_eq!(
             declarations
@@ -62594,7 +62762,6 @@ starters first from mechanisms paths for node activation "{digest}" using values
             "mixed_boolean_miss",
             "value_miss",
             "pipe_miss",
-            "mixed_integer_pipe_miss",
         ] {
             assert_eq!(
                 env.get(binding).map(ToString::to_string),
@@ -62602,7 +62769,13 @@ starters first from mechanisms paths for node activation "{digest}" using values
                 "{binding} must preserve the Boolean false miss"
             );
         }
-        for binding in ["simple_pipe_wrapper_miss", "applied_pipe_wrapper_miss"] {
+        for binding in [
+            "simple_pipe_wrapper_miss",
+            "applied_pipe_wrapper_miss",
+            // Piping the first argument into mixed(2) selects the Int-valued
+            // arity-two family, not its Bool-valued arity-one sibling.
+            "mixed_integer_pipe_miss",
+        ] {
             assert_eq!(
                 env.get(binding).map(ToString::to_string),
                 Some(String::new()),
@@ -63336,7 +63509,22 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let block_value = registry
             .get(None, "doubled", 1)
             .expect("block-valued global rule group");
-        assert_eq!(block_value.return_type.as_deref(), Some("Int"));
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&block_value.key)
+                .map(String::as_str),
+            Some("Int")
+        );
+        assert_eq!(block_value.return_type, None);
+        assert!(
+            block_value
+                .return_type_issue
+                .as_deref()
+                .is_some_and(|issue| issue.contains("type-safe and total")),
+            "{:?}",
+            block_value.return_type_issue
+        );
     }
 
     #[test]
@@ -63422,7 +63610,22 @@ starters first from mechanisms paths for node activation "{digest}" using values
             .get(None, "overloaded", 1)
             .expect("one-arity overload");
         assert_eq!(boolean.return_type.as_deref(), Some("Bool"));
-        assert_eq!(integer.return_type.as_deref(), Some("Int"));
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&integer.key)
+                .map(String::as_str),
+            Some("Int")
+        );
+        assert_eq!(integer.return_type, None);
+        assert!(
+            integer
+                .return_type_issue
+                .as_deref()
+                .is_some_and(|issue| issue.contains("type-safe and total")),
+            "{:?}",
+            integer.return_type_issue
+        );
 
         let conflicting = registry
             .get(None, "conflicting", 1)
@@ -64247,6 +64450,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
         assert_eq!(
             interpreter.calculation_runtime_symbols,
             BTreeSet::from([
+                "before".to_string(),
                 "collide".to_string(),
                 "family".to_string(),
                 "qualified_transitive_helper".to_string(),
@@ -64263,6 +64467,7 @@ starters first from mechanisms paths for node activation "{digest}" using values
             BTreeSet::from([
                 ("family".to_string(), 1),
                 ("family".to_string(), 2),
+                ("qualified_shadow_entry".to_string(), 2),
                 ("qualified_transitive_target".to_string(), 1),
             ]),
             "Explore must retain each demanded root rule arity"
@@ -64618,9 +64823,20 @@ starters first from mechanisms paths for node activation "{digest}" using values
         let mut interpreter = Interpreter::new();
         let mut env = interpreter.default_env();
         interpreter.run_program(&stmts, &mut env);
+        let bindings = Rc::new(HashMap::from([("input".to_string(), Value::Int(21))]));
+        // An active frame belongs to its actual receiver environment; an
+        // unrelated caller environment must never inherit a scoped family.
+        env.set(
+            "__rulescope_self".to_string(),
+            interpreter.runtime_rule_scope_instance(
+                &interpreter.runtime_root,
+                "Case".to_string(),
+                bindings.clone(),
+            ),
+        );
         interpreter.active_rule_scopes.push(RuleScopeFrame {
             name: "Case".to_string(),
-            bindings: Rc::new(HashMap::from([("input".to_string(), Value::Int(21))])),
+            bindings,
             namespace: interpreter.runtime_root.clone(),
             memoized_zero_arg_rules: HashMap::new(),
         });
@@ -65282,6 +65498,131 @@ starters first from mechanisms paths for node activation "{digest}" using values
         );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_plain_import_nominal_collections_preserve_provenance() {
+        let directory = std::env::temp_dir().join(format!(
+            "futuruna-shared-nominal-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&directory).unwrap();
+        let types = "@ export\n# Item = Item(Int)\n@ export\n# Record(value: Int)\n";
+        std::fs::write(directory.join("types.runa"), types).unwrap();
+        // Identical text at a different source is not the same declaration.
+        std::fs::write(directory.join("other_types.runa"), types).unwrap();
+        let policy = r#"
+@ import ./types
+@ export
+= early: Item = Item(7)
+@ export
+= record: Record = Record(7)
+@ export
+= early_set: Set(Item) = set_from_list([Item(7)])
+"#;
+        std::fs::write(directory.join("policy.runa"), policy).unwrap();
+        std::fs::write(
+            directory.join("other.runa"),
+            policy.replace("./types", "./other_types"),
+        )
+        .unwrap();
+        let source = r#"
+@ import Policy from ./policy
+@ import Other from ./other
+@ import DirectA from ./types
+@ import DirectB from ./types
+@ import ./types
+= root_item = Item(7)
+= imported_item = Policy.early
+= other_item = Other.early
+= direct_a = DirectA.Item(7)
+= direct_b = DirectB.Item(7)
+= root_record = Record(7)
+= imported_record = Policy.record
+= imported_set = Policy.early_set
+"#;
+        let statements = parse_test_program(source).unwrap();
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(directory.to_string_lossy().into_owned());
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&statements, &mut env);
+        let root = env.get("root_item").unwrap().clone();
+        let imported = env.get("imported_item").unwrap().clone();
+        let other = env.get("other_item").unwrap().clone();
+        let direct_a = env.get("direct_a").unwrap().clone();
+        let direct_b = env.get("direct_b").unwrap().clone();
+        for (left, right) in [
+            (&root, &imported),
+            (
+                env.get("root_record").unwrap(),
+                env.get("imported_record").unwrap(),
+            ),
+        ] {
+            assert!(values_equal(left, right));
+            assert!(values_equal(right, left));
+            assert_eq!(
+                runtime_value_structural_digest(left),
+                runtime_value_structural_digest(right)
+            );
+        }
+        for distinct in [&other, &direct_a, &direct_b] {
+            assert!(!values_equal(&root, distinct));
+            assert!(!values_equal(&imported, distinct));
+        }
+        assert!(!values_equal(&direct_a, &direct_b));
+        let Value::Set(mut set) = env.get("imported_set").unwrap().clone() else {
+            panic!("set fixture");
+        };
+        assert!(
+            runtime_set_find_storage_key(&set, &root).is_some(),
+            "a key inserted before the root import remains addressable"
+        );
+        assert!(!runtime_set_insert_value(&mut set, root.clone()));
+        assert!(runtime_set_insert_value(&mut set, other));
+        assert_eq!(
+            set.len(),
+            2,
+            "hash bucket collisions must retain source-distinct values"
+        );
+        let mut map = BTreeMap::new();
+        runtime_map_insert_value(&mut map, imported.clone(), Value::Int(42));
+        assert!(matches!(
+            runtime_map_get_value(&map, &root),
+            Some(Value::Int(42))
+        ));
+        drop(env);
+        drop(interpreter);
+        assert!(
+            values_equal(&root, &imported),
+            "escaped values retain their declaration provenance"
+        );
+        let item_hash = parse_test_program(types)
+            .unwrap()
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(declaration @ TypeDecl::ADT { name, .. }) if name == "Item" => {
+                    Some(content_hash_type(declaration))
+                }
+                _ => None,
+            })
+            .unwrap();
+        let hash_source = format!("@ import Policy from ./policy\n@ import #{item_hash} from ./types\n= root_item = Item(7)\n= imported_item = Policy.early\n");
+        let mut interpreter = Interpreter::new();
+        interpreter.source_dir = Some(directory.to_string_lossy().into_owned());
+        let mut env = interpreter.default_env();
+        interpreter.run_program(&parse_test_program(&hash_source).unwrap(), &mut env);
+        assert!(
+            values_equal(
+                env.get("root_item").unwrap(),
+                env.get("imported_item").unwrap()
+            ),
+            "plain and hash edges to one declaration share its owner"
+        );
+        let _ = std::fs::remove_dir_all(directory);
     }
 
     #[test]
@@ -67214,7 +67555,7 @@ handle <- Seen("ok")
     }
 
     #[test]
-    fn nested_data_constructor_still_collides_with_bare_actor_message() {
+    fn nested_data_constructor_stays_isolated_from_bare_actor_message() {
         let source = r#"
 > module Hidden {
     # HiddenData = Seen(String)
@@ -67225,10 +67566,8 @@ handle <- Seen("ambiguous")
 "#;
         let diagnostics = check_source_for_diagnostics(source);
         assert!(
-            diagnostics.iter().any(|diagnostic| diagnostic
-                .message
-                .contains("actor message `Seen` collides with an ordinary data constructor")),
-            "nested ADT variants enter the backend constructor registry and must collide: {diagnostics:?}"
+            diagnostics.is_empty(),
+            "a nested ADT constructor must not collide with a root actor message: {diagnostics:?}"
         );
     }
 
