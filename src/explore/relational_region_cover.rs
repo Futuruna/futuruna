@@ -833,9 +833,12 @@ mod tests {
 
     #[test]
     fn scoped_cover_cached_partition_projects_fringe_and_refuses_gaps() {
+        // This tests cache geometry without an optional solver. Equal weights
+        // make the transition's net change constant across the direction axis,
+        // so the ordinary affine proof can close every non-rejected scope.
         let source = r#"
 # Starter(income: Int, distance: Int)
-> net(s: Starter) -> Int { s.income * 3 + s.distance * 2 }
+> net(s: Starter) -> Int { s.income * 3 + s.distance * 3 }
 ? explore cache_geometry {
     from {
         vary income in range(-10, 100001)
@@ -906,10 +909,19 @@ mod tests {
         };
         for income in [(-10, 39), (40, 99)] {
             for (distance, direction) in [((0, 1), (0, 1)), ((2, 2), (0, 0)), ((2, 2), (1, 1))] {
+                let scope = coordinates(income, distance, direction);
+                let affine = classifier.prove_coordinates(&checked, &scope).unwrap();
+                assert!(
+                    affine.all_rejected() || affine.all_admitted_not_selected(),
+                    "cache geometry must not require solver fallback: {scope:?}: {affine:?}"
+                );
                 let proof = classifier
-                    .prove_cached_cover_scope(&checked, &coordinates(income, distance, direction))
+                    .prove_cached_cover_scope(&checked, &scope)
                     .unwrap();
-                assert!(proof.all_rejected() || proof.all_admitted_not_selected());
+                assert!(
+                    proof.all_rejected() || proof.all_admitted_not_selected(),
+                    "{scope:?}: {proof:?}"
+                );
             }
         }
         // A mixed parent is cached too, but it must not enter the closed set.
