@@ -14,6 +14,8 @@ jobs:
     name: Test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
+      # Preserve both platform results when one exposes an independent failure.
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
 
