@@ -3,6 +3,10 @@
 //! This binary provides the CLI interface for the Futuruna compiler.
 //! Core language implementation is in the library crate (src/lib.rs).
 
+mod runa_explore_heap;
+mod runa_explore_retry;
+mod runa_explore_supervisor;
+
 use futuruna::*;
 use quote::ToTokens;
 use serde::{Deserialize, Serialize};
@@ -53,6 +57,10 @@ fn reorder_named_direct_call_args(
 }
 
 fn main() {
+    if let Err(error) = runa_explore_supervisor::activate_exact_stream_child_liveness() {
+        eprintln!("Fatal: invalid durable Explore supervisor channel: {error}");
+        std::process::exit(1);
+    }
     // Use a large stack (64 MB) to handle deep recursion in comptime evaluation
     let builder = std::thread::Builder::new().stack_size(64 * 1024 * 1024);
     let handler = match builder.spawn(main_inner) {
@@ -89,6 +97,13 @@ fn main_inner() {
     let mut meta_role_filter = None;
     let mut meta_json = false;
     let mut audit_json = false;
+    let mut explore_json = false;
+    let mut explore_query = None;
+    let mut explore_run_state = None;
+    let mut explore_assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint> = None;
+    let mut explore_assume_verified_result_rows = false;
+    let mut explore_output_directory = None;
+    let mut explore_max_runtime = None;
     let mut calculation_entry = None;
     let mut calculation_format = None;
     let mut calculation_input = None;
@@ -196,6 +211,107 @@ fn main_inner() {
             }
             "--json" if mode == "audit" => {
                 audit_json = true;
+                i += 1;
+            }
+            "--json" if mode == "explore" => {
+                explore_json = true;
+                i += 1;
+            }
+            "--query" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_query = Some(args[i + 1].clone());
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--query=") => {
+                let value = &arg["--query=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --query requires an exploration name");
+                    std::process::exit(1);
+                }
+                explore_query = Some(value.to_string());
+                i += 1;
+            }
+            "--assume-verified-result-rows" if mode == "explore" => {
+                if explore_assume_verified_result_rows {
+                    eprintln!("error: --assume-verified-result-rows may be supplied only once");
+                    std::process::exit(1);
+                }
+                explore_assume_verified_result_rows = true;
+                i += 1;
+            }
+            "--assume-verified-checkpoint" if mode == "explore" => {
+                if i + 1 >= args.len() || explore_assumed_checkpoint.is_some() {
+                    eprintln!("error: --assume-verified-checkpoint requires one NEXT_SEQUENCE:SHA256 anchor");
+                    std::process::exit(1);
+                }
+                explore_assumed_checkpoint = Some(args[i + 1].parse().unwrap_or_else(|error| {
+                    eprintln!("error: {error}");
+                    std::process::exit(1);
+                }));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--assume-verified-checkpoint=") => {
+                if explore_assumed_checkpoint.is_some() {
+                    eprintln!("error: --assume-verified-checkpoint may be supplied only once");
+                    std::process::exit(1);
+                }
+                explore_assumed_checkpoint = Some(
+                    arg["--assume-verified-checkpoint=".len()..]
+                        .parse()
+                        .unwrap_or_else(|error| {
+                            eprintln!("error: {error}");
+                            std::process::exit(1);
+                        }),
+                );
+                i += 1;
+            }
+            "--run-state" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].is_empty() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --run-state requires a path");
+                    std::process::exit(1);
+                }
+                explore_run_state = Some(PathBuf::from(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--run-state=") => {
+                let value = &arg["--run-state=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --run-state requires a path");
+                    std::process::exit(1);
+                }
+                explore_run_state = Some(PathBuf::from(value));
+                i += 1;
+            }
+            "--output" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].is_empty() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --output requires a result directory path");
+                    std::process::exit(1);
+                }
+                explore_output_directory = Some(PathBuf::from(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--output=") => {
+                let value = &arg["--output=".len()..];
+                if value.is_empty() {
+                    eprintln!("error: --output requires a result directory path");
+                    std::process::exit(1);
+                }
+                explore_output_directory = Some(PathBuf::from(value));
+                i += 1;
+            }
+            "--time-limit" if mode == "explore" => {
+                if i + 1 >= args.len() || args[i + 1].starts_with('-') {
+                    eprintln!("error: --time-limit requires a positive duration such as `20m`");
+                    std::process::exit(1);
+                }
+                explore_max_runtime = Some(parse_explore_time_limit(&args[i + 1]));
+                i += 2;
+            }
+            arg if mode == "explore" && arg.starts_with("--time-limit=") => {
+                explore_max_runtime = Some(parse_explore_time_limit(&arg["--time-limit=".len()..]));
                 i += 1;
             }
             "--entry" if matches!(mode, "schema" | "template" | "call" | "audit") => {
@@ -379,6 +495,7 @@ fn main_inner() {
                 );
                 eprintln!("  verify        Generate SMT-LIB2 and verify with Z3");
                 eprintln!("  audit         Discover invariant gaps and rule asymmetries");
+                eprintln!("  explore       Create or resume one durable relational exploration");
                 eprintln!("  fmt           Format source file(s)");
                 eprintln!("  fmt --check   Check formatting without modifying");
                 eprintln!("  lsp           Start language server (stdio)");
@@ -404,6 +521,19 @@ fn main_inner() {
                 eprintln!("  meta --json        Emit a structured metadata index");
                 eprintln!("  --entry NAME       Select an @ calculate entry");
                 eprintln!("  audit --entry NAME [--json]  Report calculation reachability");
+                eprintln!("  explore --query NAME  Select one named exploration");
+                eprintln!("  explore --run-state PATH  Required durable journal directory");
+                eprintln!("  explore --assume-verified-checkpoint N:SHA256  Explicitly trust recorded region proofs in a pinned local prefix");
+                eprintln!("  explore --assume-verified-result-rows  Also trust pinned result values for row-local publication (requires checkpoint pin)");
+                eprintln!(
+                    "  explore --output PATH  Materialize resumable manifest and NDJSON results"
+                );
+                eprintln!(
+                    "  explore --time-limit DURATION  Cap one observable epoch after a positive s/m/h duration"
+                );
+                eprintln!(
+                    "  explore --json        Emit the compact checkpoint, coverage, counts, and layer statuses"
+                );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
                 eprintln!("  --input PATH       Read calculation cases");
                 eprintln!("  --output PATH      Write a contract, template, or result");
@@ -439,11 +569,19 @@ fn main_inner() {
                 );
                 eprintln!();
                 eprintln!("Feature stages:");
-                eprintln!("  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust");
-                eprintln!("  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,");
-                eprintln!("    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing");
-                eprintln!("  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call");
-                eprintln!("  Experimental: audit");
+                eprintln!(
+                    "  Stable commands: run, check, emit, build, test, fmt, hashes, lib, init, lint-library, stress-gen, from-rust"
+                );
+                eprintln!(
+                    "  Stable surfaces: core syntax, documented stdlib, pure/core codegen, first-run project initialization,"
+                );
+                eprintln!(
+                    "    reactive/stateful workflows, importable local libraries, Rust interop, FRSS-v0, differential/generative testing"
+                );
+                eprintln!(
+                    "  Preview: add, wasm, lsp, expect, bench, meta, verify, schema, template, call"
+                );
+                eprintln!("  Experimental: audit, explore");
                 eprintln!("  Machine-readable: runa feature-stages --json");
                 eprintln!("  See docs/feature-stages.md and docs/compatibility-policy.md");
                 eprintln!();
@@ -457,9 +595,15 @@ fn main_inner() {
                 eprintln!("  runa meta --json --role warning program.runa  Emit audit data");
                 eprintln!("  runa meta --json --role warning examples/  Sweep a source tree");
                 eprintln!("  runa schema model.calculate.runa --entry calculate_tax");
-                eprintln!("  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx");
-                eprintln!("  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx");
-                eprintln!("  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx");
+                eprintln!(
+                    "  runa template model.calculate.runa --entry calculate_tax --format xlsx --output cases.xlsx"
+                );
+                eprintln!(
+                    "  runa template model.calculate.runa --input cases.json --format xlsx --output cases.xlsx"
+                );
+                eprintln!(
+                    "  runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output results.xlsx"
+                );
                 eprintln!("  runa emit program.runa      Show Rust output");
                 eprintln!("  runa emit --imports program.runa  Show public import/export graph");
                 eprintln!("  runa build program.runa     Compile to ./program");
@@ -476,6 +620,12 @@ fn main_inner() {
                 eprintln!();
                 eprintln!("  runa audit program.runa     Discover invariant gaps automatically");
                 eprintln!("  runa audit model.calculate.runa --entry calculate_tax --json");
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run --output /private/income-cliffs.result --time-limit 20m --json"
+                );
+                eprintln!(
+                    "  runa explore model.explore.runa --query income_cliffs --run-state /private/income-cliffs.run"
+                );
                 std::process::exit(0);
             }
             "init" => {
@@ -580,6 +730,10 @@ fn main_inner() {
             }
             "audit" => {
                 mode = "audit";
+                i += 1;
+            }
+            "explore" => {
+                mode = "explore";
                 i += 1;
             }
             "from-rust" => {
@@ -790,6 +944,89 @@ fn main_inner() {
         return;
     }
 
+    if mode == "explore" && filename.is_none() {
+        eprintln!(
+            "Usage: runa explore <file.runa> [--query NAME] --run-state PATH [--assume-verified-checkpoint N:SHA256 [--assume-verified-result-rows]] [--output PATH] [--time-limit DURATION] [--json]"
+        );
+        std::process::exit(1);
+    }
+
+    if mode == "explore" && explore_run_state.is_none() {
+        eprintln!("error: relational exploration requires a durable --run-state path");
+        std::process::exit(1);
+    }
+
+    if mode == "explore"
+        && explore_assume_verified_result_rows
+        && explore_assumed_checkpoint.is_none()
+    {
+        eprintln!(
+            "error: --assume-verified-result-rows requires --assume-verified-checkpoint N:SHA256"
+        );
+        std::process::exit(1);
+    }
+
+    // Durable exploration is always re-executed in an isolated process group.
+    // The child alone owns the run-state fence; the parent can therefore stop
+    // an unexpectedly large atomic semantic work unit without minting partial
+    // evidence or corrupting the last committed cursor.
+    if mode == "explore"
+        && explore_run_state.is_some()
+        && !runa_explore_supervisor::is_exact_stream_child()
+    {
+        let child_arguments = std::env::args_os().skip(1).collect::<Vec<_>>();
+        match runa_explore_supervisor::supervise_current_executable(
+            &child_arguments,
+            explore_max_runtime,
+        ) {
+            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Exited {
+                status,
+                operational,
+            }) => {
+                print_explore_supervisor_operational_report(operational);
+                if status.success() {
+                    return;
+                }
+                match status.code() {
+                    Some(code) => std::process::exit(code),
+                    None => {
+                        eprintln!(
+                            "error: contained durable Explore child ended without an exit code; any committed run state remains recoverable"
+                        );
+                        std::process::exit(1);
+                    }
+                }
+            }
+            Ok(runa_explore_supervisor::ExactStreamSupervisionOutcome::Contained(report)) => {
+                print_explore_supervisor_operational_report(report.operational);
+                eprintln!(
+                    "error: durable Explore containment stopped the child because of {}; no uncommitted evidence was accepted",
+                    report.reason
+                );
+                if let Some(observed) = report.observed_group_rss_bytes {
+                    eprintln!(
+                        "  process-group RSS: {observed} bytes (guard {})",
+                        report.group_rss_limit_bytes
+                    );
+                }
+                if let Some(observed) = report.observed_available_memory_bytes {
+                    eprintln!(
+                        "  host available memory: {observed} bytes (guard floor {})",
+                        report.available_memory_floor_bytes
+                    );
+                }
+                eprintln!(
+                    "  any committed --run-state cursor is intact; rerunning the same command performs hash-validated recovery"
+                );
+                std::process::exit(1);
+            }
+            Err(error) => {
+                eprintln!("error: durable Explore process-group watchdog failed: {error}");
+                std::process::exit(1);
+            }
+        }
+    }
+
     if let Some(ref path) = filename {
         if mode == "meta" && std::path::Path::new(path).is_dir() {
             print_meta_directory(
@@ -833,6 +1070,20 @@ fn main_inner() {
                 }
                 "audit" => audit_source(&source, path, use_prelude),
                 "verify" => verify_with_z3(&source, path),
+                "explore" => run_relational_explore_stream(
+                    &source,
+                    path,
+                    use_prelude,
+                    explore_query.as_deref(),
+                    explore_json,
+                    explore_run_state
+                        .as_deref()
+                        .expect("stream dispatch requires --run-state"),
+                    explore_output_directory.as_deref(),
+                    explore_max_runtime,
+                    explore_assumed_checkpoint,
+                    explore_assume_verified_result_rows,
+                ),
                 _ => run_source(&source, path, use_prelude),
             },
             Err(e) => {
@@ -844,6 +1095,23 @@ fn main_inner() {
         // REPL mode
         run_repl();
     }
+}
+
+fn print_explore_supervisor_operational_report(
+    report: runa_explore_supervisor::ExactStreamOperationalReport,
+) {
+    if report.host_cpu_pause_count == 0 {
+        return;
+    }
+    eprintln!(
+        "  host CPU pacing: {} pause(s), {:.3}s paused, peak {}.{:02}%, final debt {} and quantization credit {} tick-percent units",
+        report.host_cpu_pause_count,
+        report.host_cpu_paused_duration.as_secs_f64(),
+        report.maximum_observed_host_cpu_hundredths_percent / 100,
+        report.maximum_observed_host_cpu_hundredths_percent % 100,
+        report.final_host_cpu_debt_tick_percent,
+        report.final_host_cpu_quantization_credit_tick_percent,
+    );
 }
 
 const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
@@ -4928,6 +5196,7 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
             }
 
             let mut cg = RustCodegen::new();
+            cg.install_canonical_rule_metadata(&type_check);
             cg.compile_time_metadata_bindings = type_check.compile_time_metadata_bindings;
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
@@ -5008,7 +5277,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match rustc {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!("\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)");
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            );
                             eprintln!("  Source: {}", filename);
                             eprintln!("  Generated: {}", rs_path);
                             eprintln!();
@@ -5108,7 +5379,9 @@ fn build_native(source: &str, filename: &str, execute: bool, use_prelude: bool) 
                 match cargo {
                     Ok(output) => {
                         if !output.status.success() {
-                            eprintln!("\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)");
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: generated Rust did not compile (this is a Futuruna compiler bug)"
+                            );
                             eprintln!("  Source: {}", filename);
                             eprintln!("  Generated: {}/src/main.rs", build_dir);
                             eprintln!();
@@ -5942,13 +6215,17 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
                 filename, stmt_count, fn_count, type_count, rule_count
             );
 
-            // Pre-codegen type checking (M16)
-            if run_type_check(&stmts, source, filename) {
+            // Pre-codegen type checking (M16). Retain exact rule return
+            // metadata so interpreted Boolean misses match generated/SMT
+            // dispatch.
+            let artifacts = type_check_artifacts(&stmts, source, filename);
+            if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
                 std::process::exit(1);
             }
 
             // Evaluate
             let mut interp = Interpreter::new();
+            interp.install_rule_dispatch_metadata(&artifacts);
             // Set source directory for @ import resolution
             if let Some(parent) = std::path::Path::new(filename).parent() {
                 interp.source_dir = Some(parent.to_string_lossy().to_string());
@@ -5966,6 +6243,3535 @@ fn run_source(source: &str, filename: &str, use_prelude: bool) {
             std::process::exit(1);
         }
     }
+}
+
+fn relational_explore_count_json(count: explore::ExploreStreamCount) -> serde_json::Value {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => serde_json::json!({
+            "status": "unknown",
+            "confirmed_lower_bound": confirmed_lower_bound.to_string(),
+        }),
+        explore::ExploreStreamCount::LowerBound(value) => serde_json::json!({
+            "status": "lower_bound",
+            "value": value.to_string(),
+        }),
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => serde_json::json!({
+            "status": "interval",
+            "lower_bound": lower_bound.to_string(),
+            "upper_bound": upper_bound.to_string(),
+        }),
+        explore::ExploreStreamCount::Exact(value) => serde_json::json!({
+            "status": "exact",
+            "value": value.to_string(),
+        }),
+    }
+}
+
+fn relational_explore_count_text(count: explore::ExploreStreamCount) -> String {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        } => "unknown".to_string(),
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => format!("unknown (confirmed >= {confirmed_lower_bound})"),
+        explore::ExploreStreamCount::LowerBound(value) => format!(">= {value}"),
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => format!("[{lower_bound}, {upper_bound}]"),
+        explore::ExploreStreamCount::Exact(value) => value.to_string(),
+    }
+}
+
+fn relational_explore_answer_count_text(
+    count: explore::ExploreStreamCount,
+    singular: &str,
+    plural: &str,
+) -> String {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound: 0,
+        } => format!("an unknown number of {plural}"),
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        } => format!("an unknown number of {plural} ({confirmed_lower_bound} confirmed)"),
+        explore::ExploreStreamCount::LowerBound(1) => {
+            format!("at least 1 {singular}")
+        }
+        explore::ExploreStreamCount::LowerBound(value) => {
+            format!("at least {value} {plural}")
+        }
+        explore::ExploreStreamCount::Interval {
+            lower_bound,
+            upper_bound,
+        } => format!("between {lower_bound} and {upper_bound} {plural}"),
+        explore::ExploreStreamCount::Exact(0) => format!("no {plural}"),
+        explore::ExploreStreamCount::Exact(1) => format!("exactly 1 {singular}"),
+        explore::ExploreStreamCount::Exact(value) => format!("exactly {value} {plural}"),
+    }
+}
+
+const fn relational_explore_count_confirmed_lower_bound(
+    count: explore::ExploreStreamCount,
+) -> u128 {
+    match count {
+        explore::ExploreStreamCount::Unknown {
+            confirmed_lower_bound,
+        }
+        | explore::ExploreStreamCount::LowerBound(confirmed_lower_bound)
+        | explore::ExploreStreamCount::Interval {
+            lower_bound: confirmed_lower_bound,
+            ..
+        }
+        | explore::ExploreStreamCount::Exact(confirmed_lower_bound) => confirmed_lower_bound,
+    }
+}
+
+fn relational_explore_lifecycle_name(lifecycle: explore::ExploreStreamLifecycle) -> &'static str {
+    match lifecycle {
+        explore::ExploreStreamLifecycle::Paused => "paused",
+        explore::ExploreStreamLifecycle::Complete => "complete",
+    }
+}
+
+fn relational_explore_layer_status_name(status: explore::ExploreStreamLayerStatus) -> &'static str {
+    match status {
+        explore::ExploreStreamLayerStatus::ChoiceInputOpen => "choice_input_open",
+        explore::ExploreStreamLayerStatus::ChoiceMembersOpen => "choice_members_open",
+        explore::ExploreStreamLayerStatus::ChoiceClosed => "choice_closed",
+        explore::ExploreStreamLayerStatus::ResultUnregistered => "result_unregistered",
+        explore::ExploreStreamLayerStatus::ResultInputOpen => "result_input_open",
+        explore::ExploreStreamLayerStatus::ResultAwaitingPublication => {
+            "result_awaiting_publication"
+        }
+        explore::ExploreStreamLayerStatus::ResultPublished => "result_published",
+        explore::ExploreStreamLayerStatus::MechanismUnregistered => "mechanism_unregistered",
+        explore::ExploreStreamLayerStatus::MechanismTargetOpen => "mechanism_target_open",
+        explore::ExploreStreamLayerStatus::MechanismTerminalOpen => "mechanism_terminal_open",
+        explore::ExploreStreamLayerStatus::MechanismClosed => "mechanism_closed",
+    }
+}
+
+fn relational_explore_mechanism_target_json(
+    target: &explore::ExploreStreamMechanismTarget,
+) -> serde_json::Value {
+    match target {
+        explore::ExploreStreamMechanismTarget::Find { name, question_id } => serde_json::json!({
+            "kind": "find",
+            "name": name,
+            "question_id": question_id,
+        }),
+        explore::ExploreStreamMechanismTarget::Choice {
+            name,
+            question_id,
+            choice_id,
+        } => serde_json::json!({
+            "kind": "choice",
+            "name": name,
+            "question_id": question_id,
+            "choice_id": choice_id,
+        }),
+    }
+}
+
+fn relational_explore_mechanism_target_text(
+    target: &explore::ExploreStreamMechanismTarget,
+) -> String {
+    match target {
+        explore::ExploreStreamMechanismTarget::Find { name, .. } => {
+            format!("cases selected by find `{name}`")
+        }
+        explore::ExploreStreamMechanismTarget::Choice { name, .. } => {
+            format!("cases selected by choice `{name}`")
+        }
+    }
+}
+
+fn relational_explore_coverage_root_role_name(
+    role: explore::ExploreStreamCoverageRootRole,
+) -> &'static str {
+    match role {
+        explore::ExploreStreamCoverageRootRole::Context => "context",
+        explore::ExploreStreamCoverageRootRole::Before => "before",
+    }
+}
+
+fn relational_explore_coverage_binding_role_name(
+    role: explore::ExploreStreamCoverageBindingRole,
+) -> &'static str {
+    match role {
+        explore::ExploreStreamCoverageBindingRole::Auxiliary => "auxiliary",
+        explore::ExploreStreamCoverageBindingRole::Context => "context",
+        explore::ExploreStreamCoverageBindingRole::Before => "before",
+    }
+}
+
+fn relational_explore_coverage_literal_kind_name(
+    kind: explore::ExploreStreamCoverageLiteralKind,
+) -> &'static str {
+    match kind {
+        explore::ExploreStreamCoverageLiteralKind::Integer => "integer",
+        explore::ExploreStreamCoverageLiteralKind::FloatBits => "float_bits",
+        explore::ExploreStreamCoverageLiteralKind::String => "string",
+        explore::ExploreStreamCoverageLiteralKind::Character => "character",
+        explore::ExploreStreamCoverageLiteralKind::Boolean => "boolean",
+        explore::ExploreStreamCoverageLiteralKind::Unit => "unit",
+    }
+}
+
+fn relational_explore_coverage_constructor_layout_name(
+    layout: explore::ExploreStreamCoverageConstructorLayout,
+) -> &'static str {
+    match layout {
+        explore::ExploreStreamCoverageConstructorLayout::Positional => "positional",
+        explore::ExploreStreamCoverageConstructorLayout::Named => "named",
+    }
+}
+
+fn relational_explore_coverage_gap_reason_name(
+    reason: explore::ExploreStreamCoverageGapReason,
+) -> &'static str {
+    match reason {
+        explore::ExploreStreamCoverageGapReason::SchemaNotDeclaredRecord => {
+            "schema_not_declared_record"
+        }
+        explore::ExploreStreamCoverageGapReason::SchemaCompositionUnavailable => {
+            "schema_composition_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::InterproceduralFieldProvenance => {
+            "interprocedural_field_provenance"
+        }
+        explore::ExploreStreamCoverageGapReason::ConstructorFieldMappingUnavailable => {
+            "constructor_field_mapping_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::ConstructorChoiceProvenanceUnavailable => {
+            "constructor_choice_provenance_unavailable"
+        }
+        explore::ExploreStreamCoverageGapReason::UpstreamCoverageGap => "upstream_coverage_gap",
+    }
+}
+
+fn relational_explore_coverage_subject_text(
+    subject: &explore::ExploreStreamCoverageSubject,
+) -> String {
+    match subject {
+        explore::ExploreStreamCoverageSubject::SourceBinding {
+            binding_index,
+            binding_name,
+            role,
+        } => format!(
+            "source binding `{binding_name}` (index {binding_index}, {})",
+            relational_explore_coverage_binding_role_name(*role)
+        ),
+        explore::ExploreStreamCoverageSubject::SchemaRoot { role, type_name } => format!(
+            "{} schema root `{type_name}`",
+            relational_explore_coverage_root_role_name(*role)
+        ),
+        explore::ExploreStreamCoverageSubject::SchemaField { role, path } => {
+            let field_path = path
+                .iter()
+                .map(|segment| segment.field_name.as_str())
+                .collect::<Vec<_>>()
+                .join(".");
+            let structural_path = path
+                .iter()
+                .map(|segment| {
+                    format!(
+                        "{}[{}].{}[{}]",
+                        segment.owner_type_name,
+                        segment.variant_index,
+                        segment.field_name,
+                        segment.field_index
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join(" -> ");
+            format!(
+                "{} field path `{field_path}` ({structural_path})",
+                relational_explore_coverage_root_role_name(*role)
+            )
+        }
+        explore::ExploreStreamCoverageSubject::Literal { kind, value } => format!(
+            "{} literal `{value}`",
+            relational_explore_coverage_literal_kind_name(*kind)
+        ),
+        explore::ExploreStreamCoverageSubject::TopLevelConstant { addresses, .. } => {
+            format!("top-level constant `{}`", addresses.join("`, `"))
+        }
+        explore::ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_name,
+            variant_name,
+            variant_index,
+            layout,
+            ..
+        } => format!(
+            "constructor `{owner_name}.{variant_name}` (variant {variant_index}, {})",
+            relational_explore_coverage_constructor_layout_name(*layout)
+        ),
+    }
+}
+
+fn relational_explore_coverage_classification_text(
+    classification: &explore::ExploreStreamCoverageClassification,
+) -> String {
+    match classification {
+        explore::ExploreStreamCoverageClassification::VariedFiniteDimension { dimension_id } => {
+            format!("varied finite dimension {dimension_id}")
+        }
+        explore::ExploreStreamCoverageClassification::DerivedFromDeclaredDimensions {
+            dimension_ids,
+        } => format!("derived from dimensions {}", dimension_ids.join(", ")),
+        explore::ExploreStreamCoverageClassification::ConditionedSingletonOrSourceRestriction => {
+            "conditioned singleton or source restriction".to_string()
+        }
+        explore::ExploreStreamCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest,
+        } => format!("proven irrelevant ({certificate_digest})"),
+        explore::ExploreStreamCoverageClassification::CoverageGap { reason } => format!(
+            "COVERAGE GAP ({})",
+            relational_explore_coverage_gap_reason_name(*reason)
+        ),
+    }
+}
+
+fn relational_explore_coverage_subject_json(
+    subject: &explore::ExploreStreamCoverageSubject,
+) -> serde_json::Value {
+    match subject {
+        explore::ExploreStreamCoverageSubject::SourceBinding {
+            binding_index,
+            binding_name,
+            role,
+        } => serde_json::json!({
+            "kind": "source_binding",
+            "binding_index": binding_index,
+            "binding_name": binding_name,
+            "role": relational_explore_coverage_binding_role_name(*role),
+        }),
+        explore::ExploreStreamCoverageSubject::SchemaRoot { role, type_name } => {
+            serde_json::json!({
+                "kind": "schema_root",
+                "role": relational_explore_coverage_root_role_name(*role),
+                "type_name": type_name,
+            })
+        }
+        explore::ExploreStreamCoverageSubject::SchemaField { role, path } => serde_json::json!({
+            "kind": "schema_field",
+            "role": relational_explore_coverage_root_role_name(*role),
+            "path": path.iter().map(|segment| serde_json::json!({
+                "owner_type_name": segment.owner_type_name.as_str(),
+                "variant_index": segment.variant_index,
+                "field_index": segment.field_index,
+                "variant_name": segment.variant_name.as_str(),
+                "field_name": segment.field_name.as_str(),
+            })).collect::<Vec<_>>(),
+        }),
+        explore::ExploreStreamCoverageSubject::Literal { kind, value } => serde_json::json!({
+            "kind": "literal",
+            "literal_kind": relational_explore_coverage_literal_kind_name(*kind),
+            "value": value,
+        }),
+        explore::ExploreStreamCoverageSubject::TopLevelConstant {
+            dependency_digest,
+            addresses,
+        } => {
+            serde_json::json!({
+                "kind": "top_level_constant",
+                "dependency_digest": dependency_digest,
+                "addresses": addresses,
+            })
+        }
+        explore::ExploreStreamCoverageSubject::ConstructorChoice {
+            owner_digest,
+            owner_name,
+            variant_name,
+            variant_index,
+            layout,
+        } => serde_json::json!({
+            "kind": "constructor_choice",
+            "owner_digest": owner_digest,
+            "owner_name": owner_name,
+            "variant_name": variant_name,
+            "variant_index": variant_index,
+            "layout": relational_explore_coverage_constructor_layout_name(*layout),
+        }),
+    }
+}
+
+fn relational_explore_coverage_classification_json(
+    classification: &explore::ExploreStreamCoverageClassification,
+) -> serde_json::Value {
+    match classification {
+        explore::ExploreStreamCoverageClassification::VariedFiniteDimension { dimension_id } => {
+            serde_json::json!({
+                "kind": "varied_finite_dimension",
+                "dimension_id": dimension_id,
+            })
+        }
+        explore::ExploreStreamCoverageClassification::DerivedFromDeclaredDimensions {
+            dimension_ids,
+        } => serde_json::json!({
+            "kind": "derived_from_declared_dimensions",
+            "dimension_ids": dimension_ids,
+        }),
+        explore::ExploreStreamCoverageClassification::ConditionedSingletonOrSourceRestriction => {
+            serde_json::json!({ "kind": "conditioned_singleton_or_source_restriction" })
+        }
+        explore::ExploreStreamCoverageClassification::ExactIrrelevanceCertificate {
+            certificate_digest,
+        } => serde_json::json!({
+            "kind": "exact_irrelevance_certificate",
+            "certificate_digest": certificate_digest,
+        }),
+        explore::ExploreStreamCoverageClassification::CoverageGap { reason } => {
+            serde_json::json!({
+                "kind": "coverage_gap",
+                "reason": relational_explore_coverage_gap_reason_name(*reason),
+            })
+        }
+    }
+}
+
+fn relational_explore_coverage_entry_json(
+    entry: &explore::ExploreStreamCoverageEntry,
+) -> serde_json::Value {
+    serde_json::json!({
+        "subject_id": entry.subject_id,
+        "subject": relational_explore_coverage_subject_json(&entry.subject),
+        "classification": relational_explore_coverage_classification_json(&entry.classification),
+    })
+}
+
+fn relational_explore_pause_text(reason: &explore::ExploreStreamPauseReason) -> String {
+    match reason {
+        explore::ExploreStreamPauseReason::RuntimeLimit => {
+            "invocation time limit reached".to_string()
+        }
+        explore::ExploreStreamPauseReason::ResourceAdmission { code } => {
+            format!("resource admission paused ({code})")
+        }
+        explore::ExploreStreamPauseReason::MechanismReplay {
+            request_id,
+            case_id,
+            endpoint,
+            reason,
+        } => format!(
+            "mechanism replay paused for request {request_id}, case {case_id}, {endpoint} ({reason})"
+        ),
+        explore::ExploreStreamPauseReason::AwaitingChoiceMechanisms {
+            request_id,
+            choice_id,
+        } => {
+            format!("mechanism request {request_id} is waiting for choice {choice_id}")
+        }
+        explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => {
+            format!("result view {view_id} is waiting for source materialization")
+        }
+        explore::ExploreStreamPauseReason::AwaitingMechanismIncidenceResult {
+            view_id,
+            request_id,
+        } => format!("result view {view_id} is waiting for mechanism request {request_id}"),
+        explore::ExploreStreamPauseReason::AwaitingMechanismSupport { request_id } => {
+            format!("mechanism request {request_id} is waiting for support-prefix progress")
+        }
+    }
+}
+
+fn relational_explore_pause_json(reason: &explore::ExploreStreamPauseReason) -> serde_json::Value {
+    match reason {
+        explore::ExploreStreamPauseReason::RuntimeLimit => {
+            serde_json::json!({ "kind": "runtime_limit" })
+        }
+        explore::ExploreStreamPauseReason::ResourceAdmission { code } => serde_json::json!({
+            "kind": "resource_admission",
+            "code": code,
+        }),
+        explore::ExploreStreamPauseReason::MechanismReplay {
+            request_id,
+            case_id,
+            endpoint,
+            reason,
+        } => serde_json::json!({
+            "kind": "mechanism_replay",
+            "request_id": request_id,
+            "case_id": case_id,
+            "endpoint": endpoint,
+            "reason": reason,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingChoiceMechanisms {
+            request_id,
+            choice_id,
+        } => serde_json::json!({
+            "kind": "awaiting_choice_mechanisms",
+            "request_id": request_id,
+            "choice_id": choice_id,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingSourceResult { view_id } => serde_json::json!({
+            "kind": "awaiting_source_result",
+            "view_id": view_id,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingMechanismIncidenceResult {
+            view_id,
+            request_id,
+        } => serde_json::json!({
+            "kind": "awaiting_mechanism_incidence_result",
+            "view_id": view_id,
+            "request_id": request_id,
+        }),
+        explore::ExploreStreamPauseReason::AwaitingMechanismSupport { request_id } => {
+            serde_json::json!({
+                "kind": "awaiting_mechanism_support",
+                "request_id": request_id,
+            })
+        }
+    }
+}
+
+fn relational_explore_result_input_json(
+    input: &explore::ExploreStreamResultInput,
+) -> serde_json::Value {
+    match input {
+        explore::ExploreStreamResultInput::Sources { relation_id } => serde_json::json!({
+            "kind": "sources",
+            "relation_id": relation_id,
+        }),
+        explore::ExploreStreamResultInput::Find { name, question_id } => serde_json::json!({
+            "kind": "find",
+            "name": name,
+            "question_id": question_id,
+        }),
+        explore::ExploreStreamResultInput::Choice { choice_id } => serde_json::json!({
+            "kind": "choice",
+            "choice_id": choice_id,
+        }),
+        explore::ExploreStreamResultInput::MechanismIncidence { name, request_id } => {
+            serde_json::json!({
+                "kind": "mechanism_incidence",
+                "name": name,
+                "request_id": request_id,
+            })
+        }
+    }
+}
+
+const fn relational_explore_result_grain_name(
+    grain: explore::ExploreStreamResultGrain,
+) -> &'static str {
+    match grain {
+        explore::ExploreStreamResultGrain::EachCase => "each_case",
+        explore::ExploreStreamResultGrain::EachIncidence => "each_incidence",
+        explore::ExploreStreamResultGrain::GroupAll => "group_all",
+        explore::ExploreStreamResultGrain::GroupBy => "group_by",
+    }
+}
+
+fn relational_explore_result_columns_json(
+    columns: &[explore::ExploreStreamResultColumn],
+) -> Vec<serde_json::Value> {
+    columns
+        .iter()
+        .map(|column| {
+            serde_json::json!({
+                "name": column.name,
+                "type": column.ty,
+            })
+        })
+        .collect()
+}
+
+fn relational_explore_result_evidence_json(
+    evidence: &explore::ExploreStreamResultEvidence,
+) -> serde_json::Value {
+    serde_json::json!({
+        "spec_root": evidence.spec_root,
+        "projection_root": evidence.projection_root,
+        "projection_record_count": evidence.projection_record_count.to_string(),
+        "publication_id": evidence.publication_id,
+        "evidence_root": evidence.evidence_root,
+        "result_root": evidence.result_root,
+    })
+}
+
+fn relational_explore_layer_json(layer: &explore::ExploreStreamLayer) -> serde_json::Value {
+    match layer {
+        explore::ExploreStreamLayer::Choice(choice) => serde_json::json!({
+            "kind": "choice",
+            "name": choice.name,
+            "choice_id": choice.choice_id,
+            "question_id": choice.question_id,
+            "status": relational_explore_layer_status_name(choice.status),
+            "counts": {
+                "candidates": relational_explore_count_json(choice.candidates),
+                "members": relational_explore_count_json(choice.members),
+            },
+            "frontier_root": choice.frontier_root,
+            "content_root": choice.content_root,
+        }),
+        explore::ExploreStreamLayer::Result(result) => serde_json::json!({
+            "kind": "result",
+            "name": result.name,
+            "view_id": result.view_id,
+            "choice_id": result.choice_id,
+            "input": relational_explore_result_input_json(&result.input),
+            "grain": relational_explore_result_grain_name(result.grain),
+            "columns": relational_explore_result_columns_json(&result.columns),
+            "group_keys": relational_explore_result_columns_json(&result.group_keys),
+            "status": relational_explore_layer_status_name(result.status),
+            "counts": {
+                "input_rows": relational_explore_count_json(result.input_rows),
+                "output_rows": relational_explore_count_json(result.output_rows),
+                "projection_records": relational_explore_count_json(result.projection_records),
+                "projection_records_appended": result.projection_records_appended.to_string(),
+            },
+            "evidence": result
+                .evidence
+                .as_ref()
+                .map(relational_explore_result_evidence_json),
+            "grouped_preview": result
+                .grouped_preview
+                .as_ref()
+                .map(relational_explore_grouped_preview_json),
+        }),
+        explore::ExploreStreamLayer::Mechanisms(mechanism) => serde_json::json!({
+            "kind": "mechanisms",
+            "name": mechanism.name,
+            "request_id": mechanism.request_id,
+            "target": relational_explore_mechanism_target_json(&mechanism.target),
+            "status": relational_explore_layer_status_name(mechanism.status),
+            "counts": {
+                "target_cases": relational_explore_count_json(mechanism.target_cases),
+                "terminal_cases": relational_explore_count_json(mechanism.terminal_cases),
+                "incidence_cases": relational_explore_count_json(mechanism.incidence_cases),
+                "unavailable_cases": relational_explore_count_json(mechanism.unavailable_cases),
+                "raw_signatures": relational_explore_count_json(mechanism.raw_signatures),
+                "structural_assignments": relational_explore_count_json(mechanism.structural_assignments),
+                "structural_mechanisms": relational_explore_count_json(mechanism.structural_mechanisms),
+                "execution_profiles": relational_explore_count_json(mechanism.execution_profiles),
+            },
+            "raw_closure_root": mechanism.raw_closure_root,
+            "structural_closure_root": mechanism.structural_closure_root,
+            "support_closure_root": mechanism.support_closure_root,
+            "support_closure_totals": mechanism.support_closure_totals.map(|totals| serde_json::json!({
+                "target_cases": totals.target_cases.to_string(),
+                "successful_cases": totals.successful_cases.to_string(),
+                "unavailable_cases": totals.unavailable_cases.to_string(),
+                "signature_fibers": totals.signature_fibers.to_string(),
+                "target_starters": totals.target_starters.to_string(),
+            })),
+            "support_observations": {
+                "total": {
+                    "points": mechanism.total_support_observation_points.to_string(),
+                    "chain_root": mechanism.total_support_observation_chain_root,
+                },
+                "automatic": {
+                    "points": mechanism.automatic_support_observation_points.to_string(),
+                    "registered_slices": mechanism.automatic_registered_support_slices.to_string(),
+                    "dirty_slices": mechanism.automatic_dirty_support_slices.to_string(),
+                    "observed_slices": mechanism.automatic_observed_support_slices.to_string(),
+                    "sealed_slices": mechanism.automatic_sealed_support_slices.to_string(),
+                    "chain_root": mechanism.automatic_support_observation_chain_root,
+                    "initial_point_id": mechanism.initial_automatic_support_observation_point_id,
+                },
+                "explicit": {
+                    "demand_registrations": mechanism.explicit_support_observation_demand_registrations.to_string(),
+                    "points": mechanism.explicit_support_observation_points.to_string(),
+                    "node_edge_scheduler": {
+                        "registered_slices": mechanism.explicit_registered_support_slices.to_string(),
+                        "ready_slices": mechanism.explicit_ready_support_slices.to_string(),
+                        "pending_backfill_slices": mechanism.explicit_pending_backfill_support_slices.to_string(),
+                        "dirty_slices": mechanism.explicit_dirty_support_slices.to_string(),
+                        "unsealed_slices": mechanism.explicit_unsealed_support_slices.to_string(),
+                        "observed_slices": mechanism.explicit_observed_support_slices.to_string(),
+                        "sealed_slices": mechanism.explicit_sealed_support_slices.to_string(),
+                    },
+                },
+            },
+        }),
+    }
+}
+
+fn relational_explore_grouped_preview_json(
+    preview: &explore::ExploreStreamGroupedResultPreview,
+) -> serde_json::Value {
+    serde_json::json!({
+        "columns": preview.columns,
+        "counts": {
+            "raw_groups": relational_explore_count_json(preview.raw_groups),
+            "output_groups": relational_explore_count_json(preview.output_groups),
+            "returned_rows": preview.rows.len().to_string(),
+            "scanned_projection_records": preview.scanned_projection_records.to_string(),
+        },
+        "preview": {
+            "status": relational_explore_preview_status_json(&preview.status),
+            "rows": preview
+                .rows
+                .iter()
+                .map(relational_explore_group_row_json)
+                .collect::<Vec<_>>(),
+        },
+        "evidence": relational_explore_result_evidence_json(&preview.evidence),
+    })
+}
+
+fn relational_explore_preview_status_json(
+    status: &explore::ExploreStreamPreviewStatus,
+) -> serde_json::Value {
+    match status {
+        explore::ExploreStreamPreviewStatus::Complete => serde_json::json!({
+            "kind": "complete",
+        }),
+        explore::ExploreStreamPreviewStatus::Truncated {
+            reason,
+            next_projection_ordinal,
+        } => serde_json::json!({
+            "kind": "truncated",
+            "reason": relational_explore_preview_limit_name(*reason),
+            "next_projection_ordinal": next_projection_ordinal.to_string(),
+        }),
+    }
+}
+
+fn relational_explore_preview_limit_name(
+    limit: explore::ExploreStreamPreviewLimit,
+) -> &'static str {
+    match limit {
+        explore::ExploreStreamPreviewLimit::RowsPerView => "rows_per_view",
+        explore::ExploreStreamPreviewLimit::RowsPerReport => "rows_per_report",
+        explore::ExploreStreamPreviewLimit::RecordsPerView => "records_per_view",
+        explore::ExploreStreamPreviewLimit::RecordsPerReport => "records_per_report",
+        explore::ExploreStreamPreviewLimit::ValueNodesPerReport => "value_nodes_per_report",
+        explore::ExploreStreamPreviewLimit::ValueBytesPerReport => "value_bytes_per_report",
+    }
+}
+
+fn relational_explore_group_row_json(
+    row: &explore::ExploreStreamResultGroupRow,
+) -> serde_json::Value {
+    let values = row
+        .fields
+        .iter()
+        .map(|field| {
+            (
+                field.name.clone(),
+                relational_explore_projected_value_json(&field.value),
+            )
+        })
+        .collect::<serde_json::Map<_, _>>();
+    serde_json::json!({
+        "projection_ordinal": row.projection_ordinal.to_string(),
+        "values": values,
+    })
+}
+
+fn relational_explore_projected_value_json(
+    value: &explore::ExploreStreamProjectedValue,
+) -> serde_json::Value {
+    match value {
+        explore::ExploreStreamProjectedValue::Value(value) => relational_explore_value_json(value),
+        explore::ExploreStreamProjectedValue::CaseId(value) => {
+            serde_json::json!({ "kind": "case_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::TransitionId(value) => {
+            serde_json::json!({ "kind": "transition_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::SignatureId(value) => {
+            serde_json::json!({ "kind": "signature_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::StructuralMechanismId(value) => {
+            serde_json::json!({ "kind": "structural_mechanism_id", "value": value })
+        }
+        explore::ExploreStreamProjectedValue::ExecutionProfileId(value) => {
+            serde_json::json!({ "kind": "execution_profile_id", "value": value })
+        }
+    }
+}
+
+fn relational_explore_value_json(value: &explore::ExploreValue) -> serde_json::Value {
+    match value {
+        explore::ExploreValue::Int(value) => serde_json::json!(value),
+        explore::ExploreValue::FloatBits(bits) => serde_json::json!({
+            "kind": "float_bits",
+            "bits": format!("{bits:016x}"),
+        }),
+        explore::ExploreValue::String(value) => serde_json::json!(value),
+        explore::ExploreValue::Character(value) => serde_json::json!(value.to_string()),
+        explore::ExploreValue::Boolean(value) => serde_json::json!(value),
+        explore::ExploreValue::Unit => serde_json::json!({ "kind": "unit" }),
+        explore::ExploreValue::List(values) => {
+            serde_json::Value::Array(values.iter().map(relational_explore_value_json).collect())
+        }
+        explore::ExploreValue::Set(values) => serde_json::json!({
+            "kind": "set",
+            "items": values.iter().map(relational_explore_value_json).collect::<Vec<_>>(),
+        }),
+        explore::ExploreValue::Tuple(values) => serde_json::json!({
+            "kind": "tuple",
+            "items": values.iter().map(relational_explore_value_json).collect::<Vec<_>>(),
+        }),
+        explore::ExploreValue::Constructor {
+            type_name,
+            variant,
+            positional,
+            fields,
+        } => {
+            let fields = if *positional {
+                serde_json::Value::Array(
+                    fields
+                        .iter()
+                        .map(|(_, value)| relational_explore_value_json(value))
+                        .collect(),
+                )
+            } else {
+                serde_json::Value::Object(
+                    fields
+                        .iter()
+                        .map(|(name, value)| (name.clone(), relational_explore_value_json(value)))
+                        .collect(),
+                )
+            };
+            serde_json::json!({
+                "kind": "constructor",
+                "type": type_name,
+                "variant": variant,
+                "layout": if *positional { "positional" } else { "named" },
+                "fields": fields,
+            })
+        }
+    }
+}
+
+fn relational_explore_answer_mechanism_json(
+    mechanism: &explore::ExploreStreamMechanismLayer,
+) -> serde_json::Value {
+    serde_json::json!({
+        "name": mechanism.name,
+        "request_id": mechanism.request_id,
+        "target": relational_explore_mechanism_target_json(&mechanism.target),
+        "status": relational_explore_layer_status_name(mechanism.status),
+        "counts": {
+            "target_cases": relational_explore_count_json(mechanism.target_cases),
+            "successful_cases": relational_explore_count_json(mechanism.incidence_cases),
+            "unavailable_cases": relational_explore_count_json(mechanism.unavailable_cases),
+            "structural_mechanisms": relational_explore_count_json(mechanism.structural_mechanisms),
+            "raw_signatures": relational_explore_count_json(mechanism.raw_signatures),
+            "execution_profiles": relational_explore_count_json(mechanism.execution_profiles),
+        },
+        "sealed_target_support": mechanism.support_closure_totals.map(|totals| serde_json::json!({
+            "status": "exact",
+            "scope": "whole_mechanism_request_target",
+            "target_cases": totals.target_cases.to_string(),
+            "successful_cases": totals.successful_cases.to_string(),
+            "unavailable_cases": totals.unavailable_cases.to_string(),
+            "signature_fibers": totals.signature_fibers.to_string(),
+            "distinct_target_starters": totals.target_starters.to_string(),
+        })),
+        "support_observations": {
+            "total": {
+                "points": mechanism.total_support_observation_points.to_string(),
+                "chain_root": mechanism.total_support_observation_chain_root,
+            },
+            "automatic": {
+                "points": mechanism.automatic_support_observation_points.to_string(),
+                "registered_slices": mechanism.automatic_registered_support_slices.to_string(),
+                "dirty_slices": mechanism.automatic_dirty_support_slices.to_string(),
+                "observed_slices": mechanism.automatic_observed_support_slices.to_string(),
+                "sealed_slices": mechanism.automatic_sealed_support_slices.to_string(),
+                "chain_root": mechanism.automatic_support_observation_chain_root,
+                "initial_point_id": mechanism.initial_automatic_support_observation_point_id,
+            },
+            "explicit": {
+                "demand_registrations": mechanism.explicit_support_observation_demand_registrations.to_string(),
+                "points": mechanism.explicit_support_observation_points.to_string(),
+                "node_edge_scheduler": {
+                    "registered_slices": mechanism.explicit_registered_support_slices.to_string(),
+                    "ready_slices": mechanism.explicit_ready_support_slices.to_string(),
+                    "pending_backfill_slices": mechanism.explicit_pending_backfill_support_slices.to_string(),
+                    "dirty_slices": mechanism.explicit_dirty_support_slices.to_string(),
+                    "unsealed_slices": mechanism.explicit_unsealed_support_slices.to_string(),
+                    "observed_slices": mechanism.explicit_observed_support_slices.to_string(),
+                    "sealed_slices": mechanism.explicit_sealed_support_slices.to_string(),
+                },
+            },
+        },
+        "evidence": {
+            "raw_closure_root": mechanism.raw_closure_root,
+            "structural_closure_root": mechanism.structural_closure_root,
+            "starter_support_closure_root": mechanism.support_closure_root,
+            "total_support_observation_chain_root": mechanism.total_support_observation_chain_root,
+            "automatic_support_observation_chain_root": mechanism.automatic_support_observation_chain_root,
+        },
+    })
+}
+
+fn relational_explore_answer_result_json(
+    result: &explore::ExploreStreamResultLayer,
+    publication: Option<&explore::ExploreStreamPublication>,
+    result_artifacts: &BTreeMap<&str, &explore::ExploreStreamPublicationArtifact>,
+) -> serde_json::Value {
+    let artifact_key = format!("view:{}", result.view_id);
+    let saved_artifact = publication.and_then(|publication| {
+        result_artifacts.get(artifact_key.as_str()).map(|artifact| {
+            serde_json::json!({
+                "key": artifact.key,
+                "name": artifact.name,
+                "kind": artifact.kind,
+                "encoding": "application/x-ndjson",
+                "output_directory": publication.output_directory.display().to_string(),
+                "path": artifact.relative_path.display().to_string(),
+                "published_lines": artifact.published_lines.to_string(),
+                "published_bytes": artifact.published_bytes,
+                "caught_up_to_journal_prefix": artifact.caught_up_to_journal_prefix,
+                "prefix_digest": artifact.prefix_digest,
+                "layer_roots": artifact.layer_roots,
+            })
+        })
+    });
+    let mut answer = serde_json::json!({
+        "name": result.name,
+        "view_id": result.view_id,
+        "choice_id": result.choice_id,
+        "input": relational_explore_result_input_json(&result.input),
+        "grain": relational_explore_result_grain_name(result.grain),
+        "columns": relational_explore_result_columns_json(&result.columns),
+        "group_keys": relational_explore_result_columns_json(&result.group_keys),
+        "frontier": if result.output_rows.is_exact() { "exact" } else { "open" },
+        "status": relational_explore_layer_status_name(result.status),
+        "counts": {
+            "input_rows": relational_explore_count_json(result.input_rows),
+            "output_rows": relational_explore_count_json(result.output_rows),
+            "projection_records": relational_explore_count_json(result.projection_records),
+            "projection_records_appended": result.projection_records_appended.to_string(),
+        },
+        "evidence": result
+            .evidence
+            .as_ref()
+            .map(relational_explore_result_evidence_json),
+        "saved_artifact": saved_artifact,
+    });
+    if let Some(preview) = result.grouped_preview.as_ref() {
+        answer
+            .as_object_mut()
+            .expect("result answers are JSON objects")
+            .insert(
+                "grouped_result".into(),
+                relational_explore_grouped_preview_json(preview),
+            );
+    }
+    answer
+}
+
+fn relational_explore_answer_json(report: &explore::ExploreStreamSliceReport) -> serde_json::Value {
+    let result_artifacts = report
+        .publication
+        .iter()
+        .flat_map(|publication| publication.artifacts.iter())
+        .filter(|artifact| artifact.kind == "result_view")
+        .map(|artifact| (artifact.key.as_str(), artifact))
+        .collect::<BTreeMap<_, _>>();
+    serde_json::json!({
+        "population": "before_after_cases",
+        "declared_relation_closed": report.relation_closed,
+        "analysis_frontier_closed": report.analysis_closed,
+        "source_coverage_has_gaps": report.source_coverage.has_gaps,
+        "counts": {
+            "admitted_cases": relational_explore_count_json(report.counts.admitted),
+        },
+        "finds": report.finds.iter().map(|find| serde_json::json!({
+            "name": find.name,
+            "question_id": find.question_id,
+            "frontier_closed": find.closed,
+            "selected_cases": relational_explore_count_json(find.selected),
+        })).collect::<Vec<_>>(),
+        "choices": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Choice(choice) => Some(serde_json::json!({
+                    "name": choice.name,
+                    "choice_id": choice.choice_id,
+                    "question_id": choice.question_id,
+                    "status": relational_explore_layer_status_name(choice.status),
+                    "candidates": relational_explore_count_json(choice.candidates),
+                    "members": relational_explore_count_json(choice.members),
+                    "frontier_root": choice.frontier_root,
+                    "content_root": choice.content_root,
+                })),
+                explore::ExploreStreamLayer::Result(_)
+                | explore::ExploreStreamLayer::Mechanisms(_) => None,
+            })
+            .collect::<Vec<_>>(),
+        "result_views": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Result(result) => {
+                    Some(relational_explore_answer_result_json(
+                        result,
+                        report.publication.as_ref(),
+                        &result_artifacts,
+                    ))
+                }
+                explore::ExploreStreamLayer::Mechanisms(_) => None,
+                explore::ExploreStreamLayer::Choice(_) => None,
+            })
+            .collect::<Vec<_>>(),
+        "mechanism_requests": report
+            .layers
+            .iter()
+            .filter_map(|layer| match layer {
+                explore::ExploreStreamLayer::Mechanisms(mechanism) => {
+                    Some(relational_explore_answer_mechanism_json(mechanism))
+                }
+                explore::ExploreStreamLayer::Result(_) => None,
+                explore::ExploreStreamLayer::Choice(_) => None,
+            })
+            .collect::<Vec<_>>(),
+    })
+}
+
+fn relational_explore_report_json(
+    report: &explore::ExploreStreamSliceReport,
+    run_state: &Path,
+) -> serde_json::Value {
+    let mut payload = serde_json::json!({
+        "schema": "futuruna.explore.relational-stream.v11",
+        "schema_version": report.schema_version,
+        "answer": relational_explore_answer_json(report),
+        "query": {
+            "name": report.query_name,
+            "identity": {
+                "checked_program": report.identity.checked_program,
+                "relation_id": report.identity.relation_id,
+                "admission_id": report.identity.admission_id,
+                "question_ids": report.identity.question_ids,
+                "analysis_graph_digest": report.identity.analysis_graph_digest,
+                "journal_id": report.identity.journal_id,
+            },
+        },
+        "source_coverage": {
+            "version": report.source_coverage.version,
+            "manifest_digest": report.source_coverage.manifest_digest,
+            "semantic_dependency_digest": report.source_coverage.semantic_dependency_digest,
+            "has_gaps": report.source_coverage.has_gaps,
+            "entry_count": report.source_coverage.entries.len(),
+            "entries": report
+                .source_coverage
+                .entries
+                .iter()
+                .map(relational_explore_coverage_entry_json)
+                .collect::<Vec<_>>(),
+        },
+        "run": {
+            "state_directory": run_state.display().to_string(),
+            "lifecycle": relational_explore_lifecycle_name(report.lifecycle),
+            "pause_reason": report.pause_reason.as_ref().map(relational_explore_pause_json),
+            "checkpoint": {
+                "next_sequence": report.checkpoint.next_sequence,
+                "journal_head": report.checkpoint.journal_head,
+                "durable_segment_count": report.checkpoint.durable_segment_count,
+            },
+            "appended": {
+                "semantic_batches": report.semantic_batches_appended,
+                "semantic_events": report.semantic_events_appended,
+            },
+            "observer_memo": {
+                "enabled": report.observer_memo.enabled,
+                "hits": report.observer_memo.hits,
+                "misses": report.observer_memo.misses,
+                "inserts": report.observer_memo.inserts,
+                "evictions": report.observer_memo.evictions,
+                "entries": report.observer_memo.entries,
+                "retained_canonical_bytes": report.observer_memo.retained_canonical_bytes,
+            },
+        },
+        "coverage": {
+            "relation_closed": report.relation_closed,
+            "analysis_closed": report.analysis_closed,
+            "finds": report.finds.iter().map(|find| serde_json::json!({
+                "name": find.name,
+                "question_id": find.question_id,
+                "closed": find.closed,
+            })).collect::<Vec<_>>(),
+        },
+        "counts": {
+            "sources": relational_explore_count_json(report.counts.sources),
+            "cases": relational_explore_count_json(report.counts.cases),
+            "admission_classified": relational_explore_count_json(report.counts.admission_classified),
+            "admitted": relational_explore_count_json(report.counts.admitted),
+            "rejected": relational_explore_count_json(report.counts.rejected),
+            "finds": report.finds.iter().map(|find| serde_json::json!({
+                "name": find.name,
+                "question_id": find.question_id,
+                "classified": relational_explore_count_json(find.find_classified),
+                "selected": relational_explore_count_json(find.selected),
+                "not_selected": relational_explore_count_json(find.not_selected),
+            })).collect::<Vec<_>>(),
+        },
+        "analysis": {
+            "scope_root": report.analysis_scope_root,
+            "terminal_root": report.analysis_terminal_root,
+            "analysis_closure_set_root": report.analysis_closure_set_root,
+            "layers": report.layers.iter().map(relational_explore_layer_json).collect::<Vec<_>>(),
+        },
+        "publication": report.publication.as_ref().map(|publication| serde_json::json!({
+            "output_directory": publication.output_directory.display().to_string(),
+            "manifest_path": publication.manifest_path.display().to_string(),
+            "lines_appended": publication.lines_appended,
+            "source_ordinals_advanced": publication.source_ordinals_advanced,
+            "artifacts_caught_up": publication.artifacts_caught_up,
+            "artifact_count": publication.artifact_count,
+            "caught_up": publication.is_caught_up(),
+            "artifacts": publication
+                .artifacts
+                .iter()
+                .map(|artifact| serde_json::json!({
+                    "key": artifact.key,
+                    "name": artifact.name,
+                    "kind": artifact.kind,
+                    "relative_path": artifact.relative_path.display().to_string(),
+                    "published_lines": artifact.published_lines.to_string(),
+                    "published_bytes": artifact.published_bytes,
+                    "caught_up_to_journal_prefix": artifact.caught_up_to_journal_prefix,
+                    "prefix_digest": artifact.prefix_digest,
+                    "layer_roots": artifact.layer_roots,
+                }))
+                .collect::<Vec<_>>(),
+        })),
+    });
+    if let Some(assumption) = &report.recovery_assumption {
+        payload["run"]["recovery_assumption"] = serde_json::json!(assumption);
+    }
+    payload
+}
+
+fn relational_explore_result_input_text(input: &explore::ExploreStreamResultInput) -> String {
+    match input {
+        explore::ExploreStreamResultInput::Sources { relation_id } => {
+            format!("source relation {relation_id}")
+        }
+        explore::ExploreStreamResultInput::Find { name, question_id } => {
+            format!("FIND `{name}` ({question_id})")
+        }
+        explore::ExploreStreamResultInput::Choice { choice_id } => {
+            format!("choice relation {choice_id}")
+        }
+        explore::ExploreStreamResultInput::MechanismIncidence { name, request_id } => {
+            format!("mechanism request `{name}` ({request_id})")
+        }
+    }
+}
+
+fn relational_explore_result_columns_text(
+    columns: &[explore::ExploreStreamResultColumn],
+) -> String {
+    if columns.is_empty() {
+        return "none".to_string();
+    }
+    columns
+        .iter()
+        .map(|column| format!("{}: {}", column.name, column.ty))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+fn relational_explore_result_grain_text(result: &explore::ExploreStreamResultLayer) -> String {
+    match result.grain {
+        explore::ExploreStreamResultGrain::EachCase => "one row per case".to_string(),
+        explore::ExploreStreamResultGrain::EachIncidence => {
+            "one row per mechanism incidence".to_string()
+        }
+        explore::ExploreStreamResultGrain::GroupAll => "one group over all input rows".to_string(),
+        explore::ExploreStreamResultGrain::GroupBy => format!(
+            "grouped by [{}]",
+            relational_explore_result_columns_text(&result.group_keys)
+        ),
+    }
+}
+
+fn render_relational_explore_answer_human(report: &explore::ExploreStreamSliceReport) {
+    if report.finds.is_empty() {
+        println!("Answer: this exploration declares no FIND questions.");
+    }
+    for find in &report.finds {
+        if find.closed && find.selected.is_exact() {
+            println!(
+                "Answer `{}`: {} satisfy this FIND in the declared relation.",
+                find.name,
+                relational_explore_answer_count_text(
+                    find.selected,
+                    "before-to-after case",
+                    "before-to-after cases",
+                )
+            );
+        } else {
+            let confirmed = relational_explore_count_confirmed_lower_bound(find.selected);
+            if confirmed == 0 {
+                println!(
+                    "Answer `{}` so far: no before-to-after cases confirmed; its FIND frontier remains open.",
+                    find.name
+                );
+            } else {
+                println!(
+                    "Answer `{}` so far: {confirmed} before-to-after case{} confirmed; its FIND frontier remains open.",
+                    find.name,
+                    if confirmed == 1 { "" } else { "s" },
+                );
+            }
+        }
+    }
+
+    let result_artifacts = report
+        .publication
+        .iter()
+        .flat_map(|publication| publication.artifacts.iter())
+        .filter(|artifact| artifact.kind == "result_view")
+        .map(|artifact| (artifact.key.as_str(), artifact))
+        .collect::<BTreeMap<_, _>>();
+    for layer in &report.layers {
+        let explore::ExploreStreamLayer::Result(result) = layer else {
+            continue;
+        };
+        let frontier = if result.output_rows.is_exact() {
+            "exact"
+        } else {
+            "open"
+        };
+        println!(
+            "Result `{}`: {frontier}; {} ({}; {}).",
+            result.name,
+            relational_explore_answer_count_text(result.output_rows, "output row", "output rows",),
+            relational_explore_answer_count_text(
+                result.projection_records,
+                "projection record",
+                "projection records",
+            ),
+            relational_explore_layer_status_name(result.status),
+        );
+        println!(
+            "  Shape: {} from {}; columns [{}].",
+            relational_explore_result_grain_text(result),
+            relational_explore_result_input_text(&result.input),
+            relational_explore_result_columns_text(&result.columns),
+        );
+        if let Some(preview) = &result.grouped_preview {
+            println!(
+                "  Grouped preview: {}.",
+                relational_explore_answer_count_text(
+                    preview.output_groups,
+                    "output group",
+                    "output groups",
+                ),
+            );
+            for row in &preview.rows {
+                let fields = row
+                    .fields
+                    .iter()
+                    .map(|field| {
+                        format!(
+                            "{} = {}",
+                            field.name,
+                            relational_explore_projected_value_json(&field.value)
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                println!("    {fields}");
+            }
+            if let explore::ExploreStreamPreviewStatus::Truncated {
+                reason,
+                next_projection_ordinal,
+            } = preview.status
+            {
+                println!(
+                    "    Preview stopped at projection record {} ({}); the saved result remains complete and resumable.",
+                    next_projection_ordinal,
+                    relational_explore_preview_limit_name(reason),
+                );
+            }
+        }
+        if let Some(publication) = report.publication.as_ref() {
+            let artifact_key = format!("view:{}", result.view_id);
+            if let Some(artifact) = result_artifacts.get(artifact_key.as_str()) {
+                let publication_status = if artifact.caught_up_to_journal_prefix {
+                    if result.output_rows.is_exact() {
+                        "caught up to the exact result"
+                    } else {
+                        "caught up to the current journal prefix; result remains open"
+                    }
+                } else {
+                    "publication still catching up"
+                };
+                println!(
+                    "  Saved view: {} ({} NDJSON line{}; {publication_status}).",
+                    publication
+                        .output_directory
+                        .join(&artifact.relative_path)
+                        .display(),
+                    artifact.published_lines,
+                    if artifact.published_lines == 1 {
+                        ""
+                    } else {
+                        "s"
+                    },
+                );
+            }
+        }
+    }
+
+    for layer in &report.layers {
+        let explore::ExploreStreamLayer::Mechanisms(mechanism) = layer else {
+            continue;
+        };
+        println!(
+            "Mechanisms `{}`: {} for {}; {} and {}.",
+            mechanism.name,
+            relational_explore_answer_count_text(
+                mechanism.structural_mechanisms,
+                "structural mechanism",
+                "structural mechanisms",
+            ),
+            relational_explore_mechanism_target_text(&mechanism.target),
+            relational_explore_answer_count_text(
+                mechanism.incidence_cases,
+                "replay-confirmed case",
+                "replay-confirmed cases",
+            ),
+            relational_explore_answer_count_text(
+                mechanism.unavailable_cases,
+                "replay-unavailable case",
+                "replay-unavailable cases",
+            ),
+        );
+        if mechanism.total_support_observation_points != 0 {
+            println!(
+                "Support stream `{}`: {} durable observation point{} total ({} automatic, {} explicit).",
+                mechanism.name,
+                mechanism.total_support_observation_points,
+                if mechanism.total_support_observation_points == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.automatic_support_observation_points,
+                mechanism.explicit_support_observation_points,
+            );
+        }
+        if mechanism.automatic_registered_support_slices != 0 {
+            println!(
+                "Automatic support coverage `{}`: {} registered slice{}; {} currently dirty, {} observed, {} sealed.",
+                mechanism.name,
+                mechanism.automatic_registered_support_slices,
+                if mechanism.automatic_registered_support_slices == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.automatic_dirty_support_slices,
+                mechanism.automatic_observed_support_slices,
+                mechanism.automatic_sealed_support_slices,
+            );
+        }
+        if mechanism.explicit_support_observation_demand_registrations != 0
+            || mechanism.explicit_registered_support_slices != 0
+            || mechanism.explicit_support_observation_points != 0
+        {
+            println!(
+                "Explicit support observations `{}`: {} demand registration{}; {} node/edge slice{} registered ({} ready, {} awaiting backfill), {} dirty, {} observed, {} sealed, {} unsealed.",
+                mechanism.name,
+                mechanism.explicit_support_observation_demand_registrations,
+                if mechanism.explicit_support_observation_demand_registrations == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.explicit_registered_support_slices,
+                if mechanism.explicit_registered_support_slices == 1 {
+                    ""
+                } else {
+                    "s"
+                },
+                mechanism.explicit_ready_support_slices,
+                mechanism.explicit_pending_backfill_support_slices,
+                mechanism.explicit_dirty_support_slices,
+                mechanism.explicit_observed_support_slices,
+                mechanism.explicit_sealed_support_slices,
+                mechanism.explicit_unsealed_support_slices,
+            );
+        }
+        if let Some(totals) = mechanism.support_closure_totals {
+            println!(
+                "Starter support `{}`: across the whole mechanism-request target, the sealed support contains {} distinct starting state{} beneath {} before-to-after case{} ({} successful, {} unavailable).",
+                mechanism.name,
+                totals.target_starters,
+                if totals.target_starters == 1 { "" } else { "s" },
+                totals.target_cases,
+                if totals.target_cases == 1 { "" } else { "s" },
+                totals.successful_cases,
+                totals.unavailable_cases,
+            );
+        }
+    }
+
+    if report.source_coverage.has_gaps {
+        println!(
+            "Scope warning: the source-coverage manifest has gaps, so this answer must not be generalized beyond the declared relation."
+        );
+    }
+    if let Some(publication) = &report.publication {
+        println!(
+            "Saved authorized views, mechanism DAGs, and conditioned starter-support bounds: {}",
+            publication.manifest_path.display(),
+        );
+    }
+}
+
+fn render_relational_explore_human(report: &explore::ExploreStreamSliceReport, run_state: &Path) {
+    println!(
+        "Explore `{}`: {}",
+        report.query_name,
+        relational_explore_lifecycle_name(report.lifecycle).to_uppercase()
+    );
+    println!("  run state: {}", run_state.display());
+    if let Some(assumption) = &report.recovery_assumption {
+        println!(
+            "  recovery assumption: {} regional proof events trusted through {}:{}; new work checked normally",
+            assumption.regional_proof_events_assumed,
+            assumption.next_sequence,
+            assumption.journal_head,
+        );
+        if let Some(count) = assumption.row_local_result_records_trusted {
+            println!("  additional recovery assumption: {count} pinned result records authorized for row-local value reuse; not independently re-evaluated (not a skipped-evaluation count)");
+        }
+    }
+    if let Some(publication) = &report.publication {
+        println!(
+            "  results: {} ({} of {} artifacts caught up; +{} line{} this invocation)",
+            publication.manifest_path.display(),
+            publication.artifacts_caught_up,
+            publication.artifact_count,
+            publication.lines_appended,
+            if publication.lines_appended == 1 {
+                ""
+            } else {
+                "s"
+            },
+        );
+    }
+    if let Some(reason) = &report.pause_reason {
+        println!("  pause: {}", relational_explore_pause_text(reason));
+    }
+    println!(
+        "  checkpoint: sequence {}, head {}, {} durable segment{}",
+        report.checkpoint.next_sequence,
+        report.checkpoint.journal_head,
+        report.checkpoint.durable_segment_count,
+        if report.checkpoint.durable_segment_count == 1 {
+            ""
+        } else {
+            "s"
+        }
+    );
+    println!(
+        "  coverage: relation {}, analysis {}",
+        if report.relation_closed {
+            "closed"
+        } else {
+            "open"
+        },
+        if report.analysis_closed {
+            "closed"
+        } else {
+            "open"
+        },
+    );
+    for find in &report.finds {
+        println!(
+            "    find `{}`: {}",
+            find.name,
+            if find.closed { "closed" } else { "open" }
+        );
+    }
+    println!(
+        "  appended this invocation: {} semantic batch{}, {} event{}",
+        report.semantic_batches_appended,
+        if report.semantic_batches_appended == 1 {
+            ""
+        } else {
+            "es"
+        },
+        report.semantic_events_appended,
+        if report.semantic_events_appended == 1 {
+            ""
+        } else {
+            "s"
+        },
+    );
+    println!(
+        "  observer memo: {} ({} hit{}, {} miss{}, {} entr{}, {} retained byte{})",
+        if report.observer_memo.enabled {
+            "enabled"
+        } else {
+            "disabled"
+        },
+        report.observer_memo.hits,
+        if report.observer_memo.hits == 1 {
+            ""
+        } else {
+            "s"
+        },
+        report.observer_memo.misses,
+        if report.observer_memo.misses == 1 {
+            ""
+        } else {
+            "es"
+        },
+        report.observer_memo.entries,
+        if report.observer_memo.entries == 1 {
+            "y"
+        } else {
+            "ies"
+        },
+        report.observer_memo.retained_canonical_bytes,
+        if report.observer_memo.retained_canonical_bytes == 1 {
+            ""
+        } else {
+            "s"
+        },
+    );
+    println!(
+        "Source coverage: {} ({} entries, manifest {})",
+        if report.source_coverage.has_gaps {
+            "HAS GAPS"
+        } else {
+            "no gaps"
+        },
+        report.source_coverage.entries.len(),
+        report.source_coverage.manifest_digest,
+    );
+    for entry in &report.source_coverage.entries {
+        println!(
+            "  {}: {}",
+            relational_explore_coverage_subject_text(&entry.subject),
+            relational_explore_coverage_classification_text(&entry.classification),
+        );
+    }
+    println!("Counts:");
+    for (name, count) in [
+        ("sources", report.counts.sources),
+        ("cases", report.counts.cases),
+        ("admission classified", report.counts.admission_classified),
+        ("admitted", report.counts.admitted),
+        ("rejected", report.counts.rejected),
+    ] {
+        println!("  {name}: {}", relational_explore_count_text(count));
+    }
+    for find in &report.finds {
+        println!("  find `{}` [{}]:", find.name, find.question_id);
+        for (name, count) in [
+            ("classified", find.find_classified),
+            ("selected", find.selected),
+            ("not selected", find.not_selected),
+        ] {
+            println!("    {name}: {}", relational_explore_count_text(count));
+        }
+    }
+    println!("Analysis layers:");
+    if report.layers.is_empty() {
+        println!("  (none)");
+    }
+    for layer in &report.layers {
+        match layer {
+            explore::ExploreStreamLayer::Choice(choice) => {
+                println!(
+                    "  choice `{}` [{}]: candidates {}, members {}",
+                    choice.name,
+                    relational_explore_layer_status_name(choice.status),
+                    relational_explore_count_text(choice.candidates),
+                    relational_explore_count_text(choice.members),
+                );
+                if let Some(content_root) = &choice.content_root {
+                    println!("    content root: {content_root}");
+                }
+            }
+            explore::ExploreStreamLayer::Result(result) => println!(
+                "  result `{}` [{}]: inputs {}, projection records {} (+{} this invocation)",
+                result.name,
+                relational_explore_layer_status_name(result.status),
+                relational_explore_count_text(result.input_rows),
+                relational_explore_count_text(result.projection_records),
+                result.projection_records_appended,
+            ),
+            explore::ExploreStreamLayer::Mechanisms(mechanism) => {
+                println!(
+                    "  mechanisms `{}` [{}], target {}:",
+                    mechanism.name,
+                    relational_explore_layer_status_name(mechanism.status),
+                    relational_explore_mechanism_target_text(&mechanism.target),
+                );
+                println!(
+                    "    raw: targets {}, terminals {}, incidence {}, unavailable {}, signatures {}",
+                    relational_explore_count_text(mechanism.target_cases),
+                    relational_explore_count_text(mechanism.terminal_cases),
+                    relational_explore_count_text(mechanism.incidence_cases),
+                    relational_explore_count_text(mechanism.unavailable_cases),
+                    relational_explore_count_text(mechanism.raw_signatures),
+                );
+                println!(
+                    "    structural: assignments {}, mechanisms {}, execution profiles {}",
+                    relational_explore_count_text(mechanism.structural_assignments),
+                    relational_explore_count_text(mechanism.structural_mechanisms),
+                    relational_explore_count_text(mechanism.execution_profiles),
+                );
+                println!(
+                    "    support observations total: {} points",
+                    mechanism.total_support_observation_points,
+                );
+                println!(
+                    "      automatic: {} points; {} registered, {} dirty, {} observed, {} sealed",
+                    mechanism.automatic_support_observation_points,
+                    mechanism.automatic_registered_support_slices,
+                    mechanism.automatic_dirty_support_slices,
+                    mechanism.automatic_observed_support_slices,
+                    mechanism.automatic_sealed_support_slices,
+                );
+                println!(
+                    "      explicit: {} demand registrations, {} points; {} registered ({} ready, {} awaiting backfill), {} dirty, {} observed, {} sealed, {} unsealed",
+                    mechanism.explicit_support_observation_demand_registrations,
+                    mechanism.explicit_support_observation_points,
+                    mechanism.explicit_registered_support_slices,
+                    mechanism.explicit_ready_support_slices,
+                    mechanism.explicit_pending_backfill_support_slices,
+                    mechanism.explicit_dirty_support_slices,
+                    mechanism.explicit_observed_support_slices,
+                    mechanism.explicit_sealed_support_slices,
+                    mechanism.explicit_unsealed_support_slices,
+                );
+                if mechanism.raw_closure_root.is_some()
+                    || mechanism.structural_closure_root.is_some()
+                    || mechanism.support_closure_root.is_some()
+                {
+                    println!(
+                        "    closure roots: raw {}, structural {}, support {}",
+                        mechanism.raw_closure_root.as_deref().unwrap_or("open"),
+                        mechanism
+                            .structural_closure_root
+                            .as_deref()
+                            .unwrap_or("open"),
+                        mechanism.support_closure_root.as_deref().unwrap_or("open"),
+                    );
+                }
+                if let Some(totals) = mechanism.support_closure_totals {
+                    println!(
+                        "    support closure: {} targets = {} successful + {} unavailable; {} signature fibers; {} starters in the sealed target projection",
+                        totals.target_cases,
+                        totals.successful_cases,
+                        totals.unavailable_cases,
+                        totals.signature_fibers,
+                        totals.target_starters,
+                    );
+                }
+            }
+        }
+    }
+    if report.analysis_scope_root.is_some()
+        || report.analysis_terminal_root.is_some()
+        || report.analysis_closure_set_root.is_some()
+    {
+        println!("Analysis roots:");
+        println!(
+            "  scope: {}",
+            report.analysis_scope_root.as_deref().unwrap_or("open")
+        );
+        println!(
+            "  terminal: {}",
+            report.analysis_terminal_root.as_deref().unwrap_or("open")
+        );
+        println!(
+            "  closure set: {}",
+            report
+                .analysis_closure_set_root
+                .as_deref()
+                .unwrap_or("open")
+        );
+    }
+    println!("Identity:");
+    println!("  checked program: {}", report.identity.checked_program);
+    println!("  relation: {}", report.identity.relation_id);
+    println!("  admission: {}", report.identity.admission_id);
+    if report.identity.question_ids.is_empty() {
+        println!("  questions: (none)");
+    } else {
+        println!("  questions:");
+        for question_id in &report.identity.question_ids {
+            println!("    {question_id}");
+        }
+    }
+    println!(
+        "  analysis graph: {}",
+        report.identity.analysis_graph_digest
+    );
+    println!("  journal: {}", report.identity.journal_id);
+}
+
+fn run_relational_explore_stream(
+    source: &str,
+    filename: &str,
+    use_prelude: bool,
+    query_name: Option<&str>,
+    json: bool,
+    run_state: &Path,
+    output_directory: Option<&Path>,
+    max_runtime: Option<std::time::Duration>,
+    assumed_checkpoint: Option<explore::ExploreTrustedCheckpoint>,
+    assume_verified_result_rows: bool,
+) {
+    let preparation_started = std::time::Instant::now();
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize();
+    let user_stmts = match Parser::new(tokens, source).parse_program() {
+        Ok(statements) => statements,
+        Err(error) => {
+            display_error_in(source, &error, filename);
+            std::process::exit(1);
+        }
+    };
+    let statements = if use_prelude {
+        prepend_prelude(parse_prelude(), &user_stmts)
+    } else {
+        user_stmts
+    };
+    let epoch_options = explore::ExploreStreamEpochOptions {
+        run_state: run_state.to_path_buf(),
+        output_directory: output_directory.map(Path::to_path_buf),
+        outer_containment: runa_explore_supervisor::validated_exact_stream_containment().map(
+            |receipt| {
+                let rust_heap_limit_bytes =
+                    std::num::NonZeroU64::new(receipt.rust_heap_limit_bytes)
+                        .expect("validated Explore Rust-heap limit is positive");
+                let untracked_memory_reserve_bytes =
+                    std::num::NonZeroU64::new(receipt.untracked_memory_reserve_bytes)
+                        .expect("validated Explore untracked-memory reserve is positive");
+                let group_rss_limit_bytes =
+                    std::num::NonZeroU64::new(receipt.group_rss_limit_bytes)
+                        .expect("validated Explore process-group RSS limit is positive");
+                let available_memory_floor_bytes =
+                    std::num::NonZeroU64::new(receipt.available_memory_floor_bytes)
+                        .expect("validated Explore available-memory floor is positive");
+                // SAFETY: `activate_exact_stream_child_liveness` installed this
+                // exact Rust-heap cap and populated the receipt after verifying
+                // the worker/guardian process shape. Although population precedes
+                // the start-gate wait, this call is reachable only after activation
+                // returns across that gate with the child marked validated. The
+                // independently runnable guardian and parent watchdog retain the
+                // memory boundary, host-CPU debt accounting, and process-group CPU
+                // pacing for the lifetime of this worker process.
+                unsafe {
+                    explore::ExploreStreamOuterContainment::attest_current_process_is_supervised(
+                        rust_heap_limit_bytes,
+                        untracked_memory_reserve_bytes,
+                        group_rss_limit_bytes,
+                        available_memory_floor_bytes,
+                    )
+                }
+            },
+        ),
+    };
+    let epoch_is_supervised = epoch_options.outer_containment.is_some();
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+        if let Some(containment) = epoch_options.outer_containment {
+            eprintln!(
+                "Explore containment: rust_heap_limit={}B; untracked_reserve={}B; group_rss_limit={}B; host_available_floor={}B",
+                containment.rust_heap_limit_bytes(),
+                containment.untracked_memory_reserve_bytes(),
+                containment.group_rss_limit_bytes(),
+                containment.available_memory_floor_bytes(),
+            );
+        }
+    }
+    let mut prepared = relational_explore_or_exit(
+        explore::prepare_checked_relational_stream(
+            &statements,
+            source_dir_for(filename),
+            source,
+            query_name,
+        ),
+        source,
+        filename,
+    );
+    if let Some(plan) = prepared.take_native_classifier_plan_v2() {
+        if cache_env_enabled("FUTURUNA_EXPLORE_DISABLE_NATIVE_CLASSIFIER") {
+            if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!("Explore native classifier: disabled; regional proofs and checked interpreter remain enabled");
+            }
+        } else if plan.finite_coordinate_count
+            > explore::RelationalNativeClassifierProtocolV2::MAX_BATCH_SUBJECTS as u128
+        {
+            if let Some(executable) = build_explore_native_classifier_v2(plan) {
+                // SAFETY: the builder compiles only the producer-owned frozen
+                // checked plan, binds the exact query identity into the strict
+                // protocol main, and installs it through a content-addressed
+                // cache whose writer never replaces a completed artifact.
+                let installed =
+                    unsafe { prepared.install_native_classifier_executable_v2(executable) };
+                if let Err(error) = installed {
+                    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                        eprintln!(
+                            "Explore native classifier unavailable; using checked interpreter: {error}"
+                        );
+                    }
+                } else if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                    eprintln!("Explore native classifier: installed");
+                }
+            } else if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_some() {
+                eprintln!("Explore native classifier unavailable; using checked interpreter");
+            }
+        }
+    }
+    let opened = if let Some(checkpoint) = assumed_checkpoint {
+        eprintln!("warning: assuming previously verified region-cover conclusions in the explicitly pinned local checkpoint; hashes, identity, geometry and new work remain checked");
+        // SAFETY: the user explicitly selected this exact trust anchor with
+        // --assume-verified-checkpoint. The runtime validates its journal binding
+        // and reports the assumption in every resulting report and manifest.
+        if assume_verified_result_rows {
+            eprintln!("warning: additionally trusting pinned result values for row-local publication; typed evidence, selected membership and projection checks remain required; new/unpinned rows are checked normally");
+            // SAFETY: this distinct opt-in explicitly extends the same pin's
+            // trust to saved result values; reports retain the additional scope.
+            unsafe {
+                prepared.open_epoch_assuming_verified_checkpoint_and_result_rows(
+                    epoch_options,
+                    checkpoint,
+                )
+            }
+        } else {
+            unsafe { prepared.open_epoch_assuming_verified_checkpoint(epoch_options, checkpoint) }
+        }
+    } else {
+        prepared.open_epoch(epoch_options)
+    };
+    let mut epoch = relational_explore_or_exit(opened, source, filename);
+    let preparation_wall_time = preparation_started.elapsed();
+    let execution_runtime_budget =
+        max_runtime.map(|limit| limit.saturating_sub(preparation_wall_time));
+
+    // Keep one prepared epoch warm while exposing a durable, published prefix
+    // about every fifteen seconds. The CLI limit covers parsing, checking,
+    // native setup, and cold journal replay above; a one-nanosecond first
+    // slice still produces an honest checkpoint if those phases used it all.
+    const OBSERVABLE_SLICE_RUNTIME: std::time::Duration = std::time::Duration::from_secs(15);
+    const OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF: std::time::Duration =
+        std::time::Duration::from_secs(5 * 60);
+    let mut final_report: Option<explore::ExploreStreamSliceReport> = None;
+    let mut last_checkpoint: Option<(u64, String)> = None;
+    let mut last_publication_frontier: Option<(usize, usize)> = None;
+    let mut next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+    let mut telemetry_retry = runa_explore_retry::TelemetryRetryBudget::default();
+    let mut semantic_batches_appended = 0_u64;
+    let mut semantic_events_appended = 0_u64;
+    let mut projection_records_appended = BTreeMap::<String, u128>::new();
+    let mut publication_lines_appended = 0_u64;
+    let mut publication_ordinals_advanced = 0_u64;
+
+    loop {
+        let remaining_runtime =
+            max_runtime.map(|limit| limit.saturating_sub(preparation_started.elapsed()));
+        if final_report.is_some() && remaining_runtime.is_some_and(|remaining| remaining.is_zero())
+        {
+            break;
+        }
+        let slice_runtime = remaining_runtime
+            .map_or_else(
+                || next_slice_runtime.min(OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF),
+                |remaining| next_slice_runtime.min(remaining),
+            )
+            .max(std::time::Duration::from_nanos(1));
+        let next_report =
+            relational_explore_or_exit(epoch.run_slice(Some(slice_runtime)), source, filename);
+
+        let checkpoint = (
+            next_report.checkpoint.next_sequence,
+            next_report.checkpoint.journal_head.clone(),
+        );
+        let journal_progressed = next_report.semantic_events_appended > 0
+            || last_checkpoint
+                .as_ref()
+                .is_some_and(|previous| previous != &checkpoint);
+        let publication_frontier = next_report
+            .publication
+            .as_ref()
+            .map(|publication| (publication.artifacts_caught_up, publication.artifact_count));
+        let publication_progressed = next_report.publication.as_ref().is_some_and(|publication| {
+            publication.lines_appended > 0
+                || publication.source_ordinals_advanced > 0
+                || last_publication_frontier
+                    .is_some_and(|previous| Some(previous) != publication_frontier)
+        });
+
+        semantic_batches_appended =
+            semantic_batches_appended.saturating_add(next_report.semantic_batches_appended);
+        semantic_events_appended =
+            semantic_events_appended.saturating_add(next_report.semantic_events_appended);
+        for layer in &next_report.layers {
+            if let explore::ExploreStreamLayer::Result(result) = layer {
+                let appended = projection_records_appended
+                    .entry(result.view_id.clone())
+                    .or_default();
+                *appended = appended.saturating_add(result.projection_records_appended);
+            }
+        }
+        if let Some(publication) = &next_report.publication {
+            publication_lines_appended =
+                publication_lines_appended.saturating_add(publication.lines_appended);
+            publication_ordinals_advanced =
+                publication_ordinals_advanced.saturating_add(publication.source_ordinals_advanced);
+        }
+
+        let runtime_limited = matches!(
+            next_report.pause_reason.as_ref(),
+            Some(&explore::ExploreStreamPauseReason::RuntimeLimit)
+        );
+        let continue_semantics = runtime_limited;
+        let continue_publication = matches!(
+            next_report.lifecycle,
+            explore::ExploreStreamLifecycle::Complete
+        ) && next_report
+            .publication
+            .as_ref()
+            .is_some_and(|publication| !publication.is_caught_up());
+        let overall_time_remains =
+            max_runtime.is_none_or(|limit| preparation_started.elapsed() < limit);
+        let resource_pause_code = match (&next_report.lifecycle, &next_report.pause_reason) {
+            (
+                explore::ExploreStreamLifecycle::Paused,
+                Some(explore::ExploreStreamPauseReason::ResourceAdmission { code }),
+            ) => Some(code.as_str()),
+            _ => None,
+        };
+        let retry_delay = telemetry_retry.next_delay(
+            epoch_is_supervised,
+            resource_pause_code,
+            journal_progressed || publication_progressed,
+            max_runtime.map(|limit| limit.saturating_sub(preparation_started.elapsed())),
+        );
+
+        last_checkpoint = Some(checkpoint);
+        last_publication_frontier = publication_frontier;
+        final_report = Some(next_report);
+        if let Some(delay) = retry_delay {
+            eprintln!(
+                "Explore telemetry recovery: provider retries {}/{}; reserve waits {}/{}; cooldown {}ms; fresh complete admission remains required",
+                telemetry_retry.attempts(),
+                runa_explore_retry::MAX_TELEMETRY_RETRIES,
+                telemetry_retry.reserve_waits(),
+                runa_explore_retry::MAX_RECOVERY_RESERVE_WAITS,
+                delay.as_millis(),
+            );
+            // run_slice has checkpointed its accepted work and the resource
+            // envelope revoked stale dispatch authority before returning.
+            // Retain the epoch while idle; the independent outer supervisor
+            // continues enforcing all heap/RSS/host-pressure and CPU guards.
+            std::thread::sleep(delay);
+            next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+            continue;
+        }
+        if !(continue_semantics || continue_publication) || !overall_time_remains {
+            break;
+        }
+        if journal_progressed || publication_progressed {
+            next_slice_runtime = OBSERVABLE_SLICE_RUNTIME;
+            continue;
+        }
+        if !runtime_limited {
+            // A complete stream with publication work remaining made no
+            // publication progress, so another identical call would spin.
+            break;
+        }
+
+        // A slow indivisible quantum may legitimately need more than the
+        // ordinary observation cadence. Retry runtime-only stalls with a
+        // geometrically larger warm slice, but never exceed an explicit
+        // epoch deadline. An unlimited CLI epoch has a finite ceiling so an
+        // unadmittable quantum still returns an honest RuntimeLimit pause.
+        let backoff_ceiling = max_runtime
+            .map(|limit| limit.saturating_sub(preparation_started.elapsed()))
+            .unwrap_or(OBSERVABLE_SLICE_MAX_UNLIMITED_BACKOFF);
+        let backed_off_runtime = next_slice_runtime.saturating_mul(2).min(backoff_ceiling);
+        if backed_off_runtime <= slice_runtime {
+            break;
+        }
+        next_slice_runtime = backed_off_runtime;
+    }
+
+    let mut report = final_report.expect("an observable epoch always emits one slice report");
+    report.semantic_batches_appended = semantic_batches_appended;
+    report.semantic_events_appended = semantic_events_appended;
+    for layer in &mut report.layers {
+        if let explore::ExploreStreamLayer::Result(result) = layer {
+            result.projection_records_appended = projection_records_appended
+                .get(&result.view_id)
+                .copied()
+                .unwrap_or(0);
+        }
+    }
+    if let Some(publication) = &mut report.publication {
+        publication.lines_appended = publication_lines_appended;
+        publication.source_ordinals_advanced = publication_ordinals_advanced;
+    }
+
+    if json {
+        let payload = relational_explore_report_json(&report, run_state);
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&payload)
+                .expect("serialize compact relational Explore report")
+        );
+    } else {
+        render_relational_explore_answer_human(&report);
+        println!(
+            "Prepared and opened in {:.3}s; remaining observable epoch budget: {}",
+            preparation_wall_time.as_secs_f64(),
+            execution_runtime_budget
+                .map(|duration| format!("{:.3}s", duration.as_secs_f64()))
+                .unwrap_or_else(|| "until completion or quiescence".to_string()),
+        );
+        render_relational_explore_human(&report, run_state);
+    }
+}
+
+const EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_VERSION_V3: u32 = 3;
+const EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_DOMAIN_V3: &[u8] =
+    b"futuruna.explore.native-classifier.derivation-cache.v3";
+const EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2: i32 = 70;
+
+fn explore_native_classifier_cache_hash_usize_v3(hasher: &mut Sha256, value: usize) -> Option<()> {
+    cache_hash_segment(hasher, &u64::try_from(value).ok()?.to_le_bytes());
+    Some(())
+}
+
+fn explore_native_classifier_cache_hash_optional_string_v3(
+    hasher: &mut Sha256,
+    value: Option<&str>,
+) {
+    match value {
+        Some(value) => {
+            cache_hash_segment(hasher, &[1]);
+            cache_hash_segment(hasher, value.as_bytes());
+        }
+        None => cache_hash_segment(hasher, &[0]),
+    }
+}
+
+fn explore_native_classifier_cache_hash_ty_v3(hasher: &mut Sha256, ty: &Ty) -> Option<()> {
+    match ty {
+        Ty::Name(name) => {
+            cache_hash_segment(hasher, &[0]);
+            cache_hash_segment(hasher, name.as_bytes());
+        }
+        Ty::App(constructor, arguments) => {
+            cache_hash_segment(hasher, &[1]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, constructor)?;
+            explore_native_classifier_cache_hash_usize_v3(hasher, arguments.len())?;
+            for argument in arguments {
+                explore_native_classifier_cache_hash_ty_v3(hasher, argument)?;
+            }
+        }
+        Ty::Arrow(input, output) => {
+            cache_hash_segment(hasher, &[2]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, input)?;
+            explore_native_classifier_cache_hash_ty_v3(hasher, output)?;
+        }
+        Ty::Ref(inner) => {
+            cache_hash_segment(hasher, &[3]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::MutRef(inner) => {
+            cache_hash_segment(hasher, &[4]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Shared(inner) => {
+            cache_hash_segment(hasher, &[5]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Optional(inner) => {
+            cache_hash_segment(hasher, &[6]);
+            explore_native_classifier_cache_hash_ty_v3(hasher, inner)?;
+        }
+        Ty::Var(name) => {
+            cache_hash_segment(hasher, &[7]);
+            cache_hash_segment(hasher, name.as_bytes());
+        }
+        Ty::Unit => cache_hash_segment(hasher, &[8]),
+        Ty::Hole => cache_hash_segment(hasher, &[9]),
+    }
+    Some(())
+}
+
+fn explore_native_classifier_cache_hash_rule_key_v3(
+    hasher: &mut Sha256,
+    key: &RuleDispatchKey,
+) -> Option<()> {
+    explore_native_classifier_cache_hash_optional_string_v3(hasher, key.scope.as_deref());
+    cache_hash_segment(hasher, key.name.as_bytes());
+    explore_native_classifier_cache_hash_usize_v3(hasher, key.arity)
+}
+
+fn explore_native_classifier_cache_hash_rule_metadata_v3(
+    hasher: &mut Sha256,
+    metadata: &explore::ExploreNativeClassifierRuleMetadataV2,
+) -> Option<()> {
+    cache_hash_segment(hasher, &metadata.checked_program);
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.return_types.len())?;
+    for (key, value) in &metadata.return_types {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        cache_hash_segment(hasher, value.as_bytes());
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.return_issues.len())?;
+    for (key, value) in &metadata.return_issues {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        cache_hash_segment(hasher, value.as_bytes());
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.parameter_types.len())?;
+    for (key, parameters) in &metadata.parameter_types {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        explore_native_classifier_cache_hash_usize_v3(hasher, parameters.len())?;
+        for parameter in parameters {
+            explore_native_classifier_cache_hash_optional_string_v3(hasher, parameter.as_deref());
+        }
+    }
+
+    explore_native_classifier_cache_hash_usize_v3(hasher, metadata.parameter_names.len())?;
+    for (key, parameters) in &metadata.parameter_names {
+        explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        explore_native_classifier_cache_hash_usize_v3(hasher, parameters.len())?;
+        for parameter in parameters {
+            explore_native_classifier_cache_hash_optional_string_v3(hasher, parameter.as_deref());
+        }
+    }
+
+    for keys in [
+        &metadata.parameter_issues,
+        &metadata.boolean_miss_safe_keys,
+        &metadata.runtime_irrefutable_keys,
+    ] {
+        explore_native_classifier_cache_hash_usize_v3(hasher, keys.len())?;
+        for key in keys {
+            explore_native_classifier_cache_hash_rule_key_v3(hasher, key)?;
+        }
+    }
+    Some(())
+}
+
+/// Derive the pre-codegen cache address from producer identities plus the
+/// cheap classifier shape that is not itself carried by those identities.
+/// Expression and declaration bodies are already committed by
+/// `checked_program`; the compiler executable hash binds their lowering and
+/// slice-selection algorithm without walking or formatting that AST again.
+fn explore_native_classifier_derivation_cache_key_v3(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+    compiler_identity: &str,
+    rustc_identity: &str,
+) -> Option<String> {
+    if plan.rule_metadata.checked_program != plan.identity.checked_program
+        || !valid_sha256(compiler_identity)
+        || !valid_sha256(rustc_identity)
+    {
+        return None;
+    }
+
+    let mut hasher = Sha256::new();
+    cache_hash_segment(
+        &mut hasher,
+        EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_DOMAIN_V3,
+    );
+    cache_hash_segment(
+        &mut hasher,
+        &EXPLORE_NATIVE_CLASSIFIER_DERIVATION_CACHE_VERSION_V3.to_le_bytes(),
+    );
+    cache_hash_segment(&mut hasher, compiler_identity.as_bytes());
+    cache_hash_segment(&mut hasher, rustc_identity.as_bytes());
+    cache_hash_segment(
+        &mut hasher,
+        &explore::RelationalNativeClassifierProtocolV2::VERSION.to_le_bytes(),
+    );
+    cache_hash_segment(
+        &mut hasher,
+        &EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2.to_le_bytes(),
+    );
+    cache_hash_segment(&mut hasher, &plan.identity.checked_program);
+    cache_hash_segment(&mut hasher, &plan.identity.relation_id);
+    cache_hash_segment(&mut hasher, &plan.identity.admission_id);
+    cache_hash_segment(&mut hasher, &plan.identity.question_id);
+
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.source_bindings.len())?;
+    for binding in &plan.source_bindings {
+        explore_native_classifier_cache_hash_usize_v3(&mut hasher, binding.binding_index)?;
+        cache_hash_segment(&mut hasher, binding.name.as_bytes());
+        explore_native_classifier_cache_hash_ty_v3(&mut hasher, &binding.ty)?;
+        match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => {
+                cache_hash_segment(&mut hasher, &[0]);
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => {
+                cache_hash_segment(&mut hasher, &[1]);
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                exact_cardinality,
+                plan_digest,
+                ..
+            } => {
+                cache_hash_segment(&mut hasher, &[2]);
+                cache_hash_segment(&mut hasher, &exact_cardinality.to_le_bytes());
+                cache_hash_segment(&mut hasher, plan_digest);
+            }
+        }
+    }
+    explore_native_classifier_cache_hash_usize_v3(
+        &mut hasher,
+        plan.finite_input_binding_indices.len(),
+    )?;
+    for index in &plan.finite_input_binding_indices {
+        explore_native_classifier_cache_hash_usize_v3(&mut hasher, *index)?;
+    }
+    cache_hash_segment(&mut hasher, &plan.finite_coordinate_count.to_le_bytes());
+    cache_hash_segment(&mut hasher, plan.after_binding_name.as_bytes());
+    explore_native_classifier_cache_hash_ty_v3(&mut hasher, &plan.after_ty)?;
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.admissions.len())?;
+    for admission in &plan.admissions {
+        let scope = match admission.scope {
+            ExploreAdmissionScope::Before => 0,
+            ExploreAdmissionScope::After => 1,
+            ExploreAdmissionScope::Transition => 2,
+        };
+        cache_hash_segment(&mut hasher, &[scope]);
+    }
+    let find = match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => 0,
+        explore::ExploreNativeClassifierFindV2::Matches { .. } => 1,
+        explore::ExploreNativeClassifierFindV2::Violations { .. } => 2,
+    };
+    cache_hash_segment(&mut hasher, &[find]);
+    explore_native_classifier_cache_hash_usize_v3(&mut hasher, plan.checked_declarations.len())?;
+    explore_native_classifier_cache_hash_usize_v3(
+        &mut hasher,
+        plan.compile_time_metadata_bindings.len(),
+    )?;
+    for binding in &plan.compile_time_metadata_bindings {
+        cache_hash_segment(&mut hasher, binding.as_bytes());
+    }
+    explore_native_classifier_cache_hash_rule_metadata_v3(&mut hasher, &plan.rule_metadata)?;
+    Some(format!("{:x}", hasher.finalize()))
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExploreNativeClassifierCacheTargetV3 {
+    artifact_dir: PathBuf,
+    executable: PathBuf,
+}
+
+fn explore_native_classifier_cache_target_v3(
+    cache_root: &Path,
+    cache_key: &str,
+) -> ExploreNativeClassifierCacheTargetV3 {
+    let artifact_dir = cache_root
+        .join("explore-native-classifier-v3")
+        .join(cache_key);
+    let executable_name = if std::env::consts::EXE_EXTENSION.is_empty() {
+        "classifier".to_string()
+    } else {
+        format!("classifier.{}", std::env::consts::EXE_EXTENSION)
+    };
+    ExploreNativeClassifierCacheTargetV3 {
+        executable: artifact_dir.join(executable_name),
+        artifact_dir,
+    }
+}
+
+struct ExploreNativeClassifierCacheResolutionV3 {
+    executable: Option<PathBuf>,
+    cache_hit: bool,
+}
+
+/// The native classifier is an optional compiler artifact, so disabling the
+/// compiler cache declines the entire native path before lookup or generation.
+/// Keeping the policy input explicit also makes this gate testable without
+/// mutating the process-global environment.
+fn explore_native_classifier_with_cache_policy_v3<F>(
+    compiler_cache_disabled: bool,
+    build_or_reuse: F,
+) -> Option<PathBuf>
+where
+    F: FnOnce() -> Option<PathBuf>,
+{
+    if compiler_cache_disabled {
+        None
+    } else {
+        build_or_reuse()
+    }
+}
+
+fn explore_native_classifier_cache_or_build_v3<F>(
+    target: ExploreNativeClassifierCacheTargetV3,
+    build: F,
+) -> ExploreNativeClassifierCacheResolutionV3
+where
+    F: FnOnce(&ExploreNativeClassifierCacheTargetV3) -> Option<PathBuf>,
+{
+    if target
+        .executable
+        .metadata()
+        .is_ok_and(|metadata| metadata.is_file())
+    {
+        return ExploreNativeClassifierCacheResolutionV3 {
+            executable: Some(target.executable),
+            cache_hit: true,
+        };
+    }
+    ExploreNativeClassifierCacheResolutionV3 {
+        executable: build(&target),
+        cache_hit: false,
+    }
+}
+
+fn collect_generated_rust_pattern_names(pattern: &Pat, names: &mut BTreeSet<String>) {
+    match pattern {
+        Pat::Var(name) => {
+            names.insert(name.clone());
+        }
+        Pat::Con(name, children) => {
+            names.insert(name.clone());
+            for child in children {
+                collect_generated_rust_pattern_names(child, names);
+            }
+        }
+        Pat::NamedCon(name, fields) => {
+            names.insert(name.clone());
+            for (_, child) in fields {
+                collect_generated_rust_pattern_names(child, names);
+            }
+        }
+        Pat::As(inner, name) => {
+            names.insert(name.clone());
+            collect_generated_rust_pattern_names(inner, names);
+        }
+        Pat::Wild | Pat::Lit(_) => {}
+    }
+}
+
+fn collect_generated_rust_expr_names(expression: &Expr, names: &mut BTreeSet<String>) {
+    walk_ast_expr(expression, &mut |child| match child {
+        AstChild::Expr(expression) => match &expression.kind {
+            ExprKind::Var(name) => {
+                names.insert(name.clone());
+            }
+            ExprKind::Lambda(parameters, _) => {
+                names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+            }
+            ExprKind::Match(_, arms) => {
+                for arm in arms {
+                    collect_generated_rust_pattern_names(&arm.pat, names);
+                }
+            }
+            ExprKind::Handle {
+                effect, handlers, ..
+            } => {
+                names.insert(effect.clone());
+                for handler in handlers {
+                    names.insert(handler.op_name.clone());
+                    names.extend(handler.params.iter().cloned());
+                }
+            }
+            _ => {}
+        },
+        AstChild::Stmt(statement) => {
+            collect_generated_rust_direct_stmt_names(statement, names);
+        }
+    });
+}
+
+fn collect_generated_rust_direct_stmt_names(statement: &Stmt, names: &mut BTreeSet<String>) {
+    match statement {
+        Stmt::Defn(Defn::Fn { name, params, .. }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+        }
+        Stmt::Defn(Defn::Actor {
+            name,
+            state_param,
+            handlers,
+        }) => {
+            names.insert(name.clone());
+            names.insert(state_param.name.clone());
+            for handler in handlers {
+                collect_generated_rust_pattern_names(&handler.msg_pat, names);
+            }
+        }
+        Stmt::Defn(Defn::Module { name, .. }) => {
+            names.insert(name.clone());
+        }
+        Stmt::TypeDecl(TypeDecl::ADT {
+            name,
+            params,
+            variants,
+            methods,
+            ..
+        }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+            names.extend(variants.iter().map(|variant| variant.name.clone()));
+            for method in methods {
+                match method {
+                    Defn::Fn { name, params, .. } => {
+                        names.insert(name.clone());
+                        names.extend(params.iter().map(|parameter| parameter.name.clone()));
+                    }
+                    Defn::Actor {
+                        name, state_param, ..
+                    } => {
+                        names.insert(name.clone());
+                        names.insert(state_param.name.clone());
+                    }
+                    Defn::Module { name, .. } => {
+                        names.insert(name.clone());
+                    }
+                }
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::WhenType { name, variants, .. }) => {
+            names.insert(name.clone());
+            names.extend(variants.iter().map(|variant| variant.name.clone()));
+        }
+        Stmt::TypeDecl(TypeDecl::EffectDecl { name, ops }) => {
+            names.insert(name.clone());
+            for (operation, parameters, _) in ops {
+                names.insert(operation.clone());
+                names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::TraitDecl {
+            name,
+            params,
+            methods,
+        }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+            for method in methods {
+                names.insert(method.name.clone());
+                names.extend(method.params.iter().map(|parameter| parameter.name.clone()));
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::ImplBlock {
+            trait_name,
+            for_type,
+            methods,
+        }) => {
+            names.insert(trait_name.clone());
+            names.insert(for_type.clone());
+            for method in methods {
+                if let Defn::Fn { name, params, .. } = method {
+                    names.insert(name.clone());
+                    names.extend(params.iter().map(|parameter| parameter.name.clone()));
+                }
+            }
+        }
+        Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+            names.insert(name.clone());
+            names.extend(params.iter().map(|parameter| parameter.name.clone()));
+        }
+        Stmt::Rule(Rule::ReactiveScope { name, .. }) => {
+            names.insert(name.clone());
+        }
+        Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+            collect_generated_rust_pattern_names(pattern, names);
+        }
+        Stmt::For(name, _, _) | Stmt::StreamBind(name, _) => {
+            names.insert(name.clone());
+        }
+        Stmt::StreamSub(_, arms) => {
+            for arm in arms {
+                collect_generated_rust_pattern_names(&arm.pat, names);
+            }
+        }
+        Stmt::Invariant { name, .. } => {
+            names.insert(name.clone());
+        }
+        Stmt::Prove {
+            name,
+            proof_block,
+            capture,
+            ..
+        } => {
+            names.insert(name.clone());
+            names.extend(capture.iter().cloned());
+            if let Some(proof_block) = proof_block {
+                for arm in &proof_block.arms {
+                    names.extend(arm.binders.iter().cloned());
+                }
+            }
+        }
+        Stmt::Assert(name, _) | Stmt::Retract(name, _) => {
+            names.insert(name.clone());
+        }
+        Stmt::Rule(_)
+        | Stmt::Use(_)
+        | Stmt::Import(_)
+        | Stmt::QualifiedImport(_, _)
+        | Stmt::HashImport(_, _)
+        | Stmt::Depend(_, _)
+        | Stmt::RustBlock(_)
+        | Stmt::Annot(_, _)
+        | Stmt::While(_, _)
+        | Stmt::Send(_, _)
+        | Stmt::Explore(_)
+        | Stmt::Abort
+        | Stmt::Expr(_) => {}
+    }
+}
+
+fn explore_native_classifier_reachable_names_v2(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> BTreeSet<String> {
+    let mut names = BTreeSet::new();
+    for statement in plan.checked_declarations.iter() {
+        walk_ast_stmt(statement, &mut |child| match child {
+            AstChild::Expr(expression) => match &expression.kind {
+                ExprKind::Var(name) => {
+                    names.insert(name.clone());
+                }
+                ExprKind::Lambda(parameters, _) => {
+                    names.extend(parameters.iter().map(|parameter| parameter.name.clone()));
+                }
+                ExprKind::Match(_, arms) => {
+                    for arm in arms {
+                        collect_generated_rust_pattern_names(&arm.pat, &mut names);
+                    }
+                }
+                ExprKind::Handle {
+                    effect, handlers, ..
+                } => {
+                    names.insert(effect.clone());
+                    for handler in handlers {
+                        names.insert(handler.op_name.clone());
+                        names.extend(handler.params.iter().cloned());
+                    }
+                }
+                _ => {}
+            },
+            AstChild::Stmt(statement) => {
+                collect_generated_rust_direct_stmt_names(statement, &mut names);
+            }
+        });
+    }
+    for binding in plan.source_bindings.iter() {
+        names.insert(binding.name.clone());
+        if let explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } =
+            &binding.kind
+        {
+            collect_generated_rust_expr_names(value, &mut names);
+        }
+    }
+    names.insert(plan.after_binding_name.clone());
+    collect_generated_rust_expr_names(&plan.successor_value, &mut names);
+    for admission in plan.admissions.iter() {
+        collect_generated_rust_expr_names(&admission.predicate, &mut names);
+    }
+    match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => {}
+        explore::ExploreNativeClassifierFindV2::Matches { predicate }
+        | explore::ExploreNativeClassifierFindV2::Violations { predicate } => {
+            collect_generated_rust_expr_names(predicate, &mut names);
+        }
+    }
+    names
+}
+
+struct ExploreNativeClassifierConstructorLayoutV2 {
+    positional: bool,
+    fields: Box<[String]>,
+    owner_recursive: bool,
+}
+
+fn explore_native_classifier_type_references_owner_v2(ty: &Ty, owner: &str) -> bool {
+    match ty {
+        Ty::Name(name) | Ty::Var(name) => name == owner,
+        Ty::App(constructor, arguments) => {
+            explore_native_classifier_type_references_owner_v2(constructor, owner)
+                || arguments.iter().any(|argument| {
+                    explore_native_classifier_type_references_owner_v2(argument, owner)
+                })
+        }
+        Ty::Arrow(input, output) => {
+            explore_native_classifier_type_references_owner_v2(input, owner)
+                || explore_native_classifier_type_references_owner_v2(output, owner)
+        }
+        Ty::Ref(inner) | Ty::MutRef(inner) | Ty::Shared(inner) | Ty::Optional(inner) => {
+            explore_native_classifier_type_references_owner_v2(inner, owner)
+        }
+        Ty::Unit | Ty::Hole => false,
+    }
+}
+
+fn explore_native_classifier_constructor_call_matches_v2(
+    layout: &ExploreNativeClassifierConstructorLayoutV2,
+    arguments: &[Expr],
+) -> bool {
+    if !has_named_args(arguments) {
+        return layout.fields.len() == arguments.len();
+    }
+    if layout.positional || !all_named_args(arguments) {
+        return false;
+    }
+    let supplied = arguments
+        .iter()
+        .filter_map(named_arg_parts)
+        .map(|(field, _)| field)
+        .collect::<BTreeSet<_>>();
+    supplied.len() == arguments.len()
+        && layout.fields.len() == arguments.len()
+        && layout
+            .fields
+            .iter()
+            .all(|field| supplied.contains(field.as_str()))
+}
+
+fn explore_native_classifier_constructor_pattern_is_resolved_v2(
+    pattern: &Pat,
+    multiply_owned_fielded: &BTreeMap<String, Vec<ExploreNativeClassifierConstructorLayoutV2>>,
+) -> bool {
+    let (name, arity, named_fields, children) = match pattern {
+        Pat::Con(name, children) => (
+            name,
+            children.len(),
+            None,
+            children.iter().collect::<Vec<_>>(),
+        ),
+        Pat::NamedCon(name, fields) => (
+            name,
+            fields.len(),
+            Some(
+                fields
+                    .iter()
+                    .map(|(field, _)| field.as_str())
+                    .collect::<BTreeSet<_>>(),
+            ),
+            fields.iter().map(|(_, child)| child).collect::<Vec<_>>(),
+        ),
+        Pat::As(inner, _) => {
+            return explore_native_classifier_constructor_pattern_is_resolved_v2(
+                inner,
+                multiply_owned_fielded,
+            );
+        }
+        Pat::Wild | Pat::Var(_) | Pat::Lit(_) => return true,
+    };
+
+    if let Some(layouts) = multiply_owned_fielded.get(name) {
+        let matching = layouts
+            .iter()
+            .filter(|layout| {
+                if let Some(supplied) = &named_fields {
+                    !layout.positional
+                        && layout.fields.len() == arity
+                        && supplied.len() == arity
+                        && layout
+                            .fields
+                            .iter()
+                            .all(|field| supplied.contains(field.as_str()))
+                } else {
+                    layout.fields.len() == arity
+                }
+            })
+            .count();
+        if matching != 1 {
+            return false;
+        }
+    }
+
+    children.into_iter().all(|child| {
+        explore_native_classifier_constructor_pattern_is_resolved_v2(child, multiply_owned_fielded)
+    })
+}
+
+/// Audit the complete backend-only frozen program, including the synthesized
+/// query function. Multiply-owned fielded constructors are eligible only when
+/// operational call/pattern shape recovers exactly one nonrecursive owner.
+/// Same-arity, bare value, and otherwise unresolved occurrences decline the
+/// optional native installation; no semantic constructor spelling is changed.
+fn explore_native_classifier_validate_constructor_owners_v2(statements: &[Stmt]) -> Option<()> {
+    let mut layouts_by_name =
+        BTreeMap::<String, Vec<ExploreNativeClassifierConstructorLayoutV2>>::new();
+    for statement in statements {
+        let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = statement else {
+            continue;
+        };
+        let owner_recursive = variants.iter().any(|variant| {
+            variant
+                .fields
+                .iter()
+                .any(|field| explore_native_classifier_type_references_owner_v2(&field.ty, name))
+        });
+        for variant in variants {
+            layouts_by_name
+                .entry(variant.name.clone())
+                .or_default()
+                .push(ExploreNativeClassifierConstructorLayoutV2 {
+                    positional: variant.positional,
+                    fields: variant
+                        .fields
+                        .iter()
+                        .map(|field| field.name.clone())
+                        .collect::<Vec<_>>()
+                        .into_boxed_slice(),
+                    owner_recursive,
+                });
+        }
+    }
+    layouts_by_name.retain(|_, layouts| {
+        layouts.len() > 1 && layouts.iter().any(|layout| !layout.fields.is_empty())
+    });
+    for layouts in layouts_by_name.values() {
+        let mut recoverable_arities = BTreeSet::new();
+        for layout in layouts {
+            if (!layout.fields.is_empty() && layout.owner_recursive)
+                || !recoverable_arities.insert(layout.fields.len())
+            {
+                return None;
+            }
+        }
+    }
+
+    let mut value_uses = BTreeMap::<String, usize>::new();
+    let mut call_uses = BTreeMap::<String, usize>::new();
+    let mut unresolved = false;
+    for statement in statements {
+        walk_ast_stmt(statement, &mut |child| {
+            if unresolved {
+                return;
+            }
+            match child {
+                AstChild::Expr(expression) => match &expression.kind {
+                    ExprKind::Var(name) if layouts_by_name.contains_key(name) => {
+                        *value_uses.entry(name.clone()).or_default() += 1;
+                    }
+                    ExprKind::App(function, arguments) => {
+                        let ExprKind::Var(name) = &function.kind else {
+                            return;
+                        };
+                        let Some(layouts) = layouts_by_name.get(name) else {
+                            return;
+                        };
+                        *call_uses.entry(name.clone()).or_default() += 1;
+                        unresolved = layouts
+                            .iter()
+                            .filter(|layout| {
+                                explore_native_classifier_constructor_call_matches_v2(
+                                    layout, arguments,
+                                )
+                            })
+                            .count()
+                            != 1;
+                    }
+                    ExprKind::Match(_, arms) => {
+                        unresolved = arms.iter().any(|arm| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &arm.pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    _ => {}
+                },
+                AstChild::Stmt(statement) => match statement {
+                    Stmt::Bind(pattern, _, _) | Stmt::MonadicBind(pattern, _, _) => {
+                        unresolved = !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                            pattern,
+                            &layouts_by_name,
+                        );
+                    }
+                    Stmt::StreamSub(_, arms) => {
+                        unresolved = arms.iter().any(|arm| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &arm.pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    Stmt::Defn(Defn::Actor { handlers, .. }) => {
+                        unresolved = handlers.iter().any(|handler| {
+                            !explore_native_classifier_constructor_pattern_is_resolved_v2(
+                                &handler.msg_pat,
+                                &layouts_by_name,
+                            )
+                        });
+                    }
+                    _ => {}
+                },
+            }
+        });
+    }
+    if unresolved
+        || value_uses
+            .iter()
+            .any(|(name, uses)| call_uses.get(name).copied().unwrap_or(0) != *uses)
+    {
+        return None;
+    }
+    Some(())
+}
+
+/// Build the query-bound native classifier sidecar used by relational Explore
+/// V2. This is an optional optimization: every unsupported shape,
+/// code-generation failure, or compiler failure returns `None`, leaving the
+/// checked interpreter as the whole-batch fallback.
+///
+/// The plan owns the flattened, constructor-normalized declaration snapshot
+/// accepted by the same checked boundary that minted its identity. Library-
+/// mode code generation therefore performs no import resolution and emits no
+/// ordinary script entry point; the only process entry point is the strict
+/// protocol main appended below.
+fn build_explore_native_classifier_v2(
+    plan: explore::ExploreNativeClassifierPlanV2,
+) -> Option<PathBuf> {
+    let started = std::time::Instant::now();
+    trace_explore_native_classifier_build_v2("begin", started, None);
+    let compiler_cache_disabled = cache_env_enabled("FUTURUNA_DISABLE_COMPILER_CACHE");
+    if compiler_cache_disabled {
+        trace_explore_native_classifier_build_v2("compiler cache disabled", started, None);
+    }
+    explore_native_classifier_with_cache_policy_v3(compiler_cache_disabled, || {
+        build_explore_native_classifier_v2_cache_enabled(plan, started)
+    })
+}
+
+fn build_explore_native_classifier_v2_cache_enabled(
+    plan: explore::ExploreNativeClassifierPlanV2,
+    started: std::time::Instant,
+) -> Option<PathBuf> {
+    if plan.rule_metadata.checked_program != plan.identity.checked_program {
+        trace_explore_native_classifier_build_v2(
+            "RuleDispatch metadata does not match checked program",
+            started,
+            None,
+        );
+        return None;
+    }
+    if plan.source_bindings.is_empty()
+        || plan.finite_input_binding_indices.is_empty()
+        || plan.finite_input_binding_indices.len()
+            > explore::RelationalNativeClassifierProtocolV2::MAX_FACTORS_PER_SUBJECT
+        || plan.after_binding_name.is_empty()
+    {
+        trace_explore_native_classifier_build_v2("unsupported plan shape", started, None);
+        return None;
+    }
+
+    let compiler_identity = match compiler_executable_hash() {
+        Some(identity) => identity,
+        None => {
+            trace_explore_native_classifier_build_v2(
+                "compiler identity unavailable",
+                started,
+                None,
+            );
+            return None;
+        }
+    };
+    let rustc_identity = match rustc_fingerprint() {
+        Some(identity) => identity,
+        None => {
+            trace_explore_native_classifier_build_v2("rustc identity unavailable", started, None);
+            return None;
+        }
+    };
+    let cache_key = match explore_native_classifier_derivation_cache_key_v3(
+        &plan,
+        &compiler_identity,
+        &rustc_identity,
+    ) {
+        Some(cache_key) => cache_key,
+        None => {
+            trace_explore_native_classifier_build_v2("cache identity unavailable", started, None);
+            return None;
+        }
+    };
+    let cache_root = compiler_artifact_cache_dir()
+        .unwrap_or_else(|| std::env::temp_dir().join("futuruna-compiler-artifacts-v1"));
+    let target = explore_native_classifier_cache_target_v3(&cache_root, &cache_key);
+    let resolution = explore_native_classifier_cache_or_build_v3(target, |target| {
+        build_explore_native_classifier_v2_cache_miss(plan, target, started)
+    });
+    if resolution.cache_hit {
+        trace_explore_native_classifier_build_v2("reused cached executable", started, None);
+    }
+    resolution.executable
+}
+
+fn build_explore_native_classifier_v2_cache_miss(
+    plan: explore::ExploreNativeClassifierPlanV2,
+    target: &ExploreNativeClassifierCacheTargetV3,
+    started: std::time::Instant,
+) -> Option<PathBuf> {
+    let mut reachable_names = explore_native_classifier_reachable_names_v2(&plan);
+    let function_name = fresh_generated_rust_name(
+        &explore_native_classifier_function_name_v2(&plan),
+        &mut reachable_names,
+    );
+    let classifier = synthesize_explore_native_classifier_function_v2(
+        &function_name,
+        &plan,
+        &mut reachable_names,
+    )?;
+    let protocol_main = render_explore_native_classifier_protocol_main_v2(&function_name, &plan);
+    let mut classifier_program = plan.checked_declarations.into_vec();
+    classifier_program.push(classifier);
+    if explore_native_classifier_validate_constructor_owners_v2(&classifier_program).is_none() {
+        trace_explore_native_classifier_build_v2(
+            "ambiguous constructor occurrence is not backend-qualifiable",
+            started,
+            None,
+        );
+        return None;
+    }
+
+    let mut codegen = RustCodegen::new();
+    codegen.lib_mode = true;
+    codegen.int_arithmetic_mode = RustCodegenIntArithmeticMode::ExploreClassifierExact;
+    codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
+    codegen.types.exact_ambiguous_constructor_fallbacks = true;
+    codegen.compile_time_metadata_bindings = plan.compile_time_metadata_bindings;
+    codegen.install_explore_native_classifier_rule_metadata(&plan.rule_metadata);
+
+    let mut generated = match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        codegen.emit_program(&classifier_program)
+    })) {
+        Ok(generated) => generated,
+        Err(_) => {
+            trace_explore_native_classifier_build_v2("code generation panicked", started, None);
+            return None;
+        }
+    };
+    trace_explore_native_classifier_build_v2("generated Rust", started, None);
+    // V2 intentionally has no Cargo-project side path. If the generated
+    // ordinary program needs external crates, decline the optimization.
+    if !codegen.cargo_deps.is_empty() {
+        trace_explore_native_classifier_build_v2(
+            "generated program requires Cargo dependencies",
+            started,
+            None,
+        );
+        return None;
+    }
+    generated.push_str(&protocol_main);
+
+    if let Err(error) = std::fs::create_dir_all(&target.artifact_dir) {
+        trace_explore_native_classifier_build_v2(
+            "cannot create cache directory",
+            started,
+            Some(&error.to_string()),
+        );
+        return None;
+    }
+
+    let sequence = TEMP_WORKSPACE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    let temporary_stem = format!("classifier-{}-{sequence}", std::process::id());
+    let temporary_source = target.artifact_dir.join(format!("{temporary_stem}.rs"));
+    let temporary_executable = target.artifact_dir.join(format!("{temporary_stem}.bin"));
+    if let Err(error) = std::fs::write(&temporary_source, generated.as_bytes()) {
+        trace_explore_native_classifier_build_v2(
+            "cannot write generated Rust",
+            started,
+            Some(&error.to_string()),
+        );
+        return None;
+    }
+    trace_explore_native_classifier_build_v2("invoking rustc", started, None);
+    let compile = std::process::Command::new(find_rust_tool("rustc"))
+        .arg(&temporary_source)
+        .arg("--crate-name")
+        .arg("futuruna_explore_native_classifier_v2")
+        .arg("--edition")
+        .arg("2021")
+        .arg("-C")
+        .arg("opt-level=3")
+        .arg("-C")
+        .arg("debuginfo=0")
+        .arg("-C")
+        .arg("panic=abort")
+        .arg("-o")
+        .arg(&temporary_executable)
+        .output();
+    let _ = std::fs::remove_file(&temporary_source);
+    let Ok(compile) = compile else {
+        let _ = std::fs::remove_file(&temporary_executable);
+        trace_explore_native_classifier_build_v2("cannot invoke rustc", started, None);
+        return None;
+    };
+    if !compile.status.success() {
+        let _ = std::fs::remove_file(&temporary_executable);
+        let retained = compile.stderr.len().min(16 * 1024);
+        let diagnostic = String::from_utf8_lossy(&compile.stderr[..retained]);
+        trace_explore_native_classifier_build_v2(
+            "rustc rejected generated classifier",
+            started,
+            Some(diagnostic.as_ref()),
+        );
+        return None;
+    }
+
+    if target.executable.exists() {
+        // A concurrent builder won the content-addressed cache race.
+        let _ = std::fs::remove_file(&temporary_executable);
+    } else if std::fs::rename(&temporary_executable, &target.executable).is_err() {
+        let _ = std::fs::remove_file(&temporary_executable);
+        if !target.executable.exists() {
+            return None;
+        }
+    }
+    target
+        .executable
+        .metadata()
+        .ok()
+        .filter(|metadata| metadata.is_file())
+        .map(|_| {
+            trace_explore_native_classifier_build_v2("installed executable", started, None);
+            target.executable.clone()
+        })
+}
+
+fn trace_explore_native_classifier_build_v2(
+    phase: &str,
+    started: std::time::Instant,
+    detail: Option<&str>,
+) {
+    if std::env::var_os("FUTURUNA_EXPLORE_TRACE").is_none() {
+        return;
+    }
+    eprintln!(
+        "Explore native classifier build: {phase}; elapsed={}ms{}",
+        started.elapsed().as_millis(),
+        detail
+            .map(|detail| format!("\n{detail}"))
+            .unwrap_or_default(),
+    );
+}
+
+fn explore_native_classifier_function_name_v2(
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> String {
+    let digest = plan
+        .identity
+        .checked_program
+        .iter()
+        .chain(plan.identity.relation_id.iter())
+        .map(|byte| format!("{byte:02x}"))
+        .collect::<String>();
+    format!("__futuruna_explore_native_classifier_v2_{digest}")
+}
+
+fn explore_native_classifier_finite_cardinality_v2(
+    plan: &explore::ExploreFiniteTypePlan,
+) -> Option<i64> {
+    let cardinality = plan.cardinality().exact()?;
+    (cardinality > 0 && cardinality <= i64::MAX as u128)
+        .then(|| i64::try_from(cardinality).ok())
+        .flatten()
+}
+
+fn explore_native_classifier_int_literal_v2(value: i64) -> Expr {
+    Expr::unspanned(ExprKind::Lit(Literal::Int(value)))
+}
+
+fn explore_native_classifier_binary_v2(operator: &str, left: Expr, right: Expr) -> Expr {
+    Expr::unspanned(ExprKind::BinOp(
+        operator.to_string(),
+        Box::new(left),
+        Box::new(right),
+    ))
+}
+
+/// Decode one mixed-radix component from a canonical product ordinal. The
+/// rightmost component changes fastest, matching the checked source producer.
+fn explore_native_classifier_component_ordinal_v2(
+    ordinal: &Expr,
+    cardinalities: &[i64],
+    component: usize,
+) -> Option<Expr> {
+    let cardinality = *cardinalities.get(component)?;
+    let suffix = cardinalities
+        .get(component + 1..)?
+        .iter()
+        .try_fold(1_i64, |product, value| product.checked_mul(*value))?;
+    let quotient = if suffix == 1 {
+        ordinal.clone()
+    } else {
+        explore_native_classifier_binary_v2(
+            "/",
+            ordinal.clone(),
+            explore_native_classifier_int_literal_v2(suffix),
+        )
+    };
+    Some(if cardinality == 1 {
+        explore_native_classifier_int_literal_v2(0)
+    } else {
+        explore_native_classifier_binary_v2(
+            "%",
+            quotient,
+            explore_native_classifier_int_literal_v2(cardinality),
+        )
+    })
+}
+
+/// Synthesize a pure structural decoder for the exact finite plan. Its size is
+/// proportional to the type plan, never to the number of inhabitants.
+fn explore_native_classifier_decode_finite_plan_v2(
+    plan: &explore::ExploreFiniteTypePlan,
+    ordinal: Expr,
+) -> Option<Expr> {
+    match plan {
+        explore::ExploreFiniteTypePlan::Unit => Some(Expr::unspanned(ExprKind::Unit)),
+        explore::ExploreFiniteTypePlan::Bool => Some(explore_native_classifier_binary_v2(
+            "==",
+            ordinal,
+            explore_native_classifier_int_literal_v2(1),
+        )),
+        explore::ExploreFiniteTypePlan::Tuple { elements, .. } => {
+            let cardinalities = elements
+                .iter()
+                .map(explore_native_classifier_finite_cardinality_v2)
+                .collect::<Option<Vec<_>>>()?;
+            let elements = elements
+                .iter()
+                .enumerate()
+                .map(|(index, plan)| {
+                    let component = explore_native_classifier_component_ordinal_v2(
+                        &ordinal,
+                        &cardinalities,
+                        index,
+                    )?;
+                    explore_native_classifier_decode_finite_plan_v2(plan, component)
+                })
+                .collect::<Option<Vec<_>>>()?;
+            Some(Expr::unspanned(ExprKind::Tuple(elements)))
+        }
+        explore::ExploreFiniteTypePlan::Sum { variants, .. } => {
+            let mut cumulative = 0_i64;
+            let mut branches = Vec::<(i64, Expr)>::new();
+            for variant in variants {
+                let cardinalities = variant
+                    .fields
+                    .iter()
+                    .map(|field| explore_native_classifier_finite_cardinality_v2(&field.plan))
+                    .collect::<Option<Vec<_>>>()?;
+                let variant_cardinality = cardinalities
+                    .iter()
+                    .try_fold(1_i64, |product, value| product.checked_mul(*value))?;
+                if variant_cardinality == 0 {
+                    continue;
+                }
+                let local_ordinal = if cumulative == 0 {
+                    ordinal.clone()
+                } else {
+                    explore_native_classifier_binary_v2(
+                        "-",
+                        ordinal.clone(),
+                        explore_native_classifier_int_literal_v2(cumulative),
+                    )
+                };
+                let arguments = variant
+                    .fields
+                    .iter()
+                    .enumerate()
+                    .map(|(index, field)| {
+                        let component = explore_native_classifier_component_ordinal_v2(
+                            &local_ordinal,
+                            &cardinalities,
+                            index,
+                        )?;
+                        let value = explore_native_classifier_decode_finite_plan_v2(
+                            &field.plan,
+                            component,
+                        )?;
+                        Some(if variant.positional {
+                            value
+                        } else {
+                            named_arg_expr(field.name.clone(), value)
+                        })
+                    })
+                    .collect::<Option<Vec<_>>>()?;
+                let constructor = if arguments.is_empty() {
+                    Expr::unspanned(ExprKind::Var(variant.name.clone()))
+                } else {
+                    Expr::unspanned(ExprKind::App(
+                        Box::new(Expr::unspanned(ExprKind::Var(variant.name.clone()))),
+                        arguments,
+                    ))
+                };
+                cumulative = cumulative.checked_add(variant_cardinality)?;
+                branches.push((cumulative, constructor));
+            }
+            let (_, mut decoded) = branches.pop()?;
+            while let Some((upper_bound, constructor)) = branches.pop() {
+                decoded = Expr::unspanned(ExprKind::If(
+                    Box::new(explore_native_classifier_binary_v2(
+                        "<",
+                        ordinal.clone(),
+                        explore_native_classifier_int_literal_v2(upper_bound),
+                    )),
+                    Box::new(constructor),
+                    Box::new(decoded),
+                ));
+            }
+            Some(decoded)
+        }
+    }
+}
+
+fn synthesize_explore_native_classifier_function_v2(
+    function_name: &str,
+    plan: &explore::ExploreNativeClassifierPlanV2,
+    reachable_names: &mut BTreeSet<String>,
+) -> Option<Stmt> {
+    use explore::RelationalNativeClassifierProtocolV2 as Protocol;
+
+    // The checked Explore plan accepts the Danish surface spelling `Heltal`
+    // as the same semantic type as `Int`. Keep the synthesized compiler-only
+    // boundary canonical so Rust codegen always receives `i64` here.
+    let classifier_int_ty = Ty::Name("Int".to_string());
+    let outcome = match &plan.find {
+        explore::ExploreNativeClassifierFindV2::All => Expr::unspanned(ExprKind::Lit(
+            Literal::Int(Protocol::OUTCOME_ADMITTED_SELECTED.into()),
+        )),
+        explore::ExploreNativeClassifierFindV2::Matches { predicate } => {
+            Expr::unspanned(ExprKind::If(
+                Box::new(predicate.clone()),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_SELECTED.into(),
+                )))),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_NOT_SELECTED.into(),
+                )))),
+            ))
+        }
+        explore::ExploreNativeClassifierFindV2::Violations { predicate } => {
+            Expr::unspanned(ExprKind::If(
+                Box::new(predicate.clone()),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_NOT_SELECTED.into(),
+                )))),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_ADMITTED_SELECTED.into(),
+                )))),
+            ))
+        }
+    };
+    let outcome = plan
+        .admissions
+        .iter()
+        .rev()
+        .fold(outcome, |admitted, admission| {
+            Expr::unspanned(ExprKind::If(
+                Box::new(admission.predicate.clone()),
+                Box::new(admitted),
+                Box::new(Expr::unspanned(ExprKind::Lit(Literal::Int(
+                    Protocol::OUTCOME_REJECTED.into(),
+                )))),
+            ))
+        });
+    let mut finite_ordinal = 0usize;
+    let mut params = Vec::with_capacity(plan.finite_input_binding_indices.len());
+    let mut body_statements = Vec::with_capacity(plan.source_bindings.len() + 2);
+    for (position, binding) in plan.source_bindings.iter().enumerate() {
+        if binding.binding_index != position || binding.name.is_empty() {
+            return None;
+        }
+        match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => {
+                if plan
+                    .finite_input_binding_indices
+                    .get(finite_ordinal)
+                    .copied()
+                    != Some(binding.binding_index)
+                    || !matches!(&binding.ty, Ty::Name(name) if matches!(name.as_str(), "Int" | "Heltal"))
+                {
+                    return None;
+                }
+                // Synthetic parameters keep every later finite binding out of
+                // scope until its authored source position is reconstructed.
+                let parameter_name = fresh_generated_rust_name(
+                    &format!("__futuruna_explore_native_v2_factor_{finite_ordinal}"),
+                    reachable_names,
+                );
+                params.push(Param {
+                    name: parameter_name.clone(),
+                    ty: Some(classifier_int_ty.clone()),
+                    inout: false,
+                });
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    Expr::unspanned(ExprKind::Var(parameter_name)),
+                ));
+                finite_ordinal += 1;
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                plan: finite_plan,
+                exact_cardinality,
+                ..
+            } => {
+                if finite_plan
+                    .cardinality()
+                    .exact()
+                    .filter(|cardinality| cardinality == exact_cardinality)
+                    .and_then(|cardinality| i64::try_from(cardinality).ok())
+                    .is_none()
+                    || plan
+                        .finite_input_binding_indices
+                        .get(finite_ordinal)
+                        .copied()
+                        != Some(binding.binding_index)
+                {
+                    return None;
+                }
+                let parameter_name = fresh_generated_rust_name(
+                    &format!("__futuruna_explore_native_v2_factor_{finite_ordinal}"),
+                    reachable_names,
+                );
+                params.push(Param {
+                    name: parameter_name.clone(),
+                    ty: Some(classifier_int_ty.clone()),
+                    inout: false,
+                });
+                let decoded = explore_native_classifier_decode_finite_plan_v2(
+                    finite_plan,
+                    Expr::unspanned(ExprKind::Var(parameter_name)),
+                )?;
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    decoded,
+                ));
+                finite_ordinal += 1;
+            }
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { value } => {
+                body_statements.push(Stmt::Bind(
+                    Pat::Var(binding.name.clone()),
+                    Some(binding.ty.clone()),
+                    value.clone(),
+                ));
+            }
+        }
+    }
+    if finite_ordinal != plan.finite_input_binding_indices.len() {
+        return None;
+    }
+    body_statements.push(Stmt::Bind(
+        Pat::Var(plan.after_binding_name.clone()),
+        Some(plan.after_ty.clone()),
+        plan.successor_value.clone(),
+    ));
+    body_statements.push(Stmt::Expr(outcome));
+    let body = Expr::unspanned(ExprKind::Block(body_statements));
+    Some(Stmt::Defn(Defn::Fn {
+        name: function_name.to_string(),
+        params,
+        ret_ty: Some(classifier_int_ty),
+        effects: Vec::new(),
+        body,
+    }))
+}
+
+fn render_explore_native_classifier_protocol_main_v2(
+    function_name: &str,
+    plan: &explore::ExploreNativeClassifierPlanV2,
+) -> String {
+    use explore::RelationalNativeClassifierProtocolV2 as Protocol;
+
+    let factor_count = plan.finite_input_binding_indices.len();
+    let fixed_request_bytes = Protocol::REQUEST_MAGIC.len()
+        + Protocol::COUNT_BYTES
+        + Protocol::IDENTITY_DIGEST_COUNT * Protocol::IDENTITY_DIGEST_BYTES
+        + Protocol::FACTOR_COUNT_BYTES
+        + Protocol::COUNT_BYTES;
+    let max_request_bytes = fixed_request_bytes
+        + Protocol::MAX_BATCH_SUBJECTS * factor_count * Protocol::FACTOR_INT_BYTES;
+    let fixed_response_bytes = Protocol::RESPONSE_MAGIC.len()
+        + Protocol::COUNT_BYTES
+        + Protocol::IDENTITY_DIGEST_COUNT * Protocol::IDENTITY_DIGEST_BYTES
+        + Protocol::COUNT_BYTES;
+    let max_response_bytes =
+        fixed_response_bytes + Protocol::MAX_BATCH_SUBJECTS * Protocol::OUTCOME_BYTES;
+    let finite_kinds = plan
+        .source_bindings
+        .iter()
+        .filter_map(|binding| match &binding.kind {
+            explore::ExploreNativeClassifierSourceBindingKindV2::FiniteIntInput => Some(None),
+            explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+                exact_cardinality,
+                ..
+            } => i64::try_from(*exact_cardinality).ok().map(Some),
+            explore::ExploreNativeClassifierSourceBindingKindV2::Singleton { .. } => None,
+        })
+        .collect::<Vec<_>>();
+    debug_assert_eq!(finite_kinds.len(), factor_count);
+    let factor_reads = finite_kinds
+        .iter()
+        .enumerate()
+        .map(|(factor, exact_cardinality)| match exact_cardinality {
+            None => format!(
+                "        let factor_{factor} = i64::from_be_bytes(request[cursor..cursor + 8].try_into().unwrap());\n        cursor += 8;"
+            ),
+            Some(exact_cardinality) => format!(
+                "        let factor_{factor} = i64::from_be_bytes(request[cursor..cursor + 8].try_into().unwrap());\n        cursor += 8;\n        if factor_{factor} < 0 || factor_{factor} >= {exact_cardinality} {{\n            std::process::exit(FAILURE);\n        }}"
+            ),
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let factor_arguments = (0..factor_count)
+        .map(|factor| format!("factor_{factor}"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        r#"
+
+fn main() {{
+    use std::io::{{Read as _, Write as _}};
+    const FAILURE: i32 = {failure};
+    const REQUEST_MAGIC: &[u8] = &{request_magic:?};
+    const RESPONSE_MAGIC: &[u8] = &{response_magic:?};
+    const VERSION: u32 = {version};
+    const PROGRAM: [u8; 32] = {program:?};
+    const RELATION: [u8; 32] = {relation:?};
+    const ADMISSION: [u8; 32] = {admission:?};
+    const QUESTION: [u8; 32] = {question:?};
+    const FACTOR_COUNT: usize = {factor_count};
+    const MAX_BATCH: usize = {max_batch};
+    const FIXED_REQUEST_BYTES: usize = {fixed_request_bytes};
+    const MAX_REQUEST_BYTES: usize = {max_request_bytes};
+    const MAX_RESPONSE_BYTES: usize = {max_response_bytes};
+
+    let mut request = Vec::with_capacity(MAX_REQUEST_BYTES.saturating_add(1));
+    if std::io::stdin()
+        .take((MAX_REQUEST_BYTES as u64).saturating_add(1))
+        .read_to_end(&mut request)
+        .is_err()
+        || request.len() > MAX_REQUEST_BYTES
+        || request.len() < FIXED_REQUEST_BYTES
+        || !request.starts_with(REQUEST_MAGIC)
+    {{
+        std::process::exit(FAILURE);
+    }}
+
+    let mut cursor = REQUEST_MAGIC.len();
+    let version = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap());
+    cursor += 4;
+    if version != VERSION || request[cursor..cursor + 32] != PROGRAM {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != RELATION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != ADMISSION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    if request[cursor..cursor + 32] != QUESTION {{
+        std::process::exit(FAILURE);
+    }}
+    cursor += 32;
+    let factor_count = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap()) as usize;
+    cursor += 4;
+    if factor_count != FACTOR_COUNT {{
+        std::process::exit(FAILURE);
+    }}
+    let count = u32::from_be_bytes(request[cursor..cursor + 4].try_into().unwrap()) as usize;
+    cursor += 4;
+    let expected_request_bytes = cursor
+        .checked_add(
+            count
+                .checked_mul(FACTOR_COUNT)
+                .and_then(|values| values.checked_mul(8))
+                .unwrap_or(usize::MAX)
+        )
+        .unwrap_or(usize::MAX);
+    if count > MAX_BATCH || request.len() != expected_request_bytes {{
+        std::process::exit(FAILURE);
+    }}
+
+    let mut outcomes = Vec::with_capacity(count);
+    for _ in 0..count {{
+{factor_reads}
+        let outcome = {function_name}({factor_arguments});
+        let outcome = match outcome {{
+            {rejected} | {admitted_not_selected} | {admitted_selected} => outcome as u8,
+            _ => std::process::exit(FAILURE),
+        }};
+        outcomes.push(outcome);
+    }}
+
+    let mut response = Vec::with_capacity(MAX_RESPONSE_BYTES.min({fixed_response_bytes} + count));
+    response.extend_from_slice(RESPONSE_MAGIC);
+    response.extend_from_slice(&VERSION.to_be_bytes());
+    response.extend_from_slice(&PROGRAM);
+    response.extend_from_slice(&RELATION);
+    response.extend_from_slice(&ADMISSION);
+    response.extend_from_slice(&QUESTION);
+    response.extend_from_slice(&(count as u32).to_be_bytes());
+    response.extend_from_slice(&outcomes);
+    let mut stdout = std::io::stdout().lock();
+    if response.len() > MAX_RESPONSE_BYTES
+        || stdout.write_all(&response).is_err()
+        || stdout.flush().is_err()
+    {{
+        std::process::exit(FAILURE);
+    }}
+}}
+"#,
+        failure = EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+        request_magic = Protocol::REQUEST_MAGIC,
+        response_magic = Protocol::RESPONSE_MAGIC,
+        version = Protocol::VERSION,
+        program = plan.identity.checked_program,
+        relation = plan.identity.relation_id,
+        admission = plan.identity.admission_id,
+        question = plan.identity.question_id,
+        factor_count = factor_count,
+        max_batch = Protocol::MAX_BATCH_SUBJECTS,
+        factor_reads = factor_reads,
+        factor_arguments = factor_arguments,
+        rejected = Protocol::OUTCOME_REJECTED,
+        admitted_not_selected = Protocol::OUTCOME_ADMITTED_NOT_SELECTED,
+        admitted_selected = Protocol::OUTCOME_ADMITTED_SELECTED,
+    )
+}
+
+fn relational_explore_or_exit<T>(
+    result: Result<T, explore::ExploreStreamPreparationError>,
+    source: &str,
+    filename: &str,
+) -> T {
+    result.unwrap_or_else(|error| match error {
+        explore::ExploreStreamPreparationError::Diagnostics(diagnostics) => {
+            print_type_check_diagnostics(&diagnostics, source, filename);
+            std::process::exit(1);
+        }
+        explore::ExploreStreamPreparationError::Selection(message) => {
+            eprintln!("error: {message} in {filename}");
+            std::process::exit(1);
+        }
+        explore::ExploreStreamPreparationError::Execution(message) => {
+            eprintln!("error: relational exploration failed: {message}");
+            std::process::exit(1);
+        }
+    })
 }
 
 /// Run all .runa files in a directory, report pass/fail summary.
@@ -6456,6 +10262,36 @@ fn parse_test_job_count(raw: &str) -> Result<usize, String> {
     Ok(jobs)
 }
 
+fn parse_explore_time_limit(raw: &str) -> std::time::Duration {
+    let (magnitude, seconds_per_unit) = if let Some(value) = raw.strip_suffix('s') {
+        (value, 1_u64)
+    } else if let Some(value) = raw.strip_suffix('m') {
+        (value, 60_u64)
+    } else if let Some(value) = raw.strip_suffix('h') {
+        (value, 60_u64 * 60)
+    } else {
+        eprintln!(
+            "error: --time-limit requires a positive whole-number s/m/h duration, got '{raw}'"
+        );
+        std::process::exit(1);
+    };
+    let value = magnitude
+        .parse::<u64>()
+        .ok()
+        .filter(|value| *value > 0 && magnitude.bytes().all(|byte| byte.is_ascii_digit()))
+        .unwrap_or_else(|| {
+            eprintln!(
+                "error: --time-limit requires a positive whole-number s/m/h duration, got '{raw}'"
+            );
+            std::process::exit(1);
+        });
+    let seconds = value.checked_mul(seconds_per_unit).unwrap_or_else(|| {
+        eprintln!("error: --time-limit duration is too large, got '{raw}'");
+        std::process::exit(1);
+    });
+    std::time::Duration::from_secs(seconds)
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum TestFileKind {
     All,
@@ -6890,10 +10726,12 @@ fn run_test_paths_serial(
                             } else {
                                 user_stmts
                             };
+                            let source_dir = file_path
+                                .parent()
+                                .map(|parent| parent.to_string_lossy().to_string());
                             let mut interp = Interpreter::new();
-                            if let Some(parent) = file_path.parent() {
-                                interp.source_dir = Some(parent.to_string_lossy().to_string());
-                            }
+                            interp.source_dir = source_dir.clone();
+                            interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
                             let mut env = interp.default_env();
                             interp.run_program(&stmts, &mut env);
                             Ok(())
@@ -8716,7 +12554,9 @@ fn run_repl() {
     let mut env = interp.default_env();
     // Load standard prelude into REPL environment
     let prelude = parse_prelude();
+    let mut repl_statements = prelude.clone();
     if !prelude.is_empty() {
+        interp.install_rule_dispatch_metadata_for_program(&prelude, None);
         interp.run_program(&prelude, &mut env);
     }
     let stdin = io::stdin();
@@ -8778,7 +12618,11 @@ fn run_repl() {
                 let mut parser = Parser::new(tokens, &full_input);
                 match parser.parse_program() {
                     Ok(stmts) => {
+                        let mut complete_graph = repl_statements.clone();
+                        complete_graph.extend(stmts.iter().cloned());
+                        interp.install_rule_dispatch_metadata_for_program(&complete_graph, None);
                         let result = interp.run_program(&stmts, &mut env);
+                        repl_statements.extend(stmts);
                         match result {
                             Value::Unit => {}
                             _ => println!("=> {}", result),
@@ -8847,70 +12691,1179 @@ fn smt_imported_library_statement(statement: &Stmt) -> bool {
     )
 }
 
-fn resolve_smt_plain_imports(
-    statements: &[Stmt],
-    source_dir: &str,
-    visited: &mut BTreeSet<String>,
-    output: &mut Vec<Stmt>,
-) -> Result<(), String> {
-    for statement in statements {
-        let Stmt::Import(import_path) = statement else {
-            continue;
-        };
-        let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
-            .ok_or_else(|| {
-                format!(
-                    "cannot resolve imported module `{}` from `{}`",
-                    import_path, source_dir
-                )
-            })?;
-        let canonical = std::fs::canonicalize(&file_path)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| file_path.clone());
-        if !visited.insert(canonical) {
-            continue;
-        }
-        let module = parse_source_module_file_cached(Path::new(&file_path))
-            .map_err(|error| format!("cannot parse imported module `{}`: {}", file_path, error))?;
-        let imported_dir = Path::new(&file_path)
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .unwrap_or_else(|| Path::new("."))
-            .to_string_lossy()
-            .to_string();
-        resolve_smt_plain_imports(module.statements(), &imported_dir, visited, output)?;
-        output.extend(
-            module
-                .statements()
-                .iter()
-                .filter(|statement| smt_imported_library_statement(statement))
-                .cloned(),
-        );
-    }
-    Ok(())
+#[derive(Debug, Clone)]
+struct SmtResolvedNamespace {
+    identity: String,
+    display_name: String,
+    statements: Vec<Stmt>,
+    exports: BTreeSet<String>,
+    qualified_imports: BTreeMap<String, String>,
 }
 
-fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<Vec<Stmt>, String> {
-    let source_dir = Path::new(filename)
+#[derive(Debug, Clone)]
+struct SmtResolvedProgram {
+    root_identity: String,
+    namespaces: BTreeMap<String, SmtResolvedNamespace>,
+}
+
+#[derive(Default)]
+struct SmtProgramResolver {
+    namespaces: BTreeMap<String, SmtResolvedNamespace>,
+    active_sources: BTreeSet<String>,
+}
+
+fn smt_source_dir(file_path: &str) -> String {
+    Path::new(file_path)
         .parent()
         .filter(|path| !path.as_os_str().is_empty())
         .unwrap_or_else(|| Path::new("."))
         .to_string_lossy()
-        .to_string();
+        .to_string()
+}
+
+fn smt_canonical_source(file_path: &str) -> String {
+    std::fs::canonicalize(file_path)
+        .map(|path| path.to_string_lossy().to_string())
+        .unwrap_or_else(|_| file_path.to_string())
+}
+
+fn smt_exported_names(statements: &[Stmt]) -> BTreeSet<String> {
+    let mut exported = BTreeSet::new();
+    let mut export_next = false;
+    for statement in statements {
+        if let Stmt::Annot(name, arguments) = statement {
+            if name == "export" {
+                for argument in arguments {
+                    if let ExprKind::Var(name) = &argument.kind {
+                        exported.insert(name.clone());
+                    }
+                }
+                export_next = arguments.is_empty();
+                continue;
+            }
+        }
+        if !export_next {
+            continue;
+        }
+        match statement {
+            Stmt::Defn(Defn::Fn { name, .. })
+            | Stmt::Defn(Defn::Actor { name, .. })
+            | Stmt::Defn(Defn::Module { name, .. })
+            | Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+            | Stmt::TypeDecl(TypeDecl::RuleScope { name, .. })
+            | Stmt::Bind(Pat::Var(name), _, _)
+            | Stmt::StreamBind(name, _) => {
+                exported.insert(name.clone());
+            }
+            Stmt::Rule(rule) if !matches!(rule, Rule::ReactiveScope { .. }) => {
+                if let Some((name, _)) = rule.callable_name_arity() {
+                    exported.insert(name);
+                }
+            }
+            _ => {}
+        }
+        export_next = false;
+    }
+    for statement in statements {
+        if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = statement {
+            if exported.contains(name) {
+                exported.extend(variants.iter().map(|variant| variant.name.clone()));
+            }
+        }
+    }
+    exported
+}
+
+impl SmtProgramResolver {
+    fn resolve(
+        mut self,
+        statements: &[Stmt],
+        filename: &str,
+    ) -> Result<SmtResolvedProgram, String> {
+        let root_identity = "root".to_string();
+        let root_canonical = smt_canonical_source(filename);
+        self.active_sources.insert(root_canonical.clone());
+        let mut visited = BTreeSet::from([root_canonical]);
+        self.resolve_namespace(
+            root_identity.clone(),
+            "root".to_string(),
+            statements,
+            &smt_source_dir(filename),
+            BTreeSet::new(),
+            &mut visited,
+            true,
+        )?;
+        self.active_sources.clear();
+        Ok(SmtResolvedProgram {
+            root_identity,
+            namespaces: self.namespaces,
+        })
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn resolve_namespace(
+        &mut self,
+        identity: String,
+        display_name: String,
+        statements: &[Stmt],
+        source_dir: &str,
+        exports: BTreeSet<String>,
+        visited_plain_sources: &mut BTreeSet<String>,
+        retain_program_flow: bool,
+    ) -> Result<(), String> {
+        if self.namespaces.contains_key(&identity) {
+            return Ok(());
+        }
+        let mut resolved_statements = Vec::new();
+        let mut qualified_imports = BTreeMap::new();
+        self.collect_namespace_statements(
+            statements,
+            source_dir,
+            &identity,
+            &display_name,
+            visited_plain_sources,
+            retain_program_flow,
+            &mut resolved_statements,
+            &mut qualified_imports,
+        )?;
+        self.namespaces.insert(
+            identity.clone(),
+            SmtResolvedNamespace {
+                identity,
+                display_name,
+                statements: resolved_statements,
+                exports,
+                qualified_imports,
+            },
+        );
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn collect_namespace_statements(
+        &mut self,
+        statements: &[Stmt],
+        source_dir: &str,
+        namespace_identity: &str,
+        namespace_display_name: &str,
+        visited_plain_sources: &mut BTreeSet<String>,
+        retain_program_flow: bool,
+        output: &mut Vec<Stmt>,
+        qualified_imports: &mut BTreeMap<String, String>,
+    ) -> Result<(), String> {
+        // Plain imports are declaration overlays in the current namespace and
+        // precede the importing source, matching interpreter/codegen lookup.
+        for statement in statements {
+            let Stmt::Import(import_path) = statement else {
+                continue;
+            };
+            let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+                .ok_or_else(|| {
+                    format!(
+                        "cannot resolve imported module `{}` from `{}`",
+                        import_path, source_dir
+                    )
+                })?;
+            let canonical = smt_canonical_source(&file_path);
+            if !visited_plain_sources.insert(canonical.clone()) {
+                continue;
+            }
+            if self.active_sources.contains(&canonical) {
+                return Err(format!(
+                    "import cycle reaches `{}` from SMT namespace `{}`",
+                    file_path, namespace_display_name
+                ));
+            }
+            let module =
+                parse_source_module_file_cached(Path::new(&file_path)).map_err(|error| {
+                    format!("cannot parse imported module `{}`: {}", file_path, error)
+                })?;
+            self.active_sources.insert(canonical.clone());
+            let result = self.collect_namespace_statements(
+                module.statements(),
+                &smt_source_dir(&file_path),
+                namespace_identity,
+                namespace_display_name,
+                visited_plain_sources,
+                false,
+                output,
+                qualified_imports,
+            );
+            self.active_sources.remove(&canonical);
+            result?;
+        }
+
+        // Qualified sources are isolated namespace instances. Their identity
+        // mirrors RuntimeNamespace: parent + alias + canonical source + hash.
+        for statement in statements {
+            let Stmt::QualifiedImport(alias, import_path) = statement else {
+                continue;
+            };
+            let file_path = Interpreter::resolve_import_path_for_source(import_path, source_dir)
+                .ok_or_else(|| {
+                    format!(
+                        "cannot resolve qualified module `{}` from `{}`",
+                        import_path, source_dir
+                    )
+                })?;
+            let canonical = smt_canonical_source(&file_path);
+            let module =
+                parse_source_module_file_cached(Path::new(&file_path)).map_err(|error| {
+                    format!("cannot parse qualified module `{}`: {}", file_path, error)
+                })?;
+            let child_identity = format!(
+                "{}/qualified:{}:{}:{}",
+                namespace_identity,
+                alias,
+                canonical,
+                module.content_hash()
+            );
+            if let Some(previous) = qualified_imports.get(alias) {
+                if previous != &child_identity {
+                    return Err(format!(
+                        "qualified import alias `{}` resolves to more than one module in `{}`",
+                        alias, namespace_display_name
+                    ));
+                }
+                continue;
+            }
+            if self.active_sources.contains(&canonical) {
+                return Err(format!(
+                    "qualified import cycle reaches `{}` from `{}`",
+                    file_path, namespace_display_name
+                ));
+            }
+            qualified_imports.insert(alias.clone(), child_identity.clone());
+            if !self.namespaces.contains_key(&child_identity) {
+                self.active_sources.insert(canonical.clone());
+                let mut child_visited = BTreeSet::from([canonical.clone()]);
+                let child_display_name = if namespace_display_name == "root" {
+                    alias.clone()
+                } else {
+                    format!("{}.{}", namespace_display_name, alias)
+                };
+                let result = self.resolve_namespace(
+                    child_identity,
+                    child_display_name,
+                    module.statements(),
+                    &smt_source_dir(&file_path),
+                    smt_exported_names(module.statements()),
+                    &mut child_visited,
+                    false,
+                );
+                self.active_sources.remove(&canonical);
+                result?;
+            }
+        }
+
+        output.extend(
+            statements
+                .iter()
+                .filter(|statement| {
+                    !matches!(statement, Stmt::Import(_) | Stmt::QualifiedImport(_, _))
+                        && (retain_program_flow || smt_imported_library_statement(statement))
+                })
+                .cloned(),
+        );
+        Ok(())
+    }
+}
+
+fn resolve_smt_program(statements: &[Stmt], filename: &str) -> Result<SmtResolvedProgram, String> {
+    SmtProgramResolver::default().resolve(statements, filename)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum SmtCallableKind {
+    Function,
+    Rule,
+    Binding,
+    UnresolvedFunction,
+    UnresolvedValue,
+}
+
+impl SmtCallableKind {
+    fn label(self) -> &'static str {
+        match self {
+            Self::Function => "function",
+            Self::Rule => "rule",
+            Self::Binding => "binding",
+            Self::UnresolvedFunction => "unresolved-function",
+            Self::UnresolvedValue => "unresolved-value",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct SmtCallableIdentity {
+    namespace: String,
+    kind: SmtCallableKind,
+    scope: Option<String>,
+    name: String,
+    arity: usize,
+}
+
+impl SmtCallableIdentity {
+    fn symbol(&self) -> String {
+        let components = [
+            self.namespace.as_str(),
+            self.kind.label(),
+            self.scope.as_deref().unwrap_or(""),
+            self.name.as_str(),
+        ];
+        let mut encoded = format!("|runa_smt_v1_{}_", self.kind.label().replace('-', "_"));
+        for component in components {
+            use std::fmt::Write;
+            let _ = write!(encoded, "{}x", component.len());
+            for byte in component.as_bytes() {
+                let _ = write!(encoded, "{:02x}", byte);
+            }
+            encoded.push('_');
+        }
+        use std::fmt::Write;
+        let _ = write!(encoded, "{}|", self.arity);
+        encoded
+    }
+
+    fn internal_source_name(&self) -> String {
+        if self.namespace == "root" {
+            self.name.clone()
+        } else {
+            self.symbol()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmtNamespaceSymbols {
+    display_name: String,
+    exports: BTreeSet<String>,
+    qualified_imports: BTreeMap<String, String>,
+    functions: BTreeMap<(String, usize), SmtCallableIdentity>,
+    rules: BTreeMap<(String, usize), SmtCallableIdentity>,
+    bindings: BTreeMap<String, SmtCallableIdentity>,
+    constructors: BTreeSet<String>,
+}
+
+#[derive(Debug, Clone, Default)]
+struct SmtSymbolIndex {
+    namespaces: BTreeMap<String, SmtNamespaceSymbols>,
+    rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
+}
+
+impl SmtSymbolIndex {
+    fn from_program(program: &SmtResolvedProgram) -> Result<Self, String> {
+        let mut index = Self::default();
+        for namespace in program.namespaces.values() {
+            let mut symbols = SmtNamespaceSymbols {
+                display_name: namespace.display_name.clone(),
+                exports: namespace.exports.clone(),
+                qualified_imports: namespace.qualified_imports.clone(),
+                ..SmtNamespaceSymbols::default()
+            };
+            for statement in &namespace.statements {
+                match statement {
+                    Stmt::Defn(Defn::Fn { name, params, .. }) => {
+                        let identity = SmtCallableIdentity {
+                            namespace: namespace.identity.clone(),
+                            kind: SmtCallableKind::Function,
+                            scope: None,
+                            name: name.clone(),
+                            arity: params.len(),
+                        };
+                        let key = (name.clone(), params.len());
+                        if symbols.functions.insert(key, identity).is_some() {
+                            return Err(format!(
+                                "duplicate function `{}` with arity {} in SMT namespace `{}`",
+                                name,
+                                params.len(),
+                                namespace.display_name
+                            ));
+                        }
+                    }
+                    Stmt::Rule(rule) => {
+                        let Some((name, arity)) = rule.callable_name_arity() else {
+                            continue;
+                        };
+                        let identity = SmtCallableIdentity {
+                            namespace: namespace.identity.clone(),
+                            kind: SmtCallableKind::Rule,
+                            scope: None,
+                            name: name.clone(),
+                            arity,
+                        };
+                        symbols.rules.entry((name, arity)).or_insert(identity);
+                    }
+                    Stmt::Bind(Pat::Var(name), _, _) => {
+                        symbols.bindings.entry(name.clone()).or_insert_with(|| {
+                            SmtCallableIdentity {
+                                namespace: namespace.identity.clone(),
+                                kind: SmtCallableKind::Binding,
+                                scope: None,
+                                name: name.clone(),
+                                arity: 0,
+                            }
+                        });
+                    }
+                    // Qualified nominal metadata is deliberately not merged into
+                    // the root SMT program. The direct qualified-call contract is
+                    // scalar-only until the typed namespace ABI is implemented.
+                    Stmt::TypeDecl(TypeDecl::ADT { variants, .. })
+                        if namespace.identity == program.root_identity =>
+                    {
+                        symbols
+                            .constructors
+                            .extend(variants.iter().map(|variant| variant.name.clone()));
+                    }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, .. })
+                        if namespace.identity == program.root_identity =>
+                    {
+                        symbols.constructors.insert(name.clone());
+                    }
+                    _ => {}
+                }
+            }
+            index.namespaces.insert(namespace.identity.clone(), symbols);
+        }
+
+        for symbols in index.namespaces.values() {
+            for identity in symbols.rules.values() {
+                index.rule_identities.insert(
+                    RuleDispatchKey {
+                        scope: identity.scope.clone(),
+                        name: identity.internal_source_name(),
+                        arity: identity.arity,
+                    },
+                    identity.clone(),
+                );
+            }
+        }
+        Ok(index)
+    }
+
+    fn namespace(&self, identity: &str) -> Result<&SmtNamespaceSymbols, String> {
+        self.namespaces
+            .get(identity)
+            .ok_or_else(|| format!("missing resolved SMT namespace `{}`", identity))
+    }
+
+    fn local_callable(
+        &self,
+        namespace: &str,
+        name: &str,
+        arity: usize,
+    ) -> Result<Option<&SmtCallableIdentity>, String> {
+        let symbols = self.namespace(namespace)?;
+        let function = symbols.functions.get(&(name.to_string(), arity));
+        let rule = symbols.rules.get(&(name.to_string(), arity));
+        match (function, rule) {
+            (Some(_), Some(_)) => Err(format!(
+                "SMT namespace `{}` has both a function and rule named `{}` with arity {}",
+                symbols.display_name, name, arity
+            )),
+            (Some(identity), None) | (None, Some(identity)) => Ok(Some(identity)),
+            (None, None) => Ok(None),
+        }
+    }
+
+    fn qualified_callable(
+        &self,
+        namespace: &str,
+        alias: &str,
+        member: &str,
+        arity: usize,
+    ) -> Result<&SmtCallableIdentity, String> {
+        let parent = self.namespace(namespace)?;
+        let child_identity = parent.qualified_imports.get(alias).ok_or_else(|| {
+            format!(
+                "`{}` is not a qualified import in SMT namespace `{}`",
+                alias, parent.display_name
+            )
+        })?;
+        let child = self.namespace(child_identity)?;
+        if !child.exports.contains(member) {
+            return Err(format!(
+                "qualified import `{}` has no exported member `{}`; add `@ export` in the imported file or use an exported member",
+                alias, member
+            ));
+        }
+        self.local_callable(child_identity, member, arity)?
+            .ok_or_else(|| {
+                format!(
+                    "qualified import `{}` exports `{}`, but not as a direct function or rule with arity {}; unsupported qualified calls fail closed in SMT verification",
+                    alias, member, arity
+                )
+            })
+    }
+}
+
+fn smt_unresolved_identity(
+    namespace: &str,
+    kind: SmtCallableKind,
+    name: &str,
+    arity: usize,
+) -> SmtCallableIdentity {
+    SmtCallableIdentity {
+        namespace: namespace.to_string(),
+        kind,
+        scope: None,
+        name: name.to_string(),
+        arity,
+    }
+}
+
+fn smt_qualified_scalar_type(ty: &Ty) -> bool {
+    matches!(
+        ty,
+        Ty::Name(name) if matches!(name.as_str(), "Int" | "Float" | "Bool" | "String")
+    ) || matches!(ty, Ty::Hole)
+}
+
+fn validate_smt_qualified_type(
+    ty: Option<&Ty>,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    let Some(ty) = ty else {
+        return Ok(());
+    };
+    if smt_qualified_scalar_type(ty) {
+        return Ok(());
+    }
+    Err(format!(
+        "qualified SMT namespace `{}` uses non-scalar type `{}`; nominal and structural qualified types are not yet supported and fail closed",
+        namespace_display_name, ty
+    ))
+}
+
+fn validate_smt_qualified_rule_head(
+    head: &Expr,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    let arguments = match &head.kind {
+        ExprKind::App(_, arguments) => arguments.as_slice(),
+        ExprKind::Var(_) => return Ok(()),
+        _ => {
+            return Err(format!(
+                "qualified SMT namespace `{}` has a computed rule head; unsupported qualified shapes fail closed",
+                namespace_display_name
+            ));
+        }
+    };
+    for argument in arguments {
+        let argument = if let Some((inner, type_name)) = typed_rule_head_argument(argument) {
+            if !matches!(type_name, "Int" | "Float" | "Bool" | "String") {
+                return Err(format!(
+                    "qualified SMT namespace `{}` uses non-scalar rule type `{}`; nominal qualified rule dispatch is not yet supported and fails closed",
+                    namespace_display_name, type_name
+                ));
+            }
+            inner
+        } else {
+            argument
+        };
+        match &argument.kind {
+            ExprKind::Var(name)
+                if name == "_" || !name.chars().next().is_some_and(char::is_uppercase) => {}
+            ExprKind::Lit(_) => {}
+            _ => {
+                return Err(format!(
+                    "qualified SMT namespace `{}` uses a nominal or computed rule-head pattern; unsupported qualified shapes fail closed",
+                    namespace_display_name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn validate_smt_qualified_pattern(
+    pattern: &Pat,
+    namespace_display_name: &str,
+) -> Result<(), String> {
+    match pattern {
+        Pat::Wild | Pat::Var(_) | Pat::Lit(_) => Ok(()),
+        Pat::As(inner, _) => validate_smt_qualified_pattern(inner, namespace_display_name),
+        Pat::Con(..) | Pat::NamedCon(..) => Err(format!(
+            "qualified SMT namespace `{}` uses a nominal match pattern; nominal qualified types are not yet supported and fail closed",
+            namespace_display_name
+        )),
+    }
+}
+
+fn collect_smt_rule_head_bindings(expression: &Expr, bindings: &mut BTreeSet<String>) {
+    match &expression.kind {
+        ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == "__typed") => {
+            if let Some(inner) = arguments.first() {
+                collect_smt_rule_head_bindings(inner, bindings);
+            }
+        }
+        ExprKind::App(function, arguments) if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) => {
+            if let Some(value) = arguments.get(1) {
+                collect_smt_rule_head_bindings(value, bindings);
+            }
+        }
+        ExprKind::Var(name)
+            if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+        {
+            bindings.insert(name.clone());
+        }
+        ExprKind::App(_, arguments) | ExprKind::Tuple(arguments) => {
+            for argument in arguments {
+                collect_smt_rule_head_bindings(argument, bindings);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn rewrite_smt_rule_head(
+    head: &Expr,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Expr, String> {
+    let Some((name, arity)) = rule_head_name_arity_for_smt(head) else {
+        return Err("qualified SMT rule head has an unsupported computed shape".into());
+    };
+    let identity = symbols
+        .namespace(namespace)?
+        .rules
+        .get(&(name.clone(), arity))
+        .ok_or_else(|| {
+            format!(
+                "missing exact SMT rule identity for `{}` with arity {}",
+                name, arity
+            )
+        })?;
+    let renamed = identity.internal_source_name();
+    let kind = match &head.kind {
+        ExprKind::App(function, arguments) => ExprKind::App(
+            Box::new(Expr::new(ExprKind::Var(renamed), function.span)),
+            arguments.clone(),
+        ),
+        ExprKind::Var(_) => ExprKind::Var(renamed),
+        _ => unreachable!("rule_head_name_arity_for_smt accepted unsupported shape"),
+    };
+    Ok(Expr::new(kind, head.span))
+}
+
+fn rule_head_name_arity_for_smt(head: &Expr) -> Option<(String, usize)> {
+    match &head.kind {
+        ExprKind::App(function, arguments) => match &function.kind {
+            ExprKind::Var(name) => Some((name.clone(), arguments.len())),
+            _ => None,
+        },
+        ExprKind::Var(name) => Some((name.clone(), 0)),
+        _ => None,
+    }
+}
+
+fn rewrite_smt_expr_for_namespace(
+    expression: &Expr,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+    bound: &BTreeSet<String>,
+) -> Result<Expr, String> {
+    let span = expression.span;
+    let namespace_symbols = symbols.namespace(namespace)?;
+    let kind = match &expression.kind {
+        ExprKind::Var(name) => {
+            if bound.contains(name) {
+                ExprKind::Var(name.clone())
+            } else if let Some(identity) = namespace_symbols.bindings.get(name) {
+                ExprKind::Var(identity.internal_source_name())
+            } else if namespace != "root" && !namespace_symbols.constructors.contains(name) {
+                ExprKind::Var(
+                    smt_unresolved_identity(namespace, SmtCallableKind::UnresolvedValue, name, 0)
+                        .symbol(),
+                )
+            } else {
+                ExprKind::Var(name.clone())
+            }
+        }
+        ExprKind::Lit(literal) => ExprKind::Lit(literal.clone()),
+        ExprKind::App(function, arguments) => {
+            if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                let mut rewritten = arguments.clone();
+                if let Some(value) = rewritten.get_mut(1) {
+                    *value = rewrite_smt_expr_for_namespace(value, namespace, symbols, bound)?;
+                }
+                ExprKind::App(function.clone(), rewritten)
+            } else if let ExprKind::Field(receiver, member) = &function.kind {
+                if let ExprKind::Var(alias) = &receiver.kind {
+                    if !bound.contains(alias)
+                        && namespace_symbols.qualified_imports.contains_key(alias)
+                    {
+                        let identity = symbols.qualified_callable(
+                            namespace,
+                            alias,
+                            member,
+                            arguments.len(),
+                        )?;
+                        ExprKind::App(
+                            Box::new(Expr::new(
+                                ExprKind::Var(identity.internal_source_name()),
+                                function.span,
+                            )),
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    rewrite_smt_expr_for_namespace(
+                                        argument, namespace, symbols, bound,
+                                    )
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                    } else {
+                        ExprKind::App(
+                            Box::new(rewrite_smt_expr_for_namespace(
+                                function, namespace, symbols, bound,
+                            )?),
+                            arguments
+                                .iter()
+                                .map(|argument| {
+                                    rewrite_smt_expr_for_namespace(
+                                        argument, namespace, symbols, bound,
+                                    )
+                                })
+                                .collect::<Result<Vec<_>, _>>()?,
+                        )
+                    }
+                } else {
+                    ExprKind::App(
+                        Box::new(rewrite_smt_expr_for_namespace(
+                            function, namespace, symbols, bound,
+                        )?),
+                        arguments
+                            .iter()
+                            .map(|argument| {
+                                rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    )
+                }
+            } else if let ExprKind::Var(name) = &function.kind {
+                let rewritten_name = if bound.contains(name)
+                    || name == "not"
+                    || namespace_symbols.constructors.contains(name)
+                {
+                    name.clone()
+                } else if let Some(identity) =
+                    symbols.local_callable(namespace, name, arguments.len())?
+                {
+                    identity.internal_source_name()
+                } else if namespace == "root" {
+                    name.clone()
+                } else {
+                    smt_unresolved_identity(
+                        namespace,
+                        SmtCallableKind::UnresolvedFunction,
+                        name,
+                        arguments.len(),
+                    )
+                    .symbol()
+                };
+                ExprKind::App(
+                    Box::new(Expr::new(ExprKind::Var(rewritten_name), function.span)),
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            } else {
+                ExprKind::App(
+                    Box::new(rewrite_smt_expr_for_namespace(
+                        function, namespace, symbols, bound,
+                    )?),
+                    arguments
+                        .iter()
+                        .map(|argument| {
+                            rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound)
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                )
+            }
+        }
+        ExprKind::Lambda(params, body) => {
+            let mut body_bound = bound.clone();
+            body_bound.extend(params.iter().map(|param| param.name.clone()));
+            ExprKind::Lambda(
+                params.clone(),
+                Box::new(rewrite_smt_expr_for_namespace(
+                    body,
+                    namespace,
+                    symbols,
+                    &body_bound,
+                )?),
+            )
+        }
+        ExprKind::BinOp(operator, left, right) => ExprKind::BinOp(
+            operator.clone(),
+            Box::new(rewrite_smt_expr_for_namespace(
+                left, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                right, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::UnOp(operator, inner) => ExprKind::UnOp(
+            operator.clone(),
+            Box::new(rewrite_smt_expr_for_namespace(
+                inner, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::If(condition, then_expression, else_expression) => ExprKind::If(
+            Box::new(rewrite_smt_expr_for_namespace(
+                condition, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                then_expression,
+                namespace,
+                symbols,
+                bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                else_expression,
+                namespace,
+                symbols,
+                bound,
+            )?),
+        ),
+        ExprKind::Match(scrutinee, arms) => {
+            let scrutinee = Box::new(rewrite_smt_expr_for_namespace(
+                scrutinee, namespace, symbols, bound,
+            )?);
+            let arms = arms
+                .iter()
+                .map(|arm| {
+                    if namespace != "root" {
+                        validate_smt_qualified_pattern(&arm.pat, &namespace_symbols.display_name)?;
+                    }
+                    let mut arm_bound = bound.clone();
+                    collect_smt_pattern_bindings(&arm.pat, &mut arm_bound);
+                    Ok(MatchArm {
+                        pat: arm.pat.clone(),
+                        guard: arm
+                            .guard
+                            .as_ref()
+                            .map(|guard| {
+                                rewrite_smt_expr_for_namespace(
+                                    guard, namespace, symbols, &arm_bound,
+                                )
+                            })
+                            .transpose()?,
+                        body: rewrite_smt_expr_for_namespace(
+                            &arm.body, namespace, symbols, &arm_bound,
+                        )?,
+                    })
+                })
+                .collect::<Result<Vec<_>, String>>()?;
+            ExprKind::Match(scrutinee, arms)
+        }
+        ExprKind::Block(statements) => {
+            let mut block_bound = bound.clone();
+            let mut rewritten = Vec::with_capacity(statements.len());
+            for statement in statements {
+                match statement {
+                    Stmt::Bind(pattern, ty, value) => {
+                        let value = rewrite_smt_expr_for_namespace(
+                            value,
+                            namespace,
+                            symbols,
+                            &block_bound,
+                        )?;
+                        collect_smt_pattern_bindings(pattern, &mut block_bound);
+                        rewritten.push(Stmt::Bind(pattern.clone(), ty.clone(), value));
+                    }
+                    Stmt::Expr(inner) => rewritten.push(Stmt::Expr(
+                        rewrite_smt_expr_for_namespace(inner, namespace, symbols, &block_bound)?,
+                    )),
+                    other => rewritten.push(other.clone()),
+                }
+            }
+            ExprKind::Block(rewritten)
+        }
+        ExprKind::Field(receiver, member) => {
+            if let ExprKind::Var(alias) = &receiver.kind {
+                if !bound.contains(alias) && namespace_symbols.qualified_imports.contains_key(alias)
+                {
+                    return Err(format!(
+                        "qualified member `{}.{}` is not a direct function or rule call; unsupported qualified shapes fail closed in SMT verification",
+                        alias, member
+                    ));
+                }
+            }
+            ExprKind::Field(
+                Box::new(rewrite_smt_expr_for_namespace(
+                    receiver, namespace, symbols, bound,
+                )?),
+                member.clone(),
+            )
+        }
+        ExprKind::Index(collection, index) => ExprKind::Index(
+            Box::new(rewrite_smt_expr_for_namespace(
+                collection, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                index, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::List(items) => ExprKind::List(
+            items
+                .iter()
+                .map(|item| rewrite_smt_expr_for_namespace(item, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Tuple(items) => ExprKind::Tuple(
+            items
+                .iter()
+                .map(|item| rewrite_smt_expr_for_namespace(item, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Effect(name, arguments) => ExprKind::Effect(
+            name.clone(),
+            arguments
+                .iter()
+                .map(|argument| rewrite_smt_expr_for_namespace(argument, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Handle {
+            effect,
+            handlers,
+            body,
+        } => ExprKind::Handle {
+            effect: effect.clone(),
+            handlers: handlers.clone(),
+            body: Box::new(rewrite_smt_expr_for_namespace(
+                body, namespace, symbols, bound,
+            )?),
+        },
+        ExprKind::Try(inner) => ExprKind::Try(Box::new(rewrite_smt_expr_for_namespace(
+            inner, namespace, symbols, bound,
+        )?)),
+        ExprKind::Conjunction(goals) => ExprKind::Conjunction(
+            goals
+                .iter()
+                .map(|goal| rewrite_smt_expr_for_namespace(goal, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Disjunction(goals) => ExprKind::Disjunction(
+            goals
+                .iter()
+                .map(|goal| rewrite_smt_expr_for_namespace(goal, namespace, symbols, bound))
+                .collect::<Result<Vec<_>, _>>()?,
+        ),
+        ExprKind::Pipe(left, right) => ExprKind::Pipe(
+            Box::new(rewrite_smt_expr_for_namespace(
+                left, namespace, symbols, bound,
+            )?),
+            Box::new(rewrite_smt_expr_for_namespace(
+                right, namespace, symbols, bound,
+            )?),
+        ),
+        ExprKind::Unit => ExprKind::Unit,
+    };
+    Ok(Expr::new(kind, span))
+}
+
+fn rewrite_smt_rule_for_namespace(
+    rule: &Rule,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Rule, String> {
+    let rewrite_parts = |head: &Expr,
+                         value: &Expr,
+                         condition: Option<&Expr>|
+     -> Result<(Expr, Expr, Option<Expr>), String> {
+        let renamed_head = rewrite_smt_rule_head(head, namespace, symbols)?;
+        let mut bound = BTreeSet::new();
+        if let ExprKind::App(_, arguments) = &head.kind {
+            for argument in arguments {
+                collect_smt_rule_head_bindings(argument, &mut bound);
+            }
+        }
+        let value = rewrite_smt_expr_for_namespace(value, namespace, symbols, &bound)?;
+        let condition = condition
+            .map(|condition| rewrite_smt_expr_for_namespace(condition, namespace, symbols, &bound))
+            .transpose()?;
+        Ok((renamed_head, value, condition))
+    };
+
+    match rule {
+        Rule::Clause { head, body } => {
+            let renamed_head = rewrite_smt_rule_head(head, namespace, symbols)?;
+            let mut bound = BTreeSet::new();
+            if let ExprKind::App(_, arguments) = &head.kind {
+                for argument in arguments {
+                    collect_smt_rule_head_bindings(argument, &mut bound);
+                }
+            }
+            Ok(Rule::Clause {
+                head: renamed_head,
+                body: body
+                    .as_ref()
+                    .map(|body| rewrite_smt_expr_for_namespace(body, namespace, symbols, &bound))
+                    .transpose()?,
+            })
+        }
+        Rule::Default {
+            head,
+            value,
+            condition,
+        } => {
+            let (head, value, condition) = rewrite_parts(head, value, condition.as_ref())?;
+            Ok(Rule::Default {
+                head,
+                value,
+                condition,
+            })
+        }
+        Rule::Exception {
+            label,
+            head,
+            value,
+            condition,
+        } => {
+            let (head, value, condition) = rewrite_parts(head, value, condition.as_ref())?;
+            Ok(Rule::Exception {
+                label: label.clone(),
+                head,
+                value,
+                condition,
+            })
+        }
+        Rule::ReactiveScope { .. } => Ok(rule.clone()),
+    }
+}
+
+fn rewrite_smt_statement_for_namespace(
+    statement: &Stmt,
+    namespace: &str,
+    symbols: &SmtSymbolIndex,
+) -> Result<Stmt, String> {
+    let empty = BTreeSet::new();
+    match statement {
+        Stmt::Defn(Defn::Fn {
+            name,
+            params,
+            ret_ty,
+            effects,
+            body,
+        }) => {
+            if namespace != "root" {
+                let display_name = &symbols.namespace(namespace)?.display_name;
+                for param in params {
+                    validate_smt_qualified_type(param.ty.as_ref(), display_name)?;
+                }
+                validate_smt_qualified_type(ret_ty.as_ref(), display_name)?;
+            }
+            let identity = symbols
+                .namespace(namespace)?
+                .functions
+                .get(&(name.clone(), params.len()))
+                .ok_or_else(|| format!("missing SMT function identity for `{}`", name))?;
+            let mut bound = BTreeSet::new();
+            bound.extend(params.iter().map(|param| param.name.clone()));
+            Ok(Stmt::Defn(Defn::Fn {
+                name: identity.internal_source_name(),
+                params: params.clone(),
+                ret_ty: ret_ty.clone(),
+                effects: effects.clone(),
+                body: rewrite_smt_expr_for_namespace(body, namespace, symbols, &bound)?,
+            }))
+        }
+        Stmt::Rule(rule) => {
+            if namespace != "root" {
+                let display_name = &symbols.namespace(namespace)?.display_name;
+                let head = match rule {
+                    Rule::Clause { head, .. }
+                    | Rule::Default { head, .. }
+                    | Rule::Exception { head, .. } => head,
+                    Rule::ReactiveScope { .. } => {
+                        return Err(format!(
+                            "qualified SMT namespace `{}` contains a reactive rule scope; only direct functions and rules are supported and other qualified shapes fail closed",
+                            display_name
+                        ));
+                    }
+                };
+                validate_smt_qualified_rule_head(head, display_name)?;
+            }
+            Ok(Stmt::Rule(rewrite_smt_rule_for_namespace(
+                rule, namespace, symbols,
+            )?))
+        }
+        Stmt::Bind(Pat::Var(name), ty, value) => {
+            if namespace != "root" {
+                validate_smt_qualified_type(
+                    ty.as_ref(),
+                    &symbols.namespace(namespace)?.display_name,
+                )?;
+            }
+            let rewritten_name = symbols
+                .namespace(namespace)?
+                .bindings
+                .get(name)
+                .map(SmtCallableIdentity::internal_source_name)
+                .unwrap_or_else(|| name.clone());
+            Ok(Stmt::Bind(
+                Pat::Var(rewritten_name),
+                ty.clone(),
+                rewrite_smt_expr_for_namespace(value, namespace, symbols, &empty)?,
+            ))
+        }
+        Stmt::Invariant {
+            name,
+            subject,
+            predicate,
+        } => Ok(Stmt::Invariant {
+            name: name.clone(),
+            subject: rewrite_smt_expr_for_namespace(subject, namespace, symbols, &empty)?,
+                predicate: rewrite_smt_expr_for_namespace(predicate, namespace, symbols, &empty)?,
+            }),
+        Stmt::TypeDecl(_) if namespace != "root" => Err(format!(
+            "qualified SMT namespace `{}` nominal metadata must remain isolated from root; direct scalar function and rule calls remain supported",
+            symbols.namespace(namespace)?.display_name
+        )),
+        Stmt::Defn(_) | Stmt::Bind(..) if namespace != "root" => Err(format!(
+            "qualified SMT namespace `{}` contains a declaration outside the direct scalar function/rule contract; unsupported qualified shapes fail closed",
+            symbols.namespace(namespace)?.display_name
+        )),
+        _ => Ok(statement.clone()),
+    }
+}
+
+fn lower_smt_namespaces(
+    program: &SmtResolvedProgram,
+    symbols: &SmtSymbolIndex,
+) -> Result<Vec<Stmt>, String> {
+    let mut ordered_namespaces = program
+        .namespaces
+        .keys()
+        .filter(|identity| *identity != &program.root_identity)
+        .cloned()
+        .collect::<Vec<_>>();
+    ordered_namespaces.sort();
+    ordered_namespaces.push(program.root_identity.clone());
+
     let mut output = Vec::new();
-    let mut visited = BTreeSet::new();
-    visited.insert(
-        std::fs::canonicalize(filename)
-            .map(|path| path.to_string_lossy().to_string())
-            .unwrap_or_else(|_| filename.to_string()),
-    );
-    resolve_smt_plain_imports(statements, &source_dir, &mut visited, &mut output)?;
-    output.extend(
-        statements
-            .iter()
-            .filter(|statement| !matches!(statement, Stmt::Import(_)))
-            .cloned(),
-    );
+    for identity in ordered_namespaces {
+        let namespace = program
+            .namespaces
+            .get(&identity)
+            .ok_or_else(|| format!("missing resolved SMT namespace `{}`", identity))?;
+        for statement in &namespace.statements {
+            // Nominal declarations are metadata owned by the qualified module,
+            // not declarations in the importing root. Omit unused metadata;
+            // actual nominal use is rejected by the scalar-call guards above.
+            if identity != program.root_identity && matches!(statement, Stmt::TypeDecl(_)) {
+                continue;
+            }
+            output.push(rewrite_smt_statement_for_namespace(
+                statement, &identity, symbols,
+            )?);
+        }
+    }
     Ok(output)
 }
 
@@ -8950,39 +13903,99 @@ struct SmtLoweringEnv {
     rule_calls_as_symbols: bool,
 }
 
-fn smt_rule_function_name(key: &RuleDispatchKey) -> String {
-    let identity = format!(
-        "{}\0{}\0{}",
-        key.scope.as_deref().unwrap_or("global"),
-        key.name,
-        key.arity
-    );
-    let mut encoded = String::from("runa_rule_");
-    for byte in identity.as_bytes() {
-        use std::fmt::Write;
-        let _ = write!(encoded, "{:02x}", byte);
-    }
-    encoded
+fn smt_rule_function_name(identity: &SmtCallableIdentity) -> String {
+    identity.symbol()
 }
 
 struct SmtRuleLowerer<'program, 'registry> {
     registry: &'registry RuleDispatchRegistry<'program>,
+    rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
     constructors: BTreeMap<String, Vec<SmtConstructorSignature>>,
+    type_parameters_by_owner: BTreeMap<String, Vec<String>>,
     fields_by_type: BTreeMap<String, BTreeMap<String, String>>,
     function_returns: BTreeMap<String, String>,
     binding_types: BTreeMap<String, String>,
 }
 
 impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
-    fn new(statements: &[Stmt], registry: &'registry RuleDispatchRegistry<'program>) -> Self {
+    fn new(
+        statements: &[Stmt],
+        registry: &'registry RuleDispatchRegistry<'program>,
+        rule_identities: BTreeMap<RuleDispatchKey, SmtCallableIdentity>,
+    ) -> Self {
         let mut constructors: BTreeMap<String, Vec<SmtConstructorSignature>> = BTreeMap::new();
+        let mut type_parameters_by_owner = BTreeMap::from([
+            ("Option".to_string(), vec!["a".to_string()]),
+            ("Result".to_string(), vec!["a".to_string(), "e".to_string()]),
+            ("Pair".to_string(), vec!["a".to_string(), "b".to_string()]),
+        ]);
+        let positional_field = |name: &str, ty: Ty| Field {
+            name: name.to_string(),
+            ty,
+        };
+        constructors.insert(
+            "None".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Option".to_string(),
+                fields: Vec::new(),
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Some".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Option".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("a".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Ok".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Result".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("a".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Err".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Result".to_string(),
+                fields: vec![positional_field("_0", Ty::Var("e".to_string()))],
+                positional: true,
+            }],
+        );
+        constructors.insert(
+            "Pair".to_string(),
+            vec![SmtConstructorSignature {
+                parent: "Pair".to_string(),
+                fields: vec![
+                    positional_field("fst", Ty::Var("a".to_string())),
+                    positional_field("snd", Ty::Var("b".to_string())),
+                ],
+                positional: false,
+            }],
+        );
         let mut fields_by_type = BTreeMap::new();
         let mut function_returns = BTreeMap::new();
         let mut binding_types = BTreeMap::new();
 
         for statement in statements {
             match statement {
-                Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
+                Stmt::TypeDecl(TypeDecl::ADT {
+                    name,
+                    params,
+                    variants,
+                    ..
+                }) => {
+                    type_parameters_by_owner.insert(
+                        name.clone(),
+                        params
+                            .iter()
+                            .filter(|parameter| parameter.ty.is_none())
+                            .map(|parameter| parameter.name.clone())
+                            .collect(),
+                    );
                     let fields = fields_by_type
                         .entry(name.clone())
                         .or_insert_with(BTreeMap::new);
@@ -9039,11 +14052,26 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
 
         let mut lowerer = Self {
             registry,
+            rule_identities,
             constructors,
+            type_parameters_by_owner,
             fields_by_type,
             function_returns,
             binding_types,
         };
+        let canonical_rule_returns = lowerer
+            .registry
+            .groups
+            .values()
+            .filter_map(|group| {
+                group.return_type.as_ref().map(|return_type| {
+                    (lowerer.rule_function_name(&group.key), return_type.clone())
+                })
+            })
+            .collect::<Vec<_>>();
+        for (name, return_type) in canonical_rule_returns {
+            lowerer.function_returns.insert(name, return_type);
+        }
         for _ in 0..statements.len().max(1) {
             let mut changed = false;
             for statement in statements {
@@ -9065,6 +14093,77 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         lowerer
     }
 
+    fn rule_identity(&self, key: &RuleDispatchKey) -> SmtCallableIdentity {
+        self.rule_identities
+            .get(key)
+            .cloned()
+            .unwrap_or_else(|| SmtCallableIdentity {
+                namespace: "root".to_string(),
+                kind: SmtCallableKind::Rule,
+                scope: key.scope.clone(),
+                name: key.name.clone(),
+                arity: key.arity,
+            })
+    }
+
+    fn rule_function_name(&self, key: &RuleDispatchKey) -> String {
+        smt_rule_function_name(&self.rule_identity(key))
+    }
+
+    fn rule_display_name(&self, key: &RuleDispatchKey) -> String {
+        self.rule_identity(key).name
+    }
+
+    fn rule_type_is_smt_representable(&self, ty: &Ty) -> bool {
+        fn visit(
+            lowerer: &SmtRuleLowerer<'_, '_>,
+            ty: &Ty,
+            visiting: &mut BTreeSet<String>,
+        ) -> bool {
+            match ty {
+                Ty::Name(name) if matches!(name.as_str(), "Int" | "Bool" | "String") => true,
+                Ty::Name(name) => {
+                    if lowerer
+                        .type_parameters_by_owner
+                        .get(name)
+                        .is_some_and(|parameters| !parameters.is_empty())
+                    {
+                        return false;
+                    }
+                    if !visiting.insert(name.clone()) {
+                        return true;
+                    }
+                    let signatures = lowerer
+                        .constructors
+                        .values()
+                        .flatten()
+                        .filter(|signature| signature.parent == *name)
+                        .collect::<Vec<_>>();
+                    let representable = !signatures.is_empty()
+                        && signatures.iter().all(|signature| {
+                            signature
+                                .fields
+                                .iter()
+                                .all(|field| visit(lowerer, &field.ty, visiting))
+                        });
+                    visiting.remove(name);
+                    representable
+                }
+                Ty::App(_, _)
+                | Ty::Optional(_)
+                | Ty::Unit
+                | Ty::Ref(_)
+                | Ty::MutRef(_)
+                | Ty::Shared(_)
+                | Ty::Var(_)
+                | Ty::Arrow(_, _)
+                | Ty::Hole => false,
+            }
+        }
+
+        visit(self, ty, &mut BTreeSet::new())
+    }
+
     fn generated_rule_functions(
         &self,
     ) -> (
@@ -9075,14 +14174,17 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         let mut errors = BTreeMap::new();
 
         for group in self.registry.groups.values() {
-            let function_name = smt_rule_function_name(&group.key);
+            let function_name = self.rule_function_name(&group.key);
+            let display_name = self.rule_display_name(&group.key);
             let Some(return_type_name) = group.return_type.as_deref() else {
                 errors.insert(
                     function_name,
-                    format!(
-                        "rule `{}` has no inferred return type for SMT",
-                        group.key.name
-                    ),
+                    group.return_type_issue.clone().unwrap_or_else(|| {
+                        format!(
+                            "rule `{}` has no inferred return type for SMT",
+                            display_name
+                        )
+                    }),
                 );
                 continue;
             };
@@ -9093,12 +14195,22 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                         function_name,
                         format!(
                             "rule `{}` return type `{}` cannot be represented for SMT: {}",
-                            group.key.name, return_type_name, error
+                            display_name, return_type_name, error
                         ),
                     );
                     continue;
                 }
             };
+            if !self.rule_type_is_smt_representable(&return_type) {
+                errors.insert(
+                    function_name,
+                    format!(
+                        "rule `{}` return type `{}` is not representable by the exact SMT backend",
+                        display_name, return_type_name
+                    ),
+                );
+                continue;
+            }
 
             let mut params = Vec::new();
             let receiver = group.key.scope.as_ref().map(|scope| {
@@ -9116,7 +14228,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 let Some(type_name) = parameter.ty.as_deref() else {
                     parameter_error = Some(format!(
                         "rule `{}` parameter {} has no inferred type for SMT",
-                        group.key.name,
+                        display_name,
                         index + 1
                     ));
                     break;
@@ -9126,7 +14238,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     Err(error) => {
                         parameter_error = Some(format!(
                             "rule `{}` parameter type `{}` cannot be represented for SMT: {}",
-                            group.key.name, type_name, error
+                            display_name, type_name, error
                         ));
                         break;
                     }
@@ -9134,7 +14246,14 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 if matches!(ty, Ty::Arrow(_, _)) {
                     parameter_error = Some(format!(
                         "rule `{}` has a higher-order parameter that is not translatable to first-order SMT",
-                        group.key.name
+                        display_name
+                    ));
+                    break;
+                }
+                if !self.rule_type_is_smt_representable(&ty) {
+                    parameter_error = Some(format!(
+                        "rule `{}` parameter type `{}` is not representable by the exact SMT backend",
+                        display_name, type_name
                     ));
                     break;
                 }
@@ -9195,6 +14314,89 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         (parents.len() == 1).then(|| parents.into_iter().next().unwrap())
     }
 
+    fn infer_constructor_result_type(
+        &self,
+        signature: &SmtConstructorSignature,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Option<String> {
+        let ordered = if has_named_args(arguments) {
+            reorder_named_args_by_names(&signature.field_names(), arguments)?
+        } else {
+            arguments.to_vec()
+        };
+        let generics = self
+            .type_parameters_by_owner
+            .get(&signature.parent)
+            .cloned()
+            .unwrap_or_default();
+        let generic_names = generics.iter().cloned().collect::<BTreeSet<_>>();
+        fn accepts(
+            actual: &Ty,
+            expected: &Ty,
+            generic_names: &BTreeSet<String>,
+            substitutions: &mut BTreeMap<String, Ty>,
+        ) -> bool {
+            let generic = match expected {
+                Ty::Var(name) => Some(name),
+                Ty::Name(name) if generic_names.contains(name) => Some(name),
+                _ => None,
+            };
+            if let Some(name) = generic {
+                return match substitutions.get(name) {
+                    Some(known) => known == actual,
+                    None => {
+                        substitutions.insert(name.clone(), actual.clone());
+                        true
+                    }
+                };
+            }
+            match expected {
+                Ty::Name(expected) => matches!(actual, Ty::Name(actual) if actual == expected),
+                Ty::App(expected_constructor, expected_arguments) => {
+                    let Ty::App(actual_constructor, actual_arguments) = actual else {
+                        return false;
+                    };
+                    actual_arguments.len() == expected_arguments.len()
+                        && accepts(
+                            actual_constructor,
+                            expected_constructor,
+                            generic_names,
+                            substitutions,
+                        )
+                        && actual_arguments.iter().zip(expected_arguments).all(
+                            |(actual, expected)| {
+                                accepts(actual, expected, generic_names, substitutions)
+                            },
+                        )
+                }
+                Ty::Optional(expected) => matches!(actual, Ty::Optional(actual)
+                    if accepts(actual, expected, generic_names, substitutions)),
+                Ty::Unit => matches!(actual, Ty::Unit),
+                Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+                Ty::Var(_) => unreachable!("generic variables handled above"),
+            }
+        }
+
+        let mut substitutions = BTreeMap::new();
+        for (argument, field) in ordered.iter().zip(&signature.fields) {
+            let actual = self.infer_expr_type(argument, environment)?;
+            let actual = parse_type_annotation(&actual).ok()?;
+            if !accepts(&actual, &field.ty, &generic_names, &mut substitutions) {
+                return None;
+            }
+        }
+        if generics.is_empty() {
+            return Some(signature.parent.clone());
+        }
+        generics
+            .iter()
+            .map(|generic| substitutions.get(generic).map(ToString::to_string))
+            .collect::<Option<Vec<_>>>()
+            .map(|arguments| format!("{}({})", signature.parent, arguments.join(", ")))
+            .or_else(|| Some(signature.parent.clone()))
+    }
+
     fn infer_expr_type(&self, expression: &Expr, environment: &SmtLoweringEnv) -> Option<String> {
         match &expression.kind {
             ExprKind::Lit(Literal::Int(_)) => Some("Int".to_string()),
@@ -9216,7 +14418,11 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                             .and_then(|value| self.infer_expr_type(value, environment));
                     }
                     if let Some(signature) = self.constructor_signature(name, arguments) {
-                        return Some(signature.parent.clone());
+                        return self.infer_constructor_result_type(
+                            signature,
+                            arguments,
+                            environment,
+                        );
                     }
                     if let Some((scope, _)) = &environment.active_scope {
                         if let Some(group) = self.registry.get(Some(scope), name, arguments.len()) {
@@ -9305,15 +14511,142 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             .ok_or_else(|| {
                 format!(
                     "rule `{}` cannot accept named arguments because one or more head parameters are patterns",
-                    group.key.name
+                    self.rule_display_name(&group.key)
                 )
             })?;
         reorder_named_args_by_names(&parameter_names, arguments).ok_or_else(|| {
             format!(
                 "named arguments for rule `{}` do not match its declaration parameters",
-                group.key.name
+                self.rule_display_name(&group.key)
             )
         })
+    }
+
+    fn smt_rule_schema_accepts(
+        actual: &Ty,
+        expected: &Ty,
+        substitutions: &mut BTreeMap<String, Ty>,
+    ) -> bool {
+        match expected {
+            Ty::Var(name) => match substitutions.get(name) {
+                Some(known) => known == actual,
+                None => {
+                    substitutions.insert(name.clone(), actual.clone());
+                    true
+                }
+            },
+            Ty::Name(expected) => matches!(actual, Ty::Name(actual) if actual == expected),
+            Ty::App(expected_constructor, expected_arguments) => {
+                let Ty::App(actual_constructor, actual_arguments) = actual else {
+                    return false;
+                };
+                actual_arguments.len() == expected_arguments.len()
+                    && Self::smt_rule_schema_accepts(
+                        actual_constructor,
+                        expected_constructor,
+                        substitutions,
+                    )
+                    && actual_arguments
+                        .iter()
+                        .zip(expected_arguments)
+                        .all(|(actual, expected)| {
+                            Self::smt_rule_schema_accepts(actual, expected, substitutions)
+                        })
+            }
+            Ty::Optional(expected) => matches!(actual, Ty::Optional(actual)
+                if Self::smt_rule_schema_accepts(actual, expected, substitutions)),
+            Ty::Unit => matches!(actual, Ty::Unit),
+            Ty::Ref(_) | Ty::MutRef(_) | Ty::Shared(_) | Ty::Arrow(_, _) | Ty::Hole => false,
+        }
+    }
+
+    fn validate_rule_call_arguments(
+        &self,
+        group: &RuleDispatchGroup<'program>,
+        arguments: &[Expr],
+        environment: &SmtLoweringEnv,
+    ) -> Result<(), String> {
+        if group.return_type.is_none() {
+            return Err(group.return_type_issue.clone().unwrap_or_else(|| {
+                format!(
+                    "rule `{}` has no canonical SMT dispatch contract",
+                    self.rule_display_name(&group.key)
+                )
+            }));
+        }
+        if arguments.len() != group.parameters.len() {
+            return Err(format!(
+                "rule `{}` expected {} arguments but received {}",
+                self.rule_display_name(&group.key),
+                group.parameters.len(),
+                arguments.len()
+            ));
+        }
+        let mut substitutions = BTreeMap::new();
+        for (index, (argument, parameter)) in arguments.iter().zip(&group.parameters).enumerate() {
+            let expected = parameter.ty.as_deref().ok_or_else(|| {
+                format!(
+                    "rule `{}` parameter {} has no canonical SMT type",
+                    self.rule_display_name(&group.key),
+                    index + 1
+                )
+            })?;
+            let expected = parse_type_annotation(expected).map_err(|error| {
+                format!(
+                    "rule `{}` parameter {} type is invalid for SMT: {}",
+                    self.rule_display_name(&group.key),
+                    index + 1,
+                    error
+                )
+            })?;
+            let actual_name = self.infer_expr_type(argument, environment).ok_or_else(|| {
+                format!(
+                    "SMT cannot prove the type of argument {} to rule `{}`",
+                    index + 1,
+                    self.rule_display_name(&group.key)
+                )
+            })?;
+            let actual = parse_type_annotation(&actual_name).map_err(|error| {
+                format!(
+                    "SMT argument {} type `{}` is invalid: {}",
+                    index + 1,
+                    actual_name,
+                    error
+                )
+            })?;
+            let contextual_nullary_constructor = match (&argument.kind, &expected) {
+                (ExprKind::Var(constructor), Ty::App(expected_owner, _)) => {
+                    let Ty::Name(expected_owner) = expected_owner.as_ref() else {
+                        return Err(format!(
+                            "SMT rule argument {} has a non-nominal applied schema",
+                            index + 1
+                        ));
+                    };
+                    self.unique_nullary_constructor_parent(constructor)
+                        .as_deref()
+                        == Some(expected_owner.as_str())
+                }
+                (ExprKind::Var(constructor), Ty::Optional(_)) => {
+                    self.unique_nullary_constructor_parent(constructor)
+                        .as_deref()
+                        == Some("Option")
+                }
+                _ => false,
+            };
+            if contextual_nullary_constructor {
+                continue;
+            }
+            if !Self::smt_rule_schema_accepts(&actual, &expected, &mut substitutions) {
+                return Err(format!(
+                    "SMT argument {} to rule `{}` has type `{}` but its canonical schema is `{}`",
+                    index + 1,
+                    self.rule_display_name(&group.key),
+                    actual_name,
+                    parameter.ty.as_deref().unwrap_or("?")
+                ));
+            }
+        }
+        Ok(())
     }
 
     fn lower_rule_dispatch_call(
@@ -9324,6 +14657,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         environment: &SmtLoweringEnv,
         expansion_stack: &mut Vec<RuleDispatchKey>,
     ) -> Result<Expr, String> {
+        self.validate_rule_call_arguments(group, &arguments, environment)?;
         if environment.rule_calls_as_symbols {
             let mut call_arguments =
                 Vec::with_capacity(arguments.len() + usize::from(receiver.is_some()));
@@ -9332,9 +14666,9 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
             }
             call_arguments.extend(arguments);
             return Ok(Expr::unspanned(ExprKind::App(
-                Box::new(Expr::unspanned(ExprKind::Var(smt_rule_function_name(
-                    &group.key,
-                )))),
+                Box::new(Expr::unspanned(ExprKind::Var(
+                    self.rule_function_name(&group.key),
+                ))),
                 call_arguments,
             )));
         }
@@ -9545,10 +14879,10 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 ExprKind::Block(lowered)
             }
             ExprKind::Conjunction(goals) => {
-                return self.lower_logic_fold(goals, "&&", true, environment, expansion_stack)
+                return self.lower_logic_fold(goals, "&&", true, environment, expansion_stack);
             }
             ExprKind::Disjunction(goals) => {
-                return self.lower_logic_fold(goals, "||", false, environment, expansion_stack)
+                return self.lower_logic_fold(goals, "||", false, environment, expansion_stack);
             }
             ExprKind::Lambda(params, body) => ExprKind::Lambda(
                 params.clone(),
@@ -9636,7 +14970,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
         if expansion_stack.contains(&group.key) {
             return Err(format!(
                 "recursive rule dispatch for `{}` is not yet translatable to SMT",
-                group.key.name
+                self.rule_display_name(&group.key)
             ));
         }
         expansion_stack.push(group.key.clone());
@@ -9654,7 +14988,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     _ => {
                         return Err(format!(
                             "rule `{}` has a head shape that is not translatable to SMT",
-                            group.key.name
+                            self.rule_display_name(&group.key)
                         ));
                     }
                 };
@@ -9692,6 +15026,9 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                     applicability = smt_and(applicability, guard);
                 }
 
+                // Bool determines clause-as-predicate lowering, but it does
+                // not by itself authorize a checked False value on dispatch
+                // miss.  That capability is carried separately by totality.
                 let return_is_bool = group.return_type.as_deref() == Some("Bool");
                 let (value, condition, clause) = match rule {
                     Rule::Exception {
@@ -9731,7 +15068,7 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 candidates.push((applicability, selected_value, candidate.source_order));
             }
 
-            let mut fallback = if group.return_type.as_deref() == Some("Bool") {
+            let mut fallback = if group.totality == RuleDispatchTotality::PredicateFallbackFalse {
                 Some(smt_bool(false))
             } else {
                 None
@@ -9748,11 +15085,16 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 } else {
                     return Err(format!(
                         "partial rule dispatch for `{}` has no unconditional value for SMT",
-                        group.key.name
+                        self.rule_display_name(&group.key)
                     ));
                 });
             }
-            fallback.ok_or_else(|| format!("rule `{}` has no dispatch candidates", group.key.name))
+            fallback.ok_or_else(|| {
+                format!(
+                    "rule `{}` has no dispatch candidates",
+                    self.rule_display_name(&group.key)
+                )
+            })
         })();
 
         expansion_stack.pop();
@@ -10268,7 +15610,7 @@ fn smt_function_lowering_error_for_invariant(
 
     let function = called_errors.iter().next()?;
     let reason = function_errors.get(function)?;
-    if function.starts_with("runa_rule_") {
+    if function.starts_with("|runa_smt_v1_rule_") {
         Some(reason.clone())
     } else {
         Some(format!("function `{}` {}", function, reason))
@@ -10763,10 +16105,12 @@ fn audit_calculation_reachability_source(
     } else {
         user_stmts
     };
-    let contracts = run_calculation_type_check(&stmts, source, filename)
-        .unwrap_or_else(|| std::process::exit(1));
-    let contract =
-        select_calculation_contract(&contracts, requested_entry).unwrap_or_else(|error| {
+    let artifacts = type_check_artifacts(&stmts, source, filename);
+    if print_type_check_diagnostics(&artifacts.diagnostics, source, filename) {
+        std::process::exit(1);
+    }
+    let contract = select_calculation_contract(&artifacts.calculation_contracts, requested_entry)
+        .unwrap_or_else(|error| {
             eprintln!("error: {}", error);
             std::process::exit(1);
         });
@@ -10778,6 +16122,7 @@ fn audit_calculation_reachability_source(
         .collect::<Vec<_>>();
     let mut interpreter = Interpreter::new();
     interpreter.source_dir = source_dir_for(filename);
+    interpreter.install_rule_dispatch_metadata(&artifacts);
     let mut env = interpreter.default_env();
     interpreter.initialize_calculation_program(&contract.entry, &runtime_stmts, &mut env);
 
@@ -10804,11 +16149,7 @@ fn audit_calculation_reachability_source(
         .filter(|callable| !callable.reachable)
         .map(|callable| callable.declaration.qualified_name.clone())
         .collect::<Vec<_>>();
-    let mut loaded_sources = interpreter
-        .imported
-        .iter()
-        .cloned()
-        .collect::<BTreeSet<_>>();
+    let mut loaded_sources = interpreter.loaded_runtime_sources();
     loaded_sources.insert(
         std::fs::canonicalize(filename)
             .map(|path| path.to_string_lossy().to_string())
@@ -10894,10 +16235,10 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
         }
     };
 
+    let source_dir = source_dir_for(filename);
     let mut interp = Interpreter::new();
-    if let Some(parent) = std::path::Path::new(filename).parent() {
-        interp.source_dir = Some(parent.to_string_lossy().to_string());
-    }
+    interp.source_dir = source_dir.clone();
+    interp.install_rule_dispatch_metadata_for_program(&stmts, source_dir);
     let mut env = interp.default_env();
 
     // Filter out Prove statements — we don't want verification output during audit
@@ -10923,13 +16264,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     }
 
     // Build constructor → parent type map from interpreter's registered types
-    let ctor_to_parent: BTreeMap<String, String> = {
-        let mut map = BTreeMap::new();
-        for (ctor_name, parent_type) in &interp.ctor_to_type {
-            map.insert(ctor_name.clone(), parent_type.clone());
-        }
-        map
-    };
+    let ctor_to_parent = interp.registered_root_constructor_parents();
 
     // Classify a Value into its type domain
     let classify_value = |val: &Value| -> (String, Option<String>) {
@@ -11313,11 +16648,12 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
     }
 
     // ── 3e: INVARIANT COVERAGE — which rules are tested, which aren't ──
-    let invariant_count = interp.invariants.len();
+    let invariants = interp.registered_root_invariants();
+    let invariant_count = invariants.len();
     let mut covered_rules: BTreeSet<String> = BTreeSet::new();
 
     // Scan invariant subjects and predicates for rule references
-    for (_inv_name, (subject, predicate)) in &interp.invariants {
+    for (_inv_name, (subject, predicate)) in &invariants {
         collect_rule_refs(subject, &mut covered_rules);
         collect_rule_refs(predicate, &mut covered_rules);
     }
@@ -11605,7 +16941,7 @@ fn audit_source(source: &str, filename: &str, use_prelude: bool) {
 
     let mut type_analysis_output = Vec::new();
 
-    for (type_name, variants) in &interp.type_variants {
+    for (type_name, variants) in &interp.registered_root_type_variants() {
         if variants.is_empty() {
             continue;
         }
@@ -13024,7 +18360,21 @@ fn verify_with_z3(source: &str, filename: &str) {
     // Imported declarations precede local declarations, matching interpreter
     // and codegen registration. Rule groups intentionally compose across this
     // graph, so a local exception can override an imported base clause.
-    let all_stmts = match resolve_smt_program(&stmts, filename) {
+    let resolved_program = match resolve_smt_program(&stmts, filename) {
+        Ok(program) => program,
+        Err(error) => {
+            eprintln!("runa --verify: {}", error);
+            std::process::exit(1);
+        }
+    };
+    let symbol_index = match SmtSymbolIndex::from_program(&resolved_program) {
+        Ok(index) => index,
+        Err(error) => {
+            eprintln!("runa --verify: {}", error);
+            std::process::exit(1);
+        }
+    };
+    let all_stmts = match lower_smt_namespaces(&resolved_program, &symbol_index) {
         Ok(statements) => statements,
         Err(error) => {
             eprintln!("runa --verify: {}", error);
@@ -13032,8 +18382,16 @@ fn verify_with_z3(source: &str, filename: &str) {
         }
     };
     let type_artifacts = TypeChecker::check_with_artifacts(&all_stmts, None, "");
+    if print_type_check_diagnostics(&type_artifacts.diagnostics, source, filename) {
+        eprintln!("runa --verify: semantic SMT fallback requires a type-correct program");
+        std::process::exit(1);
+    }
     let rule_registry = RuleDispatchRegistry::from_statements(&all_stmts, &type_artifacts);
-    let rule_lowerer = SmtRuleLowerer::new(&all_stmts, &rule_registry);
+    let rule_lowerer = SmtRuleLowerer::new(
+        &all_stmts,
+        &rule_registry,
+        symbol_index.rule_identities.clone(),
+    );
 
     // Collect ADTs, invariants, bindings, and function definitions
     let mut adts: Vec<(String, Vec<Variant>)> = Vec::new();
@@ -13779,8 +19137,15 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                             summary.clone(),
                         );
                     }
-                    eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
-                        filename, stmt_count, fn_count, type_count, summary.rust_line_count, start.elapsed().as_secs_f64());
+                    eprintln!(
+                        "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust, rustc cached) \x1b[2m[{:.1}s]\x1b[0m",
+                        filename,
+                        stmt_count,
+                        fn_count,
+                        type_count,
+                        summary.rust_line_count,
+                        start.elapsed().as_secs_f64()
+                    );
                     return;
                 }
                 if cg.has_raw_rust_blocks {
@@ -13846,8 +19211,15 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, summary.rust_line_count, elapsed.as_secs_f64());
+                        eprintln!(
+                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
+                            filename,
+                            stmt_count,
+                            fn_count,
+                            type_count,
+                            summary.rust_line_count,
+                            elapsed.as_secs_f64()
+                        );
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -13923,8 +19295,16 @@ fn check_source(source: &str, filename: &str, use_prelude: bool, frontend_only: 
                                 summary.clone(),
                             );
                         }
-                        eprintln!("\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
-                            filename, stmt_count, fn_count, type_count, cg.cargo_deps.len(), summary.rust_line_count, elapsed.as_secs_f64());
+                        eprintln!(
+                            "\x1b[1;32mcheck ok\x1b[0m: {} ({} stmts, {} fns, {} types, {} deps, {} lines of Rust) \x1b[2m[{:.1}s]\x1b[0m",
+                            filename,
+                            stmt_count,
+                            fn_count,
+                            type_count,
+                            cg.cargo_deps.len(),
+                            summary.rust_line_count,
+                            elapsed.as_secs_f64()
+                        );
                     }
                     Ok(o) => {
                         eprintln!("\x1b[1;31mcheck failed\x1b[0m: {}", filename);
@@ -14252,10 +19632,16 @@ fn public_adt_constructor_names(
 }
 
 fn module_body_for<'a>(stmts: &'a [Stmt], module_name: &str) -> Option<&'a [Stmt]> {
-    stmts.iter().find_map(|stmt| match stmt {
-        Stmt::Defn(Defn::Module { name, body }) if name == module_name => Some(body.as_slice()),
-        _ => None,
-    })
+    let mut body = stmts;
+    for segment in module_name.split("::") {
+        body = body.iter().find_map(|stmt| match stmt {
+            Stmt::Defn(Defn::Module { name, body: nested }) if sanitize_name(name) == segment => {
+                Some(nested.as_slice())
+            }
+            _ => None,
+        })?;
+    }
+    Some(body)
 }
 
 fn render_import_normalization_contract(
@@ -15113,7 +20499,8 @@ fn collect_library_scope_issues(
             | Stmt::HashImport(_, _)
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
-            | Stmt::Annot(_, _) => {}
+            | Stmt::Annot(_, _)
+            | Stmt::Explore(_) => {}
         }
     }
 }
@@ -15275,6 +20662,7 @@ fn stmt_is_impure_in_expr(
         Stmt::Defn(_)
         | Stmt::TypeDecl(_)
         | Stmt::Rule(_)
+        | Stmt::Explore(_)
         | Stmt::Use(_)
         | Stmt::Import(_)
         | Stmt::QualifiedImport(_, _)
@@ -17708,188 +23096,1532 @@ fn build_rust_builtin_registry() -> BTreeMap<String, BuiltinDef> {
 
     let entries: Vec<(&str, BuiltinDef)> = vec![
         // ---- Math (not shadowable, pure) ----
-        ("exp",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).exp()" }),
-        ("ln",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).ln()" }),
-        ("sqrt",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).sqrt()" }),
-        ("pow",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).powf({1} as f64)" }),
-        ("abs",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}).abs()" }),
-        ("to_float", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64)" }),
-        ("round",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "(({0} as f64).round() as i64)" }),
-        ("floor",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "(({0} as f64).floor() as i64)" }),
-        ("max_f",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).max({1} as f64)" }),
-        ("min_f",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} as f64).min({1} as f64)" }),
-
+        (
+            "exp",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).exp()",
+            },
+        ),
+        (
+            "ln",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).ln()",
+            },
+        ),
+        (
+            "sqrt",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).sqrt()",
+            },
+        ),
+        (
+            "pow",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).powf({1} as f64)",
+            },
+        ),
+        (
+            "abs",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}).abs()",
+            },
+        ),
+        (
+            "to_float",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64)",
+            },
+        ),
+        (
+            "round",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "(({0} as f64).round() as i64)",
+            },
+        ),
+        (
+            "floor",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "(({0} as f64).floor() as i64)",
+            },
+        ),
+        (
+            "max_f",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).max({1} as f64)",
+            },
+        ),
+        (
+            "min_f",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as f64).min({1} as f64)",
+            },
+        ),
         // ---- String (shadowable, pure) ----
-        ("split",        BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()" }),
-        ("join",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.join(&*{1})" }),
-        ("trim",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().to_string()" }),
-        ("contains",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_contains(&{0}, &{1})" }),
-        ("starts_with",  BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.starts_with(&*{1})" }),
-        ("ends_with",    BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.ends_with(&*{1})" }),
-        ("replace",      BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.replace(&*{1}, &*{2})" }),
-        ("to_upper",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_uppercase()" }),
-        ("to_lower",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.to_lowercase()" }),
-        ("substring",    BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }" }),
-        ("char_at",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }" }),
-        ("index_of",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }" }),
-        ("format_float", BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)" }),
-        ("rust_debug",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "format!(\"{:?}\", {0})" }),
-        ("parse_int",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)" }),
-        ("parse_float",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)" }),
-        ("string_chars", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()" }),
-        ("string_length",BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.chars().count() as i64)" }),
-        ("length",       BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "__futuruna_len(&{0})" }),
-        ("head",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }" }),
-        ("tail",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }" }),
-        ("nth",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }" }),
-
+        (
+            "split",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.split(&*{1}).map(|s| s.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "join",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.join(&*{1})",
+            },
+        ),
+        (
+            "trim",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().to_string()",
+            },
+        ),
+        (
+            "contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_contains(&{0}, &{1})",
+            },
+        ),
+        (
+            "starts_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.starts_with(&*{1})",
+            },
+        ),
+        (
+            "ends_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.ends_with(&*{1})",
+            },
+        ),
+        (
+            "replace",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.replace(&*{1}, &*{2})",
+            },
+        ),
+        (
+            "to_upper",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.to_uppercase()",
+            },
+        ),
+        (
+            "to_lower",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.to_lowercase()",
+            },
+        ),
+        (
+            "substring",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __start_i = ({1}).max(0); let __len_i = ({2}).max(0); let __start = (__start_i as usize).min(__s.len()); let __end = __start.saturating_add(__len_i as usize).min(__s.len()); __s[__start..__end].iter().collect::<String>() }",
+            },
+        ),
+        (
+            "char_at",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: Vec<char> = {0}.chars().collect(); let __i = {1} as usize; if __i < __s.len() { __s[__i].to_string() } else { String::new() } }",
+            },
+        ),
+        (
+            "index_of",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __s: &str = &*{0}; match __s.find(&*{1}) { Some(__byte) => __s[..__byte].chars().count() as i64, None => -1i64 } }",
+            },
+        ),
+        (
+            "format_float",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "format!(\"{:.prec$}\", {0} as f64, prec = {1} as usize)",
+            },
+        ),
+        (
+            "rust_debug",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "format!(\"{:?}\", {0})",
+            },
+        ),
+        (
+            "parse_int",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().parse::<i64>().unwrap_or(0)",
+            },
+        ),
+        (
+            "parse_float",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.trim().parse::<f64>().unwrap_or(0.0)",
+            },
+        ),
+        (
+            "string_chars",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.chars().map(|c| c.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "string_length",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.chars().count() as i64)",
+            },
+        ),
+        (
+            "length",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "__futuruna_len(&{0})",
+            },
+        ),
+        (
+            "head",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; if __arr.is_empty() { panic!(\"head: empty list\") } else { __arr[0].clone() } }",
+            },
+        ),
+        (
+            "tail",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; if __arr.len() <= 1 { __arr[0..0].to_vec() } else { __arr[1..].to_vec() } }",
+            },
+        ),
+        (
+            "nth",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __arr = &{0}; let __i = {1}; if __i < 0 || __i as usize >= __arr.len() { panic!(\"index out of bounds: {} (len {})\", __i, __arr.len()) } else { __arr[__i as usize].clone() } }",
+            },
+        ),
         // ---- File I/O (not shadowable, impure) ----
-        ("read_file",    BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()" }),
-        ("write_file",   BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }" }),
-        ("append_file",  BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }" }),
-        ("file_exists",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::path::Path::new(&*{0}).exists()" }),
-        ("read_lines",   BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()" }),
-        ("env_var",      BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::env::var(&*{0}).unwrap_or_default()" }),
-        ("process_run",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }" }),
-
+        (
+            "read_file",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default()",
+            },
+        ),
+        (
+            "write_file",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let _ = std::fs::write(&*{0}, &*{1}); }",
+            },
+        ),
+        (
+            "append_file",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ use std::io::Write; if let Ok(mut __f) = std::fs::OpenOptions::new().append(true).create(true).open(&*{0}) { let _ = __f.write_all({1}.as_bytes()); } }",
+            },
+        ),
+        (
+            "file_exists",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::path::Path::new(&*{0}).exists()",
+            },
+        ),
+        (
+            "read_lines",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::fs::read_to_string(&*{0}).unwrap_or_default().lines().map(|l| l.to_string()).collect::<Vec<String>>()",
+            },
+        ),
+        (
+            "env_var",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::env::var(&*{0}).unwrap_or_default()",
+            },
+        ),
+        (
+            "process_run",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __argv: Vec<String> = {0}.clone(); if __argv.is_empty() { (-1i64, String::new(), \"process_run requires at least one argv element\".to_string()) } else { let mut __cmd = std::process::Command::new(&__argv[0]); if __argv.len() > 1 { __cmd.args(&__argv[1..]); } match __cmd.output() { Ok(__out) => (__out.status.code().map(|c| c as i64).unwrap_or(-1i64), String::from_utf8_lossy(&__out.stdout).to_string(), String::from_utf8_lossy(&__out.stderr).to_string()), Err(__err) => (-1i64, String::new(), __err.to_string()) } } }",
+            },
+        ),
         // ---- JSON (shadowable, pure, deps: serde_json) ----
-        ("json_parse",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }" }),
-        ("json_get",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }" }),
-        ("json_string",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }" }),
-        ("json_number",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }" }),
-        ("json_bool",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }" }),
-        ("json_array",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }" }),
-        ("json_emit",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{0}.clone()" }),
-        ("json_object",  BuiltinDef { arity: 1, shadowable: true, impure: false, deps: SERDE, rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }" }),
-
+        (
+            "json_parse",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __s = {0}; match serde_json::from_str::<serde_json::Value>(&__s) { Ok(_) => __s, Err(_) => \"null\".to_string() } }",
+            },
+        ),
+        (
+            "json_get",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j.get(&*{1}) { Some(v) => v.to_string(), None => \"null\".to_string() } }",
+            },
+        ),
+        (
+            "json_string",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __s = {0}; let __j: serde_json::Value = serde_json::from_str(&__s).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::String(s) => s, _ => __s.trim_matches('\"').to_string() } }",
+            },
+        ),
+        (
+            "json_number",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_f64().unwrap_or(0.0) }",
+            },
+        ),
+        (
+            "json_bool",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); __j.as_bool().unwrap_or(false) }",
+            },
+        ),
+        (
+            "json_array",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __j: serde_json::Value = serde_json::from_str(&{0}).unwrap_or(serde_json::Value::Null); match __j { serde_json::Value::Array(a) => a.iter().map(|v| v.to_string()).collect::<Vec<String>>(), _ => vec![] } }",
+            },
+        ),
+        (
+            "json_emit",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "json_object",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: SERDE,
+                rust_tpl: "{ let __pairs = &{0}; let mut __obj = serde_json::Map::new(); for __p in __pairs.iter() { if __p.len() >= 2 { let __k = __p[0].clone(); let __v: serde_json::Value = serde_json::from_str(&__p[1]).unwrap_or(serde_json::Value::String(__p[1].clone())); __obj.insert(__k, __v); } } serde_json::Value::Object(__obj).to_string() }",
+            },
+        ),
         // ---- HTTP (shadowable, impure for I/O ones) ----
-        ("http_get",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: UREQ, rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()" }),
-        ("http_post",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: UREQ, rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()" }),
-        ("http_serve",   BuiltinDef { arity: 2, shadowable: true, impure: true, deps: AXUM, rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }" }),
-        ("http_respond", BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())" }),
-        ("http_request_path",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.0.clone()" }),
-        ("http_request_method", BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.1.clone()" }),
-        ("http_request_body",   BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.2.clone()" }),
-
+        (
+            "http_get",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: UREQ,
+                rust_tpl: "ureq::get(&*{0}).call().map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+            },
+        ),
+        (
+            "http_post",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: UREQ,
+                rust_tpl: "ureq::post(&*{0}).send_string(&*{1}).map(|r| r.into_string().unwrap_or_default()).unwrap_or_default()",
+            },
+        ),
+        (
+            "http_serve",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: AXUM,
+                rust_tpl: "{ let __handler = {1}; let __port = {0}; let __app = axum::Router::new().fallback(move |__req: axum::extract::Request| {{ let __h = __handler.clone(); async move {{ let __path = __req.uri().path().to_string(); let __method = __req.method().to_string(); let __body_bytes = axum::body::to_bytes(__req.into_body(), 1048576).await.unwrap_or_default(); let __body = String::from_utf8_lossy(&__body_bytes).to_string(); let __result: (i64, String, String) = __h(__path, __method, __body); axum::http::Response::builder().status(__result.0 as u16).header(\"Content-Type\", __result.1).body(axum::body::Body::from(__result.2)).unwrap() }} }}); let __listener = tokio::net::TcpListener::bind(format!(\"0.0.0.0:{}\", __port)).await.expect(\"Failed to bind\"); println!(\"Listening on port {}\", __port); axum::serve(__listener, __app).await.unwrap(); }",
+            },
+        ),
+        (
+            "http_respond",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} as i64, {1}.to_string(), {2}.to_string())",
+            },
+        ),
+        (
+            "http_request_path",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.0.clone()",
+            },
+        ),
+        (
+            "http_request_method",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.1.clone()",
+            },
+        ),
+        (
+            "http_request_body",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.2.clone()",
+            },
+        ),
         // ---- Database (shadowable, impure, deps: rusqlite) ----
-        ("db_open",      BuiltinDef { arity: 1, shadowable: true, impure: true, deps: RSQL, rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))" }),
-        ("db_exec",      BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")" }),
-        ("db_query",     BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }" }),
-        ("db_query_row", BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }" }),
-        ("db_insert",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: RSQL, rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }" }),
-        ("db_close",     BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "drop({0})" }),
-
+        (
+            "db_open",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "std::sync::Arc::new(std::sync::Mutex::new(rusqlite::Connection::open(&*{0}).expect(\"Failed to open database\")))",
+            },
+        ),
+        (
+            "db_exec",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{0}.lock().unwrap().execute_batch(&*{1}).expect(\"db_exec failed\")",
+            },
+        ),
+        (
+            "db_query",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<Vec<String>> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).collect(); __result }",
+            },
+        ),
+        (
+            "db_query_row",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); let mut __stmt = __db.prepare(&*{1}).expect(\"SQL prepare failed\"); let __result: Vec<String> = __stmt.query_map(rusqlite::params![], |row: &rusqlite::Row| { let mut __cols = Vec::new(); let mut __i = 0usize; loop { match row.get_ref(__i) { Ok(v) => { __cols.push(match v { rusqlite::types::ValueRef::Null => \"null\".to_string(), rusqlite::types::ValueRef::Integer(n) => n.to_string(), rusqlite::types::ValueRef::Real(f) => f.to_string(), rusqlite::types::ValueRef::Text(s) => String::from_utf8_lossy(s).to_string(), rusqlite::types::ValueRef::Blob(b) => format!(\"<blob:{}>\", b.len()), }); __i += 1; }, Err(_) => break, } } Ok(__cols) }).expect(\"query failed\").filter_map(|r| r.ok()).next().unwrap_or_default(); __result }",
+            },
+        ),
+        (
+            "db_insert",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: RSQL,
+                rust_tpl: "{ let __rc = {0}; let __db = __rc.lock().unwrap(); __db.execute_batch(&*{1}).expect(\"insert failed\"); __db.last_insert_rowid() }",
+            },
+        ),
+        (
+            "db_close",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "drop({0})",
+            },
+        ),
         // ---- Misc ----
-        ("assert",       BuiltinDef { arity: 1, shadowable: true, impure: true, deps: D, rust_tpl: "assert!({0}, \"Assertion failed!\")" }),
-        ("shared",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "std::sync::Arc::new({0})" }),
-        ("range",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0}..{1}).collect::<Vec<i64>>()" }),
-
+        (
+            "assert",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "assert!({0}, \"Assertion failed!\")",
+            },
+        ),
+        (
+            "shared",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "std::sync::Arc::new({0})",
+            },
+        ),
+        (
+            "range",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}..{1}).collect::<Vec<i64>>()",
+            },
+        ),
         // ---- Functional / Collection (shadowable, pure) ----
         // Unified: list and stream ops share names. Templates use .clone() for pipe safety.
-        ("map",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()" }),
-        ("filter",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()" }),
-        ("foldl",        BuiltinDef { arity: 3, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().fold({1}, {2})" }),
-        ("sort",         BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }" }),
-        ("sort_by",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }" }),
-        ("list_min",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
-        ("list_max",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))" }),
-        ("reverse",      BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }" }),
-        ("is_some",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_some()" }),
-        ("is_none",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.is_none()" }),
-        ("any",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))" }),
-        ("all",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))" }),
-        ("find",         BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()" }),
-        ("flat_map",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()" }),
-        ("zip",          BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()" }),
-        ("enumerate",    BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()" }),
-        ("take_while",   BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()" }),
-        ("drop_while",   BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()" }),
-        ("sum_list",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().map(|x| *x as i64).sum::<i64>()" }),
-        ("distinct",     BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __seen = std::collections::HashSet::new(); {0}.clone().into_iter().filter(|x| __seen.insert(format!(\"{}\", x))).collect::<Vec<_>>() }" }),
-        ("count_by",     BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64" }),
-        ("partition",    BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }" }),
-        ("chunked",      BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }" }),
-        ("subscribe",    BuiltinDef { arity: 2, shadowable: true, impure: true, deps: D, rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }" }),
-
+        (
+            "map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().map({1}).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "filter",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().filter(|x| ({1})( x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "foldl",
+            BuiltinDef {
+                arity: 3,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().fold({1}, {2})",
+            },
+        ),
+        (
+            "sort",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.sort_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b))); __v }",
+            },
+        ),
+        (
+            "sort_by",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); let mut __key = {1}; __v.sort_by_cached_key(|__item| format!(\"{}\", __key(__item))); __v }",
+            },
+        ),
+        (
+            "list_min",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().min_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+            },
+        ),
+        (
+            "list_max",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().max_by(|a, b| format!(\"{}\", a).cmp(&format!(\"{}\", b)))",
+            },
+        ),
+        (
+            "reverse",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.reverse(); __v }",
+            },
+        ),
+        (
+            "is_some",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.is_some()",
+            },
+        ),
+        (
+            "is_none",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.is_none()",
+            },
+        ),
+        (
+            "any",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().any(|x| ({1})( x.clone()))",
+            },
+        ),
+        (
+            "all",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().all(|x| ({1})( x.clone()))",
+            },
+        ),
+        (
+            "find",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().find(|x| ({1})((*x).clone())).cloned()",
+            },
+        ),
+        (
+            "flat_map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().flat_map({1}).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "zip",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().zip({1}.clone().into_iter()).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "enumerate",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().enumerate().map(|(i, v)| (i as i64, v)).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "take_while",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().take_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "drop_while",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().skip_while(|x| ({1})(x.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "sum_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().map(|x| *x as i64).sum::<i64>()",
+            },
+        ),
+        (
+            "distinct",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __seen = std::collections::HashSet::new(); {0}.clone().into_iter().filter(|x| __seen.insert(format!(\"{}\", x))).collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "count_by",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().filter(|x| ({1})((*x).clone())).count() as i64",
+            },
+        ),
+        (
+            "partition",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let (__yes, __no): (Vec<_>, Vec<_>) = {0}.clone().into_iter().partition(|x| ({1})(x.clone())); (__yes, __no) }",
+            },
+        ),
+        (
+            "chunked",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); let __n = ({1} as usize).max(1); __v.chunks(__n).map(|c| c.to_vec()).collect::<Vec<Vec<_>>>() }",
+            },
+        ),
+        (
+            "subscribe",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ for __item in {0}.iter() { ({1})(__item.clone()); } }",
+            },
+        ),
         // ---- Map builtins (M24) ----
-        ("map_new",      BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
-        ("map_insert",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }" }),
-        ("map_get",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned()" }),
-        ("map_get_or",   BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())" }),
-        ("map_contains", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key({1}.as_str())" }),
-        ("map_remove",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }" }),
-        ("map_keys",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()" }),
-        ("map_values",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),
-        ("map_entries",  BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()" }),
-        ("map_len",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("map_merge",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }" }),
-        ("map_from",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()" }),
-
+        (
+            "map_new",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "BTreeMap::new()",
+            },
+        ),
+        (
+            "map_insert",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.insert({1}.clone(), {2}.clone()); __m }",
+            },
+        ),
+        (
+            "map_get",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.get({1}.as_str()).cloned()",
+            },
+        ),
+        (
+            "map_get_or",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.get({1}.as_str()).cloned().unwrap_or_else(|| {2}.clone())",
+            },
+        ),
+        (
+            "map_contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.contains_key({1}.as_str())",
+            },
+        ),
+        (
+            "map_remove",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.remove(&{1}); __m }",
+            },
+        ),
+        (
+            "map_keys",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.keys().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_values",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_entries",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.iter().map(|(k, v)| (k.clone(), v.clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "map_len",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "map_merge",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __m = {0}.clone(); __m.extend({1}.clone()); __m }",
+            },
+        ),
+        (
+            "map_from",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.into_iter().collect::<BTreeMap<_, _>>()",
+            },
+        ),
         // ---- Set builtins (M24) ----
-        ("set_new",       BuiltinDef { arity: 0, shadowable: false, impure: false, deps: D, rust_tpl: "BTreeMap::new()" }),
-        ("set_insert",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }" }),
-        ("set_contains",  BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))" }),
-        ("set_remove",    BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }" }),
-        ("set_len",       BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("set_to_list",   BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()" }),
-        ("set_union",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }" }),
-        ("set_intersect", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
-        ("set_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }" }),
-        ("set_from_list", BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }" }),
-
+        (
+            "set_new",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "BTreeMap::new()",
+            },
+        ),
+        (
+            "set_insert",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); let __v = {1}.clone(); __s.entry(__futuruna_set_key(&__v)).or_insert(__v); __s }",
+            },
+        ),
+        (
+            "set_contains",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.contains_key(&__futuruna_set_key(&{1}))",
+            },
+        ),
+        (
+            "set_remove",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); let __k = __futuruna_set_key(&{1}); __s.remove(__k.as_str()); __s }",
+            },
+        ),
+        (
+            "set_len",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "set_to_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.values().cloned().collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "set_union",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = {0}.clone(); for (__k, __v) in {1}.iter() { __s.entry(__k.clone()).or_insert_with(|| __v.clone()); } __s }",
+            },
+        ),
+        (
+            "set_intersect",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if {1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+            },
+        ),
+        (
+            "set_diff",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for (__k, __v) in {0}.iter() { if !{1}.contains_key(__k.as_str()) { __s.insert(__k.clone(), __v.clone()); } } __s }",
+            },
+        ),
+        (
+            "set_from_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __s = BTreeMap::new(); for __v in {0}.clone().into_iter() { let __k = __futuruna_set_key(&__v); __s.entry(__k).or_insert(__v); } __s }",
+            },
+        ),
         // ---- Stream builtins (M12, sync Vec-based — clean names, no s_ prefix) ----
-        ("from_list",    BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("scan",         BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }" }),
-        ("merge",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }" }),
-        ("take",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()" }),
-        ("collect",      BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("count",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "({0}.len() as i64)" }),
-        ("skip",         BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()" }),
-        ("window",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }" }),
-        ("sum",          BuiltinDef { arity: 1, shadowable: true, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()" }),
-        ("last",         BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))" }),
-        ("combine_latest", BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }" }),
-
+        (
+            "from_list",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "scan",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut acc = {1}; {0}.clone().into_iter().map(|x| { acc = ({2})(acc.clone(), x); acc.clone() }).collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "merge",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut m = Vec::new(); let (mut a, mut b) = ({0}.clone().into_iter(), {1}.clone().into_iter()); loop { match (a.next(), b.next()) { (Some(x), Some(y)) => { m.push(x); m.push(y); }, (Some(x), None) => { m.push(x); m.extend(a); break; }, (None, Some(y)) => { m.push(y); m.extend(b); break; }, _ => break } }; m }",
+            },
+        ),
+        (
+            "take",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().take(({1}).max(0) as usize).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "collect",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "count",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0}.len() as i64)",
+            },
+        ),
+        (
+            "skip",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().skip(({1}).max(0) as usize).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "window",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let src: Vec<_> = {0}.clone().into_iter().collect(); let __n = ({1} as usize).max(1); src.windows(__n).map(|w| w.to_vec()).collect::<Vec<Vec<_>>>() }",
+            },
+        ),
+        (
+            "sum",
+            BuiltinDef {
+                arity: 1,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().reduce(|a, b| a + b).unwrap_or_default()",
+            },
+        ),
+        (
+            "last",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().last().unwrap_or_else(|| panic!(\"last: empty list\"))",
+            },
+        ),
+        (
+            "combine_latest",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let a: Vec<_> = {0}.clone().into_iter().collect(); let b: Vec<_> = {1}.clone().into_iter().collect(); if a.is_empty() || b.is_empty() {{ vec![] }} else {{ let n = a.len().max(b.len()); (0..n).map(|i| (a.get(i).or(a.last()).cloned().unwrap(), b.get(i).or(b.last()).cloned().unwrap())).collect::<Vec<_>>() }} }",
+            },
+        ),
         // ---- Stream lifecycle (sync mode) ----
-        ("complete",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}" }),
-        ("error",        BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }" }),
-        ("take_until",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}" }),
-        ("poll",         BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "({0})()" }),
-
+        (
+            "complete",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}",
+            },
+        ),
+        (
+            "error",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ eprintln!(\"stream error: {}\", {1}); {0}.clone() }",
+            },
+        ),
+        (
+            "take_until",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}",
+            },
+        ),
+        (
+            "poll",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "({0})()",
+            },
+        ),
         // ---- New stream operators (M17b) ----
-        ("tap",          BuiltinDef { arity: 2, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }" }),
-        ("catch",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("first",        BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))" }),
-        ("reduce",       BuiltinDef { arity: 3, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }" }),
-        ("start_with",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }" }),
-        ("concat",       BuiltinDef { arity: 2, shadowable: true, impure: false, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }" }),
-        ("pairwise",     BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()" }),
-        ("fst",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.0" }),
-        ("snd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.1" }),
-        ("trd",          BuiltinDef { arity: 1, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.2" }),
-
+        (
+            "tap",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); for __x in __v.iter() {{ let __f = {1}; __f(__x.clone()); }} __v }",
+            },
+        ),
+        (
+            "catch",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "first",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().into_iter().next().unwrap_or_else(|| panic!(\"first: empty list\"))",
+            },
+        ),
+        (
+            "reduce",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __acc = {1}; for __x in {0}.clone().into_iter() {{ __acc = ({2})(__acc.clone(), __x); }} __acc }",
+            },
+        ),
+        (
+            "start_with",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = vec![{1}]; __v.extend({0}.clone()); __v }",
+            },
+        ),
+        (
+            "concat",
+            BuiltinDef {
+                arity: 2,
+                shadowable: true,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); __v.extend({1}.clone()); __v }",
+            },
+        ),
+        (
+            "pairwise",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone().windows(2).map(|w| (w[0].clone(), w[1].clone())).collect::<Vec<_>>()",
+            },
+        ),
+        (
+            "fst",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.0",
+            },
+        ),
+        (
+            "snd",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.1",
+            },
+        ),
+        (
+            "trd",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.2",
+            },
+        ),
         // ---- Timing operators (M17, sync mode) ----
-        ("debounce",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }" }),
-        ("throttle",     BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }" }),
-        ("delay",        BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("buffer",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "vec![{0}.clone()]" }),
-        ("timeout",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{0}.clone()" }),
-        ("switch_map",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }" }),
-        ("sample",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }" }),
-
+        (
+            "debounce",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ vec![__last.clone()] }} else {{ vec![] }} }",
+            },
+        ),
+        (
+            "throttle",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); let __step = if {1} > 0 {{ (__v.len() / 10).max(1) }} else {{ 1 }}; __v.iter().step_by(__step).cloned().collect::<Vec<_>>() }",
+            },
+        ),
+        (
+            "delay",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "buffer",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "vec![{0}.clone()]",
+            },
+        ),
+        (
+            "timeout",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{0}.clone()",
+            },
+        ),
+        (
+            "switch_map",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __v: Vec<_> = {0}.clone(); if let Some(__last) = __v.last() {{ ({1})(__last.clone()) }} else {{ vec![] }} }",
+            },
+        ),
+        (
+            "sample",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "{ let __src: Vec<_> = {0}.clone(); let __trg: Vec<_> = {1}.clone(); let __tlen = __trg.len().max(1); __trg.iter().enumerate().filter_map(|(i, _)| { let __idx = ((i + 1) * __src.len()) / __tlen; __src.get(__idx.min(__src.len().saturating_sub(1))).cloned() }).collect::<Vec<_>>() }",
+            },
+        ),
         // ---- M35: Random, Time, Regex ----
-        ("random_float",   BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }" }),
-        ("random_choice",  BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }" }),
-        ("shuffle",        BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }" }),
-        ("sleep",          BuiltinDef { arity: 1, shadowable: false, impure: true, deps: D, rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))" }),
-        ("now",            BuiltinDef { arity: 0, shadowable: false, impure: true, deps: D, rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)" }),
-        ("time_diff",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: D, rust_tpl: "({0} - {1})" }),
-
+        (
+            "random_float",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ use std::collections::hash_map::DefaultHasher; use std::hash::{Hash, Hasher}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); (h.finish() as f64) / (u64::MAX as f64) }",
+            },
+        ),
+        (
+            "random_choice",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let __v = {0}.clone(); if __v.is_empty() {{ panic!(\"random_choice: empty list\") }} else {{ use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); __v[h.finish() as usize % __v.len()].clone() }} }",
+            },
+        ),
+        (
+            "shuffle",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "{ let mut __v = {0}.clone(); use std::collections::hash_map::DefaultHasher; use std::hash::{{Hash, Hasher}}; let mut __seed = {{ let mut h = DefaultHasher::new(); std::time::SystemTime::now().hash(&mut h); h.finish() }}; for __i in (1..__v.len()).rev() {{ __seed ^= __seed << 13; __seed ^= __seed >> 7; __seed ^= __seed << 17; let __j = __seed as usize % (__i + 1); __v.swap(__i, __j); }} __v }",
+            },
+        ),
+        (
+            "sleep",
+            BuiltinDef {
+                arity: 1,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "std::thread::sleep(std::time::Duration::from_millis({0} as u64))",
+            },
+        ),
+        (
+            "now",
+            BuiltinDef {
+                arity: 0,
+                shadowable: false,
+                impure: true,
+                deps: D,
+                rust_tpl: "(std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as i64)",
+            },
+        ),
+        (
+            "time_diff",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: D,
+                rust_tpl: "({0} - {1})",
+            },
+        ),
         // Regex (auto-adds regex dep)
-        ("regex_match",      BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)" }),
-        ("regex_find",       BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))" }),
-        ("regex_find_all",   BuiltinDef { arity: 2, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()" }),
-        ("regex_replace",    BuiltinDef { arity: 3, shadowable: false, impure: false, deps: &[("regex", "1")], rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }" }),
+        (
+            "regex_match",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.is_match(&*{1})).unwrap_or(false)",
+            },
+        ),
+        (
+            "regex_find",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).ok().and_then(|re| re.find(&*{1}).map(|m| m.as_str().to_string()))",
+            },
+        ),
+        (
+            "regex_find_all",
+            BuiltinDef {
+                arity: 2,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "regex::Regex::new(&*{0}).map(|re| re.find_iter(&*{1}).map(|m| m.as_str().to_string()).collect::<Vec<_>>()).unwrap_or_default()",
+            },
+        ),
+        (
+            "regex_replace",
+            BuiltinDef {
+                arity: 3,
+                shadowable: false,
+                impure: false,
+                deps: &[("regex", "1")],
+                rust_tpl: "{ let __pattern = {0}; let __text = {1}; let __replacement = {2}; regex::Regex::new(&*__pattern).map(|re| re.replace_all(&*__text, __replacement.as_str()).to_string()).unwrap_or_else(|_| __text.clone()) }",
+            },
+        ),
     ];
     entries
         .into_iter()
@@ -17912,6 +24644,76 @@ struct PersistMigration {
 }
 
 #[derive(Debug, Clone)]
+struct ModuleVariantMetadata {
+    source_parent: String,
+    parent: String,
+    type_params: Vec<String>,
+    positional: bool,
+    fields: Vec<String>,
+    field_types: BTreeMap<String, Ty>,
+    boxed_args: Vec<usize>,
+    struct_type: bool,
+    uses_rc: bool,
+    /// Nested plain/hash imports share runtime nominal ownership across parents,
+    /// but generated Rust does not yet have their canonical hidden owner.
+    canonical_owner_uncertain: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ModuleRuleScopeMetadata {
+    rust_name: String,
+    fields: Vec<String>,
+    field_types: BTreeMap<String, Ty>,
+    member_params: BTreeMap<String, Vec<String>>,
+    member_fn_types: BTreeMap<String, FirTy>,
+    member_rules: BTreeMap<String, Vec<Rule>>,
+    canonical_owner_uncertain: bool,
+}
+
+#[derive(Debug, Clone)]
+struct ModuleCallableMetadata {
+    emitted_name: String,
+    param_names: Vec<String>,
+    borrow_only_params: Vec<bool>,
+    inout_params: Vec<bool>,
+    cow_params: Vec<bool>,
+    prolog_param_types: Option<Vec<String>>,
+    prolog_value: bool,
+    return_type: FirTy,
+    /// Present only for a `|` family. Ordinary `>` functions take precedence
+    /// over same-named rules and must never be classified as static misses.
+    rules: Option<Vec<Rule>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum StaticRuleCallResolution {
+    EmitNormally,
+    NominalMiss,
+    Unsupported(&'static str),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RustCodegenRuleDispatchMissMode {
+    /// Ordinary generated programs may consume only a statically total or
+    /// checked-False-miss RuleDispatch family.
+    RequireStaticTotality,
+    /// Explore's classifier is an isolated accelerator. A partial value miss
+    /// aborts its process, after which the coordinator retries the whole batch
+    /// through the checked interpreter. A typed RuleScope Bool miss retains
+    /// the interpreter's predicate-False semantics rather than inventing a
+    /// value for a partial non-Bool family.
+    ProcessFailure,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StaticRuleParamRelation {
+    CompatibleOrUnknown,
+    NominallyDisjoint,
+    UnsupportedCanonicalOwner,
+    UnsupportedStructuralAbi,
+}
+
+#[derive(Debug, Clone)]
 struct TypeRegistry {
     /// Type declarations: name -> list of type params + list of variants
     type_decls: BTreeMap<String, (Vec<String>, Vec<String>)>,
@@ -17920,6 +24722,11 @@ struct TypeRegistry {
     /// Maps variant name -> every parent ADT name that declares it. This keeps
     /// duplicate constructor names usable when an expression supplies type context.
     variant_parents: BTreeMap<String, BTreeSet<String>>,
+    /// Explore's checked native classifier must never use the legacy
+    /// declaration-order parent as a fallback for a multiply-owned
+    /// constructor. A deliberately invalid parent token then makes any
+    /// context-free backend reconstruction fail compilation atomically.
+    exact_ambiguous_constructor_fallbacks: bool,
     /// Maps original ADT name -> Rust-safe name (e.g. "Option" -> "FuturunaOption")
     type_rename: BTreeMap<String, String>,
     /// Maps variant name -> which argument indices need Box::new() wrapping (recursive fields)
@@ -17940,12 +24747,25 @@ struct TypeRegistry {
     variant_field_types: BTreeMap<String, BTreeMap<String, Ty>>,
     /// Parent-qualified field types for constructors shared by ADTs.
     variant_field_types_by_parent: BTreeMap<(String, String), BTreeMap<String, Ty>>,
+    /// Qualified module path + constructor -> the exact Rust parent and layout.
+    /// Global `variant_parent` intentionally cannot represent two modules (or a
+    /// root and a module) that reuse the same constructor token.
+    module_variants: BTreeMap<(String, String), ModuleVariantMetadata>,
+    /// Qualified module path + RuleScope constructor -> its exact field layout.
+    module_rule_scopes: BTreeMap<(String, String), ModuleRuleScopeMetadata>,
+    /// RuleScope member families keyed by the currently active nominal scope.
+    rule_scope_member_rules: BTreeMap<(String, String), Vec<Rule>>,
+    /// Types introduced into a qualified parent through nested plain/hash
+    /// edges. Cross-parent Rust ownership for these is deferred to td-625bb9.
+    flattened_module_types: BTreeSet<(String, String)>,
     /// RuleScope member signatures: (scope type, member name) -> function type excluding self.
     rule_scope_member_fn_types: BTreeMap<(String, String), FirTy>,
     /// RuleScope member parameter names keyed by (scope type, member name).
     rule_scope_member_params: BTreeMap<(String, String), Vec<String>>,
     /// Types with explicit user-provided Display impl (skip auto-generation)
     explicit_display_impls: BTreeSet<String>,
+    /// Lexical module path + source type for explicit Display impls.
+    module_explicit_display_impls: BTreeSet<(String, String)>,
     /// Types that are structs (single-variant ADTs where variant name == type name)
     struct_types: BTreeSet<String>,
     /// User-defined ADTs whose emitted Rust type actually derives Default
@@ -17999,11 +24819,16 @@ struct TypeRegistry {
     /// Names exported from the root module after flat imports and local exports.
     /// Qualified-import member exports stay in `module_exports`.
     root_exported_names: BTreeSet<String>,
-    /// Module names from imports and inline modules
-    known_modules: BTreeSet<String>,
-    /// Qualified-import module name -> exported member names.
+    /// Full sanitized lexical paths for module declarations.
+    known_module_paths: BTreeSet<String>,
+    /// Full sanitized qualified-import module path -> exported member names.
     /// Inline modules are public-by-default and are not listed here.
     module_exports: BTreeMap<String, BTreeSet<String>>,
+    /// Qualified callable ABI mirrored into the shared lowering registry so
+    /// root Rule inference can resolve module calls before module emission.
+    module_callable_metadata: BTreeMap<(String, String, usize), ModuleCallableMetadata>,
+    /// Lexical module path active for AST-to-FIR lowering under an overlay.
+    active_module_path: Vec<String>,
     /// Module path -> top-level value bindings lowered as getter functions
     module_value_bindings: BTreeMap<String, BTreeSet<String>>,
     /// Module path -> top-level stream bindings lowered as getter functions
@@ -18024,6 +24849,7 @@ impl TypeRegistry {
             type_decls: BTreeMap::new(),
             variant_parent: BTreeMap::new(),
             variant_parents: BTreeMap::new(),
+            exact_ambiguous_constructor_fallbacks: false,
             type_rename: BTreeMap::new(),
             variant_boxed_args: BTreeMap::new(),
             variant_boxed_args_by_parent: BTreeMap::new(),
@@ -18034,9 +24860,14 @@ impl TypeRegistry {
             call_params: BTreeMap::new(),
             variant_field_types: BTreeMap::new(),
             variant_field_types_by_parent: BTreeMap::new(),
+            module_variants: BTreeMap::new(),
+            module_rule_scopes: BTreeMap::new(),
+            rule_scope_member_rules: BTreeMap::new(),
+            flattened_module_types: BTreeSet::new(),
             rule_scope_member_fn_types: BTreeMap::new(),
             rule_scope_member_params: BTreeMap::new(),
             explicit_display_impls: BTreeSet::new(),
+            module_explicit_display_impls: BTreeSet::new(),
             struct_types: BTreeSet::new(),
             default_derive_types: BTreeSet::new(),
             default_derive_param_requirements: BTreeMap::new(),
@@ -18062,8 +24893,10 @@ impl TypeRegistry {
             fn_types_by_arity: BTreeMap::new(),
             exported_names: BTreeSet::new(),
             root_exported_names: BTreeSet::new(),
-            known_modules: BTreeSet::new(),
+            known_module_paths: BTreeSet::new(),
             module_exports: BTreeMap::new(),
+            module_callable_metadata: BTreeMap::new(),
+            active_module_path: Vec::new(),
             module_value_bindings: BTreeMap::new(),
             module_stream_bindings: BTreeMap::new(),
             comptime_values: BTreeMap::new(),
@@ -18073,13 +24906,189 @@ impl TypeRegistry {
         }
     }
 
+    fn canonical_module_metadata_path(&self, path: &str) -> String {
+        // Qualified aliases are distinct runtime instances and nominal owners.
+        // Metadata therefore stays keyed by the authored lexical module path.
+        path.to_string()
+    }
+
+    fn module_path_is_known(&self, path: &str) -> bool {
+        self.known_module_paths.contains(path)
+            || self
+                .known_module_paths
+                .contains(&self.canonical_module_metadata_path(path))
+    }
+
+    fn lowering_module_path_key(
+        &self,
+        expr: &Expr,
+        value_bindings: &BTreeMap<String, FirTy>,
+    ) -> Option<String> {
+        match &expr.kind {
+            ExprKind::Var(name) => {
+                if value_bindings.contains_key(name) {
+                    return None;
+                }
+                let name = sanitize_name(name);
+                for parent_len in (1..=self.active_module_path.len()).rev() {
+                    let relative = format!(
+                        "{}::{}",
+                        self.active_module_path[..parent_len].join("::"),
+                        name
+                    );
+                    if self.module_path_is_known(&relative) {
+                        return Some(relative);
+                    }
+                }
+                self.module_path_is_known(&name).then_some(name)
+            }
+            ExprKind::Field(parent, field) => {
+                let path = format!(
+                    "{}::{}",
+                    self.lowering_module_path_key(parent, value_bindings)?,
+                    sanitize_name(field)
+                );
+                self.module_path_is_known(&path).then_some(path)
+            }
+            _ => None,
+        }
+    }
+
+    fn qualified_type_parts(type_name: &str) -> Option<(String, String)> {
+        let qualified = type_name.strip_prefix("crate::")?;
+        let (module_path, rust_name) = qualified.rsplit_once("::")?;
+        Some((module_path.to_string(), rust_name.to_string()))
+    }
+
+    fn module_local_rust_type_name(
+        &self,
+        module_path: &str,
+        name: &str,
+    ) -> Option<(String, String)> {
+        let canonical_path = self.canonical_module_metadata_path(module_path);
+        let segments = canonical_path.split("::").collect::<Vec<_>>();
+        for ancestor_len in (1..=segments.len()).rev() {
+            let owner_path = segments[..ancestor_len].join("::");
+            if let Some(rust_name) = self
+                .module_variants
+                .iter()
+                .find_map(|((path, _), metadata)| {
+                    (path == &owner_path
+                        && (metadata.source_parent == name || metadata.parent == name))
+                        .then(|| metadata.parent.clone())
+                })
+                .or_else(|| {
+                    self.module_rule_scopes
+                        .iter()
+                        .find_map(|((path, source_name), metadata)| {
+                            (path == &owner_path
+                                && (source_name == name || metadata.rust_name == name))
+                                .then(|| metadata.rust_name.clone())
+                        })
+                })
+            {
+                return Some((owner_path, rust_name));
+            }
+        }
+        None
+    }
+
+    fn qualify_module_fir_ty(&self, module_path: &str, ty: FirTy) -> FirTy {
+        let module_path = self.canonical_module_metadata_path(module_path);
+        match ty {
+            FirTy::Named(name) if name.starts_with("crate::") => FirTy::Named(name),
+            FirTy::Named(name) => self
+                .module_local_rust_type_name(&module_path, &name)
+                .map(|(owner_path, rust_name)| {
+                    FirTy::Named(format!("crate::{}::{}", owner_path, rust_name))
+                })
+                .unwrap_or(FirTy::Named(name)),
+            FirTy::List(inner) => {
+                FirTy::List(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Option(inner) => {
+                FirTy::Option(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Result(ok, err) => FirTy::Result(
+                Box::new(self.qualify_module_fir_ty(&module_path, *ok)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *err)),
+            ),
+            FirTy::Tuple(items) => FirTy::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.qualify_module_fir_ty(&module_path, item))
+                    .collect(),
+            ),
+            FirTy::Map(key, value) => FirTy::Map(
+                Box::new(self.qualify_module_fir_ty(&module_path, *key)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *value)),
+            ),
+            FirTy::Set(inner) => {
+                FirTy::Set(Box::new(self.qualify_module_fir_ty(&module_path, *inner)))
+            }
+            FirTy::Arrow(param, ret) => FirTy::Arrow(
+                Box::new(self.qualify_module_fir_ty(&module_path, *param)),
+                Box::new(self.qualify_module_fir_ty(&module_path, *ret)),
+            ),
+            other => other,
+        }
+    }
+
+    fn module_rule_scope_for_named_type(
+        &self,
+        type_name: &str,
+    ) -> Option<(String, &ModuleRuleScopeMetadata)> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        self.module_rule_scopes
+            .iter()
+            .find_map(|((path, _), metadata)| {
+                (path == &module_path && metadata.rust_name == rust_name)
+                    .then(|| (module_path.clone(), metadata))
+            })
+    }
+
+    fn module_variant_field_ty_for_named_type(
+        &self,
+        type_name: &str,
+        field: &str,
+    ) -> Option<(String, Ty)> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        self.module_variants
+            .iter()
+            .find_map(|((path, _), metadata)| {
+                (path == &module_path && metadata.parent == rust_name)
+                    .then(|| metadata.field_types.get(field).cloned())
+                    .flatten()
+                    .map(|ty| (module_path.clone(), ty))
+            })
+    }
+
+    fn module_variants_for_named_type(
+        &self,
+        type_name: &str,
+    ) -> Option<Vec<(String, ModuleVariantMetadata)>> {
+        let (module_path, rust_name) = Self::qualified_type_parts(type_name)?;
+        let module_path = self.canonical_module_metadata_path(&module_path);
+        let variants = self
+            .module_variants
+            .iter()
+            .filter(|((path, _), metadata)| path == &module_path && metadata.parent == rust_name)
+            .map(|((_, constructor), metadata)| (constructor.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        (!variants.is_empty()).then_some(variants)
+    }
+
     fn register_variant_parent(&mut self, variant: &str, parent: &str) {
+        const AMBIGUOUS_PARENT: &str = "<futuruna-explore-ambiguous-constructor-owner>";
+        let parents = self.variant_parents.entry(variant.to_string()).or_default();
+        parents.insert(parent.to_string());
+        let fallback = if self.exact_ambiguous_constructor_fallbacks && parents.len() > 1 {
+            AMBIGUOUS_PARENT
+        } else {
+            parent
+        };
         self.variant_parent
-            .insert(variant.to_string(), parent.to_string());
-        self.variant_parents
-            .entry(variant.to_string())
-            .or_default()
-            .insert(parent.to_string());
+            .insert(variant.to_string(), fallback.to_string());
     }
 
     fn register_variant_metadata(
@@ -18102,29 +25111,54 @@ impl TypeRegistry {
             .map(|field| (field.name.clone(), field.ty.clone()))
             .collect::<BTreeMap<_, _>>();
 
-        self.variant_positional
-            .insert(variant.name.clone(), variant.positional);
         self.variant_positional_by_parent
             .insert(key.clone(), variant.positional);
-        if variant.positional {
-            self.variant_fields.remove(variant.name.as_str());
-        } else {
-            self.variant_fields
-                .insert(variant.name.clone(), field_names.clone());
-        }
         self.variant_fields_by_parent
-            .insert(key.clone(), field_names);
-        self.variant_field_types
-            .insert(variant.name.clone(), field_types.clone());
+            .insert(key.clone(), field_names.clone());
         self.variant_field_types_by_parent
-            .insert(key.clone(), field_types);
-        if boxed_args.is_empty() {
+            .insert(key.clone(), field_types.clone());
+        self.variant_boxed_args_by_parent
+            .insert(key, boxed_args.clone());
+
+        let multiply_owned_exact = self.exact_ambiguous_constructor_fallbacks
+            && self
+                .variant_parents
+                .get(variant.name.as_str())
+                .is_some_and(|parents| parents.len() > 1);
+        if multiply_owned_exact {
+            // Exact classifier codegen must never inherit the last declaration
+            // through an owner-free layout table. Parent-qualified metadata
+            // above remains complete; every unqualified fallback is poisoned.
+            self.variant_positional.remove(variant.name.as_str());
+            self.variant_fields.remove(variant.name.as_str());
+            self.variant_field_types.remove(variant.name.as_str());
             self.variant_boxed_args.remove(variant.name.as_str());
         } else {
-            self.variant_boxed_args
-                .insert(variant.name.clone(), boxed_args.clone());
+            self.variant_positional
+                .insert(variant.name.clone(), variant.positional);
+            if variant.positional {
+                self.variant_fields.remove(variant.name.as_str());
+            } else {
+                self.variant_fields
+                    .insert(variant.name.clone(), field_names);
+            }
+            self.variant_field_types
+                .insert(variant.name.clone(), field_types);
+            if boxed_args.is_empty() {
+                self.variant_boxed_args.remove(variant.name.as_str());
+            } else {
+                self.variant_boxed_args
+                    .insert(variant.name.clone(), boxed_args);
+            }
         }
-        self.variant_boxed_args_by_parent.insert(key, boxed_args);
+    }
+
+    fn unqualified_variant_metadata_is_sound(&self, constructor: &str) -> bool {
+        !self.exact_ambiguous_constructor_fallbacks
+            || self
+                .variant_parents
+                .get(constructor)
+                .is_some_and(|parents| parents.len() == 1)
     }
 
     fn variant_key_for_expected(
@@ -18146,9 +25180,13 @@ impl TypeRegistry {
             .and_then(|key| self.variant_field_types_by_parent.get(&key))
             .and_then(|types| types.get(field))
             .or_else(|| {
-                self.variant_field_types
-                    .get(constructor)
-                    .and_then(|types| types.get(field))
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_field_types
+                        .get(constructor)
+                        .and_then(|types| types.get(field))
+                } else {
+                    None
+                }
             })
             .map(|ty| LoweringCtx::ty_to_fir_with_registry(ty, self))
             .unwrap_or(FirTy::Unknown)
@@ -18174,14 +25212,26 @@ impl TypeRegistry {
             .as_ref()
             .and_then(|key| self.variant_positional_by_parent.get(key))
             .copied()
-            .or_else(|| self.variant_positional.get(constructor).copied())
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_positional.get(constructor).copied()
+                } else {
+                    None
+                }
+            })
             .unwrap_or(false);
         let field = if positional {
             format!("_{}", index)
         } else {
             key.as_ref()
                 .and_then(|key| self.variant_fields_by_parent.get(key))
-                .or_else(|| self.variant_fields.get(constructor))
+                .or_else(|| {
+                    if self.unqualified_variant_metadata_is_sound(constructor) {
+                        self.variant_fields.get(constructor)
+                    } else {
+                        None
+                    }
+                })
                 .and_then(|fields| fields.get(index))
                 .cloned()
                 .unwrap_or_else(|| format!("_{}", index))
@@ -18192,7 +25242,13 @@ impl TypeRegistry {
     fn variant_fields_for_parent(&self, parent: &str, constructor: &str) -> Option<&Vec<String>> {
         self.variant_fields_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_fields.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_fields.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn variant_field_types_for_parent(
@@ -18202,14 +25258,26 @@ impl TypeRegistry {
     ) -> Option<&BTreeMap<String, Ty>> {
         self.variant_field_types_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_field_types.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_field_types.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn variant_positional_for_parent(&self, parent: &str, constructor: &str) -> bool {
         self.variant_positional_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
             .copied()
-            .or_else(|| self.variant_positional.get(constructor).copied())
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_positional.get(constructor).copied()
+                } else {
+                    None
+                }
+            })
             .unwrap_or(true)
     }
 
@@ -18220,7 +25288,13 @@ impl TypeRegistry {
     ) -> Option<&Vec<usize>> {
         self.variant_boxed_args_by_parent
             .get(&(parent.to_string(), constructor.to_string()))
-            .or_else(|| self.variant_boxed_args.get(constructor))
+            .or_else(|| {
+                if self.unqualified_variant_metadata_is_sound(constructor) {
+                    self.variant_boxed_args.get(constructor)
+                } else {
+                    None
+                }
+            })
     }
 
     fn pair_uses_rust_tuple_representation(&self) -> bool {
@@ -18355,6 +25429,41 @@ struct RuleSignatureInferenceCacheEntry {
     result: RuleSignatureInference,
 }
 
+#[derive(Clone, Copy)]
+enum RustRuleHeadBindingMaterialization {
+    Direct,
+    DerefClone,
+    ToOwnedString,
+}
+
+struct RustRuleHeadBinding {
+    source_name: String,
+    temporary_name: String,
+    ty: FirTy,
+    materialization: RustRuleHeadBindingMaterialization,
+}
+
+struct RustRuleHeadApplicability {
+    subject: String,
+    pattern: String,
+    guards: Vec<String>,
+    bindings: Vec<RustRuleHeadBinding>,
+}
+
+struct RustRuleHeadPatternState {
+    used_names: BTreeSet<String>,
+    next_temporary: usize,
+    guards: Vec<String>,
+    bindings: Vec<RustRuleHeadBinding>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RustCodegenIntArithmeticMode {
+    LanguageDefault,
+    ExploreClassifierExact,
+}
+
+#[derive(Clone)]
 struct RustCodegen {
     indent: usize,
     /// Shared type metadata
@@ -18370,6 +25479,9 @@ struct RustCodegen {
     mutable_vars: BTreeSet<String>,
     /// Library mode: emit no fn main(), exported names get pub
     lib_mode: bool,
+    /// Native Explore classifiers must fail the entire batch on an Int
+    /// arithmetic error so the coordinator can fall back atomically.
+    int_arithmetic_mode: RustCodegenIntArithmeticMode,
     /// Top-level bindings that can be referenced through generated getter functions
     lib_static_names: BTreeSet<String>,
     /// Pure ground metadata bindings validated during calculation-contract extraction.
@@ -18412,6 +25524,30 @@ struct RustCodegen {
     source_dir: Option<String>,
     /// Already-imported files (prevent cycles)
     imported: BTreeSet<String>,
+    /// Qualified module instances already expanded in a parent namespace.
+    /// The source alias is part of instance identity: A and B stay isolated,
+    /// while repeating the same A/source edge is idempotent.
+    qualified_module_instances: BTreeSet<(String, String, String)>,
+    /// Full canonical module path + callable name/arity -> its emitted Rust ABI.
+    /// Qualified calls must not consult same-named root borrow/inout/rule facts.
+    module_callable_metadata: BTreeMap<(String, String, usize), ModuleCallableMetadata>,
+    /// Ordinary `>` declarations visible in the active lexical namespace.
+    /// They outrank same-named `|` families for direct-call lowering.
+    ordinary_function_arities: BTreeSet<(String, usize)>,
+    /// Source rule name/arity -> collision-free Rust symbol in the active namespace.
+    rule_emitted_names: BTreeMap<(String, usize), String>,
+    /// Canonical RuleDispatch result contracts minted by the TypeChecker.
+    /// FIR inference remains useful for parameter ownership, but it may not
+    /// invent a result ABI after the canonical checker rejected the family.
+    canonical_rule_return_types: BTreeMap<RuleDispatchKey, String>,
+    canonical_rule_return_issues: BTreeMap<RuleDispatchKey, String>,
+    canonical_rule_parameter_types: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    canonical_rule_parameter_names: BTreeMap<RuleDispatchKey, Vec<Option<String>>>,
+    canonical_rule_parameter_issues: BTreeSet<RuleDispatchKey>,
+    canonical_rule_boolean_miss_safe_keys: BTreeSet<RuleDispatchKey>,
+    runtime_rule_irrefutable_keys: BTreeSet<RuleDispatchKey>,
+    canonical_rule_metadata_installed: bool,
+    rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode,
     /// Auto-borrow: functions whose params are borrow-only (never consumed in body)
     /// fn_name -> vec of bools (true = param is borrow-only, emit &T)
     borrow_only_params: BTreeMap<String, Vec<bool>>,
@@ -18428,6 +25564,9 @@ struct RustCodegen {
     fn_once_mode: bool,
     /// True when emitting a method body where self is &self — skip boxed unboxing
     in_self_method: bool,
+    /// ADT-block methods are emitted as free functions, so their source `self`
+    /// parameter must use the non-keyword Rust identifier `self_` in the body.
+    in_standalone_adt_method: bool,
     /// Effects of the function currently being emitted (for routing op calls to handler params)
     current_effects: Vec<String>,
     /// Effects provided by `| handle` blocks (concrete struct types, need `&mut`)
@@ -18503,6 +25642,8 @@ struct RustCodegen {
     persist_tx_counter: usize,
     /// Persisted transaction guards currently surrounding emitted statements.
     persist_tx_stack: Vec<String>,
+    /// Sanitized Rust module path currently being emitted.
+    current_module_path: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19061,6 +26202,9 @@ enum FirStmt {
         pass_block: Option<Vec<FirStmt>>,
         else_block: Option<Vec<FirStmt>>,
     },
+    /// Analysis-only declaration. Solver lowering consumes typed exploration
+    /// artifacts; ordinary FIR/Rust execution emits no runtime statement.
+    Explore,
     Assert(String, Vec<FirExpr>),
     Retract(String, Vec<FirExpr>),
     Abort,
@@ -19266,6 +26410,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
+        | FirStmt::Explore
         | FirStmt::Abort => {}
     }
 }
@@ -19416,6 +26561,7 @@ where
         | FirStmt::HashImport(_, _)
         | FirStmt::Depend(_, _)
         | FirStmt::RustBlock(_)
+        | FirStmt::Explore
         | FirStmt::Abort => {}
     }
 }
@@ -19742,6 +26888,25 @@ impl<'a> LoweringCtx<'a> {
             return FirTy::Unknown;
         };
 
+        if let Some((module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(ty) = metadata.field_types.get(field) {
+                let ty = Self::ty_to_fir_with_registry(ty, self.types);
+                return self.types.qualify_module_fir_ty(&module_path, ty);
+            }
+            if let Some(ty) = metadata.member_fn_types.get(field) {
+                return ty.clone();
+            }
+        }
+        if let Some((module_path, ty)) = self
+            .types
+            .module_variant_field_ty_for_named_type(type_name, field)
+        {
+            let ty = Self::ty_to_fir_with_registry(&ty, self.types);
+            return self.types.qualify_module_fir_ty(&module_path, ty);
+        }
+
         let mut candidate_types = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidate_types.push(renamed.clone());
@@ -19766,12 +26931,10 @@ impl<'a> LoweringCtx<'a> {
         }
 
         for candidate in &candidate_types {
-            for (variant, parent) in &self.types.variant_parent {
+            for ((parent, _variant), fields) in &self.types.variant_field_types_by_parent {
                 if parent == candidate {
-                    if let Some(fields) = self.types.variant_field_types.get(variant.as_str()) {
-                        if let Some(ty) = fields.get(field) {
-                            return self.source_ty_to_fir(ty);
-                        }
+                    if let Some(ty) = fields.get(field) {
+                        return self.source_ty_to_fir(ty);
                     }
                 }
             }
@@ -19784,6 +26947,14 @@ impl<'a> LoweringCtx<'a> {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(member_ty) = metadata.member_fn_types.get(member) {
+                return Some(member_ty.clone());
+            }
+        }
 
         let mut candidate_types = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
@@ -19936,6 +27107,13 @@ impl<'a> LoweringCtx<'a> {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(params) = metadata.member_params.get(method) {
+                return Some(params.clone());
+            }
+        }
         let mut candidates = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidates.push(renamed.clone());
@@ -20027,6 +27205,38 @@ impl<'a> LoweringCtx<'a> {
                 };
                 let reordered_args = self.reorder_named_app_args(func, args);
                 let args_for_lowering: &[Expr] = reordered_args.as_deref().unwrap_or(args);
+                let qualified_return_ty = match &func.kind {
+                    ExprKind::Field(module, name) => self
+                        .types
+                        .lowering_module_path_key(module, &self.type_env)
+                        .and_then(|path| {
+                            let path = self.types.canonical_module_metadata_path(&path);
+                            self.types
+                                .module_rule_scopes
+                                .get(&(path.clone(), name.clone()))
+                                .map(|metadata| {
+                                    FirTy::Named(format!("crate::{}::{}", path, metadata.rust_name))
+                                })
+                                .or_else(|| {
+                                    self.types
+                                        .module_variants
+                                        .get(&(path.clone(), name.clone()))
+                                        .map(|metadata| {
+                                            FirTy::Named(format!(
+                                                "crate::{}::{}",
+                                                path, metadata.parent
+                                            ))
+                                        })
+                                })
+                                .or_else(|| {
+                                    self.types
+                                        .module_callable_metadata
+                                        .get(&(path, name.clone(), args_for_lowering.len()))
+                                        .map(|metadata| metadata.return_type.clone())
+                                })
+                        }),
+                    _ => None,
+                };
                 let mut fir_func = self.lower_expr(func);
                 if let ExprKind::Var(name) = &func.kind {
                     if let Some(fn_ty) = self
@@ -20051,6 +27261,14 @@ impl<'a> LoweringCtx<'a> {
                     .iter()
                     .map(|a| self.lower_expr(a))
                     .collect();
+
+                if let Some(ty) = qualified_return_ty {
+                    return FirExpr {
+                        kind: FirExprKind::App(Box::new(fir_func), fir_args),
+                        span: expr.span,
+                        ty,
+                    };
+                }
 
                 if let ExprKind::Var(ref fn_name) = func.kind {
                     if let Some(ty) = self.constructor_app_ty(
@@ -20652,6 +27870,34 @@ impl<'a> LoweringCtx<'a> {
                 }
             }
             ExprKind::Field(obj, field) => {
+                if let Some(path) = self
+                    .types
+                    .lowering_module_path_key(obj, &self.type_env)
+                    .map(|path| self.types.canonical_module_metadata_path(&path))
+                {
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(path.clone(), field.clone()))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone()),
+                            span: expr.span,
+                            ty: FirTy::Named(format!("crate::{}::{}", path, metadata.rust_name)),
+                        };
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(path.clone(), field.clone()))
+                    {
+                        return FirExpr {
+                            kind: FirExprKind::Field(Box::new(self.lower_expr(obj)), field.clone()),
+                            span: expr.span,
+                            ty: FirTy::Named(format!("crate::{}::{}", path, metadata.parent)),
+                        };
+                    }
+                }
                 let fir_obj = self.lower_expr(obj);
                 let ty = self.field_ty(&fir_obj.ty, field);
                 FirExpr {
@@ -20902,6 +28148,7 @@ impl<'a> LoweringCtx<'a> {
                     .as_ref()
                     .map(|b| b.iter().map(|s| self.lower_stmt(s)).collect()),
             },
+            Stmt::Explore(_) => FirStmt::Explore,
             Stmt::Assert(name, args) => FirStmt::Assert(
                 name.clone(),
                 args.iter().map(|a| self.lower_expr(a)).collect(),
@@ -21122,6 +28369,7 @@ fn emit_fir_stmt(stmt: &FirStmt, types: &TypeRegistry) -> String {
                 body_strs.join(" ")
             )
         }
+        FirStmt::Explore => "/* exploration declaration */".to_string(),
         _ => "/* unhandled FIR stmt */".to_string(),
     }
 }
@@ -21171,15 +28419,32 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
             let parent = types
                 .parent_for_variant_with_expected(name, expected_ty)
                 .or_else(|| types.variant_parent.get(name).cloned());
-            let arg_strs: Vec<String> = args.iter().map(format_pat).collect();
+            let arg_strs = args
+                .iter()
+                .enumerate()
+                .map(|(index, argument)| {
+                    let field_ty = parent
+                        .as_ref()
+                        .map(|parent| FirTy::Named(parent.clone()))
+                        .map(|constructor_ty| {
+                            types.positional_pattern_field_ty_with_expected(
+                                name,
+                                index,
+                                &constructor_ty,
+                            )
+                        })
+                        .unwrap_or(FirTy::Unknown);
+                    format_pat_with_expected_ty(argument, &field_ty, types)
+                })
+                .collect::<Vec<_>>();
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
                     if args.is_empty() {
                         name.clone()
-                    } else if types.variant_positional.get(name).copied().unwrap_or(true) {
+                    } else if types.variant_positional_for_parent(&parent, name) {
                         format!("{}({})", parent, arg_strs.join(", "))
                     } else {
-                        let fields = types.variant_fields.get(name);
+                        let fields = types.variant_fields_for_parent(&parent, name);
                         let named_args = arg_strs
                             .iter()
                             .enumerate()
@@ -21195,11 +28460,11 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                     }
                 }
                 Some(parent) if args.is_empty() => format!("{}::{}", parent, name),
-                Some(parent) if types.variant_positional.get(name).copied().unwrap_or(true) => {
+                Some(parent) if types.variant_positional_for_parent(&parent, name) => {
                     format!("{}::{}({})", parent, name, arg_strs.join(", "))
                 }
                 Some(parent) => {
-                    let fields = types.variant_fields.get(name);
+                    let fields = types.variant_fields_for_parent(&parent, name);
                     let named_args = arg_strs
                         .iter()
                         .enumerate()
@@ -21223,7 +28488,20 @@ fn format_pat_with_expected_ty(pat: &Pat, expected_ty: &FirTy, types: &TypeRegis
                 .or_else(|| types.variant_parent.get(name).cloned());
             let field_strs = fields
                 .iter()
-                .map(|(field, value)| format!("{}: {}", field, format_pat(value)))
+                .map(|(field, value)| {
+                    let field_ty = parent
+                        .as_ref()
+                        .map(|parent| FirTy::Named(parent.clone()))
+                        .map(|constructor_ty| {
+                            types.pattern_field_ty_with_expected(name, field, &constructor_ty)
+                        })
+                        .unwrap_or(FirTy::Unknown);
+                    format!(
+                        "{}: {}",
+                        field,
+                        format_pat_with_expected_ty(value, &field_ty, types)
+                    )
+                })
                 .collect::<Vec<_>>();
             match parent {
                 Some(parent) if types.struct_types.contains(&parent) => {
@@ -21260,6 +28538,9 @@ fn count_var_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_var_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     walk_ast_stmt(stmt, &mut |child| {
         if let AstChild::Expr(expr) = child {
             if let ExprKind::Var(name) = &expr.kind {
@@ -21365,6 +28646,9 @@ fn count_consuming_uses(expr: &Expr, counts: &mut BTreeMap<String, usize>) {
 }
 
 fn count_consuming_uses_stmt(stmt: &Stmt, counts: &mut BTreeMap<String, usize>) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     if let Stmt::Bind(_, _, expr) = stmt {
         // Binding a variable to another variable is a consuming use (move).
         if let ExprKind::Var(name) = &expr.kind {
@@ -21790,6 +29074,9 @@ fn count_consuming_uses_borrow_aware_stmt_impl(
     self_param_names: &[&str],
     ignore_self_passthrough: bool,
 ) {
+    if matches!(stmt, Stmt::Explore(_)) {
+        return;
+    }
     if let Stmt::Bind(_, _, expr) = stmt {
         if let ExprKind::Var(name) = &expr.kind {
             *counts.entry(name.clone()).or_insert(0) += 1;
@@ -22723,7 +30010,8 @@ fn stmt_contains_try(stmt: &Stmt) -> bool {
         | Stmt::StreamBind(_, _)
         | Stmt::StreamSub(_, _)
         | Stmt::Invariant { .. }
-        | Stmt::Prove { .. } => false,
+        | Stmt::Prove { .. }
+        | Stmt::Explore(_) => false,
     }
 }
 
@@ -22861,6 +30149,7 @@ fn stmt_contains_persisted_mutation(stmt: &Stmt, persisted_types: &BTreeSet<Stri
         | Stmt::RustBlock(_)
         | Stmt::Annot(_, _)
         | Stmt::Rule(_)
+        | Stmt::Explore(_)
         | Stmt::Abort => false,
     }
 }
@@ -23155,9 +30444,10 @@ fn collect_rebound_in_expr(expr: &Expr, bound: &BTreeSet<String>, mutable: &mut 
     }
 }
 
-/// Check if a Futuruna type is Copy in Rust (primitive numeric/char types)
+/// Check if a Futuruna type is Copy in Rust (unit and primitive scalar types).
 fn is_copy_type(ty: &Ty) -> bool {
-    matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Int" | "Float" | "Char" | "Nat" | "Bool"))
+    matches!(ty, Ty::Unit)
+        || matches!(ty, Ty::Name(n) if matches!(n.as_str(), "Unit" | "Int" | "Float" | "Char" | "Nat" | "Bool"))
 }
 
 /// M26b: Map a Futuruna type to a SQLite column type for `@ persist` typed-column lowering.
@@ -23346,6 +30636,7 @@ impl RustCodegen {
             copy_vars: BTreeSet::new(),
             mutable_vars: BTreeSet::new(),
             lib_mode: false,
+            int_arithmetic_mode: RustCodegenIntArithmeticMode::LanguageDefault,
             lib_static_names: BTreeSet::new(),
             compile_time_metadata_bindings: BTreeSet::new(),
             allow_global_getter_refs: false,
@@ -23366,6 +30657,19 @@ impl RustCodegen {
             has_raw_rust_blocks: false,
             source_dir: None,
             imported: BTreeSet::new(),
+            qualified_module_instances: BTreeSet::new(),
+            module_callable_metadata: BTreeMap::new(),
+            ordinary_function_arities: BTreeSet::new(),
+            rule_emitted_names: BTreeMap::new(),
+            canonical_rule_return_types: BTreeMap::new(),
+            canonical_rule_return_issues: BTreeMap::new(),
+            canonical_rule_parameter_types: BTreeMap::new(),
+            canonical_rule_parameter_names: BTreeMap::new(),
+            canonical_rule_parameter_issues: BTreeSet::new(),
+            canonical_rule_boolean_miss_safe_keys: BTreeSet::new(),
+            runtime_rule_irrefutable_keys: BTreeSet::new(),
+            canonical_rule_metadata_installed: false,
+            rule_dispatch_miss_mode: RustCodegenRuleDispatchMissMode::RequireStaticTotality,
             borrow_only_params: BTreeMap::new(),
             aliased_vars: BTreeSet::new(),
             ref_match_bindings: BTreeSet::new(),
@@ -23373,6 +30677,7 @@ impl RustCodegen {
             string_returning_fns: BTreeSet::new(),
             fn_once_mode: false,
             in_self_method: false,
+            in_standalone_adt_method: false,
             current_effects: Vec::new(),
             handle_scope_effects: BTreeSet::new(),
             var_types: BTreeMap::new(),
@@ -23408,7 +30713,47 @@ impl RustCodegen {
             persist_tx_depth: 0,
             persist_tx_counter: 0,
             persist_tx_stack: Vec::new(),
+            current_module_path: Vec::new(),
         }
+    }
+
+    fn install_canonical_rule_metadata(&mut self, artifacts: &TypeCheckArtifacts) {
+        // Definition ABIs and exact-call consumability deliberately differ:
+        // an intrinsically partial but type-consistent rule can still be
+        // emitted, while Explore/SMT must not consume it as a total call.
+        self.canonical_rule_return_types = artifacts.rule_dispatch_backend_return_types.clone();
+        self.canonical_rule_return_issues = artifacts.rule_dispatch_backend_return_issues.clone();
+        self.canonical_rule_parameter_types = artifacts.rule_dispatch_parameter_types.clone();
+        self.canonical_rule_parameter_names = artifacts.rule_dispatch_parameter_names.clone();
+        self.canonical_rule_parameter_issues = artifacts.rule_dispatch_parameter_issues.clone();
+        self.canonical_rule_boolean_miss_safe_keys =
+            artifacts.rule_dispatch_boolean_miss_safe_keys.clone();
+        self.runtime_rule_irrefutable_keys =
+            artifacts.rule_dispatch_runtime_irrefutable_keys.clone();
+        self.canonical_rule_metadata_installed = true;
+    }
+
+    fn install_explore_native_classifier_rule_metadata(
+        &mut self,
+        metadata: &explore::ExploreNativeClassifierRuleMetadataV2,
+    ) {
+        self.canonical_rule_return_types = metadata.return_types.clone();
+        self.canonical_rule_return_issues = metadata.return_issues.clone();
+        self.canonical_rule_parameter_types = metadata.parameter_types.clone();
+        self.canonical_rule_parameter_names = metadata.parameter_names.clone();
+        self.canonical_rule_parameter_issues = metadata.parameter_issues.clone();
+        self.canonical_rule_boolean_miss_safe_keys = metadata.boolean_miss_safe_keys.clone();
+        self.runtime_rule_irrefutable_keys = metadata.runtime_irrefutable_keys.clone();
+        self.canonical_rule_metadata_installed = true;
+    }
+
+    fn ensure_canonical_rule_metadata(&mut self, statements: &[Stmt]) {
+        if self.canonical_rule_metadata_installed {
+            return;
+        }
+        let artifacts =
+            TypeChecker::check_with_backend_artifacts(statements, self.source_dir.clone(), "");
+        self.install_canonical_rule_metadata(&artifacts);
     }
 
     fn comptime_diagnostics_enabled() -> bool {
@@ -24027,7 +31372,10 @@ impl RustCodegen {
                         } else if std::path::Path::new(&dep_file_src).exists() {
                             dep_file_src
                         } else {
-                            eprintln!("\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'", module, dep_name);
+                            eprintln!(
+                                "\x1b[1;31merror\x1b[0m: cannot find module '{}' in dependency '{}'",
+                                module, dep_name
+                            );
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
                             return (Vec::new(), dir.to_string());
@@ -24073,7 +31421,7 @@ impl RustCodegen {
         import_path: &str,
         dir: &str,
         seen: &mut BTreeSet<String>,
-    ) -> (Vec<Stmt>, String, Option<String>) {
+    ) -> (Vec<Stmt>, String, Option<String>, bool) {
         let rel = import_path.trim_start_matches("./");
         let file_path = format!("{}/{}.runa", dir, rel);
 
@@ -24085,13 +31433,18 @@ impl RustCodegen {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or(file_path.clone());
             if !seen.insert(canon.clone()) {
-                return (Vec::new(), dir.to_string(), Some(canon));
+                return (Vec::new(), dir.to_string(), Some(canon), false);
             }
             let resolved_dir = std::path::Path::new(&file_path)
                 .parent()
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| dir.to_string());
-            return (Self::parse_tau_file(&file_path), resolved_dir, Some(canon));
+            return (
+                Self::parse_tau_file(&file_path),
+                resolved_dir,
+                Some(canon),
+                true,
+            );
         }
 
         if let Some(toml_path) = find_runa_toml(&dir) {
@@ -24116,7 +31469,7 @@ impl RustCodegen {
                     if name == dep_name {
                         let abs_dep = match resolve_dep_to_path(dep_spec, &toml_dir) {
                             Some(p) => p,
-                            None => return (Vec::new(), dir.to_string(), None),
+                            None => return (Vec::new(), dir.to_string(), None, false),
                         };
                         let dep_file = format!("{}/{}.runa", abs_dep, module);
                         let dep_file_src = format!("{}/src/{}.runa", abs_dep, module);
@@ -24132,20 +31485,25 @@ impl RustCodegen {
                             );
                             eprintln!("  Searched: {}", dep_file);
                             eprintln!("  Searched: {}", dep_file_src);
-                            return (Vec::new(), dir.to_string(), None);
+                            return (Vec::new(), dir.to_string(), None, false);
                         };
 
                         let canon = std::fs::canonicalize(&resolved)
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or(resolved.clone());
                         if !seen.insert(canon.clone()) {
-                            return (Vec::new(), dir.to_string(), Some(canon));
+                            return (Vec::new(), dir.to_string(), Some(canon), false);
                         }
                         let resolved_dir = std::path::Path::new(&resolved)
                             .parent()
                             .map(|p| p.to_string_lossy().to_string())
                             .unwrap_or_else(|| dir.to_string());
-                        return (Self::parse_tau_file(&resolved), resolved_dir, Some(canon));
+                        return (
+                            Self::parse_tau_file(&resolved),
+                            resolved_dir,
+                            Some(canon),
+                            true,
+                        );
                     }
                 }
             }
@@ -24155,13 +31513,18 @@ impl RustCodegen {
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or(file_path.clone());
         if !seen.insert(canon.clone()) {
-            return (Vec::new(), dir.to_string(), Some(canon));
+            return (Vec::new(), dir.to_string(), Some(canon), false);
         }
         let resolved_dir = std::path::Path::new(&file_path)
             .parent()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| dir.to_string());
-        (Self::parse_tau_file(&file_path), resolved_dir, Some(canon))
+        (
+            Self::parse_tau_file(&file_path),
+            resolved_dir,
+            Some(canon),
+            true,
+        )
     }
 
     /// Parse a .runa file without import-cycle tracking (for hash imports).
@@ -24525,6 +31888,14 @@ impl RustCodegen {
             .unwrap_or_else(|| tau_name.to_string())
     }
 
+    fn declared_rust_type_name(source_name: &str) -> String {
+        if matches!(source_name, "Bool" | "Box" | "Vec" | "String") {
+            format!("Futuruna{}", source_name)
+        } else {
+            source_name.to_string()
+        }
+    }
+
     /// Returns "Rc" or "Arc" depending on whether the program uses async
     fn rc_name(&self) -> &str {
         if self.has_async {
@@ -24605,11 +31976,17 @@ impl RustCodegen {
                     | Stmt::Defn(Defn::Module { name, .. }) => {
                         exported.insert(name.clone());
                     }
-                    Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                    Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
                         exported.insert(name.clone());
+                        exported.extend(variants.iter().map(|variant| variant.name.clone()));
                     }
                     Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
                         exported.insert(name.clone());
+                    }
+                    Stmt::Rule(rule) => {
+                        if let Some(name) = Self::rule_group_name(rule) {
+                            exported.insert(name);
+                        }
                     }
                     Stmt::Bind(Pat::Var(name), _, _) | Stmt::StreamBind(name, _) => {
                         exported.insert(name.clone());
@@ -24618,7 +31995,6 @@ impl RustCodegen {
                     | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                     | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
-                    | Stmt::Rule(_)
                     | Stmt::Use(_)
                     | Stmt::Import(_)
                     | Stmt::QualifiedImport(_, _)
@@ -24634,12 +32010,20 @@ impl RustCodegen {
                     | Stmt::StreamSub(_, _)
                     | Stmt::Invariant { .. }
                     | Stmt::Prove { .. }
+                    | Stmt::Explore(_)
                     | Stmt::Assert(_, _)
                     | Stmt::Retract(_, _)
                     | Stmt::Abort
                     | Stmt::Expr(_) => {}
                 }
                 is_export = false;
+            }
+        }
+        for stmt in stmts {
+            if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+                if exported.contains(name) {
+                    exported.extend(variants.iter().map(|variant| variant.name.clone()));
+                }
             }
         }
         exported
@@ -24667,6 +32051,7 @@ impl RustCodegen {
             | Stmt::Send(_, _)
             | Stmt::StreamSub(_, _)
             | Stmt::Prove { .. }
+            | Stmt::Explore(_)
             | Stmt::Assert(_, _)
             | Stmt::Retract(_, _)
             | Stmt::Abort
@@ -24698,7 +32083,11 @@ impl RustCodegen {
                     let Stmt::QualifiedImport(mod_name, path) = stmt else {
                         unreachable!("import classifier drifted for nested qualified import")
                     };
-                    out.push(self.build_qualified_import_module_stmt(&mod_name, &path, import_dir));
+                    if let Some(module) =
+                        self.build_qualified_import_module_stmt(&mod_name, &path, import_dir)
+                    {
+                        out.push(module);
+                    }
                 }
                 ImportedStmtExpansion::HashImport => {
                     let Stmt::HashImport(hash, path) = stmt else {
@@ -24718,12 +32107,29 @@ impl RustCodegen {
         }
     }
 
+    fn record_flattened_module_types(&mut self, stmts: &[Stmt], module_path: &[String]) {
+        let owner = module_path.join("::");
+        for stmt in stmts {
+            match stmt {
+                Stmt::TypeDecl(TypeDecl::ADT { name, .. })
+                | Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
+                    self.types
+                        .flattened_module_types
+                        .insert((owner.clone(), name.clone()));
+                }
+                _ => {}
+            }
+        }
+    }
+
     fn expand_module_import_body(
         &mut self,
         imported: Vec<Stmt>,
         import_dir: &str,
         body: &mut Vec<Stmt>,
         seen: &mut BTreeSet<String>,
+        flattened: &mut BTreeSet<String>,
+        module_path: &[String],
     ) {
         for stmt in imported {
             match Self::classify_imported_stmt_for_expansion(&stmt) {
@@ -24731,29 +32137,49 @@ impl RustCodegen {
                     let Stmt::Import(path) = stmt else {
                         unreachable!("import classifier drifted for nested plain import")
                     };
-                    let (nested, nested_dir, canonical) =
+                    let (nested, nested_dir, canonical, inserted) =
                         self.resolve_import_from_dir_uncached(&path, import_dir, seen);
-                    if canonical
+                    let already_flattened = canonical
                         .as_ref()
-                        .map_or(false, |path| self.imported.contains(path))
-                    {
-                        continue;
+                        .is_some_and(|path| !flattened.insert(path.clone()));
+                    if !already_flattened {
+                        self.record_flattened_module_types(&nested, module_path);
+                        self.expand_module_import_body(
+                            nested,
+                            &nested_dir,
+                            body,
+                            seen,
+                            flattened,
+                            module_path,
+                        );
                     }
-                    self.expand_module_import_body(nested, &nested_dir, body, seen);
+                    if inserted {
+                        if let Some(canonical) = canonical {
+                            seen.remove(&canonical);
+                        }
+                    }
                 }
                 ImportedStmtExpansion::NestedQualifiedImport => {
                     let Stmt::QualifiedImport(mod_name, path) = stmt else {
                         unreachable!("import classifier drifted for nested qualified import")
                     };
-                    body.push(self.build_qualified_import_module_stmt_with_seen(
-                        &mod_name, &path, import_dir, seen,
-                    ));
+                    if let Some(module) = self.build_qualified_import_module_stmt_with_seen(
+                        &mod_name,
+                        &path,
+                        import_dir,
+                        seen,
+                        module_path,
+                    ) {
+                        body.push(module);
+                    }
                 }
                 ImportedStmtExpansion::HashImport => {
                     let Stmt::HashImport(hash, path) = stmt else {
                         unreachable!("import classifier drifted for hash import")
                     };
-                    body.extend(self.resolve_hash_import(&hash, &path));
+                    let matched = self.resolve_hash_import(&hash, &path);
+                    self.record_flattened_module_types(&matched, module_path);
+                    body.extend(matched);
                 }
                 ImportedStmtExpansion::CargoDependency => {
                     let Stmt::Depend(crate_name, version) = stmt else {
@@ -24772,9 +32198,15 @@ impl RustCodegen {
         mod_name: &str,
         path: &str,
         import_dir: &str,
-    ) -> Stmt {
+    ) -> Option<Stmt> {
         let mut seen = BTreeSet::new();
-        self.build_qualified_import_module_stmt_with_seen(mod_name, path, import_dir, &mut seen)
+        self.build_qualified_import_module_stmt_with_seen(
+            mod_name,
+            path,
+            import_dir,
+            &mut seen,
+            &[],
+        )
     }
 
     fn build_qualified_import_module_stmt_with_seen(
@@ -24783,23 +32215,52 @@ impl RustCodegen {
         path: &str,
         import_dir: &str,
         seen: &mut BTreeSet<String>,
-    ) -> Stmt {
-        let (imported, resolved_dir, _) =
+        namespace: &[String],
+    ) -> Option<Stmt> {
+        let (imported, resolved_dir, canonical, inserted) =
             self.resolve_import_from_dir_uncached(path, import_dir, seen);
         let mod_exported = self.collect_exported_names_from_stmts(&imported);
-        for name in &mod_exported {
-            self.types.exported_names.insert(name.clone());
-        }
+        let sanitized_module = sanitize_name(mod_name);
+        let namespace_key = namespace.join("::");
+        let module_path = if namespace_key.is_empty() {
+            sanitized_module.clone()
+        } else {
+            format!("{}::{}", namespace_key, sanitized_module)
+        };
+        self.types.known_module_paths.insert(module_path.clone());
         self.types
             .module_exports
-            .insert(mod_name.to_string(), mod_exported);
+            .insert(module_path.clone(), mod_exported);
+        if let Some(canonical) = canonical.as_ref() {
+            let instance_key = (namespace_key, sanitized_module.clone(), canonical.clone());
+            if !self.qualified_module_instances.insert(instance_key) {
+                if inserted {
+                    seen.remove(canonical);
+                }
+                return None;
+            }
+        }
         let mut mod_body = Vec::new();
-        self.expand_module_import_body(imported, &resolved_dir, &mut mod_body, seen);
-        self.types.known_modules.insert(mod_name.to_string());
-        Stmt::Defn(Defn::Module {
+        let mut child_namespace = namespace.to_vec();
+        child_namespace.push(sanitized_module);
+        let mut flattened = BTreeSet::new();
+        self.expand_module_import_body(
+            imported,
+            &resolved_dir,
+            &mut mod_body,
+            seen,
+            &mut flattened,
+            &child_namespace,
+        );
+        if inserted {
+            if let Some(canonical) = canonical {
+                seen.remove(&canonical);
+            }
+        }
+        Some(Stmt::Defn(Defn::Module {
             name: mod_name.to_string(),
             body: mod_body,
-        })
+        }))
     }
 
     /// Pass 1: Scan declarations — resolve imports, register types, detect async.
@@ -24808,13 +32269,19 @@ impl RustCodegen {
     fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {
         // Resolve @ import statements: parse imported .runa files and merge their definitions
         self.types.module_exports.clear();
+        self.types.flattened_module_types.clear();
+        self.types.known_module_paths.clear();
         self.types.root_exported_names.clear();
+        self.qualified_module_instances.clear();
+        self.module_callable_metadata.clear();
+        self.ordinary_function_arities.clear();
+        self.rule_emitted_names.clear();
+        self.types.module_callable_metadata.clear();
         let mut all_stmts: Vec<Stmt> = Vec::new();
         let root_dir = self.source_dir.clone().unwrap_or_default();
 
-        // Root flat imports establish the parent module's canonical type identity.
-        // Resolve them before qualified modules so source order cannot cause a
-        // qualified module to emit a second Rust type for the same dependency.
+        // Resolve flat imports first so their declarations keep source-order
+        // independence from later qualified module instances.
         for stmt in stmts {
             if let Stmt::Import(path) = stmt {
                 let (imported, import_dir) = self.resolve_import_from_dir(path, &root_dir);
@@ -24827,8 +32294,11 @@ impl RustCodegen {
                 Stmt::Import(_) => {}
                 Stmt::Use(_) => all_stmts.push(stmt.clone()),
                 Stmt::QualifiedImport(mod_name, path) => {
-                    all_stmts
-                        .push(self.build_qualified_import_module_stmt(mod_name, path, &root_dir));
+                    if let Some(module) =
+                        self.build_qualified_import_module_stmt(mod_name, path, &root_dir)
+                    {
+                        all_stmts.push(module);
+                    }
                 }
                 Stmt::HashImport(hash, path) => {
                     let matched = self.resolve_hash_import(hash, path);
@@ -24851,6 +32321,7 @@ impl RustCodegen {
                 | Stmt::StreamSub(_, _)
                 | Stmt::Invariant { .. }
                 | Stmt::Prove { .. }
+                | Stmt::Explore(_)
                 | Stmt::Assert(_, _)
                 | Stmt::Retract(_, _)
                 | Stmt::Abort
@@ -24907,6 +32378,9 @@ impl RustCodegen {
 
         self.types.module_value_bindings.clear();
         self.types.module_stream_bindings.clear();
+        self.types.module_variants.clear();
+        self.types.module_rule_scopes.clear();
+        self.types.module_explicit_display_impls.clear();
         let mut module_path = Vec::new();
         self.collect_module_value_bindings(&all_stmts, &mut module_path);
 
@@ -24944,13 +32418,23 @@ impl RustCodegen {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
                         }
-                        Stmt::TypeDecl(TypeDecl::ADT { name, .. }) => {
+                        Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
+                            for variant in variants {
+                                self.types.exported_names.insert(variant.name.clone());
+                                self.types.root_exported_names.insert(variant.name.clone());
+                            }
                         }
                         Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) => {
                             self.types.exported_names.insert(name.clone());
                             self.types.root_exported_names.insert(name.clone());
+                        }
+                        Stmt::Rule(rule) => {
+                            if let Some(name) = Self::rule_group_name(rule) {
+                                self.types.exported_names.insert(name.clone());
+                                self.types.root_exported_names.insert(name);
+                            }
                         }
                         Stmt::Bind(Pat::Var(name), _, _) => {
                             self.types.exported_names.insert(name.clone());
@@ -24965,7 +32449,6 @@ impl RustCodegen {
                         | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                         | Stmt::TypeDecl(TypeDecl::ImplBlock { .. })
-                        | Stmt::Rule(_)
                         | Stmt::Use(_)
                         | Stmt::Import(_)
                         | Stmt::QualifiedImport(_, _)
@@ -24981,6 +32464,7 @@ impl RustCodegen {
                         | Stmt::StreamSub(_, _)
                         | Stmt::Invariant { .. }
                         | Stmt::Prove { .. }
+                        | Stmt::Explore(_)
                         | Stmt::Assert(_, _)
                         | Stmt::Retract(_, _)
                         | Stmt::Abort
@@ -25858,7 +33342,6 @@ impl RustCodegen {
         }
 
         // Build type rename map + variant→parent lookup for all ADTs
-        let conflicting = ["Bool", "Box", "Vec", "String"];
         for stmt in stmts {
             if let Stmt::TypeDecl(TypeDecl::ADT {
                 name,
@@ -25868,11 +33351,7 @@ impl RustCodegen {
                 ..
             }) = stmt
             {
-                let rust_name = if conflicting.contains(&name.as_str()) {
-                    format!("Futuruna{}", name)
-                } else {
-                    name.clone()
-                };
+                let rust_name = Self::declared_rust_type_name(name);
                 if rust_name != *name {
                     self.types
                         .type_rename
@@ -25910,11 +33389,7 @@ impl RustCodegen {
                 }
             }
             if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = stmt {
-                let rust_name = if conflicting.contains(&name.as_str()) {
-                    format!("Futuruna{}", name)
-                } else {
-                    name.clone()
-                };
+                let rust_name = Self::declared_rust_type_name(name);
                 if rust_name != *name {
                     self.types
                         .type_rename
@@ -25963,118 +33438,6 @@ impl RustCodegen {
                 self.fn_return_types.insert(name.clone(), rust_name);
                 self.register_rule_scope_member_params(name, body);
             }
-            // Scan types inside modules too
-            if let Stmt::Defn(Defn::Module { body, .. }) = stmt {
-                for inner_stmt in body {
-                    if let Stmt::TypeDecl(TypeDecl::ADT {
-                        name,
-                        params,
-                        variants,
-                        methods,
-                        ..
-                    }) = inner_stmt
-                    {
-                        let rust_name = if conflicting.contains(&name.as_str()) {
-                            format!("Futuruna{}", name)
-                        } else {
-                            name.clone()
-                        };
-                        if rust_name != *name {
-                            self.types
-                                .type_rename
-                                .insert(name.clone(), rust_name.clone());
-                        }
-                        let param_names: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let variant_names: Vec<String> =
-                            variants.iter().map(|v| v.name.clone()).collect();
-                        for v in variants {
-                            let boxed: Vec<usize> = v
-                                .fields
-                                .iter()
-                                .enumerate()
-                                .filter(|(_, f)| {
-                                    RustCodegen::type_references_adt_static(&f.ty, name)
-                                })
-                                .map(|(i, _)| i)
-                                .collect();
-                            self.types
-                                .register_variant_metadata(rust_name.as_str(), v, boxed);
-                        }
-                        if variants.len() == 1
-                            && variants[0].name == *name
-                            && !variants[0].fields.is_empty()
-                        {
-                            self.types.struct_types.insert(rust_name.clone());
-                        }
-                        self.types
-                            .type_decls
-                            .insert(rust_name, (param_names, variant_names));
-                        for method in methods {
-                            if let Defn::Fn { name, params, .. } = method {
-                                self.types.call_params.insert(
-                                    name.clone(),
-                                    params.iter().map(|param| param.name.clone()).collect(),
-                                );
-                            }
-                        }
-                    }
-                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, params, body }) = inner_stmt {
-                        let rust_name = if conflicting.contains(&name.as_str()) {
-                            format!("Futuruna{}", name)
-                        } else {
-                            name.clone()
-                        };
-                        if rust_name != *name {
-                            self.types
-                                .type_rename
-                                .insert(name.clone(), rust_name.clone());
-                        }
-                        self.types.struct_types.insert(rust_name.clone());
-                        let rule_scope_fields: Vec<String> =
-                            params.iter().map(|p| p.name.clone()).collect();
-                        let rule_scope_field_types: BTreeMap<String, Ty> = params
-                            .iter()
-                            .filter_map(|p| p.ty.as_ref().map(|ty| (p.name.clone(), ty.clone())))
-                            .collect();
-                        self.types
-                            .variant_fields
-                            .insert(name.clone(), rule_scope_fields.clone());
-                        self.types
-                            .variant_fields
-                            .insert(rust_name.clone(), rule_scope_fields);
-                        self.types.call_params.insert(
-                            name.clone(),
-                            params.iter().map(|param| param.name.clone()).collect(),
-                        );
-                        self.types
-                            .variant_field_types
-                            .insert(name.clone(), rule_scope_field_types.clone());
-                        self.types
-                            .variant_field_types
-                            .insert(rust_name.clone(), rule_scope_field_types);
-                        self.types
-                            .type_decls
-                            .insert(rust_name.clone(), (Vec::new(), Vec::new()));
-                        self.types.user_functions.insert(name.clone());
-                        let mut fn_ty = FirTy::Named(rust_name.clone());
-                        for param in params.iter().rev() {
-                            let param_ty = param
-                                .ty
-                                .as_ref()
-                                .map(|ty| self.source_ty_to_fir(ty))
-                                .unwrap_or(FirTy::Unknown);
-                            fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
-                        }
-                        self.types.fn_types.insert(name.clone(), fn_ty.clone());
-                        self.types
-                            .fn_types_by_arity
-                            .insert((name.clone(), params.len()), fn_ty);
-                        self.fn_return_types.insert(name.clone(), rust_name);
-                        self.register_rule_scope_member_params(name, body);
-                    }
-                }
-            }
             // Register user-defined function names
             if let Stmt::Defn(Defn::Fn {
                 name,
@@ -26083,6 +33446,8 @@ impl RustCodegen {
                 ..
             }) = stmt
             {
+                self.ordinary_function_arities
+                    .insert((name.clone(), params.len()));
                 self.types.user_functions.insert(name.clone());
                 self.types.call_params.insert(
                     name.clone(),
@@ -26169,6 +33534,9 @@ impl RustCodegen {
             self.types.rc_types = recursive_types;
         }
 
+        let mut module_path = Vec::new();
+        self.collect_module_variant_metadata(&all_stmts, &mut module_path);
+
         self.refresh_default_derive_types(stmts);
 
         // Pre-scan top-level bindings that can be addressed via getter functions.
@@ -26185,10 +33553,16 @@ impl RustCodegen {
     }
 
     fn refresh_default_derive_types(&mut self, stmts: &[Stmt]) {
+        self.types.default_derive_types.clear();
+        self.types.default_derive_param_requirements.clear();
+        self.extend_default_derive_types(stmts);
+    }
+
+    fn extend_default_derive_types(&mut self, stmts: &[Stmt]) {
         let mut adts = Vec::new();
         self.collect_adt_default_infos(stmts, &mut adts);
-        let mut default_types = BTreeSet::new();
-        let mut default_param_requirements = BTreeMap::new();
+        let mut default_types = self.types.default_derive_types.clone();
+        let mut default_param_requirements = self.types.default_derive_param_requirements.clone();
 
         loop {
             let mut changed = false;
@@ -26236,7 +33610,6 @@ impl RustCodegen {
                     params.iter().map(|p| p.name.clone()).collect(),
                     variants.clone(),
                 )),
-                Stmt::Defn(Defn::Module { body, .. }) => self.collect_adt_default_infos(body, out),
                 _ => {}
             }
         }
@@ -26399,8 +33772,9 @@ impl RustCodegen {
     fn collect_module_value_bindings(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
         for stmt in stmts {
             if let Stmt::Defn(Defn::Module { name, body }) = stmt {
-                module_path.push(name.clone());
+                module_path.push(sanitize_name(name));
                 let path = module_path.join("::");
+                self.types.known_module_paths.insert(path.clone());
                 let binding_names: BTreeSet<String> = body
                     .iter()
                     .filter_map(|stmt| match stmt {
@@ -26428,10 +33802,285 @@ impl RustCodegen {
             }
         }
     }
+
+    fn collect_module_variant_metadata(&mut self, stmts: &[Stmt], module_path: &mut Vec<String>) {
+        for stmt in stmts {
+            let Stmt::Defn(Defn::Module { name, body }) = stmt else {
+                continue;
+            };
+            module_path.push(sanitize_name(name));
+            let path = module_path.join("::");
+            for inner in body {
+                match inner {
+                    Stmt::TypeDecl(TypeDecl::ADT {
+                        name,
+                        params,
+                        variants,
+                        ..
+                    }) => {
+                        let parent = Self::declared_rust_type_name(name);
+                        let struct_type = variants.len() == 1
+                            && variants[0].name == *name
+                            && !variants[0].fields.is_empty();
+                        let uses_rc = variants.iter().any(|variant| {
+                            variant
+                                .fields
+                                .iter()
+                                .any(|field| Self::type_references_adt_static(&field.ty, name))
+                        });
+                        let canonical_owner_uncertain = self
+                            .types
+                            .flattened_module_types
+                            .contains(&(path.clone(), name.clone()));
+                        for variant in variants {
+                            let boxed_args = variant
+                                .fields
+                                .iter()
+                                .enumerate()
+                                .filter(|(_, field)| {
+                                    Self::type_references_adt_static(&field.ty, name)
+                                })
+                                .map(|(index, _)| index)
+                                .collect();
+                            self.types.module_variants.insert(
+                                (path.clone(), variant.name.clone()),
+                                ModuleVariantMetadata {
+                                    source_parent: name.clone(),
+                                    parent: parent.clone(),
+                                    type_params: params
+                                        .iter()
+                                        .map(|param| param.name.clone())
+                                        .collect(),
+                                    positional: variant.positional,
+                                    fields: variant
+                                        .fields
+                                        .iter()
+                                        .map(|field| field.name.clone())
+                                        .collect(),
+                                    field_types: variant
+                                        .fields
+                                        .iter()
+                                        .map(|field| (field.name.clone(), field.ty.clone()))
+                                        .collect(),
+                                    boxed_args,
+                                    struct_type,
+                                    uses_rc,
+                                    canonical_owner_uncertain,
+                                },
+                            );
+                        }
+                    }
+                    Stmt::TypeDecl(TypeDecl::RuleScope { name, params, .. }) => {
+                        let canonical_owner_uncertain = self
+                            .types
+                            .flattened_module_types
+                            .contains(&(path.clone(), name.clone()));
+                        self.types.module_rule_scopes.insert(
+                            (path.clone(), name.clone()),
+                            ModuleRuleScopeMetadata {
+                                rust_name: Self::declared_rust_type_name(name),
+                                fields: params.iter().map(|param| param.name.clone()).collect(),
+                                field_types: params
+                                    .iter()
+                                    .filter_map(|param| {
+                                        param.ty.as_ref().map(|ty| (param.name.clone(), ty.clone()))
+                                    })
+                                    .collect(),
+                                member_params: BTreeMap::new(),
+                                member_fn_types: BTreeMap::new(),
+                                member_rules: BTreeMap::new(),
+                                canonical_owner_uncertain,
+                            },
+                        );
+                    }
+                    Stmt::TypeDecl(TypeDecl::ImplBlock {
+                        trait_name,
+                        for_type,
+                        ..
+                    }) if matches!(
+                        trait_name.as_str(),
+                        "Display" | "fmt::Display" | "std::fmt::Display"
+                    ) =>
+                    {
+                        self.types
+                            .module_explicit_display_impls
+                            .insert((path.clone(), for_type.clone()));
+                    }
+                    _ => {}
+                }
+            }
+            self.collect_module_variant_metadata(body, module_path);
+            module_path.pop();
+        }
+    }
+
+    fn overlay_current_module_type_metadata(&mut self) {
+        let path = self.current_module_path.join("::");
+        let variants = self
+            .types
+            .module_variants
+            .iter()
+            .filter(|((module_path, _), _)| module_path == &path)
+            .map(|((_, constructor), metadata)| (constructor.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        let mut parents = BTreeMap::<String, (String, Vec<String>, Vec<String>)>::new();
+        for (constructor, metadata) in &variants {
+            let entry = parents.entry(metadata.parent.clone()).or_insert_with(|| {
+                (
+                    metadata.source_parent.clone(),
+                    metadata.type_params.clone(),
+                    Vec::new(),
+                )
+            });
+            entry.2.push(constructor.clone());
+        }
+        for (parent, (source_parent, type_params, constructors)) in parents {
+            let stale_constructors = self
+                .types
+                .variant_parent
+                .iter()
+                .filter(|(_, existing_parent)| *existing_parent == &parent)
+                .map(|(constructor, _)| constructor.clone())
+                .collect::<Vec<_>>();
+            for constructor in stale_constructors {
+                self.types.variant_parent.remove(&constructor);
+                self.types.variant_positional.remove(&constructor);
+                self.types.variant_fields.remove(&constructor);
+                self.types.variant_field_types.remove(&constructor);
+                self.types.variant_boxed_args.remove(&constructor);
+                if let Some(existing_parents) = self.types.variant_parents.get_mut(&constructor) {
+                    existing_parents.remove(&parent);
+                    if existing_parents.is_empty() {
+                        self.types.variant_parents.remove(&constructor);
+                    }
+                }
+            }
+            self.types
+                .variant_positional_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_fields_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_field_types_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types
+                .variant_boxed_args_by_parent
+                .retain(|(existing_parent, _), _| existing_parent != &parent);
+            self.types.struct_types.remove(&parent);
+            self.types.rc_types.remove(&parent);
+            self.types
+                .type_decls
+                .insert(parent.clone(), (type_params, constructors));
+            if source_parent != parent {
+                self.types.type_rename.insert(source_parent, parent);
+            }
+        }
+        for (constructor, metadata) in variants {
+            self.types
+                .variant_parent
+                .insert(constructor.clone(), metadata.parent.clone());
+            self.types.variant_parents.insert(
+                constructor.clone(),
+                BTreeSet::from([metadata.parent.clone()]),
+            );
+            let key = (metadata.parent.clone(), constructor.clone());
+            self.types
+                .variant_positional
+                .insert(constructor.clone(), metadata.positional);
+            self.types
+                .variant_positional_by_parent
+                .insert(key.clone(), metadata.positional);
+            if metadata.positional {
+                self.types.variant_fields.remove(&constructor);
+            } else {
+                self.types
+                    .variant_fields
+                    .insert(constructor.clone(), metadata.fields.clone());
+            }
+            self.types
+                .variant_fields_by_parent
+                .insert(key.clone(), metadata.fields.clone());
+            self.types
+                .variant_field_types
+                .insert(constructor.clone(), metadata.field_types.clone());
+            self.types
+                .variant_field_types_by_parent
+                .insert(key.clone(), metadata.field_types.clone());
+            if metadata.boxed_args.is_empty() {
+                self.types.variant_boxed_args.remove(&constructor);
+            } else {
+                self.types
+                    .variant_boxed_args
+                    .insert(constructor.clone(), metadata.boxed_args.clone());
+            }
+            self.types
+                .variant_boxed_args_by_parent
+                .insert(key, metadata.boxed_args.clone());
+            if metadata.struct_type {
+                self.types.struct_types.insert(metadata.parent.clone());
+            }
+            if metadata.uses_rc {
+                self.types.rc_types.insert(metadata.parent);
+            }
+        }
+
+        let rule_scopes = self
+            .types
+            .module_rule_scopes
+            .iter()
+            .filter(|((module_path, _), _)| module_path == &path)
+            .map(|((_, name), metadata)| (name.clone(), metadata.clone()))
+            .collect::<Vec<_>>();
+        for (name, metadata) in rule_scopes {
+            if name != metadata.rust_name {
+                self.types
+                    .type_rename
+                    .insert(name.clone(), metadata.rust_name.clone());
+            }
+            self.types.struct_types.remove(&metadata.rust_name);
+            self.types.struct_types.insert(metadata.rust_name.clone());
+            self.types
+                .variant_fields
+                .insert(name.clone(), metadata.fields.clone());
+            self.types
+                .variant_fields
+                .insert(metadata.rust_name.clone(), metadata.fields.clone());
+            self.types
+                .variant_field_types
+                .insert(name.clone(), metadata.field_types.clone());
+            self.types
+                .variant_field_types
+                .insert(metadata.rust_name.clone(), metadata.field_types.clone());
+            self.types
+                .type_decls
+                .insert(metadata.rust_name.clone(), (Vec::new(), Vec::new()));
+            self.types.user_functions.insert(name.clone());
+            self.types
+                .call_params
+                .insert(name.clone(), metadata.fields.clone());
+            let mut fn_ty = FirTy::Named(metadata.rust_name.clone());
+            for field in metadata.fields.iter().rev() {
+                let param_ty = metadata
+                    .field_types
+                    .get(field)
+                    .map(|ty| self.source_ty_to_fir(ty))
+                    .unwrap_or(FirTy::Unknown);
+                fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+            }
+            self.types.fn_types.insert(name.clone(), fn_ty.clone());
+            self.types
+                .fn_types_by_arity
+                .insert((name.clone(), metadata.fields.len()), fn_ty);
+            self.fn_return_types
+                .insert(name, metadata.rust_name.clone());
+        }
+    }
+
     /// Pass 2: Compute borrow-only parameter flags for all functions.
     /// Iterates to fixed point so transitive borrow info propagates.
     fn constrain_wasm_export_borrow_flags(&self, name: &str, params: &[Param], flags: &mut [bool]) {
-        if !(self.wasm_mode && self.types.exported_names.contains(name)) {
+        if !(self.wasm_mode && self.name_is_exported_in_current_namespace(name)) {
             return;
         }
         for (idx, p) in params.iter().enumerate() {
@@ -26442,30 +34091,51 @@ impl RustCodegen {
     }
 
     fn compute_borrow_flags(&mut self, fn_stmts: &[&Stmt]) {
+        let functions = fn_stmts
+            .iter()
+            .filter_map(|stmt| match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => Some((defn, None)),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        self.compute_namespace_borrow_flags(&functions, false);
+    }
+
+    fn compute_namespace_borrow_flags(
+        &mut self,
+        functions: &[(&Defn, Option<&str>)],
+        require_stable_flags: bool,
+    ) {
         for _round in 0..8 {
-            let prev_count = self.borrow_only_params.len();
-            for stmt in fn_stmts {
-                if let Stmt::Defn(Defn::Fn {
+            let previous = self.borrow_only_params.clone();
+            let previous_count = previous.len();
+            for (defn, adt_owner) in functions {
+                if let Defn::Fn {
                     name,
                     params,
                     ret_ty,
                     body,
                     ..
-                }) = stmt
+                } = defn
                 {
+                    let effective_params = Self::namespace_function_params(params, *adt_owner);
                     let mut borrow_flags = analyze_borrow_only_params_named(
-                        params,
+                        &effective_params,
                         body,
                         ret_ty.as_ref(),
                         &self.borrow_only_params,
                         Some(name.as_str()),
                     );
-                    self.constrain_wasm_export_borrow_flags(name, params, &mut borrow_flags);
+                    self.constrain_wasm_export_borrow_flags(
+                        name,
+                        &effective_params,
+                        &mut borrow_flags,
+                    );
                     // Disable ref-match for types with boxed (recursive) fields
                     {
                         let mut matched_vars: BTreeSet<String> = BTreeSet::new();
                         collect_matched_vars(body, &mut matched_vars);
-                        for (idx, p) in params.iter().enumerate() {
+                        for (idx, p) in effective_params.iter().enumerate() {
                             if borrow_flags[idx] && matched_vars.contains(&p.name) {
                                 if let Some(ty) = &p.ty {
                                     let type_name = match ty {
@@ -26513,13 +34183,15 @@ impl RustCodegen {
                         self.borrow_only_params.remove(name);
                     }
                     // Also pre-register inout params
-                    let inout_flags: Vec<bool> = params.iter().map(|p| p.inout).collect();
+                    let inout_flags: Vec<bool> = effective_params.iter().map(|p| p.inout).collect();
                     if inout_flags.iter().any(|f| *f) {
                         self.types.inout_params.insert(name.clone(), inout_flags);
                     }
                 }
             }
-            if self.borrow_only_params.len() == prev_count {
+            if (require_stable_flags && self.borrow_only_params == previous)
+                || (!require_stable_flags && self.borrow_only_params.len() == previous_count)
+            {
                 break;
             }
         }
@@ -26862,6 +34534,7 @@ impl RustCodegen {
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::TraitDecl { .. })
                 | Stmt::TypeDecl(TypeDecl::WhenType { .. })
+                | Stmt::Explore(_)
                 | Stmt::Abort => {}
             }
         }
@@ -27300,6 +34973,7 @@ impl RustCodegen {
             | Stmt::Depend(_, _)
             | Stmt::RustBlock(_)
             | Stmt::TypeDecl(TypeDecl::EffectDecl { .. })
+            | Stmt::Explore(_)
             | Stmt::Abort => {}
         }
     }
@@ -27459,6 +35133,20 @@ impl RustCodegen {
         None
     }
 
+    fn arrow_param_fir_ty(fn_ty: &FirTy, idx: usize) -> Option<FirTy> {
+        let mut ty = fn_ty;
+        for current_idx in 0..=idx {
+            let FirTy::Arrow(param, ret) = ty else {
+                return None;
+            };
+            if current_idx == idx {
+                return Some((**param).clone());
+            }
+            ty = ret.as_ref();
+        }
+        None
+    }
+
     fn infer_map_insert_value_rust_type(&self, expr: &Expr) -> String {
         match &expr.kind {
             ExprKind::Lit(Literal::Str(_)) => "String".to_string(),
@@ -27512,7 +35200,43 @@ impl RustCodegen {
         )
     }
 
+    /// Collect the exact ABI and escaped-type metadata for qualified module
+    /// callables before any root rule/function is inferred or emitted. Module
+    /// emission itself builds this metadata under the correct lexical overlays;
+    /// running that setup on an isolated clone avoids duplicating the delicate
+    /// name-shadowing logic while discarding all generated text and local state.
+    fn precollect_module_codegen_metadata(&mut self, stmts: &[Stmt]) {
+        fn module_count(stmts: &[Stmt]) -> usize {
+            stmts
+                .iter()
+                .map(|stmt| match stmt {
+                    Stmt::Defn(Defn::Module { body, .. }) => 1 + module_count(body),
+                    _ => 0,
+                })
+                .sum()
+        }
+
+        let mut collector = self.clone();
+        collector.module_callable_metadata.clear();
+        // Each pass can propagate one forward module edge. The number of module
+        // declarations therefore bounds convergence even for A -> B -> C chains.
+        for _ in 0..module_count(stmts).max(1) {
+            collector.current_module_path.clear();
+            collector.types.active_module_path.clear();
+            for stmt in stmts {
+                if let Stmt::Defn(defn @ Defn::Module { .. }) = stmt {
+                    let _ = collector.emit_defn(defn);
+                }
+            }
+            collector.types.module_callable_metadata = collector.module_callable_metadata.clone();
+        }
+        self.module_callable_metadata = collector.module_callable_metadata;
+        self.types.module_callable_metadata = self.module_callable_metadata.clone();
+        self.types.module_rule_scopes = collector.types.module_rule_scopes;
+    }
+
     fn emit_program(&mut self, input_stmts: &[Stmt]) -> String {
+        self.ensure_canonical_rule_metadata(input_stmts);
         let all_stmts = self.scan_declarations(input_stmts);
         self.has_raw_rust_blocks = all_stmts.iter().any(stmt_contains_raw_rust);
         self.prescan_actor_message_site_types(&all_stmts);
@@ -27544,6 +35268,14 @@ impl RustCodegen {
         }
         out.push_str("use std::fmt;\n");
         out.push_str("use std::collections::{BTreeMap, HashMap, HashSet};\n\n");
+        for collision in Self::prolog_ordinary_name_collisions(stmts) {
+            out.push_str(&format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "td-7b8851: generated Rust cannot safely lower same-owner ordinary-function/Prolog rule collision `{collision}`"
+                )
+            ));
+        }
         // __futuruna_show: format like the interpreter (Display, no string quotes)
         out.push_str(
             "fn __futuruna_show<T: fmt::Display>(v: &T) -> String { format!(\"{}\", v) }\n",
@@ -27860,7 +35592,13 @@ impl RustCodegen {
 
         // Type registration + Rc computation done in scan_declarations (Pass 1).
         // Emit Rc/Arc import for transparent structural sharing
-        if !self.types.rc_types.is_empty() {
+        if !self.types.rc_types.is_empty()
+            || self
+                .types
+                .module_variants
+                .values()
+                .any(|metadata| metadata.uses_rc)
+        {
             if self.has_async {
                 out.push_str("use std::sync::Arc;\n");
             } else {
@@ -27886,7 +35624,9 @@ impl RustCodegen {
         }
 
         self.prepare_effect_metadata(stmts);
+        self.precollect_module_codegen_metadata(stmts);
         let rule_groups = Self::collect_rule_groups_from_stmts(stmts);
+        self.register_active_rule_emitted_names(&rule_groups);
         self.prescan_value_rule_and_rule_scope_signatures(stmts, &rule_groups);
 
         // Collect all top-level bindings and effect calls into main()
@@ -28152,16 +35892,28 @@ impl RustCodegen {
             for (fn_name, rules) in &rule_groups {
                 // Count params and track which are borrowed (struct/enum types)
                 // Register borrow flags: true for params whose type was inferred from fields
-                out.push_str(&self.emit_rule_function(fn_name, rules));
-                self.types.rule_clone_params.clear();
-                out.push('\n');
+                for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                    let emitted_name = self
+                        .rule_emitted_names
+                        .get(&(fn_name.clone(), arity))
+                        .cloned()
+                        .unwrap_or_else(|| sanitize_name(fn_name));
+                    out.push_str(&self.emit_rule_function_as(fn_name, &emitted_name, &arity_rules));
+                    self.types.rule_clone_params.clear();
+                    out.push('\n');
+                }
             }
         }
 
         // Comptime pass: evaluate @ comptime bindings using the interpreter
         {
             let mut comptime_interp = Interpreter::new();
-            comptime_interp.suppress_output = true; // Don't print during codegen
+            comptime_interp.suppress_output = true;
+            // Use the authored import graph rather than the already-expanded
+            // emission list. The outer compiler gate already validated it;
+            // comptime only needs exact runtime dispatch classification.
+            comptime_interp
+                .install_rule_dispatch_metadata_for_program(input_stmts, self.source_dir.clone());
             let mut comptime_env = comptime_interp.default_env();
             let pure_fns =
                 Self::find_pure_functions(stmts, &self.types.effect_ops, &self.types.fn_effects);
@@ -28169,15 +35921,22 @@ impl RustCodegen {
             for stmt in stmts {
                 match stmt {
                     Stmt::TypeDecl(decl) => {
-                        comptime_interp.register_type(decl);
+                        comptime_interp.register_type_with_env(decl, &mut comptime_env);
                         comptime_interp.register_constructors(decl, &mut comptime_env);
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Defn(defn) => {
                         comptime_interp.eval_defn(defn, &mut comptime_env);
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Rule(rule) => {
                         let name = comptime_interp.rule_name(rule);
-                        comptime_interp.register_rule(name, rule.clone());
+                        comptime_interp.register_rule_with_env(
+                            name,
+                            rule.clone(),
+                            &mut comptime_env,
+                        );
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     Stmt::Bind(pat, _ty, expr) => {
                         if let Pat::Var(name) = pat {
@@ -28205,6 +35964,7 @@ impl RustCodegen {
                         comptime_interp.step_limit = 0;
                         if !comptime_interp.budget_exceeded {
                             comptime_interp.bind_pattern(pat, &val, &mut comptime_env);
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
                         }
                     }
                     _ => {}
@@ -28287,8 +36047,9 @@ impl RustCodegen {
                             // Insert before main function
                             comptime_type_decls.push(decl_str);
                             // Register constructors in comptime env for later comptime expressions
-                            comptime_interp.register_type(&type_decl);
+                            comptime_interp.register_type_with_env(&type_decl, &mut comptime_env);
                             comptime_interp.register_constructors(&type_decl, &mut comptime_env);
+                            comptime_interp.refresh_declaration_environment(&mut comptime_env);
                             // Mark as comptime with empty value so it doesn't re-emit as a binding
                             self.types
                                 .comptime_values
@@ -28311,6 +36072,7 @@ impl RustCodegen {
                             &val,
                             &mut comptime_env,
                         );
+                        comptime_interp.refresh_declaration_environment(&mut comptime_env);
                     }
                     // @ comptime assert(expr) — compile-time assertion
                     if let Stmt::Expr(expr) = stmt {
@@ -28586,7 +36348,9 @@ impl RustCodegen {
                     out.push_str(&format!(
                         "{i}    let __old_hash: Option<String> = __db_lock.query_row(\n"
                     ));
-                    out.push_str(&format!("{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"));
+                    out.push_str(&format!(
+                        "{i}        \"SELECT schema_hash FROM schema_meta WHERE type_name = ?1\",\n"
+                    ));
                     out.push_str(&format!("{i}        rusqlite::params![\"{type_name}\"],\n"));
                     out.push_str(&format!("{i}        |row| row.get(0)\n"));
                     out.push_str(&format!("{i}    ).ok();\n"));
@@ -28934,6 +36698,86 @@ impl RustCodegen {
         rule_groups
     }
 
+    /// Direct ordinary functions owned by one generated Rust namespace.
+    /// ADT-block methods are runtime namespace functions, not inherent methods,
+    /// so qualified modules must retain their callable ABI alongside `>` defs.
+    fn namespace_function_defns<'a>(stmts: &'a [Stmt]) -> Vec<(&'a Defn, Option<&'a str>)> {
+        let mut functions = Vec::new();
+        for stmt in stmts {
+            match stmt {
+                Stmt::Defn(defn @ Defn::Fn { .. }) => functions.push((defn, None)),
+                Stmt::TypeDecl(TypeDecl::ADT { name, methods, .. }) => {
+                    functions.extend(
+                        methods
+                            .iter()
+                            .filter(|method| matches!(method, Defn::Fn { .. }))
+                            .map(|method| (method, Some(name.as_str()))),
+                    );
+                }
+                _ => {}
+            }
+        }
+        functions
+    }
+
+    fn namespace_function_params(params: &[Param], adt_owner: Option<&str>) -> Vec<Param> {
+        params
+            .iter()
+            .enumerate()
+            .map(|(index, param)| {
+                if index == 0 && param.ty.is_none() {
+                    if let Some(adt_owner) = adt_owner {
+                        return Param {
+                            name: param.name.clone(),
+                            ty: Some(Ty::Name(adt_owner.to_string())),
+                            inout: param.inout,
+                        };
+                    }
+                }
+                param.clone()
+            })
+            .collect()
+    }
+
+    /// The current Prolog/value registries are keyed by bare name. Until
+    /// td-7b8851 replaces them, reject same-owner collisions atomically instead
+    /// of allowing a rule classification to change an ordinary function call.
+    fn prolog_ordinary_name_collisions(stmts: &[Stmt]) -> BTreeSet<String> {
+        fn collect(stmts: &[Stmt], owner: &[String], collisions: &mut BTreeSet<String>) {
+            let ordinary_names = RustCodegen::namespace_function_defns(stmts)
+                .into_iter()
+                .filter_map(|(defn, _)| match defn {
+                    Defn::Fn { name, .. } => Some(name.clone()),
+                    _ => None,
+                })
+                .collect::<BTreeSet<_>>();
+            for (rule_name, rules) in RustCodegen::collect_rule_groups_from_stmts(stmts) {
+                if ordinary_names.contains(&rule_name)
+                    && RustCodegen::rule_arity(&rules) > 0
+                    && RustCodegen::rules_have_prolog_features(&rules)
+                {
+                    let qualified = if owner.is_empty() {
+                        rule_name
+                    } else {
+                        format!("{}::{}", owner.join("::"), rule_name)
+                    };
+                    collisions.insert(qualified);
+                }
+            }
+            for stmt in stmts {
+                if let Stmt::Defn(Defn::Module { name, body }) = stmt {
+                    let mut child_owner = owner.to_vec();
+                    child_owner.push(sanitize_name(name));
+                    collect(body, &child_owner, collisions);
+                }
+            }
+        }
+
+        let mut collisions = BTreeSet::new();
+        collect(stmts, &[], &mut collisions);
+        collisions
+    }
+
     fn collect_rule_scope_declarations<'a>(
         stmts: &'a [Stmt],
         declarations: &mut Vec<(&'a str, &'a [Param], &'a [Stmt])>,
@@ -29003,6 +36847,69 @@ impl RustCodegen {
         dependencies
     }
 
+    fn rule_parameter_overlay_is_compatible(inferred: &FirTy, proven: &FirTy) -> bool {
+        if inferred == proven
+            || matches!(inferred, FirTy::Unknown | FirTy::Var(_))
+            || matches!(proven, FirTy::Unknown | FirTy::Var(_))
+        {
+            return true;
+        }
+        match (inferred, proven) {
+            (FirTy::List(left), FirTy::List(right))
+            | (FirTy::Option(left), FirTy::Option(right))
+            | (FirTy::Set(left), FirTy::Set(right)) => {
+                Self::rule_parameter_overlay_is_compatible(left, right)
+            }
+            (FirTy::Result(left_ok, left_err), FirTy::Result(right_ok, right_err))
+            | (FirTy::Map(left_ok, left_err), FirTy::Map(right_ok, right_err))
+            | (FirTy::Arrow(left_ok, left_err), FirTy::Arrow(right_ok, right_err)) => {
+                Self::rule_parameter_overlay_is_compatible(left_ok, right_ok)
+                    && Self::rule_parameter_overlay_is_compatible(left_err, right_err)
+            }
+            (FirTy::Tuple(left), FirTy::Tuple(right)) if left.len() == right.len() => left
+                .iter()
+                .zip(right)
+                .all(|(left, right)| Self::rule_parameter_overlay_is_compatible(left, right)),
+            _ => false,
+        }
+    }
+
+    fn overlay_canonical_rule_parameter_types(
+        &self,
+        key: &RuleDispatchKey,
+        parameter_types: &mut [FirTy],
+    ) -> Result<(), String> {
+        if self.canonical_rule_parameter_issues.contains(key) {
+            return Err("the rule family has conflicting or malformed parameter schemas".into());
+        }
+        let parameters = self
+            .canonical_rule_parameter_types
+            .get(key)
+            .ok_or_else(|| "the rule family has no canonical parameter metadata".to_string())?;
+        if parameters.len() != parameter_types.len() {
+            return Err("canonical and inferred parameter arities disagree".into());
+        }
+        for (index, (parameter, inferred)) in parameters
+            .iter()
+            .zip(parameter_types.iter_mut())
+            .enumerate()
+        {
+            let Some(parameter) = parameter.as_deref() else {
+                continue;
+            };
+            let proven = self
+                .rule_type_name_to_fir(parameter)
+                .ok_or_else(|| format!("parameter {index} has an unlowerable canonical type"))?;
+            if !Self::rule_parameter_overlay_is_compatible(inferred, &proven) {
+                return Err(format!(
+                    "parameter {index} has incompatible inferred and canonical types"
+                ));
+            }
+            *inferred = proven;
+        }
+        Ok(())
+    }
+
     fn infer_rule_signature_cached(
         &mut self,
         fn_name: &str,
@@ -29026,15 +36933,38 @@ impl RustCodegen {
             }
         }
 
-        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
-        let return_type = self
-            .infer_rule_return_type(rules, &params, &param_tys)
-            .map(|ty| Self::normalize_rule_rust_type(&ty));
-        let result = RuleSignatureInference {
-            params,
-            param_tys,
-            return_type,
-        };
+        let mut result = self.infer_rule_signature_uncached(rules);
+        if self.canonical_rule_metadata_installed
+            && self.current_module_path.is_empty()
+            && self.current_rule_scope_name.is_none()
+        {
+            let key = RuleDispatchKey {
+                scope: None,
+                name: fn_name.to_string(),
+                arity: Self::rule_arity(rules),
+            };
+            // Proven slots refine broad FIR inference, while unspecified
+            // binders deliberately keep their inferred runtime ABI. An
+            // incompatible overlay is rejected when the definition is emitted.
+            if self
+                .overlay_canonical_rule_parameter_types(&key, &mut result.param_tys)
+                .is_ok()
+            {
+                if let Some(names) = self
+                    .canonical_rule_parameter_names
+                    .get(&key)
+                    .filter(|names| names.len() == result.param_tys.len())
+                    .and_then(|names| names.iter().cloned().collect::<Option<Vec<_>>>())
+                {
+                    result.params = names;
+                }
+            }
+            result.return_type = self
+                .canonical_rule_return_types
+                .get(&key)
+                .and_then(|type_name| parse_type_annotation(type_name).ok())
+                .map(|ty| Self::normalize_rule_rust_type(&self.emit_type(&ty)));
+        }
         self.rule_signature_inference_cache.insert(
             fn_name.to_string(),
             RuleSignatureInferenceCacheEntry {
@@ -29049,6 +36979,19 @@ impl RustCodegen {
         result
     }
 
+    fn infer_rule_signature_uncached(&self, rules: &[&Rule]) -> RuleSignatureInference {
+        let params = Self::rule_params(rules);
+        let param_tys = self.infer_rule_param_fir_tys(&params, rules);
+        let return_type = self
+            .infer_rule_return_type(rules, &params, &param_tys)
+            .map(|ty| Self::normalize_rule_rust_type(&ty));
+        RuleSignatureInference {
+            params,
+            param_tys,
+            return_type,
+        }
+    }
+
     fn register_value_returning_rule_signatures<'a>(
         &mut self,
         rule_groups: &BTreeMap<String, Vec<&'a Rule>>,
@@ -29060,10 +37003,19 @@ impl RustCodegen {
                 let inference = self.infer_rule_signature_cached(fn_name, rules);
                 let params = inference.params;
                 if !params.is_empty() || Self::rule_arity(rules) == 0 {
-                    self.types
-                        .call_params
-                        .entry(fn_name.clone())
-                        .or_insert(params.clone());
+                    if self.canonical_rule_metadata_installed
+                        && self.current_module_path.is_empty()
+                        && self.current_rule_scope_name.is_none()
+                    {
+                        self.types
+                            .call_params
+                            .insert(fn_name.clone(), params.clone());
+                    } else {
+                        self.types
+                            .call_params
+                            .entry(fn_name.clone())
+                            .or_insert(params.clone());
+                    }
                 }
                 let param_tys = inference.param_tys;
                 let Some(ret_type) = inference.return_type else {
@@ -29143,15 +37095,37 @@ impl RustCodegen {
     ) -> bool {
         let rust_name = self.rust_type_name(scope_name);
         let rule_groups = Self::collect_rule_groups_from_stmts(body);
+        for (member, rules) in &rule_groups {
+            let rules = rules.iter().map(|rule| (*rule).clone()).collect::<Vec<_>>();
+            self.types
+                .rule_scope_member_rules
+                .insert((scope_name.to_string(), member.clone()), rules.clone());
+            self.types
+                .rule_scope_member_rules
+                .insert((rust_name.clone(), member.clone()), rules);
+        }
         let (_method_params, method_param_tys, method_return_tys) =
             self.infer_rule_scope_method_types(scope_name, &rust_name, params, body, &rule_groups);
         let mut changed = false;
 
         for (method, param_tys) in &method_param_tys {
+            let canonical_key = RuleDispatchKey {
+                scope: Some(scope_name.to_string()),
+                name: method.clone(),
+                arity: param_tys.len(),
+            };
+            if self.canonical_rule_metadata_installed
+                && self.current_module_path.is_empty()
+                && !self
+                    .canonical_rule_return_types
+                    .contains_key(&canonical_key)
+            {
+                continue;
+            }
             let ret_ty = method_return_tys
                 .get(method)
                 .cloned()
-                .unwrap_or(FirTy::Bool);
+                .unwrap_or(FirTy::Unknown);
             changed |= self.register_rule_scope_member_signature_entry(
                 scope_name,
                 &rust_name,
@@ -30338,10 +38312,33 @@ impl RustCodegen {
         let mut method_return_tys = BTreeMap::new();
 
         for (method, rules) in rule_groups {
-            let params = Self::rule_params(rules);
-            let param_tys = self.with_temporary_named_types(&scope_names, &scope_tys, |cg| {
+            let arity = Self::rule_arity(rules);
+            let canonical_key = RuleDispatchKey {
+                scope: Some(scope_name.to_string()),
+                name: method.clone(),
+                arity,
+            };
+            let mut params = Self::rule_params(rules);
+            let mut param_tys = self.with_temporary_named_types(&scope_names, &scope_tys, |cg| {
                 cg.infer_rule_param_fir_tys(&params, rules)
             });
+            if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+                // Keep broad inference for unspecified binders; only
+                // producer-proven slots refine the generated signature.
+                if self
+                    .overlay_canonical_rule_parameter_types(&canonical_key, &mut param_tys)
+                    .is_ok()
+                {
+                    if let Some(names) = self
+                        .canonical_rule_parameter_names
+                        .get(&canonical_key)
+                        .filter(|names| names.len() == param_tys.len())
+                        .and_then(|names| names.iter().cloned().collect::<Option<Vec<_>>>())
+                    {
+                        params = names;
+                    }
+                }
+            }
             method_params.insert(method.clone(), params);
             method_param_tys.insert(method.clone(), param_tys);
             method_return_tys.insert(method.clone(), FirTy::Unknown);
@@ -30430,9 +38427,27 @@ impl RustCodegen {
             saved_rule_scope_member_fn_types,
         );
 
-        for ret_ty in method_return_tys.values_mut() {
-            if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
-                *ret_ty = FirTy::Bool;
+        let canonical_root =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_root {
+            for (method, rules) in rule_groups {
+                let key = RuleDispatchKey {
+                    scope: Some(scope_name.to_string()),
+                    name: method.clone(),
+                    arity: Self::rule_arity(rules),
+                };
+                let canonical = self
+                    .canonical_rule_return_types
+                    .get(&key)
+                    .and_then(|type_name| self.rule_type_name_to_fir(type_name))
+                    .unwrap_or(FirTy::Unknown);
+                method_return_tys.insert(method.clone(), canonical);
+            }
+        } else {
+            for ret_ty in method_return_tys.values_mut() {
+                if matches!(ret_ty, FirTy::Unknown | FirTy::Var(_)) {
+                    *ret_ty = FirTy::Bool;
+                }
             }
         }
 
@@ -30452,7 +38467,7 @@ impl RustCodegen {
 
     fn emit_rule_scope_decl(&mut self, name: &str, params: &[Param], body: &[Stmt]) -> String {
         let rust_name = self.rust_type_name(name);
-        let pub_prefix = if self.types.exported_names.contains(name) {
+        let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
             "pub "
         } else {
             ""
@@ -30698,6 +38713,81 @@ impl RustCodegen {
             }
         }
 
+        // Preserve RuleScope member provenance outside the module overlay. A
+        // qualified instance may escape through a binding before a named-arg
+        // member call, so bare `(Policy, score)` metadata cannot distinguish it
+        // from a same-named root RuleScope.
+        if !self.current_module_path.is_empty() {
+            let module_path = self.current_module_path.join("::");
+            let mut qualified_params = method_params.clone();
+            for method in &value_methods {
+                if let Defn::Fn {
+                    name: method_name,
+                    params,
+                    ..
+                } = method
+                {
+                    qualified_params.insert(
+                        method_name.clone(),
+                        params
+                            .iter()
+                            .filter(|param| param.name != "self")
+                            .map(|param| param.name.clone())
+                            .collect(),
+                    );
+                }
+            }
+            let mut qualified_fn_types = BTreeMap::new();
+            let qualified_member_rules = rule_groups
+                .iter()
+                .map(|(member, rules)| {
+                    (
+                        member.clone(),
+                        rules.iter().map(|rule| (*rule).clone()).collect::<Vec<_>>(),
+                    )
+                })
+                .collect::<BTreeMap<_, _>>();
+            for (method, param_tys) in &method_param_tys {
+                let ret_ty = method_return_tys
+                    .get(method)
+                    .cloned()
+                    .unwrap_or(FirTy::Bool);
+                let fn_ty = Self::fn_type_from_parts(param_tys, ret_ty);
+                qualified_fn_types.insert(
+                    method.clone(),
+                    self.types.qualify_module_fir_ty(&module_path, fn_ty),
+                );
+            }
+            for method in &value_methods {
+                let Defn::Fn {
+                    name: method_name, ..
+                } = method
+                else {
+                    continue;
+                };
+                if let Some(fn_ty) = self
+                    .types
+                    .rule_scope_member_fn_types
+                    .get(&(rust_name.clone(), method_name.clone()))
+                    .cloned()
+                {
+                    qualified_fn_types.insert(
+                        method_name.clone(),
+                        self.types.qualify_module_fir_ty(&module_path, fn_ty),
+                    );
+                }
+            }
+            if let Some(metadata) = self
+                .types
+                .module_rule_scopes
+                .get_mut(&(module_path, name.to_string()))
+            {
+                metadata.member_params = qualified_params;
+                metadata.member_fn_types = qualified_fn_types;
+                metadata.member_rules = qualified_member_rules;
+            }
+        }
+
         let saved_fn_types =
             snapshot_btree_map_entries(&self.types.fn_types, method_param_tys.keys().cloned());
         let saved_fn_types_by_arity = snapshot_btree_map_entries(
@@ -30825,7 +38915,87 @@ impl RustCodegen {
         compute_method_name: &str,
         memo_value_field: Option<&str>,
     ) -> String {
+        let arity = Self::rule_arity(rules);
+        let canonical_key = RuleDispatchKey {
+            scope: Some(scope_name.to_string()),
+            name: method_name.to_string(),
+            arity,
+        };
+        let canonical_contract_applies =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_contract_applies
+            && self
+                .canonical_rule_parameter_issues
+                .contains(&canonical_key)
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped RuleDispatch `{}({})` with conflicting or malformed parameter schemas",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        if let Some(issue) = canonical_contract_applies
+            .then(|| self.canonical_rule_return_issues.get(&canonical_key))
+            .flatten()
+        {
+            return format!(
+                "    compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped unsafe RuleDispatch `{}.{}({})`: {}",
+                    scope_name, method_name, arity, issue
+                )
+            );
+        }
+        let canonical_ret_ty = canonical_contract_applies
+            .then(|| self.canonical_rule_return_types.get(&canonical_key))
+            .flatten()
+            .and_then(|type_name| self.rule_type_name_to_fir(type_name));
+        if canonical_contract_applies && canonical_ret_ty.is_none() {
+            return format!(
+                "    compile_error!({:?});\n",
+                format!(
+                    "generated Rust has no canonical RuleDispatch contract for `{}.{}({})`",
+                    scope_name, method_name, arity
+                )
+            );
+        }
+        let ret_ty = canonical_ret_ty.as_ref().unwrap_or(ret_ty);
+        let mut params = params.to_vec();
+        let mut param_tys = param_tys.to_vec();
+        if params.len() != arity || param_tys.len() != arity {
+            params = (0..arity)
+                .map(|index| format!("__fut_rule_arg_{index}"))
+                .collect();
+            param_tys =
+                Self::prolog_param_fir_tys(&self.prolog_rule_param_rust_types(rules, arity));
+        }
+        if canonical_contract_applies {
+            if let Err(issue) =
+                self.overlay_canonical_rule_parameter_types(&canonical_key, &mut param_tys)
+            {
+                return format!(
+                    "    compile_error!({:?});\n",
+                    format!(
+                        "generated Rust rejected the parameter ABI for `{}.{}({})`: {}",
+                        scope_name, method_name, arity, issue
+                    )
+                );
+            }
+        }
         let ret_type = Self::fir_type_to_rust(ret_ty).unwrap_or_else(|| "bool".to_string());
+        let bool_miss_is_safe = !canonical_contract_applies
+            || self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&canonical_key)
+            || (self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
+                && matches!(ret_ty, FirTy::Bool));
         let mut sig_params = vec!["&self".to_string()];
         let uses_binary_global_env = !self.lib_mode
             && self.rule_scope_method_uses_binary_global_env(scope_name, method_name);
@@ -30840,9 +39010,9 @@ impl RustCodegen {
 
         let (scope_names, scope_tys) = self.rule_scope_input_names_and_tys(scope_params);
         let mut all_names = scope_names.clone();
-        all_names.extend(params.to_vec());
+        all_names.extend(params.clone());
         let mut all_tys = scope_tys.clone();
-        all_tys.extend(param_tys.to_vec());
+        all_tys.extend(param_tys.clone());
 
         let prev_local_bindings = self.local_bindings.clone();
         let prev_copy_vars = self.copy_vars.clone();
@@ -30959,6 +39129,26 @@ impl RustCodegen {
             }
 
             let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+            let actuals = params
+                .iter()
+                .map(|parameter| sanitize_name(parameter))
+                .collect::<Vec<_>>();
+            let borrowed_strings = vec![false; actuals.len()];
+            let matched_false_clause_name = (ret_type == "bool"
+                && !bool_miss_is_safe
+                && dispatch.clauses.iter().any(|candidate| {
+                    matches!(candidate.rule, Rule::Clause { body: Some(_), .. })
+                }))
+            .then(|| {
+                Self::fresh_rule_dispatch_state_name(
+                    rules,
+                    &all_names,
+                    "__fut_matched_false_clause",
+                )
+            });
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("        let mut {name} = false;\n"));
+            }
 
             // Same-tier rules retain source order; the first applicable exception wins.
             for candidate in &dispatch.exceptions {
@@ -30967,19 +39157,36 @@ impl RustCodegen {
                     value, condition, ..
                 } = rule
                 {
-                    if let Some(cond) = condition {
-                        out.push_str(&format!(
-                            "        if {} {{ return {}; }}\n",
-                            cg.emit_expr(cond),
-                            cg.emit_rule_value_expr(value, ret_ty)
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "        return {};\n",
-                            cg.emit_rule_value_expr(value, ret_ty)
-                        ));
-                        out.push_str("    }\n\n");
-                        return out;
+                    let Some(head) = rule.head() else { continue };
+                    let mut expressions = vec![value];
+                    expressions.extend(condition.iter());
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &expressions,
+                        "        ",
+                        |cg, indent| {
+                            let value = cg.emit_rule_value_expr(value, ret_ty);
+                            condition.as_ref().map_or_else(
+                                || format!("{indent}return {value};\n"),
+                                |condition| {
+                                    format!(
+                                        "{indent}if {} {{ return {value}; }}\n",
+                                        cg.emit_expr(condition)
+                                    )
+                                },
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
                     }
                 }
             }
@@ -30992,11 +39199,30 @@ impl RustCodegen {
                     ..
                 } = rule
                 {
-                    out.push_str(&format!(
-                        "        if {} {{ return {}; }}\n",
-                        cg.emit_expr(cond),
-                        cg.emit_rule_value_expr(value, ret_ty)
-                    ));
+                    let Some(head) = rule.head() else { continue };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &[value, cond],
+                        "        ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}if {} {{ return {}; }}\n",
+                                cg.emit_expr(cond),
+                                cg.emit_rule_value_expr(value, ret_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
+                    }
                 }
             }
 
@@ -31005,25 +39231,87 @@ impl RustCodegen {
                     Rule::Clause {
                         body: Some(body), ..
                     } if ret_type == "bool" => {
-                        out.push_str(&format!(
-                            "        if {} {{ return true; }}\n",
-                            cg.emit_expr(body)
-                        ));
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "        ",
+                            |cg, indent| {
+                                let predicate = cg.emit_expr(body);
+                                matched_false_clause_name.as_deref().map_or_else(
+                                    || format!("{indent}if {predicate} {{ return true; }}\n"),
+                                    |name| {
+                                        format!(
+                                            "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                        )
+                                    },
+                                )
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
-                        out.push_str(&format!(
-                            "        return {};\n",
-                            cg.emit_rule_value_expr(body, ret_ty)
-                        ));
-                        out.push_str("    }\n\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "        ",
+                            |cg, indent| {
+                                format!(
+                                    "{indent}return {};\n",
+                                    cg.emit_rule_value_expr(body, ret_ty)
+                                )
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     Rule::Clause { body: None, .. } => {
-                        out.push_str("        return true;\n");
-                        out.push_str("    }\n\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &param_tys,
+                            &borrowed_strings,
+                            &[],
+                            "        ",
+                            |_cg, indent| format!("{indent}return true;\n"),
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "        ",
+                                &format!("{}.{}", scope_name, method_name),
+                                arity,
+                                &error,
+                            )),
+                        }
                     }
                     _ => {}
                 }
@@ -31031,16 +39319,38 @@ impl RustCodegen {
 
             for candidate in &dispatch.unconditional_defaults {
                 if let Rule::Default { value, .. } = candidate.rule {
-                    out.push_str(&format!(
-                        "        return {};\n",
-                        cg.emit_rule_value_expr(value, ret_ty)
-                    ));
-                    out.push_str("    }\n\n");
-                    return out;
+                    let Some(head) = candidate.rule.head() else {
+                        continue;
+                    };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &param_tys,
+                        &borrowed_strings,
+                        &[value],
+                        "        ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}return {};\n",
+                                cg.emit_rule_value_expr(value, ret_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "        ",
+                            &format!("{}.{}", scope_name, method_name),
+                            arity,
+                            &error,
+                        )),
+                    }
                 }
             }
 
-            if ret_type == "bool" {
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("        if {name} {{ return false; }}\n"));
+            }
+            if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("        false\n");
             } else {
                 out.push_str(&format!(
@@ -31325,7 +39635,7 @@ impl RustCodegen {
                 let mut out = String::new();
                 let is_struct = self.types.struct_types.contains(&rust_name);
                 let derives_default = self.types.default_derive_types.contains(&rust_name);
-                let pub_prefix = if self.types.exported_names.contains(name) {
+                let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
                     "pub "
                 } else {
                     ""
@@ -31621,11 +39931,16 @@ impl RustCodegen {
                                 })
                                 .collect();
                             // Borrow inference: analyze if params are read-only
-                            let borrow_flags = analyze_borrow_only_params(
+                            let mut borrow_flags = analyze_borrow_only_params(
                                 &augmented_params,
                                 body,
                                 ret_ty.as_ref(),
                                 &self.borrow_only_params,
+                            );
+                            self.constrain_wasm_export_borrow_flags(
+                                mname,
+                                &augmented_params,
+                                &mut borrow_flags,
                             );
                             if borrow_flags.iter().any(|f| *f) {
                                 self.borrow_only_params
@@ -31635,27 +39950,35 @@ impl RustCodegen {
                                 .iter()
                                 .enumerate()
                                 .map(|(i, p)| {
-                                    if p.name == "self" {
-                                        format!("self_: &{}", self_type)
-                                    } else if i == 0 && p.ty.is_none() {
-                                        // First param without type = the ADT itself
-                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                        if borrow {
-                                            format!("{}: &{}", sanitize_name(&p.name), self_type)
-                                        } else {
-                                            format!("{}: {}", sanitize_name(&p.name), self_type)
-                                        }
+                                    let param_name = if p.name == "self" {
+                                        "self_".to_string()
                                     } else {
-                                        let ty =
-                                            p.ty.as_ref()
-                                                .map(|t| self.emit_type(t))
-                                                .unwrap_or_else(|| "String".into());
-                                        let borrow = borrow_flags.get(i).copied().unwrap_or(false);
-                                        if borrow {
-                                            format!("{}: &{}", sanitize_name(&p.name), ty)
+                                        sanitize_name(&p.name)
+                                    };
+                                    let ty = if p.name == "self" || (i == 0 && p.ty.is_none()) {
+                                        self_type.clone()
+                                    } else {
+                                        p.ty.as_ref()
+                                            .map(|ty| self.emit_type(ty))
+                                            .unwrap_or_else(|| "String".to_string())
+                                    };
+                                    if p.inout {
+                                        let inner_ty = match p.ty.as_ref() {
+                                            Some(Ty::Shared(inner)) => self.emit_type(inner),
+                                            _ => ty,
+                                        };
+                                        format!("{}: &mut {}", param_name, inner_ty)
+                                    } else if borrow_flags.get(i).copied().unwrap_or(false) {
+                                        let borrowed_ty = if self.wasm_mode
+                                            && matches!(p.ty.as_ref(), Some(Ty::Name(name)) if name == "String")
+                                        {
+                                            "str".to_string()
                                         } else {
-                                            format!("{}: {}", sanitize_name(&p.name), ty)
-                                        }
+                                            ty
+                                        };
+                                        format!("{}: &{}", param_name, borrowed_ty)
+                                    } else {
+                                        format!("{}: {}", param_name, ty)
                                     }
                                 })
                                 .collect();
@@ -31665,8 +39988,14 @@ impl RustCodegen {
                                 .unwrap_or_default();
                             let expected_ret_fir_ty =
                                 ret_ty.as_ref().map(|ty| self.source_ty_to_fir(ty));
+                            let pub_prefix = if self.name_is_exported_in_current_namespace(mname) {
+                                "pub "
+                            } else {
+                                ""
+                            };
                             out.push_str(&format!(
-                                "fn {}({}){} {{\n",
+                                "{}fn {}({}){} {{\n",
+                                pub_prefix,
                                 sanitize_name(mname),
                                 rust_params.join(", "),
                                 ret
@@ -31679,12 +40008,16 @@ impl RustCodegen {
                             self.var_use_counts = ownership.var_uses;
                             self.var_consuming_counts = ownership.consuming_uses;
                             let saved_indent = self.indent;
+                            let saved_in_standalone_adt_method = self.in_standalone_adt_method;
+                            self.in_standalone_adt_method =
+                                mparams.iter().any(|param| param.name == "self");
                             self.indent = 1;
                             out.push_str(&self.emit_expr_as_return_with_expected_ty(
                                 body,
                                 expected_ret_fir_ty.as_ref(),
                             ));
                             self.indent = saved_indent;
+                            self.in_standalone_adt_method = saved_in_standalone_adt_method;
                             self.var_use_counts = prev_counts;
                             self.var_consuming_counts = prev_consuming;
                             self.copy_vars = prev_copy;
@@ -32028,6 +40361,7 @@ impl RustCodegen {
                 "Char" => "char".to_string(),
                 "Bool" => "bool".to_string(),
                 "Nat" => "u64".to_string(),
+                "Unit" => "()".to_string(),
                 _ => {
                     // Qualified paths (fmt::Display) pass through unchanged
                     if n.contains("::") {
@@ -32270,7 +40604,7 @@ impl RustCodegen {
                     ret_ty,
                     effects,
                     ..
-                }) if self.types.exported_names.contains(name) => {
+                }) if self.types.root_exported_names.contains(name) => {
                     seen_exports.insert(name.clone());
 
                     let mut type_vars = Vec::new();
@@ -32301,7 +40635,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::Defn(Defn::Actor { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -32310,7 +40644,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::Defn(Defn::Module { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -32319,7 +40653,7 @@ impl RustCodegen {
                     ));
                 }
                 Stmt::TypeDecl(TypeDecl::ADT { name, .. })
-                    if self.types.exported_names.contains(name) =>
+                    if self.types.root_exported_names.contains(name) =>
                 {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
@@ -32327,14 +40661,16 @@ impl RustCodegen {
                         name
                     ));
                 }
-                Stmt::Bind(Pat::Var(name), _, _) if self.types.exported_names.contains(name) => {
+                Stmt::Bind(Pat::Var(name), _, _)
+                    if self.types.root_exported_names.contains(name) =>
+                {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: value bindings are not JS-callable exports",
                         name
                     ));
                 }
-                Stmt::StreamBind(name, _) if self.types.exported_names.contains(name) => {
+                Stmt::StreamBind(name, _) if self.types.root_exported_names.contains(name) => {
                     seen_exports.insert(name.clone());
                     issues.push(format!(
                         "export `{}` is unsupported in WASM: stream bindings are not JS-callable exports",
@@ -32345,7 +40681,7 @@ impl RustCodegen {
             }
         }
 
-        for export_name in &self.types.exported_names {
+        for export_name in &self.types.root_exported_names {
             if !seen_exports.contains(export_name) {
                 issues.push(format!(
                     "export `{}` could not be resolved to a supported top-level function for WASM",
@@ -32359,6 +40695,8 @@ impl RustCodegen {
 
     fn collect_compiler_validation_issues(&mut self, input_stmts: &[Stmt]) -> Vec<Diagnostic> {
         let all_stmts = self.scan_declarations(input_stmts);
+        self.prepare_effect_metadata(&all_stmts);
+        self.precollect_module_codegen_metadata(&all_stmts);
         self.seed_async_stream_bindings_from_stmt_list(&all_stmts);
         let mut diags = Vec::new();
         self.collect_scope_lifetime_stmt_list(&all_stmts, None, false, &mut diags);
@@ -32406,6 +40744,52 @@ impl RustCodegen {
                 None
             }
             ExprKind::Field(obj, method) => {
+                if let Some(module_path) = self.module_path_key(obj) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return Some((
+                            "constructor",
+                            format!("{}::{}", module_path, method),
+                            metadata.fields.clone(),
+                        ));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return Some((
+                            "constructor",
+                            format!("{}::{}", module_path, method),
+                            metadata.fields.clone(),
+                        ));
+                    }
+                    let exact = self.module_callable_metadata.get(&(
+                        metadata_path.clone(),
+                        method.clone(),
+                        args.len(),
+                    ));
+                    let metadata = exact.or_else(|| {
+                        let mut candidates = self
+                            .module_callable_metadata
+                            .iter()
+                            .filter(|((path, name, _), _)| path == &metadata_path && name == method)
+                            .map(|(_, metadata)| metadata);
+                        let first = candidates.next()?;
+                        candidates.next().is_none().then_some(first)
+                    });
+                    if let Some(metadata) = metadata {
+                        return Some((
+                            "function/rule",
+                            format!("{}::{}", module_path, method),
+                            metadata.param_names.clone(),
+                        ));
+                    }
+                }
                 let obj_ty = self.infer_expr_fir_ty(obj);
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
                 let scope = match obj_ty {
@@ -33199,6 +41583,50 @@ impl RustCodegen {
             .unwrap_or(0)
     }
 
+    fn rule_exact_arity(rule: &Rule) -> Option<usize> {
+        let head = match rule {
+            Rule::Clause { head, .. }
+            | Rule::Default { head, .. }
+            | Rule::Exception { head, .. } => head,
+            Rule::ReactiveScope { .. } => return None,
+        };
+        match &head.kind {
+            ExprKind::App(_, args) => Some(args.len()),
+            ExprKind::Var(_) => Some(0),
+            _ => None,
+        }
+    }
+
+    fn split_rule_group_by_arity<'a>(rules: &[&'a Rule]) -> BTreeMap<usize, Vec<&'a Rule>> {
+        let mut by_arity = BTreeMap::new();
+        for rule in rules {
+            if let Some(arity) = Self::rule_exact_arity(rule) {
+                by_arity.entry(arity).or_insert_with(Vec::new).push(*rule);
+            }
+        }
+        by_arity
+    }
+
+    fn overloaded_rule_rust_name(name: &str, arity: usize) -> String {
+        format!("{}__fut_arity_{}", sanitize_name(name), arity)
+    }
+
+    fn register_active_rule_emitted_names(&mut self, rule_groups: &BTreeMap<String, Vec<&Rule>>) {
+        for (name, rules) in rule_groups {
+            let by_arity = Self::split_rule_group_by_arity(rules);
+            let overloaded = by_arity.len() > 1;
+            for arity in by_arity.keys().copied() {
+                let emitted = if overloaded {
+                    Self::overloaded_rule_rust_name(name, arity)
+                } else {
+                    sanitize_name(name)
+                };
+                self.rule_emitted_names
+                    .insert((name.clone(), arity), emitted);
+            }
+        }
+    }
+
     fn rule_params(rules: &[&Rule]) -> Vec<String> {
         rules
             .iter()
@@ -33323,6 +41751,974 @@ impl RustCodegen {
             .collect()
     }
 
+    fn collect_rule_head_binding_names(argument: &Expr, names: &mut BTreeSet<String>) {
+        if let Some((inner, _)) = Self::typed_rule_arg_parts(argument) {
+            Self::collect_rule_head_binding_names(inner, names);
+            return;
+        }
+        match &argument.kind {
+            ExprKind::Var(name)
+                if name != "_" && !name.chars().next().is_some_and(char::is_uppercase) =>
+            {
+                names.insert(name.clone());
+            }
+            ExprKind::Tuple(items) => {
+                for item in items {
+                    Self::collect_rule_head_binding_names(item, names);
+                }
+            }
+            ExprKind::App(function, arguments) => {
+                if matches!(&function.kind, ExprKind::Var(name) if name == NAMED_ARG_MARKER) {
+                    if let Some(value) = arguments.get(1) {
+                        Self::collect_rule_head_binding_names(value, names);
+                    }
+                } else {
+                    for argument in arguments {
+                        Self::collect_rule_head_binding_names(argument, names);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn fresh_rule_dispatch_state_name(rules: &[&Rule], occupied: &[String], base: &str) -> String {
+        let mut used = occupied
+            .iter()
+            .map(|name| sanitize_name(name))
+            .collect::<BTreeSet<_>>();
+        let mut rule_names = BTreeSet::new();
+        for rule in rules {
+            if let Some(head) = rule.head() {
+                collect_generated_rust_expr_names(head, &mut rule_names);
+            }
+            match rule {
+                Rule::Clause {
+                    body: Some(body), ..
+                } => collect_generated_rust_expr_names(body, &mut rule_names),
+                Rule::Default {
+                    value, condition, ..
+                }
+                | Rule::Exception {
+                    value, condition, ..
+                } => {
+                    collect_generated_rust_expr_names(value, &mut rule_names);
+                    if let Some(condition) = condition {
+                        collect_generated_rust_expr_names(condition, &mut rule_names);
+                    }
+                }
+                Rule::Clause { body: None, .. } | Rule::ReactiveScope { .. } => {}
+            }
+        }
+        used.extend(rule_names.into_iter().map(|name| sanitize_name(&name)));
+        fresh_generated_rust_name(base, &mut used)
+    }
+
+    fn fresh_rule_head_temporary(state: &mut RustRuleHeadPatternState) -> String {
+        loop {
+            let candidate = format!("__fut_rule_head_{}", state.next_temporary);
+            state.next_temporary += 1;
+            if state.used_names.insert(candidate.clone()) {
+                return candidate;
+            }
+        }
+    }
+
+    fn emit_rule_head_pattern_argument(
+        &self,
+        argument: &Expr,
+        expected_ty: &FirTy,
+        borrowed_string: bool,
+        boxed: bool,
+        state: &mut RustRuleHeadPatternState,
+    ) -> Result<String, String> {
+        if let Some((inner, type_name)) = Self::typed_rule_arg_parts(argument) {
+            let annotated_ty = self.rule_type_name_to_fir(type_name).ok_or_else(|| {
+                format!("rule-head annotation `{type_name}` has no generated Rust type")
+            })?;
+            return self.emit_rule_head_pattern_argument(
+                inner,
+                &annotated_ty,
+                borrowed_string,
+                boxed,
+                state,
+            );
+        }
+
+        if boxed
+            && !matches!(
+                &argument.kind,
+                ExprKind::Var(name)
+                    if name == "_" || !name.chars().next().is_some_and(char::is_uppercase)
+            )
+        {
+            return Err(
+                "nested non-binding patterns inside boxed rule-head fields are unsupported"
+                    .to_string(),
+            );
+        }
+
+        match &argument.kind {
+            ExprKind::Var(name) if name == "_" => Ok("_".to_string()),
+            ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                let temporary_name = Self::fresh_rule_head_temporary(state);
+                let materialization = if boxed {
+                    RustRuleHeadBindingMaterialization::DerefClone
+                } else if borrowed_string {
+                    RustRuleHeadBindingMaterialization::ToOwnedString
+                } else {
+                    RustRuleHeadBindingMaterialization::Direct
+                };
+                state.bindings.push(RustRuleHeadBinding {
+                    source_name: name.clone(),
+                    temporary_name: temporary_name.clone(),
+                    ty: expected_ty.clone(),
+                    materialization,
+                });
+                Ok(temporary_name)
+            }
+            ExprKind::Var(name) => {
+                if matches!(expected_ty, FirTy::String) {
+                    let temporary_name = Self::fresh_rule_head_temporary(state);
+                    state.guards.push(format!("{temporary_name} == {name:?}"));
+                    return Ok(temporary_name);
+                }
+                if name == "True" {
+                    return matches!(expected_ty, FirTy::Bool)
+                        .then(|| "true".to_string())
+                        .ok_or_else(|| "`True` rule-head tag does not match Bool".to_string());
+                }
+                if name == "False" {
+                    return matches!(expected_ty, FirTy::Bool)
+                        .then(|| "false".to_string())
+                        .ok_or_else(|| "`False` rule-head tag does not match Bool".to_string());
+                }
+                let parent = self.find_parent_type_with_expected(name, expected_ty);
+                let fields = self
+                    .types
+                    .variant_fields_for_parent(&parent, name)
+                    .ok_or_else(|| format!("rule-head constructor `{name}` is not available"))?;
+                if !fields.is_empty() {
+                    return Err(format!(
+                        "fielded constructor `{name}` cannot be used as a nullary rule-head tag"
+                    ));
+                }
+                Ok(self.types.emit_nullary_variant_with_parent(name, &parent))
+            }
+            ExprKind::Lit(literal) => {
+                if boxed {
+                    return Err("boxed literal rule-head patterns are unsupported".to_string());
+                }
+                let temporary_name = Self::fresh_rule_head_temporary(state);
+                let literal_value = match literal {
+                    Literal::Str(value) => format!("{value:?}"),
+                    Literal::Char(value) => format!("{value:?}"),
+                    Literal::Int(value) => format!("{value}i64"),
+                    Literal::Float(value) => format!("{value:?}"),
+                    Literal::Bool(value) => value.to_string(),
+                };
+                let guard = match literal {
+                    Literal::Float(_) => {
+                        format!("({temporary_name} - {literal_value}).abs() < f64::EPSILON")
+                    }
+                    _ => format!("{temporary_name} == {literal_value}"),
+                };
+                state.guards.push(guard);
+                Ok(temporary_name)
+            }
+            ExprKind::Tuple(items) => {
+                let FirTy::Tuple(item_tys) = expected_ty else {
+                    return Err("tuple rule-head pattern has no exact tuple parameter ABI".into());
+                };
+                if items.len() != item_tys.len() {
+                    return Err("tuple rule-head pattern has the wrong arity".into());
+                }
+                let patterns = items
+                    .iter()
+                    .zip(item_tys)
+                    .map(|(item, item_ty)| {
+                        self.emit_rule_head_pattern_argument(item, item_ty, false, false, state)
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                let trailing = (patterns.len() == 1).then_some(",").unwrap_or("");
+                Ok(format!("({}{trailing})", patterns.join(", ")))
+            }
+            ExprKind::App(function, arguments) => {
+                let ExprKind::Var(constructor) = &function.kind else {
+                    return Err("computed rule-head patterns are unsupported".into());
+                };
+                if constructor == NAMED_ARG_MARKER {
+                    return Err("a named field wrapper cannot be a rule-head pattern".into());
+                }
+                let parent = self.find_parent_type_with_expected(constructor, expected_ty);
+                let fields = self
+                    .types
+                    .variant_fields_for_parent(&parent, constructor)
+                    .cloned()
+                    .ok_or_else(|| {
+                        format!("rule-head constructor `{constructor}` is not available")
+                    })?;
+                if fields.len() != arguments.len() {
+                    return Err(format!(
+                        "rule-head constructor `{constructor}` has the wrong payload arity"
+                    ));
+                }
+                let ordered = if has_named_args(arguments) {
+                    if !all_named_args(arguments) {
+                        return Err(format!(
+                            "rule-head constructor `{constructor}` mixes named and positional fields"
+                        ));
+                    }
+                    fields
+                        .iter()
+                        .map(|field| {
+                            let matches = arguments
+                                .iter()
+                                .filter_map(named_arg_parts)
+                                .filter(|(name, _)| name == field)
+                                .map(|(_, value)| value)
+                                .collect::<Vec<_>>();
+                            let [value] = matches.as_slice() else {
+                                return Err(format!(
+                                    "rule-head constructor `{constructor}` does not match field `{field}`"
+                                ));
+                            };
+                            Ok(*value)
+                        })
+                        .collect::<Result<Vec<_>, String>>()?
+                } else {
+                    arguments.iter().collect::<Vec<_>>()
+                };
+                let positional = self
+                    .types
+                    .variant_positional_for_parent(&parent, constructor);
+                let boxed_indices = self
+                    .types
+                    .variant_boxed_args_for_parent(&parent, constructor)
+                    .cloned()
+                    .unwrap_or_default();
+                let patterns = ordered
+                    .iter()
+                    .enumerate()
+                    .map(|(index, child)| {
+                        let child_ty = if positional {
+                            self.types.positional_pattern_field_ty_with_expected(
+                                constructor,
+                                index,
+                                expected_ty,
+                            )
+                        } else {
+                            self.types.pattern_field_ty_with_expected(
+                                constructor,
+                                &fields[index],
+                                expected_ty,
+                            )
+                        };
+                        self.emit_rule_head_pattern_argument(
+                            child,
+                            &child_ty,
+                            false,
+                            boxed_indices.contains(&index),
+                            state,
+                        )
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                if constructor == "Pair"
+                    && parent == "Pair"
+                    && patterns.len() == 2
+                    && self.types.struct_types.contains("Pair")
+                {
+                    return Ok(format!("({}, {})", patterns[0], patterns[1]));
+                }
+                let is_struct = self.types.struct_types.contains(&parent);
+                if positional {
+                    let owner = if is_struct {
+                        parent
+                    } else {
+                        format!("{parent}::{constructor}")
+                    };
+                    Ok(format!("{owner}({})", patterns.join(", ")))
+                } else {
+                    let owner = if is_struct {
+                        parent
+                    } else {
+                        format!("{parent}::{constructor}")
+                    };
+                    let fields = fields
+                        .iter()
+                        .zip(patterns)
+                        .map(|(field, pattern)| format!("{field}: {pattern}"))
+                        .collect::<Vec<_>>();
+                    Ok(format!("{owner} {{ {} }}", fields.join(", ")))
+                }
+            }
+            _ => Err("rule-head pattern is not representable in generated Rust".into()),
+        }
+    }
+
+    fn prepare_rule_head_applicability(
+        &self,
+        head: &Expr,
+        actuals: &[String],
+        actual_tys: &[FirTy],
+        borrowed_strings: &[bool],
+    ) -> Result<RustRuleHeadApplicability, String> {
+        if actuals.len() != actual_tys.len() || actuals.len() != borrowed_strings.len() {
+            return Err("generated rule ABI vectors have inconsistent arity".into());
+        }
+        let arguments: &[Expr] = match &head.kind {
+            ExprKind::App(_, arguments) => arguments,
+            ExprKind::Var(_) if actuals.is_empty() => &[],
+            _ => return Err("rule head is not a named call".into()),
+        };
+        if arguments.len() != actuals.len() {
+            return Err("rule candidate head does not match its family arity".into());
+        }
+
+        let mut used_names = actuals.iter().cloned().collect::<BTreeSet<_>>();
+        for argument in arguments {
+            Self::collect_rule_head_binding_names(argument, &mut used_names);
+        }
+        let mut state = RustRuleHeadPatternState {
+            used_names,
+            next_temporary: 0,
+            guards: Vec::new(),
+            bindings: Vec::new(),
+        };
+        let patterns = arguments
+            .iter()
+            .zip(actual_tys)
+            .zip(borrowed_strings)
+            .map(|((argument, ty), borrowed_string)| {
+                self.emit_rule_head_pattern_argument(
+                    argument,
+                    ty,
+                    *borrowed_string,
+                    false,
+                    &mut state,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let (subject, pattern) = match actuals.len() {
+            0 => ("()".to_string(), "()".to_string()),
+            1 => (format!("({}).clone()", actuals[0]), patterns[0].clone()),
+            _ => (
+                format!(
+                    "({})",
+                    actuals
+                        .iter()
+                        .map(|actual| format!("({actual}).clone()"))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ),
+                format!("({})", patterns.join(", ")),
+            ),
+        };
+        Ok(RustRuleHeadApplicability {
+            subject,
+            pattern,
+            guards: state.guards,
+            bindings: state.bindings,
+        })
+    }
+
+    fn with_rule_head_binding_context<R>(
+        &mut self,
+        applicability: &RustRuleHeadApplicability,
+        expressions: &[&Expr],
+        emit: impl FnOnce(&mut Self) -> R,
+    ) -> R {
+        let previous_local_bindings = self.local_bindings.clone();
+        let previous_var_types = self.var_types.clone();
+        let previous_var_fir_types = self.var_fir_types.clone();
+        let previous_copy_vars = self.copy_vars.clone();
+        let previous_var_use_counts = self.var_use_counts.clone();
+        let previous_var_consuming_counts = self.var_consuming_counts.clone();
+
+        let mut uses = BTreeMap::new();
+        let mut consuming_uses = BTreeMap::new();
+        for expression in expressions {
+            count_var_uses(expression, &mut uses);
+            count_consuming_uses_borrow_aware_for_ownership(
+                expression,
+                &mut consuming_uses,
+                &self.borrow_only_params,
+                None,
+                &[],
+            );
+        }
+        for binding in &applicability.bindings {
+            self.local_bindings.insert(binding.source_name.clone());
+            self.var_fir_types
+                .insert(binding.source_name.clone(), binding.ty.clone());
+            if let Some(rust_ty) = Self::fir_type_to_rust(&binding.ty) {
+                self.var_types.insert(binding.source_name.clone(), rust_ty);
+            }
+            if Self::fir_ty_is_copy(&binding.ty) {
+                self.copy_vars.insert(binding.source_name.clone());
+            } else {
+                self.copy_vars.remove(&binding.source_name);
+            }
+            if let Some(count) = uses.get(&binding.source_name) {
+                self.var_use_counts
+                    .insert(binding.source_name.clone(), *count);
+            } else {
+                self.var_use_counts.remove(&binding.source_name);
+            }
+            if let Some(count) = consuming_uses.get(&binding.source_name) {
+                self.var_consuming_counts
+                    .insert(binding.source_name.clone(), *count);
+            } else {
+                self.var_consuming_counts.remove(&binding.source_name);
+            }
+        }
+
+        let result = emit(self);
+        self.local_bindings = previous_local_bindings;
+        self.var_types = previous_var_types;
+        self.var_fir_types = previous_var_fir_types;
+        self.copy_vars = previous_copy_vars;
+        self.var_use_counts = previous_var_use_counts;
+        self.var_consuming_counts = previous_var_consuming_counts;
+        result
+    }
+
+    fn emit_rule_head_candidate(
+        &mut self,
+        head: &Expr,
+        actuals: &[String],
+        actual_tys: &[FirTy],
+        borrowed_strings: &[bool],
+        expressions: &[&Expr],
+        indent: &str,
+        emit_match: impl FnOnce(&mut Self, &str) -> String,
+    ) -> Result<String, String> {
+        let applicability =
+            self.prepare_rule_head_applicability(head, actuals, actual_tys, borrowed_strings)?;
+        Ok(
+            self.with_rule_head_binding_context(&applicability, expressions, |cg| {
+                let mut output = format!(
+                    "{indent}if let {} = {} {{\n",
+                    applicability.pattern, applicability.subject
+                );
+                let inner_indent = format!("{indent}    ");
+                for binding in &applicability.bindings {
+                    let value = match binding.materialization {
+                        RustRuleHeadBindingMaterialization::Direct => {
+                            binding.temporary_name.clone()
+                        }
+                        RustRuleHeadBindingMaterialization::DerefClone => {
+                            format!("(*{}).clone()", binding.temporary_name)
+                        }
+                        RustRuleHeadBindingMaterialization::ToOwnedString => {
+                            format!("{}.to_string()", binding.temporary_name)
+                        }
+                    };
+                    output.push_str(&format!(
+                        "{inner_indent}let {} = {};\n",
+                        sanitize_name(&binding.source_name),
+                        value
+                    ));
+                }
+                if applicability.guards.is_empty() {
+                    output.push_str(&emit_match(cg, &inner_indent));
+                } else {
+                    output.push_str(&format!(
+                        "{inner_indent}if {} {{\n",
+                        applicability.guards.join(" && ")
+                    ));
+                    let guarded_indent = format!("{inner_indent}    ");
+                    output.push_str(&emit_match(cg, &guarded_indent));
+                    output.push_str(&format!("{inner_indent}}}\n"));
+                }
+                output.push_str(&format!("{indent}}}\n"));
+                output
+            }),
+        )
+    }
+
+    fn emit_rule_head_compile_error(
+        indent: &str,
+        family: &str,
+        arity: usize,
+        error: &str,
+    ) -> String {
+        format!(
+            "{indent}compile_error!({:?});\n",
+            format!(
+                "generated Rust cannot preserve rule-head dispatch for `{}({})`: {}",
+                family, arity, error
+            )
+        )
+    }
+
+    fn prolog_clause_has_existential(goals: &[Expr], head_bindings: &BTreeSet<String>) -> bool {
+        goals.iter().any(|goal| {
+            let ExprKind::App(_, arguments) = &goal.kind else {
+                return false;
+            };
+            arguments.iter().any(|argument| {
+                matches!(
+                    &Self::rule_head_arg_expr(argument).kind,
+                    ExprKind::Var(name)
+                        if name != "_"
+                            && !name.chars().next().is_some_and(char::is_uppercase)
+                            && !head_bindings.contains(name)
+                )
+            })
+        })
+    }
+
+    fn complete_prolog_ground_fact_source(
+        &self,
+        goal_name: &str,
+        arity: usize,
+    ) -> Result<(String, bool), String> {
+        let rules = self
+            .types
+            .prolog_rule_groups
+            .get(goal_name)
+            .ok_or_else(|| format!("existential goal `{goal_name}` has no generated source"))?;
+        let rule_refs = rules.iter().collect::<Vec<_>>();
+        if rule_refs
+            .iter()
+            .any(|rule| Self::rule_exact_arity(rule).is_none())
+        {
+            return Err(format!(
+                "existential goal `{goal_name}` has an unrepresentable source candidate"
+            ));
+        }
+        let by_arity = Self::split_rule_group_by_arity(&rule_refs);
+        let Some(candidates) = by_arity.get(&arity) else {
+            return Err(format!(
+                "existential goal `{}({})` has no generated source",
+                goal_name, arity
+            ));
+        };
+        if by_arity.len() != 1 {
+            return Err(format!(
+                "overloaded existential source `{goal_name}` has no arity-qualified fact ABI"
+            ));
+        }
+        if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+            let scoped_key = self.current_rule_scope_name.as_ref().and_then(|scope| {
+                self.types
+                    .rule_scope_member_rules
+                    .get(&(scope.clone(), goal_name.to_string()))
+                    .is_some_and(|rules| {
+                        rules
+                            .iter()
+                            .any(|rule| Self::rule_exact_arity(rule) == Some(arity))
+                    })
+                    .then(|| RuleDispatchKey {
+                        scope: Some(scope.clone()),
+                        name: goal_name.to_string(),
+                        arity,
+                    })
+            });
+            let key = scoped_key.unwrap_or_else(|| RuleDispatchKey {
+                scope: None,
+                name: goal_name.to_string(),
+                arity,
+            });
+            if self.canonical_rule_parameter_issues.contains(&key)
+                || self.canonical_rule_return_issues.contains_key(&key)
+                || self
+                    .canonical_rule_return_types
+                    .get(&key)
+                    .map(String::as_str)
+                    != Some("Bool")
+            {
+                return Err(format!(
+                    "existential source `{goal_name}` has no complete generated Bool ABI"
+                ));
+            }
+        }
+
+        let mut fact_arguments = Vec::with_capacity(candidates.len());
+        for candidate in candidates {
+            let Rule::Clause { head, body: None } = candidate else {
+                return Err(format!(
+                    "existential source `{goal_name}` is not a complete ground-fact relation"
+                ));
+            };
+            let ExprKind::App(_, arguments) = &head.kind else {
+                return Err(format!(
+                    "existential source `{goal_name}` has an unrepresentable fact head"
+                ));
+            };
+            if arguments.len() != arity || !arguments.iter().all(Self::rule_head_arg_is_ground_term)
+            {
+                return Err(format!(
+                    "existential source `{goal_name}` is not a complete ground-fact relation"
+                ));
+            }
+            fact_arguments.extend(arguments.iter());
+        }
+        if fact_arguments.is_empty() {
+            return Err(format!(
+                "existential source `{goal_name}` has no materialized facts"
+            ));
+        }
+
+        let emitted_name = self
+            .rule_emitted_names
+            .get(&(goal_name.to_string(), arity))
+            .ok_or_else(|| {
+                format!("existential source `{goal_name}` has no generated rule identity")
+            })?;
+        Ok((
+            format!("{}_FACTS", sanitize_name(emitted_name).to_uppercase()),
+            fact_arguments
+                .iter()
+                .any(|argument| Self::rule_head_arg_requires_lazy_fact_table(argument)),
+        ))
+    }
+
+    fn prolog_fact_type_contains_float(
+        &self,
+        ty: &FirTy,
+        visiting_named: &mut BTreeSet<String>,
+    ) -> Option<bool> {
+        match ty {
+            FirTy::Float => Some(true),
+            FirTy::Int | FirTy::Bool | FirTy::Char | FirTy::String | FirTy::Unit => Some(false),
+            FirTy::List(inner) | FirTy::Option(inner) => {
+                self.prolog_fact_type_contains_float(inner, visiting_named)
+            }
+            FirTy::Result(ok, error) => {
+                let left = self.prolog_fact_type_contains_float(ok, visiting_named)?;
+                let right = self.prolog_fact_type_contains_float(error, visiting_named)?;
+                Some(left || right)
+            }
+            FirTy::Tuple(items) => {
+                let mut contains_float = false;
+                for item in items {
+                    contains_float |= self.prolog_fact_type_contains_float(item, visiting_named)?;
+                }
+                Some(contains_float)
+            }
+            // Runtime Prolog equality does not currently define Map/Set
+            // comparison, even though generated Rust derives collection
+            // equality. Keep those sources closed rather than silently drift.
+            FirTy::Map(_, _) | FirTy::Set(_) => None,
+            FirTy::Named(rust_name) => {
+                let owner_name = if self.types.type_decls.contains_key(rust_name) {
+                    rust_name.clone()
+                } else if let Some(emitted) = self.types.type_rename.get(rust_name) {
+                    self.types
+                        .type_decls
+                        .contains_key(emitted)
+                        .then(|| emitted.clone())?
+                } else {
+                    self.types
+                        .type_rename
+                        .iter()
+                        .find_map(|(source, emitted)| {
+                            (emitted == rust_name).then(|| source.clone())
+                        })?
+                };
+                if !visiting_named.insert(owner_name.clone()) {
+                    return Some(false);
+                }
+                let result = (|| {
+                    let (_, variants) = self.types.type_decls.get(&owner_name)?;
+                    let mut contains_float = false;
+                    for variant in variants {
+                        let key = (owner_name.clone(), variant.clone());
+                        let fields = self.types.variant_fields_by_parent.get(&key)?;
+                        let field_types = self.types.variant_field_types_by_parent.get(&key)?;
+                        if fields.len() != field_types.len() {
+                            return None;
+                        }
+                        for field in fields {
+                            let field_type = field_types.get(field)?;
+                            let field_type =
+                                LoweringCtx::ty_to_fir_with_registry(field_type, &self.types);
+                            contains_float |=
+                                self.prolog_fact_type_contains_float(&field_type, visiting_named)?;
+                        }
+                    }
+                    Some(contains_float)
+                })();
+                visiting_named.remove(&owner_name);
+                result
+            }
+            FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown => None,
+        }
+    }
+
+    fn emit_prolog_fact_match_condition(
+        &self,
+        fact_value: &str,
+        expected: &str,
+        ty: &FirTy,
+        fact_string_is_owned: bool,
+        expected_string_is_owned: bool,
+    ) -> Result<String, String> {
+        if matches!(ty, FirTy::Float) {
+            return Ok(format!(
+                "(({fact_value}) - ({expected})).abs() < f64::EPSILON"
+            ));
+        }
+        if matches!(ty, FirTy::String) {
+            let fact_value = if fact_string_is_owned {
+                format!("({fact_value}).as_str()")
+            } else {
+                format!("({fact_value})")
+            };
+            let expected = if expected_string_is_owned {
+                format!("({expected}).as_str()")
+            } else {
+                format!("({expected})")
+            };
+            return Ok(format!("{fact_value} == {expected}"));
+        }
+
+        match self.prolog_fact_type_contains_float(ty, &mut BTreeSet::new()) {
+            Some(false) => Ok(format!("({fact_value}) == ({expected})")),
+            Some(true) => Err(
+                "existential comparison over a value containing Float is unsupported".to_string(),
+            ),
+            None => Err("existential comparison has no exact generated equality ABI".to_string()),
+        }
+    }
+
+    fn emit_prolog_existential_clause_body(
+        &mut self,
+        goals: &[Expr],
+        head_bindings: &BTreeSet<String>,
+        indent: &str,
+    ) -> Result<String, String> {
+        let Some(first_goal) = goals.first() else {
+            return Ok(format!("{indent}return true;\n"));
+        };
+        let ExprKind::App(function, arguments) = &first_goal.kind else {
+            return Err("an existential conjunction must start with a named goal".into());
+        };
+        let goal_name = Self::expr_fn_name(function);
+        let persisted_source = self.types.persisted_types.contains(goal_name.as_str());
+        let goal_param_types = if persisted_source {
+            let fields = self.persisted_fields(&goal_name).ok_or_else(|| {
+                format!("persisted existential goal `{goal_name}` has no field schema")
+            })?;
+            if arguments.len() > fields.len() {
+                return Err(format!(
+                    "persisted existential goal `{}({})` exceeds its field schema",
+                    goal_name,
+                    arguments.len()
+                ));
+            }
+            fields
+                .iter()
+                .take(arguments.len())
+                .map(|field| self.persisted_field_rust_type(&goal_name, field))
+                .collect::<Vec<_>>()
+        } else {
+            self.types
+                .prolog_rule_fns
+                .get(goal_name.as_str())
+                .cloned()
+                .ok_or_else(|| {
+                    format!(
+                        "existential goal `{}({})` has no stable generated ABI",
+                        goal_name,
+                        arguments.len()
+                    )
+                })?
+        };
+        if goal_param_types.len() != arguments.len() {
+            return Err(format!(
+                "existential goal `{}({})` has no stable generated ABI",
+                goal_name,
+                arguments.len()
+            ));
+        }
+        let goal_param_fir_types = goal_param_types
+            .iter()
+            .map(|parameter| match parameter.as_str() {
+                "&str" | "String" => FirTy::String,
+                other => Self::rust_type_to_fir(other),
+            })
+            .collect::<Vec<_>>();
+        if goal_param_fir_types.iter().any(|parameter| {
+            matches!(
+                parameter,
+                FirTy::Arrow(_, _) | FirTy::Var(_) | FirTy::Unknown
+            )
+        }) {
+            return Err(format!(
+                "existential goal `{}({})` has no comparable generated ABI",
+                goal_name,
+                arguments.len()
+            ));
+        }
+
+        let (source_iter, fact_strings_are_owned) = if persisted_source {
+            // Do not push equality into SQL here. Futuruna fact matching has
+            // type-specific equality (notably epsilon Float equality), while
+            // the storage engine's `=` has different semantics. Scan the
+            // durable source and apply the same generated matcher as in-memory
+            // facts below.
+            let scan_arguments = arguments
+                .iter()
+                .map(|argument| Expr::new(ExprKind::Var("_".to_string()), argument.span))
+                .collect::<Vec<_>>();
+            (
+                self.emit_persisted_query_expr(&goal_name, &scan_arguments, None, &BTreeMap::new())
+                    .ok_or_else(|| {
+                        format!("persisted existential goal `{goal_name}` cannot be lowered")
+                    })?,
+                true,
+            )
+        } else {
+            let (table_name, lazy_fact_table) =
+                self.complete_prolog_ground_fact_source(&goal_name, arguments.len())?;
+            (format!("{table_name}.iter()"), lazy_fact_table)
+        };
+
+        let mut existential_types = BTreeMap::new();
+        let mut bound_existentials = BTreeSet::new();
+        let mut setup = Vec::new();
+        for (index, argument) in arguments.iter().enumerate() {
+            let argument = Self::rule_head_arg_expr(argument);
+            let fact_value = if arguments.len() == 1 && !persisted_source {
+                "(*fact)".to_string()
+            } else {
+                format!("fact.{index}")
+            };
+            match &argument.kind {
+                ExprKind::Var(name) if name == "_" => {}
+                ExprKind::Var(name)
+                    if !name.chars().next().is_some_and(char::is_uppercase)
+                        && head_bindings.contains(name) =>
+                {
+                    let expected = if goal_param_types[index] == "&str" {
+                        format!("{}.as_str()", sanitize_name(name))
+                    } else {
+                        sanitize_name(name)
+                    };
+                    let matches = self.emit_prolog_fact_match_condition(
+                        &fact_value,
+                        &expected,
+                        &goal_param_fir_types[index],
+                        fact_strings_are_owned,
+                        goal_param_types[index] == "String",
+                    )?;
+                    setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                }
+                ExprKind::Var(name) if !name.chars().next().is_some_and(char::is_uppercase) => {
+                    if bound_existentials.insert(name.clone()) {
+                        let ty = goal_param_fir_types[index].clone();
+                        existential_types.insert(name.clone(), ty);
+                        let value = if goal_param_types[index] == "&str" {
+                            format!("{fact_value}.to_string()")
+                        } else {
+                            format!("{fact_value}.clone()")
+                        };
+                        setup.push(format!(
+                            "{indent}    let {} = {value};\n",
+                            sanitize_name(name)
+                        ));
+                    } else {
+                        let expected = if goal_param_types[index] == "&str" {
+                            format!("{}.as_str()", sanitize_name(name))
+                        } else {
+                            sanitize_name(name)
+                        };
+                        let matches = self.emit_prolog_fact_match_condition(
+                            &fact_value,
+                            &expected,
+                            &goal_param_fir_types[index],
+                            fact_strings_are_owned,
+                            goal_param_types[index] == "String",
+                        )?;
+                        setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                    }
+                }
+                _ => {
+                    let expected = if goal_param_types[index] == "&str" {
+                        self.emit_prolog_arg(argument)
+                    } else {
+                        self.emit_expr(argument)
+                    };
+                    let matches = self.emit_prolog_fact_match_condition(
+                        &fact_value,
+                        &expected,
+                        &goal_param_fir_types[index],
+                        fact_strings_are_owned,
+                        goal_param_types[index] == "String",
+                    )?;
+                    setup.push(format!("{indent}    if !({matches}) {{ continue; }}\n"));
+                }
+            }
+        }
+
+        let existential_bindings = existential_types
+            .iter()
+            .map(|(name, ty)| RustRuleHeadBinding {
+                source_name: name.clone(),
+                temporary_name: String::new(),
+                ty: ty.clone(),
+                materialization: RustRuleHeadBindingMaterialization::Direct,
+            })
+            .collect();
+        let existential_context = RustRuleHeadApplicability {
+            subject: String::new(),
+            pattern: String::new(),
+            guards: Vec::new(),
+            bindings: existential_bindings,
+        };
+        let remaining = &goals[1..];
+        let expressions = remaining.iter().collect::<Vec<_>>();
+        let conditions =
+            self.with_rule_head_binding_context(&existential_context, &expressions, |cg| {
+                remaining
+                    .iter()
+                    .map(|goal| {
+                        if let ExprKind::App(function, arguments) = &goal.kind {
+                            let called = Self::expr_fn_name(function);
+                            if cg.types.persisted_types.contains(called.as_str()) {
+                                let bound_variables = arguments
+                                    .iter()
+                                    .filter_map(|argument| match &argument.kind {
+                                        ExprKind::Var(name) if name != "_" => {
+                                            Some((name.clone(), sanitize_name(name)))
+                                        }
+                                        _ => None,
+                                    })
+                                    .collect::<BTreeMap<_, _>>();
+                                return cg
+                                    .emit_persisted_exists_expr(
+                                        &called,
+                                        arguments,
+                                        &bound_variables,
+                                    )
+                                    .unwrap_or_else(|| "false".to_string());
+                            }
+                        }
+                        cg.emit_expr(goal)
+                    })
+                    .collect::<Vec<_>>()
+            });
+
+        let mut output = format!("{indent}for fact in {source_iter} {{\n");
+        for statement in setup {
+            output.push_str(&statement);
+        }
+        if conditions.is_empty() {
+            output.push_str(&format!("{indent}    return true;\n"));
+        } else {
+            output.push_str(&format!(
+                "{indent}    if {} {{ return true; }}\n",
+                conditions.join(" && ")
+            ));
+        }
+        output.push_str(&format!("{indent}}}\n"));
+        Ok(output)
+    }
+
     fn rule_type_name_to_fir(&self, type_name: &str) -> Option<FirTy> {
         let ty = parse_type_annotation(type_name).ok()?;
         Some(self.source_ty_to_fir(&ty))
@@ -33395,51 +42791,148 @@ impl RustCodegen {
         None
     }
 
-    /// Emit Prolog-style rule function with fact table + backtracking search
-    fn emit_prolog_rule_function(
-        &mut self,
-        fn_name: &str,
-        rules: &[&Rule],
-        arity: usize,
-    ) -> String {
-        let mut out = String::new();
-        let sanitized = sanitize_name(fn_name);
+    fn name_is_exported_in_current_namespace(&self, name: &str) -> bool {
+        if self.current_module_path.is_empty() {
+            self.types.root_exported_names.contains(name)
+        } else {
+            self.types.exported_names.contains(name)
+        }
+    }
 
-        // Determine param types from ground terms in any clause head
-        let mut param_types: Vec<String> = vec!["String".to_string(); arity];
-        for r in rules {
-            if let Rule::Clause { head, .. } = r {
+    fn rule_is_exported_in_current_namespace(&self, name: &str) -> bool {
+        self.name_is_exported_in_current_namespace(name)
+    }
+
+    fn prolog_rule_param_rust_types(&self, rules: &[&Rule], arity: usize) -> Vec<String> {
+        let mut param_types = vec!["String".to_string(); arity];
+        for rule in rules {
+            if let Rule::Clause { head, .. } = rule {
                 if let ExprKind::App(_, args) = &head.kind {
-                    for (i, arg) in args.iter().enumerate() {
+                    for (position, arg) in args.iter().enumerate() {
                         if let Some(rust_ty) = self.rule_head_arg_rust_type_hint(arg) {
-                            param_types[i] = rust_ty;
+                            param_types[position] = rust_ty;
                         }
                     }
                 }
             }
         }
+        param_types
+    }
+
+    fn prolog_param_type_strs_from_rust_types(param_types: &[String]) -> Vec<String> {
+        param_types
+            .iter()
+            .map(|ty| {
+                if ty == "String" {
+                    "&str".to_string()
+                } else {
+                    ty.clone()
+                }
+            })
+            .collect()
+    }
+
+    /// Emit Prolog-style rule function with fact table + backtracking search
+    fn emit_prolog_rule_function(
+        &mut self,
+        fn_name: &str,
+        emitted_name: &str,
+        rules: &[&Rule],
+        arity: usize,
+        bool_miss_is_safe: bool,
+        canonical_return: Option<&str>,
+        canonical_parameters: Option<&[Option<String>]>,
+    ) -> String {
+        let mut out = String::new();
+        let sanitized = sanitize_name(emitted_name);
+
+        // Root emission consumes the TypeChecker-owned ABI. Qualified module
+        // bodies remain on their isolated legacy metadata path.
+        let mut param_types = self.prolog_rule_param_rust_types(rules, arity);
+        if let Some(parameters) = canonical_parameters {
+            if parameters.len() != arity || param_types.len() != arity {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generated Rust has inconsistent parameter metadata for Prolog rule `{}({})`",
+                        fn_name, arity
+                    )
+                );
+            }
+            for (index, parameter) in parameters.iter().enumerate() {
+                let Some(parameter) = parameter.as_deref() else {
+                    continue;
+                };
+                let Ok(parameter) = parse_type_annotation(parameter) else {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!("invalid canonical Prolog parameter ABI for `{}`", fn_name)
+                    );
+                };
+                let mut type_variables = Vec::new();
+                self.collect_type_vars(&parameter, &mut type_variables);
+                if !type_variables.is_empty() {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!(
+                            "generic canonical Prolog parameter ABI is unsupported for `{}`",
+                            fn_name
+                        )
+                    );
+                }
+                let inferred = Self::rust_type_to_fir(&param_types[index]);
+                let proven = self.source_ty_to_fir(&parameter);
+                if !Self::rule_parameter_overlay_is_compatible(&inferred, &proven) {
+                    return format!(
+                        "compile_error!({:?});\n",
+                        format!(
+                            "inferred and canonical parameter {} disagree for Prolog rule `{}`",
+                            index, fn_name
+                        )
+                    );
+                }
+                param_types[index] = self.emit_type(&parameter);
+            }
+        }
         let param_fir_tys = Self::prolog_param_fir_tys(&param_types);
 
         // Register this function as Prolog-style so call sites can emit correct types
-        let param_type_strs: Vec<String> = param_types
-            .iter()
-            .map(|t| {
-                if t == "String" {
-                    "&str".to_string()
-                } else {
-                    t.clone()
-                }
-            })
-            .collect();
+        let param_type_strs = Self::prolog_param_type_strs_from_rust_types(&param_types);
         self.types
             .prolog_rule_fns
             .insert(fn_name.to_string(), param_type_strs);
 
         // Value-returning Prolog rules: emit Option<T> instead of bool
-        if let Some(value_type_str) = self
-            .infer_prolog_rules_value_type(rules, &param_fir_tys)
-            .or_else(|| Self::prolog_rules_value_type(rules))
-        {
+        let canonical_value_type = if let Some(return_type) = canonical_return {
+            let Ok(return_type) = parse_type_annotation(return_type) else {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!("invalid canonical Prolog return ABI for `{}`", fn_name)
+                );
+            };
+            let mut type_variables = Vec::new();
+            self.collect_type_vars(&return_type, &mut type_variables);
+            if !type_variables.is_empty() {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generic canonical Prolog return ABI is unsupported for `{}`",
+                        fn_name
+                    )
+                );
+            }
+            (!matches!(return_type, Ty::Name(ref name) if name == "Bool"))
+                .then(|| self.emit_type(&return_type))
+        } else {
+            None
+        };
+        let value_type = if canonical_return.is_some() {
+            canonical_value_type
+        } else {
+            self.infer_prolog_rules_value_type(rules, &param_fir_tys)
+                .or_else(|| Self::prolog_rules_value_type(rules))
+        };
+        if let Some(value_type_str) = value_type {
             self.types
                 .prolog_value_fns
                 .insert(fn_name.to_string(), value_type_str.clone());
@@ -33472,17 +42965,26 @@ impl RustCodegen {
             .iter()
             .flatten()
             .any(Self::rule_head_arg_requires_lazy_fact_table);
-        let facts: Vec<Vec<String>> = fact_rows
+        let facts = fact_rows
             .iter()
             .map(|row| {
                 row.iter()
                     .enumerate()
-                    .filter_map(|(idx, arg)| {
+                    .map(|(idx, arg)| {
                         self.emit_rule_fact_value(arg, &param_types[idx], lazy_fact_table)
                     })
-                    .collect()
+                    .collect::<Option<Vec<_>>>()
             })
-            .collect();
+            .collect::<Option<Vec<_>>>();
+        let Some(facts) = facts else {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust cannot materialize every fact of `{}({})`",
+                    fn_name, arity
+                )
+            );
+        };
 
         // Emit fact table
         let table_name = format!("{}_FACTS", sanitized.to_uppercase());
@@ -33570,336 +43072,191 @@ impl RustCodegen {
             })
             .collect::<Vec<_>>()
             .join(", ");
-        out.push_str(&format!("fn {}({}) -> bool {{\n", sanitized, param_str));
+        let pub_prefix = if self.rule_is_exported_in_current_namespace(fn_name) {
+            "pub "
+        } else {
+            ""
+        };
+        out.push_str(&format!(
+            "{}fn {}({}) -> bool {{\n",
+            pub_prefix, sanitized, param_str
+        ));
 
-        // Emit rules with bodies (conjunction / backtracking)
-        for r in rules {
-            if let Rule::Clause {
+        let borrowed_strings = param_types
+            .iter()
+            .map(|parameter| parameter == "String")
+            .collect::<Vec<_>>();
+        let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+        let matched_false_clause_name = (!bool_miss_is_safe
+            && dispatch
+                .clauses
+                .iter()
+                .any(|candidate| matches!(candidate.rule, Rule::Clause { body: Some(_), .. })))
+        .then(|| {
+            Self::fresh_rule_dispatch_state_name(rules, &param_names, "__fut_matched_false_clause")
+        });
+        if let Some(name) = &matched_false_clause_name {
+            out.push_str(&format!("    let mut {name} = false;\n"));
+        }
+
+        for candidate in &dispatch.exceptions {
+            let Rule::Exception {
                 head,
-                body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    // Map head variable names to parameter positions
-                    let head_vars = Self::rule_head_param_vars(head_args);
-                    let (head_var_type_names, head_var_type_tys) =
-                        self.prolog_head_var_type_bindings(head_args, &param_fir_tys);
+                value,
+                condition,
+                ..
+            } = candidate.rule
+            else {
+                continue;
+            };
+            let mut expressions = vec![value];
+            expressions.extend(condition.iter());
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &expressions,
+                "    ",
+                |cg, indent| {
+                    let value = cg.emit_rule_value_expr(value, &FirTy::Bool);
+                    condition.as_ref().map_or_else(
+                        || format!("{indent}return {value};\n"),
+                        |condition| {
+                            format!(
+                                "{indent}if {} {{ return {value}; }}\n",
+                                cg.emit_expr(condition)
+                            )
+                        },
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                    if let ExprKind::Conjunction(goals) = &body.kind {
-                        // Find existential variables (in goals but not in head)
-                        let head_var_names: std::collections::BTreeSet<String> =
-                            head_vars.iter().map(|(n, _)| n.clone()).collect();
+        for candidate in &dispatch.conditional_defaults {
+            let Rule::Default {
+                head,
+                value,
+                condition: Some(condition),
+            } = candidate.rule
+            else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &[value, condition],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}if {} {{ return {}; }}\n",
+                        cg.emit_expr(condition),
+                        cg.emit_rule_value_expr(value, &FirTy::Bool)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                        let has_existential = goals.iter().any(|g| {
-                            if let ExprKind::App(_, gargs) = &g.kind {
-                                gargs.iter().any(|a| {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        !head_var_names.contains(name)
-                                    } else {
-                                        false
-                                    }
-                                })
-                            } else {
-                                false
-                            }
-                        });
-
-                        if has_existential {
-                            // Existential search: iterate over fact table of the first goal
-                            let first_goal = &goals[0];
-                            if let ExprKind::App(func, goal_args) = &first_goal.kind {
-                                let goal_fn = Self::expr_fn_name(func);
-                                let source_iter =
-                                    if self.types.persisted_types.contains(goal_fn.as_str()) {
-                                        let mut bound_vars = BTreeMap::new();
-                                        for ga in goal_args {
-                                            if let ExprKind::Var(name) = &ga.kind {
-                                                if name == "_" {
-                                                    continue;
-                                                }
-                                                if let Some((_, idx)) =
-                                                    head_vars.iter().find(|(n, _)| n == name)
-                                                {
-                                                    bound_vars.insert(
-                                                        name.clone(),
-                                                        param_names[*idx].clone(),
-                                                    );
-                                                }
-                                            }
-                                        }
-                                        self.emit_persisted_query_expr(
-                                            &goal_fn,
-                                            goal_args,
-                                            None,
-                                            &bound_vars,
-                                        )
-                                        .unwrap_or_else(|| "Vec::new()".to_string())
-                                    } else {
-                                        let source_table = format!(
-                                            "{}_FACTS",
-                                            sanitize_name(&goal_fn).to_uppercase()
-                                        );
-                                        format!("{}.iter()", source_table)
-                                    };
-
-                                out.push_str(&format!("    for fact in {} {{\n", source_iter));
-                                for (gi, ga) in goal_args.iter().enumerate() {
-                                    if let ExprKind::Var(name) = &ga.kind {
-                                        if name == "_" {
-                                            continue;
-                                        }
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            // Bound from head — check match
-                                            out.push_str(&format!(
-                                                "        if fact.{} != {} {{ continue; }}\n",
-                                                gi, param_names[*idx]
-                                            ));
-                                        } else {
-                                            // Existential — bind
-                                            out.push_str(&format!(
-                                                "        let {} = fact.{};\n",
-                                                sanitize_name(name),
-                                                gi
-                                            ));
-                                        }
-                                    }
-                                }
-                                // Check remaining goals
-                                let remaining: Vec<String> = goals[1..]
-                                    .iter()
-                                    .map(|goal| {
-                                        if let ExprKind::App(func, goal_args) = &goal.kind {
-                                            let gfn = Self::expr_fn_name(func);
-                                            let gargs: Vec<String> = goal_args
-                                                .iter()
-                                                .map(|a| {
-                                                    if let ExprKind::Var(name) = &a.kind {
-                                                        if let Some((_, idx)) = head_vars
-                                                            .iter()
-                                                            .find(|(n, _)| n == name)
-                                                        {
-                                                            param_names[*idx].clone()
-                                                        } else {
-                                                            sanitize_name(name)
-                                                        }
-                                                    } else {
-                                                        self.emit_prolog_arg_with_named_types(
-                                                            a,
-                                                            &head_var_type_names,
-                                                            &head_var_type_tys,
-                                                        )
-                                                    }
-                                                })
-                                                .collect();
-                                            format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                        } else {
-                                            self.emit_prolog_arg_with_named_types(
-                                                goal,
-                                                &head_var_type_names,
-                                                &head_var_type_tys,
-                                            )
-                                        }
-                                    })
-                                    .collect();
-
-                                if remaining.is_empty() {
-                                    out.push_str("        return true;\n");
-                                } else {
-                                    out.push_str(&format!(
-                                        "        if {} {{ return true; }}\n",
-                                        remaining.join(" && ")
-                                    ));
-                                }
-                                out.push_str("    }\n");
-                            }
-                        } else {
-                            // Simple conjunction: all vars bound
-                            let cond_parts: Vec<String> = goals
-                                .iter()
-                                .map(|goal| {
-                                    if let ExprKind::App(func, goal_args) = &goal.kind {
-                                        let gfn = Self::expr_fn_name(func);
-                                        if self.types.persisted_types.contains(gfn.as_str()) {
-                                            let mut bound_vars = BTreeMap::new();
-                                            for a in goal_args {
-                                                if let ExprKind::Var(name) = &a.kind {
-                                                    if name == "_" {
-                                                        continue;
-                                                    }
-                                                    if let Some((_, idx)) =
-                                                        head_vars.iter().find(|(n, _)| n == name)
-                                                    {
-                                                        bound_vars.insert(
-                                                            name.clone(),
-                                                            param_names[*idx].clone(),
-                                                        );
-                                                    } else {
-                                                        bound_vars.insert(
-                                                            name.clone(),
-                                                            sanitize_name(name),
-                                                        );
-                                                    }
-                                                }
-                                            }
-                                            return self
-                                                .emit_persisted_exists_expr(
-                                                    &gfn,
-                                                    goal_args,
-                                                    &bound_vars,
-                                                )
-                                                .unwrap_or_else(|| "false".to_string());
-                                        }
-                                        let gargs: Vec<String> = goal_args
-                                            .iter()
-                                            .map(|a| {
-                                                if let ExprKind::Var(name) = &a.kind {
-                                                    if let Some((_, idx)) =
-                                                        head_vars.iter().find(|(n, _)| n == name)
-                                                    {
-                                                        param_names[*idx].clone()
-                                                    } else {
-                                                        sanitize_name(name)
-                                                    }
-                                                } else {
-                                                    self.emit_prolog_arg_with_named_types(
-                                                        a,
-                                                        &head_var_type_names,
-                                                        &head_var_type_tys,
-                                                    )
-                                                }
-                                            })
-                                            .collect();
-                                        format!("{}({})", sanitize_name(&gfn), gargs.join(", "))
-                                    } else {
-                                        self.emit_prolog_arg_with_named_types(
-                                            goal,
-                                            &head_var_type_names,
-                                            &head_var_type_tys,
-                                        )
-                                    }
-                                })
-                                .collect();
-                            out.push_str(&format!(
-                                "    if {} {{ return true; }}\n",
-                                cond_parts.join(" && ")
-                            ));
-                        }
-                    } else {
-                        // Simple non-conjunction body — emit as a call with proper arg substitution
-                        if let ExprKind::App(func, call_args) = &body.kind {
-                            let called_fn = Self::expr_fn_name(func);
-                            if self.types.persisted_types.contains(called_fn.as_str()) {
-                                let mut bound_vars = BTreeMap::new();
-                                for a in call_args {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        if name == "_" {
-                                            continue;
-                                        }
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            bound_vars
-                                                .insert(name.clone(), param_names[*idx].clone());
-                                        } else {
-                                            bound_vars.insert(name.clone(), sanitize_name(name));
-                                        }
-                                    }
-                                }
-                                let exists = self
-                                    .emit_persisted_exists_expr(&called_fn, call_args, &bound_vars)
-                                    .unwrap_or_else(|| "false".to_string());
-                                out.push_str(&format!("    if {} {{ return true; }}\n", exists));
-                                continue;
-                            }
-                            let gargs: Vec<String> = call_args
-                                .iter()
-                                .map(|a| {
-                                    if let ExprKind::Var(name) = &a.kind {
-                                        if let Some((_, idx)) =
-                                            head_vars.iter().find(|(n, _)| n == name)
-                                        {
-                                            param_names[*idx].clone()
-                                        } else {
-                                            sanitize_name(name)
-                                        }
-                                    } else {
-                                        self.emit_prolog_arg_with_named_types(
-                                            a,
-                                            &head_var_type_names,
-                                            &head_var_type_tys,
-                                        )
-                                    }
-                                })
-                                .collect();
-                            out.push_str(&format!(
-                                "    if {}({}) {{ return true; }}\n",
-                                sanitize_name(&called_fn),
-                                gargs.join(", ")
-                            ));
-                        } else {
-                            // Fallback: use word-boundary replacement
-                            let mut body_str = self.with_temporary_named_types(
-                                &head_var_type_names,
-                                &head_var_type_tys,
-                                |cg| cg.emit_expr(body),
-                            );
-                            for (var_name, idx) in &head_vars {
-                                let san = sanitize_name(var_name);
-                                let replacement = &param_names[*idx];
-                                let mut result = String::new();
-                                let chars: Vec<char> = body_str.chars().collect();
-                                let san_chars: Vec<char> = san.chars().collect();
-                                let mut i = 0;
-                                while i < chars.len() {
-                                    if i + san_chars.len() <= chars.len()
-                                        && chars[i..i + san_chars.len()] == san_chars[..]
-                                    {
-                                        let before_ok = i == 0
-                                            || !(chars[i - 1].is_alphanumeric()
-                                                || chars[i - 1] == '_');
-                                        let after_ok = i + san_chars.len() >= chars.len()
-                                            || !(chars[i + san_chars.len()].is_alphanumeric()
-                                                || chars[i + san_chars.len()] == '_');
-                                        if before_ok && after_ok {
-                                            result.push_str(replacement);
-                                            i += san_chars.len();
-                                            continue;
-                                        }
-                                    }
-                                    result.push(chars[i]);
-                                    i += 1;
-                                }
-                                body_str = result;
-                            }
-                            out.push_str(&format!("    if {} {{ return true; }}\n", body_str));
-                        }
-                    }
+        for candidate in &dispatch.clauses {
+            let Rule::Clause { head, body } = candidate.rule else {
+                continue;
+            };
+            let mut head_bindings = BTreeSet::new();
+            if let ExprKind::App(_, arguments) = &head.kind {
+                for argument in arguments {
+                    Self::collect_rule_head_binding_names(argument, &mut head_bindings);
                 }
             }
-        }
-
-        // Check fact table
-        if !facts.is_empty() {
-            if arity == 1 {
-                out.push_str(&format!(
-                    "    if {}.contains(&{}) {{ return true; }}\n",
-                    table_name, param_names[0]
-                ));
-            } else {
-                let checks: Vec<String> = (0..arity)
-                    .map(|i| format!("f.{} == {}", i, param_names[i]))
-                    .collect();
-                out.push_str(&format!(
-                    "    if {}.iter().any(|f| {}) {{ return true; }}\n",
-                    table_name,
-                    checks.join(" && ")
-                ));
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &body.iter().collect::<Vec<_>>(),
+                "    ",
+                |cg, indent| match body {
+                    None => format!("{indent}return true;\n"),
+                    Some(Expr {
+                        kind: ExprKind::Conjunction(goals),
+                        ..
+                    }) if Self::prolog_clause_has_existential(goals, &head_bindings) => {
+                        let mut emitted = cg
+                            .emit_prolog_existential_clause_body(goals, &head_bindings, indent)
+                            .unwrap_or_else(|error| {
+                                Self::emit_rule_head_compile_error(indent, fn_name, arity, &error)
+                            });
+                        if let Some(name) = &matched_false_clause_name {
+                            emitted.push_str(&format!("{indent}{name} = true;\n"));
+                        }
+                        emitted
+                    }
+                    Some(body) => {
+                        let predicate = cg.emit_expr(body);
+                        matched_false_clause_name.as_deref().map_or_else(
+                            || format!("{indent}if {predicate} {{ return true; }}\n"),
+                            |name| {
+                                format!(
+                                    "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                )
+                            },
+                        )
+                    }
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
-        out.push_str("    false\n}\n");
+        for candidate in &dispatch.unconditional_defaults {
+            let Rule::Default { head, value, .. } = candidate.rule else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                &param_fir_tys,
+                &borrowed_strings,
+                &[value],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return {};\n",
+                        cg.emit_rule_value_expr(value, &FirTy::Bool)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
+        if let Some(name) = &matched_false_clause_name {
+            out.push_str(&format!("    if {name} {{ return false; }}\n"));
+        }
+        if bool_miss_is_safe {
+            out.push_str("    false\n}\n");
+        } else {
+            out.push_str(&format!(
+                "    panic!({:?})\n}}\n",
+                format!("no proven-safe | rule matched for '{}'", fn_name)
+            ));
+        }
         out
     }
 
@@ -34567,7 +43924,7 @@ impl RustCodegen {
     fn emit_prolog_value_function(
         &mut self,
         sanitized: &str,
-        _fn_name: &str,
+        fn_name: &str,
         rules: &[&Rule],
         arity: usize,
         param_types: &[String],
@@ -34575,67 +43932,6 @@ impl RustCodegen {
         value_type_str: &str,
     ) -> String {
         let mut out = String::new();
-        let value_rust_type = if value_type_str == "String" {
-            "&str"
-        } else {
-            value_type_str
-        };
-
-        // Collect value facts: clauses with all-literal heads and a literal body
-        let value_facts: Vec<(Vec<String>, String)> = rules
-            .iter()
-            .filter_map(|r| {
-                if let Rule::Clause {
-                    head,
-                    body: Some(body),
-                } = r
-                {
-                    if let ExprKind::App(_, args) = &head.kind {
-                        if args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                            if let ExprKind::Lit(lit) = &body.kind {
-                                let keys: Vec<String> = args
-                                    .iter()
-                                    .map(|a| {
-                                        if let ExprKind::Lit(l) = &a.kind {
-                                            Self::emit_literal_value(l)
-                                        } else {
-                                            "?".into()
-                                        }
-                                    })
-                                    .collect();
-                                return Some((keys, Self::emit_literal_value(lit)));
-                            }
-                        }
-                    }
-                }
-                None
-            })
-            .collect();
-
-        // Emit fact table (key columns + value column)
-        let table_name = format!("{}_FACTS", sanitized.to_uppercase());
-        if !value_facts.is_empty() {
-            let key_types: Vec<String> = param_types
-                .iter()
-                .map(|t| {
-                    if t == "String" {
-                        "&str".to_string()
-                    } else {
-                        t.clone()
-                    }
-                })
-                .collect();
-            out.push_str(&format!(
-                "const {}: &[({}, {},)] = &[\n",
-                table_name,
-                key_types.join(", "),
-                value_rust_type
-            ));
-            for (keys, val) in &value_facts {
-                out.push_str(&format!("    ({}, {}),\n", keys.join(", "), val));
-            }
-            out.push_str("];\n\n");
-        }
 
         // Function signature: returns Option<T>
         let param_names: Vec<String> = (0..arity).map(|i| format!("_p{}", i)).collect();
@@ -34657,129 +43953,150 @@ impl RustCodegen {
         } else {
             format!("Option<{}>", value_type_str)
         };
+        let pub_prefix = if self.rule_is_exported_in_current_namespace(fn_name) {
+            "pub "
+        } else {
+            ""
+        };
         out.push_str(&format!(
-            "fn {}({}) -> {} {{\n",
-            sanitized, param_str, ret_type
+            "{}fn {}({}) -> {} {{\n",
+            pub_prefix, sanitized, param_str, ret_type
         ));
 
-        // Lookup in fact table
-        if !value_facts.is_empty() {
-            let key_checks: Vec<String> = (0..arity)
-                .map(|i| format!("f.{} == {}", i, param_names[i]))
-                .collect();
-            let value_idx = arity;
-            let value_expr = if value_type_str == "String" {
-                format!("f.{}.to_string()", value_idx)
-            } else {
-                format!("f.{}", value_idx)
-            };
-            out.push_str(&format!("    for f in {}.iter() {{\n", table_name));
-            out.push_str(&format!(
-                "        if {} {{ return Some({}); }}\n",
-                key_checks.join(" && "),
-                value_expr
-            ));
-            out.push_str("    }\n");
-        }
+        let value_fir_ty = Self::rust_type_to_fir(value_type_str);
+        let borrowed_strings = param_types
+            .iter()
+            .map(|parameter| parameter == "String")
+            .collect::<Vec<_>>();
+        let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
 
-        // Emit computed clauses with fully ground heads that cannot live in the const fact table.
-        for r in rules {
-            if let Rule::Clause {
+        for candidate in &dispatch.exceptions {
+            let Rule::Exception {
                 head,
-                body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_)))
-                        && !matches!(body.kind, ExprKind::Lit(_))
-                    {
-                        let key_checks: Vec<String> = head_args
-                            .iter()
-                            .enumerate()
-                            .map(|(i, a)| {
-                                if let ExprKind::Lit(lit) = &a.kind {
-                                    format!(
-                                        "{} == {}",
-                                        param_names[i],
-                                        Self::emit_literal_value(lit)
-                                    )
-                                } else {
-                                    unreachable!("checked all-literal Prolog head");
-                                }
-                            })
-                            .collect();
-                        let mut body_str = self.emit_expr(body);
-                        let bindings: Vec<(String, String)> = self
-                            .types
-                            .literal_bindings
-                            .iter()
-                            .map(|(k, (v, _))| (k.clone(), v.clone()))
-                            .collect();
-                        for (bind_name, bind_val) in &bindings {
-                            body_str =
-                                self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
-                        }
-                        let wrapped = if value_type_str == "String" {
-                            format!("Some({}.to_string())", body_str)
-                        } else {
-                            format!("Some({})", body_str)
-                        };
-                        out.push_str(&format!(
-                            "    if {} {{ return {}; }}\n",
-                            key_checks.join(" && "),
-                            wrapped
-                        ));
-                    }
-                }
+                value,
+                condition,
+                ..
+            } = candidate.rule
+            else {
+                continue;
+            };
+            let mut expressions = vec![value];
+            expressions.extend(condition.iter());
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &expressions,
+                "    ",
+                |cg, indent| {
+                    let value = cg.emit_rule_value_expr(value, &value_fir_ty);
+                    condition.as_ref().map_or_else(
+                        || format!("{indent}return Some({value});\n"),
+                        |condition| {
+                            format!(
+                                "{indent}if {} {{ return Some({value}); }}\n",
+                                cg.emit_expr(condition)
+                            )
+                        },
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
-        // Emit rules with variable heads (non-fact clauses that return values)
-        for r in rules {
-            if let Rule::Clause {
+        for candidate in &dispatch.conditional_defaults {
+            let Rule::Default {
+                head,
+                value,
+                condition: Some(condition),
+            } = candidate.rule
+            else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[value, condition],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}if {} {{ return Some({}); }}\n",
+                        cg.emit_expr(condition),
+                        cg.emit_rule_value_expr(value, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
+
+        for candidate in &dispatch.clauses {
+            let Rule::Clause {
                 head,
                 body: Some(body),
-            } = r
-            {
-                if let ExprKind::App(_, head_args) = &head.kind {
-                    // Skip all-literal heads (already in fact table)
-                    if head_args.iter().all(|a| matches!(a.kind, ExprKind::Lit(_))) {
-                        continue;
-                    }
-                    let head_vars = Self::rule_head_param_vars(head_args);
+            } = candidate.rule
+            else {
+                out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ",
+                    fn_name,
+                    arity,
+                    "a value-returning rule candidate has no value body",
+                ));
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[body],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return Some({});\n",
+                        cg.emit_rule_value_expr(body, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
+            }
+        }
 
-                    let (head_var_names, head_var_tys) =
-                        self.prolog_head_var_type_bindings(head_args, param_fir_tys);
-                    let mut body_str =
-                        self.with_temporary_named_types(&head_var_names, &head_var_tys, |cg| {
-                            cg.emit_expr(body)
-                        });
-                    for (var_name, idx) in &head_vars {
-                        body_str = self.word_replace(
-                            &body_str,
-                            &sanitize_name(var_name),
-                            &param_names[*idx],
-                        );
-                    }
-                    // Inline literal bindings from outer scope
-                    let bindings: Vec<(String, String)> = self
-                        .types
-                        .literal_bindings
-                        .iter()
-                        .map(|(k, (v, _))| (k.clone(), v.clone()))
-                        .collect();
-                    for (bind_name, bind_val) in &bindings {
-                        body_str =
-                            self.word_replace(&body_str, &sanitize_name(bind_name), bind_val);
-                    }
-
-                    let wrapped = if value_type_str == "String" {
-                        format!("Some({}.to_string())", body_str)
-                    } else {
-                        format!("Some({})", body_str)
-                    };
-                    out.push_str(&format!("    return {};\n", wrapped));
-                }
+        for candidate in &dispatch.unconditional_defaults {
+            let Rule::Default { head, value, .. } = candidate.rule else {
+                continue;
+            };
+            match self.emit_rule_head_candidate(
+                head,
+                &param_names,
+                param_fir_tys,
+                &borrowed_strings,
+                &[value],
+                "    ",
+                |cg, indent| {
+                    format!(
+                        "{indent}return Some({});\n",
+                        cg.emit_rule_value_expr(value, &value_fir_ty)
+                    )
+                },
+            ) {
+                Ok(candidate) => out.push_str(&candidate),
+                Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                    "    ", fn_name, arity, &error,
+                )),
             }
         }
 
@@ -34789,18 +44106,135 @@ impl RustCodegen {
 
     /// Emit a group of rules with the same name as a single Rust function.
     /// Handles both Catala-style (exception/default/under) and Prolog-style (facts/conjunction).
+    #[cfg(test)]
     fn emit_rule_function(&mut self, fn_name: &str, rules: &[&Rule]) -> String {
+        self.emit_rule_function_as(fn_name, fn_name, rules)
+    }
+
+    fn emit_rule_function_as(
+        &mut self,
+        fn_name: &str,
+        emitted_name: &str,
+        rules: &[&Rule],
+    ) -> String {
         // Check if this rule group has Prolog-style features (ground terms or conjunction)
         let arity = Self::rule_arity(rules);
+        let canonical_key = RuleDispatchKey {
+            scope: self.current_rule_scope_name.clone(),
+            name: fn_name.to_string(),
+            arity,
+        };
+        let canonical_contract_applies =
+            self.canonical_rule_metadata_installed && self.current_module_path.is_empty();
+        if canonical_contract_applies
+            && self
+                .canonical_rule_parameter_issues
+                .contains(&canonical_key)
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped RuleDispatch `{}({})` with conflicting or malformed parameter schemas",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        if let Some(issue) = canonical_contract_applies
+            .then(|| self.canonical_rule_return_issues.get(&canonical_key))
+            .flatten()
+        {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust skipped unsafe RuleDispatch `{}({})`: {}",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity,
+                    issue
+                )
+            );
+        }
+        let canonical_return = canonical_contract_applies
+            .then(|| {
+                self.canonical_rule_return_types
+                    .get(&canonical_key)
+                    .cloned()
+            })
+            .flatten();
+        if canonical_contract_applies && canonical_return.is_none() {
+            return format!(
+                "compile_error!({:?});\n",
+                format!(
+                    "generated Rust has no canonical RuleDispatch contract for `{}({})`",
+                    canonical_key
+                        .scope
+                        .as_ref()
+                        .map(|scope| format!("{}.{}", scope, canonical_key.name))
+                        .unwrap_or_else(|| canonical_key.name.clone()),
+                    canonical_key.arity
+                )
+            );
+        }
+        let bool_miss_is_safe = !canonical_contract_applies
+            || self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&canonical_key);
         if Self::rules_have_prolog_features(rules) && arity > 0 {
-            return self.emit_prolog_rule_function(fn_name, rules, arity);
+            let canonical_parameters = canonical_contract_applies
+                .then(|| {
+                    self.canonical_rule_parameter_types
+                        .get(&canonical_key)
+                        .cloned()
+                })
+                .flatten();
+            return self.emit_prolog_rule_function(
+                fn_name,
+                emitted_name,
+                rules,
+                arity,
+                bool_miss_is_safe,
+                canonical_return.as_deref(),
+                canonical_parameters.as_deref(),
+            );
         }
 
         // --- Original Catala-style codegen ---
 
-        let inference = self.infer_rule_signature_cached(fn_name, rules);
-        let params = inference.params;
-        let inferred_param_tys = inference.param_tys;
+        let inference = if emitted_name == fn_name {
+            self.infer_rule_signature_cached(fn_name, rules)
+        } else {
+            self.infer_rule_signature_uncached(rules)
+        };
+        let mut params = inference.params;
+        let mut inferred_param_tys = inference.param_tys;
+        if params.len() != arity || inferred_param_tys.len() != arity {
+            params = (0..arity)
+                .map(|index| format!("__fut_rule_arg_{index}"))
+                .collect();
+            inferred_param_tys =
+                Self::prolog_param_fir_tys(&self.prolog_rule_param_rust_types(rules, arity));
+        }
+        if canonical_contract_applies {
+            if let Err(issue) =
+                self.overlay_canonical_rule_parameter_types(&canonical_key, &mut inferred_param_tys)
+            {
+                return format!(
+                    "compile_error!({:?});\n",
+                    format!(
+                        "generated Rust rejected the parameter ABI for `{}({})`: {}",
+                        fn_name, arity, issue
+                    )
+                );
+            }
+        }
         let inferred_types: Vec<String> = inferred_param_tys
             .iter()
             .map(|ty| Self::fir_rule_param_type_to_rust(ty).unwrap_or_else(|| "bool".to_string()))
@@ -34822,10 +44256,18 @@ impl RustCodegen {
             param_str
         };
 
-        // Infer return type from FIR, seeded with inferred rule param types.
-        let ret_type = inference.return_type.unwrap_or_else(|| "bool".to_string());
+        // Canonical type evidence owns the generated ABI. FIR remains the
+        // parameter/ownership implementation detail and is used only for
+        // namespace bodies the canonical root graph deliberately treats as
+        // opaque.
+        let canonical_ret_type = canonical_return
+            .as_deref()
+            .and_then(|type_name| parse_type_annotation(type_name).ok())
+            .map(|ty| self.emit_type(&ty));
+        let ret_type = canonical_ret_type
+            .or(inference.return_type)
+            .unwrap_or_else(|| "bool".to_string());
         let ret_fir_ty = Self::rust_type_to_fir(&ret_type);
-
         // Mark non-Copy rule params for .clone() at each use site
         for (p, ty) in params.iter().zip(inferred_param_tys.iter()) {
             if !matches!(
@@ -34848,11 +44290,18 @@ impl RustCodegen {
         let prev_binary_global_value_refs_in_scope = self.binary_global_value_refs_in_scope;
         self.binary_global_env_arg_in_scope = uses_binary_global_env;
         self.binary_global_value_refs_in_scope = uses_binary_global_env;
+        let prev_local_bindings = self.local_bindings.clone();
 
         let emitted = self.with_temporary_named_types(&params, &inferred_param_tys, |cg| {
+            let pub_prefix = if cg.rule_is_exported_in_current_namespace(fn_name) {
+                "pub "
+            } else {
+                ""
+            };
             let mut out = format!(
-                "fn {}({}) -> {} {{\n",
-                sanitize_name(fn_name),
+                "{}fn {}({}) -> {} {{\n",
+                pub_prefix,
+                sanitize_name(emitted_name),
                 rule_param_str,
                 ret_type
             );
@@ -34893,6 +44342,7 @@ impl RustCodegen {
                         continue;
                     }
                     if let Some((val, ty)) = cg.types.literal_bindings.get(name) {
+                        cg.local_bindings.insert(name.clone());
                         let rust_val = if ty == "i64" {
                             format!("{}i64", val)
                         } else if ty == "f64" {
@@ -34910,6 +44360,29 @@ impl RustCodegen {
             }
 
             let dispatch = RuleDispatchPlan::from_rules(rules.iter().copied());
+            let actuals = params
+                .iter()
+                .map(|parameter| sanitize_name(parameter))
+                .collect::<Vec<_>>();
+            let borrowed_strings = vec![false; actuals.len()];
+
+            let matched_false_clause_name = (ret_type == "bool"
+                && !bool_miss_is_safe
+                && dispatch.clauses.iter().any(|candidate| {
+                    matches!(candidate.rule, Rule::Clause { body: Some(_), .. })
+                }))
+            .then(|| {
+                let mut occupied = params.clone();
+                occupied.extend(cg.local_bindings.iter().cloned());
+                Self::fresh_rule_dispatch_state_name(
+                    rules,
+                    &occupied,
+                    "__fut_matched_false_clause",
+                )
+            });
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("    let mut {name} = false;\n"));
+            }
 
             // Pass 1: exceptions (highest priority). Within the tier, the first
             // applicable rule in source order wins.
@@ -34919,19 +44392,33 @@ impl RustCodegen {
                     value, condition, ..
                 } = rule
                 {
-                    if let Some(cond) = condition {
-                        out.push_str(&format!(
-                            "    if {} {{ return {}; }}\n",
-                            cg.emit_expr(cond),
-                            cg.emit_rule_value_expr(value, &ret_fir_ty)
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "    return {};\n",
-                            cg.emit_rule_value_expr(value, &ret_fir_ty)
-                        ));
-                        out.push_str("}\n");
-                        return out;
+                    let Some(head) = rule.head() else { continue };
+                    let mut expressions = vec![value];
+                    expressions.extend(condition.iter());
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &expressions,
+                        "    ",
+                        |cg, indent| {
+                            let value = cg.emit_rule_value_expr(value, &ret_fir_ty);
+                            condition.as_ref().map_or_else(
+                                || format!("{indent}return {value};\n"),
+                                |condition| {
+                                    format!(
+                                        "{indent}if {} {{ return {value}; }}\n",
+                                        cg.emit_expr(condition)
+                                    )
+                                },
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
                     }
                 }
             }
@@ -34945,11 +44432,27 @@ impl RustCodegen {
                     ..
                 } = rule
                 {
-                    out.push_str(&format!(
-                        "    if {} {{ return {}; }}\n",
-                        cg.emit_expr(cond),
-                        cg.emit_rule_value_expr(value, &ret_fir_ty)
-                    ));
+                    let Some(head) = rule.head() else { continue };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &[value, cond],
+                        "    ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}if {} {{ return {}; }}\n",
+                                cg.emit_expr(cond),
+                                cg.emit_rule_value_expr(value, &ret_fir_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
+                    }
                 }
             }
 
@@ -34959,24 +44462,63 @@ impl RustCodegen {
                     Rule::Clause {
                         body: Some(body), ..
                     } => {
-                        if ret_type == "bool" {
-                            out.push_str(&format!(
-                                "    if {} {{ return true; }}\n",
-                                cg.emit_expr(body)
-                            ));
-                        } else {
-                            out.push_str(&format!(
-                                "    {}\n",
-                                cg.emit_rule_value_expr(body, &ret_fir_ty)
-                            ));
-                            out.push_str("}\n");
-                            return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &inferred_param_tys,
+                            &borrowed_strings,
+                            &[body],
+                            "    ",
+                            |cg, indent| {
+                                if ret_type == "bool" {
+                                    let predicate = cg.emit_expr(body);
+                                    matched_false_clause_name.as_deref().map_or_else(
+                                        || {
+                                            format!(
+                                                "{indent}if {predicate} {{ return true; }}\n"
+                                            )
+                                        },
+                                        |name| {
+                                            format!(
+                                                "{indent}if {predicate} {{ return true; }}\n{indent}{name} = true;\n"
+                                            )
+                                        },
+                                    )
+                                } else {
+                                    format!(
+                                        "{indent}return {};\n",
+                                        cg.emit_rule_value_expr(body, &ret_fir_ty)
+                                    )
+                                }
+                            },
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "    ", fn_name, arity, &error,
+                            )),
                         }
                     }
                     Rule::Clause { body: None, .. } => {
-                        out.push_str("    true\n");
-                        out.push_str("}\n");
-                        return out;
+                        let Some(head) = candidate.rule.head() else {
+                            continue;
+                        };
+                        match cg.emit_rule_head_candidate(
+                            head,
+                            &actuals,
+                            &inferred_param_tys,
+                            &borrowed_strings,
+                            &[],
+                            "    ",
+                            |_cg, indent| format!("{indent}return true;\n"),
+                        ) {
+                            Ok(candidate) => out.push_str(&candidate),
+                            Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                                "    ", fn_name, arity, &error,
+                            )),
+                        }
                     }
                     _ => {}
                 }
@@ -34985,16 +44527,35 @@ impl RustCodegen {
             // Pass 4: unconditional defaults
             for candidate in &dispatch.unconditional_defaults {
                 if let Rule::Default { value, .. } = candidate.rule {
-                    out.push_str(&format!(
-                        "    {}\n",
-                        cg.emit_rule_value_expr(value, &ret_fir_ty)
-                    ));
-                    out.push_str("}\n");
-                    return out;
+                    let Some(head) = candidate.rule.head() else {
+                        continue;
+                    };
+                    match cg.emit_rule_head_candidate(
+                        head,
+                        &actuals,
+                        &inferred_param_tys,
+                        &borrowed_strings,
+                        &[value],
+                        "    ",
+                        |cg, indent| {
+                            format!(
+                                "{indent}return {};\n",
+                                cg.emit_rule_value_expr(value, &ret_fir_ty)
+                            )
+                        },
+                    ) {
+                        Ok(candidate) => out.push_str(&candidate),
+                        Err(error) => out.push_str(&Self::emit_rule_head_compile_error(
+                            "    ", fn_name, arity, &error,
+                        )),
+                    }
                 }
             }
 
-            if ret_type == "bool" {
+            if let Some(name) = &matched_false_clause_name {
+                out.push_str(&format!("    if {name} {{ return false; }}\n"));
+            }
+            if ret_type == "bool" && bool_miss_is_safe {
                 out.push_str("    false\n");
             } else {
                 out.push_str(&format!(
@@ -35011,6 +44572,7 @@ impl RustCodegen {
         self.binary_global_value_refs_in_scope = prev_binary_global_value_refs_in_scope;
         self.var_use_counts = prev_var_use_counts;
         self.var_consuming_counts = prev_var_consuming_counts;
+        self.local_bindings = prev_local_bindings;
 
         emitted
     }
@@ -35302,7 +44864,7 @@ impl RustCodegen {
                 let prev_effects = std::mem::take(&mut self.current_effects);
                 self.current_effects = merged_effects;
 
-                let is_exported = self.types.exported_names.contains(name);
+                let is_exported = self.name_is_exported_in_current_namespace(name);
                 let pub_prefix = if is_exported { "pub " } else { "" };
                 // M4: wasm-bindgen annotation for exported functions with compatible types
                 let wasm_issues = if self.wasm_mode && is_exported {
@@ -35410,7 +44972,7 @@ impl RustCodegen {
                     self.infer_actor_message_variant_types(name, state_param, handlers);
 
                 // Message enum
-                out.push_str(&format!("#[derive(Debug)]\n"));
+                out.push_str("#[derive(Debug)]\n");
                 out.push_str(&format!("enum {}Msg {{\n", sname));
                 for h in handlers {
                     let variant = self.emit_pattern_as_enum_variant(&h.msg_pat, &actor_msg_tys);
@@ -35485,24 +45047,76 @@ impl RustCodegen {
                 out
             }
             Defn::Module { name, body } => {
-                self.types.known_modules.insert(name.clone());
-                let pub_prefix = if self.types.exported_names.contains(name) {
+                let pub_prefix = if self.name_is_exported_in_current_namespace(name) {
                     "pub "
                 } else {
                     ""
                 };
-                let mut out = format!("{}mod {} {{\n", pub_prefix, sanitize_name(name));
+                let rust_name = sanitize_name(name);
+                let module_path = if self.current_module_path.is_empty() {
+                    rust_name.clone()
+                } else {
+                    format!("{}::{}", self.current_module_path.join("::"), rust_name)
+                };
+                let mut out = format!("{}mod {} {{\n", pub_prefix, rust_name);
                 out.push_str("    use super::*;\n");
-                let module_exports = self.types.module_exports.get(name).cloned();
+                let module_exports = self.types.module_exports.get(&module_path).cloned();
                 // Inline modules are public-by-default. Qualified-import modules
                 // only expose names that were marked with `@ export`.
-                let saved_exported = self.types.exported_names.clone();
+                self.current_module_path.push(sanitize_name(name));
+                let saved_types = self.types.clone();
+                self.types.active_module_path = self.current_module_path.clone();
+                let saved_fn_return_types = self.fn_return_types.clone();
+                let saved_string_returning_fns = self.string_returning_fns.clone();
+                let saved_borrow_only_params = self.borrow_only_params.clone();
+                let saved_ordinary_function_arities = self.ordinary_function_arities.clone();
+                let saved_rule_emitted_names = self.rule_emitted_names.clone();
+                let saved_binary_global_env_fns = self.binary_global_env_fns.clone();
+                let saved_binary_global_env_fn_arities = self.binary_global_env_fn_arities.clone();
+                let saved_binary_global_env_rule_scope_methods =
+                    self.binary_global_env_rule_scope_methods.clone();
+                let saved_binary_global_binding_types = self.binary_global_binding_types.clone();
+                let saved_rule_signature_versions = self.rule_signature_versions.clone();
+                let saved_rule_scope_member_signature_versions =
+                    self.rule_scope_member_signature_versions.clone();
+                let saved_global_binding_type_revision = self.global_binding_type_revision;
+                let saved_rule_scope_inference_cache = self.rule_scope_inference_cache.clone();
+                let saved_rule_signature_inference_cache =
+                    self.rule_signature_inference_cache.clone();
+                let saved_rule_inference_environment_revision =
+                    self.rule_inference_environment_revision;
                 let saved_lib_static_names = self.lib_static_names.clone();
                 let saved_allow_global_getter_refs = self.allow_global_getter_refs;
                 let saved_sync_subject_vars = self.sync_subject_vars.clone();
+                self.types.exported_names.clear();
+                let rule_groups = Self::collect_rule_groups_from_stmts(body);
+                let namespace_functions = Self::namespace_function_defns(body);
+                let mut local_owned_names = rule_groups.keys().cloned().collect::<BTreeSet<_>>();
+                local_owned_names.extend(namespace_functions.iter().filter_map(|(defn, _)| {
+                    match defn {
+                        Defn::Fn { name, .. } => Some(name.clone()),
+                        _ => None,
+                    }
+                }));
+                for stmt in body {
+                    if let Stmt::Defn(Defn::Actor { name, .. })
+                    | Stmt::Defn(Defn::Module { name, .. }) = stmt
+                    {
+                        local_owned_names.insert(name.clone());
+                    }
+                    if let Stmt::TypeDecl(TypeDecl::RuleScope { name, .. }) = stmt {
+                        local_owned_names.insert(name.clone());
+                    }
+                    if let Stmt::TypeDecl(TypeDecl::ADT { name, variants, .. }) = stmt {
+                        local_owned_names.insert(name.clone());
+                        local_owned_names
+                            .extend(variants.iter().map(|variant| variant.name.clone()));
+                    }
+                }
                 for stmt in body {
                     match stmt {
-                        Stmt::Defn(Defn::Fn { name: fn_name, .. }) => {
+                        Stmt::Defn(Defn::Fn { name: fn_name, .. })
+                        | Stmt::Defn(Defn::Actor { name: fn_name, .. }) => {
                             if module_exports
                                 .as_ref()
                                 .map_or(true, |exports| exports.contains(fn_name.as_str()))
@@ -35518,12 +45132,27 @@ impl RustCodegen {
                                 self.types.exported_names.insert(mod_name.clone());
                             }
                         }
-                        Stmt::TypeDecl(TypeDecl::ADT { name: ty_name, .. }) => {
+                        Stmt::TypeDecl(TypeDecl::ADT {
+                            name: ty_name,
+                            methods,
+                            ..
+                        }) => {
                             if module_exports
                                 .as_ref()
                                 .map_or(true, |exports| exports.contains(ty_name.as_str()))
                             {
                                 self.types.exported_names.insert(ty_name.clone());
+                            }
+                            for method_name in methods.iter().filter_map(|method| match method {
+                                Defn::Fn { name, .. } => Some(name),
+                                _ => None,
+                            }) {
+                                if module_exports
+                                    .as_ref()
+                                    .map_or(true, |exports| exports.contains(method_name.as_str()))
+                                {
+                                    self.types.exported_names.insert(method_name.clone());
+                                }
                             }
                         }
                         Stmt::TypeDecl(TypeDecl::RuleScope { name: ty_name, .. }) => {
@@ -35550,7 +45179,354 @@ impl RustCodegen {
                                 self.types.exported_names.insert(stream_name.clone());
                             }
                         }
+                        Stmt::Rule(rule) => {
+                            if let Some(rule_name) = Self::rule_group_name(rule) {
+                                if module_exports
+                                    .as_ref()
+                                    .map_or(true, |exports| exports.contains(&rule_name))
+                                {
+                                    self.types.exported_names.insert(rule_name);
+                                }
+                            }
+                        }
                         _ => {}
+                    }
+                }
+                for owned_name in &local_owned_names {
+                    self.ordinary_function_arities
+                        .retain(|(name, _)| name != owned_name);
+                    self.rule_emitted_names
+                        .retain(|(name, _), _| name != owned_name);
+                    self.types.fn_types.remove(owned_name);
+                    self.types
+                        .fn_types_by_arity
+                        .retain(|(name, _), _| name != owned_name);
+                    self.types.call_params.remove(owned_name);
+                    self.types.user_functions.remove(owned_name);
+                    self.types.prolog_rule_fns.remove(owned_name);
+                    self.types.prolog_rule_groups.remove(owned_name);
+                    self.types.prolog_value_fns.remove(owned_name);
+                    self.types.inout_params.remove(owned_name);
+                    self.types.cow_params.remove(owned_name);
+                    self.types.fn_effects.remove(owned_name);
+                    self.fn_return_types.remove(owned_name);
+                    self.string_returning_fns.remove(owned_name);
+                    self.borrow_only_params.remove(owned_name);
+                    self.rule_signature_versions.remove(owned_name);
+                    self.rule_signature_inference_cache.remove(owned_name);
+
+                    self.types.variant_parent.remove(owned_name);
+                    self.types.variant_parents.remove(owned_name);
+                    self.types.variant_positional.remove(owned_name);
+                    self.types.variant_fields.remove(owned_name);
+                    self.types.variant_field_types.remove(owned_name);
+                    self.types.variant_boxed_args.remove(owned_name);
+                    self.types
+                        .variant_positional_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_fields_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_field_types_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+                    self.types
+                        .variant_boxed_args_by_parent
+                        .retain(|(_, constructor), _| constructor != owned_name);
+
+                    let renamed_type = self.types.type_rename.remove(owned_name);
+                    for type_name in std::iter::once(owned_name).chain(renamed_type.as_ref()) {
+                        self.types.type_decls.remove(type_name);
+                        self.types.struct_types.remove(type_name);
+                        self.types.rc_types.remove(type_name);
+                        self.types.default_derive_types.remove(type_name);
+                        self.types
+                            .default_derive_param_requirements
+                            .remove(type_name);
+                    }
+                    self.types.explicit_display_impls.remove(owned_name);
+                }
+                self.register_active_rule_emitted_names(&rule_groups);
+                let current_module_path = self.current_module_path.join("::");
+                self.types.explicit_display_impls.extend(
+                    self.types
+                        .module_explicit_display_impls
+                        .iter()
+                        .filter(|(path, _)| path == &current_module_path)
+                        .map(|(_, type_name)| type_name.clone()),
+                );
+                self.overlay_current_module_type_metadata();
+                self.extend_default_derive_types(body);
+                for stmt in body {
+                    let Stmt::TypeDecl(TypeDecl::RuleScope {
+                        name,
+                        body: scope_body,
+                        ..
+                    }) = stmt
+                    else {
+                        continue;
+                    };
+                    let rust_name = self.rust_type_name(name);
+                    self.types
+                        .rule_scope_member_fn_types
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.types
+                        .rule_scope_member_params
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.types
+                        .rule_scope_member_rules
+                        .retain(|(scope, _), _| scope != name && scope != rust_name.as_str());
+                    self.rule_scope_inference_cache.remove(name);
+                    for member in Self::collect_rule_groups_from_stmts(scope_body)
+                        .keys()
+                        .cloned()
+                        .chain(
+                            Self::rule_scope_defn_methods(scope_body)
+                                .into_iter()
+                                .filter_map(|method| match method {
+                                    Defn::Fn { name, .. } => Some(name.clone()),
+                                    _ => None,
+                                }),
+                        )
+                    {
+                        self.rule_scope_member_signature_versions.remove(&member);
+                    }
+                    self.register_rule_scope_member_params(name, scope_body);
+                }
+                // Qualified modules are a lexical Rust namespace. Root hidden-global
+                // requirements are keyed only by callable name, so carrying them into
+                // a same-named module callable would silently change its ABI.
+                self.binary_global_env_fns.clear();
+                self.binary_global_env_fn_arities.clear();
+                self.binary_global_env_rule_scope_methods.clear();
+                self.binary_global_binding_types.clear();
+                // Nested modules can see value and stream getters from their lexical
+                // parent through `use super::*`. Root getters must not leak into a
+                // top-level qualified-import module, though, so only retain this
+                // metadata once there is an actual module ancestor.
+                let inherit_parent_module_bindings = self.current_module_path.len() > 1;
+                if !inherit_parent_module_bindings {
+                    self.types.literal_bindings.clear();
+                }
+                for stmt in body {
+                    if let Stmt::Bind(Pat::Var(binding_name), _, _) = stmt {
+                        self.types.literal_bindings.remove(binding_name);
+                    }
+                }
+                for stmt in body {
+                    if let Stmt::Bind(
+                        Pat::Var(binding_name),
+                        _,
+                        Expr {
+                            kind: ExprKind::Lit(literal),
+                            ..
+                        },
+                    ) = stmt
+                    {
+                        self.types.literal_bindings.insert(
+                            binding_name.clone(),
+                            (
+                                Self::emit_literal_value(literal),
+                                Self::literal_rust_type(literal).to_string(),
+                            ),
+                        );
+                    }
+                }
+
+                // Overlay direct module callables before inferring rules so private
+                // helpers and same-named root functions cannot supply their signatures.
+                for (defn, adt_owner) in &namespace_functions {
+                    if let Defn::Fn {
+                        name,
+                        params,
+                        ret_ty,
+                        effects,
+                        ..
+                    } = defn
+                    {
+                        let effective_params = Self::namespace_function_params(params, *adt_owner);
+                        self.ordinary_function_arities
+                            .insert((name.clone(), effective_params.len()));
+                        self.types.user_functions.insert(name.clone());
+                        self.types.call_params.insert(
+                            name.clone(),
+                            effective_params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
+                        );
+                        let mut fn_ty = ret_ty
+                            .as_ref()
+                            .map(|ty| self.source_ty_to_fir(ty))
+                            .unwrap_or(FirTy::Unknown);
+                        for param in effective_params.iter().rev() {
+                            let param_ty = param
+                                .ty
+                                .as_ref()
+                                .map(|ty| self.source_ty_to_fir(ty))
+                                .unwrap_or(FirTy::Unknown);
+                            fn_ty = FirTy::Arrow(Box::new(param_ty), Box::new(fn_ty));
+                        }
+                        self.types.fn_types.insert(name.clone(), fn_ty.clone());
+                        self.types
+                            .fn_types_by_arity
+                            .insert((name.clone(), effective_params.len()), fn_ty);
+                        if !effects.is_empty() {
+                            self.types.fn_effects.insert(name.clone(), effects.clone());
+                        }
+                        let cow_flags = effective_params
+                            .iter()
+                            .map(|param| {
+                                param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
+                            })
+                            .collect::<Vec<_>>();
+                        if cow_flags.iter().any(|flag| *flag) {
+                            self.types.cow_params.insert(name.clone(), cow_flags);
+                        }
+                        if let Some(ret_ty) = ret_ty {
+                            let emitted_ret_ty = self.emit_type(ret_ty);
+                            self.fn_return_types.insert(name.clone(), emitted_ret_ty);
+                            if matches!(ret_ty, Ty::Name(name) if name == "String") {
+                                self.string_returning_fns.insert(name.clone());
+                            }
+                        }
+                    }
+                }
+
+                self.compute_namespace_borrow_flags(&namespace_functions, true);
+                for (rule_name, rules) in &rule_groups {
+                    self.types.user_functions.insert(rule_name.clone());
+                    self.types.prolog_rule_groups.insert(
+                        rule_name.clone(),
+                        rules.iter().map(|rule| (*rule).clone()).collect(),
+                    );
+                    if let Some(params) = rules.first().and_then(|rule| match rule {
+                        Rule::Clause { head, .. }
+                        | Rule::Default { head, .. }
+                        | Rule::Exception { head, .. } => Self::rule_head_param_names(head),
+                        Rule::ReactiveScope { .. } => None,
+                    }) {
+                        self.types.call_params.insert(rule_name.clone(), params);
+                    }
+                }
+                self.rule_inference_environment_revision += 1;
+                self.prescan_value_rule_and_rule_scope_signatures(body, &rule_groups);
+                for (rule_name, rules) in &rule_groups {
+                    let arity = Self::rule_arity(rules);
+                    if arity > 0 && Self::rules_have_prolog_features(rules) {
+                        let param_types = self.prolog_rule_param_rust_types(rules, arity);
+                        let param_fir_tys = Self::prolog_param_fir_tys(&param_types);
+                        self.types.prolog_rule_fns.insert(
+                            rule_name.clone(),
+                            Self::prolog_param_type_strs_from_rust_types(&param_types),
+                        );
+                        if let Some(value_type) = self
+                            .infer_prolog_rules_value_type(rules, &param_fir_tys)
+                            .or_else(|| Self::prolog_rules_value_type(rules))
+                        {
+                            self.types
+                                .prolog_value_fns
+                                .insert(rule_name.clone(), value_type);
+                        }
+                    }
+                }
+                let module_path = self.current_module_path.join("::");
+                for (defn, adt_owner) in &namespace_functions {
+                    let Defn::Fn { name, params, .. } = defn else {
+                        continue;
+                    };
+                    let effective_params = Self::namespace_function_params(params, *adt_owner);
+                    let arity = effective_params.len();
+                    let return_type = self
+                        .types
+                        .fn_types_by_arity
+                        .get(&(name.clone(), arity))
+                        .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                        .unwrap_or(FirTy::Unknown);
+                    let return_type = self.types.qualify_module_fir_ty(&module_path, return_type);
+                    self.module_callable_metadata.insert(
+                        (module_path.clone(), name.clone(), arity),
+                        ModuleCallableMetadata {
+                            emitted_name: sanitize_name(name),
+                            param_names: effective_params
+                                .iter()
+                                .map(|param| param.name.clone())
+                                .collect(),
+                            borrow_only_params: self
+                                .borrow_only_params
+                                .get(name)
+                                .cloned()
+                                .unwrap_or_else(|| vec![false; arity]),
+                            inout_params: effective_params
+                                .iter()
+                                .map(|param| param.inout)
+                                .collect(),
+                            cow_params: effective_params
+                                .iter()
+                                .map(|param| {
+                                    param.inout && matches!(param.ty.as_ref(), Some(Ty::Shared(_)))
+                                })
+                                .collect(),
+                            prolog_param_types: None,
+                            prolog_value: false,
+                            return_type,
+                            rules: None,
+                        },
+                    );
+                }
+                for (rule_name, rules) in &rule_groups {
+                    for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                        let inference = self.infer_rule_signature_uncached(&arity_rules);
+                        let prolog = arity > 0 && Self::rules_have_prolog_features(&arity_rules);
+                        let prolog_param_types = prolog.then(|| {
+                            let types = self.prolog_rule_param_rust_types(&arity_rules, arity);
+                            Self::prolog_param_type_strs_from_rust_types(&types)
+                        });
+                        let prolog_value = prolog
+                            && self
+                                .infer_prolog_rules_value_type(
+                                    &arity_rules,
+                                    &prolog_param_types
+                                        .as_ref()
+                                        .map(|types| Self::prolog_param_fir_tys(types))
+                                        .unwrap_or_default(),
+                                )
+                                .or_else(|| Self::prolog_rules_value_type(&arity_rules))
+                                .is_some();
+                        let return_type = inference
+                            .return_type
+                            .as_deref()
+                            .map(Self::rust_type_to_fir)
+                            .unwrap_or_else(|| if prolog { FirTy::Bool } else { FirTy::Unknown });
+                        let return_type =
+                            self.types.qualify_module_fir_ty(&module_path, return_type);
+                        let emitted_name = self
+                            .rule_emitted_names
+                            .get(&(rule_name.clone(), arity))
+                            .cloned()
+                            .unwrap_or_else(|| sanitize_name(rule_name));
+                        let key = (module_path.clone(), rule_name.clone(), arity);
+                        let metadata = ModuleCallableMetadata {
+                            emitted_name,
+                            param_names: inference.params,
+                            borrow_only_params: vec![false; arity],
+                            inout_params: vec![false; arity],
+                            cow_params: vec![false; arity],
+                            prolog_param_types,
+                            prolog_value,
+                            return_type,
+                            rules: Some(arity_rules.iter().map(|rule| (*rule).clone()).collect()),
+                        };
+                        // A later convergence pass may refine a rule ABI. Replace
+                        // rule metadata, but preserve a same-name ordinary `>`
+                        // function inserted above as the direct-call winner.
+                        if self
+                            .module_callable_metadata
+                            .get(&key)
+                            .map_or(true, |existing| existing.rules.is_some())
+                        {
+                            self.module_callable_metadata.insert(key, metadata);
+                        }
                     }
                 }
                 self.indent = 1;
@@ -35560,14 +45536,19 @@ impl RustCodegen {
                         matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _))
                     })
                     .collect();
-                self.lib_static_names = module_bind_stmts
+                let direct_module_bind_names = module_bind_stmts
                     .iter()
                     .filter_map(|stmt| match stmt {
                         Stmt::Bind(Pat::Var(name), _, _) => Some(name.clone()),
                         Stmt::StreamBind(name, _) => Some(name.clone()),
                         _ => None,
                     })
-                    .collect();
+                    .collect::<BTreeSet<_>>();
+                if inherit_parent_module_bindings {
+                    self.lib_static_names.extend(direct_module_bind_names);
+                } else {
+                    self.lib_static_names = direct_module_bind_names;
+                }
                 for stmt in body {
                     if let Stmt::StreamBind(name, _) = stmt {
                         self.sync_subject_vars.insert(name.clone());
@@ -35581,6 +45562,22 @@ impl RustCodegen {
                         module_exports.as_ref(),
                     ));
                 }
+                for (rule_name, rules) in &rule_groups {
+                    for (arity, arity_rules) in Self::split_rule_group_by_arity(rules) {
+                        let emitted_name = self
+                            .rule_emitted_names
+                            .get(&(rule_name.clone(), arity))
+                            .cloned()
+                            .unwrap_or_else(|| sanitize_name(rule_name));
+                        out.push_str(&self.emit_rule_function_as(
+                            rule_name,
+                            &emitted_name,
+                            &arity_rules,
+                        ));
+                        self.types.rule_clone_params.clear();
+                        out.push('\n');
+                    }
+                }
                 for stmt in body {
                     if matches!(stmt, Stmt::Bind(Pat::Var(_), _, _) | Stmt::StreamBind(_, _)) {
                         continue;
@@ -35592,7 +45589,28 @@ impl RustCodegen {
                 self.lib_static_names = saved_lib_static_names;
                 self.allow_global_getter_refs = saved_allow_global_getter_refs;
                 self.sync_subject_vars = saved_sync_subject_vars;
-                self.types.exported_names = saved_exported;
+                let module_rule_scopes = self.types.module_rule_scopes.clone();
+                self.types = saved_types;
+                self.types.module_rule_scopes = module_rule_scopes;
+                self.fn_return_types = saved_fn_return_types;
+                self.string_returning_fns = saved_string_returning_fns;
+                self.borrow_only_params = saved_borrow_only_params;
+                self.ordinary_function_arities = saved_ordinary_function_arities;
+                self.rule_emitted_names = saved_rule_emitted_names;
+                self.binary_global_env_fns = saved_binary_global_env_fns;
+                self.binary_global_env_fn_arities = saved_binary_global_env_fn_arities;
+                self.binary_global_env_rule_scope_methods =
+                    saved_binary_global_env_rule_scope_methods;
+                self.binary_global_binding_types = saved_binary_global_binding_types;
+                self.rule_signature_versions = saved_rule_signature_versions;
+                self.rule_scope_member_signature_versions =
+                    saved_rule_scope_member_signature_versions;
+                self.global_binding_type_revision = saved_global_binding_type_revision;
+                self.rule_scope_inference_cache = saved_rule_scope_inference_cache;
+                self.rule_signature_inference_cache = saved_rule_signature_inference_cache;
+                self.rule_inference_environment_revision =
+                    saved_rule_inference_environment_revision;
+                self.current_module_path.pop();
                 out
             }
         }
@@ -37389,8 +47407,13 @@ impl RustCodegen {
             }
             Stmt::Abort => {
                 // For now, emit a comment. Transactional abort (break 'scope) comes in M26e.
-                format!("{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n", self.ind(), self.ind())
+                format!(
+                    "{}// abort — transactional abort (M26e)\n{}panic!(\"abort outside transactional scope\");\n",
+                    self.ind(),
+                    self.ind()
+                )
             }
+            Stmt::Explore(_) => format!("{}// exploration declaration\n", self.ind()),
         }
     }
 
@@ -37522,13 +47545,95 @@ impl RustCodegen {
     }
 
     /// M3b: Check if an expression is a module path (for :: emission)
-    /// Returns true for Var("ModuleName") where ModuleName is a known module,
-    /// or for Field(module_path, "SubModule") chains.
+    /// Only exact module paths visible from the current lexical namespace count.
+    /// A bare-name registry is insufficient here: a nested `A::X` must not make
+    /// an unrelated root value named `X` render with Rust's `::` syntax.
     fn is_module_path(&self, expr: &Expr) -> bool {
+        self.module_path_key(expr).is_some()
+    }
+
+    fn visible_bare_module_path(&self, name: &str) -> Option<String> {
+        if self.local_bindings.contains(name)
+            || self.var_fir_types.contains_key(name)
+            || self.var_types.contains_key(name)
+            || self.binary_global_binding_types.contains_key(name)
+            || self.types.literal_bindings.contains_key(name)
+            || self.types.comptime_values.contains_key(name)
+        {
+            return None;
+        }
+        let name = sanitize_name(name);
+        for parent_len in (1..=self.current_module_path.len()).rev() {
+            let relative = format!(
+                "{}::{}",
+                self.current_module_path[..parent_len].join("::"),
+                name
+            );
+            if self.types.module_path_is_known(&relative) {
+                return Some(relative);
+            }
+        }
+        self.types.module_path_is_known(&name).then_some(name)
+    }
+
+    fn module_path_key(&self, expr: &Expr) -> Option<String> {
         match &expr.kind {
-            ExprKind::Var(name) => self.types.known_modules.contains(name),
-            ExprKind::Field(obj, _field) => self.is_module_path(obj),
-            _ => false,
+            ExprKind::Var(name) => self.visible_bare_module_path(name),
+            ExprKind::Field(obj, field) => {
+                let path = format!("{}::{}", self.module_path_key(obj)?, sanitize_name(field));
+                self.types.module_path_is_known(&path).then_some(path)
+            }
+            _ => None,
+        }
+    }
+
+    /// Resolve a source-level qualified alias to the module that owns the
+    /// emitted metadata. The Rust expression keeps the authored alias (whose
+    /// wrapper re-exports the original items), while constructor and binding
+    /// layout queries use the canonical module path.
+    fn canonical_module_metadata_path(&self, path: &str) -> String {
+        self.types.canonical_module_metadata_path(path)
+    }
+
+    fn qualified_module_callable_key(
+        &self,
+        func: &Expr,
+        arity: usize,
+    ) -> Option<(String, String, usize)> {
+        let ExprKind::Field(module, name) = &func.kind else {
+            return None;
+        };
+        let module_path = self.module_path_key(module)?;
+        Some((
+            self.canonical_module_metadata_path(&module_path),
+            name.clone(),
+            arity,
+        ))
+    }
+
+    fn emitted_free_rule_target(&mut self, func: &Expr, arity: usize) -> Option<String> {
+        match &func.kind {
+            ExprKind::Var(name)
+                if !self
+                    .ordinary_function_arities
+                    .contains(&(name.clone(), arity)) =>
+            {
+                self.rule_emitted_names.get(&(name.clone(), arity)).cloned()
+            }
+            ExprKind::Field(module, _) => {
+                let key = self.qualified_module_callable_key(func, arity)?;
+                let metadata = self.module_callable_metadata.get(&key)?;
+                if metadata.rules.is_none() {
+                    return None;
+                }
+                let emitted_name = metadata.emitted_name.clone();
+                Some(format!(
+                    "{}::{}",
+                    self.emit_module_path(module),
+                    emitted_name
+                ))
+            }
+            _ => None,
         }
     }
 
@@ -37868,6 +47973,67 @@ impl RustCodegen {
     }
 
     fn infer_expr_fir_ty(&self, expr: &Expr) -> FirTy {
+        match &expr.kind {
+            ExprKind::App(func, args) => {
+                if let ExprKind::Field(module, name) = &func.as_ref().kind {
+                    if let Some(module_path) = self.module_path_key(module) {
+                        let metadata_path = self.canonical_module_metadata_path(&module_path);
+                        if let Some(metadata) = self
+                            .types
+                            .module_rule_scopes
+                            .get(&(metadata_path.clone(), name.clone()))
+                        {
+                            return FirTy::Named(format!(
+                                "crate::{}::{}",
+                                metadata_path, metadata.rust_name
+                            ));
+                        }
+                        if let Some(metadata) = self
+                            .types
+                            .module_variants
+                            .get(&(metadata_path.clone(), name.clone()))
+                        {
+                            return FirTy::Named(format!(
+                                "crate::{}::{}",
+                                metadata_path, metadata.parent
+                            ));
+                        }
+                        return self
+                            .module_callable_metadata
+                            .get(&(metadata_path, name.clone(), args.len()))
+                            .map(|metadata| metadata.return_type.clone())
+                            .unwrap_or(FirTy::Unknown);
+                    }
+                }
+            }
+            ExprKind::Field(module, name) => {
+                if let Some(module_path) = self.module_path_key(module) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), name.clone()))
+                    {
+                        return FirTy::Named(format!(
+                            "crate::{}::{}",
+                            metadata_path, metadata.rust_name
+                        ));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), name.clone()))
+                    {
+                        return FirTy::Named(format!(
+                            "crate::{}::{}",
+                            metadata_path, metadata.parent
+                        ));
+                    }
+                    return FirTy::Unknown;
+                }
+            }
+            _ => {}
+        }
         self.infer_expr_fir_ty_with_env(expr, self.current_type_env())
     }
 
@@ -38177,7 +48343,7 @@ impl RustCodegen {
         !self.types.user_functions.contains(name)
             && !self.builtin_registry.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
-            && !self.types.known_modules.contains(name)
+            && self.visible_bare_module_path(name).is_none()
     }
 
     fn collect_subject_send_targets_from_expr(&self, expr: &Expr, targets: &mut BTreeSet<String>) {
@@ -38656,13 +48822,34 @@ impl RustCodegen {
     fn collect_inout_mutables_expr(&mut self, expr: &Expr) {
         match &expr.kind {
             ExprKind::App(func, args) => {
-                if let ExprKind::Var(fn_name) = &func.as_ref().kind {
-                    if let Some(flags) = self.types.inout_params.get(fn_name.as_str()).cloned() {
-                        for (idx, arg) in args.iter().enumerate() {
-                            if flags.get(idx).copied().unwrap_or(false) {
-                                if let ExprKind::Var(var_name) = &arg.kind {
-                                    self.mutable_vars.insert(var_name.clone());
-                                }
+                let (inout_flags, param_names) = if let Some(key) =
+                    self.qualified_module_callable_key(func, args.len())
+                {
+                    self.module_callable_metadata.get(&key).map(|metadata| {
+                        (
+                            metadata.inout_params.clone(),
+                            Some(metadata.param_names.clone()),
+                        )
+                    })
+                } else if let ExprKind::Var(fn_name) = &func.as_ref().kind {
+                    self.types
+                        .inout_params
+                        .get(fn_name.as_str())
+                        .cloned()
+                        .map(|flags| (flags, self.types.call_params.get(fn_name.as_str()).cloned()))
+                } else {
+                    None
+                }
+                .unwrap_or_default();
+                if !inout_flags.is_empty() {
+                    let reordered_args = param_names
+                        .as_ref()
+                        .and_then(|params| reorder_named_args_by_names(params, args));
+                    let args_for_flags = reordered_args.as_deref().unwrap_or(args);
+                    for (idx, arg) in args_for_flags.iter().enumerate() {
+                        if inout_flags.get(idx).copied().unwrap_or(false) {
+                            if let ExprKind::Var(var_name) = &arg.kind {
+                                self.mutable_vars.insert(var_name.clone());
                             }
                         }
                     }
@@ -40075,6 +50262,13 @@ impl RustCodegen {
         let FirTy::Named(type_name) = obj_ty else {
             return None;
         };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(params) = metadata.member_params.get(method) {
+                return Some(params.clone());
+            }
+        }
         let mut candidates = vec![type_name.clone()];
         if let Some(renamed) = self.types.type_rename.get(type_name) {
             candidates.push(renamed.clone());
@@ -40089,6 +50283,29 @@ impl RustCodegen {
             }
         }
         None
+    }
+
+    fn rule_scope_member_fn_ty_for_type(&self, obj_ty: &FirTy, method: &str) -> Option<FirTy> {
+        let FirTy::Named(type_name) = obj_ty else {
+            return None;
+        };
+        if let Some((_module_path, metadata)) =
+            self.types.module_rule_scope_for_named_type(type_name)
+        {
+            if let Some(fn_ty) = metadata.member_fn_types.get(method) {
+                return Some(fn_ty.clone());
+            }
+        }
+        let mut candidates = vec![type_name.clone()];
+        if let Some(renamed) = self.types.type_rename.get(type_name) {
+            candidates.push(renamed.clone());
+        }
+        candidates.into_iter().find_map(|candidate| {
+            self.types
+                .rule_scope_member_fn_types
+                .get(&(candidate, method.to_string()))
+                .cloned()
+        })
     }
 
     fn rule_scope_method_uses_binary_global_env(&self, scope_name: &str, method: &str) -> bool {
@@ -40132,11 +50349,124 @@ impl RustCodegen {
                 )
             }
             ExprKind::Field(obj, method) => {
+                if let Some(module_path) = self.module_path_key(obj) {
+                    let metadata_path = self.canonical_module_metadata_path(&module_path);
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), method.clone()))
+                    {
+                        return reorder_named_args_by_names(&metadata.fields, args);
+                    }
+                    if let Some(metadata) = self.module_callable_metadata.get(&(
+                        metadata_path,
+                        method.clone(),
+                        args.len(),
+                    )) {
+                        return reorder_named_args_by_names(&metadata.param_names, args);
+                    }
+                }
                 let obj_ty = self.infer_expr_fir_ty(obj);
                 let params = self.rule_scope_member_param_names_for_type(&obj_ty, method)?;
                 reorder_named_args_by_names(&params, args)
             }
             _ => None,
+        }
+    }
+
+    fn emit_qualified_module_constructor_app(
+        &mut self,
+        module: &Expr,
+        constructor: &str,
+        args: &[Expr],
+    ) -> Option<String> {
+        let module_path = self.module_path_key(module)?;
+        let emitted_module_path = self.emit_module_path(module);
+        let metadata_path = self.canonical_module_metadata_path(&module_path);
+        if let Some(metadata) = self
+            .types
+            .module_rule_scopes
+            .get(&(metadata_path.clone(), constructor.to_string()))
+            .cloned()
+        {
+            let reordered = has_named_args(args)
+                .then(|| reorder_named_args_by_names(&metadata.fields, args))
+                .flatten();
+            let args = reordered.as_deref().unwrap_or(args);
+            let emitted_args = args
+                .iter()
+                .enumerate()
+                .map(|(index, arg)| {
+                    let expected_ty = metadata
+                        .fields
+                        .get(index)
+                        .and_then(|field| metadata.field_types.get(field))
+                        .map(|ty| self.source_ty_to_fir(ty));
+                    if let Some(expected_ty) = expected_ty.as_ref() {
+                        self.emit_expr_with_expected_ty(arg, expected_ty)
+                    } else {
+                        self.emit_expr(arg)
+                    }
+                })
+                .collect::<Vec<_>>();
+            return Some(format!(
+                "{}::{}({})",
+                emitted_module_path,
+                metadata.rust_name,
+                emitted_args.join(", ")
+            ));
+        }
+        let metadata = self
+            .types
+            .module_variants
+            .get(&(metadata_path, constructor.to_string()))?
+            .clone();
+        let reordered = has_named_args(args)
+            .then(|| reorder_named_args_by_names(&metadata.fields, args))
+            .flatten();
+        let args = reordered.as_deref().unwrap_or(args);
+        let wrap_fn = if metadata.uses_rc {
+            format!("{}::new", self.rc_name())
+        } else {
+            "Box::new".to_string()
+        };
+        let emitted_args = args
+            .iter()
+            .enumerate()
+            .map(|(index, arg)| {
+                let expected_ty = metadata
+                    .fields
+                    .get(index)
+                    .and_then(|field| metadata.field_types.get(field))
+                    .map(|ty| self.source_ty_to_fir(ty));
+                let emitted = if let Some(expected_ty) = expected_ty.as_ref() {
+                    self.emit_expr_with_expected_ty(arg, expected_ty)
+                } else {
+                    self.emit_expr(arg)
+                };
+                if metadata.boxed_args.contains(&index) {
+                    format!("{}({})", wrap_fn, emitted)
+                } else {
+                    emitted
+                }
+            })
+            .collect::<Vec<_>>();
+        let parent_path = format!("{}::{}", emitted_module_path, metadata.parent);
+        let constructor_path = if metadata.struct_type {
+            parent_path
+        } else {
+            format!("{}::{}", parent_path, sanitize_name(constructor))
+        };
+        if metadata.positional {
+            Some(format!("{}({})", constructor_path, emitted_args.join(", ")))
+        } else {
+            let fields = metadata
+                .fields
+                .iter()
+                .zip(emitted_args)
+                .map(|(field, value)| format!("{}: {}", sanitize_name(field), value))
+                .collect::<Vec<_>>();
+            Some(format!("{} {{ {} }}", constructor_path, fields.join(", ")))
         }
     }
 
@@ -40197,6 +50527,477 @@ impl RustCodegen {
         self.emit_expr_with_expected_ty(expr, expected_ty)
     }
 
+    fn static_rule_family_for_call(
+        &self,
+        func: &Expr,
+        arity: usize,
+    ) -> Option<(Vec<Rule>, Option<String>, FirTy)> {
+        match &func.kind {
+            ExprKind::Field(obj, method) => {
+                if let Some(key) = self.qualified_module_callable_key(func, arity) {
+                    let metadata = self.module_callable_metadata.get(&key)?;
+                    return metadata
+                        .rules
+                        .clone()
+                        .map(|rules| (rules, Some(key.0), metadata.return_type.clone()));
+                }
+
+                let obj_ty = self.infer_expr_fir_ty(obj);
+                if let FirTy::Named(type_name) = &obj_ty {
+                    if let Some((module_path, metadata)) =
+                        self.types.module_rule_scope_for_named_type(type_name)
+                    {
+                        let rules = metadata.member_rules.get(method)?.clone();
+                        let return_type = metadata
+                            .member_fn_types
+                            .get(method)
+                            .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                            .unwrap_or(FirTy::Unknown);
+                        return Some((rules, Some(module_path), return_type));
+                    }
+
+                    let mut scope_names = vec![type_name.clone()];
+                    if let Some(renamed) = self.types.type_rename.get(type_name) {
+                        scope_names.push(renamed.clone());
+                    }
+                    for scope_name in scope_names {
+                        let Some(rules) = self
+                            .types
+                            .rule_scope_member_rules
+                            .get(&(scope_name.clone(), method.clone()))
+                        else {
+                            continue;
+                        };
+                        let return_type = self
+                            .types
+                            .rule_scope_member_fn_types
+                            .get(&(scope_name, method.clone()))
+                            .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                            .unwrap_or(FirTy::Unknown);
+                        return Some((rules.clone(), None, return_type));
+                    }
+                }
+                None
+            }
+            ExprKind::Var(name) => {
+                if self
+                    .ordinary_function_arities
+                    .contains(&(name.clone(), arity))
+                    || self.types.variant_parent.contains_key(name)
+                    || self.builtin_registry.contains_key(name)
+                    || (self.local_bindings.contains(name)
+                        && !self.static_call_bypasses_non_callable_local(name, arity))
+                    || self
+                        .types
+                        .effect_ops
+                        .values()
+                        .any(|operations| operations.contains(name))
+                {
+                    return None;
+                }
+
+                if self.current_rule_scope_methods.get(name) == Some(&arity) {
+                    let scope_name = self.current_rule_scope_name.as_ref()?;
+                    let rules = self
+                        .types
+                        .rule_scope_member_rules
+                        .get(&(scope_name.clone(), name.clone()))?
+                        .clone();
+                    let return_type = self
+                        .types
+                        .rule_scope_member_fn_types
+                        .get(&(scope_name.clone(), name.clone()))
+                        .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                        .unwrap_or(FirTy::Unknown);
+                    return Some((rules, None, return_type));
+                }
+
+                let rules = self.types.prolog_rule_groups.get(name)?.clone();
+                let return_type = self
+                    .types
+                    .fn_types_by_arity
+                    .get(&(name.clone(), arity))
+                    .map(|fn_ty| LoweringCtx::apply_fn_ty(fn_ty, arity))
+                    .unwrap_or(FirTy::Unknown);
+                Some((rules, None, return_type))
+            }
+            _ => None,
+        }
+    }
+
+    fn canonicalize_static_rule_ty(&self, owner_path: Option<&str>, ty: FirTy) -> FirTy {
+        let ty = if let Some(owner_path) = owner_path {
+            self.types.qualify_module_fir_ty(owner_path, ty)
+        } else {
+            ty
+        };
+        match ty {
+            FirTy::Named(name) => {
+                let qualified = if name.starts_with("crate::") {
+                    name
+                } else if name.contains('.') {
+                    format!(
+                        "crate::{}",
+                        name.split('.')
+                            .map(sanitize_name)
+                            .collect::<Vec<_>>()
+                            .join("::")
+                    )
+                } else if name.contains("::") {
+                    format!("crate::{}", name)
+                } else {
+                    return FirTy::Named(name);
+                };
+                if let Some((path, rust_name)) = TypeRegistry::qualified_type_parts(&qualified) {
+                    FirTy::Named(format!(
+                        "crate::{}::{}",
+                        self.canonical_module_metadata_path(&path),
+                        rust_name
+                    ))
+                } else {
+                    FirTy::Named(qualified)
+                }
+            }
+            FirTy::List(inner) => FirTy::List(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Option(inner) => FirTy::Option(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Result(ok, err) => FirTy::Result(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *ok)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *err)),
+            ),
+            FirTy::Tuple(items) => FirTy::Tuple(
+                items
+                    .into_iter()
+                    .map(|item| self.canonicalize_static_rule_ty(owner_path, item))
+                    .collect(),
+            ),
+            FirTy::Map(key, value) => FirTy::Map(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *key)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *value)),
+            ),
+            FirTy::Set(inner) => FirTy::Set(Box::new(
+                self.canonicalize_static_rule_ty(owner_path, *inner),
+            )),
+            FirTy::Arrow(param, ret) => FirTy::Arrow(
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *param)),
+                Box::new(self.canonicalize_static_rule_ty(owner_path, *ret)),
+            ),
+            other => other,
+        }
+    }
+
+    fn static_rule_ty_contains_qualified_nominal(ty: &FirTy) -> bool {
+        match ty {
+            FirTy::Named(name) => name.starts_with("crate::"),
+            FirTy::List(inner) | FirTy::Option(inner) | FirTy::Set(inner) => {
+                Self::static_rule_ty_contains_qualified_nominal(inner)
+            }
+            FirTy::Result(left, right) | FirTy::Map(left, right) => {
+                Self::static_rule_ty_contains_qualified_nominal(left)
+                    || Self::static_rule_ty_contains_qualified_nominal(right)
+            }
+            FirTy::Tuple(items) => items
+                .iter()
+                .any(Self::static_rule_ty_contains_qualified_nominal),
+            FirTy::Arrow(param, ret) => {
+                Self::static_rule_ty_contains_qualified_nominal(param)
+                    || Self::static_rule_ty_contains_qualified_nominal(ret)
+            }
+            _ => false,
+        }
+    }
+
+    fn static_rule_named_owner_uncertain(&self, type_name: &str) -> bool {
+        let Some((path, rust_name)) = TypeRegistry::qualified_type_parts(type_name) else {
+            return false;
+        };
+        let path = self.canonical_module_metadata_path(&path);
+        self.types
+            .module_variants
+            .iter()
+            .any(|((module_path, _), metadata)| {
+                module_path == &path
+                    && metadata.parent == rust_name
+                    && metadata.canonical_owner_uncertain
+            })
+            || self
+                .types
+                .module_rule_scopes
+                .iter()
+                .any(|((module_path, _), metadata)| {
+                    module_path == &path
+                        && metadata.rust_name == rust_name
+                        && metadata.canonical_owner_uncertain
+                })
+    }
+
+    fn static_rule_nominal_inclusion_possible(&self, expected: &str, actual: &str) -> bool {
+        let expected_leaf = expected.rsplit("::").next().unwrap_or(expected);
+        let actual_leaf = actual.rsplit("::").next().unwrap_or(actual);
+        if let (Some((expected_path, expected_rust)), Some((actual_path, actual_rust))) = (
+            TypeRegistry::qualified_type_parts(expected),
+            TypeRegistry::qualified_type_parts(actual),
+        ) {
+            let expected_path = self.canonical_module_metadata_path(&expected_path);
+            let actual_path = self.canonical_module_metadata_path(&actual_path);
+            return expected_path == actual_path
+                && self.types.module_variants.iter().any(
+                    |((module_path, constructor), metadata)| {
+                        module_path == &expected_path
+                            && metadata.parent == expected_rust
+                            && (constructor == &actual_rust || constructor == actual_leaf)
+                    },
+                );
+        }
+
+        self.types
+            .type_decls
+            .get(expected_leaf)
+            .or_else(|| {
+                self.types
+                    .type_rename
+                    .iter()
+                    .find_map(|(source, rust)| (rust == expected_leaf).then(|| source))
+                    .and_then(|source| self.types.type_decls.get(source))
+            })
+            .is_some_and(|(_, variants)| variants.iter().any(|variant| variant == actual_leaf))
+    }
+
+    fn static_rule_param_relation(
+        &self,
+        expected: &FirTy,
+        actual: &FirTy,
+    ) -> StaticRuleParamRelation {
+        if expected == actual
+            || matches!(expected, FirTy::Unknown | FirTy::Var(_))
+            || matches!(actual, FirTy::Unknown | FirTy::Var(_))
+        {
+            return StaticRuleParamRelation::CompatibleOrUnknown;
+        }
+
+        if let (FirTy::Named(expected), FirTy::Named(actual)) = (expected, actual) {
+            if self.static_rule_named_owner_uncertain(expected)
+                || self.static_rule_named_owner_uncertain(actual)
+            {
+                return StaticRuleParamRelation::UnsupportedCanonicalOwner;
+            }
+            if self.static_rule_nominal_inclusion_possible(expected, actual)
+                || self.static_rule_nominal_inclusion_possible(actual, expected)
+            {
+                return StaticRuleParamRelation::CompatibleOrUnknown;
+            }
+            return StaticRuleParamRelation::NominallyDisjoint;
+        }
+
+        if Self::static_rule_ty_contains_qualified_nominal(expected)
+            || Self::static_rule_ty_contains_qualified_nominal(actual)
+        {
+            return StaticRuleParamRelation::UnsupportedStructuralAbi;
+        }
+        StaticRuleParamRelation::CompatibleOrUnknown
+    }
+
+    fn static_rule_call_resolution(&self, func: &Expr, args: &[Expr]) -> StaticRuleCallResolution {
+        let Some((rules, owner_path, return_type)) =
+            self.static_rule_family_for_call(func, args.len())
+        else {
+            return StaticRuleCallResolution::EmitNormally;
+        };
+        if self.canonical_rule_metadata_installed && self.current_module_path.is_empty() {
+            let canonical_key = match &func.kind {
+                ExprKind::Var(name) => Some(RuleDispatchKey {
+                    scope: (self.current_rule_scope_methods.get(name) == Some(&args.len()))
+                        .then(|| self.current_rule_scope_name.clone())
+                        .flatten(),
+                    name: name.clone(),
+                    arity: args.len(),
+                }),
+                ExprKind::Field(obj, method)
+                    if self
+                        .qualified_module_callable_key(func, args.len())
+                        .is_none() =>
+                {
+                    let FirTy::Named(scope) = self.infer_expr_fir_ty(obj) else {
+                        return StaticRuleCallResolution::Unsupported(
+                            "dynamic RuleScope owner has no canonical total dispatch contract",
+                        );
+                    };
+                    [
+                        Some(scope.clone()),
+                        self.types.type_rename.get(&scope).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .map(|scope| RuleDispatchKey {
+                        scope: Some(scope),
+                        name: method.clone(),
+                        arity: args.len(),
+                    })
+                    .find(|key| self.canonical_rule_return_types.contains_key(key))
+                }
+                _ => None,
+            };
+            if self.rule_dispatch_miss_mode
+                == RustCodegenRuleDispatchMissMode::RequireStaticTotality
+            {
+                if let Some(key) = canonical_key {
+                    if self.canonical_rule_return_types.contains_key(&key)
+                        && !self.runtime_rule_irrefutable_keys.contains(&key)
+                        && !self.canonical_rule_boolean_miss_safe_keys.contains(&key)
+                    {
+                        return StaticRuleCallResolution::Unsupported(
+                            "RuleDispatch cannot be consumed without a canonical total/miss-safe contract",
+                        );
+                    }
+                }
+            }
+        }
+        if return_type != FirTy::Bool {
+            return StaticRuleCallResolution::EmitNormally;
+        }
+
+        let reordered_args = self.reorder_named_app_args_for_emit(func, args);
+        let args = reordered_args.as_deref().unwrap_or(args);
+        let actual_tys = args
+            .iter()
+            .map(|arg| {
+                let arg = named_arg_parts(arg).map(|(_, value)| value).unwrap_or(arg);
+                self.canonicalize_static_rule_ty(None, self.infer_expr_fir_ty(arg))
+            })
+            .collect::<Vec<_>>();
+        let mut saw_candidate = false;
+        let mut unsupported = None;
+
+        for rule in &rules {
+            let head = match rule {
+                Rule::Clause { head, .. }
+                | Rule::Default { head, .. }
+                | Rule::Exception { head, .. } => head,
+                Rule::ReactiveScope { .. } => continue,
+            };
+            let ExprKind::App(_, head_args) = &head.kind else {
+                continue;
+            };
+            if head_args.len() != args.len() {
+                continue;
+            }
+            saw_candidate = true;
+            let mut clause_is_disjoint = false;
+            let mut clause_unsupported = None;
+            for (head_arg, actual_ty) in head_args.iter().zip(&actual_tys) {
+                let Some(expected_ty) = self.typed_rule_arg_fir_ty(head_arg) else {
+                    continue;
+                };
+                let expected_ty =
+                    self.canonicalize_static_rule_ty(owner_path.as_deref(), expected_ty);
+                match self.static_rule_param_relation(&expected_ty, actual_ty) {
+                    StaticRuleParamRelation::CompatibleOrUnknown => {}
+                    StaticRuleParamRelation::NominallyDisjoint => {
+                        clause_is_disjoint = true;
+                    }
+                    StaticRuleParamRelation::UnsupportedCanonicalOwner => {
+                        clause_unsupported = Some(
+                            "td-625bb9: canonical plain/hash cross-parent type ownership is unsupported by generated Rust",
+                        );
+                    }
+                    StaticRuleParamRelation::UnsupportedStructuralAbi => {
+                        clause_unsupported = Some(
+                            "td-afa433: structural cross-namespace Rule ABI is unsupported by generated Rust",
+                        );
+                    }
+                }
+            }
+            if clause_is_disjoint {
+                continue;
+            }
+            if let Some(reason) = clause_unsupported {
+                unsupported = Some(reason);
+                continue;
+            }
+            return StaticRuleCallResolution::EmitNormally;
+        }
+
+        if !saw_candidate {
+            StaticRuleCallResolution::EmitNormally
+        } else if let Some(reason) = unsupported {
+            StaticRuleCallResolution::Unsupported(reason)
+        } else {
+            StaticRuleCallResolution::NominalMiss
+        }
+    }
+
+    fn emit_static_rule_nominal_miss(&mut self, func: &Expr, args: &[Expr]) -> String {
+        let mut evaluations = Vec::new();
+        if let ExprKind::Field(obj, _) = &func.kind {
+            if self.module_path_key(obj).is_none() {
+                evaluations.push(self.emit_expr(obj));
+            }
+        }
+        evaluations.extend(args.iter().map(|arg| {
+            let arg = named_arg_parts(arg).map(|(_, value)| value).unwrap_or(arg);
+            self.emit_expr(arg)
+        }));
+        let evaluations = evaluations
+            .into_iter()
+            .map(|value| format!("let _ = {};", value))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let scoped_predicate = match &func.kind {
+            ExprKind::Var(name) => {
+                self.current_rule_scope_name.is_some()
+                    && self.current_rule_scope_methods.get(name) == Some(&args.len())
+            }
+            ExprKind::Field(obj, method)
+                if self
+                    .qualified_module_callable_key(func, args.len())
+                    .is_none() =>
+            {
+                match self.infer_expr_fir_ty(obj) {
+                    FirTy::Named(scope) => [
+                        Some(scope.clone()),
+                        self.types.type_rename.get(&scope).cloned(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .any(|scope| {
+                        self.canonical_rule_return_types
+                            .contains_key(&RuleDispatchKey {
+                                scope: Some(scope),
+                                name: method.clone(),
+                                arity: args.len(),
+                            })
+                    }),
+                    _ => false,
+                }
+            }
+            _ => false,
+        };
+        let safe_global_predicate = match &func.kind {
+            ExprKind::Var(name) if !scoped_predicate => self
+                .canonical_rule_boolean_miss_safe_keys
+                .contains(&RuleDispatchKey {
+                    scope: None,
+                    name: name.clone(),
+                    arity: args.len(),
+                }),
+            _ => false,
+        };
+        if self.rule_dispatch_miss_mode == RustCodegenRuleDispatchMissMode::ProcessFailure
+            && !scoped_predicate
+            && !safe_global_predicate
+        {
+            format!(
+                "{{ {} panic!(\"native classifier reached a partial global RuleDispatch miss\") }}",
+                evaluations
+            )
+        } else {
+            format!("{{ {} false }}", evaluations)
+        }
+    }
+
     fn emit_expr(&mut self, expr: &Expr) -> String {
         if let Some(path) = pathof_canonical_path(expr) {
             return format!("{:?}.to_string()", path);
@@ -40206,6 +51007,9 @@ impl RustCodegen {
         }
         match &expr.kind {
             ExprKind::Var(name) => {
+                if self.in_standalone_adt_method && name == "self" {
+                    return "self_".to_string();
+                }
                 // Nullary constructor
                 if let Some(parent) = self.types.variant_parent.get(name.as_str()) {
                     return self
@@ -40249,7 +51053,7 @@ impl RustCodegen {
                 if self.in_iter_closure
                     && !self.closure_params.contains(name.as_str())
                     && !self.copy_vars.contains(name.as_str())
-                    && !self.types.known_modules.contains(name.as_str())
+                    && self.visible_bare_module_path(name).is_none()
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -40267,7 +51071,7 @@ impl RustCodegen {
                 // Multi-use non-Copy variables: clone to avoid move errors
                 // Skip for functions/rules (fn items don't need cloning)
                 if !self.copy_vars.contains(name.as_str())
-                    && !self.types.known_modules.contains(name.as_str())
+                    && self.visible_bare_module_path(name).is_none()
                     && !self.types.user_functions.contains(name.as_str())
                     && !self.types.prolog_rule_fns.contains_key(name.as_str())
                     && !self.builtin_registry.contains_key(name.as_str())
@@ -40295,6 +51099,22 @@ impl RustCodegen {
                         "()".to_string()
                     };
                 }
+                if let ExprKind::Field(module, constructor) = &func.as_ref().kind {
+                    if let Some(emitted) =
+                        self.emit_qualified_module_constructor_app(module, constructor, args)
+                    {
+                        return emitted;
+                    }
+                }
+                match self.static_rule_call_resolution(func, args) {
+                    StaticRuleCallResolution::EmitNormally => {}
+                    StaticRuleCallResolution::NominalMiss => {
+                        return self.emit_static_rule_nominal_miss(func, args);
+                    }
+                    StaticRuleCallResolution::Unsupported(reason) => {
+                        return format!("{{ compile_error!({:?}); false }}", reason);
+                    }
+                }
                 let resolved_constructor_parent = match &func.as_ref().kind {
                     ExprKind::Var(name) => self.types.parent_for_variant_with_call_args(name, args),
                     _ => None,
@@ -40312,8 +51132,29 @@ impl RustCodegen {
                 }
                 // Phase 1b: Check if this is a borrow-builtin BEFORE processing args
                 let is_borrow_call = matches!(func.as_ref().kind, ExprKind::Var(ref n) if builtin_canonical(n) == "show");
-                // Method calls: string literal args stay as &str (no .to_string())
-                let is_method_call = matches!(func.as_ref().kind, ExprKind::Field(..));
+                let qualified_module_callable_key =
+                    self.qualified_module_callable_key(func, args.len());
+                let is_qualified_module_call = qualified_module_callable_key.is_some();
+                let module_callable_metadata = qualified_module_callable_key
+                    .as_ref()
+                    .and_then(|key| self.module_callable_metadata.get(key))
+                    .cloned();
+                let emitted_rule_target = self.emitted_free_rule_target(func, args.len());
+                let is_emitted_rule_call = emitted_rule_target.is_some();
+                // Object methods accept string literals as &str. Module-qualified
+                // free functions instead follow their captured module ABI.
+                let is_method_call =
+                    matches!(func.as_ref().kind, ExprKind::Field(..)) && !is_qualified_module_call;
+                let method_fn_ty = if let ExprKind::Field(obj, method) = &func.as_ref().kind {
+                    is_method_call
+                        .then(|| {
+                            let obj_ty = self.infer_expr_fir_ty(obj);
+                            self.rule_scope_member_fn_ty_for_type(&obj_ty, method)
+                        })
+                        .flatten()
+                } else {
+                    None
+                };
 
                 // Extract the function name (for Var or module-qualified Field access)
                 let resolved_fn_name: Option<&str> = match &func.as_ref().kind {
@@ -40322,23 +51163,39 @@ impl RustCodegen {
                     ExprKind::Field(_obj, fn_name) => Some(fn_name.as_str()),
                     _ => None,
                 };
-                let bypass_non_callable_local = resolved_fn_name.is_some_and(|name| {
-                    self.static_call_bypasses_non_callable_local(name, args.len())
-                });
+                let bypass_non_callable_local = !is_qualified_module_call
+                    && resolved_fn_name.is_some_and(|name| {
+                        self.static_call_bypasses_non_callable_local(name, args.len())
+                    });
 
                 // Prolog rule functions: take &str, not String
-                let is_prolog_call = resolved_fn_name
-                    .map(|n| self.types.prolog_rule_fns.contains_key(n))
-                    .unwrap_or(false);
+                let is_prolog_call = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .is_some_and(|metadata| metadata.prolog_param_types.is_some())
+                } else {
+                    resolved_fn_name
+                        .map(|n| self.types.prolog_rule_fns.contains_key(n))
+                        .unwrap_or(false)
+                };
 
                 // Check if the called function has inout params
-                let inout_flags =
-                    resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned());
+                let inout_flags = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .map(|metadata| metadata.inout_params.clone())
+                } else {
+                    resolved_fn_name.and_then(|n| self.types.inout_params.get(n).cloned())
+                };
 
                 // Phase 2: Check if the called function has auto-borrow params
                 // Skip borrow flags for Prolog/Datalog rules — they take by value
                 let borrow_flags = if is_prolog_call {
                     None
+                } else if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .map(|metadata| metadata.borrow_only_params.clone())
                 } else {
                     resolved_fn_name.and_then(|n| self.borrow_only_params.get(n).cloned())
                 };
@@ -40355,10 +51212,18 @@ impl RustCodegen {
                         if is_inout {
                             if let ExprKind::Var(n) = &a.kind {
                                 // Copy-on-write: shared + inout → Arc::make_mut
-                                let is_cow = resolved_fn_name
-                                    .and_then(|fn_n| self.types.cow_params.get(fn_n))
-                                    .map(|f| f.get(idx).copied().unwrap_or(false))
-                                    .unwrap_or(false);
+                                let is_cow = if is_qualified_module_call {
+                                    module_callable_metadata
+                                        .as_ref()
+                                        .and_then(|metadata| metadata.cow_params.get(idx))
+                                        .copied()
+                                        .unwrap_or(false)
+                                } else {
+                                    resolved_fn_name
+                                        .and_then(|fn_n| self.types.cow_params.get(fn_n))
+                                        .map(|f| f.get(idx).copied().unwrap_or(false))
+                                        .unwrap_or(false)
+                                };
                                 if is_cow {
                                     return format!(
                                         "std::sync::Arc::make_mut(&mut {})",
@@ -40392,14 +51257,31 @@ impl RustCodegen {
                         );
                         let s = if is_method_call || is_prolog_call {
                             if let ExprKind::Lit(Literal::Str(ref str_val)) = &a.kind {
-                                format!("{:?}", str_val) // &str, no .to_string()
+                                let method_takes_owned_string = method_fn_ty
+                                    .as_ref()
+                                    .and_then(|fn_ty| Self::arrow_param_fir_ty(fn_ty, idx))
+                                    .is_some_and(|ty| ty == FirTy::String);
+                                if is_prolog_call || !method_takes_owned_string {
+                                    format!("{:?}", str_val) // &str, no .to_string()
+                                } else {
+                                    self.emit_expr(a)
+                                }
                             } else if is_prolog_call {
                                 let base = self.emit_expr(a);
-                                let param_is_str = resolved_fn_name
-                                    .and_then(|n| self.types.prolog_rule_fns.get(n))
-                                    .and_then(|types| types.get(idx))
-                                    .map(|t| t == "&str")
-                                    .unwrap_or(false);
+                                let param_is_str = if is_qualified_module_call {
+                                    module_callable_metadata
+                                        .as_ref()
+                                        .and_then(|metadata| metadata.prolog_param_types.as_ref())
+                                        .and_then(|types| types.get(idx))
+                                        .map(|ty| ty == "&str")
+                                        .unwrap_or(false)
+                                } else {
+                                    resolved_fn_name
+                                        .and_then(|n| self.types.prolog_rule_fns.get(n))
+                                        .and_then(|types| types.get(idx))
+                                        .map(|ty| ty == "&str")
+                                        .unwrap_or(false)
+                                };
                                 if param_is_str
                                     && matches!(a.kind, ExprKind::Var(ref n) if n != "_")
                                 {
@@ -40786,8 +51668,10 @@ impl RustCodegen {
                                     + " "
                             };
                             if name == "filter" {
-                                return format!("{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
-                                    coll, param, clone_prefix, param, param, body_code);
+                                return format!(
+                                    "{}.clone().into_iter().filter(|{}| {{ {} let {} = {}.clone(); {} }}).collect::<Vec<_>>()",
+                                    coll, param, clone_prefix, param, param, body_code
+                                );
                             } else if name == "partition" {
                                 return format!(
                                     "{{ let (__yes, __no): (Vec<_>, Vec<_>) = {}.clone().into_iter().partition(|{}| {{ {} let {} = {}.clone(); {} }}); (__yes, __no) }}",
@@ -40800,7 +51684,10 @@ impl RustCodegen {
                                         coll, param, body_code
                                     );
                                 } else {
-                                    return format!("{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()", coll, param, clone_prefix, body_code);
+                                    return format!(
+                                        "{}.clone().into_iter().map(|{}| {{ {} {} }}).collect::<Vec<_>>()",
+                                        coll, param, clone_prefix, body_code
+                                    );
                                 }
                             }
                         }
@@ -40820,9 +51707,15 @@ impl RustCodegen {
                                             flags.first().copied().unwrap_or(false)
                                         });
                                     if borrows {
-                                        return format!("{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()", coll, f);
+                                        return format!(
+                                            "{}.clone().into_iter().map(|__x| {}(&__x)).collect::<Vec<_>>()",
+                                            coll, f
+                                        );
                                     } else {
-                                        return format!("{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()", coll, f);
+                                        return format!(
+                                            "{}.clone().into_iter().map(|__x| {}(__x)).collect::<Vec<_>>()",
+                                            coll, f
+                                        );
                                     }
                                 }
                             }
@@ -41309,6 +52202,8 @@ impl RustCodegen {
                         all_args.extend(effect_args);
                         let target = if bypass_non_callable_local {
                             format!("self::{}", sanitize_name(name))
+                        } else if let Some(target) = emitted_rule_target.as_ref() {
+                            target.clone()
                         } else {
                             sanitize_name(name)
                         };
@@ -41338,7 +52233,10 @@ impl RustCodegen {
                                 }
                             })
                             .collect();
-                        let call = format!("{}({})", sanitize_name(name), new_args.join(", "));
+                        let target = emitted_rule_target
+                            .clone()
+                            .unwrap_or_else(|| sanitize_name(name));
+                        let call = format!("{}({})", target, new_args.join(", "));
                         parts.push(call);
                         return format!("{{ {} }}", parts.join(" "));
                     }
@@ -41375,14 +52273,51 @@ impl RustCodegen {
                     ExprKind::Var(name) if bypass_non_callable_local => {
                         format!("self::{}", sanitize_name(name))
                     }
+                    _ if emitted_rule_target.is_some() => emitted_rule_target.unwrap(),
                     _ => self.emit_expr(func),
                 };
                 let call = format!("{}({})", f, args_str.join(", "));
-                // Value-returning Prolog functions return Option<T> — default on missing fact
-                if let ExprKind::Var(name) = &func.as_ref().kind {
-                    if self.types.prolog_value_fns.contains_key(name.as_str()) {
-                        return format!("{}.unwrap_or_default()", call);
+                // Value-returning Prolog functions retain Option<T> internally.
+                // A miss must not manufacture a value of the result type.
+                let is_prolog_value_call = if is_qualified_module_call {
+                    module_callable_metadata
+                        .as_ref()
+                        .is_some_and(|metadata| metadata.prolog_value)
+                } else {
+                    is_emitted_rule_call
+                        && matches!(&func.as_ref().kind, ExprKind::Var(name)
+                        if self.types.prolog_value_fns.contains_key(name.as_str()))
+                };
+                if is_prolog_value_call {
+                    if self.canonical_rule_metadata_installed
+                        && self.current_module_path.is_empty()
+                        && !is_qualified_module_call
+                        && self.rule_dispatch_miss_mode
+                            == RustCodegenRuleDispatchMissMode::RequireStaticTotality
+                    {
+                        let ExprKind::Var(name) = &func.as_ref().kind else {
+                            return "compile_error!(\"canonical Prolog value target is not a root named rule\")".to_string();
+                        };
+                        let key = RuleDispatchKey {
+                            scope: None,
+                            name: name.clone(),
+                            arity: args.len(),
+                        };
+                        if !self.runtime_rule_irrefutable_keys.contains(&key) {
+                            return format!(
+                                "compile_error!({:?})",
+                                format!(
+                                    "partial non-Bool RuleDispatch `{}({})` cannot be consumed as a total value",
+                                    name,
+                                    args.len()
+                                )
+                            );
+                        }
                     }
+                    return format!(
+                        "{}.expect(\"irrefutable RuleDispatch returned no value\")",
+                        call
+                    );
                 }
                 call
             }
@@ -41465,22 +52400,43 @@ impl RustCodegen {
                 }
                 // Futuruna uses = for equality; Rust uses ==
                 let rust_op = if op == "=" { "==" } else { op.as_str() };
+                let exact_int_candidate = self.int_arithmetic_mode
+                    == RustCodegenIntArithmeticMode::ExploreClassifierExact
+                    && matches!(rust_op, "+" | "-" | "*" | "/" | "%");
+                let is_float_arithmetic = if exact_int_candidate || matches!(rust_op, "/" | "%") {
+                    match self.infer_expr_fir_ty(expr) {
+                        FirTy::Float => true,
+                        FirTy::Int => false,
+                        _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
+                    }
+                } else {
+                    false
+                };
+                if exact_int_candidate && !is_float_arithmetic {
+                    let checked_method = match rust_op {
+                        "+" => "checked_add",
+                        "-" => "checked_sub",
+                        "*" => "checked_mul",
+                        "/" => "checked_div",
+                        "%" => "checked_rem",
+                        _ => unreachable!("guarded exact Int operator"),
+                    };
+                    return format!(
+                        "{{ let __fut_l: i64 = {}; let __fut_r: i64 = {}; __fut_l.{}(__fut_r).unwrap_or_else(|| std::process::exit({})) }}",
+                        l, r, checked_method, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                    );
+                }
                 // Safe division/modulo: return 0 on division by zero (matches interpreter).
                 // Prefer the inferred type of the full expression so Int-valued helpers like
                 // round(...) % 64 do not get pulled onto the float path just because a child
                 // subtree mentions floats somewhere upstream.
                 if rust_op == "/" || rust_op == "%" {
-                    let is_float = match self.infer_expr_fir_ty(expr) {
-                        FirTy::Float => true,
-                        FirTy::Int => false,
-                        _ => self.expr_is_float(lhs) || self.expr_is_float(rhs),
-                    };
                     let l_for_op = if l.trim_start().starts_with('{') {
                         format!("({})", l)
                     } else {
                         l.clone()
                     };
-                    if is_float {
+                    if is_float_arithmetic {
                         return format!(
                             "{{ let __d = {}; if __d == 0.0 {{ 0.0 }} else {{ {} {} __d }} }}",
                             r, l_for_op, rust_op
@@ -41495,7 +52451,19 @@ impl RustCodegen {
                 format!("({} {} {})", l, rust_op, r)
             }
             ExprKind::UnOp(op, operand) => {
-                format!("{}{}", op, self.emit_expr(operand))
+                let emitted_operand = self.emit_expr(operand);
+                if self.int_arithmetic_mode == RustCodegenIntArithmeticMode::ExploreClassifierExact
+                    && op == "-"
+                    && !matches!(self.infer_expr_fir_ty(expr), FirTy::Float)
+                    && !self.expr_is_float(operand)
+                {
+                    format!(
+                        "{{ let __fut_v: i64 = {}; __fut_v.checked_neg().unwrap_or_else(|| std::process::exit({})) }}",
+                        emitted_operand, EXPLORE_NATIVE_CLASSIFIER_FAILURE_EXIT_V2,
+                    )
+                } else {
+                    format!("{}{}", op, emitted_operand)
+                }
             }
             ExprKind::If(cond, then_, else_) => {
                 let c = self.emit_expr(cond);
@@ -41764,20 +52732,31 @@ impl RustCodegen {
                 // Handles nested modules: App.Utils.func → App::Utils::func
                 if self.is_module_path(obj) {
                     let path = self.emit_module_path(obj);
+                    let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+                    let metadata_path = self.canonical_module_metadata_path(&metadata_key);
                     // If field is a variant constructor, insert the parent type
                     // e.g. Lib.Red → Lib::Color::Red (not Lib::Red)
-                    if let Some(parent) = self.types.variant_parent.get(field) {
-                        return format!(
-                            "{}::{}::{}",
-                            path,
-                            self.rust_type_name(parent),
-                            sanitize_name(field)
-                        );
+                    if let Some(metadata) = self
+                        .types
+                        .module_variants
+                        .get(&(metadata_path.clone(), field.clone()))
+                    {
+                        if metadata.struct_type {
+                            return format!("{}::{}", path, metadata.parent);
+                        }
+                        return format!("{}::{}::{}", path, metadata.parent, sanitize_name(field));
+                    }
+                    if let Some(metadata) = self
+                        .types
+                        .module_rule_scopes
+                        .get(&(metadata_path.clone(), field.clone()))
+                    {
+                        return format!("{}::{}", path, metadata.rust_name);
                     }
                     if self
                         .types
                         .module_value_bindings
-                        .get(&path)
+                        .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
                         return format!("{}::{}()", path, sanitize_name(field));
@@ -41785,7 +52764,7 @@ impl RustCodegen {
                     if self
                         .types
                         .module_stream_bindings
-                        .get(&path)
+                        .get(&metadata_path)
                         .is_some_and(|bindings| bindings.contains(field))
                     {
                         return format!("{}::{}()", path, sanitize_name(field));
@@ -41809,6 +52788,100 @@ impl RustCodegen {
                         _ => None,
                     },
                 };
+                if let Some(type_name) = obj_type_name.as_deref() {
+                    if let Some(module_variants) =
+                        self.types.module_variants_for_named_type(type_name)
+                    {
+                        if let Some((_constructor, metadata)) = module_variants
+                            .iter()
+                            .find(|(_, metadata)| metadata.struct_type)
+                        {
+                            if let Some(field_index) =
+                                metadata.fields.iter().position(|name| name == field)
+                            {
+                                let obj_str = self.emit_expr(obj);
+                                let is_boxed = metadata.boxed_args.contains(&field_index);
+                                let field_is_copy =
+                                    metadata.field_types.get(field).is_some_and(is_copy_type);
+                                let needs_clone = metadata.uses_rc
+                                    || match &obj.as_ref().kind {
+                                        ExprKind::Var(var_name) => {
+                                            self.current_borrow_params.contains(var_name.as_str())
+                                                || self
+                                                    .var_consuming_counts
+                                                    .get(var_name)
+                                                    .copied()
+                                                    .unwrap_or(0)
+                                                    > 1
+                                        }
+                                        _ => true,
+                                    };
+                                let clone_suffix = if needs_clone && !field_is_copy {
+                                    ".clone()"
+                                } else {
+                                    ""
+                                };
+                                if is_boxed {
+                                    return format!(
+                                        "(*{}.{}){}",
+                                        obj_str,
+                                        sanitize_name(field),
+                                        clone_suffix
+                                    );
+                                }
+                                return format!(
+                                    "{}.{}{}",
+                                    obj_str,
+                                    sanitize_name(field),
+                                    clone_suffix
+                                );
+                            }
+                        } else {
+                            let obj_str = self.emit_expr(obj);
+                            let mut arms = Vec::new();
+                            for (constructor, metadata) in module_variants {
+                                if metadata.positional {
+                                    continue;
+                                }
+                                let Some(field_index) =
+                                    metadata.fields.iter().position(|name| name == field)
+                                else {
+                                    continue;
+                                };
+                                let clone_expr = if metadata.boxed_args.contains(&field_index) {
+                                    "(**__f).clone()"
+                                } else {
+                                    "__f.clone()"
+                                };
+                                arms.push(format!(
+                                    "{}::{} {{ {}: ref __f, .. }} => {}",
+                                    type_name,
+                                    sanitize_name(&constructor),
+                                    sanitize_name(field),
+                                    clone_expr
+                                ));
+                            }
+                            if !arms.is_empty() {
+                                if arms.len() == 1 {
+                                    return format!(
+                                        "{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
+                                        arms[0].split(" => ").next().unwrap(),
+                                        obj_str,
+                                        arms[0].split(" => ").nth(1).unwrap()
+                                    );
+                                }
+                                arms.push(
+                                    "_ => panic!(\"field access on wrong variant\")".to_string(),
+                                );
+                                return format!(
+                                    "{{ match {} {{ {} }} }}",
+                                    obj_str,
+                                    arms.join(", ")
+                                );
+                            }
+                        }
+                    }
+                }
                 // Struct direct field access: check if the OBJECT's type is a struct
                 // by looking up the variable's type from params or bindings.
                 {
@@ -41877,9 +52950,12 @@ impl RustCodegen {
                         }
                         if !arms.is_empty() {
                             if arms.len() == 1 {
-                                return format!("{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
-                                    arms[0].split(" => ").next().unwrap(), obj_str,
-                                    arms[0].split(" => ").nth(1).unwrap());
+                                return format!(
+                                    "{{ if let {} = {} {{ {} }} else {{ panic!(\"field access on wrong variant\") }} }}",
+                                    arms[0].split(" => ").next().unwrap(),
+                                    obj_str,
+                                    arms[0].split(" => ").nth(1).unwrap()
+                                );
                             }
                             arms.push("_ => panic!(\"field access on wrong variant\")".to_string());
                             return format!("{{ match {} {{ {} }} }}", obj_str, arms.join(", "));
@@ -41919,7 +52995,10 @@ impl RustCodegen {
                 // Safe index: bounds-check instead of panic on negative/out-of-range
                 let arr_str = self.emit_expr(arr);
                 let idx_str = self.emit_expr(idx);
-                format!("{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}", arr_str, idx_str)
+                format!(
+                    "{{ let __arr = &{}; let __i = {}; if __i < 0 || __i as usize >= __arr.len() {{ panic!(\"index out of bounds: {{}} (len {{}})\", __i, __arr.len()) }} else {{ __arr[__i as usize].clone() }} }}",
+                    arr_str, idx_str
+                )
             }
             ExprKind::List(elems) => {
                 let items: Vec<String> =
@@ -42391,7 +53470,7 @@ impl RustCodegen {
             || self.ref_match_bindings.contains(name.as_str());
         !self.types.variant_parent.contains_key(name.as_str())
             && !self.copy_vars.contains(name.as_str())
-            && (!self.types.known_modules.contains(name.as_str()) || runtime_binding)
+            && self.visible_bare_module_path(name).is_none()
             && (!self.types.user_functions.contains(name.as_str()) || runtime_binding)
             && (!self.types.prolog_rule_fns.contains_key(name.as_str()) || runtime_binding)
             && (!self.builtin_registry.contains_key(name.as_str()) || runtime_binding)
@@ -42427,15 +53506,17 @@ impl RustCodegen {
             return None;
         }
         let path = self.emit_module_path(obj);
+        let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+        let metadata_path = self.canonical_module_metadata_path(&metadata_key);
         let is_value_binding = self
             .types
             .module_value_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field));
         let is_stream_binding = self
             .types
             .module_stream_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field));
         if is_value_binding || is_stream_binding {
             Some(format!("{}::{}()", path, sanitize_name(field)))
@@ -42452,9 +53533,11 @@ impl RustCodegen {
             return None;
         }
         let path = self.emit_module_path(obj);
+        let metadata_key = self.module_path_key(obj).unwrap_or_else(|| path.clone());
+        let metadata_path = self.canonical_module_metadata_path(&metadata_key);
         self.types
             .module_stream_bindings
-            .get(&path)
+            .get(&metadata_path)
             .is_some_and(|bindings| bindings.contains(field))
             .then(|| format!("{}::{}()", path, sanitize_name(field)))
     }
@@ -43309,7 +54392,7 @@ impl RustCodegen {
 
     fn if_branch_var_needs_clone(&self, name: &str) -> bool {
         !self.copy_vars.contains(name)
-            && !self.types.known_modules.contains(name)
+            && self.visible_bare_module_path(name).is_none()
             && !self.types.user_functions.contains(name)
             && !self.types.prolog_rule_fns.contains_key(name)
             && !self.types.variant_parent.contains_key(name)
@@ -43937,6 +55020,7 @@ impl RustCodegen {
                 | Stmt::QualifiedImport(_, _)
                 | Stmt::HashImport(_, _)
                 | Stmt::Depend(_, _)
+                | Stmt::Explore(_)
                 | Stmt::Abort
                 | Stmt::TypeDecl(TypeDecl::EffectDecl { .. }) => {}
                 Stmt::TypeDecl(TypeDecl::WhenType { condition, .. }) => {
@@ -44839,6 +55923,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn relational_explore_answer_count_wording_preserves_certainty() {
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Exact(2),
+                "mechanism",
+                "mechanisms",
+            ),
+            "exactly 2 mechanisms"
+        );
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Interval {
+                    lower_bound: 2,
+                    upper_bound: 5,
+                },
+                "mechanism",
+                "mechanisms",
+            ),
+            "between 2 and 5 mechanisms"
+        );
+        assert_eq!(
+            relational_explore_answer_count_text(
+                explore::ExploreStreamCount::Unknown {
+                    confirmed_lower_bound: 2,
+                },
+                "mechanism",
+                "mechanisms",
+            ),
+            "an unknown number of mechanisms (2 confirmed)"
+        );
+    }
+
+    #[test]
     fn test_job_count_requires_a_positive_integer() {
         assert_eq!(parse_test_job_count("1"), Ok(1));
         assert_eq!(parse_test_job_count("8"), Ok(8));
@@ -45033,6 +56150,52 @@ mod tests {
         assert_eq!(formatted, expected);
         assert_eq!(format_runa_source(expected), expected);
         assert!(formatted.lines().all(|line| line.trim_end() == line));
+    }
+
+    #[test]
+    fn formatter_formats_bounded_exploration_idempotently() {
+        let source = "? explore income_cliffs {\nfrom {\nvary income in range(0, 3)\nlet before = person(income)\ngiven context = ()\n}\ntransition after = promote(before, context)\nwhere before before.income>=0\nfind cliff_cases = violations of net(after, context)>=net(before, context)\nresults cliffs from find cliff_cases {\neach case\nselect [income = before.income, loss = net(before, context)-net(after, context)]\nchoose all maximizing loss\n}\n}\n";
+        let expected = "? explore income_cliffs {\n    from {\n        vary income in range(0, 3)\n        let before = person(income)\n        given context = ()\n    }\n    transition after = promote(before, context)\n    where before before.income >= 0\n    find cliff_cases = violations of net(after, context) >= net(before, context)\n    results cliffs from find cliff_cases {\n        each case\n        select [income = before.income, loss = net(before, context) - net(after, context)]\n        choose all maximizing loss\n    }\n}\n";
+
+        let formatted = format_runa_source(source);
+        assert_eq!(formatted, expected);
+        assert_eq!(format_runa_source(&formatted), expected);
+
+        let mut lexer = Lexer::new(&formatted);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &formatted);
+        let statements = parser.parse_program().expect("parse formatted exploration");
+        assert!(matches!(statements.first(), Some(Stmt::Explore(_))));
+    }
+
+    #[test]
+    fn formatter_preserves_named_mechanism_requests_idempotently() {
+        let source = "? explore observed {\nfrom {\nvary before in states()\ngiven context = IncomeContext(step = 1)\n}\ntransition after in successors(before, context)\nwhere transition after.income>=before.income\nfind changed_cases = matches of changed(before, after, context)\nresults winners from find changed_cases {\ngroup all\nmeasure [gain = after.income-before.income]\nselect [gain]\nchoose one maximizing gain\n}\nmechanisms cliff_paths from find changed_cases using observe_income\nmechanisms winner_paths from view winners chosen using Tax::observe_income\n}\n";
+        let expected = "? explore observed {\n    from {\n        vary before in states()\n        given context = IncomeContext(step = 1)\n    }\n    transition after in successors(before, context)\n    where transition after.income >= before.income\n    find changed_cases = matches of changed(before, after, context)\n    results winners from find changed_cases {\n        group all\n        measure [gain = after.income - before.income]\n        select [gain]\n        choose one maximizing gain\n    }\n    mechanisms cliff_paths from find changed_cases using observe_income\n    mechanisms winner_paths from view winners chosen using Tax::observe_income\n}\n";
+
+        let formatted = format_runa_source(source);
+        assert_eq!(formatted, expected);
+        assert_eq!(format_runa_source(&formatted), expected);
+
+        let mut lexer = Lexer::new(&formatted);
+        let tokens = lexer.tokenize();
+        let mut parser = Parser::new(tokens, &formatted);
+        let statements = parser.parse_program().expect("parse formatted observation");
+        let Some(Stmt::Explore(query)) = statements.first() else {
+            panic!("expected Explore query");
+        };
+        let mechanisms = query
+            .analysis
+            .iter()
+            .filter_map(|node| match node {
+                ExploreAnalysisNode::Mechanisms(request) => Some(request),
+                ExploreAnalysisNode::Result(_) => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(mechanisms.len(), 2);
+        assert_eq!(mechanisms[0].name, "cliff_paths");
+        assert_eq!(mechanisms[1].name, "winner_paths");
+        assert_eq!(mechanisms[1].callable_name, "Tax::observe_income");
     }
 
     #[test]
@@ -46164,8 +57327,23 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         assert!(surfaces.contains("core-language-syntax"));
         assert!(surfaces.contains("first-run-project-initialization"));
         assert!(surfaces.contains("solver-assisted-verification"));
+        assert!(surfaces.contains("solver-backed-exploration"));
+
+        let exploration = metadata["surfaces"]
+            .as_array()
+            .expect("surfaces array")
+            .iter()
+            .find(|surface| surface["id"] == "solver-backed-exploration")
+            .expect("solver-backed exploration surface");
+        assert_eq!(exploration["kind"], "verification");
+        assert_eq!(exploration["stage"], "experimental");
 
         let commands = metadata["commands"].as_array().expect("commands array");
+        assert!(commands.iter().any(|command| {
+            command["name"] == "explore"
+                && command["stage"] == "experimental"
+                && command["surface"] == "solver-backed-exploration"
+        }));
         assert!(commands.iter().any(|command| {
             command["name"] == "feature-stages" && command["stage"] == "stable"
         }));
@@ -47246,43 +58424,35 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "expression diagnostics visit all expression-bearing branches with pattern bindings in scope",
                     "imported module diagnostics use restored source_dir and qualified export metadata",
                 ],
-                traversal_expectation:
-                    "semantic traversal must remain exhaustive because it carries scopes and diagnostic context",
-                module_leak_guard:
-                    "qualified imports expose only exported names and imported source_dir state is restored",
+                traversal_expectation: "semantic traversal must remain exhaustive because it carries scopes and diagnostic context",
+                module_leak_guard: "qualified imports expose only exported names and imported source_dir state is restored",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "TypeChecker::check_stmt",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
                         evidence_marker: "    pub fn check_stmt(&mut self, stmt: &Stmt) {",
-                        reason:
-                            "stmt checking mutates scopes, declaration state, and diagnostic context while recursing",
+                        reason: "stmt checking mutates scopes, declaration state, and diagnostic context while recursing",
                     },
                     TraversalAudit {
                         path: "TypeChecker::check_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {",
-                        reason:
-                            "expr checking needs scope-sensitive arity, constructor, pattern, and module-export checks",
+                        evidence_marker: "    pub fn check_expr(&mut self, expr: &Expr, _in_fn: Option<&str>) {",
+                        reason: "expr checking needs scope-sensitive arity, constructor, pattern, and module-export checks",
                     },
                     TraversalAudit {
                         path: "TypeChecker::collect_declarations",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
-                        reason:
-                            "declaration collection mutates symbol tables and import source_dir state",
+                        evidence_marker: "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason: "declaration collection mutates symbol tables and import source_dir state",
                     },
                 ],
                 coverage: vec![
                     PassCoverageExpectation::FixtureText {
                         path: "src/lib.rs",
-                        marker:
-                            "fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants()",
+                        marker: "fn typechecker_pass_coverage_matrix_classifies_stmt_and_type_decl_variants()",
                     },
                     PassCoverageExpectation::FixtureText {
                         path: "tests/expect/diagnostics/undefined_variable_in_function.runa",
@@ -47303,26 +58473,22 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "Invariant and Prove rows count later uses before clone/move decisions",
                     "non-Copy locals reused after branch returns are marked for clone or borrow",
                 ],
-                traversal_expectation:
-                    "use canonical AST child traversal or exhaustive expression-bearing matches",
-                module_leak_guard:
-                    "imported script flow must not become root runtime code during ownership scans",
+                traversal_expectation: "use canonical AST child traversal or exhaustive expression-bearing matches",
+                module_leak_guard: "imported script flow must not become root runtime code during ownership scans",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "count_var_uses/count_var_uses_stmt",
                         kind: TraversalAuditKind::CanonicalAstWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    walk_ast_expr(expr, &mut |child| {",
-                        reason:
-                            "generic variable reference counting has no scope side effects and should ride the AST walker",
+                        reason: "generic variable reference counting has no scope side effects and should ride the AST walker",
                     },
                     TraversalAudit {
                         path: "count_consuming_uses_borrow_aware_impl",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "fn count_consuming_uses_borrow_aware_impl(",
-                        reason:
-                            "consuming-use analysis needs branch max-counting and borrow-aware call semantics",
+                        reason: "consuming-use analysis needs branch max-counting and borrow-aware call semantics",
                     },
                 ],
                 coverage: vec![
@@ -47336,11 +58502,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     },
                     PassCoverageExpectation::AstOwnership {
                         row: "StreamSub",
-                        markers: &[
-                            "stream_sub_expr",
-                            "stream_sub_guard",
-                            "stream_sub_body",
-                        ],
+                        markers: &["stream_sub_expr", "stream_sub_guard", "stream_sub_body"],
                     },
                     PassCoverageExpectation::FixtureText {
                         path: "tests/expect/artifact/ownership_branch_string_contract.runa",
@@ -47383,36 +58545,29 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "qualified imports expose only exported module members",
                     "script-only statements remain ignored when expanding libraries",
                 ],
-                traversal_expectation:
-                    "classify every Stmt variant before retaining, ignoring, or recursively expanding",
-                module_leak_guard:
-                    "source_dir is restored after each import and private/script symbols do not leak",
+                traversal_expectation: "classify every Stmt variant before retaining, ignoring, or recursively expanding",
+                module_leak_guard: "source_dir is restored after each import and private/script symbols do not leak",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "RustCodegen::classify_imported_stmt_for_expansion",
                         kind: TraversalAuditKind::StatementClassifier,
                         source: ContractSourceFile::RunaRs,
-                        evidence_marker:
-                            "    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {",
-                        reason:
-                            "import normalization is a statement classifier, not a recursive expression walk",
+                        evidence_marker: "    fn classify_imported_stmt_for_expansion(stmt: &Stmt) -> ImportedStmtExpansion {",
+                        reason: "import normalization is a statement classifier, not a recursive expression walk",
                     },
                     TraversalAudit {
                         path: "RustCodegen::scan_declarations import expansion",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn scan_declarations(&mut self, stmts: &[Stmt]) -> Vec<Stmt> {",
-                        reason:
-                            "scan_declarations mutates import, export, dependency, and type-registry state in order",
+                        reason: "scan_declarations mutates import, export, dependency, and type-registry state in order",
                     },
                     TraversalAudit {
                         path: "TypeChecker::collect_declarations import expansion",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::LibRs,
-                        evidence_marker:
-                            "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
-                        reason:
-                            "type-checker import declaration collection resolves files with scoped source_dir state",
+                        evidence_marker: "    pub fn collect_declarations(&mut self, stmts: &[Stmt]) {",
+                        reason: "type-checker import declaration collection resolves files with scoped source_dir state",
                     },
                 ],
                 coverage: vec![
@@ -47472,26 +58627,22 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "Block, For, Invariant, Prove, and Disjunction children remain traversable",
                     "lowered variables keep their VarMode through substitution",
                 ],
-                traversal_expectation:
-                    "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
-                module_leak_guard:
-                    "module-qualified and imported symbols stay scoped through FIR snapshots",
+                traversal_expectation: "use canonical FIR immutable or mutable child traversal for recursive FIR passes",
+                module_leak_guard: "module-qualified and imported symbols stay scoped through FIR snapshots",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "TypeInference::substitute_expr",
                         kind: TraversalAuditKind::CanonicalFirWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "        walk_fir_expr_mut(",
-                        reason:
-                            "FIR type substitution is a generic recursive metadata rewrite",
+                        reason: "FIR type substitution is a generic recursive metadata rewrite",
                     },
                     TraversalAudit {
                         path: "LoweringCtx::lower_stmt/lower_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn lower_stmt(&mut self, stmt: &Stmt) -> FirStmt {",
-                        reason:
-                            "lowering changes representation while threading type, ownership, and borrow metadata",
+                        reason: "lowering changes representation while threading type, ownership, and borrow metadata",
                     },
                 ],
                 coverage: vec![
@@ -47536,34 +58687,29 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                     "lowered Pair/map_entries values use stable Rust tuple contracts",
                     "generated Rust does not leak private imported symbols or script-only flow",
                 ],
-                traversal_expectation:
-                    "emit expression-bearing children through checked ownership/type metadata paths",
-                module_leak_guard:
-                    "library exports are public only when exported and helper script output is suppressed",
+                traversal_expectation: "emit expression-bearing children through checked ownership/type metadata paths",
+                module_leak_guard: "library exports are public only when exported and helper script output is suppressed",
                 traversal_audit: vec![
                     TraversalAudit {
                         path: "RustCodegen::collect_watch_type_names_from_stmt_list",
                         kind: TraversalAuditKind::CanonicalAstWalker,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "            walk_ast_stmt(stmt, &mut |child| {",
-                        reason:
-                            "watch-type discovery is generic expression discovery over AST statements",
+                        reason: "watch-type discovery is generic expression discovery over AST statements",
                     },
                     TraversalAudit {
                         path: "RustCodegen::emit_stmt/emit_expr",
                         kind: TraversalAuditKind::ExhaustiveSemantic,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "    fn emit_stmt(&mut self, stmt: &Stmt) -> String {",
-                        reason:
-                            "Rust emission is metadata-sensitive lowering, not a pure structural walk",
+                        reason: "Rust emission is metadata-sensitive lowering, not a pure structural walk",
                     },
                     TraversalAudit {
                         path: "RustCodegen::scan_declarations export pre-scan",
                         kind: TraversalAuditKind::StatementClassifier,
                         source: ContractSourceFile::RunaRs,
                         evidence_marker: "        // Pre-scan: collect @ export annotations (M3b)",
-                        reason:
-                            "export visibility depends on prefix annotation state and statement classification",
+                        reason: "export visibility depends on prefix annotation state and statement classification",
                     },
                 ],
                 coverage: vec![
@@ -47641,6 +58787,111 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
         Stmt::Expr(coverage_expr(name))
     }
 
+    fn coverage_explore_stmt() -> Stmt {
+        Stmt::Explore(ExploreQuery {
+            name: "coverage_query".to_string(),
+            source: ExploreSourceRelation {
+                bindings: vec![
+                    ExploreSourceBinding {
+                        name: "axis".to_string(),
+                        producer_role: ExploreSourceProducerRole::Vary,
+                        kind: ExploreSourceBindingKind::Finite {
+                            domain: coverage_expr("explore_domain"),
+                        },
+                        span: Span::dummy(),
+                    },
+                    ExploreSourceBinding {
+                        name: "before".to_string(),
+                        producer_role: ExploreSourceProducerRole::Let,
+                        kind: ExploreSourceBindingKind::Singleton {
+                            value: coverage_expr("explore_before"),
+                        },
+                        span: Span::dummy(),
+                    },
+                    ExploreSourceBinding {
+                        name: "context".to_string(),
+                        producer_role: ExploreSourceProducerRole::Given,
+                        kind: ExploreSourceBindingKind::Singleton {
+                            value: coverage_expr("explore_context"),
+                        },
+                        span: Span::dummy(),
+                    },
+                ],
+                span: Span::dummy(),
+            },
+            successor: ExploreSuccessorRelation {
+                kind: ExploreSuccessorKind::Finite {
+                    domain: coverage_expr("explore_successor"),
+                },
+                span: Span::dummy(),
+            },
+            admissions: vec![ExploreAdmission {
+                scope: ExploreAdmissionScope::Transition,
+                predicate: coverage_expr("explore_where"),
+                span: Span::dummy(),
+            }],
+            finds: vec![ExploreFind {
+                name: "coverage_find".to_string(),
+                selection: ExploreSelection::Matches {
+                    predicate: coverage_expr("explore_find"),
+                    span: Span::dummy(),
+                },
+                span: Span::dummy(),
+            }],
+            analysis: vec![
+                ExploreAnalysisNode::Result(ExploreResultView {
+                    name: "coverage_view".to_string(),
+                    input: ExploreResultInput::Find {
+                        find_name: "coverage_find".to_string(),
+                    },
+                    grain: ExploreResultGrain::GroupBy {
+                        fields: vec![ExploreResultField {
+                            name: "key".to_string(),
+                            value: coverage_expr("explore_key"),
+                            span: Span::dummy(),
+                        }],
+                        span: Span::dummy(),
+                    },
+                    measures: vec![ExploreResultField {
+                        name: "measure".to_string(),
+                        value: coverage_expr("explore_measure"),
+                        span: Span::dummy(),
+                    }],
+                    aggregates: Vec::new(),
+                    having: Some(ExploreResultHaving::Varies {
+                        measure_name: "measure".to_string(),
+                        span: Span::dummy(),
+                    }),
+                    select: vec![ExploreResultField {
+                        name: "shown".to_string(),
+                        value: coverage_expr("explore_select"),
+                        span: Span::dummy(),
+                    }],
+                    choose: Some(ExploreResultChoice::Optimize {
+                        cardinality: ExploreChooseCardinality::All,
+                        direction: ExploreOptimizeDirection::Maximize,
+                        objective: coverage_expr("explore_choice"),
+                        span: Span::dummy(),
+                    }),
+                    span: Span::dummy(),
+                }),
+                ExploreAnalysisNode::Mechanisms(ExploreMechanismRequest {
+                    name: "coverage_mechanism".to_string(),
+                    target: ExploreMechanismTarget::FindCases {
+                        find_name: "coverage_find".to_string(),
+                    },
+                    callable_name: "explore_mechanism".to_string(),
+                    endpoint_template: coverage_expr("explore_mechanism"),
+                    span: Span::dummy(),
+                }),
+            ],
+            observation_demands: Vec::new(),
+            starter_projections: Vec::new(),
+            transition_graphs: Vec::new(),
+            span: Span::dummy(),
+        })
+    }
+
     fn stmt_variant_label(stmt: &Stmt) -> &'static str {
         match stmt {
             Stmt::Defn(_) => "Defn",
@@ -47662,6 +58913,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             Stmt::StreamSub(_, _) => "StreamSub",
             Stmt::Invariant { .. } => "Invariant",
             Stmt::Prove { .. } => "Prove",
+            Stmt::Explore(_) => "Explore",
             Stmt::Assert(_, _) => "Assert",
             Stmt::Retract(_, _) => "Retract",
             Stmt::Abort => "Abort",
@@ -47974,6 +59226,12 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 import_expansion: ignored,
             },
             AstPassCoverageCase {
+                label: "Explore",
+                stmt: coverage_explore_stmt(),
+                ownership_markers: vec![],
+                import_expansion: ignored,
+            },
+            AstPassCoverageCase {
                 label: "Assert",
                 stmt: Stmt::Assert("Fact".to_string(), vec![coverage_expr("assert_arg")]),
                 ownership_markers: vec!["assert_arg"],
@@ -48020,6 +59278,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             FirStmt::StreamSub(_, _) => "StreamSub",
             FirStmt::Invariant { .. } => "Invariant",
             FirStmt::Prove { .. } => "Prove",
+            FirStmt::Explore => "Explore",
             FirStmt::Assert(_, _) => "Assert",
             FirStmt::Retract(_, _) => "Retract",
             FirStmt::Abort => "Abort",
@@ -48207,6 +59466,11 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 coverage: visits,
             },
             FirPassCoverageCase {
+                label: "FirStmt::Explore",
+                stmt: FirStmt::Explore,
+                coverage: ignored,
+            },
+            FirPassCoverageCase {
                 label: "FirStmt::Assert",
                 stmt: FirStmt::Assert("Fact".to_string(), vec![fir_invalid_expr("assert_arg")]),
                 coverage: visits,
@@ -48342,6 +59606,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "StreamSub",
             "Invariant",
             "Prove",
+            "Explore",
             "Assert",
             "Retract",
             "Abort",
@@ -48419,6 +59684,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
             "StreamSub",
             "Invariant",
             "Prove",
+            "Explore",
             "Assert",
             "Retract",
             "Abort",
@@ -48824,8 +60090,7 @@ fn chain(a: i64, b: i64) -> Result<i64, String> {
                 file: "src/bin/runa.rs",
                 label: "RustCodegen::scan_declarations import resolution",
                 source: include_str!("runa.rs"),
-                start_marker:
-                    "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
+                start_marker: "        // Resolve @ import statements: parse imported .runa files and merge their definitions",
                 end_marker: "        // Deduplicate type declarations from imports",
             },
             StmtWildcardGuardRegion {
@@ -49290,6 +60555,7 @@ match stmt {
                 import_expr_snapshot(subject)
             )),
             Stmt::Prove { name, .. } => out.push_str(&format!("{}prove {}\n", pad, name)),
+            Stmt::Explore(query) => out.push_str(&format!("{}explore {}\n", pad, query.name)),
             Stmt::Assert(name, args) => {
                 out.push_str(&format!("{}assert {} /{}\n", pad, name, args.len()))
             }
@@ -49908,6 +61174,7 @@ module Local
                 )]),
                 else_block: None,
             },
+            coverage_explore_stmt(),
             Stmt::Assert("Fact".to_string(), vec![expr()]),
             Stmt::Retract("Fact".to_string(), vec![expr()]),
             Stmt::Abort,
@@ -49994,7 +61261,7 @@ module Local
             Some(main_path.to_str().expect("utf-8 test path")),
         );
 
-        let expected = r#"exports: consumer, read_threshold, reader, signature_symbol, threshold
+        let expected = r#"exports: consumer, reader, signature_symbol
 module-exports Config: read_threshold, threshold
 @ export
 fn signature_symbol/3
@@ -51125,7 +62392,9 @@ for x in [1, 2] {
 
     #[test]
     fn fir_emit_match_expression() {
-        let code = fir_emit("# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"red\" | Green -> \"green\" | Blue -> \"blue\" } }");
+        let code = fir_emit(
+            "# Color = Red | Green | Blue\n> name(c: Color) -> String { match c { | Red -> \"red\" | Green -> \"green\" | Blue -> \"blue\" } }",
+        );
         assert!(code.contains("fn name("), "missing fn:\n{}", code);
         assert!(code.contains("match c"), "missing match:\n{}", code);
         assert!(code.contains("Red =>"), "missing arm:\n{}", code);
@@ -51306,8 +62575,13 @@ for x in [1, 2] {
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
         let source_dir = filename.and_then(source_dir_for);
-        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
+        let mut diags = artifacts.diagnostics.clone();
+        diags.extend(compiler_validation_diagnostics(
+            &stmts,
+            source_dir.clone(),
+            None,
+        ));
         assert!(
             diags.is_empty(),
             "typecheck failed for compiled regression: {:?}",
@@ -51323,7 +62597,14 @@ for x in [1, 2] {
         compile_and_capture_generated_test_code(&code)
     }
 
-    fn compile_and_capture_generated_test_code(code: &str) -> std::process::Output {
+    fn compile_generated_test_code(
+        code: &str,
+    ) -> (
+        std::process::Output,
+        std::path::PathBuf,
+        std::path::PathBuf,
+        std::path::PathBuf,
+    ) {
         let temp_name = format!(
             "futuruna_compiled_wrapper_{}_{}",
             std::process::id(),
@@ -51350,6 +62631,11 @@ for x in [1, 2] {
             ])
             .output()
             .unwrap();
+        (compile, temp_dir, rs_path, bin_path)
+    }
+
+    fn compile_and_capture_generated_test_code(code: &str) -> std::process::Output {
+        let (compile, temp_dir, rs_path, bin_path) = compile_generated_test_code(code);
         assert!(
             compile.status.success(),
             "generated Rust failed to compile:\nstdout:\n{}\nstderr:\n{}\ncode:\n{}",
@@ -51363,6 +62649,18 @@ for x in [1, 2] {
         let _ = std::fs::remove_file(&bin_path);
         let _ = std::fs::remove_dir_all(&temp_dir);
         run
+    }
+
+    fn compile_generated_test_code_expect_failure(code: &str) -> std::process::Output {
+        let (compile, temp_dir, rs_path, bin_path) = compile_generated_test_code(code);
+        let _ = std::fs::remove_file(&rs_path);
+        let _ = std::fs::remove_file(&bin_path);
+        let _ = std::fs::remove_dir_all(&temp_dir);
+        assert!(
+            !compile.status.success(),
+            "generated Rust unexpectedly compiled:\n{code}"
+        );
+        compile
     }
 
     fn compile_and_run_test_source(source: &str, filename: Option<&str>) -> String {
@@ -51595,8 +62893,13 @@ for x in [1, 2] {
         let stmts = prepend_prelude(parse_prelude(), &user_stmts);
 
         let source_dir = filename.and_then(source_dir_for);
-        let mut diags = TypeChecker::check_with_diagnostics(&stmts, source_dir.clone(), source);
-        diags.extend(compiler_validation_diagnostics(&stmts, source_dir, None));
+        let artifacts = TypeChecker::check_with_artifacts(&stmts, source_dir.clone(), source);
+        let mut diags = artifacts.diagnostics.clone();
+        diags.extend(compiler_validation_diagnostics(
+            &stmts,
+            source_dir.clone(),
+            None,
+        ));
         assert!(
             diags.is_empty(),
             "typecheck failed for interpreter regression: {:?}",
@@ -51605,7 +62908,8 @@ for x in [1, 2] {
 
         let mut interp = Interpreter::new();
         interp.suppress_output = true;
-        interp.source_dir = filename.and_then(source_dir_for);
+        interp.source_dir = source_dir;
+        interp.install_rule_dispatch_metadata(&artifacts);
         let mut env = interp.default_env();
         interp.run_program(&stmts, &mut env);
         interp.output.join("\n")
@@ -51635,6 +62939,54 @@ for x in [1, 2] {
         let interpreted = interpret_test_source(source, None);
         assert_eq!(compiled.trim(), "42000");
         assert_eq!(interpreted.trim(), compiled.trim());
+    }
+
+    #[test]
+    fn interpreted_and_generated_boolean_rule_misses_match() {
+        let source = r#"
+| conditional(value: Int) -> True under value > 0
+| exception positive exception_only(value: Int) -> True under value > 0
+
+@ print(show(conditional(1)))
+@ print(show(conditional(0)))
+@ print(show(exception_only(1)))
+@ print(show(exception_only(0)))
+"#;
+        let expected = "true\nfalse\ntrue\nfalse";
+        assert_eq!(interpret_test_source(source, None).trim(), expected);
+        assert_eq!(compile_and_run_test_program(source).trim(), expected);
+    }
+
+    #[test]
+    fn generated_imported_comptime_boolean_miss_uses_checked_dispatch_metadata() {
+        let temp_name = format!(
+            "futuruna_imported_comptime_boolean_miss_{}_{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        );
+        let temp_dir = std::env::temp_dir().join(temp_name);
+        std::fs::create_dir_all(&temp_dir).expect("create imported comptime directory");
+        let dependency = temp_dir.join("dependency.runa");
+        let main = temp_dir.join("main.runa");
+        std::fs::write(
+            &dependency,
+            "| imported_condition(value: Int) -> True under value > 0\n",
+        )
+        .expect("write imported Boolean rule");
+        std::fs::write(
+            &main,
+            "@ import ./dependency\n@ comptime\n= imported_miss = imported_condition(0)\n@ print(show(imported_miss))\n",
+        )
+        .expect("write imported comptime fixture");
+
+        assert_eq!(compile_and_run_test_file(&main).trim(), "false");
+
+        let _ = std::fs::remove_file(&dependency);
+        let _ = std::fs::remove_file(&main);
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
     fn assert_typed_rule_heads_output(output: &str, lane: &str) {
@@ -52268,11 +63620,8 @@ for x in [1, 2] {
             fields: vec![("x".to_string(), "Int".to_string())],
         };
         assert!(
-            RustCodegen::value_to_supported_auto_comptime_literal(
-                &unsupported,
-                &BTreeMap::new()
-            )
-            .is_none(),
+            RustCodegen::value_to_supported_auto_comptime_literal(&unsupported, &BTreeMap::new())
+                .is_none(),
             "unsupported comptime values should be skipped instead of producing todo-literal diagnostics"
         );
 
@@ -54719,49 +66068,1410 @@ readings <- "score"
     }
 
     #[test]
-    fn compiled_flat_and_qualified_imports_share_nested_type_identity() {
-        let temp_name = format!(
-            "futuruna_shared_import_type_{}_{}",
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+    fn codegen_export_collection_includes_prefixed_rules_and_adt_variants() {
+        let stmts = parse_test_program(
+            r#"
+@ export
+| eligible(value: Int) -> value > 0
+@ export
+# Decision = Accepted | Rejected(reason: String)
+"#,
         );
-        let temp_dir = std::env::temp_dir().join(temp_name);
-        std::fs::create_dir_all(&temp_dir).unwrap();
+        let codegen = RustCodegen::new();
+        let exports = codegen.collect_exported_names_from_stmts(&stmts);
+        assert_eq!(
+            exports,
+            BTreeSet::from([
+                "Accepted".to_string(),
+                "Decision".to_string(),
+                "Rejected".to_string(),
+                "eligible".to_string(),
+            ])
+        );
+    }
 
+    #[test]
+    fn codegen_qualified_import_supports_prefix_and_posthoc_exported_rules() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rule-export-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+| prefixed(value: Int) -> value + 10 under value > 0
+| posthoc(value: Int) -> value + 20 under value > 0
+@ export posthoc
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Policy from ./dep
+@ print(show(Policy.prefixed(1)))
+@ print(show(Policy.posthoc(2)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        // The runtime worktree owns the shared frontend export normalizer. Keep
+        // this branch-local regression at the codegen boundary so the independent
+        // patch proves both canonical forms without duplicating src/lib.rs changes.
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated prefix/posthoc rule binary failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "11\n22\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_exported_adt_methods_are_owner_isolated() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-adt-method-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Remote = Remote(value: Int) {
+    > collide(self) -> Remote { Remote(self.value + 10) }
+    > hidden_amount(value) -> Int { value.value }
+}
+@ export collide
+
+@ export
+> remote_amount(value: Remote) -> Int { hidden_amount(value) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Local = Local(value: Int) {
+    > collide(self) -> Local { self }
+}
+> local_amount(value: Local) -> Int { value.value }
+
+@ import Q from ./dep
+
+@ print(show(local_amount(collide(Local(1)))))
+@ print(show(Q.remote_amount(Q.collide(Q.Remote(2)))))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let metadata = codegen
+            .module_callable_metadata
+            .get(&("Q".to_string(), "collide".to_string(), 1))
+            .expect("qualified ADT method metadata");
+        assert!(metadata.rules.is_none(), "method metadata: {metadata:#?}");
+        assert_eq!(
+            metadata.return_type,
+            FirTy::Named("crate::Q::Remote".to_string())
+        );
+        assert_eq!(metadata.borrow_only_params, vec![true]);
+        assert!(
+            rust.contains("pub fn collide(self_: &Remote) -> Remote"),
+            "generated Rust: {rust}"
+        );
+        assert!(
+            rust.contains("fn hidden_amount(value: &Remote) -> i64"),
+            "generated Rust: {rust}"
+        );
+        assert!(
+            !rust.contains("pub fn hidden_amount"),
+            "private ADT method leaked from module: {rust}"
+        );
+        let compiled = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            compiled.status.success(),
+            "generated qualified ADT-method binary failed: {}\n{}",
+            String::from_utf8_lossy(&compiled.stderr),
+            rust
+        );
+        assert_eq!(interpreted.trim(), "1\n12");
+        assert_eq!(String::from_utf8_lossy(&compiled.stdout).trim(), "1\n12");
+
+        let mut wasm_codegen = RustCodegen::new();
+        wasm_codegen.wasm_mode = true;
+        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        wasm_codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let wasm_rust = wasm_codegen.emit_program(&stmts);
+        assert_eq!(
+            wasm_codegen
+                .module_callable_metadata
+                .get(&("Q".to_string(), "collide".to_string(), 1))
+                .map(|metadata| metadata.borrow_only_params.as_slice()),
+            Some([false].as_slice())
+        );
+        assert!(
+            wasm_rust.contains("pub fn collide(self_: Remote) -> Remote"),
+            "generated WASM Rust: {wasm_rust}"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_codegen_prolog_ordinary_name_collision_fails_closed() {
+        let source = r#"
+> choose(value: Int) -> Option(Int) { Some(value + 1) }
+| choose(1) -> 99
+
+@ print(show(choose(1)))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-7b8851"), "generated Rust: {rust}");
+        assert!(
+            rust.contains("collision `choose`"),
+            "generated Rust: {rust}"
+        );
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-7b8851"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+    }
+
+    #[test]
+    fn compiled_qualified_import_rules_stay_in_each_module_namespace() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rule-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+> private_offset() -> Int { 100 }
+| private_adjust(value: Int) -> value + private_offset() under value > 0
+| route(left: Int, right: Int) -> private_adjust(left) + right under left > 0
+@ export route
+
+| tagged("remote")
+@ export tagged
+
+| label("remote") -> "found"
+@ export label
+
+@ export
+> wrapped_route(left: Int, right: Int) -> Int { route(left, right) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Remote from ./dep
+@ import Second from ./dep
+
+| private_adjust(value: Int, extra: Int) -> value + extra + 1000 under value > 0
+= root_delta = 1
+| route(value: Int) -> value + root_delta under value > 0
+> private_offset() -> Int { 1 }
+
+@ print(show(route(4)))
+@ print(show(Remote.route(1, 2)))
+@ print(show(Remote.wrapped_route(2, 3)))
+@ print(show(Second.route(3, 4)))
+@ print(show(Remote.tagged("remote")))
+@ print(show(Second.tagged("other")))
+@ print(Remote.label("remote"))
+@ print(Second.label("other"))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            compile_and_run_test_file(&main_path),
+            "5\n103\n105\n107\ntrue\nfalse\nfound\n\n"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_namespace_fixture_match() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/verify/qualified_namespace_parity.runa");
+        let expected = "2\n101\n101\n101\n11\n101\n23\n203\n101\n203\n36";
+        let interpreted = interpret_test_file(&path);
+        let compiled = compile_and_run_test_file(&path);
+        assert_eq!(interpreted.trim(), expected);
+        assert_eq!(compiled.trim(), expected);
+        assert_eq!(compiled.trim(), interpreted.trim());
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_nominal_rule_miss_match() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-nominal-rule-miss");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Remote = Remote(value: Int)
+
+| accepts(value: Remote) -> True
+@ export accepts
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Local = Local(value: Int)
+@ import Q from ./dep
+
+@ print(show(Q.accepts(Q.Remote(1))))
+@ print(show(Q.accepts(Local(1))))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let compiled = compile_and_run_test_file(&main_path);
+        assert_eq!(interpreted.trim(), "true\nfalse");
+        assert_eq!(compiled.trim(), interpreted.trim());
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_structural_rule_abi_fails_closed() {
+        let source = r#"
+# Local = Local(Int)
+> module Q {
+    # Remote = Remote(Int)
+    | accepts(values: List(Remote)) -> True
+}
+
+@ print(show(Q.accepts([Local(1)])))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-afa433"), "generated Rust: {rust}");
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-afa433"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+    }
+
+    #[test]
+    fn compiled_qualified_cross_parent_plain_import_ownership_fails_closed() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-canonical-owner");
+        std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::write(
             temp_dir.join("types.runa"),
-            "@ export\n# Item = Item(String)\n@ export\n> item_name(item: Item) -> String { match item { | Item(name) -> name } }\n",
+            r#"
+@ export
+# Item = Item(Int)
+"#,
         )
         .unwrap();
         std::fs::write(
-            temp_dir.join("shared.runa"),
-            "@ import ./types\n@ export\n> make_item(name: String) -> Item { Item(name) }\n",
+            temp_dir.join("left.runa"),
+            r#"
+@ import ./types
+| accepts(value: Item) -> True
+@ export accepts
+"#,
         )
         .unwrap();
         std::fs::write(
-            temp_dir.join("policy.runa"),
-            "@ import ./types\n@ export\n> label(item: Item) -> String { \"policy:\" + item_name(item) }\n",
+            temp_dir.join("right.runa"),
+            r#"
+@ import ./types
+@ export
+> make() -> Item { Item(1) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Left from ./left
+@ import Right from ./right
+@ print(show(Left.accepts(Right.make())))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+
+        assert!(rust.contains("compile_error!"), "generated Rust: {rust}");
+        assert!(rust.contains("td-625bb9"), "generated Rust: {rust}");
+        let compile = compile_generated_test_code_expect_failure(&rust);
+        assert!(
+            String::from_utf8_lossy(&compile.stderr).contains("td-625bb9"),
+            "unexpected rustc failure: {}",
+            String::from_utf8_lossy(&compile.stderr)
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_root_callables_use_precollected_qualified_abi() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-abi-precollect");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+| label("x") -> "ok"
+
+@ export
+> borrowed(value: String) -> Int { length(value) }
+
+@ export
+> append(values: inout List(Int), value: Int) -> () { push(values, value) }
+
+@ export
+> append_shared(values: inout shared List(Int), value: Int) -> () { push(values, value) }
+
+| route(left: Int, right: Int) -> left * 10 + right under left > 0
+@ export route
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+> before_import(value: String) -> Int { Q.borrowed(value) }
+
+@ import Q from ./dep
+
+| wrapped(name: String) -> Q.label(name)
+
+= values = [1]
+= shared_values = shared([1])
+@ print(wrapped("x"))
+@ print(show(before_import("abcd")))
+Q.append(value = 2, values = values)
+Q.append_shared(value = 3, values = shared_values)
+@ print(show(length(values)))
+@ print(show(shared_values[1]))
+@ print(show(Q.route(right = 2, left = 1)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated qualified ABI precollection binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "ok\n4\n2\n3\n12\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_forward_chain_precollects_nominal_return_type() {
+        let source = r#"
+> module A {
+    | make() -> B.make()
+}
+> module B {
+    | make() -> C.make()
+}
+> module C {
+    # Packet = Packet(value: Int)
+    | make() -> Packet(value = 4)
+}
+
+= packet = A.make()
+@ print(show(packet.value + 1))
+"#;
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        assert_eq!(
+            codegen
+                .module_callable_metadata
+                .get(&("A".to_string(), "make".to_string(), 0))
+                .map(|metadata| &metadata.return_type),
+            Some(&FirTy::Named("crate::C::Packet".to_string())),
+            "module metadata: {:#?}",
+            codegen.module_callable_metadata
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "5\n");
+    }
+
+    #[test]
+    fn compiler_validation_checks_qualified_named_arguments() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-named-validation");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(left: Int, right: Int)
+
+@ export
+> route(left: Int, right: Int) -> Int { left * 10 + right }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Q from ./dep
+= bad_packet = Q.Packet(nope = 1)
+= mixed = Q.route(left = 1, 2)
+= duplicate = Q.route(left = 1, left = 2)
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let diags = compiler_validation_diagnostics(
+            &stmts,
+            source_dir_for(main_path.to_str().unwrap()),
+            Some(main_path.to_string_lossy().to_string()),
+        );
+        let messages = diags
+            .iter()
+            .map(|diag| diag.message.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            messages.contains("constructor `Q::Packet` has no field `nope`"),
+            "missing qualified constructor-field diagnostic: {messages}"
+        );
+        assert!(
+            messages.contains("function/rule `Q::route` call mixes named and positional"),
+            "missing qualified mixed-argument diagnostic: {messages}"
+        );
+        assert!(
+            messages
+                .contains("function/rule `Q::route` parameter `left` was provided more than once"),
+            "missing qualified duplicate-argument diagnostic: {messages}"
+        );
+        assert!(
+            messages.contains("function/rule `Q::route` is missing named argument `right`"),
+            "missing qualified required-argument diagnostic: {messages}"
+        );
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_module_owned_names_mask_root_cross_category_metadata() {
+        let temp_dir = unique_temp_workspace("futuruna-module-cross-category-shadow");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("callables.runa"),
+            r#"
+@ export
+> Packet(value: Int) -> Int { value + 1 }
+| Route(value: Int) -> value + 2 under value > 0
+
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+@ export Policy
+
+@ export
+> call_all() -> Int { Packet(1) + Route(1) + Policy(1, 2).score(1) }
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("constructors.runa"),
+            r#"
+@ export
+# RemoteValue = Build(Int)
+
+@ export
+> make_value(value: Int) -> RemoteValue { Build(value) }
+
+@ export
+> read_value(value: RemoteValue) -> Int {
+    match value { | Build(inner) -> inner }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Q from ./callables
+@ import C from ./constructors
+
+# RootTokens = Packet(Int) | Route(Int) | Policy(Int)
+> Build(value: Int) -> Int { value + 100 }
+
+@ print(show(Q.call_all()))
+@ print(show(Q.Packet(2)))
+@ print(show(C.read_value(C.make_value(4))))
+@ print(show(C.read_value(C.Build(6))))
+@ print(show(Build(4)))
+"#,
         )
         .unwrap();
 
-        let flat_first = temp_dir.join("flat_first.runa");
-        std::fs::write(
-            &flat_first,
-            "@ import ./shared\n@ import Policy from ./policy\n= item = make_item(\"one\")\n@ print(Policy.label(item))\n",
-        )
-        .unwrap();
-        assert_eq!(compile_and_run_test_file(&flat_first), "policy:one\n");
+        assert_eq!(compile_and_run_test_file(&main_path), "9\n3\n4\n6\n104\n");
 
-        let qualified_first = temp_dir.join("qualified_first.runa");
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_constructor_uses_module_parent_and_layout() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-constructor-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
         std::fs::write(
-            &qualified_first,
-            "@ import Policy from ./policy\n@ import ./shared\n= item = make_item(\"two\")\n@ print(Policy.label(item))\n",
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(left: Int, right: Int)
+
+@ export
+> packet_total(packet: RemotePacket) -> Int {
+    match packet { | Packet(left: left, right: right) -> left + right }
+}
+"#,
         )
         .unwrap();
-        assert_eq!(compile_and_run_test_file(&qualified_first), "policy:two\n");
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# RootPacket = Packet(Int)
+@ import Remote from ./dep
+
+> root_total(packet: RootPacket) -> Int {
+    match packet { | Packet(value) -> value }
+}
+
+= root_packet = Packet(5)
+= remote_packet = Remote.Packet(7, 8)
+@ print(show(root_total(root_packet)))
+@ print(show(Remote.packet_total(remote_packet)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n15\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_module_recursive_adt_does_not_mark_same_named_root_adt_recursive() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-recursive-adt-collision");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+# Chain = Empty | Link(Int, Chain)
+@ export Chain
+
+> child_sum(chain: Chain) -> Int {
+    match chain {
+        | Empty -> 0
+        | Link(value, next) -> value + child_sum(next)
+    }
+}
+
+@ export
+> child_total() -> Int { child_sum(Link(2, Link(3, Empty))) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Chain = Link(Int)
+@ import Remote from ./dep
+
+> root_total(chain: Chain) -> Int {
+    match chain { | Link(value) -> value }
+}
+
+@ print(show(root_total(Link(5))))
+@ print(show(Remote.child_total()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n5\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_root_display_impl_does_not_suppress_module_auto_display() {
+        let source = r#"
+# Packet = Packet(value: Int)
+# impl std::fmt::Display for Packet {
+    > display_marker() -> Int { 0 }
+}
+> module Q {
+    # Packet = Packet(value: Int)
+}
+
+@ print(Packet(1))
+@ print(Q.Packet(2))
+"#;
+        let mut user_stmts = parse_test_program(source);
+        user_stmts.push(Stmt::RustBlock(
+            r#"impl std::fmt::Display for Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "root:{}", self.value)
+    }
+}"#
+            .to_string(),
+        ));
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated root/module Display isolation binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "root:1\nPacket(value: 2)\n"
+        );
+    }
+
+    #[test]
+    fn compiled_module_display_impl_is_precollected_and_does_not_suppress_root_auto_display() {
+        let source = r#"
+# Packet = Packet(value: Int)
+> module Q {
+    # Packet = Packet(value: Int)
+    # impl std::fmt::Display for Packet {
+        > display_marker() -> Int { 0 }
+    }
+}
+
+@ print(Packet(1))
+@ print(Q.Packet(2))
+"#;
+        let mut user_stmts = parse_test_program(source);
+        for stmt in &mut user_stmts {
+            let Stmt::Defn(Defn::Module { name, body }) = stmt else {
+                continue;
+            };
+            if name == "Q" {
+                body.push(Stmt::RustBlock(
+                    r#"impl std::fmt::Display for Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "child:{}", self.value)
+    }
+}"#
+                    .to_string(),
+                ));
+            }
+        }
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated module/root Display isolation binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+
+        assert_eq!(
+            String::from_utf8_lossy(&output.stdout),
+            "Packet(value: 1)\nchild:2\n"
+        );
+    }
+
+    #[test]
+    fn interpreted_and_compiled_qualified_aliases_keep_distinct_adt_owners() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-alias-type-owners");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(Int, Int)
+
+@ export
+> make_packet(left: Int, right: Int) -> RemotePacket { Packet(left, right) }
+
+@ export
+> consume_packet(packet: RemotePacket) -> Int {
+    match packet { | Packet(left, right) -> left + right }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import Remote from ./dep
+@ import Remote from ./dep
+@ import Second from ./dep
+
+@ print(show(Remote.consume_packet(Remote.make_packet(2, 3))))
+@ print(show(Second.consume_packet(Second.make_packet(4, 5))))
+"#,
+        )
+        .unwrap();
+
+        let interpreted = interpret_test_file(&main_path);
+        let source = std::fs::read_to_string(&main_path).unwrap();
+        let user_stmts = parse_test_program(&source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(rust.contains("mod Remote {"), "generated Rust: {rust}");
+        assert!(rust.contains("mod Second {"), "generated Rust: {rust}");
+        assert!(
+            !rust.contains("pub use super::Remote::*"),
+            "aliases must not share one Rust owner: {rust}"
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert_eq!(interpreted.trim(), "5\n9");
+        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "5\n9");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_aliases_keep_distinct_descendant_module_paths() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-alias-descendant-paths");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+> module Inner {
+    > value() -> Int { 10 }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import First from ./dep
+@ import Second from ./dep
+
+@ print(show(First.Inner.value()))
+@ print(show(Second.Inner.value()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "10\n10\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_can_read_ancestor_value_and_stream_getters() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-ancestor-module-getters");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+= secret = 7
+~ readings = subject(41)
+
+@ export
+> module Inner {
+    > total() -> Int { secret + readings.latest }
+    > reading_count() -> Int { readings.count }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./dep
+@ print(show(A.Inner.total()))
+@ print(show(A.Inner.reading_count()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "48\n1\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_qualified_imports_keep_parent_specific_exports() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-export-paths");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf_a.runa"),
+            "@ export\n> left() -> Int { 11 }\n> hidden_a() -> Int { 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("leaf_b.runa"),
+            "@ export\n> right() -> Int { 22 }\n> hidden_b() -> Int { 2 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_a.runa"),
+            "@ import X from ./leaf_a\n@ export\n> call_left() -> Int { X.left() }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_b.runa"),
+            "@ import X from ./leaf_b\n@ export\n> call_right() -> Int { X.right() }\n",
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./outer_a
+@ import B from ./outer_b
+
+@ print(show(A.call_left()))
+@ print(show(B.call_right()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "11\n22\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_qualified_shared_leaf_instantiates_under_each_parent() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-shared-leaf");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 10 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_a.runa"),
+            "@ import X from ./leaf\n@ export\n> total() -> Int { X.value() + 1 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer_b.runa"),
+            "@ import X from ./leaf\n@ export\n> total() -> Int { X.value() + 2 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("hub.runa"),
+            r#"
+@ import A from ./outer_a
+@ import B from ./outer_b
+
+@ export
+> combined() -> Int { A.total() + B.total() }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            "@ import Q from ./hub\n@ print(show(Q.combined()))\n",
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "23\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_module_deduplicates_repeated_plain_imports() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-repeated-plain-import");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 10 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            r#"
+@ import ./leaf
+@ import ./leaf
+
+@ export
+> total() -> Int { value() + 1 }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            "@ import Q from ./outer\n@ print(show(Q.total()))\n",
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "11\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn codegen_nested_qualified_metadata_uses_full_lexical_path() {
+        let temp_dir = unique_temp_workspace("futuruna-nested-qualified-metadata-path");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            r#"
+@ export
+# RemotePacket = Packet(Int, Int)
+
+@ export
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+
+@ export
+> packet_total(packet: RemotePacket) -> Int {
+    match packet { | Packet(left, right) -> left + right }
+}
+
+@ export
+> borrowed(value: String) -> Int { length(value) }
+
+@ export
+> append(values: inout List(Int), value: Int) -> () { push(values, value) }
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            r#"
+@ import X from ./leaf
+
+@ export
+> module Inner {
+    > nested_total() -> Int {
+        = values = [1]
+        X.append(values, 2)
+        X.packet_total(X.Packet(3, 4)) + X.borrowed("abc") + X.Policy(5, 6).score(1) + length(values)
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import A from ./outer
+
+# RootPacket = Packet(Int)
+# RootPolicy = Policy(Int)
+
+@ print(show(A.Inner.nested_total()))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        // Direct qualified RuleScope construction is still outside the shared
+        // frontend's accepted surface on this base revision. Exercise the
+        // generated-Rust boundary so all nested metadata paths compile and run.
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(
+            rust.contains("X::RemotePacket::Packet(3i64, 4i64)")
+                && rust.contains("X::Policy(5i64, 6i64)"),
+            "nested metadata should resolve through A::X while emitted Rust stays relative: {}",
+            rust
+        );
+        assert!(
+            !rust.contains("A::X::RemotePacket") && !rust.contains("A::X::Policy"),
+            "nested emitted paths must not duplicate their current parent module: {}",
+            rust
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated nested qualified metadata binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "24\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_qualified_rulescope_uses_module_layout_and_members() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rulescope-codegen");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Policy(offset: Int, bonus: Int) {
+    | score(value: Int) -> value + offset + bonus under value > 0
+}
+
+@ export
+> policy_score(offset: Int, bonus: Int, value: Int) -> Int {
+    Policy(offset, bonus).score(value)
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Policy(offset: Int) {
+    | score(value: Int) -> value + offset under value > 0
+}
+@ import Remote from ./dep
+
+@ print(show(Policy(5).score(1)))
+@ print(show(Remote.policy_score(7, 3, 1)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "6\n11\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_escaped_qualified_rulescope_keeps_member_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-rulescope-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Policy(seed: Int) {
+    | score(left: Int, right: String) -> seed + left + length(right) under left > 0
+}
+
+@ export
+> make_policy(seed: Int) -> Policy { Policy(seed) }
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Policy(seed: Int) {
+    | score(right: String, left: Int, extra: Int) -> right under left > 0
+}
+@ import Remote from ./dep
+
+= policy = Remote.make_policy(5)
+@ print(show(policy.score(right = "xx", left = 3)))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated RuleScope provenance binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "10\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_escaped_qualified_adt_keeps_field_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-adt-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(value: Int)
+
+@ export
+> make_packet() -> Packet { Packet(value = 4) }
+
+@ export
+# Choice = Left(value: Int) | Right(value: Int)
+
+@ export
+> make_choice(left: Bool) -> Choice {
+    if left { Left(value = 4) } else { Right(value = 6) }
+}
+
+@ export
+# Chain = Chain(value: Int, next: Option(Chain))
+
+@ export
+> make_chain() -> Chain {
+    Chain(value = 1, next = Some(Chain(value = 2, next = None)))
+}
+
+@ export
+> next_value(next: Option(Chain)) -> Int {
+    match next {
+        | Some(chain) -> chain.value
+        | None -> 0
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+# Packet = Packet(value: String)
+# Choice = Left(value: String) | Right(value: String)
+# Chain = Chain(value: String, next: String)
+@ import Remote from ./dep
+
+= packet = Remote.make_packet()
+= left = Remote.make_choice(True)
+= right = Remote.make_choice(False)
+= chain = Remote.make_chain()
+@ print(show(packet.value + 1))
+@ print(show(left.value + 1))
+@ print(show(right.value + 1))
+@ print(show(Remote.next_value(chain.next)))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "5\n5\n7\n2\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_returns_keep_ancestor_type_provenance() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-ancestor-type-provenance");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+# Packet = Packet(value: Int)
+
+@ export
+> module Inner {
+    > make() -> Packet { Packet(value = 4) }
+
+    # Factory(value: Int) {
+        > make() -> Packet { Packet(value = value) }
+    }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+# Packet = Packet(value: String)
+@ import A from ./dep
+
+= direct = A.Inner.make()
+= member = A.Inner.Factory(6).make()
+@ print(show(direct.value + 1))
+@ print(show(member.value + 1))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "generated ancestor-provenance binary failed: {}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            rust
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "5\n7\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn compiled_nested_module_name_does_not_capture_root_value() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-module-value-shadow");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("leaf.runa"),
+            "@ export\n> value() -> Int { 99 }\n",
+        )
+        .unwrap();
+        std::fs::write(
+            temp_dir.join("outer.runa"),
+            "@ import X from ./leaf\n@ export\n> call() -> Int { X.value() }\n",
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        std::fs::write(
+            &main_path,
+            r#"
+@ import A from ./outer
+# Record = Record(value: Int)
+= X = Record(value = 7)
+> duplicate(X: String) -> String { X + X }
+@ print(show(X.value))
+@ print(duplicate("v"))
+@ print(show(A.call()))
+"#,
+        )
+        .unwrap();
+
+        assert_eq!(compile_and_run_test_file(&main_path), "7\nvv\n99\n");
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
+
+    #[test]
+    fn qualified_exports_do_not_make_same_named_root_item_public() {
+        let temp_dir = unique_temp_workspace("futuruna-qualified-export-root-isolation");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("dep.runa"),
+            r#"
+@ export
+> shared() -> Int { 10 }
+
+@ export
+# SharedType = SharedType(Int)
+
+@ export
+# SharedScope(seed: Int) {
+    | score() -> seed
+}
+
+@ export
+> module SharedModule {
+    > value() -> Int { 10 }
+}
+"#,
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        let source = r#"
+@ import Q from ./dep
+# SharedType = SharedType(Int)
+# SharedScope(seed: Int) {
+    | score() -> seed
+}
+> module SharedModule {
+    > value() -> Int { 1 }
+}
+> shared() -> Int { 1 }
+@ print(show(shared()))
+@ print(show(Q.shared()))
+"#;
+        std::fs::write(&main_path, source).unwrap();
+
+        let user_stmts = parse_test_program(source);
+        let stmts = prepend_prelude(parse_prelude(), &user_stmts);
+        let mut codegen = RustCodegen::new();
+        codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        codegen.source_name = Some(main_path.to_string_lossy().to_string());
+        let rust = codegen.emit_program(&stmts);
+        assert!(
+            rust.lines().any(|line| line == "fn shared() -> i64 {"),
+            "same-named root function should remain private: {rust}"
+        );
+        assert!(
+            rust.lines()
+                .any(|line| line.starts_with("struct SharedType")),
+            "same-named root ADT should remain private: {rust}"
+        );
+        assert!(
+            rust.lines().any(|line| line == "struct SharedScope {"),
+            "same-named root RuleScope should remain private: {rust}"
+        );
+        assert!(
+            rust.lines().any(|line| line == "mod SharedModule {"),
+            "same-named root module should remain private: {rust}"
+        );
+        assert!(
+            !codegen.types.root_exported_names.contains("shared"),
+            "qualified exports must not enter the root/WASM export set"
+        );
+        let output = compile_and_capture_generated_test_code(&rust);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(String::from_utf8_lossy(&output.stdout), "1\n10\n");
+
+        let mut wasm_validation = RustCodegen::new();
+        wasm_validation.source_dir = source_dir_for(main_path.to_str().unwrap());
+        let wasm_issues = wasm_validation.collect_wasm_export_issues(&stmts);
+        assert!(
+            wasm_issues.is_empty(),
+            "qualified exports must not be validated as root WASM exports: {wasm_issues:?}"
+        );
+
+        let mut wasm_codegen = RustCodegen::new();
+        wasm_codegen.wasm_mode = true;
+        wasm_codegen.source_dir = source_dir_for(main_path.to_str().unwrap());
+        let wasm_rust = wasm_codegen.emit_program(&stmts);
+        assert!(
+            wasm_rust.lines().any(|line| line == "fn shared() -> i64 {"),
+            "same-named root function must not receive a WASM export attribute: {wasm_rust}"
+        );
 
         let _ = std::fs::remove_dir_all(&temp_dir);
     }
@@ -56023,8 +68733,7 @@ routes <- "b"
 
     #[test]
     fn legacy_emit_expr_keeps_owned_string_captures_for_returned_lambdas() {
-        let source =
-            "> make_frame(prefix: String, suffix: String) -> (String -> String) { |s| prefix + s + suffix }";
+        let source = "> make_frame(prefix: String, suffix: String) -> (String -> String) { |s| prefix + s + suffix }";
         let (mut cg, stmts) = scan_with_codegen(source);
         let rust = cg.emit_program(&stmts);
         assert!(
@@ -56227,6 +68936,821 @@ routes <- "b"
             rust.contains("if __d == 0.0 { 0.0 }"),
             "computed ground-body prolog value rule should preserve float-safe division: {}",
             rust
+        );
+    }
+
+    #[test]
+    fn static_rule_dispatch_soundness_prolog_existentials_require_complete_typed_sources() {
+        let emit = |source: &str| {
+            let (mut codegen, statements) = scan_with_codegen(source);
+            codegen.emit_program(&statements)
+        };
+
+        let body_bearing = emit(
+            r#"
+| body_source(0, value: Int) -> value > 0
+| body_query(probe: Int) -> body_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            body_bearing.contains("not a complete ground-fact relation"),
+            "body-bearing existential sources must fail closed: {body_bearing}"
+        );
+        assert!(
+            !body_bearing.contains("for fact in BODY_SOURCE_FACTS.iter()"),
+            "a rejected source must not leave an undefined fact-table reference: {body_bearing}"
+        );
+
+        let missing = emit(
+            r#"
+| missing_query(probe: Int) -> absent_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            missing.contains("compile_error!"),
+            "missing existential sources must fail closed: {missing}"
+        );
+        assert!(
+            !missing.contains("ABSENT_SOURCE_FACTS"),
+            "a missing source must not manufacture an undefined table: {missing}"
+        );
+
+        let complete = emit(
+            r#"
+| ground_source(1, 2)
+| ground_source(2, 3)
+| ground_query(probe: Int) -> ground_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            complete.contains("GROUND_SOURCE_FACTS"),
+            "complete ground facts should materialize a table: {complete}"
+        );
+        assert!(
+            complete.contains("for fact in GROUND_SOURCE_FACTS.iter()"),
+            "the exact-arity existential should enumerate its proven table: {complete}"
+        );
+        assert!(
+            !complete.contains("not a complete ground-fact relation"),
+            "a complete exact-arity source must remain lowerable: {complete}"
+        );
+
+        let floats = emit(
+            r#"
+| float_source(1.0, 2.0)
+| float_source(2.0, 3.0)
+| float_query(probe: Float) -> float_source(probe, found), found > probe
+"#,
+        );
+        assert!(
+            floats.contains("if !(((fact.0) - (probe)).abs() < f64::EPSILON) { continue; }"),
+            "Float mismatch must negate the interpreter's positive epsilon predicate: {floats}"
+        );
+        assert!(
+            !floats.contains("fact.0 != probe"),
+            "native Float inequality is NaN-incompatible with interpreter matching: {floats}"
+        );
+    }
+
+    fn native_classifier_cache_test_plan() -> explore::ExploreNativeClassifierPlanV2 {
+        let source = r#"
+? explore native_classifier_cache_key {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = before + 1
+    where transition after > before
+    find cases = matches of after > before
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("native_classifier_cache_key"),
+        )
+        .expect("prepare native classifier cache fixture");
+        prepared
+            .take_native_classifier_plan_v2()
+            .expect("fixture has the native classifier V2 shape")
+    }
+
+    #[test]
+    fn native_classifier_exact_finite_decoder_preserves_unit_tuple_radix_order() {
+        let finite_plan = explore::ExploreFiniteTypePlan::Tuple {
+            elements: vec![
+                explore::ExploreFiniteTypePlan::Unit,
+                explore::ExploreFiniteTypePlan::Bool,
+            ],
+            cardinality: explore::ExploreCardinality::Exact(2),
+        };
+        for (ordinal, expected_boolean) in [(0, false), (1, true)] {
+            let decoded = explore_native_classifier_decode_finite_plan_v2(
+                &finite_plan,
+                explore_native_classifier_int_literal_v2(ordinal),
+            )
+            .expect("decode bounded Unit/Bool tuple");
+            let value = Interpreter::new().eval(&decoded, &Env::new());
+            let Value::Tuple(elements) = value else {
+                panic!("finite tuple decoder returned a non-tuple value")
+            };
+            assert!(
+                matches!(elements.as_slice(), [Value::Unit, Value::Bool(actual)] if *actual == expected_boolean)
+            );
+        }
+    }
+
+    #[test]
+    fn native_classifier_decodes_exact_finite_profile_ordinals_in_producer_order() {
+        use std::io::Write as _;
+
+        let source = r#"
+# NativeAge = WorkingAge | Senior
+# NativeProfile(church: Bool, age: NativeAge)
+# NativeState(profile: NativeProfile, ordinal: Int)
+
+? explore native_exact_finite_profile {
+    from {
+        vary profile in values(NativeProfile)
+        vary ordinal in range(0, 4)
+        let before = NativeState(profile = profile, ordinal = ordinal)
+        given context = ()
+    }
+    transition after = before
+    find cases = matches of (
+        (before.ordinal == 0 && before.profile == NativeProfile(church = False, age = WorkingAge))
+        || (before.ordinal == 1 && before.profile == NativeProfile(church = False, age = Senior))
+        || (before.ordinal == 2 && before.profile == NativeProfile(church = True, age = WorkingAge))
+        || (before.ordinal == 3 && before.profile == NativeProfile(church = True, age = Senior))
+    )
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("native_exact_finite_profile"),
+        )
+        .expect("prepare exact-finite native classifier fixture");
+        let plan = prepared
+            .take_native_classifier_plan_v2()
+            .expect("exact finite profile and integer range have the native classifier V2 shape");
+        assert_eq!(plan.finite_input_binding_indices.as_ref(), [0, 1]);
+        assert_eq!(plan.finite_coordinate_count, 16);
+
+        let explore::ExploreNativeClassifierSourceBindingKindV2::ExactFiniteOrdinalInput {
+            plan: finite_plan,
+            exact_cardinality,
+            plan_digest: _,
+        } = &plan.source_bindings[0].kind
+        else {
+            panic!("profile must be carried as one exact finite ordinal input")
+        };
+        assert_eq!(*exact_cardinality, 4);
+        let explore::ExploreFiniteTypePlan::Sum { variants, .. } = finite_plan else {
+            panic!("named profile must retain its finite sum plan")
+        };
+        let [profile] = variants.as_slice() else {
+            panic!("record profile must have one constructor")
+        };
+        assert!(matches!(
+            profile.fields[0].plan,
+            explore::ExploreFiniteTypePlan::Bool
+        ));
+        assert!(matches!(
+            profile.fields[1].plan,
+            explore::ExploreFiniteTypePlan::Sum { .. }
+        ));
+
+        let identity = plan.identity;
+        let temp_dir = unique_temp_workspace("futuruna-explore-native-exact-finite");
+        let target = explore_native_classifier_cache_target_v3(&temp_dir, "profile-ordinal");
+        let executable =
+            build_explore_native_classifier_v2_cache_miss(plan, &target, std::time::Instant::now())
+                .expect("compile exact-finite native classifier");
+        // SAFETY: this executable was generated immediately above from the
+        // exact plan taken from this same prepared query.
+        unsafe { prepared.install_native_classifier_executable_v2(executable.clone()) }
+            .expect("runtime accepts the same certified exact-finite input shape");
+
+        let coordinates = (0_i64..4)
+            .flat_map(|profile_ordinal| {
+                (0_i64..4).map(move |expected_ordinal| (profile_ordinal, expected_ordinal))
+            })
+            .collect::<Vec<_>>();
+        let mut request = Vec::new();
+        request.extend_from_slice(explore::RelationalNativeClassifierProtocolV2::REQUEST_MAGIC);
+        request.extend_from_slice(
+            &explore::RelationalNativeClassifierProtocolV2::VERSION.to_be_bytes(),
+        );
+        request.extend_from_slice(&identity.checked_program);
+        request.extend_from_slice(&identity.relation_id);
+        request.extend_from_slice(&identity.admission_id);
+        request.extend_from_slice(&identity.question_id);
+        request.extend_from_slice(&2_u32.to_be_bytes());
+        request.extend_from_slice(&(coordinates.len() as u32).to_be_bytes());
+        for (profile_ordinal, expected_ordinal) in &coordinates {
+            request.extend_from_slice(&profile_ordinal.to_be_bytes());
+            request.extend_from_slice(&expected_ordinal.to_be_bytes());
+        }
+
+        let mut child = std::process::Command::new(&executable)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("spawn exact-finite native classifier");
+        let mut stdin = child.stdin.take().expect("classifier stdin");
+        stdin.write_all(&request).expect("write classifier request");
+        drop(stdin);
+        let output = child.wait_with_output().expect("read classifier response");
+        assert!(
+            output.status.success(),
+            "exact-finite classifier exited with {:?}",
+            output.status.code()
+        );
+
+        let mut expected = Vec::new();
+        expected.extend_from_slice(explore::RelationalNativeClassifierProtocolV2::RESPONSE_MAGIC);
+        expected.extend_from_slice(
+            &explore::RelationalNativeClassifierProtocolV2::VERSION.to_be_bytes(),
+        );
+        expected.extend_from_slice(&identity.checked_program);
+        expected.extend_from_slice(&identity.relation_id);
+        expected.extend_from_slice(&identity.admission_id);
+        expected.extend_from_slice(&identity.question_id);
+        expected.extend_from_slice(&(coordinates.len() as u32).to_be_bytes());
+        expected.extend(
+            coordinates
+                .iter()
+                .map(|(profile_ordinal, expected_ordinal)| {
+                    if profile_ordinal == expected_ordinal {
+                        explore::RelationalNativeClassifierProtocolV2::OUTCOME_ADMITTED_SELECTED
+                    } else {
+                        explore::RelationalNativeClassifierProtocolV2::OUTCOME_ADMITTED_NOT_SELECTED
+                    }
+                }),
+        );
+        assert_eq!(output.stdout, expected);
+        std::fs::remove_dir_all(temp_dir).expect("remove exact-finite classifier fixture");
+    }
+
+    #[test]
+    fn native_classifier_derivation_cache_key_tracks_semantics_toolchain_and_shape() {
+        let plan = native_classifier_cache_test_plan();
+        let compiler = sha256_hex(b"native classifier compiler A");
+        let rustc = sha256_hex(b"native classifier rustc A");
+        let baseline = explore_native_classifier_derivation_cache_key_v3(&plan, &compiler, &rustc)
+            .expect("derive baseline native classifier cache key");
+
+        let mut source_location_equivalent = plan.clone();
+        source_location_equivalent.successor_value.span = Span::new(10_000, 10_100);
+        source_location_equivalent.admissions[0].predicate.span = Span::new(20_000, 20_100);
+        if let explore::ExploreNativeClassifierFindV2::Matches { predicate } =
+            &mut source_location_equivalent.find
+        {
+            predicate.span = Span::new(30_000, 30_100);
+        } else {
+            panic!("cache fixture must retain a matches predicate");
+        }
+        assert_eq!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &source_location_equivalent,
+                &compiler,
+                &rustc,
+            )
+            .expect("derive source-location-equivalent cache key"),
+            baseline,
+            "source-location-only changes cannot force classifier regeneration"
+        );
+
+        let mut semantic_change = plan.clone();
+        semantic_change.identity.question_id[0] ^= 0xff;
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&semantic_change, &compiler, &rustc,)
+                .expect("derive changed semantic cache key"),
+            baseline
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &plan,
+                &sha256_hex(b"native classifier compiler B"),
+                &rustc,
+            )
+            .expect("derive changed compiler cache key"),
+            baseline
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &plan,
+                &compiler,
+                &sha256_hex(b"native classifier rustc B"),
+            )
+            .expect("derive changed rustc cache key"),
+            baseline
+        );
+
+        let mut shape_change = plan.clone();
+        shape_change.finite_coordinate_count += 1;
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&shape_change, &compiler, &rustc,)
+                .expect("derive changed shape cache key"),
+            baseline
+        );
+        let mut metadata_change = plan.clone();
+        metadata_change
+            .compile_time_metadata_bindings
+            .insert("cache_key_metadata_probe".to_string());
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(&metadata_change, &compiler, &rustc,)
+                .expect("derive changed metadata cache key"),
+            baseline
+        );
+        let mut rule_metadata_change = plan;
+        rule_metadata_change.rule_metadata.return_issues.insert(
+            RuleDispatchKey {
+                scope: None,
+                name: "cache_key_rule_probe".to_string(),
+                arity: 0,
+            },
+            "cache-key test metadata".to_string(),
+        );
+        assert_ne!(
+            explore_native_classifier_derivation_cache_key_v3(
+                &rule_metadata_change,
+                &compiler,
+                &rustc,
+            )
+            .expect("derive changed RuleDispatch metadata cache key"),
+            baseline
+        );
+    }
+
+    #[test]
+    fn native_classifier_derivation_cache_hit_skips_generation_and_miss_builds_once() {
+        let plan = native_classifier_cache_test_plan();
+        let compiler = sha256_hex(b"native classifier cache hit compiler");
+        let rustc = sha256_hex(b"native classifier cache hit rustc");
+        let cache_key = explore_native_classifier_derivation_cache_key_v3(&plan, &compiler, &rustc)
+            .expect("derive cache-hit key");
+        let temp_dir = unique_temp_workspace("futuruna-explore-native-derivation-cache");
+        let target = explore_native_classifier_cache_target_v3(&temp_dir, &cache_key);
+        std::fs::create_dir_all(&target.artifact_dir)
+            .expect("create native classifier cache-hit directory");
+        std::fs::write(&target.executable, b"cached classifier")
+            .expect("write cached classifier probe");
+
+        let cache_accesses = std::cell::Cell::new(0_u32);
+        let disabled = explore_native_classifier_with_cache_policy_v3(true, || {
+            cache_accesses.set(cache_accesses.get() + 1);
+            explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
+                panic!("a disabled compiler cache must not generate a native classifier")
+            })
+            .executable
+        });
+        assert_eq!(disabled, None);
+        assert_eq!(
+            cache_accesses.get(),
+            0,
+            "a disabled compiler cache must bypass persistent lookup and generation"
+        );
+
+        let builds = std::cell::Cell::new(0_u32);
+        let hit = explore_native_classifier_with_cache_policy_v3(false, || {
+            let resolution = explore_native_classifier_cache_or_build_v3(target.clone(), |_| {
+                builds.set(builds.get() + 1);
+                None
+            });
+            assert!(resolution.cache_hit);
+            resolution.executable
+        });
+        assert_eq!(hit, Some(target.executable.clone()));
+        assert_eq!(builds.get(), 0, "a cache hit must bypass generation");
+
+        let miss_target = explore_native_classifier_cache_target_v3(
+            &temp_dir,
+            &sha256_hex(b"distinct native classifier cache miss"),
+        );
+        let miss = explore_native_classifier_cache_or_build_v3(miss_target.clone(), |target| {
+            builds.set(builds.get() + 1);
+            std::fs::create_dir_all(&target.artifact_dir).ok()?;
+            std::fs::write(&target.executable, b"new classifier").ok()?;
+            Some(target.executable.clone())
+        });
+        assert!(!miss.cache_hit);
+        assert_eq!(miss.executable, Some(miss_target.executable));
+        assert_eq!(builds.get(), 1, "a cache miss must invoke generation once");
+        std::fs::remove_dir_all(temp_dir).ok();
+    }
+
+    #[test]
+    fn native_classifier_codegen_preserves_producer_rule_metadata_across_pruned_slice() {
+        let source = r#"
+# ClassifierScope(input: Int) {
+    | kept() -> input + 1
+    | result() -> kept()
+    | partial(0) -> input
+    | partial_bool() -> input > 0
+}
+
+| partial_value(0) -> 7
+
+? explore classifier_metadata_slice {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+    transition after = ClassifierScope(before).result()
+    find cases = matches of after > before
+}
+"#;
+        let statements = parse_test_program(source);
+        let mut prepared = explore::prepare_checked_relational_stream(
+            &statements,
+            None,
+            source,
+            Some("classifier_metadata_slice"),
+        )
+        .expect("prepare native classifier fixture");
+        let plan = prepared
+            .take_native_classifier_plan_v2()
+            .expect("fixture has the native classifier V2 shape");
+
+        let retained_rule_names = plan
+            .checked_declarations
+            .iter()
+            .find_map(|statement| match statement {
+                Stmt::TypeDecl(TypeDecl::RuleScope { name, body, .. })
+                    if name == "ClassifierScope" =>
+                {
+                    Some(
+                        body.iter()
+                            .filter_map(|statement| match statement {
+                                Stmt::Rule(rule) => {
+                                    rule.callable_name_arity().map(|(name, _)| name)
+                                }
+                                _ => None,
+                            })
+                            .collect::<BTreeSet<_>>(),
+                    )
+                }
+                _ => None,
+            })
+            .expect("classifier slice retains its RuleScope shell");
+        assert_eq!(
+            retained_rule_names,
+            BTreeSet::from(["kept".to_string(), "result".to_string()]),
+            "the fixture must exercise a genuinely pruned RuleScope"
+        );
+
+        let key = |name: &str, arity| RuleDispatchKey {
+            scope: Some("ClassifierScope".to_string()),
+            name: name.to_string(),
+            arity,
+        };
+        let partial_key = key("partial", 1);
+        let partial_bool_key = key("partial_bool", 0);
+        assert_eq!(
+            plan.rule_metadata.return_types.get(&partial_key),
+            Some(&"Int".to_string()),
+            "the producer snapshot must retain the pruned family's ABI"
+        );
+        assert!(!plan
+            .rule_metadata
+            .runtime_irrefutable_keys
+            .contains(&partial_key));
+        assert!(!plan
+            .rule_metadata
+            .boolean_miss_safe_keys
+            .contains(&partial_key));
+        assert_eq!(
+            plan.rule_metadata.return_types.get(&partial_bool_key),
+            Some(&"Bool".to_string()),
+            "the producer snapshot must retain the scoped predicate ABI"
+        );
+        assert!(!plan
+            .rule_metadata
+            .boolean_miss_safe_keys
+            .contains(&partial_bool_key));
+        for total_key in [key("kept", 0), key("result", 0)] {
+            assert!(
+                plan.rule_metadata
+                    .runtime_irrefutable_keys
+                    .contains(&total_key),
+                "missing producer totality proof for {total_key:?}"
+            );
+        }
+
+        let metadata = plan.rule_metadata.clone();
+        let mut reachable_names = explore_native_classifier_reachable_names_v2(&plan);
+        let function_name = fresh_generated_rust_name(
+            &explore_native_classifier_function_name_v2(&plan),
+            &mut reachable_names,
+        );
+        let classifier = synthesize_explore_native_classifier_function_v2(
+            &function_name,
+            &plan,
+            &mut reachable_names,
+        )
+        .expect("synthesize native classifier");
+        let mut classifier_program = plan.checked_declarations.into_vec();
+        classifier_program.push(classifier);
+
+        let mut codegen = RustCodegen::new();
+        codegen.lib_mode = true;
+        codegen.int_arithmetic_mode = RustCodegenIntArithmeticMode::ExploreClassifierExact;
+        codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
+        codegen.types.exact_ambiguous_constructor_fallbacks = true;
+        codegen.compile_time_metadata_bindings = plan.compile_time_metadata_bindings;
+        codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let generated = codegen.emit_program(&classifier_program);
+        assert!(
+            !generated.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "valid total dispatch lost its producer contract: {generated}"
+        );
+        assert_eq!(codegen.canonical_rule_return_types, metadata.return_types);
+        assert_eq!(codegen.canonical_rule_return_issues, metadata.return_issues);
+        assert_eq!(
+            codegen.canonical_rule_parameter_types,
+            metadata.parameter_types
+        );
+        assert_eq!(
+            codegen.canonical_rule_parameter_names,
+            metadata.parameter_names
+        );
+        assert_eq!(
+            codegen.canonical_rule_parameter_issues,
+            metadata.parameter_issues
+        );
+        assert_eq!(
+            codegen.canonical_rule_boolean_miss_safe_keys,
+            metadata.boolean_miss_safe_keys
+        );
+        assert_eq!(
+            codegen.runtime_rule_irrefutable_keys,
+            metadata.runtime_irrefutable_keys
+        );
+
+        let probe_source = "= partial_probe = ClassifierScope(1).partial(2)";
+        let [partial_probe] = parse_test_program(probe_source)
+            .try_into()
+            .expect("one partial-dispatch statement");
+        let mut partial_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        partial_program.push(partial_probe);
+        let mut partial_codegen = RustCodegen::new();
+        partial_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let rejected = partial_codegen.emit_program(&partial_program);
+        assert!(rejected.contains("compile_error!"), "{rejected}");
+        assert!(
+            rejected.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "ordinary codegen must still reject a typed but partial family: {rejected}"
+        );
+
+        let mut process_failure_codegen = RustCodegen::new();
+        process_failure_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        process_failure_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let trapped = process_failure_codegen.emit_program(&partial_program);
+        assert!(
+            !trapped.contains("compile_error!"),
+            "classifier codegen must lower a typed partial miss to process failure: {trapped}"
+        );
+        assert!(
+            trapped.contains("panic!(\"no scoped | rule matched for 'partial'\")"),
+            "classifier codegen must preserve bottom as a trapped miss: {trapped}"
+        );
+
+        let [bool_probe] = parse_test_program("= bool_probe = ClassifierScope(0).partial_bool()")
+            .try_into()
+            .expect("one scoped Bool probe statement");
+        let mut bool_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        bool_program.push(bool_probe);
+        let mut strict_bool_codegen = RustCodegen::new();
+        strict_bool_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let rejected_bool = strict_bool_codegen.emit_program(&bool_program);
+        assert!(
+            rejected_bool.contains(
+                "RuleDispatch cannot be consumed without a canonical total/miss-safe contract"
+            ),
+            "ordinary codegen must reject the context-dependent Bool call: {rejected_bool}"
+        );
+        let mut classifier_bool_codegen = RustCodegen::new();
+        classifier_bool_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        classifier_bool_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let predicate_false = classifier_bool_codegen.emit_program(&bool_program);
+        assert!(
+            !predicate_false.contains("compile_error!"),
+            "classifier codegen must admit a typed scoped Bool predicate: {predicate_false}"
+        );
+        assert!(
+            !predicate_false.contains("no scoped | rule matched for 'partial_bool'"),
+            "a typed RuleScope Bool miss must retain interpreter False semantics: {predicate_false}"
+        );
+
+        let [prolog_probe] = parse_test_program("= prolog_probe = partial_value(1)")
+            .try_into()
+            .expect("one Prolog value probe statement");
+        let mut prolog_program = statements
+            .iter()
+            .filter(|statement| !matches!(statement, Stmt::Explore(_)))
+            .cloned()
+            .collect::<Vec<_>>();
+        prolog_program.push(prolog_probe);
+        let mut prolog_codegen = RustCodegen::new();
+        prolog_codegen.rule_dispatch_miss_mode = RustCodegenRuleDispatchMissMode::ProcessFailure;
+        prolog_codegen.install_explore_native_classifier_rule_metadata(&metadata);
+        let trapped_value = prolog_codegen.emit_program(&prolog_program);
+        assert!(
+            !trapped_value.contains("compile_error!"),
+            "classifier codegen must admit a typed partial Prolog value: {trapped_value}"
+        );
+        assert!(
+            trapped_value.contains(".expect(\"irrefutable RuleDispatch returned no value\")"),
+            "a partial Prolog value must preserve bottom as a trapped miss: {trapped_value}"
+        );
+
+        let safe_global_source = r#"
+# Left = Left
+# Right = Right
+| safe_global(value: Left) -> True
+= safe_probe = safe_global(Right)
+"#;
+        let safe_global_program = parse_test_program(safe_global_source);
+        let safe_global_artifacts =
+            TypeChecker::check_with_artifacts(&safe_global_program, None, safe_global_source);
+        assert!(
+            safe_global_artifacts.diagnostics.is_empty(),
+            "unexpected safe-global diagnostics: {:?}",
+            safe_global_artifacts.diagnostics
+        );
+        let safe_global_key = RuleDispatchKey {
+            scope: None,
+            name: "safe_global".to_string(),
+            arity: 1,
+        };
+        assert!(safe_global_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&safe_global_key));
+        let mut safe_global_codegen = RustCodegen::new();
+        safe_global_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        safe_global_codegen.install_canonical_rule_metadata(&safe_global_artifacts);
+        let safe_global = safe_global_codegen.emit_program(&safe_global_program);
+        assert!(
+            !safe_global.contains("native classifier reached a partial global RuleDispatch miss"),
+            "a universally safe global predicate miss must remain False: {safe_global}"
+        );
+
+        let unsafe_global_source = r#"
+# Left = Left
+# Right = Right
+= flag = False
+| unsafe_global(value: Left) -> flag
+= unsafe_probe = unsafe_global(Right)
+= unsafe_matched_probe = unsafe_global(Left)
+"#;
+        let unsafe_global_program = parse_test_program(unsafe_global_source);
+        let unsafe_global_artifacts =
+            TypeChecker::check_with_artifacts(&unsafe_global_program, None, unsafe_global_source);
+        assert!(
+            unsafe_global_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-global diagnostics: {:?}",
+            unsafe_global_artifacts.diagnostics
+        );
+        let unsafe_global_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_global".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_global_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_global_key));
+        let mut unsafe_global_codegen = RustCodegen::new();
+        unsafe_global_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_global_codegen.install_canonical_rule_metadata(&unsafe_global_artifacts);
+        let unsafe_global = unsafe_global_codegen.emit_program(&unsafe_global_program);
+        assert!(
+            unsafe_global.contains("native classifier reached a partial global RuleDispatch miss"),
+            "an unsafe global predicate miss must abort the classifier: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("let mut __fut_matched_false_clause = false;"),
+            "a matched false typed-head clause needs explicit interpreter-parity state: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("__fut_matched_false_clause = true;"),
+            "a false typed-head body must record its matched head: {unsafe_global}"
+        );
+        assert!(
+            unsafe_global.contains("if __fut_matched_false_clause { return false; }"),
+            "a matched false typed-head clause must win before a genuine-miss trap: {unsafe_global}"
+        );
+
+        let unsafe_original_source = r#"
+| __fut_matched_false_clause() -> False
+# Switch = Off | On
+| unsafe_original(value: Switch) -> match value {
+    | Off -> __fut_matched_false_clause()
+    | On -> True
+}
+= unsafe_original_probe = unsafe_original(Off)
+"#;
+        let unsafe_original_program = parse_test_program(unsafe_original_source);
+        let unsafe_original_artifacts = TypeChecker::check_with_artifacts(
+            &unsafe_original_program,
+            None,
+            unsafe_original_source,
+        );
+        assert!(
+            unsafe_original_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-original diagnostics: {:?}",
+            unsafe_original_artifacts.diagnostics
+        );
+        let unsafe_original_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_original".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_original_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_original_key));
+        let mut unsafe_original_codegen = RustCodegen::new();
+        unsafe_original_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_original_codegen.install_canonical_rule_metadata(&unsafe_original_artifacts);
+        let unsafe_original = unsafe_original_codegen.emit_program(&unsafe_original_program);
+        assert!(
+            unsafe_original.contains("let mut __fut_matched_false_clause_2 = false;"),
+            "dispatch state must be fresh against callable names in the clause body: {unsafe_original}"
+        );
+        assert!(
+            unsafe_original.contains("__fut_matched_false_clause_2 = true;"),
+            "a false ordinary body must record its matched head: {unsafe_original}"
+        );
+        let matched_false = unsafe_original
+            .find("if __fut_matched_false_clause_2 { return false; }")
+            .expect("ordinary matched-false return");
+        let genuine_miss = unsafe_original
+            .find("no | rule matched for 'unsafe_original'")
+            .expect("ordinary genuine-miss trap");
+        assert!(
+            matched_false < genuine_miss,
+            "a matched false ordinary clause must win before a genuine-miss trap: {unsafe_original}"
+        );
+
+        let unsafe_prolog_source = r#"
+= flag = False
+| unsafe_prolog(0) -> flag
+= unsafe_prolog_hit = unsafe_prolog(0)
+"#;
+        let unsafe_prolog_program = parse_test_program(unsafe_prolog_source);
+        let unsafe_prolog_artifacts =
+            TypeChecker::check_with_artifacts(&unsafe_prolog_program, None, unsafe_prolog_source);
+        assert!(
+            unsafe_prolog_artifacts.diagnostics.is_empty(),
+            "unexpected unsafe-Prolog diagnostics: {:?}",
+            unsafe_prolog_artifacts.diagnostics
+        );
+        let unsafe_prolog_key = RuleDispatchKey {
+            scope: None,
+            name: "unsafe_prolog".to_string(),
+            arity: 1,
+        };
+        assert!(!unsafe_prolog_artifacts
+            .rule_dispatch_boolean_miss_safe_keys
+            .contains(&unsafe_prolog_key));
+        let mut unsafe_prolog_codegen = RustCodegen::new();
+        unsafe_prolog_codegen.rule_dispatch_miss_mode =
+            RustCodegenRuleDispatchMissMode::ProcessFailure;
+        unsafe_prolog_codegen.install_canonical_rule_metadata(&unsafe_prolog_artifacts);
+        let unsafe_prolog = unsafe_prolog_codegen.emit_program(&unsafe_prolog_program);
+        assert!(
+            unsafe_prolog.contains("let mut __fut_matched_false_clause = false;"),
+            "a ground-head Prolog clause needs explicit interpreter-parity state: {unsafe_prolog}"
+        );
+        assert!(
+            unsafe_prolog.contains("__fut_matched_false_clause = true;"),
+            "a false Prolog body must record its matched head: {unsafe_prolog}"
+        );
+        assert!(
+            unsafe_prolog.contains("if __fut_matched_false_clause { return false; }"),
+            "a matched false Prolog clause must win before a genuine-miss trap: {unsafe_prolog}"
         );
     }
 
@@ -56902,6 +70426,7 @@ routes <- "b"
                 .flatten()
                 .chain(else_block.iter().flatten())
                 .any(|stmt| stmt_references_var(stmt, name)),
+            Stmt::Explore(_) => false,
             Stmt::Defn(Defn::Fn { params, body, .. }) => {
                 !params.iter().any(|param| param.name == name) && expr_references_var(body, name)
             }

@@ -1,0 +1,39 @@
+-- A tiny executable dependency chain:
+--
+--   FIND cases -> choose tied winners -> reflect only their mechanisms.
+--
+-- The run is deliberately small enough to inspect while exercising the same
+-- durable scheduler used by larger explorations.
+-- Expected exact summary: cases = 2, mechanisms = 1.
+
+> chosen_mechanism_observe(state: Int, context: Unit) -> Int {
+    if state < 2 { 0 } else { 1 }
+}
+
+? explore chosen_mechanism_smoke {
+    from {
+        vary before in range(0, 4)
+        given context = ()
+    }
+
+    transition after = before + 1
+    find all_cases = all
+
+    results winner from find all_cases {
+        group all
+        measure [score = before / 2]
+        select [case_id, before, after, score]
+        choose all maximizing score
+    }
+
+    mechanisms winner_path from view winner chosen using chosen_mechanism_observe
+
+    results winner_mechanism_summary from mechanisms winner_path {
+        group all
+        aggregate [
+            cases = count_distinct(case_id),
+            mechanisms = count_distinct(structural_mechanism_id)
+        ]
+        select [cases, mechanisms]
+    }
+}

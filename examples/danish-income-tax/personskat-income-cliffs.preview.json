@@ -1,0 +1,35 @@
+{
+  "completion_method": "exact_finite_exhaustion",
+  "configurations": [
+    {
+      "evaluation": "interpreter",
+      "inputs": {
+        "indkomst_før_kroner": 342499,
+        "trin": 1
+      },
+      "key": {
+        "betaler_kirkeskat": false,
+        "daglige_befordringskilometer": 60,
+        "indkomst_før_kroner": 342499,
+        "kommunekode": 101
+      },
+      "shown": {
+        "indkomst_efter_kroner": 342500,
+        "ligningsfradrag_input_gyldige": true,
+        "nettotab_øre": 6947
+      }
+    }
+  ],
+  "counts": {
+    "declared_assignments": 6,
+    "distinct_keys": 1,
+    "eligible_configurations": 5,
+    "evaluated_configurations": 5,
+    "matching_configurations": 1
+  },
+  "coverage": "some",
+  "polarity": "matches",
+  "query": "personskat_indkomstklint_minimal",
+  "schema": "futuruna.explore.preview.v0",
+  "status": "complete"
+}

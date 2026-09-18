@@ -558,4 +558,7 @@ wins, just as it does during execution.
 
 The solver path fails closed with a diagnostic for partial non-Boolean rules,
 recursive dispatch, higher-order parameters, effects, and other expressions
-outside its current first-order subset. `runa verify` remains a Preview surface.
+outside its current first-order subset. Rule return sorts are resolved by the
+exact RuleScope (when present), name, and arity; same-named overloads never
+share a sort, and conflicting or unresolved result sorts fail closed. `runa
+verify` remains a Preview surface.
