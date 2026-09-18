@@ -23,7 +23,8 @@ Use one file per active release line or release series.
 
 Current convention:
 
-- `0.1.x.md` for the active 0.1.x line
+- `0.2.x.md` for the active 0.2.x line
+- `0.1.x.md` for the earlier 0.1.x line
 
 If Futuruna adopts a different release numbering scheme later, prefer stable
 version-like filenames over ad hoc prose names.
@@ -88,5 +89,9 @@ reason. For local dry runs without a PR body, set
 `FUTURUNA_COMPATIBILITY_GUIDE_REASON`.
 
 ## Current Guide
+
+- [0.2.x.md](0.2.x.md)
+
+## Earlier Guides
 
 - [0.1.x.md](0.1.x.md)
