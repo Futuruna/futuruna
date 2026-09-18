@@ -32142,7 +32142,16 @@ impl RustCodegen {
                     let already_flattened = canonical
                         .as_ref()
                         .is_some_and(|path| !flattened.insert(path.clone()));
-                    if !already_flattened {
+                    // A plain edge to a source already flattened at the root
+                    // reuses that source's declarations through `use super::*`.
+                    // Re-emitting it here creates a distinct Rust nominal type
+                    // even though the interpreter retains the canonical owner.
+                    // Direct qualified declarations still get fresh instances;
+                    // cross-parent imports without a root owner remain guarded.
+                    let root_flattened = canonical
+                        .as_ref()
+                        .is_some_and(|path| self.imported.contains(path));
+                    if !already_flattened && !root_flattened {
                         self.record_flattened_module_types(&nested, module_path);
                         self.expand_module_import_body(
                             nested,
@@ -66375,6 +66384,35 @@ readings <- "score"
             "unexpected rustc failure: {}",
             String::from_utf8_lossy(&compile.stderr)
         );
+    }
+
+    #[test]
+    fn compiled_qualified_plain_import_reuses_root_nominal_owner_in_both_orders() {
+        let temp_dir = unique_temp_workspace("futuruna-root-qualified-shared-owner");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(
+            temp_dir.join("types.runa"),
+            "@ export\n# Item(value: Int)\n@ export\n> item_value(item: Item) -> Int { item.value }\n",
+        ).unwrap();
+        std::fs::write(
+            temp_dir.join("policy.runa"),
+            "@ import ./types\n@ export\n> read(item: Item) -> Int { item_value(item) }\n",
+        )
+        .unwrap();
+        let main_path = temp_dir.join("main.runa");
+        for imports in [
+            "@ import ./types\n@ import Policy from ./policy\n",
+            "@ import Policy from ./policy\n@ import ./types\n",
+        ] {
+            std::fs::write(
+                &main_path,
+                format!("{imports}@ print(show(Policy.read(Item(7))))\n"),
+            )
+            .unwrap();
+            assert_eq!(interpret_test_file(&main_path).trim(), "7");
+            assert_eq!(compile_and_run_test_file(&main_path).trim(), "7");
+        }
+        let _ = std::fs::remove_dir_all(temp_dir);
     }
 
     #[test]

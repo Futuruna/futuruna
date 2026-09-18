@@ -1,0 +1,9 @@
+-- Integer sums must retain their backend return type inside a RuleScope.
+# SumCase(values: List(Int)) {
+    | total(extra: Int) -> sum(values) + extra
+}
+
+= empty = SumCase(values = [])
+= nonempty = SumCase(values = [1, 2, 3])
+@ print(show(empty.total(2)))
+@ print(show(nonempty.total(2)))
