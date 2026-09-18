@@ -2523,7 +2523,7 @@ const EXAMPLE_BOOT: &str = r##"-- Futuruna Boot Sequence
 -- Build the boot log as a stream of messages
 = modules = ["consciousness", "entropy", "runes", "streams", "rules", "verification", "effects"]
 
-= log = ["FUTURUNA v0.1.1", "================", ""]
+= log = ["FUTURUNA v0.2.0", "================", ""]
 = log = push(log, "[init] Booting language runtime...")
 = log = push(log, "")
 for m in modules {
@@ -3051,7 +3051,7 @@ fn docs_page(active_doc: usize) -> Element {
                 a { class: "docs-sidebar-link", href: "/docs/tutorial", "Tutorial" }
                 hr { class: "docs-sidebar-divider" }
                 h3 { class: "docs-sidebar-title", "Reference" }
-                span { class: "docs-version", "v0.1.1" }
+                span { class: "docs-version", "v0.2.0" }
                 for (i, page) in DOC_PAGES.iter().enumerate() {
                     a {
                         class: if active_doc == i { "docs-sidebar-link active" } else { "docs-sidebar-link" },

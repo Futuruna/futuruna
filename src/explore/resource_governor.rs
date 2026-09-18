@@ -2732,7 +2732,9 @@ mod tests {
             capacity.memory_reserve_bytes,
             ceil_div_u64(8 * GIB, 5).unwrap()
         );
-        assert_eq!(capacity.cpu_reserve_millicores, 2_000);
+        // Preserve the exact one-fifth reserve in millicores; only the
+        // admitted worker count is rounded down to whole workers.
+        assert_eq!(capacity.cpu_reserve_millicores, 1_200);
         assert_eq!(capacity.memory_worker_ceiling, 12);
         assert_eq!(capacity.cpu_worker_ceiling, 4);
         assert_eq!(capacity.safe_worker_ceiling, 4);
@@ -2786,7 +2788,7 @@ mod tests {
             .stability
             .minimum_cpu_before_evaluator_charge_millicores = Some(16_000);
         let capacity = governor.assess_worker_capacity(roomy).unwrap();
-        assert_eq!(capacity.cpu_reserve_millicores, 4_000);
+        assert_eq!(capacity.cpu_reserve_millicores, 3_200);
         assert_eq!(capacity.safe_worker_ceiling, 12);
     }
 
