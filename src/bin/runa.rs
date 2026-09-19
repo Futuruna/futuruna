@@ -14270,13 +14270,23 @@ impl<'program, 'registry> SmtRuleLowerer<'program, 'registry> {
                 continue;
             }
 
-            match self.expand_rule_group(
-                group,
-                &arguments,
-                receiver,
-                &SmtLoweringEnv::default(),
-                &mut Vec::new(),
-            ) {
+            // Substitution replaces authored head names with generated
+            // parameter names. Nested calls must validate those actual names
+            // against the same sorts used in the emitted function signature.
+            let environment = SmtLoweringEnv {
+                types: params
+                    .iter()
+                    .filter_map(|param| {
+                        param
+                            .ty
+                            .as_ref()
+                            .map(|ty| (param.name.clone(), ty.to_string()))
+                    })
+                    .collect(),
+                ..SmtLoweringEnv::default()
+            };
+            match self.expand_rule_group(group, &arguments, receiver, &environment, &mut Vec::new())
+            {
                 Ok(body) => functions.push((function_name, params, Some(return_type), body)),
                 Err(error) => {
                     functions.push((
@@ -18512,10 +18522,30 @@ fn verify_with_z3(source: &str, filename: &str) {
 
     let mut invariant_lowering_errors = BTreeMap::new();
     for (name, subject, predicate) in &mut invariants {
-        let environment = SmtLoweringEnv {
+        let mut environment = SmtLoweringEnv {
             rule_calls_as_symbols: true,
             ..SmtLoweringEnv::default()
         };
+        // Unbound invariant variables are declared as SMT Int below. Give
+        // argument validation that same sort before lowering symbolic calls.
+        // Never default a program binding (including an unresolved one), a
+        // constructor, or a callable to Int: those retain their checked type.
+        let mut free_variables = BTreeSet::new();
+        collect_free_vars(subject, &mut free_variables);
+        collect_free_vars(predicate, &mut free_variables);
+        for variable in free_variables {
+            if !bindings.contains_key(&variable)
+                && !rule_lowerer.constructors.contains_key(&variable)
+                && !functions.iter().any(|(name, _, _, _)| name == &variable)
+                && !rule_lowerer
+                    .registry
+                    .groups
+                    .keys()
+                    .any(|key| key.name == variable)
+            {
+                environment.types.insert(variable, "Int".to_string());
+            }
+        }
         let lowered_subject = rule_lowerer.lower_expr(subject, &environment, &mut Vec::new());
         let lowered_predicate = rule_lowerer.lower_expr(predicate, &environment, &mut Vec::new());
         match (lowered_subject, lowered_predicate) {

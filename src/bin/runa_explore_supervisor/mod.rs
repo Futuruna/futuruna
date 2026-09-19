@@ -1256,17 +1256,18 @@ pub(crate) fn supervise_current_executable(
         return Err(contain_after_monitor_error(&mut child, error));
     }
     if let Err(error) = child.heartbeat() {
-        if let Ok(Some(status)) = child.try_wait() {
-            return finish_exited_child(
-                &mut child,
-                status,
-                None,
-                group_rss_limit,
-                Some(initial.available_memory_bytes),
-                available_floor,
-            );
-        }
-        return Err(contain_after_monitor_error(&mut child, error));
+        let status = match child.settle_disconnected_guardian(error) {
+            Ok(status) => status,
+            Err(error) => return Err(contain_after_monitor_error(&mut child, error)),
+        };
+        return finish_exited_child(
+            &mut child,
+            status,
+            None,
+            group_rss_limit,
+            Some(initial.available_memory_bytes),
+            available_floor,
+        );
     }
     let process_group = child.process_group();
     let mut last_group = None;
@@ -1279,7 +1280,7 @@ pub(crate) fn supervise_current_executable(
         .unwrap_or(started);
 
     loop {
-        let child_status = match child.wait_for_worker_exit_settlement() {
+        let child_status = match child.try_wait() {
             Ok(status) => status,
             Err(error) => return Err(contain_after_monitor_error(&mut child, error)),
         };
@@ -1519,17 +1520,18 @@ pub(crate) fn supervise_current_executable(
         }
 
         if let Err(error) = child.heartbeat() {
-            if let Ok(Some(status)) = child.try_wait() {
-                return finish_exited_child(
-                    &mut child,
-                    status,
-                    Some(group),
-                    group_rss_limit,
-                    Some(last_host.available_memory_bytes),
-                    available_floor,
-                );
-            }
-            return Err(contain_after_monitor_error(&mut child, error));
+            let status = match child.settle_disconnected_guardian(error) {
+                Ok(status) => status,
+                Err(error) => return Err(contain_after_monitor_error(&mut child, error)),
+            };
+            return finish_exited_child(
+                &mut child,
+                status,
+                Some(group),
+                group_rss_limit,
+                Some(last_host.available_memory_bytes),
+                available_floor,
+            );
         }
         std::thread::sleep(GROUP_SAMPLE_CADENCE);
     }
@@ -1901,12 +1903,34 @@ impl ChildGroupGuard {
                 return Ok(None);
             }
             if let Err(error) = self.heartbeat() {
-                // A guardian may close the pipe immediately before becoming
-                // waitable. Reap once more before treating that close as a
-                // broken liveness contract.
-                if let Some(status) = self.try_wait()? {
-                    return Ok(Some(status));
-                }
+                return self.settle_disconnected_guardian(error).map(Some);
+            }
+            thread::sleep(
+                deadline
+                    .saturating_duration_since(Instant::now())
+                    .min(GROUP_SAMPLE_CADENCE),
+            );
+        }
+    }
+
+    /// Closing the liveness reader and becoming waitable are not atomic. Stop
+    /// any remaining worker before allowing a bounded guardian-exit handoff:
+    /// a genuinely disconnected guardian must never leave work running during
+    /// this grace period. Callers still verify/contain residual group members
+    /// before accepting an exit status, and contain on every error.
+    fn settle_disconnected_guardian(&mut self, error: io::Error) -> io::Result<ExitStatus> {
+        if error.kind() != io::ErrorKind::BrokenPipe {
+            return Err(error);
+        }
+        signal_process_group(self.worker_process_group, SIGSTOP)?;
+        let deadline = Instant::now()
+            .checked_add(WORKER_EXIT_SETTLE_TIMEOUT)
+            .ok_or_else(|| invalid_telemetry("guardian exit settlement deadline overflow"))?;
+        loop {
+            if let Some(status) = self.try_wait()? {
+                return Ok(status);
+            }
+            if Instant::now() >= deadline {
                 return Err(error);
             }
             thread::sleep(
@@ -2762,6 +2786,45 @@ fn percent_ceil(value: u64, percent: u64) -> u64 {
 #[cfg(all(test, target_os = "macos"))]
 mod tests {
     use super::*;
+
+    fn disconnected_guardian(delay: &str) -> ChildGroupGuard {
+        // Allocate then reap an actual private group rather than inventing a
+        // PID which could refer to an unrelated process on the test host.
+        let mut worker = Command::new("/usr/bin/true")
+            .process_group(0)
+            .spawn()
+            .unwrap();
+        let worker_group = worker.id();
+        worker.wait().unwrap();
+        let guardian = Command::new("/bin/sleep").arg(delay).spawn().unwrap();
+        let (reader, writer) = create_liveness_pipe().unwrap();
+        drop(reader);
+        ChildGroupGuard::new(guardian, worker_group, writer, 0)
+    }
+
+    #[test]
+    fn closed_heartbeat_waits_for_clean_guardian_exit() {
+        let mut child = disconnected_guardian("0.1");
+        let error = child.heartbeat().unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::BrokenPipe);
+        let status = child.settle_disconnected_guardian(error).unwrap();
+        assert!(status.success());
+        assert!(!child.finish_exited_group().unwrap());
+    }
+
+    #[test]
+    fn closed_heartbeat_does_not_accept_a_live_guardian() {
+        let mut child = disconnected_guardian("30");
+        let error = child.heartbeat().unwrap_err();
+        let result = child.settle_disconnected_guardian(error);
+        // This fake guardian has no worker to reap; clean it up before asserting
+        // so a failed regression never leaves the test's sleeper behind.
+        child.guardian.kill().unwrap();
+        child.guardian.wait().unwrap();
+        child.guardian_reaped = true;
+        assert!(!child.finish_exited_group().unwrap());
+        assert_eq!(result.unwrap_err().kind(), io::ErrorKind::BrokenPipe);
+    }
 
     fn cpu_interval(upper_busy_ticks: u64, lower_total_ticks: u64) -> HostCpuInterval {
         HostCpuInterval {

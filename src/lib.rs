@@ -48060,7 +48060,7 @@ impl TypeChecker {
         parent: Option<&str>,
     ) -> Option<TypeConstructorSignature> {
         let signatures = self.constructor_signatures.get(constructor)?;
-        if let Some(parent) = parent {
+        if let Some(parent) = parent.and_then(Self::canonical_nominal_owner) {
             if let Some(signature) = signatures
                 .iter()
                 .find(|signature| signature.parent == parent)
@@ -48729,7 +48729,8 @@ impl TypeChecker {
             }
         }
 
-        self.constructor_signature_for_parent(constructor, parent)
+        let field_type = self
+            .constructor_signature_for_parent(constructor, parent)
             .and_then(|signature| signature.field_tys.get(index).cloned().flatten())
             .or_else(|| {
                 self.constructor_signature_for_parent(constructor, parent)
@@ -48743,7 +48744,24 @@ impl TypeChecker {
                     .cloned()
                     .unwrap_or_else(|| format!("_{}", index));
                 self.field_type_name(constructor, &field)
-            })
+            })?;
+        self.instantiate_pattern_field_type_name(field_type, parent)
+    }
+
+    fn instantiate_pattern_field_type_name(
+        &self,
+        field_type: String,
+        parent: Option<&str>,
+    ) -> Option<String> {
+        // An authored generic ADT has the same substitution requirement as
+        // Option/Result: a field `a` in Chain(Int) binds an Int, not a fresh `a`.
+        Some(match parent {
+            Some(parent) => self.canonical_instantiate_nominal_type(
+                parent,
+                &parse_type_annotation(&field_type).ok()?,
+            ),
+            None => field_type,
+        })
     }
 
     fn named_constructor_pattern_field_type_name(
@@ -48752,7 +48770,8 @@ impl TypeChecker {
         field: &str,
         parent: Option<&str>,
     ) -> Option<String> {
-        self.constructor_signature_for_parent(constructor, parent)
+        let field_type = self
+            .constructor_signature_for_parent(constructor, parent)
             .and_then(|signature| {
                 signature
                     .fields
@@ -48770,7 +48789,8 @@ impl TypeChecker {
                             .and_then(|index| signature.field_types.get(index).cloned().flatten())
                     })
             })
-            .or_else(|| self.field_type_name(constructor, field))
+            .or_else(|| self.field_type_name(constructor, field))?;
+        self.instantiate_pattern_field_type_name(field_type, parent)
     }
 
     fn collect_pattern_type_bindings(
@@ -48933,9 +48953,8 @@ impl TypeChecker {
             ("show" | "show_int" | "show_float" | "rust_debug", 1) => Some("String".to_string()),
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
             ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
-            ("contains" | "map_contains" | "set_contains", 2) | ("is_some" | "is_none", 1) => {
-                Some("Bool".to_string())
-            }
+            ("contains" | "map_contains" | "set_contains", 2)
+            | ("is_some" | "is_none" | "not", 1) => Some("Bool".to_string()),
             ("map_len" | "set_len", 1) | ("count_by", 2) => Some("Int".to_string()),
             ("sum", 1) => {
                 let collection_type = argument_type(0)?;
@@ -63758,6 +63777,96 @@ starters first from mechanisms paths for node activation "{digest}" using values
             !checker.rule_dispatch_return_types.contains_key(&key),
             "Dated(None) is not covered by Dated(Some(date))"
         );
+    }
+
+    #[test]
+    fn generic_pattern_fields_and_negation_keep_backend_types() {
+        let source = r#"
+# Chain(a) = Stop | Link(a, Chain(a))
+# Container(a) = Box(value: a)
+# First(a) = Wrapped(a)
+# Second(a) = Wrapped(List(a))
+| parent("alice", "bob")
+| childless(person) -> not(parent(person, _))
+"#;
+        let statements = parse_test_program(source).unwrap();
+        let mut checker = TypeChecker::new();
+        checker.collect_declarations(&statements);
+        for (constructor, index, parent, expected) in [
+            ("Link", 0, "Chain(Int)", "Int"),
+            ("Link", 1, "Chain(Int)", "Chain(Int)"),
+            ("Wrapped", 0, "First(Int)", "Int"),
+            ("Wrapped", 0, "Second(String)", "List(String)"),
+        ] {
+            assert_eq!(
+                checker
+                    .constructor_pattern_field_type_name(constructor, index, Some(parent))
+                    .as_deref(),
+                Some(expected)
+            );
+        }
+        assert_eq!(
+            checker
+                .named_constructor_pattern_field_type_name(
+                    "Box",
+                    "value",
+                    Some("Container(String)")
+                )
+                .as_deref(),
+            Some("String")
+        );
+        assert_eq!(
+            checker.named_constructor_pattern_field_type_name(
+                "Box",
+                "missing",
+                Some("Container(String)")
+            ),
+            None
+        );
+        checker.prepare_rule_dispatch_metadata(&statements);
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "childless".into(),
+            arity: 1,
+        };
+        assert_eq!(
+            checker
+                .rule_dispatch_backend_return_types
+                .get(&key)
+                .map(String::as_str),
+            Some("Bool")
+        );
+        assert!(!checker.rule_dispatch_return_types.contains_key(&key));
+        assert!(!checker.rule_dispatch_boolean_miss_safe_keys.contains(&key));
+
+        let shadowed =
+            "> not(value: Int) -> String { \"shadow\" }\n| wrapped(value: Int) -> not(value)\n";
+        let statements = parse_test_program(shadowed).unwrap();
+        let artifacts = TypeChecker::check_with_artifacts(&statements, None, shadowed);
+        let key = RuleDispatchKey {
+            scope: None,
+            name: "wrapped".into(),
+            arity: 1,
+        };
+        assert_eq!(
+            artifacts
+                .rule_dispatch_backend_return_types
+                .get(&key)
+                .map(String::as_str),
+            Some("String")
+        );
+        for source in [
+            include_str!("../tests/borrow_adversarial2.runa"),
+            include_str!("../tests/positional_test.runa"),
+        ] {
+            let statements = prepend_prelude(parse_prelude(), &parse_test_program(source).unwrap());
+            let artifacts = TypeChecker::check_with_artifacts(&statements, None, source);
+            assert!(
+                artifacts.diagnostics.is_empty(),
+                "{:?}",
+                artifacts.diagnostics
+            );
+        }
     }
 
     #[test]
