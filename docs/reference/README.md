@@ -35,8 +35,9 @@ Start with **basics.md** for syntax fundamentals, then **runes.md** for the full
 
 To search across an encoded rule model, work through
 [Exploring Law with Futuruna](../../examples/danish-income-tax/exploration-workbook.md).
-It shows how existing collection operations and proofs can find, filter, rank,
-and verify bounded legal-model scenarios.
+It develops the Experimental first-class `? explore` relation, its resumable
+case/mechanism graph stream, result algebra, exact coverage rules and bounded
+legal-model audits.
 
 For the broader stage matrix across language/runtime and `runa` command
 surfaces, see [../feature-stages.md](../feature-stages.md). The machine-readable

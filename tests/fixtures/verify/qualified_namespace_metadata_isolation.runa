@@ -1,0 +1,7 @@
+@ import Policy from ./qualified_namespace_metadata_policy
+
+# Collision = RootOnly
+
+= actual = Policy.scalar_increment(1)
+
+| unused_qualified_metadata_is_isolated: actual -> actual == 2

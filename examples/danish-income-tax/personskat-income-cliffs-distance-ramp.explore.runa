@@ -1,0 +1,472 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs.audit
+
+----
+Staged broad-distance exploration of 2026 Personskat income cliffs.
+
+This fixture removes the 60 km and 130 km witness choices from the search
+domain.  Daily commuting distance is instead varied over power-of-two ramps:
+0..<32, then 0..<256, then 0..<512, then 0..<2048 km.  Those endpoints are scheduling
+choices for increasingly expensive experiments.  They are not tax thresholds,
+known match regions, or claims about realistic routes.
+
+The income axis has two distinct meanings which must not be conflated:
+
+- The complete annual-income question up to 3,000,000 DKK contains every
+  adjacent pair whose lower endpoint is in range(0, 3000000).
+- These staged queries use the 50 event candidates derived from the encoded
+  Ligningsloven section 9 C whole-thousand phase-out schedule:
+  341,499 + 1,000 * n for n in range(1, 51).
+
+The event reduction saves work only if a separate reachable-rule proof closes
+all other income points.  Exhausting one query below proves coverage of its
+declared municipalities, church-tax states, distance ramp, and source-derived
+event candidates; it does not by itself close the full 0..3,000,000 DKK income
+universe.
+
+Likewise, nonnegative daily commuting distance has no encoded finite upper
+bound.  Even the 0..<2048 stage is a finite experiment.  Closing the unbounded
+tail requires a symbolic certificate; a probe or finite enumeration cannot do
+that alone.
+
+Declared exact case counts, before filtering for cliffs:
+
+1. Two anchor municipalities, both church-tax states, 0..<32 km, first event:
+   2 * 2 * 32 * 1 = 128 cases.
+2. Two anchor municipalities, both church-tax states, 0..<256 km, first event:
+   2 * 2 * 256 * 1 = 1,024 cases.
+3. All 98 municipalities, both church-tax states, 0..<256 km, first event:
+   98 * 2 * 256 * 1 = 50,176 cases.
+4. All 98 municipalities, both church-tax states, 0..<256 km, all 50 events:
+   98 * 2 * 256 * 50 = 2,508,800 cases.
+5. The same national event matrix over 0..<512 km:
+   98 * 2 * 512 * 50 = 5,017,600 cases.
+6. The same national event matrix over 0..<2048 km:
+   98 * 2 * 2048 * 50 = 20,070,400 cases.
+
+With the exact-finite runner's 100,000-case default, stages 1 and 2 can close
+by exhaustion.  Stages 3 through 5 must report PARTIAL with a conserved open
+suffix unless the case-classification cap is raised to at least their declared
+case count.  A larger cap permits finite exhaustion but does not promise a
+particular runtime.
+
+Every case calls the canonical personskat_indkomstklint_overgang helper.  No
+commuting-deduction formula or discovered cliff interval is copied into this
+fixture.  Model validity remains part of the match predicate and is exposed in
+the representative output.
+----
+
+| personskat_afstandsrampe_indkomst_før_kroner(
+    grænse_nummer: Heltal
+) -> 341499 + grænse_nummer * 1000
+
+| personskat_afstandsrampe_overgang(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_indkomstklint_overgang(
+    personskat_indkomstklint_profil(
+        kommunale_parametre_for(2026, kommune),
+        betaler_kirkeskat,
+        daglige_befordringskilometer
+    ),
+    personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+)
+
+| personskat_afstandsrampe_er_indkomstklint(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> {
+    = overgang = personskat_afstandsrampe_overgang(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre
+}
+
+-- The same predicate over a query-local derived transition.  This form lets
+-- the Explore engine compute the expensive canonical transition once per case
+-- and reuse it for the question, key and shown fields.
+| personskat_afstandsrampe_overgang_er_indkomstklint(
+    overgang: PersonskatIndkomstovergang
+) -> overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre
+
+-- Keep the independently varied dimensions in the question signature while
+-- passing the derived transition through once.  The first four arguments are
+-- deliberately identity inputs for Explore; the predicate itself only needs
+-- the already-computed transition.
+| personskat_afstandsrampe_delt_overgang_er_indkomstklint(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal,
+    overgang: PersonskatIndkomstovergang
+) -> overgang.ligningsfradrag_input_gyldige && overgang.netto_efter_øre < overgang.netto_før_øre
+
+| personskat_afstandsrampe_kommunekode(
+    kommune: Kommune
+) -> kommunale_parametre_for(2026, kommune).kommunekode
+
+| personskat_afstandsrampe_nettotab_øre(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_afstandsrampe_overgang(
+    kommune,
+    betaler_kirkeskat,
+    daglige_befordringskilometer,
+    grænse_nummer
+).nettotab_øre
+
+| personskat_afstandsrampe_grundfradrag_kroner(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_afstandsrampe_overgang(
+    kommune,
+    betaler_kirkeskat,
+    daglige_befordringskilometer,
+    grænse_nummer
+).grundfradrag_før_lavindkomsttillæg_kroner
+
+| personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_afstandsrampe_overgang(
+    kommune,
+    betaler_kirkeskat,
+    daglige_befordringskilometer,
+    grænse_nummer
+).lavindkomsttillægstab_kroner
+
+| personskat_afstandsrampe_input_gyldige(
+    kommune: Kommune,
+    betaler_kirkeskat: Boolsk,
+    daglige_befordringskilometer: Heltal,
+    grænse_nummer: Heltal
+) -> personskat_afstandsrampe_overgang(
+    kommune,
+    betaler_kirkeskat,
+    daglige_befordringskilometer,
+    grænse_nummer
+).ligningsfradrag_input_gyldige
+
+-- First natural distance ramp.  The distance itself is the projected key, so
+-- its exact support counts how many of the four municipality/church profiles
+-- produce a cliff at that distance.
+? explore personskat_indkomstklint_to_ankre_afstand_32_første_grænse {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in [København, Læsø]
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 32)
+        grænse_nummer = 1
+    }
+    output {
+        key [daglige_befordringskilometer]
+        show [
+            kommune,
+            betaler_kirkeskat,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            grundfradrag_kroner = personskat_afstandsrampe_grundfradrag_kroner(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_to_ankre_afstand_32_første_grænse_med_delt_overgang {
+    over personskat_afstandsrampe_delt_overgang_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer,
+        overgang
+    )
+    find matches
+    bounds {
+        kommune in [København, Læsø]
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 32)
+        grænse_nummer = 1
+        overgang = personskat_afstandsrampe_overgang(
+            kommune,
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            grænse_nummer
+        )
+    }
+    output {
+        key [daglige_befordringskilometer]
+        show [
+            kommune,
+            betaler_kirkeskat,
+            nettotab_øre = overgang.nettotab_øre,
+            grundfradrag_kroner = overgang.grundfradrag_før_lavindkomsttillæg_kroner,
+            lavindkomsttillægstab_kroner = overgang.lavindkomsttillægstab_kroner
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_to_ankre_afstand_256_første_grænse {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in [København, Læsø]
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 256)
+        grænse_nummer = 1
+    }
+    output {
+        key [
+            kommunekode = personskat_afstandsrampe_kommunekode(kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+        ]
+        show [
+            kommune,
+            indkomst_efter_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer) + 1,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            grundfradrag_kroner = personskat_afstandsrampe_grundfradrag_kroner(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                ),
+            ligningsfradrag_input_gyldige = personskat_afstandsrampe_input_gyldige(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_national_afstand_256_første_grænse {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 256)
+        grænse_nummer = 1
+    }
+    output {
+        key [
+            kommunekode = personskat_afstandsrampe_kommunekode(kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+        ]
+        show [
+            kommune,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_national_afstand_256_alle_grænser {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 256)
+        grænse_nummer in range(1, 51)
+    }
+    output {
+        key [
+            kommunekode = personskat_afstandsrampe_kommunekode(kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+        ]
+        show [
+            kommune,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            grundfradrag_kroner = personskat_afstandsrampe_grundfradrag_kroner(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_national_afstand_512_alle_grænser {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 512)
+        grænse_nummer in range(1, 51)
+    }
+    output {
+        key [
+            kommunekode = personskat_afstandsrampe_kommunekode(kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+        ]
+        show [
+            kommune,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            grundfradrag_kroner = personskat_afstandsrampe_grundfradrag_kroner(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}
+
+? explore personskat_indkomstklint_national_afstand_2048_alle_grænser {
+    over personskat_afstandsrampe_er_indkomstklint(
+        kommune,
+        betaler_kirkeskat,
+        daglige_befordringskilometer,
+        grænse_nummer
+    )
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        betaler_kirkeskat in [Falskt, Sandt]
+        daglige_befordringskilometer in range(0, 2048)
+        grænse_nummer in range(1, 51)
+    }
+    output {
+        key [
+            kommunekode = personskat_afstandsrampe_kommunekode(kommune),
+            betaler_kirkeskat,
+            daglige_befordringskilometer,
+            indkomst_før_kroner = personskat_afstandsrampe_indkomst_før_kroner(grænse_nummer)
+        ]
+        show [
+            kommune,
+            nettotab_øre = personskat_afstandsrampe_nettotab_øre(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            grundfradrag_kroner = personskat_afstandsrampe_grundfradrag_kroner(
+                kommune,
+                betaler_kirkeskat,
+                daglige_befordringskilometer,
+                grænse_nummer
+            ),
+            lavindkomsttillægstab_kroner = personskat_afstandsrampe_lavindkomsttillægstab_kroner(
+                    kommune,
+                    betaler_kirkeskat,
+                    daglige_befordringskilometer,
+                    grænse_nummer
+                )
+        ]
+        representative first
+    }
+}

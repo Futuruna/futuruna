@@ -1,0 +1,71 @@
+@ sprog da
+
+@ importer ./personskat - income - distance - unit.explore
+
+----
+Output-first boundary window for the full 2026 unit-resolution exploration.
+
+This is a deliberately narrow experiment around the first whole-thousand
+commuting-supplement reduction recorded in personskat-income-cliffs.audit.runa.
+It does not replace or close the full income-distance query. All 201 commuting
+distances remain open, and both +1 DKK and +1 km interventions are evaluated.
+
+The six starting incomes 342,497..342,502 DKK produce 2,412 candidates.
+Six distance edges point beyond the full query's 200-km endpoint and are
+explicitly rejected. The remaining 2,406 edges still require model validity.
+Fixed facts, canonical assessment, integer-øre metric, and the distinction
+between tax effects and travel costs are inherited unchanged from the full
+query. A witness here says nothing about the still-open complementary ranges.
+----
+
+? explore personskat_income_distance_boundary_2026 {
+    from {
+        vary bruttoløn_kroner in range(342497, 342503)
+        vary afstand_km in range(0, 201)
+        vary retning in range(0, 2)
+        let before = Personskat350kCommuterState(
+            profil = Personskat350kCommuterProfile(
+                skatteår = 2026,
+                kommune = København,
+                betaler_kirkeskat = Falskt,
+                fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+                personfradrag_alder_status = Fyldt18EllerGift,
+                arbejdsdage = 203,
+                daglige_befordringskilometer = afstand_km
+            ),
+            bruttoløn_kroner = bruttoløn_kroner
+        )
+        let context = PersonskatUnitIntervention(
+            lønstigning_kroner = 1 - retning,
+            afstandsstigning_km = retning
+        )
+    }
+    transition after = personskat_unit_advance(before, context)
+    where after after.bruttoløn_kroner <= 400000 &&
+    after.profil.daglige_befordringskilometer <= 200
+    where before personskat_unit_observation(before, context).input_gyldigt
+    where after personskat_unit_observation(after, context).input_gyldigt
+    find resource_losses = violations of personskat_unit_observation(
+        after,
+        context
+    ).netto_øre >= personskat_unit_observation(before, context).netto_øre
+    results losses from find resource_losses {
+        each case
+        measure [loss_ore = personskat_unit_loss_ore(before, after, context)]
+        select [case_id, intervention = context, before, after, loss_ore]
+    }
+    results losses_by_intervention from find resource_losses {
+        group by [intervention = context]
+        aggregate [cases = count_distinct(case_id)]
+        select [intervention, cases]
+    }
+    mechanisms loss_paths from find resource_losses using personskat_unit_assess
+    results mechanisms_by_intervention from mechanisms loss_paths {
+        group by [intervention = context]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            cases = count_distinct(case_id)
+        ]
+        select [intervention, mechanisms, cases]
+    }
+}

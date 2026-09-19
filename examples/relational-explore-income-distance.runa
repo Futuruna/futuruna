@@ -1,0 +1,47 @@
+----
+Small executable demonstration of unit-edge exploration in two dimensions.
+This is a deliberately synthetic allowance, NOT Danish tax law.
+
+There are 20 * 20 starting states and two independent interventions per state:
++1 DKK salary or +1 km commute, for 800 declared directed edges. Successors may
+reach 20 on either axis. A one-point 5-DKK allowance creates two 4-DKK losses
+when an intervention leaves that point. The search must find both; matching a
+mechanism elsewhere must never hide the narrow allowance boundary.
+
+The mixed search can prove three entire chunks harmless and concretely classify
+the remaining 256-rank chunk. Results and mechanisms retain the intervention.
+See danish-income-tax/income-distance-exploration.md for the real-model query.
+----
+
+# Starter(income: Int, distance: Int)
+# Step(income: Int, distance: Int)
+
+> resources_ore(state: Starter, context: Step) -> Int {
+    state.income * 100 + state.distance * 100 +
+    (if state.income == 10 && state.distance == 3 { 500 } else { 0 })
+}
+
+> advance(state: Starter, context: Step) -> Starter {
+    Starter(state.income + context.income, state.distance + context.distance)
+}
+
+? explore income_distance_demo {
+    from {
+        vary income in range(0, 20)
+        vary distance in range(0, 20)
+        vary direction in range(0, 2)
+        let before = Starter(income, distance)
+        let context = Step(1 - direction, direction)
+    }
+
+    transition after = advance(before, context)
+    find losses = violations of resources_ore(after, context) >= resources_ore(before, context)
+
+    results cliffs from find losses {
+        each case
+        measure [loss_ore = resources_ore(before, context) - resources_ore(after, context)]
+        select [case_id, intervention = context, before, after, loss_ore]
+    }
+
+    mechanisms paths from find losses using resources_ore
+}

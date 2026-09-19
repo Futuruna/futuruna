@@ -1,10 +1,10 @@
 -- expect-command: emit-imports
 -- expect-status: pass
--- expect-stdout: root-exports: Color, exported_count, exported_label
+-- expect-stdout: root-exports: Color, Green, Red, exported_count, exported_label
 -- expect-stdout: root-constructors: Green, Red
--- expect-stdout: module-exports Alpha: Color, exported_count, exported_label
+-- expect-stdout: module-exports Alpha: Color, Green, Red, exported_count, exported_label
 -- expect-stdout: module-constructors Alpha: Green, Red
--- expect-stdout: module-exports Beta: Color, exported_count, exported_label
+-- expect-stdout: module-exports Beta: Color, Green, Red, exported_count, exported_label
 -- expect-stdout: module-constructors Beta: Green, Red
 -- expect-stdout-not: hidden_label
 -- expect-stdout-not: hidden_count

@@ -6,7 +6,7 @@
 
 Write laws, contracts, and policies you can run, test, and audit.
 
-[Version 0.1.1](Cargo.toml) · [futuruna.com](https://futuruna.com) ·
+[Version 0.2.0](Cargo.toml) · [futuruna.com](https://futuruna.com) ·
 [MIT License](LICENSE)
 
 ## What Futuruna does
