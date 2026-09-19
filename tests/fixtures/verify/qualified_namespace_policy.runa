@@ -1,0 +1,21 @@
+= private_bias = 101
+
+> hidden_step(value: Int) -> Int { if value == 1 { private_bias } else { 0 } }
+
+| hidden_rule(value: Int) -> hidden_step(value)
+
+@ export
+> collide(value: Int) -> Int { if value == 1 { 101 } else { 0 } }
+
+@ export
+> through_private_function(value: Int) -> Int { hidden_step(value) }
+
+@ export
+> through_private_rule(value: Int) -> Int { hidden_rule(value) }
+
+-- Namespace proof tests use globally total rules. Integer addition without
+-- bounds is intentionally not a canonical totality certificate.
+| family(value: Int) -> if value == 1 { 101 } else { 0 }
+| family(left: Int, right: Int) -> if left == 1 && right == 2 { 203 } else { 0 }
+
+@ export family

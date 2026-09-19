@@ -1,0 +1,65 @@
+@ sprog da
+
+@ importer ./kommunale - parametre
+
+----
+Et generelt gruppeekstremum-eksempel: find den kommune med den laveste
+kommuneskat for et år, men offentliggør kun gruppen, hvis satsen faktisk
+varierer mellem kommunerne.
+
+`kommune` er en selvstændigt varieret konfiguration. `skatteår` er gruppens
+nøgle. Ekstremummet sammenfatter alle matchende kommuner i gruppen, mens den
+kanoniske repræsentant vælger en konkret kommune med minimumssatsen. Det er
+derfor ikke et Personskat-særtilfælde; samme form kan gruppere efter enhver
+profil og sammenligne enhver heltalsmåling.
+----
+
+| kommuneskatte_kommune_har_parametre(
+    kommune: Kommune,
+    skatteår: Heltal
+) -> kommunale_parametre_for(skatteår, kommune).kommunekode > 0
+
+? explore laveste_kommuneskat_hvis_satserne_varierer {
+    over kommuneskatte_kommune_har_parametre(kommune, skatteår)
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        skatteår = 2026
+    }
+    output {
+        key [skatteår]
+        extrema [
+            kommuneskat_basispoint = kommunale_parametre_for(
+                skatteår,
+                kommune
+            ).kommuneskat_basispoint
+        ]
+        having varies(kommuneskat_basispoint)
+        show [
+            billigste_kommune = kommune,
+            repræsentativ_kommuneskat_basispoint = kommuneskat_basispoint
+        ]
+        representative minimize kommuneskat_basispoint
+    }
+}
+
+-- Negative control for the `iff` part: every municipality has the same fixed
+-- year, so this group is classified exactly but suppressed by `having varies`.
+? explore ingen_række_hvis_målingen_er_invariant {
+    over kommuneskatte_kommune_har_parametre(kommune, skatteår)
+    find matches
+    bounds {
+        kommune in values(Kommune)
+        skatteår = 2026
+    }
+    output {
+        key [skatteår]
+        extrema [kontrolværdi = skatteår]
+        having varies(kontrolværdi)
+        show [
+            repræsentativ_kommune = kommune,
+            repræsentativ_kontrolværdi = kontrolværdi
+        ]
+        representative minimize kontrolværdi
+    }
+}

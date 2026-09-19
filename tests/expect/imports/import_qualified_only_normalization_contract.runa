@@ -2,7 +2,7 @@
 -- expect-status: pass
 -- expect-stdout: root-exports: -
 -- expect-stdout: root-constructors: -
--- expect-stdout: module-exports Alpha: Color, exported_count, exported_label
+-- expect-stdout: module-exports Alpha: Color, Green, Red, exported_count, exported_label
 -- expect-stdout: module-constructors Alpha: Green, Red
 -- expect-stdout-not: hidden_label
 -- expect-stdout-not: hidden_count

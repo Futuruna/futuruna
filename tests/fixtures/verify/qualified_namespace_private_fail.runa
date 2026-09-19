@@ -1,0 +1,5 @@
+@ import Policy from ./qualified_namespace_policy
+
+= leaked = Policy.hidden_step(1)
+
+| private_module_callable_must_not_flatten: leaked -> leaked == 101

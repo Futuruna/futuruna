@@ -1,0 +1,7 @@
+-- A qualified consumer and the later root plain import share the same ADTs.
+-- Pattern matching must agree across interpreter and generated Rust.
+@ import Policy from ./import_mesh_policy
+@ import ./import_mesh_types
+
+@ print(Policy.decision(Plan("billing", "euwest", Review, [])))
+@ print(Policy.decision(Plan("edge", "useast", Ship, ["sync"])))

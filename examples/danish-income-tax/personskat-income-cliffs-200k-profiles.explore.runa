@@ -1,0 +1,361 @@
+@ sprog da
+
+@ importer ./personskat - income - cliffs - 200k.explore
+
+----
+First exact finite-profile Personskat cliff exploration.
+
+Question:
+Across four coherent starting profiles, which 100-DKK annual-salary promotions
+from zero through 200,000 DKK leave modeled after-tax resources lower after the
+promotion?
+
+The profile relation is exact rather than a hand-written candidate list.
+`values(Personskat200kProfile)` crosses church-tax status with the two declared
+personfradrag age states. That gives four profiles. Each is crossed with 2,000
+income coordinates whose lower salaries are 0, 100, ..., 199,900 DKK and whose
+single successor adds 100 DKK. The declared relation therefore contains
+exactly 4 * 2,000 = 8,000 transitions.
+
+`Before` contains the finite profile, every conditioned fact, both explicit
+representative birth dates, and gross salary. Evaluation selects 1990-01-01
+for the adult or married profile and 2010-01-01 for the under-18 unmarried
+profile. `Context` contains only the promotion intervention. `After` preserves
+all starter facts and applies that intervention.
+
+The finite profile is copied unchanged into exactly one `Before.profile` path,
+and the income coordinate reaches `Before.bruttoløn_kroner` through the
+injective map `coordinate * 100`. Those are proof inputs. Counts of selected
+cliffs, affected profiles, replayed mechanisms and 50-DKK loss bins are
+discovered outputs; none is asserted by this file.
+
+Both endpoints must pass the complete Personskat validity and reconciliation
+checks inherited from the conditioned 200k audit. A date-accepting no-pension
+constructor replaces that audit's hidden 1990 date, so this relation does not
+inherit its known birth-date coverage gap. Exact-empty cliff output would mean
+only that no declared 100-DKK endpoint edge is harmful in these four profiles.
+It would not prove the absence of a narrower within-bin cliff or cover profiles
+outside this finite relation.
+
+The imported Personskat model carries the legal-source provenance for the
+calculation. This file is a bounded model audit, not individual tax advice.
+----
+
+# Personskat200kProfile(
+    betaler_kirkeskat: Boolsk,
+    personfradrag_alder_status: PersonfradragAlderStatus
+)
+
+# Personskat200kConditionedScope(
+    skatteår: Heltal,
+    kommune: Kommune,
+    fyldt18_eller_gift_fødselsdato: Dato,
+    under18_ugift_fødselsdato: Dato,
+    har_anden_personlig_indkomst: Boolsk,
+    har_erhvervsbefordring: Boolsk,
+    har_ligningsfradrag: Boolsk,
+    har_pension: Boolsk,
+    har_kapitalindkomst: Boolsk,
+    har_aktieavance: Boolsk,
+    har_udenlandske_sociale_bidrag: Boolsk,
+    har_cfc_indkomst: Boolsk,
+    skatteforhold: PersonskatSkatteforholdInput,
+    underskudsforhold: PersonskatUnderskudsforholdInput,
+    har_ægtefælle: Boolsk,
+    har_ejendomsskatter: Boolsk,
+    har_fremført_negativ_aktieskat: Boolsk,
+    har_ligningslov33: Boolsk,
+    har_ligningslov33a: Boolsk,
+    har_årsopgørelse: Boolsk
+)
+
+# Personskat200kProfileState(
+    scope: Personskat200kConditionedScope,
+    profile: Personskat200kProfile,
+    bruttoløn_kroner: Heltal
+)
+
+# Personskat200kSalaryPromotion(lønstigning_kroner: Heltal)
+
+# Personskat200kProfileObservation(
+    netto_øre: Heltal,
+    input_gyldigt: Boolsk
+)
+
+| personskat_200k_profiles_scope_understøttet(
+    scope: Personskat200kConditionedScope
+) -> scope.skatteår == 2026 &&
+    scope.kommune == København &&
+    scope.fyldt18_eller_gift_fødselsdato == Dato(år = 1990, måned = 1, dag = 1) &&
+    scope.under18_ugift_fødselsdato == Dato(år = 2010, måned = 1, dag = 1) &&
+    scope.har_anden_personlig_indkomst == Falskt &&
+    scope.har_erhvervsbefordring == Falskt &&
+    scope.har_ligningsfradrag == Falskt &&
+    scope.har_pension == Falskt &&
+    scope.har_kapitalindkomst == Falskt &&
+    scope.har_aktieavance == Falskt &&
+    scope.har_udenlandske_sociale_bidrag == Falskt &&
+    scope.har_cfc_indkomst == Falskt &&
+    scope.skatteforhold == StandardSkatteforhold &&
+    scope.underskudsforhold == StandardUnderskudsforhold &&
+    scope.har_ægtefælle == Falskt &&
+    scope.har_ejendomsskatter == Falskt &&
+    scope.har_fremført_negativ_aktieskat == Falskt &&
+    scope.har_ligningslov33 == Falskt &&
+    scope.har_ligningslov33a == Falskt &&
+    scope.har_årsopgørelse == Falskt
+
+| personskat_200k_profiles_fødselsdato(
+    profile: Personskat200kProfile,
+    scope: Personskat200kConditionedScope
+) -> match profile.personfradrag_alder_status {
+    | Fyldt18EllerGift -> scope.fyldt18_eller_gift_fødselsdato
+    | Under18Ugift -> scope.under18_ugift_fødselsdato
+}
+
+| personskat_200k_profiles_ingen_pension(
+    fødselsdato: Dato
+) -> PersonskatPensionsInput(
+    fødselsdato = fødselsdato,
+    pbl18_indbetalinger = [],
+    pbl18_selvstændig_overskud = personskat_intet_selvstændigt_pensionsoverskud(),
+    pbl18_livrentevalg = Pbl18FordeltFradrag,
+    pbl14b_årsgrundlag = pbl14b_tomt_årsgrundlag(),
+    ambl_par2_stk1_nr5_årsgrundlag = ambl_par2_nr5_tomt_årsgrundlag(),
+    pbl15a_årsgrundlag = Pbl15AÅrsgrundlag(
+        afståelser = [],
+        ordninger = [],
+        kvalifikationsår = [],
+        tidligere_indbetalinger = []
+    ),
+    pbl15b_årsgrundlag = pbl15b_tomt_årsgrundlag(),
+    øvrige_pbl20_årsgrundlag = pbl20_tomt_årsgrundlag(),
+    aktiepensionsfradrag_valg = UdenAktiepensionsfradragIAktieindkomst
+)
+
+| personskat_200k_profiles_lønmodtager(
+    state: Personskat200kProfileState
+) -> PersonskatLønmodtagerInput(
+    skatteår = state.scope.skatteår,
+    kommune = state.scope.kommune,
+    bruttoløn_kroner = state.bruttoløn_kroner,
+    personlig_indkomst = personskat_ingen_personlig_indkomst(),
+    erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
+    ligningsfradrag = personskat_ingen_ligningsfradrag(),
+    pension = personskat_200k_profiles_ingen_pension(
+        personskat_200k_profiles_fødselsdato(state.profile, state.scope)
+    ),
+    personfradrag_alder_status = state.profile.personfradrag_alder_status,
+    betaler_kirkeskat = state.profile.betaler_kirkeskat
+)
+
+| personskat_200k_profiles_input(
+    state: Personskat200kProfileState
+) -> PersonskatInput(
+    lønmodtager = personskat_200k_profiles_lønmodtager(state),
+    kapitalindkomst = personskat_ingen_kapitalindkomst(),
+    aktieavance = personskat_ingen_aktieavance(),
+    udenlandske_sociale_bidrag = personskat_ingen_udenlandske_sociale_bidrag(),
+    cfc = personskat_ingen_cfc(),
+    skatteforhold = state.scope.skatteforhold,
+    underskudsforhold = state.scope.underskudsforhold,
+    ægtefælle = UdenÆgtefælle,
+    ejendomsskatter = ejendomsskattelov_ingen_person_årsfakta(),
+    negativ_aktieskat_fremførsel = personskat_ingen_fremført_negativ_aktieskat(),
+    ligningslov33 = personskat_uden_ligningslov33(),
+    årsopgørelse = UdenÅrsopgørelse
+)
+
+> personskat_200k_profiles_assess(
+    state: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> PersonskatBeregningResultat {
+    beregn_personskat(personskat_200k_profiles_input(state))
+}
+
+| personskat_200k_profiles_observation(
+    state: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> {
+    = resultat = personskat_200k_profiles_assess(state, context)
+    Personskat200kProfileObservation(
+        netto_øre = state.bruttoløn_kroner * 100 - resultat.slutskat_øre,
+        input_gyldigt = personskat_200k_audit_resultat_gyldigt(resultat)
+    )
+}
+
+| personskat_200k_profiles_apply_promotion(
+    before: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> Personskat200kProfileState(
+    scope = before.scope,
+    profile = before.profile,
+    bruttoløn_kroner = before.bruttoløn_kroner + context.lønstigning_kroner
+)
+
+| personskat_200k_profiles_ressourcer_falder_ikke(
+    before: Personskat200kProfileState,
+    after: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> personskat_200k_profiles_observation(after, context).netto_øre >=
+    personskat_200k_profiles_observation(before, context).netto_øre
+
+| personskat_200k_profiles_tab_øre(
+    before: Personskat200kProfileState,
+    after: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> personskat_200k_profiles_observation(before, context).netto_øre -
+    personskat_200k_profiles_observation(after, context).netto_øre
+
+| personskat_200k_profiles_tab_50_kroner_bin_start_øre(
+    before: Personskat200kProfileState,
+    after: Personskat200kProfileState,
+    context: Personskat200kSalaryPromotion
+) -> personskat_200k_profiles_tab_øre(before, after, context) / 5000 * 5000
+
+? explore personskat_income_cliffs_profile_lattice_100_dkk_grid_200k_2026 {
+    from {
+        given audit_scope = Personskat200kConditionedScope(
+            skatteår = 2026,
+            kommune = København,
+            fyldt18_eller_gift_fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+            under18_ugift_fødselsdato = Dato(år = 2010, måned = 1, dag = 1),
+            har_anden_personlig_indkomst = Falskt,
+            har_erhvervsbefordring = Falskt,
+            har_ligningsfradrag = Falskt,
+            har_pension = Falskt,
+            har_kapitalindkomst = Falskt,
+            har_aktieavance = Falskt,
+            har_udenlandske_sociale_bidrag = Falskt,
+            har_cfc_indkomst = Falskt,
+            skatteforhold = StandardSkatteforhold,
+            underskudsforhold = StandardUnderskudsforhold,
+            har_ægtefælle = Falskt,
+            har_ejendomsskatter = Falskt,
+            har_fremført_negativ_aktieskat = Falskt,
+            har_ligningslov33 = Falskt,
+            har_ligningslov33a = Falskt,
+            har_årsopgørelse = Falskt
+        )
+        vary profile in values(Personskat200kProfile)
+        vary bruttoløn_100_kroner_trin in range(0, 2000)
+        let before = Personskat200kProfileState(
+            scope = audit_scope,
+            profile = profile,
+            bruttoløn_kroner = bruttoløn_100_kroner_trin * 100
+        )
+        given context = Personskat200kSalaryPromotion(lønstigning_kroner = 100)
+    }
+
+    transition after = personskat_200k_profiles_apply_promotion(before, context)
+
+    where before personskat_200k_profiles_scope_understøttet(before.scope) &&
+    personskat_200k_profiles_observation(before, context).input_gyldigt
+    where after personskat_200k_profiles_observation(after, context).input_gyldigt
+    where transition context.lønstigning_kroner == 100 &&
+    after.scope == before.scope &&
+    after.profile == before.profile &&
+    after.bruttoløn_kroner ==
+    before.bruttoløn_kroner + context.lønstigning_kroner
+
+    find cliff_cases = violations of personskat_200k_profiles_ressourcer_falder_ikke(
+        before,
+        after,
+        context
+    )
+
+    results cliffs from find cliff_cases {
+        each case
+        measure [
+            loss_ore = personskat_200k_profiles_tab_øre(before, after, context)
+        ]
+        select [
+            case_id,
+            conditioned_scope = before.scope,
+            starting_profile = before.profile,
+            representative_birth_date = personskat_200k_profiles_fødselsdato(
+                before.profile,
+                before.scope
+            ),
+            transition_context = context,
+            gross_salary_before_kroner = before.bruttoløn_kroner,
+            gross_salary_after_kroner = after.bruttoløn_kroner,
+            loss_ore
+        ]
+    }
+
+    results cliff_summary from find cliff_cases {
+        group all
+        aggregate [
+            cases = count_distinct(case_id),
+            affected_profiles = count_distinct(before.profile),
+            affected_starting_states = count_distinct(before)
+        ]
+        select [cases, affected_profiles, affected_starting_states]
+    }
+
+    results declared_profile_lattice from sources {
+        group by [
+            starting_profile = before.profile,
+            conditioned_scope = before.scope,
+            transition_context = context
+        ]
+        aggregate [
+            income_coordinates = count_distinct(before.bruttoløn_kroner)
+        ]
+        select [
+            starting_profile,
+            conditioned_scope,
+            transition_context,
+            income_coordinates
+        ]
+    }
+
+    results cliff_profile_summary from find cliff_cases {
+        group by [starting_profile = before.profile]
+        aggregate [
+            cases = count_distinct(case_id),
+            starting_states = count_distinct(before)
+        ]
+        select [starting_profile, cases, starting_states]
+    }
+
+    mechanisms cliff_paths from find cliff_cases using personskat_200k_profiles_assess
+
+    results mechanism_summary from mechanisms cliff_paths {
+        group all
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            execution_profiles = count_distinct(execution_profile_id),
+            raw_signatures = count_distinct(signature_id),
+            explained_cases = count_distinct(case_id),
+            explained_starting_states = count_distinct(before)
+        ]
+        select [
+            mechanisms,
+            execution_profiles,
+            raw_signatures,
+            explained_cases,
+            explained_starting_states
+        ]
+    }
+
+    results mechanism_loss_bins_50_dkk from mechanisms cliff_paths {
+        group by [
+            bin_start_ore = personskat_200k_profiles_tab_50_kroner_bin_start_øre(
+                before,
+                after,
+                context
+            )
+        ]
+        aggregate [
+            mechanisms = count_distinct(structural_mechanism_id),
+            raw_signatures = count_distinct(signature_id),
+            cases = count_distinct(case_id),
+            starting_profiles = count_distinct(before.profile)
+        ]
+        select [bin_start_ore, mechanisms, raw_signatures, cases, starting_profiles]
+    }
+
+    transitions case_graph from all cases
+}

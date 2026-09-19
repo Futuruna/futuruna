@@ -3,6 +3,7 @@
 website/target/
 .runa-build/
 .playwright-cli/
+/personskat-income-cliffs-native-*.experiment
 
 # Deploy output
 /deploy/
