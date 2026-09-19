@@ -1425,14 +1425,14 @@ fn artifact_presentation_digest(
                 digest.text(b"group-key-name", &column.name);
             }
         }
-        PublicationArtifactPlan::MechanismSupportObservationDemands { aliases, .. } => {
-            digest.count(b"demand-alias-count", aliases.len());
-            for (ordinal, alias) in aliases.iter().enumerate() {
-                digest.count(b"demand-alias-ordinal", ordinal);
-                digest.text(b"demand-alias-name", &alias.name);
-                digest.bytes(b"demand-alias-id", &alias.demand_id);
-                digest.bytes(b"demand-slice-id", &alias.slice.id().bytes());
-            }
+        PublicationArtifactPlan::MechanismSupportObservationDemands { .. } => {
+            // Demand aliases are current manifest navigation, not fields in
+            // the append-only registration records. Binding the whole alias
+            // set here makes a late observation invalidate the old prefix.
+            // Record identities/slices remain journal-authenticated; target
+            // address, artifact name/path and every published byte remain
+            // bound independently. FIND/result renames still fail closed.
+            digest.text(b"demand-alias-authority", "current-manifest");
         }
         PublicationArtifactPlan::SubjectStarters { authorization, .. }
         | PublicationArtifactPlan::CaseTransitions { authorization, .. } => {
@@ -14219,6 +14219,68 @@ mod tests {
             finds,
             artifacts,
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn observation_demand_aliases_do_not_rename_the_registration_stream() {
+        let request_id = MechanismRequestId::from_journal_codec_bytes([0x41; 32]);
+        let question_id = QuestionId::from_journal_codec_bytes([0x21; 32]);
+        let slice = MechanismSupportSlice::total(MechanismSupportKey::from_journal_codec_parts(
+            request_id,
+            MechanismTargetId::Selected,
+            MechanismSupportSubject::Mechanism(StructuralMechanismId::from_journal_codec_bytes(
+                [0x51; 32],
+            )),
+        ));
+        let artifact = |aliases| PublicationArtifactPlan::MechanismSupportObservationDemands {
+            key: "demands:paths".into(),
+            name: "paths_demands".into(),
+            path: PathBuf::from("mechanisms/paths.demands.ndjson"),
+            request_id,
+            target: PublicationMechanismTarget {
+                target: MechanismTargetId::Selected,
+                question_id,
+                authored_name: "interesting".into(),
+            },
+            demand_set_id: [0; 32],
+            aliases,
+            observations_artifact_key: "observations:paths".into(),
+            observations_artifact_path: "mechanisms/paths.observations.ndjson".into(),
+        };
+        let baseline = artifact(Box::new([]));
+        let attached = artifact(
+            vec![SupportObservationDemandAlias {
+                name: "late_observation".into(),
+                demand_id: [0x61; 32],
+                slice,
+            }]
+            .into_boxed_slice(),
+        );
+        assert_eq!(
+            artifact_presentation_digest(&baseline).unwrap(),
+            artifact_presentation_digest(&attached).unwrap()
+        );
+        let finds = [PublicationFindPlan {
+            name: "interesting".into(),
+            question_id,
+        }];
+        assert_eq!(
+            derive_publication_presentation_plan_digest("query", &finds, &[baseline]).unwrap(),
+            derive_publication_presentation_plan_digest("query", &finds, &[attached.clone()])
+                .unwrap(),
+        );
+        let mut renamed = attached.clone();
+        let PublicationArtifactPlan::MechanismSupportObservationDemands { target, .. } =
+            &mut renamed
+        else {
+            unreachable!()
+        };
+        target.authored_name = "renamed_find".into();
+        assert_ne!(
+            artifact_presentation_digest(&attached).unwrap(),
+            artifact_presentation_digest(&renamed).unwrap()
+        );
     }
 
     #[cfg(unix)]

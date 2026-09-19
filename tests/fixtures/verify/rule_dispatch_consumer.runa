@@ -12,6 +12,8 @@
 
 | overloaded_result() -> True
 | overloaded_result(value: Int) -> value + 1
+| overloaded_result(left: Int, right: Int) -> if right > 0 { left } else { right }
+| boolean_argument(value: Bool) -> value
 
 | conflicting_result(value: Int) -> value
 | conflicting_result(value: Int) -> True under value > 0
@@ -47,9 +49,14 @@
     doubled
 }
 
+| block_identity(amount: Int) -> {
+    = copied = amount
+    copied
+}
+
 | partial_value(amount: Int) -> 1 under amount > 0
 
-| recursive_value(amount: Int) -> recursive_value(amount - 1) under amount > 0
+| recursive_value(amount: Int) -> recursive_value(amount) under amount > 0
 | recursive_value(amount: Int) -> 0
 
 = imported_six = imported_band(amount = 6)
@@ -75,6 +82,8 @@
 | scoped_exception_precedes_conditions: scoped_exception -> scoped_exception == 99
 | boolean_overload_is_well_sorted: overloaded_result() -> overloaded_result()
 | integer_overload_is_well_sorted: overloaded_result(41) -> overloaded_result(41) == 42
+| total_integer_overload_is_well_sorted: overloaded_result(41, 1) -> overloaded_result(41, 1) == 41
+| free_int_is_not_boolean: boolean_argument(amount) -> True
 | imported_exception_is_symbolic: imported_band(amount) -> if amount > 8 { imported_band(amount) == 80 } else { True }
 | first_guard_is_symbolic: ordered_band(amount) -> if amount > 8 { ordered_band(amount) == 70 } else { True }
 | constructor_payload_head_is_lowered: paper_value -> paper_value == 42
@@ -82,6 +91,7 @@
 | literal_heads_are_lowered: literal_eight -> literal_eight == 80 && literal_nine == 0
 | constructor_payload_is_symbolic: filing_value(Paper(code)) -> filing_value(Paper(code)) == code
 | sequential_rule_block_is_symbolic: block_value(amount) -> block_value(amount) == (amount + 1) * 2
+| total_sequential_rule_block_is_symbolic: block_identity(amount) -> block_identity(amount) == amount
 | partial_dispatch_is_rejected: partial_value(amount) -> partial_value(amount) >= 0
 | recursive_dispatch_is_rejected: recursive_value(amount) -> recursive_value(amount) >= 0
 | higher_order_dispatch_is_rejected: higher_order_projected -> higher_order_projected == 42

@@ -267,19 +267,36 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
             "scoped_first_overlapping_guard_wins",
             "scoped_exception_precedes_conditions",
             "boolean_overload_is_well_sorted",
-            "integer_overload_is_well_sorted",
+            "total_integer_overload_is_well_sorted",
             "imported_exception_is_symbolic",
             "first_guard_is_symbolic",
             "constructor_payload_head_is_lowered",
             "named_constructor_head_is_lowered",
             "literal_heads_are_lowered",
             "constructor_payload_is_symbolic",
-            "sequential_rule_block_is_symbolic",
+            "total_sequential_rule_block_is_symbolic",
         ] {
             assert!(
                 stdout.contains(&format!("PROVED: |{invariant}| holds for all values")),
                 "missing proof for {invariant}:\n{stdout}"
             );
+        }
+        for (invariant, family) in [
+            ("integer_overload_is_well_sorted", "overloaded_result"),
+            ("sequential_rule_block_is_symbolic", "block_value"),
+        ] {
+            let section = stdout
+                .split(&format!("--- | {invariant} ---"))
+                .nth(1)
+                .and_then(|section| section.split("--- |").next())
+                .expect("arithmetic invariant section");
+            assert!(
+                section.contains(&format!(
+                    "cannot prove every return clause and guard of rule `{family}`"
+                )),
+                "unbounded integer arithmetic must not acquire a totality certificate: {section}"
+            );
+            assert!(!section.contains("PROVED:"));
         }
         assert!(
             stdout.contains("COUNTEREXAMPLE found for |intentional_wrong_order_claim|"),
@@ -303,10 +320,12 @@ fn verify_lowers_scoped_and_imported_rule_dispatch_to_smt() {
         );
         assert!(
             stdout.contains(
-                "rule `projected` has a higher-order parameter that is not translatable to first-order SMT"
+                "cannot prove every return clause and guard of rule `HigherOrderCase.projected`"
             ),
             "higher-order rule parameters must fail closed with a precise diagnostic:\n{stdout}"
         );
+        assert!(stdout.contains("SMT argument 1 to rule `boolean_argument` has type `Int` but its canonical schema is `Bool`"),
+            "an unbound invariant Int must not be retyped to fit a Bool parameter: {stdout}");
         assert!(
             stdout.contains(
                 "rule `conflicting_result` with arity 1 has conflicting return types `Int` and `Bool`"

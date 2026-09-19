@@ -6,8 +6,13 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Mutex;
 
 static NEXT_TEMP_DIR_ID: AtomicU64 = AtomicU64::new(0);
+// Each public CLI owns a host-resource watchdog. Concurrent test invocations
+// compete for the same host runway; serialize these end-to-end transactions,
+// without disabling their production admission or containment policy.
+static EXPLORE_HOST: Mutex<()> = Mutex::new(());
 
 struct TestDirectory(PathBuf);
 
@@ -50,7 +55,43 @@ fn dependent_fiber_fixture() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("examples/relational-explore-dependent-fibers.runa")
 }
 
-fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> Output {
+fn replace_once(source: &str, from: &str, to: &str) -> String {
+    assert_eq!(source.matches(from).count(), 1, "fixture drift: {from}");
+    source.replacen(from, to, 1)
+}
+
+fn single_find_fixture(temp: &TestDirectory) -> PathBuf {
+    // The automatic typed case-transition projection intentionally requires
+    // exactly one FIND. Keep its additive-attachment regression separate from
+    // the plural-question public contract exercised below.
+    let source = std::fs::read_to_string(fixture()).unwrap();
+    let source = replace_once(&source, "    find all_cases = all\n", "");
+    let source = replace_once(&source, "    results all_case_summary from find all_cases {\n        group all\n        aggregate [cases = count_distinct(case_id)]\n        select [cases]\n    }\n", "");
+    let path = temp.path().join("single-find.runa");
+    std::fs::write(&path, source).unwrap();
+    path
+}
+
+struct ExploreRun {
+    invocations: Vec<Output>,
+}
+
+impl ExploreRun {
+    fn appended(&self, path: &[&str]) -> u64 {
+        self.invocations
+            .iter()
+            .map(|output| {
+                let report = parse_invocation(output);
+                path.iter()
+                    .fold(&report, |value, key| &value[*key])
+                    .as_u64()
+                    .expect("reported append count")
+            })
+            .sum()
+    }
+}
+
+fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> ExploreRun {
     run_explore_query(
         fixture,
         "relational_stream_nonempty_smoke",
@@ -59,26 +100,63 @@ fn run_explore(fixture: &Path, run_state: &Path, output: &Path) -> Output {
     )
 }
 
-fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Path) -> Output {
-    Command::new(runa())
-        .args([
-            "explore",
-            fixture.to_str().expect("UTF-8 Explore fixture path"),
-            "--query",
-            query,
-            "--run-state",
-            run_state.to_str().expect("UTF-8 run-state path"),
-            "--output",
-            output.to_str().expect("UTF-8 output path"),
-            "--time-limit",
-            "5m",
-            "--json",
-        ])
-        .output()
-        .expect("run public relational Explore command")
+fn run_explore_query(fixture: &Path, query: &str, run_state: &Path, output: &Path) -> ExploreRun {
+    // Resource pauses are valid public outcomes even on an otherwise idle
+    // shared host. Resume them through the real CLI within one bounded test
+    // budget, preserving each original report rather than forging a combined
+    // report. Assertions sum append counters across every invocation.
+    let started = std::time::Instant::now();
+    let budget = std::time::Duration::from_secs(300);
+    let mut invocations = Vec::new();
+    loop {
+        let remaining = budget.saturating_sub(started.elapsed());
+        let time_limit = format!("{}s", remaining.as_secs().max(1));
+        let result = Command::new(runa())
+            .args([
+                "explore",
+                fixture.to_str().expect("UTF-8 Explore fixture path"),
+                "--query",
+                query,
+                "--run-state",
+                run_state.to_str().expect("UTF-8 run-state path"),
+                "--output",
+                output.to_str().expect("UTF-8 output path"),
+                "--time-limit",
+                &time_limit,
+                "--json",
+            ])
+            .output()
+            .expect("run public relational Explore command");
+        let retry = result.status.success() && {
+            let report = parse_invocation(&result);
+            report["run"]["lifecycle"] == "paused"
+                && matches!(
+                    report["run"]["pause_reason"]["code"].as_str(),
+                    Some("resource_reserve_backoff" | "telemetry_provider_unavailable")
+                )
+        };
+        invocations.push(result);
+        let delay = std::time::Duration::from_secs(5);
+        if !retry || invocations.len() >= 6 || budget.saturating_sub(started.elapsed()) <= delay {
+            return ExploreRun { invocations };
+        }
+        eprintln!(
+            "resuming {query} after host-resource pause (invocation {})",
+            invocations.len()
+        );
+        std::thread::sleep(delay);
+    }
 }
 
-fn parse_stdout(output: &Output) -> Value {
+fn parse_stdout(run: &ExploreRun) -> Value {
+    parse_invocation(
+        run.invocations
+            .last()
+            .expect("at least one public invocation"),
+    )
+}
+
+fn parse_invocation(output: &Output) -> Value {
     serde_json::from_slice(&output.stdout).unwrap_or_else(|error| {
         panic!(
             "invalid Explore JSON: {error}\nstdout:\n{}\nstderr:\n{}",
@@ -88,18 +166,37 @@ fn parse_stdout(output: &Output) -> Value {
     })
 }
 
-fn assert_success(output: &Output) {
-    assert!(
-        output.status.success(),
-        "stdout:\n{}\nstderr:\n{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr)
-    );
+fn assert_success(run: &ExploreRun) {
+    for output in &run.invocations {
+        assert!(
+            output.status.success(),
+            "stdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
 
 fn assert_exact_count(count: &Value, expected: &str) {
     assert_eq!(count["status"], "exact", "count was not exact: {count}");
     assert_eq!(count["value"], expected, "unexpected exact count: {count}");
+}
+
+fn named_find<'a>(section: &'a Value, name: &str) -> &'a Value {
+    section["finds"]
+        .as_array()
+        .expect("named FIND entries")
+        .iter()
+        .find(|find| find["name"] == name)
+        .unwrap_or_else(|| panic!("missing FIND {name}: {section}"))
+}
+
+fn assert_complete(report: &Value) {
+    assert_eq!(
+        report["run"]["lifecycle"], "complete",
+        "Explore did not finish: {}",
+        report["run"]
+    );
 }
 
 fn analysis_layer<'a>(report: &'a Value, kind: &str, name: &str) -> &'a Value {
@@ -127,6 +224,22 @@ fn answer_result<'a>(report: &'a Value, name: &str) -> &'a Value {
         .iter()
         .find(|result| result["name"] == name)
         .unwrap_or_else(|| panic!("missing answer result view `{name}`"))
+}
+
+fn stable_answer(report: &Value) -> Value {
+    let mut answer = report["answer"].clone();
+    for result in answer["result_views"]
+        .as_array_mut()
+        .expect("answer results")
+    {
+        // This is an invocation delta, not part of the durable answer. A
+        // fresh publication appends rows; its no-work reopen appends none.
+        result["counts"]
+            .as_object_mut()
+            .expect("result counts")
+            .remove("projection_records_appended");
+    }
+    answer
 }
 
 fn read_json(path: &Path) -> Value {
@@ -211,8 +324,84 @@ fn snapshot_files(root: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
     files
 }
 
+fn assert_reopened_snapshot(
+    actual: &BTreeMap<PathBuf, Vec<u8>>,
+    expected: &BTreeMap<PathBuf, Vec<u8>>,
+) {
+    fn first_difference(actual: &Value, expected: &Value, path: String) -> Option<String> {
+        if actual == expected {
+            return None;
+        }
+        match (actual, expected) {
+            (Value::Object(a), Value::Object(b)) if a.keys().eq(b.keys()) => a
+                .iter()
+                .find_map(|(key, value)| first_difference(value, &b[key], format!("{path}.{key}"))),
+            (Value::Array(a), Value::Array(b)) if a.len() == b.len() => a
+                .iter()
+                .zip(b)
+                .enumerate()
+                .find_map(|(i, (a, b))| first_difference(a, b, format!("{path}[{i}]"))),
+            _ => Some(format!("{path}: actual {actual}, expected {expected}")),
+        }
+    }
+    assert!(
+        actual.keys().eq(expected.keys()),
+        "publication file set changed"
+    );
+    for (path, bytes) in actual {
+        if bytes != &expected[path] {
+            let detail = match (
+                serde_json::from_slice::<Value>(bytes),
+                serde_json::from_slice::<Value>(&expected[path]),
+            ) {
+                (Ok(a), Ok(mut b)) => {
+                    if path == Path::new("manifest.json") {
+                        // Reopen authenticates a saved region closure instead
+                        // of deriving it again. Only this receipt provenance
+                        // changes; roots/counts and every artifact byte must
+                        // remain identical.
+                        for artifact in b["artifacts"].as_array_mut().unwrap() {
+                            if artifact["kind"] == "subject_support_regions" {
+                                let restored = a["artifacts"]
+                                    .as_array()
+                                    .unwrap()
+                                    .iter()
+                                    .find(|candidate| candidate["key"] == artifact["key"])
+                                    .unwrap();
+                                assert_eq!(
+                                    restored["layer_roots"]["receipt_source"],
+                                    "authenticated_artifact_closure"
+                                );
+                                assert!(matches!(
+                                    artifact["layer_roots"]["receipt_source"].as_str(),
+                                    Some(
+                                        "derived_bounded_projection"
+                                            | "authenticated_artifact_closure"
+                                    )
+                                ));
+                                artifact["layer_roots"]["receipt_source"] =
+                                    Value::String("authenticated_artifact_closure".into());
+                            }
+                        }
+                        if a == b {
+                            continue;
+                        }
+                    }
+                    first_difference(&a, &b, "$".into())
+                        .unwrap_or_else(|| "JSON encoding changed".into())
+                }
+                _ => "published bytes changed".into(),
+            };
+            panic!("{}: {detail}", path.display());
+        }
+    }
+}
+
 #[test]
 fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("empty-state");
@@ -226,10 +415,19 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
     );
     assert_success(&output);
     let report = parse_stdout(&output);
-    assert_eq!(report["run"]["lifecycle"], "complete");
-    assert_exact_count(&report["counts"]["selected"], "0");
-    assert_eq!(report["answer"]["find_frontier_closed"], true);
-    assert_exact_count(&report["answer"]["counts"]["selected_cases"], "0");
+    assert_complete(&report);
+    assert_exact_count(
+        &named_find(&report["counts"], "impossible")["selected"],
+        "0",
+    );
+    assert_eq!(
+        named_find(&report["answer"], "impossible")["frontier_closed"],
+        true
+    );
+    assert_exact_count(
+        &named_find(&report["answer"], "impossible")["selected_cases"],
+        "0",
+    );
     assert_eq!(report["publication"]["caught_up"], true);
 
     let manifest = read_json(&output_directory.join("manifest.json"));
@@ -250,6 +448,9 @@ fn relational_explore_cli_closes_an_empty_case_transition_graph_exactly() {
 
 #[test]
 fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("absent-mechanism-state");
@@ -278,7 +479,7 @@ fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() 
     let output = run_explore(&projected_fixture, &run_state, &output_directory);
     assert_success(&output);
     let report = parse_stdout(&output);
-    assert_eq!(report["run"]["lifecycle"], "complete");
+    assert_complete(&report);
     assert_eq!(report["publication"]["caught_up"], true);
 
     let manifest = read_json(&output_directory.join("manifest.json"));
@@ -380,6 +581,9 @@ fn relational_explore_cli_publishes_an_absent_closed_mechanism_as_exact_empty() 
 
 #[test]
 fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exactly() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("transition-graph-recovery-state");
@@ -395,12 +599,12 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
             "where transition after == before + 1",
             "where transition before == 0 || before == 2",
             1,
-        )
-        .replacen(
-            "find matches of before < 0",
-            "find matches of before == 2",
-            1,
         );
+    let bounded_query = replace_once(
+        &bounded_query,
+        "find impossible = matches of before < 0",
+        "find impossible = matches of before == 2",
+    );
     let nonuniform_source = format!("{}{bounded_query}", &fixture_source[..query_start]);
     let nonuniform_fixture = temp
         .path()
@@ -415,7 +619,12 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     );
     assert_success(&initial);
     let initial_report = parse_stdout(&initial);
-    assert_eq!(initial_report["run"]["lifecycle"], "complete");
+    assert_complete(&initial_report);
+    assert_exact_count(&initial_report["counts"]["admitted"], "2");
+    assert_exact_count(
+        &named_find(&initial_report["counts"], "impossible")["selected"],
+        "1",
+    );
 
     let closing_brace = nonuniform_source
         .rfind('}')
@@ -436,8 +645,11 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     );
     assert_success(&attached);
     let attached_report = parse_stdout(&attached);
-    assert_eq!(attached_report["run"]["lifecycle"], "complete");
-    assert_eq!(attached_report["run"]["appended"]["semantic_events"], 0);
+    assert_complete(&attached_report);
+    assert_eq!(
+        attached.appended(&["run", "appended", "semantic_events"]),
+        0
+    );
 
     let manifest_path = output_directory.join("manifest.json");
     let manifest_before_recovery = read_json(&manifest_path);
@@ -473,8 +685,7 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
         BTreeSet::from([
             "D_C_cases",
             "D_T_transitions",
-            "M_C_cases",
-            "M_T_transitions",
+            "M_by_question",
             "U_C_cases",
             "U_T_transitions",
             "state_nodes",
@@ -505,16 +716,23 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     // pending publication cursor committed either line. Reopening must replay
     // the durable journal, reconstruct the projection, authenticate the tail,
     // and adopt the exact bytes without appending or rewriting them.
-    let cursor_path = output_directory.join(".publication-cursor-v13.json");
+    let cursor_path = output_directory.join(".publication-cursor-v20.json");
     let mut cursor = read_json(&cursor_path);
     let artifact_key = graph_artifact_before_recovery["key"]
         .as_str()
         .expect("semantic transition graph artifact key");
     let final_graph_cursor = cursor["artifacts"][artifact_key].clone();
     let mut genesis = Sha256::new();
-    genesis.update(b"futuruna.explore.publication-prefix.v13");
+    genesis.update(b"futuruna.explore.publication-prefix.v18");
     genesis.update((artifact_key.len() as u64).to_be_bytes());
     genesis.update(artifact_key.as_bytes());
+    let presentation_digest = final_graph_cursor["presentation_digest"]
+        .as_str()
+        .expect("artifact presentation digest");
+    assert_eq!(presentation_digest.len(), 64);
+    for index in (0..64).step_by(2) {
+        genesis.update([u8::from_str_radix(&presentation_digest[index..index + 2], 16).unwrap()]);
+    }
     let genesis = genesis
         .finalize()
         .iter()
@@ -527,6 +745,7 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     cursor["artifacts"][artifact_key] = serde_json::json!({
         "kind": "semantic_transition_graph",
         "path": graph_artifact_before_recovery["path"].clone(),
+        "presentation_digest": presentation_digest,
         "source": {
             "kind": "flat",
             "next_source_ordinal": "0",
@@ -567,8 +786,9 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
     );
     assert_success(&resumed);
     let resumed_report = parse_stdout(&resumed);
-    assert_eq!(resumed_report["run"]["appended"]["semantic_events"], 0);
-    assert_eq!(resumed_report["publication"]["lines_appended"], 0);
+    assert_complete(&resumed_report);
+    assert_eq!(resumed.appended(&["run", "appended", "semantic_events"]), 0);
+    assert_eq!(resumed.appended(&["publication", "lines_appended"]), 0);
     assert_eq!(
         std::fs::read(&graph_path).expect("read recovered graph publication"),
         graph_bytes_before_recovery,
@@ -606,6 +826,9 @@ fn relational_explore_cli_recovers_pending_unmaterialized_graph_publication_exac
 
 #[test]
 fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let fixture = dependent_fiber_fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("dependent-fibers-state");
@@ -620,15 +843,18 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
     assert_success(&output);
     let first = parse_stdout(&output);
 
-    assert_eq!(first["run"]["lifecycle"], "complete");
+    assert_complete(&first);
     assert_eq!(first["coverage"]["relation_closed"], true);
-    assert_eq!(first["coverage"]["find_closed"], true);
+    assert_eq!(named_find(&first["coverage"], "all_cases")["closed"], true);
     assert_eq!(first["coverage"]["analysis_closed"], true);
     assert_exact_count(&first["counts"]["sources"], "4");
     assert_exact_count(&first["counts"]["cases"], "4");
     assert_exact_count(&first["counts"]["admitted"], "4");
-    assert_exact_count(&first["counts"]["selected"], "4");
-    assert_exact_count(&first["counts"]["not_selected"], "0");
+    assert_exact_count(&named_find(&first["counts"], "all_cases")["selected"], "4");
+    assert_exact_count(
+        &named_find(&first["counts"], "all_cases")["not_selected"],
+        "0",
+    );
 
     let mechanisms = analysis_layer(&first, "mechanisms", "dependent_paths");
     assert_eq!(mechanisms["status"], "mechanism_closed");
@@ -733,7 +959,7 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
         "dependent mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 13 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 20 && row["record"]["kind"] == "mechanism_support_observation"
     }));
     let automatic_slice_id = support_observations
         .iter()
@@ -794,7 +1020,7 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
     );
     assert_eq!(
         audit_lineage["question_id"],
-        manifest["identity"]["question_id"]
+        named_find(&first["counts"], "all_cases")["question_id"]
     );
     assert_eq!(
         audit_lineage["source_coverage_manifest_digest"],
@@ -817,10 +1043,19 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
     );
     assert_success(&resumed_output);
     let resumed = parse_stdout(&resumed_output);
-    assert_eq!(resumed["run"]["lifecycle"], "complete");
-    assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
-    assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
-    assert_eq!(resumed["publication"]["lines_appended"], 0);
+    assert_complete(&resumed);
+    assert_eq!(
+        resumed_output.appended(&["run", "appended", "semantic_batches"]),
+        0
+    );
+    assert_eq!(
+        resumed_output.appended(&["run", "appended", "semantic_events"]),
+        0
+    );
+    assert_eq!(
+        resumed_output.appended(&["publication", "lines_appended"]),
+        0
+    );
     assert_eq!(resumed["query"]["identity"], identity);
     assert_eq!(resumed["run"]["checkpoint"], checkpoint);
     assert_eq!(
@@ -831,8 +1066,11 @@ fn relational_explore_cli_closes_dependent_source_and_successor_fibers_exactly()
 
 #[test]
 fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexploration() {
-    let fixture = fixture();
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let temp = TestDirectory::new();
+    let fixture = single_find_fixture(&temp);
     let run_state = temp.path().join("state");
     let output_directory = temp.path().join("output");
 
@@ -840,27 +1078,34 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_success(&first_output);
     let first = parse_stdout(&first_output);
 
-    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v7");
-    assert_eq!(first["schema_version"], 7);
+    assert_eq!(first["schema"], "futuruna.explore.relational-stream.v11");
+    assert_eq!(first["schema_version"], 11);
     assert_eq!(first["query"]["name"], "relational_stream_nonempty_smoke");
-    assert_eq!(first["run"]["lifecycle"], "complete");
+    assert_complete(&first);
     assert!(first["run"].get("preparation_wall_milliseconds").is_none());
     assert!(first["run"].get("slice_budget_milliseconds").is_none());
-    assert!(
-        first["run"]["appended"]["semantic_events"]
-            .as_u64()
-            .expect("semantic event count")
-            > 0
-    );
+    assert!(first_output.appended(&["run", "appended", "semantic_events"]) > 0);
     assert_exact_count(&first["counts"]["cases"], "4");
-    assert_exact_count(&first["counts"]["selected"], "2");
-    assert_exact_count(&first["counts"]["not_selected"], "2");
+    assert_exact_count(
+        &named_find(&first["counts"], "interesting")["selected"],
+        "2",
+    );
+    assert_exact_count(
+        &named_find(&first["counts"], "interesting")["not_selected"],
+        "2",
+    );
 
-    assert_eq!(first["answer"]["population"], "selected_before_after_cases");
-    assert_eq!(first["answer"]["find_frontier_closed"], true);
+    assert_eq!(first["answer"]["population"], "before_after_cases");
+    assert_eq!(
+        named_find(&first["answer"], "interesting")["frontier_closed"],
+        true
+    );
     assert_eq!(first["answer"]["analysis_frontier_closed"], true);
     assert_eq!(first["answer"]["source_coverage_has_gaps"], false);
-    assert_exact_count(&first["answer"]["counts"]["selected_cases"], "2");
+    assert_exact_count(
+        &named_find(&first["answer"], "interesting")["selected_cases"],
+        "2",
+    );
     assert_exact_count(&first["answer"]["counts"]["admitted_cases"], "4");
     let answer_paths = answer_mechanism(&first, "paths");
     assert_exact_count(&answer_paths["counts"]["structural_mechanisms"], "1");
@@ -958,7 +1203,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
 
     let manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(manifest["schema_version"], 13);
+    assert_eq!(manifest["schema_version"], 20);
     for key in [
         "version",
         "manifest_digest",
@@ -980,10 +1225,10 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
     assert_eq!(
         manifest["publication_cursor"]["file"],
-        ".publication-cursor-v13.json"
+        ".publication-cursor-v20.json"
     );
-    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v13.json"));
-    assert_eq!(publication_cursor["schema_version"], 13);
+    let publication_cursor = read_json(&output_directory.join(".publication-cursor-v20.json"));
+    assert_eq!(publication_cursor["schema_version"], 20);
     let report_artifacts = first["publication"]["artifacts"]
         .as_array()
         .expect("report publication artifacts");
@@ -1025,7 +1270,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(selected_records.len(), 2);
     let mut selected_values_by_case = BTreeMap::new();
     for selected in &selected_records {
-        assert_eq!(selected["schema_version"], 13);
+        assert_eq!(selected["schema_version"], 20);
         assert_eq!(selected["record"]["kind"], "selected_case");
         assert_eq!(selected["record"]["row_id"]["kind"], "case");
         assert_eq!(selected["record"]["values"]["case_id"]["kind"], "case_id");
@@ -1361,7 +1606,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         "mechanism must publish at least one support observation"
     );
     assert!(support_observations.iter().all(|row| {
-        row["schema_version"] == 13 && row["record"]["kind"] == "mechanism_support_observation"
+        row["schema_version"] == 20 && row["record"]["kind"] == "mechanism_support_observation"
     }));
     let automatic_slice_ids = support_observations
         .iter()
@@ -1561,8 +1806,8 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     ));
     let case_support_closure = case_support
         .iter()
-        .find(|record| record["record"]["kind"] == "closure")
-        .expect("case-support closure");
+        .find(|record| record["record"]["kind"] == "seal")
+        .expect("case-support seal");
     assert_eq!(
         case_support_closure["record"]["exact_logical_case_count"],
         "4"
@@ -1578,12 +1823,12 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         .as_u64()
         .expect("first artifact count");
 
-    // Model a completed publication-v13 cursor created before the automatic
+    // Model a completed publication-v20 cursor created before the automatic
     // case-transition consumer existed. The cursor remains authenticated by
     // the unchanged journal and prior artifact prefixes; removing the derived
     // graph entry/file and stale manifest exercises the additive-extension
     // path without altering semantic evidence.
-    let cursor_path = output_directory.join(".publication-cursor-v13.json");
+    let cursor_path = output_directory.join(".publication-cursor-v20.json");
     let mut legacy_cursor = read_json(&cursor_path);
     assert!(legacy_cursor["artifacts"]
         .as_object_mut()
@@ -1628,9 +1873,15 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_success(&attached_output);
     let attached = parse_stdout(&attached_output);
 
-    assert_eq!(attached["run"]["lifecycle"], "complete");
-    assert_eq!(attached["run"]["appended"]["semantic_batches"], 0);
-    assert_eq!(attached["run"]["appended"]["semantic_events"], 0);
+    assert_complete(&attached);
+    assert_eq!(
+        attached_output.appended(&["run", "appended", "semantic_batches"]),
+        0
+    );
+    assert_eq!(
+        attached_output.appended(&["run", "appended", "semantic_events"]),
+        0
+    );
     assert_eq!(
         attached["run"]["checkpoint"]["next_sequence"],
         first_next_sequence
@@ -1640,22 +1891,42 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
         first_journal_head
     );
     assert_eq!(attached["query"]["identity"], first["query"]["identity"]);
-    assert_eq!(attached["answer"], first["answer"]);
-    assert_eq!(attached["publication"]["lines_appended"], 7);
-    assert_eq!(attached["publication"]["source_ordinals_advanced"], 7);
+    assert_eq!(stable_answer(&attached), stable_answer(&first));
+    let attached_manifest = read_json(&output_directory.join("manifest.json"));
+    let region_records = read_ndjson(&named_artifact_path(
+        &attached_manifest,
+        &output_directory,
+        "subject_support_regions",
+        "selected_activation_node_in_path_regions",
+    ));
+    assert_eq!(
+        region_records.first().unwrap()["record"]["kind"],
+        "subject_support_regions_header"
+    );
+    let region_closure = &region_records.last().unwrap()["record"];
+    assert_eq!(region_closure["kind"], "subject_support_regions_closure");
+    assert_exact_count(&region_closure["counts"]["total_cases"], "2");
+    assert_exact_count(&region_closure["counts"]["total_distinct_starters"], "2");
+    assert_eq!(
+        attached_output.appended(&["publication", "lines_appended"]),
+        7 + region_records.len() as u64
+    );
+    assert_eq!(
+        attached_output.appended(&["publication", "source_ordinals_advanced"]),
+        7 + region_records.len() as u64
+    );
     assert_eq!(attached["publication"]["caught_up"], true);
     assert_eq!(
         attached["publication"]["artifact_count"],
-        first_artifact_count + 1
+        first_artifact_count + 2
     );
 
-    let attached_manifest = read_json(&output_directory.join("manifest.json"));
-    assert_eq!(attached_manifest["schema_version"], 13);
+    assert_eq!(attached_manifest["schema_version"], 20);
     for identity_key in [
         "checked_program",
         "relation_id",
         "admission_id",
-        "question_id",
+        "question_ids",
         "analysis_graph_digest",
         "journal_id",
     ] {
@@ -1761,7 +2032,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     assert_eq!(starter_records.len(), 3);
     assert!(starter_records
         .iter()
-        .all(|record| record["schema_version"] == 13));
+        .all(|record| record["schema_version"] == 20));
     assert!(starter_records
         .iter()
         .all(|record| record["artifact"] == starter_artifact["key"]));
@@ -1881,7 +2152,7 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
 
     let published_after_attachment = snapshot_files(&output_directory);
     for (path, before) in &published_before_attachment {
-        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v13.json") {
+        if path == Path::new("manifest.json") || path == Path::new(".publication-cursor-v20.json") {
             continue;
         }
         assert_eq!(
@@ -1902,15 +2173,22 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
             PathBuf::from("graphs/case-transitions.ndjson"),
             PathBuf::from("manifest.json"),
             PathBuf::from("starters/selected_activation_node_in_path.ndjson"),
+            PathBuf::from("starters/selected_activation_node_in_path.regions.ndjson"),
         ]
     );
 
     let resumed_output = run_explore(&projected_fixture, &run_state, &output_directory);
     assert_success(&resumed_output);
     let resumed = parse_stdout(&resumed_output);
-    assert_eq!(resumed["run"]["lifecycle"], "complete");
-    assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
-    assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
+    assert_complete(&resumed);
+    assert_eq!(
+        resumed_output.appended(&["run", "appended", "semantic_batches"]),
+        0
+    );
+    assert_eq!(
+        resumed_output.appended(&["run", "appended", "semantic_events"]),
+        0
+    );
     assert_eq!(
         resumed["run"]["checkpoint"]["next_sequence"],
         first_next_sequence
@@ -1921,17 +2199,26 @@ fn relational_explore_cli_attaches_route_conditioned_node_starters_without_reexp
     );
     assert_eq!(resumed["query"]["identity"], first["query"]["identity"]);
     assert_eq!(resumed["answer"], attached["answer"]);
-    assert_eq!(resumed["publication"]["lines_appended"], 0);
-    assert_eq!(resumed["publication"]["source_ordinals_advanced"], 0);
-    assert_eq!(resumed["publication"]["caught_up"], true);
     assert_eq!(
-        snapshot_files(&output_directory),
-        published_after_attachment
+        resumed_output.appended(&["publication", "lines_appended"]),
+        0
+    );
+    assert_eq!(
+        resumed_output.appended(&["publication", "source_ordinals_advanced"]),
+        0
+    );
+    assert_eq!(resumed["publication"]["caught_up"], true);
+    assert_reopened_snapshot(
+        &snapshot_files(&output_directory),
+        &published_after_attachment,
     );
 }
 
 #[test]
 fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation() {
+    let _host = EXPLORE_HOST
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     let fixture = fixture();
     let temp = TestDirectory::new();
     let run_state = temp.path().join("explicit-observation-state");
@@ -1940,8 +2227,44 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
     let baseline_output = run_explore(&fixture, &run_state, &output_directory);
     assert_success(&baseline_output);
     let baseline = parse_stdout(&baseline_output);
-    assert_eq!(baseline["run"]["lifecycle"], "complete");
+    assert_complete(&baseline);
     let baseline_manifest = read_json(&output_directory.join("manifest.json"));
+    assert_eq!(baseline["schema_version"], 11);
+    assert_eq!(baseline_manifest["schema_version"], 20);
+    assert_eq!(baseline["counts"]["finds"].as_array().unwrap().len(), 2);
+    let artifacts = baseline_manifest["artifacts"].as_array().unwrap();
+    assert!(artifacts
+        .iter()
+        .all(|artifact| artifact["kind"] != "selected_case_transition_graph"));
+    assert_eq!(
+        artifacts
+            .iter()
+            .filter(|artifact| artifact["kind"] == "case_support_graph")
+            .count(),
+        2
+    );
+    for (name, selected, not_selected) in [("all_cases", "4", "0"), ("interesting", "2", "2")] {
+        let find = named_find(&baseline["counts"], name);
+        assert_exact_count(&find["selected"], selected);
+        assert_exact_count(&find["not_selected"], not_selected);
+        let answer = named_find(&baseline["answer"], name);
+        assert_eq!(answer["frontier_closed"], true);
+        assert_eq!(answer["question_id"], find["question_id"]);
+        assert_exact_count(&answer["selected_cases"], selected);
+        let support = artifacts
+            .iter()
+            .find(|artifact| {
+                artifact["kind"] == "case_support_graph"
+                    && artifact["question_id"] == find["question_id"]
+            })
+            .unwrap();
+        assert_eq!(support["record_schema_version"], 5);
+        assert_eq!(support["graph_projection"]["frontier"]["status"], "exact");
+        assert_exact_count(
+            &support["graph_projection"]["counts"]["selected_cases"],
+            selected,
+        );
+    }
 
     let structural_support = read_ndjson(&artifact_path(
         &baseline_manifest,
@@ -1988,11 +2311,9 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
     let attached_output = run_explore(&demanded_fixture, &run_state, &output_directory);
     assert_success(&attached_output);
     let attached = parse_stdout(&attached_output);
-    assert_eq!(attached["run"]["lifecycle"], "complete");
+    assert_complete(&attached);
     assert!(
-        attached["run"]["appended"]["semantic_events"]
-            .as_u64()
-            .is_some_and(|events| events > 0),
+        attached_output.appended(&["run", "appended", "semantic_events"]) > 0,
         "late demand must durably register, backfill, and seal"
     );
     assert_eq!(attached["query"]["identity"], baseline["query"]["identity"]);
@@ -2035,7 +2356,7 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
         "checked_program",
         "relation_id",
         "admission_id",
-        "question_id",
+        "question_ids",
         "analysis_graph_digest",
         "journal_id",
     ] {
@@ -2134,7 +2455,7 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
     );
     assert_eq!(demand_records.len(), 1);
     let demand_record = &demand_records[0];
-    assert_eq!(demand_record["schema_version"], 13);
+    assert_eq!(demand_record["schema_version"], 20);
     assert_eq!(demand_record["source_ordinal"], "0");
     assert_eq!(
         demand_record["record"]["kind"],
@@ -2178,7 +2499,7 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
         .collect::<Vec<_>>();
     assert_eq!(explicit_points.len(), 1);
     let explicit_point = explicit_points[0];
-    assert_eq!(explicit_point["schema_version"], 13);
+    assert_eq!(explicit_point["schema_version"], 20);
     assert_eq!(explicit_point["record"]["status"]["kind"], "sealed");
     assert_eq!(explicit_point["record"]["target_frontier"], "closed");
     assert_exact_count(&explicit_point["record"]["case_support"]["count"], "2");
@@ -2200,14 +2521,22 @@ fn relational_explore_cli_attaches_and_resumes_explicit_node_support_observation
     let resumed_output = run_explore(&demanded_fixture, &run_state, &output_directory);
     assert_success(&resumed_output);
     let resumed = parse_stdout(&resumed_output);
-    assert_eq!(resumed["run"]["lifecycle"], "complete");
-    assert_eq!(resumed["run"]["appended"]["semantic_batches"], 0);
-    assert_eq!(resumed["run"]["appended"]["semantic_events"], 0);
-    assert_eq!(resumed["run"]["checkpoint"], attached_checkpoint);
-    assert_eq!(resumed["publication"]["lines_appended"], 0);
+    assert_complete(&resumed);
     assert_eq!(
-        snapshot_files(&output_directory),
-        published_after_attachment,
-        "reopening a sealed explicit demand must be byte-stable"
+        resumed_output.appended(&["run", "appended", "semantic_batches"]),
+        0
+    );
+    assert_eq!(
+        resumed_output.appended(&["run", "appended", "semantic_events"]),
+        0
+    );
+    assert_eq!(resumed["run"]["checkpoint"], attached_checkpoint);
+    assert_eq!(
+        resumed_output.appended(&["publication", "lines_appended"]),
+        0
+    );
+    assert_reopened_snapshot(
+        &snapshot_files(&output_directory),
+        &published_after_attachment,
     );
 }

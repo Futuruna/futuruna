@@ -3,10 +3,12 @@
 
 -- === VALUE-RETURNING FACTS (lookup tables) ===
 -- | with ground head + value body = Prolog-style functional lookup
+-- Author explicit missing-key values; native calls do not invent defaults.
 
 | capital("Denmark") -> "Copenhagen"
 | capital("Sweden") -> "Stockholm"
 | capital("France") -> "Paris"
+| capital(country) -> ""
 
 = c1 = capital("Denmark")
 @ print("capital(Denmark) = " + show(c1))
@@ -32,6 +34,7 @@
 | greeting("en") -> "Hello"
 | greeting("da") -> "Hej"
 | greeting("fr") -> "Bonjour"
+| greeting(language) -> ""
 
 = g1 = greeting("en")
 @ print("greeting(en) = " + show(g1))
@@ -57,6 +60,7 @@
 | port("http") -> 80
 | port("https") -> 443
 | port("ssh") -> 22
+| port(protocol) -> 0
 
 = p1 = port("http")
 @ print("port(http) = " + show(p1))
