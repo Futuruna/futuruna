@@ -189,7 +189,7 @@ Before handling tax information:
 - Explain that this is research software, not individual tax advice.
 - Ask the user to choose a private working directory outside the Git checkout.
 - Never commit or upload tax documents, generated workbooks, or personal results.
-- Do not guess missing facts and do not use the official calculated result as an input.
+- Do not guess missing facts or use the official calculated result as an input to an independent tax calculation. A separate conditional reconciliation may use explicitly labelled report observations, but its inferred amounts must never become verified source facts.
 - Futuruna does not import the Annual Tax Report PDF automatically. A person or AI must read it and transcribe the source facts.
 
 Start by reading:
@@ -198,7 +198,24 @@ Start by reading:
 - `examples/danish-income-tax/personskat.calculate.runa`
 - `docs/reference/calculations.md`
 
-Then inspect the calculation contract and generate an Excel workbook. Replace `PRIVATE_WORK_DIR` with the private directory chosen by the user:
+Choose the review route before generating a workbook. If the calculation uses
+Futuruna's spouse branch, an independent calculation needs the relevant spouse
+facts. A spouse's Annual Tax Report may help, but its absence must not prevent a
+useful review. Do not repeatedly request unavailable documents or invent the
+missing values.
+
+When those facts are unavailable, use the separate conditional workflow in
+`examples/danish-income-tax/aarsopgoerelse-afstemning.md`. Its
+`afstem_årsopgørelse` entry accepts selected observations from the user's own
+report and exposes the spouse transfers necessary for the income and tax totals
+to agree, checked legal bounds, discrepancies, and unresolved conditions. It
+also accounts for reported earlier refunds on amended assessments. This is
+mechanical reconciliation, not an independently verified spouse calculation;
+never describe `BetingetAfstemt` as proof that the tax report is legally correct.
+
+For an independent calculation with supported source facts, inspect the contract
+and generate an Excel workbook. Replace `PRIVATE_WORK_DIR` with the private
+directory chosen by the user:
 
 ```
 "$RUNA_BIN" schema examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --output PRIVATE_WORK_DIR/personskat-schema.json
@@ -206,8 +223,6 @@ Then inspect the calculation contract and generate an Excel workbook. Replace `P
 ```
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
-
-If the calculation uses Futuruna's spouse branch, the relevant spouse details are required for an accurate result. For additional clarity, ask whether the user can also provide the spouse's Annual Tax Report (Årsopgørelse).
 
 When the workbook is complete, run:
 

@@ -1,0 +1,310 @@
+//! Synthetic report observations only: none of these figures are taxpayer fixtures.
+//! A reconciliation must never certify the report's underlying legal facts.
+use serde_json::{json, Value};
+use std::path::PathBuf;
+use std::process::Command;
+
+const MODEL: &str = "examples/danish-income-tax/aarsopgoerelse-afstemning.calculate.runa";
+
+fn invoke(args: &[&str]) -> Value {
+    let output = Command::new(env!("CARGO_BIN_EXE_runa"))
+        .current_dir(env!("CARGO_MANIFEST_DIR"))
+        .env("FUTURUNA_CALCULATION_JOBS", "1")
+        .args(args)
+        .output()
+        .expect("execute runa");
+    assert!(
+        output.status.success(),
+        "runa {args:?}: {}\n{}",
+        String::from_utf8_lossy(&output.stderr),
+        String::from_utf8_lossy(&output.stdout)
+    );
+    serde_json::from_slice(&output.stdout).expect("calculation JSON")
+}
+
+fn baseline() -> Value {
+    json!({
+        "skatteår": 2023,
+        "kommune": {"$variant": "København"},
+        "betaler_kirkeskat": false,
+        "ægtefællens_kommune": null,
+        "gift_samlevende_ved_årets_udløb": null,
+        "indkomstbro": {
+            "personlig_indkomst_kroner": 400000,
+            "kapitalindkomst_kroner": -10000,
+            "ligningsmæssige_fradrag_kroner": 45000,
+            "skattepligtig_indkomst_kroner": 333000,
+            "øvrige_indkomstreguleringer_kroner": 0,
+            "oplyst_ægtefælleunderskud_kroner": 12000
+        },
+        "ægtefællenedslag": {
+            "statsligt_personfradrag_øre": 100000,
+            "kommunalt_personfradrag_øre": 200000,
+            "kirkeligt_personfradrag_øre": 0,
+            "negativ_kapitalindkomst_øre": 80000,
+            "eget_negativ_kapitalindkomstnedslag_øre": 80000
+        },
+        "skat": {
+            "poster_uden_ægtefællenedslag": [{"navn": "Syntetisk øvrig skat", "beløb_øre": 10200000}],
+            "poster_uden_ægtefællenedslag_komplette": true,
+            "oplyst_beregnet_skat_øre": 9820000
+        },
+        "betaling": {
+            "oplyst_forskudsskat_øre": 9900000,
+            "oplyst_beregnet_skat_øre": 9820000,
+            "oplyst_overskydende_skat_øre": 80000,
+            "korrektioner_til_udbetaling": [{"navn": "Oplyst godtgørelse", "beløb_øre": 1234}],
+            "korrektioner_komplette": true,
+            "oplyst_udbetaling_kroner": 812
+        }
+    })
+}
+
+fn condition<'a>(result: &'a Value, name: &str) -> &'a Value {
+    result["nødvendige_forudsætninger"]
+        .as_array()
+        .expect("conditions")
+        .iter()
+        .find(|value| value["navn"] == name)
+        .unwrap_or_else(|| panic!("missing condition {name}: {result}"))
+}
+
+fn control<'a>(result: &'a Value, name: &str) -> &'a Value {
+    result["kontroller"]
+        .as_array()
+        .expect("controls")
+        .iter()
+        .find(|value| value["navn"] == name)
+        .unwrap_or_else(|| panic!("missing control {name}: {result}"))
+}
+
+#[test]
+fn reports_expose_necessary_conditions_without_inventing_spouse_facts() {
+    let mut cases = Vec::new();
+    let mut expected = Vec::new();
+    let mut add = |name: &str, status: &str, edit: &dyn Fn(&mut Value)| {
+        let mut input = baseline();
+        edit(&mut input);
+        cases.push(json!({"case_id": name, "input": input}));
+        expected.push((name.to_string(), status.to_string()));
+    };
+    for year in 2023..=2026 {
+        add(&format!("year-{year}"), "BetingetAfstemt", &|v| {
+            v["skatteår"] = json!(year);
+        });
+    }
+    add("unknown-loss", "Ufuldstændig", &|v| {
+        v["indkomstbro"]["oplyst_ægtefælleunderskud_kroner"] = Value::Null;
+    });
+    add("unknown-all-transfers", "Ufuldstændig", &|v| {
+        for key in [
+            "statsligt_personfradrag_øre",
+            "kommunalt_personfradrag_øre",
+            "kirkeligt_personfradrag_øre",
+            "negativ_kapitalindkomst_øre",
+        ] {
+            v["ægtefællenedslag"][key] = Value::Null;
+        }
+    });
+    add("no-income-bridge", "Ufuldstændig", &|v| {
+        v["indkomstbro"] = Value::Null
+    });
+    add("incomplete-tax-lines", "Ufuldstændig", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag_komplette"] = json!(false);
+    });
+    add("empty-tax-lines", "Ufuldstændig", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag"] = json!([]);
+    });
+    add("incomplete-corrections", "Ufuldstændig", &|v| {
+        v["betaling"]["korrektioner_komplette"] = json!(false);
+    });
+    add("one-ore-transfer", "Modstrid", &|v| {
+        v["ægtefællenedslag"]["statsligt_personfradrag_øre"] = json!(100001);
+    });
+    add("one-ore-tax-section", "Modstrid", &|v| {
+        v["betaling"]["oplyst_beregnet_skat_øre"] = json!(9820001);
+    });
+    add("one-krone-payout", "Modstrid", &|v| {
+        v["betaling"]["oplyst_udbetaling_kroner"] = json!(813);
+    });
+    add("previous-refund", "BetingetAfstemt", &|v| {
+        v["betaling"]["korrektioner_til_udbetaling"]
+            .as_array_mut()
+            .unwrap()
+            .push(json!({"navn": "Tidligere udbetalt", "beløb_øre": -80000}));
+        v["betaling"]["oplyst_udbetaling_kroner"] = json!(12);
+    });
+    add("negative-settlement", "Ufuldstændig", &|v| {
+        v["betaling"]["korrektioner_til_udbetaling"] =
+            json!([{"navn": "Tidligere udbetalt", "beløb_øre": -90000}]);
+    });
+    add("restskat-with-positive-correction", "Ufuldstændig", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = json!(9819900);
+        v["betaling"]["oplyst_overskydende_skat_øre"] = json!(-100);
+    });
+    add("unknown-prepaid", "Ufuldstændig", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = Value::Null;
+    });
+    add("known-no-cohabitation", "Modstrid", &|v| {
+        v["gift_samlevende_ved_årets_udløb"] = json!(false);
+    });
+    add("known-no-spouse-no-transfers", "BetingetAfstemt", &|v| {
+        v["gift_samlevende_ved_årets_udløb"] = json!(false);
+        v["indkomstbro"]["skattepligtig_indkomst_kroner"] = json!(345000);
+        v["indkomstbro"]["oplyst_ægtefælleunderskud_kroner"] = json!(0);
+        for key in [
+            "statsligt_personfradrag_øre",
+            "kommunalt_personfradrag_øre",
+            "kirkeligt_personfradrag_øre",
+            "negativ_kapitalindkomst_øre",
+        ] {
+            v["ægtefællenedslag"][key] = json!(0);
+        }
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(9820000);
+    });
+    add("negative-own-capital-credit", "Modstrid", &|v| {
+        v["ægtefællenedslag"]["eget_negativ_kapitalindkomstnedslag_øre"] = json!(-1);
+    });
+    add("joint-capital-cap", "Modstrid", &|v| {
+        v["ægtefællenedslag"]["eget_negativ_kapitalindkomstnedslag_øre"] = json!(720001);
+    });
+    add("state-cap", "Modstrid", &|v| {
+        v["ægtefællenedslag"]["statsligt_personfradrag_øre"] = json!(578881);
+        // Preserve all arithmetic: the legal bound must independently catch this.
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(10678881);
+    });
+    add("church-without-church-tax", "Modstrid", &|v| {
+        v["ægtefællenedslag"]["kirkeligt_personfradrag_øre"] = json!(1);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(10200001);
+    });
+    add("loss-exceeds-positive-income", "Modstrid", &|v| {
+        v["indkomstbro"]["skattepligtig_indkomst_kroner"] = json!(-1);
+        v["indkomstbro"]["oplyst_ægtefælleunderskud_kroner"] = json!(345001);
+    });
+    add("different-spouse-municipality", "BetingetAfstemt", &|v| {
+        v["ægtefællens_kommune"] = json!({"$variant": "Ballerup"});
+        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1224000);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11224000);
+    });
+    add("known-spouse-municipal-cap", "Modstrid", &|v| {
+        v["ægtefællens_kommune"] = json!({"$variant": "Ballerup"});
+        v["ægtefællenedslag"]["kommunalt_personfradrag_øre"] = json!(1224001);
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["beløb_øre"] = json!(11224001);
+    });
+    add("duplicate-tax-posts", "UgyldigtRapportinput", &|v| {
+        let post = v["skat"]["poster_uden_ægtefællenedslag"][0].clone();
+        v["skat"]["poster_uden_ægtefællenedslag"]
+            .as_array_mut()
+            .unwrap()
+            .push(post);
+    });
+    add("duplicate-corrections", "UgyldigtRapportinput", &|v| {
+        let post = v["betaling"]["korrektioner_til_udbetaling"][0].clone();
+        v["betaling"]["korrektioner_til_udbetaling"]
+            .as_array_mut()
+            .unwrap()
+            .push(post);
+    });
+    add("overflow-bound", "UgyldigtRapportinput", &|v| {
+        v["betaling"]["oplyst_forskudsskat_øre"] = json!(i64::MAX);
+    });
+    add("blank-post-name", "UgyldigtRapportinput", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag"][0]["navn"] = json!("  ");
+    });
+    add("post-count-limit", "UgyldigtRapportinput", &|v| {
+        v["skat"]["poster_uden_ægtefællenedslag"] = json!((0..1001)
+            .map(|i| json!({"navn": format!("post-{i}"), "beløb_øre": 0}))
+            .collect::<Vec<_>>());
+    });
+    add(
+        "unsupported-year",
+        "IkkeUnderstøttetÅrEllerKommune",
+        &|v| {
+            v["skatteår"] = json!(2027);
+        },
+    );
+
+    let mut template = invoke(&["template", MODEL, "--format", "json"]);
+    template["cases"] = json!(cases);
+    let path: PathBuf = std::env::temp_dir().join(format!(
+        "futuruna-report-reconciliation-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::write(&path, serde_json::to_vec(&template).unwrap()).unwrap();
+    let output = invoke(&["call", MODEL, "--input", path.to_str().unwrap()]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(output["diagnostics"], json!([]));
+    let results = output["results"].as_array().expect("results");
+    assert_eq!(results.len(), expected.len());
+    for (case, (name, status)) in results.iter().zip(&expected) {
+        assert_eq!(case["case_id"], *name);
+        assert_eq!(
+            case["result"]["status"]["$variant"], *status,
+            "{name}: {case}"
+        );
+        assert_eq!(
+            case["result"]["uafhængig_skatteberegning_udført"], false,
+            "{name}"
+        );
+        assert!(!case["result"]["uafklaret"].as_array().unwrap().is_empty());
+    }
+    let get = |name: &str| &results.iter().find(|r| r["case_id"] == name).unwrap()["result"];
+    let loss_name = "Nødvendigt indkomstfradrag fra ægtefælle";
+    let total_name = "Nødvendig samlet skattenedsættelse fra ægtefælle";
+    assert_eq!(
+        condition(get("unknown-loss"), loss_name)["nødvendigt_beløb"],
+        12000
+    );
+    assert_eq!(
+        control(get("unknown-loss"), "Indkomstbro og ægtefælleunderskud")["oplyst"],
+        Value::Null
+    );
+    assert_eq!(
+        condition(get("unknown-all-transfers"), total_name)["nødvendigt_beløb"],
+        380000
+    );
+    assert_eq!(
+        condition(
+            get("year-2023"),
+            "Mindste grundlag bag ægtefællens overførte kapitalnedslag"
+        )["nødvendigt_beløb"],
+        10000
+    );
+    assert_eq!(
+        condition(
+            get("year-2023"),
+            "Ubrugt kommunal personfradragsværdi fra ægtefælle"
+        )["højst"],
+        Value::Null
+    );
+    assert_eq!(
+        condition(
+            get("different-spouse-municipality"),
+            "Ubrugt kommunal personfradragsværdi fra ægtefælle"
+        )["højst"],
+        1224000
+    );
+    assert_eq!(
+        control(
+            get("one-ore-transfer"),
+            "Samlet ægtefællenedslag i beregnet skat"
+        )["difference"],
+        1
+    );
+    assert_eq!(
+        control(
+            get("previous-refund"),
+            "Udbetaling efter oplyste korrektioner og hele kroner"
+        )["forventet"],
+        12
+    );
+    assert!(!get("incomplete-tax-lines")["nødvendige_forudsætninger"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|v| v["navn"] == total_name));
+}
