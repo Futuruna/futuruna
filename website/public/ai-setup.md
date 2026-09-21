@@ -224,6 +224,13 @@ directory chosen by the user:
 
 Use the field labels, questions, help, units, choices, and source traces in the generated contract to interview the user. Record only facts the user can support. Keep a list of unknown, ambiguous, and unsupported fields instead of filling them speculatively.
 
+The single-parent employment deduction requires facts about extra børnetilskud,
+not a deduction copied from the tax report or an inference from marital status.
+Its default is unknown; do not silently change it to no benefit received.
+Read `examples/danish-income-tax/ligningsloven-par9j-enlig.md` for quarter facts
+and migration of existing templates. This applies to an active spouse too;
+unavailable facts still permit the separate conditional reconciliation above.
+
 When the workbook is complete, run:
 
 ```

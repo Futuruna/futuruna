@@ -326,6 +326,7 @@
 )
 | personskat_ordinaer_scenario_beregn(input: PersonskatOrdinærPersonligIndkomstInput) -> beregn_personskat(personskat_ordinaer_scenario_personskat(input, personskat_ingen_ligningsfradrag()))
 | personskat_ordinaer_scenario_befordringsfradrag() -> PersonskatLigningsfradragInput(
+    enlig_forsørger = IntetEkstraBørnetilskud,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = ligningslov9g_intet_årsinput(),

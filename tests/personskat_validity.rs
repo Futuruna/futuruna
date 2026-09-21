@@ -59,10 +59,22 @@ fn commuting(days: i64) -> Value {
     })
 }
 
+fn single_parent(year: i64, quarters: &[i64]) -> Value {
+    json!({"$variant":"OplystEkstraBørnetilskud", "oplysninger_for_året_komplette":true,
+        "kvartaler": quarters.iter().map(|quarter| json!({"indkomstår":year,"kvartal":quarter,
+            "berettiget":true,"modtaget":true,"kildereference":"synthetic-benefit-record"})).collect::<Vec<_>>()})
+}
+
 #[test]
 fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     let mut template = run(&["template", MODEL, "--format", "json"]);
     let mut ordinary = template["cases"][0]["input"].clone();
+    assert_eq!(
+        ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"]["$variant"],
+        "EkstraBørnetilskudUoplyst"
+    );
+    ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
+        json!({"$variant":"IntetEkstraBørnetilskud"});
     ordinary["lønmodtager"]["skatteår"] = json!(2025);
     ordinary["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     ordinary["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
@@ -139,6 +151,54 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         v["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
         v["ægtefælle"]["fakta"]["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960);
     });
+    for (year, tax) in [
+        (2023, 21100050),
+        (2024, 20959383),
+        (2025, 20059404),
+        (2026, 19689030),
+    ] {
+        add(&format!("single-parent-{year}"), None, Some(tax), &|v| {
+            v["lønmodtager"]["skatteår"] = json!(year);
+            v["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
+                single_parent(year, &[1, 2, 3, 4]);
+        });
+    }
+    add("single-parent-half-year", None, Some(20280797), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2026);
+        v["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] = single_parent(2026, &[1, 2]);
+    });
+    add("senior-and-single-parent", None, Some(19546351), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2026);
+        v["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960);
+        v["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] = single_parent(2026, &[1, 2, 3, 4]);
+    });
+    add("single-parent-spouse", None, Some(20872564), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2026);
+        v["ægtefælle"] = spouse(v);
+        v["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+        v["ægtefælle"]["fakta"]["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
+            single_parent(2026, &[1, 2]);
+    });
+    for (name, fact) in [
+        (
+            "single-parent-unknown",
+            json!({"$variant":"EkstraBørnetilskudUoplyst"}),
+        ),
+        (
+            "single-parent-duplicate-quarter",
+            single_parent(2025, &[1, 1]),
+        ),
+        ("single-parent-wrong-year", single_parent(2024, &[1])),
+    ] {
+        add(
+            name,
+            Some("lønmodtager.ligningsfradrag.enlig_forsørger"),
+            None,
+            &|v| {
+                v["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] = fact.clone();
+            },
+        );
+    }
     add(
         "invalid-spouse-birth",
         Some("ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato"),
@@ -206,7 +266,10 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         if let Some(tax) = tax {
             assert_eq!(result["slutskat_øre"], tax, "{name}");
         }
-        let senior = matches!(name.as_str(), "senior-2026-1960" | "senior-2026-1961");
+        let senior = matches!(
+            name.as_str(),
+            "senior-2026-1960" | "senior-2026-1961" | "senior-and-single-parent"
+        );
         assert_eq!(
             result["skat"]["seniorbeskæftigelsesfradrag_kroner"],
             if senior { 6100 } else { 0 },
@@ -218,7 +281,11 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
             assert_eq!(result["skat"]["ekstra_pensionsfradrag_kroner"], 0);
             assert_eq!(
                 result["skat"]["samlede_ligningsmæssige_fradrag_kroner"],
-                72500
+                if name == "senior-and-single-parent" {
+                    123100
+                } else {
+                    72500
+                }
             );
         }
         if name == "senior-spouse" {
@@ -231,6 +298,28 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
                 result["ægtefælle"]["skat"]["ligningsfradrag"]
                     ["samlede_ligningsmæssige_fradrag_kroner"],
                 72500
+            );
+        }
+        let parent_deduction = match name.as_str() {
+            "single-parent-2023" => 24400,
+            "single-parent-2024" | "single-parent-half-year" => 25300,
+            "single-parent-2025" => 48300,
+            "single-parent-2026" | "senior-and-single-parent" => 50600,
+            _ => 0,
+        };
+        assert_eq!(
+            result["enligforsørgerfradrag"]["fradrag_kroner"], parent_deduction,
+            "{name}"
+        );
+        if name == "single-parent-spouse" {
+            assert_eq!(
+                result["ægtefælle"]["grundlag"]["enligforsørgerfradrag"]["fradrag_kroner"],
+                25300
+            );
+            assert_eq!(
+                result["ægtefælle"]["skat"]["ligningsfradrag"]
+                    ["samlede_ligningsmæssige_fradrag_kroner"],
+                91700
             );
         }
         assert!(gate["kontroller"].as_array().unwrap().len() >= 26);

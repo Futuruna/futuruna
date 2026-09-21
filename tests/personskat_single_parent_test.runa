@@ -1,0 +1,60 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / ligningsloven - par9j - enlig
+
+> enlig_kvartal(år: Heltal, nr: Heltal, ret: Boolsk, modtaget: Boolsk, kilde: Tekst) -> Ligningslov9JEnligKvartal {
+    Ligningslov9JEnligKvartal(indkomstår = år, kvartal = nr, berettiget = ret, modtaget = modtaget, kildereference = kilde)
+}
+> enlig_fakta(år: Heltal, antal: Heltal) -> Ligningslov9JEnligInput {
+    OplystEkstraBørnetilskud(kvartaler = map(range(1, antal + 1), |nr: Heltal| enlig_kvartal(år, nr, Sandt, Sandt, "syntetisk-ydelsesoversigt")), oplysninger_for_året_komplette = Sandt)
+}
+> enlig_grænse(år: Heltal, grundlag: Heltal, antal: Heltal, stk1: Boolsk, forventet: Heltal) -> Boolsk {
+    = resultat = ll9j_enlig_resultat(år, grundlag, stk1, enlig_fakta(år, antal))
+    resultat.input_gyldigt && resultat.berettigede_modtagelseskvartaler == antal && resultat.fradrag_kroner == forventet
+}
+= enlig_grænser = [
+    enlig_grænse(2023, 600000, 4, Sandt, 24400),
+    enlig_grænse(2024, 600000, 4, Sandt, 25300),
+    enlig_grænse(2025, 600000, 4, Sandt, 48300),
+    enlig_grænse(2026, 600000, 4, Sandt, 50600),
+    enlig_grænse(2026, 600000, 1, Sandt, 12650),
+    enlig_grænse(2026, 600000, 2, Sandt, 25300),
+    enlig_grænse(2026, 600000, 3, Sandt, 37950),
+    enlig_grænse(2026, 600000, 0, Sandt, 0),
+    enlig_grænse(2026, 100000, 4, Sandt, 11500),
+    enlig_grænse(2026, 100000, 1, Sandt, 2875),
+    enlig_grænse(2026, 439999, 4, Sandt, 50599),
+    enlig_grænse(2026, 440000, 4, Sandt, 50600),
+    enlig_grænse(2026, 440001, 4, Sandt, 50600),
+    enlig_grænse(2026, 0, 4, Sandt, 0),
+    enlig_grænse(2026, -1, 4, Sandt, 0),
+    enlig_grænse(2026, 600000, 4, Falskt, 0),
+    enlig_grænse(2026, 9223372036854775807, 4, Sandt, 50600),
+    enlig_grænse(2026, 50, 3, Sandt, 4)
+]
+= enlig_ugyldige = map([
+    EkstraBørnetilskudUoplyst,
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2026, 1, Sandt, Sandt, "a")], oplysninger_for_året_komplette = Falskt),
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2026, 1, Sandt, Sandt, "a"), enlig_kvartal(2026, 1, Sandt, Sandt, "b")], oplysninger_for_året_komplette = Sandt),
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2025, 1, Sandt, Sandt, "a")], oplysninger_for_året_komplette = Sandt),
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2026, 0, Sandt, Sandt, "a")], oplysninger_for_året_komplette = Sandt),
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2026, 5, Sandt, Sandt, "a")], oplysninger_for_året_komplette = Sandt),
+    OplystEkstraBørnetilskud(kvartaler = [enlig_kvartal(2026, 1, Sandt, Sandt, "   ")], oplysninger_for_året_komplette = Sandt)
+    ], |fakta: Ligningslov9JEnligInput| ll9j_enlig_resultat(2026, 600000, Sandt, fakta))
+= enlig_ret_og_modtagelse = ll9j_enlig_resultat(2026, 600000, Sandt, OplystEkstraBørnetilskud(
+    kvartaler = [enlig_kvartal(2026, 3, Sandt, Sandt, "a"), enlig_kvartal(2026, 1, Sandt, Falskt, "b"), enlig_kvartal(2026, 4, Falskt, Sandt, "c")],
+    oplysninger_for_året_komplette = Sandt
+))
+= enlig_ingen = ll9j_enlig_resultat(2026, 600000, Sandt, IntetEkstraBørnetilskud)
+= enlig_fremtid = ll9j_enlig_resultat(2027, 600000, Sandt, enlig_fakta(2027, 4))
+
+| enlig_årslofter_og_kvartaler: enlig_grænser -> all(enlig_grænser, |ok: Boolsk| ok)
+| enlig_ukendte_og_ugyldige_afskæres: enlig_ugyldige -> all(enlig_ugyldige, |r: Ligningslov9JEnligResultat| r.input_gyldigt == Falskt && r.fradrag_kroner == 0 && length(r.fejl) > 0)
+| enlig_kræver_både_ret_og_modtagelse: enlig_ret_og_modtagelse -> enlig_ret_og_modtagelse.input_gyldigt && enlig_ret_og_modtagelse.berettigede_modtagelseskvartaler == 1 && enlig_ret_og_modtagelse.fradrag_kroner == 12650
+| enlig_afklaret_nul_er_gyldigt: enlig_ingen -> enlig_ingen.input_gyldigt && enlig_ingen.oplysninger_afklarede && enlig_ingen.fradrag_kroner == 0
+| enlig_ukendt_fremtidigt_loft: enlig_fremtid -> enlig_fremtid.regelgrundlag_understøttet == Falskt && enlig_fremtid.input_gyldigt == Falskt
+
+? enlig_årslofter_og_kvartaler
+? enlig_ukendte_og_ugyldige_afskæres
+? enlig_kræver_både_ret_og_modtagelse
+? enlig_afklaret_nul_er_gyldigt
+? enlig_ukendt_fremtidigt_loft

@@ -51,8 +51,10 @@ The capped regression's tax delta does not depend on fractional rounding.
 This does not extend the canonical model's year/jurisdiction support or fix its
 existing limitations in foreign-employer fact routing. It reuses the current
 ordinary employment-deduction basis, including modeled self-employed income;
-it is not a new audit of every income category. Single-parent, service and
-handyman deductions remain separate coverage work.
+it is not a new audit of every income category. The
+[single-parent deduction](ligningsloven-par9j-enlig.md) is composed separately
+and requires benefit facts. Service and handyman deductions remain separate
+coverage work.
 
 Focused checks:
 

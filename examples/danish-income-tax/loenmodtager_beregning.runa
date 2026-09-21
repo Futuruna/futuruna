@@ -89,6 +89,22 @@ omfang som nævnt i ligningslovens § 8 M,
 | ligningslov_9j_9k_9l_resultat_for(input: LønmodtagerInput) -> ll9j_9k_9l_fradrag_resultat(ligningslov_9j_9k_9l_input_for(input))
 | beskæftigelsesfradrag_for(input: LønmodtagerInput) -> ligningslov_9j_9k_9l_resultat_for(input).beskæftigelsesfradrag_kroner
 > seniorbeskæftigelsesfradrag_for(input: LønmodtagerInput) -> Heltal { ligningslov_9j_9k_9l_resultat_for(input).seniorbeskæftigelsesfradrag.fradrag_kroner }
+> enligforsørgerfradrag_for(input: LønmodtagerInput, fakta: Ligningslov9JEnligInput) -> Ligningslov9JEnligResultat {
+    ll9j_enlig_resultat(input.skatteår, lønmodtager_ligningsfradragsgrundlag_kroner(input), ll9j_almindeligt_beskæftigelsesfradrag_berettiget(ll9j_9k_9l_9j_input(ligningslov_9j_9k_9l_input_for(input))), fakta)
+}
+> lønmodtager_med_enligforsørgerfradrag(input: LønmodtagerInput, fradrag: Ligningslov9JEnligResultat) -> LønmodtagerInput {
+    LønmodtagerInput(
+        skatteår = input.skatteår,
+        kommune = input.kommune,
+        bruttoløn_kroner = input.bruttoløn_kroner,
+        øvrig_personlig_indkomst_kroner = input.øvrig_personlig_indkomst_kroner,
+        nettokapitalindkomst_kroner = input.nettokapitalindkomst_kroner,
+        ligningsmæssige_fradrag_kroner = input.ligningsmæssige_fradrag_kroner + hvis fradrag.input_gyldigt && fradrag.skatteår == input.skatteår { fradrag.fradrag_kroner } ellers { 0 },
+        pensionsfradrag = input.pensionsfradrag,
+        personfradrag_alder_status = input.personfradrag_alder_status,
+        betaler_kirkeskat = input.betaler_kirkeskat
+    )
+}
 | jobfradrag_for(input: LønmodtagerInput) -> ligningslov_9j_9k_9l_resultat_for(input).jobfradrag_kroner
 | ekstra_pensionsfradrag_for(input: LønmodtagerInput) -> ligningslov_9j_9k_9l_resultat_for(input).ekstra_pensionsfradrag_kroner
 | standard_ligningsmæssige_fradrag_for(input: LønmodtagerInput) -> ligningslov_9j_9k_9l_resultat_for(input).samlet_fradrag_kroner

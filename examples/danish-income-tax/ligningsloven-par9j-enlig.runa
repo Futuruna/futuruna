@@ -1,0 +1,105 @@
+@ sprog da
+@ importer ./metadata
+@ importer ./pengebeloeb
+
+# Ligningslov9JEnligKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= ll9j_enlig_kilde = Ligningslov9JEnligKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 9 J, stk. 3-4; 2025-satsen indført ved lov 482 af 22. maj 2024", hentet_dato = "2026-09-21")
+= ll9j_enlig_kildemeta = Source(value = ll9j_enlig_kilde)
+--@label:ll9j_enlig::meta:ll9j_enlig_kildemeta--
+----
+Ved enlige forsørgere forstås i denne bestemmelse personer, der er berettiget
+til og modtager ekstra børnetilskud efter lov om børnetilskud og forskudsvis
+udbetaling af børnebidrag.
+
+Den angivne procent kan fradrages med en fjerdedel for hvert kvartal, for
+hvilket de enlige forsørgere får det ekstra børnetilskud.
+
+Fradraget kan højst udgøre grundbeløbet i stk. 4.
+----
+-- Forarbejderne til L 194 (2011-12), almindelige og specielle bemærkninger,
+-- beskriver en fjerdedel af indkomstårets samlede ekstra beskæftigelsesfradrag
+-- pr. kvartal. Derfor fordeles det begrænsede årsfradrag, ikke kun satsen.
+-- https://www.retsinformation.dk/eli/ft/201112L00194
+-- Kontrollerede årssatser/lofter (2026-09-21):
+-- 2023: 6,25 %, 24.400 kr.; 2024: 6,25 %, 25.300 kr.
+-- https://svmn.dk/tal-og-metode/satser/tidsserier/centrale-beloebsgraenser-i-skattelovgivningen-2018-2024
+-- https://www.retsinformation.dk/eli/lta/2023/42 (§ 9 J, stk. 4)
+-- 2025: 11,5 %, 48.300 kr.; 2026: 11,5 %, 50.600 kr.
+-- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
+-- Hele kroner projiceres nedad som i den eksisterende § 9 J-model; den
+-- administrative afrunding er et særskilt dokumenteret kontrolpunkt.
+
+-- Ukendt står først, så genererede skabeloner ikke hævder, at en ydelse er nul.
+# Ligningslov9JEnligInput = EkstraBørnetilskudUoplyst | IntetEkstraBørnetilskud | OplystEkstraBørnetilskud(kvartaler: List(Ligningslov9JEnligKvartal), oplysninger_for_året_komplette: Boolsk)
+# Ligningslov9JEnligKvartal(indkomstår: Heltal, kvartal: Heltal, berettiget: Boolsk, modtaget: Boolsk, kildereference: Tekst)
+# Ligningslov9JEnligResultat(skatteår: Heltal, regelgrundlag_understøttet: Boolsk, oplysninger_afklarede: Boolsk, kvartalsfakta_gyldige: Boolsk, input_gyldigt: Boolsk, fejl: List(Tekst), kvartaler: List(Ligningslov9JEnligKvartal), berettigede_modtagelseskvartaler: Heltal, omfattet_af_stk1: Boolsk, grundlag_kroner: Heltal, sats_basispoint: Heltal, årsloft_kroner: Heltal, helårsfradrag_kroner: Heltal, fradrag_kroner: Heltal)
+
+--@begin:ll9j_enlig--
+> ll9j_enlig_kvartaler(input: Ligningslov9JEnligInput) -> List(Ligningslov9JEnligKvartal) {
+    match input {
+        | OplystEkstraBørnetilskud(kvartaler, _) -> kvartaler
+        | _ -> []
+    }
+}
+> ll9j_enlig_afklaret(input: Ligningslov9JEnligInput) -> Boolsk {
+    match input {
+        | EkstraBørnetilskudUoplyst -> Falskt
+        | IntetEkstraBørnetilskud -> Sandt
+        | OplystEkstraBørnetilskud(_, komplette) -> komplette
+    }
+}
+> ll9j_enlig_resultat(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, omfattet_af_stk1: Boolsk, input: Ligningslov9JEnligInput) -> Ligningslov9JEnligResultat {
+    = understøttet = skatteår >= 2023 && skatteår <= 2026
+    = afklaret = ll9j_enlig_afklaret(input)
+    = kvartaler = ll9j_enlig_kvartaler(input)
+    = kvartalsfakta_gyldige = length(kvartaler) <= 4 && all(kvartaler, |k: Ligningslov9JEnligKvartal| k.indkomstår == skatteår && k.kvartal >= 1 && k.kvartal <= 4 && trim(k.kildereference) != "" && length(filter(kvartaler, |anden: Ligningslov9JEnligKvartal| anden.kvartal == k.kvartal)) == 1)
+    = gyldigt = understøttet && afklaret && kvartalsfakta_gyldige
+    = antal = length(filter(kvartaler, |k: Ligningslov9JEnligKvartal| k.berettiget && k.modtaget))
+    = sats = hvis skatteår == 2023 || skatteår == 2024 { 625 } ellers hvis skatteår == 2025 || skatteår == 2026 { 1150 } ellers { 0 }
+    = loft = hvis skatteår == 2023 { 24400 } ellers hvis skatteår == 2024 { 25300 } ellers hvis skatteår == 2025 { 48300 } ellers hvis skatteår == 2026 { 50600 } ellers { 0 }
+    = grundlag = penge_positivt_beløb(arbejdsmarkedsbidragsgrundlag_kroner)
+    -- Bevar brøken frem til kvartalsfordelingen; begræns før multiplikation.
+    = helårs_tæller = hvis understøttet && omfattet_af_stk1 {
+        hvis grundlag >= (loft * 10000 + sats - 1) / sats { loft * 10000 } ellers { grundlag * sats }
+    } ellers { 0 }
+    = fejl = concat(concat(
+        hvis understøttet { [] } ellers { ["Årets satser er ikke dækket; brug ikke et andet års loft."] },
+        hvis afklaret { [] } ellers { ["Ekstra børnetilskud er ikke afklaret for hele året; ukendt er ikke nul."] }
+        ), hvis kvartalsfakta_gyldige { [] } ellers { ["Kvartaler skal være unikke 1-4 i beregningsåret og have en kildereference."] })
+    Ligningslov9JEnligResultat(
+        skatteår = skatteår,
+        regelgrundlag_understøttet = understøttet,
+        oplysninger_afklarede = afklaret,
+        kvartalsfakta_gyldige = kvartalsfakta_gyldige,
+        input_gyldigt = gyldigt,
+        fejl = fejl,
+        kvartaler = kvartaler,
+        berettigede_modtagelseskvartaler = antal,
+        omfattet_af_stk1 = omfattet_af_stk1,
+        grundlag_kroner = grundlag,
+        sats_basispoint = sats,
+        årsloft_kroner = loft,
+        helårsfradrag_kroner = hvis gyldigt { helårs_tæller / 10000 } ellers { 0 },
+        fradrag_kroner = hvis gyldigt { helårs_tæller * antal / 40000 } ellers { 0 }
+    )
+}
+--@end:ll9j_enlig--
+
+= ll9j_enlig_inputmeta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::$variant), label = "Ekstra børnetilskud og enligforsørgerfradrag", question = Some("Modtog du ekstra børnetilskud fra Udbetaling Danmark i indkomståret, og er forholdet afklaret for hele året?"), help = Some("Vælg uoplyst ved tvivl. Ugift eller børn er ikke i sig selv bevis for ret til fradraget. Ingen ydelse skal bekræftes, ikke antages."), unit = None),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::OplystEkstraBørnetilskud::oplysninger_for_året_komplette), label = "Hele årets forhold er afklaret", question = Some("Er også kvartaler uden modtagelse afklaret?"), help = Some("Et ufuldstændigt svar kan ikke bruges som et fuldstændigt nulfradrag."), unit = None),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligInput::OplystEkstraBørnetilskud::kvartaler), label = "Kvartaler med oplyst børnetilskud", question = Some("Hvilke kvartaler dækker oplysningerne fra Udbetaling Danmark?"), help = Some("Én række pr. kvartal, ikke pr. barn eller betaling. Det er ydelsens kvartal, ikke betalingsdatoens kvartal, der bruges."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll9j_enlig_kilde)
+)
+--@label:Ligningslov9JEnligInput::meta:ll9j_enlig_inputmeta--
+= ll9j_enlig_kvartalsmeta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::indkomstår), label = "Ydelsens indkomstår", question = Some("Hvilket år vedrører kvartalet?"), help = None, unit = Some("år")),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::kvartal), label = "Ydelsens kvartal", question = Some("Hvilket kvartal i året: 1, 2, 3 eller 4?"), help = None, unit = Some("kvartal")),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::berettiget), label = "Ret til ekstra børnetilskud", question = Some("Var der ret til ekstra børnetilskud for dette kvartal?"), help = Some("Brug ydelsesafgørelsen; udled ikke retten af civilstand alene."), unit = None),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::modtaget), label = "Ekstra børnetilskud modtaget", question = Some("Er ekstra børnetilskud modtaget for dette kvartal?"), help = Some("Ansøgning eller ret alene er ikke modtagelse."), unit = None),
+        TypetBeregningsfelt(path = refof(Ligningslov9JEnligKvartal::kildereference), label = "Kilde til ydelsesfakta", question = Some("Hvilken afgørelse eller ydelsesoversigt dokumenterer kvartalets oplysninger?"), help = Some("Lokal dokumenthenvisning; indtast ikke CPR-nummer. Modellen verificerer ikke dokumentets ægthed."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll9j_enlig_kilde)
+)
+--@label:Ligningslov9JEnligKvartal::meta:ll9j_enlig_kvartalsmeta--
