@@ -1341,6 +1341,7 @@ fn personskatteloven_xlsx_boundary_round_trips_source_fact_cases() {
             fixture.to_str().expect("fixture path"),
             "--format",
             "xlsx",
+            "--all-tables",
             "--output",
             input_path.to_str().expect("input path"),
         ]);
@@ -21241,6 +21242,7 @@ fn xlsx_relational_tables_round_trip_nested_collections_and_isolate_bad_cases() 
         source_path.to_str().expect("source path"),
         "--format",
         "xlsx",
+        "--all-tables",
         "--output",
         input_path.to_str().expect("input path"),
     ]);
@@ -21479,6 +21481,7 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
         source_path.to_str().expect("source path"),
         "--format",
         "xlsx",
+        "--all-tables",
         "--output",
         input_path.to_str().expect("input path"),
     ]);
@@ -21642,6 +21645,286 @@ fn xlsx_payload_variants_expand_into_typed_columns_and_child_tables() {
                     .as_str()
                     .is_some_and(|message| message.contains("collection table is inactive"))
         }));
+}
+
+#[test]
+fn xlsx_sparse_sheets_union_maps_sets_and_reserved_names() {
+    let source = temp_path("runa");
+    let json = temp_path("json");
+    let xlsx = temp_path("xlsx");
+    std::fs::write(&source, "# Choice = Empty | Mapped(items: Map(String, Set(Int))) | Listed(items: List(Int))\n# Input(choice: Choice, _sheets: List(Int), _choices: List(Int))\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    let model = source.to_str().unwrap();
+    let template = run(&["template", model]);
+    assert!(template.status.success());
+    let mut envelope = parse_stdout(&template);
+    envelope["cases"] = serde_json::json!([
+        {"case_id": "map", "input": {"choice": {"$variant": "Mapped", "items": {"first": [1, 2], "empty": []}}, "_sheets": [3], "_choices": []}},
+        {"case_id": "list", "input": {"choice": {"$variant": "Listed", "items": [4]}, "_sheets": [], "_choices": [5]}}
+    ]);
+    std::fs::write(&json, serde_json::to_vec(&envelope).unwrap()).unwrap();
+    let hydrated = run(&[
+        "template",
+        model,
+        "--input",
+        json.to_str().unwrap(),
+        "--output",
+        xlsx.to_str().unwrap(),
+    ]);
+    assert!(
+        hydrated.status.success(),
+        "{}",
+        String::from_utf8_lossy(&hydrated.stderr)
+    );
+    let called = run(&["call", model, "--input", xlsx.to_str().unwrap()]);
+    assert!(
+        called.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&called.stderr),
+        String::from_utf8_lossy(&called.stdout)
+    );
+    let result = parse_stdout(&called);
+    for index in 0..2 {
+        assert_eq!(
+            result["results"][index]["result"],
+            envelope["cases"][index]["input"]
+        );
+    }
+    for path in [source, json, xlsx] {
+        std::fs::remove_file(path).ok();
+    }
+}
+
+#[test]
+fn xlsx_sparse_sheets_refresh_after_variant_and_nested_row_changes() {
+    let source = temp_path("runa");
+    let input = temp_path("xlsx");
+    let refreshed = temp_path("xlsx");
+    std::fs::write(&source, "# Child(name: String)\n# Selection = Empty | Family(label: String, children: List(Child))\n# Input(selection: Selection, history: List(Selection))\n@ calculate\n> echo(input: Input) -> Input { input }\n").unwrap();
+    let model = source.to_str().unwrap();
+    let original = input.to_str().unwrap();
+    let next = refreshed.to_str().unwrap();
+    let check = |output: Output| {
+        assert!(
+            output.status.success(),
+            "{}\n{}",
+            String::from_utf8_lossy(&output.stderr),
+            String::from_utf8_lossy(&output.stdout)
+        );
+        output
+    };
+    check(run(&["template", model, "--output", original]));
+    {
+        let mut workbook = open_workbook_auto(&input).unwrap();
+        assert_eq!(workbook.sheet_names().len(), 7); // five hidden, cases, history
+        assert_workbook_visibility(&workbook, &["_sheets"], "cases");
+        assert!(!workbook
+            .sheet_names()
+            .contains(&"selection_Family_children".to_string()));
+        assert!(!workbook
+            .sheet_names()
+            .contains(&"history_Family_children".to_string()));
+        assert_eq!(workbook.worksheet_range("_tables").unwrap().height(), 4);
+    }
+    let default = parse_stdout(&check(run(&["call", model, "--input", original])));
+    assert_eq!(
+        default["results"][0]["result"]["selection"]["$variant"],
+        "Empty"
+    );
+
+    edit_workbook(&input, |sheets| {
+        set_workbook_cell(sheets, "cases", 1, 1, Data::String("Family".into()));
+        set_workbook_cell(sheets, "cases", 1, 2, Data::String("primary".into()));
+        // This second case must still run while the first needs a refresh.
+        workbook_sheet_mut(sheets, "cases").push(vec![
+            Data::String("unaffected".into()),
+            Data::String("Empty".into()),
+        ]);
+    });
+    let needs_refresh = run(&["call", model, "--input", original]);
+    assert!(!needs_refresh.status.success());
+    let result = parse_stdout(&needs_refresh);
+    assert_eq!(result["results"].as_array().unwrap().len(), 1);
+    assert_eq!(result["results"][0]["case_id"], "unaffected");
+    assert!(result["diagnostics"].to_string().contains("refresh with"));
+    check(run(&[
+        "template", model, "--input", original, "--output", next,
+    ]));
+    {
+        let workbook = open_workbook_auto(&refreshed).unwrap();
+        assert!(workbook
+            .sheet_names()
+            .contains(&"selection_Family_children".into()));
+        assert!(!workbook
+            .sheet_names()
+            .contains(&"history_Family_children".into()));
+    }
+    edit_workbook(&refreshed, |sheets| {
+        workbook_sheet_mut(sheets, "selection_Family_children").push(vec![
+            Data::String("case-1".into()),
+            Data::String("c1".into()),
+            Data::Int(1),
+            Data::String("Ada".into()),
+        ]);
+        workbook_sheet_mut(sheets, "history").push(vec![
+            Data::String("case-1".into()),
+            Data::String("h1".into()),
+            Data::Int(1),
+            Data::String("Family".into()),
+            Data::String("past".into()),
+        ]);
+    });
+    let missing_nested = run(&["call", model, "--input", next]);
+    assert!(!missing_nested.status.success());
+    assert!(parse_stdout(&missing_nested)["diagnostics"]
+        .to_string()
+        .contains("history_Family_children"));
+    check(run(&[
+        "template", model, "--input", next, "--output", original,
+    ]));
+    let mut workbook = open_workbook_auto(&input).unwrap();
+    let parent_id = workbook
+        .worksheet_range("history")
+        .unwrap()
+        .rows()
+        .nth(2)
+        .unwrap()[1]
+        .clone();
+    drop(workbook);
+    edit_workbook(&input, |sheets| {
+        workbook_sheet_mut(sheets, "history_Family_children").push(vec![
+            Data::String("case-1".into()),
+            parent_id,
+            Data::String("c2".into()),
+            Data::Int(1),
+            Data::String("Bo".into()),
+        ]);
+    });
+    let result = parse_stdout(&check(run(&["call", model, "--input", original])));
+    assert_eq!(result["diagnostics"], serde_json::json!([]));
+    let value = &result["results"][0]["result"];
+    assert_eq!(value["selection"]["children"][0]["name"], "Ada");
+    assert_eq!(value["history"][0]["children"][0]["name"], "Bo");
+    // Canonical JSON hydration and XLSX refresh must preserve exactly the same values.
+    let json = temp_path("json");
+    check(run(&[
+        "template",
+        model,
+        "--input",
+        original,
+        "--output",
+        json.to_str().unwrap(),
+    ]));
+    check(run(&[
+        "template",
+        model,
+        "--input",
+        json.to_str().unwrap(),
+        "--output",
+        next,
+    ]));
+    assert_eq!(
+        parse_stdout(&check(run(&["call", model, "--input", next])))["results"],
+        result["results"]
+    );
+    for path in [source, input, refreshed, json] {
+        std::fs::remove_file(path).ok();
+    }
+}
+
+#[test]
+fn xlsx_sparse_topology_is_bounded_and_rejects_missing_or_unlisted_sheets() {
+    let source = temp_path("runa");
+    let input = temp_path("xlsx");
+    let refreshed = temp_path("xlsx");
+    let branches = (0..40)
+        .map(|i| format!("Branch{i}(items: List(Int))"))
+        .collect::<Vec<_>>()
+        .join(" | ");
+    std::fs::write(&source, format!("# Choice = Empty | {branches}\n# Input(choice: Choice, children: List(List(Int)))\n@ calculate\n> echo(input: Input) -> Input {{ input }}\n")).unwrap();
+    let model = source.to_str().unwrap();
+    let path = input.to_str().unwrap();
+    let regenerate = || {
+        let output = run(&["template", model, "--output", path]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    };
+    regenerate();
+    let mut workbook = open_workbook_auto(&input).unwrap();
+    assert_eq!(
+        workbook.sheet_names().len(),
+        7,
+        "inactive branches must not grow the template"
+    );
+    assert_eq!(workbook.worksheet_range("_tables").unwrap().height(), 43);
+    drop(workbook);
+    for mutation in 0..7 {
+        regenerate();
+        edit_workbook(&input, |sheets| match mutation {
+            0 => sheets.retain(|(name, _)| name != "children"),
+            1 => sheets.push((
+                "choice_Branch0_items".into(),
+                vec![vec![Data::String("unlisted".into())]],
+            )),
+            2 => workbook_sheet_mut(sheets, "_sheets").push(vec![Data::String("unknown".into())]),
+            3 => workbook_sheet_mut(sheets, "_sheets").push(vec![Data::String("children".into())]),
+            4 => {
+                let row = workbook_sheet_mut(sheets, "_tables")
+                    .iter_mut()
+                    .skip(1)
+                    .find(|row| row[7].to_string() != "[]")
+                    .unwrap();
+                row[7] = Data::String("[]".into());
+            }
+            5 => {
+                let child = workbook_sheet_mut(sheets, "_tables")
+                    .iter()
+                    .skip(1)
+                    .find(|row| row[2].to_string() == "children")
+                    .unwrap()[1]
+                    .to_string();
+                sheets.retain(|(name, _)| name != "children");
+                workbook_sheet_mut(sheets, "_sheets")[1][0] = Data::String(child.clone());
+                sheets.push((child, vec![vec![Data::String("orphaned sheet".into())]]));
+            }
+            _ => {
+                workbook_sheet_mut(sheets, "_futuruna")[3][1] = Data::String("stale".into());
+            }
+        });
+        for command in ["call", "template"] {
+            let mut args = vec![command, model, "--input", path];
+            if command == "template" {
+                args.extend(["--output", refreshed.to_str().unwrap()]);
+            }
+            let output = run(&args);
+            assert!(
+                !output.status.success(),
+                "tamper {mutation} accepted by {command}"
+            );
+        }
+    }
+    // Full templates are an explicit opt-in, and genuine v6 topology still reads.
+    let output = run(&["template", model, "--all-tables", "--output", path]);
+    assert!(output.status.success());
+    let workbook = open_workbook_auto(&input).unwrap();
+    assert_eq!(workbook.sheet_names().len(), 48);
+    drop(workbook);
+    edit_workbook(&input, |sheets| {
+        sheets.retain(|(name, _)| name != "_sheets");
+        workbook_sheet_mut(sheets, "_futuruna")[1][1] =
+            Data::String("futuruna.calculate.xlsx.input.v6".into());
+    });
+    let output = run(&["call", model, "--input", path]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    for path in [source, input, refreshed] {
+        std::fs::remove_file(path).ok();
+    }
 }
 
 #[test]

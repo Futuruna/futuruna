@@ -108,6 +108,7 @@ fn main_inner() {
     let mut calculation_format = None;
     let mut calculation_input = None;
     let mut calculation_output = None;
+    let mut calculation_all_tables = false;
 
     let mut i = 1;
     while i < args.len() {
@@ -328,6 +329,10 @@ fn main_inner() {
                 calculation_entry = Some(arg["--entry=".len()..].to_string());
                 i += 1;
             }
+            "--all-tables" if mode == "template" => {
+                calculation_all_tables = true;
+                i += 1;
+            }
             "--format" if matches!(mode, "template" | "call") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
                     eprintln!("error: --format requires json, toml, or xlsx");
@@ -342,12 +347,7 @@ fn main_inner() {
             }
             "--input" if matches!(mode, "template" | "call") => {
                 if i + 1 >= args.len() || args[i + 1].starts_with('-') {
-                    let formats = if mode == "template" {
-                        "JSON or TOML"
-                    } else {
-                        "JSON, TOML, or XLSX"
-                    };
-                    eprintln!("error: --input requires a {} path", formats);
+                    eprintln!("error: --input requires a JSON, TOML, or XLSX path");
                     std::process::exit(1);
                 }
                 calculation_input = Some(args[i + 1].clone());
@@ -535,6 +535,9 @@ fn main_inner() {
                     "  explore --json        Emit the compact checkpoint, coverage, counts, and layer statuses"
                 );
                 eprintln!("  --format FORMAT    Select json, toml, or xlsx");
+                eprintln!(
+                    "  --all-tables       Include inactive XLSX collection sheets (template only)"
+                );
                 eprintln!("  --input PATH       Read calculation cases");
                 eprintln!("  --output PATH      Write a contract, template, or result");
                 eprintln!("  --seed N      Use a fixed RNG seed with `runa stress-gen`");
@@ -940,6 +943,7 @@ fn main_inner() {
             calculation_input.as_deref(),
             calculation_output.as_deref(),
             use_prelude,
+            calculation_all_tables,
         );
         return;
     }
@@ -1114,7 +1118,8 @@ fn print_explore_supervisor_operational_report(
     );
 }
 
-const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
+const CALCULATION_XLSX_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v7";
+const CALCULATION_XLSX_LEGACY_INPUT_SCHEMA: &str = "futuruna.calculate.xlsx.input.v6";
 const CALCULATION_XLSX_OUTPUT_SCHEMA: &str = "futuruna.calculate.xlsx.output.v2";
 const CALCULATION_XLSX_TEXT_CHUNK_LIMIT: usize = 30_000;
 const SOURCE_GRAPH_SNAPSHOT_VERSION: u32 = 1;
@@ -1684,6 +1689,7 @@ fn store_calculation_contract_cache(
     write_json_atomically(&path, &entry);
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_calculation_command(
     mode: &str,
     filename: &str,
@@ -1692,6 +1698,7 @@ fn run_calculation_command(
     input_path: Option<&str>,
     output_path: Option<&str>,
     use_prelude: bool,
+    all_tables: bool,
 ) {
     let source = std::fs::read_to_string(filename).unwrap_or_else(|error| {
         eprintln!("error: cannot read {}: {}", filename, error);
@@ -1752,6 +1759,10 @@ fn run_calculation_command(
         }
         "template" => {
             let format = calculation_format(requested_format, output_path, "json");
+            if all_tables && format != "xlsx" {
+                eprintln!("error: --all-tables requires an XLSX template");
+                std::process::exit(1);
+            }
             let envelope = input_path
                 .map(|path| read_calculation_template_input(contract, path))
                 .transpose()
@@ -1778,12 +1789,11 @@ fn run_calculation_command(
                         eprintln!("error: XLSX templates require --output <file.xlsx>");
                         std::process::exit(1);
                     });
-                    write_calculation_xlsx_template(contract, &envelope, path).unwrap_or_else(
-                        |error| {
+                    write_calculation_xlsx_template(contract, &envelope, path, all_tables)
+                        .unwrap_or_else(|error| {
                             eprintln!("error: cannot write {}: {}", path, error);
                             std::process::exit(1);
-                        },
-                    );
+                        });
                 }
                 _ => calculation_unknown_format(&format),
             }
@@ -1809,10 +1819,12 @@ fn run_calculation_command(
                     }),
                     Vec::new(),
                 ),
-                "xlsx" => read_calculation_xlsx(contract, input_path).unwrap_or_else(|error| {
-                    eprintln!("error: cannot read calculation workbook: {}", error);
-                    std::process::exit(1);
-                }),
+                "xlsx" => {
+                    read_calculation_xlsx(contract, input_path, false).unwrap_or_else(|error| {
+                        eprintln!("error: cannot read calculation workbook: {}", error);
+                        std::process::exit(1);
+                    })
+                }
                 _ => calculation_unknown_format(&input_format),
             };
             let mut result = calculate::invoke_calculation_cases(
@@ -2040,16 +2052,27 @@ fn read_calculation_template_input(
     path: &str,
 ) -> Result<calculate::CalculationInputEnvelope, String> {
     let format = calculation_format(None, Some(path), "json");
-    let envelope =
-        match format.as_str() {
-            "json" => read_calculation_json(path)?,
-            "toml" => read_calculation_toml(path)?,
-            "xlsx" => return Err(
-                "XLSX hydration input is not supported; use a JSON or TOML calculation envelope"
-                    .to_string(),
-            ),
-            _ => calculation_unknown_format(&format),
-        };
+    let envelope = match format.as_str() {
+        "json" => read_calculation_json(path)?,
+        "toml" => read_calculation_toml(path)?,
+        "xlsx" => {
+            let (envelope, diagnostics) = read_calculation_xlsx(contract, path, true)?;
+            if !diagnostics.is_empty() {
+                return Err(diagnostics
+                    .into_iter()
+                    .map(|diagnostic| {
+                        format!(
+                            "case `{}` {}: {}",
+                            diagnostic.case_id, diagnostic.path, diagnostic.message
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; "));
+            }
+            envelope
+        }
+        _ => calculation_unknown_format(&format),
+    };
     if let Err(diagnostics) = calculate::validate_input_envelope(contract, &envelope) {
         return Err(diagnostics
             .into_iter()
@@ -2181,9 +2204,16 @@ fn write_calculation_xlsx_template(
     contract: &calculate::CalculationContract,
     envelope: &calculate::CalculationInputEnvelope,
     path: &str,
+    all_tables: bool,
 ) -> Result<(), String> {
     let layout = contract.input_layout();
     let collection_rows = calculation_xlsx_collection_rows(&layout, envelope)?;
+    let sheets: BTreeSet<String> = layout
+        .collection_tables
+        .iter()
+        .filter(|table| all_tables || collection_rows.contains_key(&table.path))
+        .map(|table| table.sheet.clone())
+        .collect();
     let mut workbook = rust_xlsxwriter::Workbook::new();
     set_calculation_xlsx_properties(
         &mut workbook,
@@ -2194,6 +2224,19 @@ fn write_calculation_xlsx_template(
         .map_err(|error| error.to_string())?;
     write_calculation_xlsx_layout_metadata(&mut workbook, &layout)
         .map_err(|error| error.to_string())?;
+    let manifest = workbook
+        .add_worksheet()
+        .set_name("_sheets")
+        .map_err(|error| error.to_string())?;
+    manifest
+        .write_string(0, 0, "sheet")
+        .map_err(|error| error.to_string())?;
+    for (index, sheet) in sheets.iter().enumerate() {
+        manifest
+            .write_string(index as u32 + 1, 0, sheet)
+            .map_err(|error| error.to_string())?;
+    }
+    manifest.set_hidden(true);
     let validation_ranges = write_calculation_xlsx_choice_lists(&mut workbook, &layout)
         .map_err(|error| error.to_string())?;
     write_calculation_xlsx_cases(
@@ -2205,6 +2248,9 @@ fn write_calculation_xlsx_template(
     )
     .map_err(|error| error.to_string())?;
     for table in &layout.collection_tables {
+        if !sheets.contains(&table.sheet) {
+            continue;
+        }
         let rows = collection_rows
             .get(&table.path)
             .map(Vec::as_slice)
@@ -2653,11 +2699,9 @@ fn calculation_xlsx_collection_rows(
     layout: &calculate::CalculationInputLayout,
     envelope: &calculate::CalculationInputEnvelope,
 ) -> Result<BTreeMap<String, Vec<CalculationXlsxCollectionRow>>, String> {
-    let mut rows: BTreeMap<String, Vec<CalculationXlsxCollectionRow>> = layout
-        .collection_tables
-        .iter()
-        .map(|table| (table.path.clone(), Vec::new()))
-        .collect();
+    // Presence means reachable, even when the collection has no rows. Descendants
+    // of empty collections and inactive variants never enter this map.
+    let mut rows: BTreeMap<String, Vec<CalculationXlsxCollectionRow>> = BTreeMap::new();
     let mut counters = BTreeMap::new();
     for case in &envelope.cases {
         for table in layout
@@ -2699,6 +2743,7 @@ fn append_calculation_xlsx_collection_rows(
     counters: &mut BTreeMap<(String, String), u32>,
     rows: &mut BTreeMap<String, Vec<CalculationXlsxCollectionRow>>,
 ) -> Result<(), String> {
+    rows.entry(table.path.clone()).or_default();
     match table.kind {
         calculate::CalculationCollectionKind::List | calculate::CalculationCollectionKind::Set => {
             let items = value.as_array().ok_or_else(|| {
@@ -2765,7 +2810,7 @@ fn append_calculation_xlsx_collection_item(
     *counter += 1;
     let item_id = format!("{}:{}:{}", case_id, table.sheet, counter);
     rows.get_mut(&table.path)
-        .expect("layout initialized every collection table")
+        .expect("collection traversal initialized this table")
         .push(CalculationXlsxCollectionRow {
             case_id: case_id.to_string(),
             parent_id: parent_id.map(str::to_string),
@@ -3051,9 +3096,88 @@ fn write_calculation_xlsx_value(
     Ok(())
 }
 
+fn calculation_xlsx_materialized_sheets(
+    workbook: &mut calamine::Sheets<std::io::BufReader<std::fs::File>>,
+    layout: &calculate::CalculationInputLayout,
+    legacy: bool,
+) -> Result<BTreeSet<String>, String> {
+    use calamine::Reader;
+
+    let all: BTreeSet<String> = layout
+        .collection_tables
+        .iter()
+        .map(|table| table.sheet.clone())
+        .collect();
+    let materialized = if legacy {
+        all.clone()
+    } else {
+        let range = workbook
+            .worksheet_range("_sheets")
+            .map_err(|error| error.to_string())?;
+        let mut names = BTreeSet::new();
+        for row in range.rows().skip(1) {
+            let name = row.first().map(calculation_cell_text).unwrap_or_default();
+            if !all.contains(&name) || !names.insert(name.clone()) {
+                return Err(format!(
+                    "invalid or duplicate collection sheet `{name}` in `_sheets`"
+                ));
+            }
+        }
+        let expected: Vec<Vec<String>> = std::iter::once(vec!["sheet".to_string()])
+            .chain(names.iter().map(|name| vec![name.clone()]))
+            .collect();
+        validate_calculation_xlsx_metadata_matrix("_sheets", &range, &expected)?;
+        names
+    };
+    let actual: BTreeSet<String> = workbook.sheet_names().into_iter().collect();
+    for name in &materialized {
+        if !actual.contains(name) {
+            return Err(format!("workbook is missing declared collection sheet `{name}`; do not delete generated sheets"));
+        }
+    }
+    for table in &layout.collection_tables {
+        if materialized.contains(&table.sheet) {
+            if let Some(parent) = &table.parent_path {
+                let parent = layout
+                    .collection_tables
+                    .iter()
+                    .find(|candidate| &candidate.path == parent)
+                    .expect("layout parent exists");
+                if !materialized.contains(&parent.sheet) {
+                    return Err(format!(
+                        "collection sheet `{}` has no materialized parent `{}`",
+                        table.sheet, parent.sheet
+                    ));
+                }
+            }
+        }
+    }
+    if !legacy {
+        for name in actual {
+            if !materialized.contains(&name)
+                && ![
+                    "cases",
+                    "_futuruna",
+                    "_tables",
+                    "_columns",
+                    "_sheets",
+                    "_choices",
+                ]
+                .contains(&name.as_str())
+            {
+                return Err(format!(
+                    "unexpected workbook sheet `{name}`; topology must match `_sheets`"
+                ));
+            }
+        }
+    }
+    Ok(materialized)
+}
+
 fn read_calculation_xlsx(
     contract: &calculate::CalculationContract,
     path: &str,
+    hydrate: bool,
 ) -> Result<
     (
         calculate::CalculationInputEnvelope,
@@ -3103,11 +3227,17 @@ fn read_calculation_xlsx(
         let key = row.first().map(calculation_cell_text).unwrap_or_default();
         let value = row.get(1).map(calculation_cell_text).unwrap_or_default();
         if !key.is_empty() {
-            metadata.insert(key, value);
+            if metadata.insert(key.clone(), value).is_some() {
+                return Err(format!("duplicate workbook metadata key `{key}`"));
+            }
         }
     }
+    let schema = metadata.get("schema").map(String::as_str).unwrap_or("");
+    let legacy = schema == CALCULATION_XLSX_LEGACY_INPUT_SCHEMA;
+    if !legacy && schema != CALCULATION_XLSX_INPUT_SCHEMA {
+        return Err(format!("workbook metadata `schema` is `{schema}`, expected `{CALCULATION_XLSX_INPUT_SCHEMA}` or `{CALCULATION_XLSX_LEGACY_INPUT_SCHEMA}`"));
+    }
     for (key, expected) in [
-        ("schema", CALCULATION_XLSX_INPUT_SCHEMA),
         ("contract_schema", calculate::CONTRACT_SCHEMA),
         ("entry", contract.entry.as_str()),
         ("encoding", "futuruna-canonical-json-v1"),
@@ -3144,6 +3274,7 @@ fn read_calculation_xlsx(
     }
 
     let layout = contract.input_layout();
+    let materialized = calculation_xlsx_materialized_sheets(&mut workbook, &layout, legacy)?;
     let tables_range = workbook
         .worksheet_range("_tables")
         .map_err(|error| error.to_string())?;
@@ -3273,6 +3404,37 @@ fn read_calculation_xlsx(
     let mut collection_rows: BTreeMap<String, Vec<CalculationXlsxCollectionRow>> = BTreeMap::new();
     let mut item_ids_by_table: BTreeMap<String, BTreeSet<(String, String)>> = BTreeMap::new();
     for table in &layout.collection_tables {
+        if !materialized.contains(&table.sheet) {
+            if !hydrate {
+                let active_cases: BTreeSet<String> = match &table.parent_path {
+                    None => cases
+                        .iter()
+                        .filter(|case| {
+                            calculation_variant_guards_match(&case.input, &table.variant_guards)
+                        })
+                        .map(|case| case.case_id.clone())
+                        .collect(),
+                    Some(parent) => collection_rows
+                        .get(parent)
+                        .into_iter()
+                        .flatten()
+                        .filter(|row| {
+                            calculation_variant_guards_match(&row.value, &table.variant_guards)
+                        })
+                        .map(|row| row.case_id.clone())
+                        .collect(),
+                };
+                for case_id in active_cases {
+                    invalid_cases.insert(case_id.clone());
+                    diagnostics.push(calculate::CalculationCaseDiagnostic {
+                        case_id,
+                        path: table.path.clone(),
+                        message: format!("selected input requires collection sheet `{}`; refresh with `runa template MODEL --input INPUT.xlsx --output REFRESHED.xlsx` and complete the new sheets before calling", table.sheet),
+                    });
+                }
+            }
+            continue;
+        }
         let range = workbook
             .worksheet_range(&table.sheet)
             .map_err(|error| error.to_string())?;

@@ -158,7 +158,9 @@ Generated workbooks contain:
 - `_columns`: hidden worksheet, table path, visible path, canonical value path,
   type, encoding, requiredness, choices, and variant guards for each generated
   input column;
-- one worksheet for every relational collection path;
+- `_sheets`: hidden sorted manifest of materialized collection worksheet names;
+- one worksheet for each reachable relational collection path across the cases
+  (or every path when `template --all-tables` is explicitly selected);
 - generated output workbooks additionally contain `results`, `result_values`,
   and `diagnostics`.
 
@@ -205,7 +207,15 @@ selected is rejected. Integer cells must be exact `i64` values; floating-point
 cells are never silently rounded into integers.
 
 The normalized input workbook schema is
-`futuruna.calculate.xlsx.input.v6`. Version 6 adds and validates the visible
+`futuruna.calculate.xlsx.input.v7`. Version 7 retains complete `_tables` and
+`_columns` metadata but adds `_sheets` and materializes only collections reached
+through selected alternatives and existing parent items. Reachable empty
+collections retain an entry sheet. The manifest must contain unique, sorted,
+canonical sheet names with their parents present. Declared missing sheets and
+unlisted input sheets are errors. A case that activates an omitted sheet must
+refresh its template before invocation; other valid cases may still run.
+Complete v6 workbooks remain readable. Older binaries cannot read v7 workbooks.
+Version 6 adds and validates the visible
 calculation title row on every input worksheet. Version 5 humanized visible
 fallback headers and placed the canonical path in every input header note.
 Earlier workbooks are rejected rather than silently interpreting their older
@@ -320,13 +330,18 @@ runa call model.calculate.runa --entry calculate_tax --input cases.xlsx --output
 
 `schema` writes JSON to standard output unless `--output` is supplied. `template`
 infers the format from `--format` or the output extension. Without `--input`, it
-creates one default case. With a JSON or TOML calculation envelope supplied as
+creates one default case. With a JSON, TOML, or XLSX calculation envelope supplied as
 `--input`, it validates the schema, entry, contract hash, case identifiers, and
 typed input values before hydrating the selected output format. This is the
 canonical way to turn machine-collected cases into a populated XLSX workbook;
-the workbook keeps the same generated topology, labels, validation lists, and
-hidden contract metadata as an empty template. XLSX is not accepted as hydration
-input because `runa call` already owns workbook decoding and validation. `call`
+the workbook keeps canonical labels, validation lists, and complete hidden
+contract metadata, with sheets selected from the supplied cases. XLSX refresh
+uses the same decoder as `call`, but permits newly activated, previously
+ungenerated collections to become empty entry sheets. It still rejects invalid
+scalar fields, inactive populated values, damaged declared sheets, and stale
+contracts. Users must complete and review the new sheets before invocation;
+refresh does not establish that the underlying facts contain no collection
+items. Adapter-local item IDs and parent links are regenerated together. `call`
 infers input and output adapters from their extensions; `--format` can select
 standard-output JSON.
 
