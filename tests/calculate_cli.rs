@@ -20159,11 +20159,14 @@ fn ligningslov9a_xlsx_round_trips_split_food_and_nested_lodging_days() {
     let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("examples/danish-income-tax/ligningsloven-par9a-rejser.calculate.runa");
     let input_path = temp_path("xlsx");
+    // This one-pass editing fixture needs child sheets before parent rows are
+    // entered. Sparse defaults and refresh are covered by the xlsx_sparse tests.
     let template = run(&[
         "template",
         fixture.to_str().expect("fixture path"),
         "--format",
         "xlsx",
+        "--all-tables",
         "--output",
         input_path.to_str().expect("input path"),
     ]);
@@ -20944,6 +20947,8 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
     );
     let direct_result = parse_stdout(&direct_call);
 
+    // Inspect metadata headers for the inactive documented-expense alternative
+    // as well as the selected standard allowance: request the exhaustive view.
     let hydrate = run(&[
         "template",
         fixture.to_str().expect("fixture path"),
@@ -20951,6 +20956,7 @@ fn ligningslov9a_xlsx_round_trips_typed_double_household_input() {
         json_path.to_str().expect("JSON path"),
         "--format",
         "xlsx",
+        "--all-tables",
         "--output",
         xlsx_path.to_str().expect("XLSX path"),
     ]);
