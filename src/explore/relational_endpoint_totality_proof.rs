@@ -858,6 +858,7 @@ enum ObligationKind {
     Callable,
     Collection,
     Match,
+    StringTrim,
 }
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -9208,6 +9209,20 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
                 })?;
                 AbstractValue::Bool(truth.not())
             }
+            ("trim", 1) => match arguments.remove(0) {
+                AbstractValue::String(value) => {
+                    // Match the runtime's Unicode whitespace semantics. An
+                    // unknown String stays unknown; it must not become empty.
+                    AbstractValue::String(value.map(|value| value.trim().into()))
+                }
+                _ => {
+                    return Err(self.issue(
+                        site,
+                        RelationalEndpointTotalityIssueReason::CheckedResolutionUnavailable,
+                        "trim requires one proved String",
+                    ))
+                }
+            },
             ("length", 1) => match arguments.remove(0) {
                 AbstractValue::List(sequence) => {
                     let (minimum, maximum) = sequence.lengths();
@@ -9575,6 +9590,9 @@ impl<'a, 'program> EndpointTotalityProver<'a, 'program> {
             }
         };
         self.require_bounded_value(&result, site)?;
+        if name == "trim" {
+            self.record(site, ObligationKind::StringTrim, &input, &result)?;
+        }
         if matches!(
             name,
             "head" | "distinct" | "concat" | "contains" | "length" | "sum_list" | "range"
