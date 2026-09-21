@@ -48951,6 +48951,9 @@ impl TypeChecker {
         };
         match (name, args.len()) {
             ("show" | "show_int" | "show_float" | "rust_debug", 1) => Some("String".to_string()),
+            ("trim", 1) if argument_type(0).as_deref() == Some("String") => {
+                Some("String".to_string())
+            }
             ("exp" | "ln" | "sqrt" | "to_float", 1) | ("pow", 2) => Some("Float".to_string()),
             ("round" | "floor" | "string_length", 1) => Some("Int".to_string()),
             ("contains" | "map_contains" | "set_contains", 2)

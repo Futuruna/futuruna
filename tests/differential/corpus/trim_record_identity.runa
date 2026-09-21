@@ -1,0 +1,24 @@
+-- Payment identity helpers need trim's checked String result, including when
+-- the helper is called through a value rule. No source record is consumed.
+-- expect-command: run
+-- expect-stdout: true
+-- expect-stdout: false
+-- expect-stdout: paid
+-- expect-stdout: [ paid ]
+
+# Payment(identity: String, reference: String)
+
+> same_payment(a: Payment, b: Payment) -> Bool {
+    a.identity == b.identity || trim(a.reference) == trim(b.reference)
+}
+
+| normalized_reference(value: String) -> trim(value)
+
+= original = Payment(identity = "a", reference = " paid ")
+= equivalent = Payment(identity = "b", reference = "paid")
+= different = Payment(identity = "c", reference = "other")
+
+@ print(show(same_payment(original, equivalent)))
+@ print(show(same_payment(original, different)))
+@ print(normalized_reference(original.reference))
+@ print("[" + original.reference + "]")

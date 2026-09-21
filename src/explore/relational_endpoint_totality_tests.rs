@@ -1140,6 +1140,114 @@ fn transitive_declared_effect_is_rejected_by_endpoint_totality() {
 }
 
 #[test]
+fn string_record_helper_dependencies_are_sealed_for_admission() {
+    let source = r#"
+# Payment(identity: String, reference: String)
+> same_payment(a: Payment, b: Payment) -> Bool {
+    a.identity == b.identity || trim(a.reference) == trim(b.reference)
+}
+? explore string_record_admission {
+    from {
+        vary before in [1]
+        given context = ()
+    }
+    transition after = before
+    where before same_payment(
+        Payment(identity = "a", reference = " one "),
+        Payment(identity = "b", reference = "one")
+    )
+    find cases = all
+}
+"#;
+    let checked = artifacts(source);
+    assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
+    assert!(
+        checked.checked_exploration_query(0).is_ok(),
+        "sealed admission: {:?}; unsupported sites: {:?}",
+        checked.checked_exploration_query(0).err(),
+        checked.checked_resolutions.unsupported_sites
+    );
+
+    let invalid = source
+        .replace("reference: String", "reference: Int")
+        .replace("reference = \" one \"", "reference = 1")
+        .replace("reference = \"one\"", "reference = 2");
+    let invalid = artifacts(&invalid);
+    assert!(invalid.diagnostics.is_empty(), "{:?}", invalid.diagnostics);
+    assert!(
+        matches!(
+            invalid.checked_exploration_query(0),
+            Err(CheckedExploreQueryAccessError::Producer(
+                CheckedExploreQueryArtifactIssue::SemanticDependencyClosureUnsealed { .. }
+            ))
+        ),
+        "non-String trim must not acquire a checked String result"
+    );
+
+    let shadowed = format!("> trim(value: String) -> Int {{ 7 }}\n{source}");
+    let shadowed = artifacts(&shadowed);
+    assert!(
+        shadowed.diagnostics.is_empty(),
+        "{:?}",
+        shadowed.diagnostics
+    );
+    shadowed
+        .checked_exploration_query(0)
+        .expect("authored trim has its own result type");
+    assert!(shadowed.checked_resolutions.expressions.iter().any(|(_, resolution)| {
+        matches!(&resolution.call_target, Some(crate::CheckedCallTarget::Function { callable, .. })
+            if callable.declaration.declaration.name.as_ref() == "trim")
+            && matches!(&resolution.resolved_type, crate::CheckedExpressionType::Resolved(crate::Ty::Name(name)) if name == "Int")
+    }));
+}
+
+#[test]
+fn trim_endpoint_preserves_exact_strings_and_unknown_branch_safety() {
+    let source = |body: &str, result: &str| {
+        r#"
+> trim_observer(state: Int, context: Unit) -> RESULT { BODY }
+? explore trim_endpoint {
+    from {
+        vary before in range(0, 2)
+        given context = ()
+    }
+    transition after = before
+    find cases = all
+    mechanisms paths from find cases using trim_observer
+}
+"#
+        .replace("RESULT", result)
+        .replace("BODY", body)
+    };
+    // Includes non-ASCII whitespace handled by the runtime String trim.
+    let exact = source(
+        "if trim(\" \t\u{a0}paid\u{2003}\n\") == \"paid\" { 7 } else { 1 / 0 }",
+        "Int",
+    );
+    checked_plan_identity(&exact);
+    let unknown = source(
+        "trim(if state == 0 { \" paid \" } else { \"other\" })",
+        "String",
+    );
+    checked_plan_identity(&unknown);
+    let through_rule = format!(
+        "| normalized_reference(value: String) -> trim(value)\n{}",
+        source("normalized_reference(\" paid \")", "String")
+    );
+    checked_plan_identity(&through_rule);
+    for body in [
+        "if trim(\" other \") == \"paid\" { 7 } else { 1 / 0 }",
+        "if trim(if state == 0 { \" paid \" } else { \"other\" }) == \"paid\" { 7 } else { 1 / 0 }",
+    ] {
+        let issue = endpoint_issue_before_plan(&source(body, "Int"));
+        assert_eq!(
+            issue.reason(),
+            RelationalEndpointTotalityIssueReason::DivisionByZeroNotExcluded
+        );
+    }
+}
+
+#[test]
 fn personskat_200k_landscape_endpoint_totality_certifies_without_execution() {
     personskat_endpoint_totality_certifies(
         "personskat-mechanism-landscape-200k.explore.runa",
