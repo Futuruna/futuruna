@@ -53,6 +53,11 @@ is unknown, not confirmed nonreceipt. Regenerate templates and migrate supported
 facts instead of editing a stale workbook's hidden fingerprint. Existing clients
 must check `vurdering` before using the legacy scalar totals for comparison.
 
+The required [service/handyman input](boligjob.md) also starts as unknown.
+Active invoice facts and spouse allocations must pass their component and
+household consistency checks; a known ineligible expense is distinct from an
+incomplete or unsupported calculation.
+
 Never fill a missing birthday or other unknown fact with a plausible substitute.
 When unavailable spouse facts prevent an independent household calculation, use
 the [conditional report reconciliation](aarsopgoerelse-afstemning.md) instead.

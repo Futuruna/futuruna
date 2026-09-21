@@ -1,0 +1,275 @@
+@ sprog da
+@ importer ./metadata
+@ importer ./kalenderdato
+
+# Ll8VKilde(url: Tekst, identifier: Tekst, kontrolleret: Tekst)
+= ll8v_kilde = Ll8VKilde(url = "https://www.retsinformation.dk/eli/lta/2025/1500", identifier = "LL § 8 V og bilag 1; lov 109/2024 og lov 95/2025", kontrolleret = "2026-09-21")
+= ll8v_kildemeta = Source(value = ll8v_kilde)
+--@label:ll8v::meta:ll8v_kildemeta--
+----
+Ved opgørelsen af den skattepligtige indkomst kan fradrages udgifter, der er
+betalt og dokumenteret, til arbejdsløn for serviceydelser og grøn istandsættelse
+i hjemmet eller i en fritidsbolig, jf. stk. 2-9 og bilag 1.
+
+Stk. 4. Fradraget henføres til det indkomstår, hvor betalingen for arbejdet er
+sket. Fradraget henføres dog til det indkomstår, hvor arbejdet er udført, hvis
+betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
+----
+-- Dokumentation/elektronisk betaling: BEK 391/2022 §§ 3-13.
+-- https://www.retsinformation.dk/eli/lta/2022/391
+-- 2023-loft: https://skat.dk/media/ntnj5lsw/02048_januar_2023-t.pdf
+-- 2024-loft: https://sktst.dk/nyheder-og-pressemeddelelser/arsopgoerelsen-for-2024-aabner-den-24-marts
+-- 2025/2026-lofter og deling mellem ægtefæller/samlevere:
+-- https://skat.dk/borger/fradrag/servicefradrag/generelle-betingelser
+-- Arbejdets art er en kildefaktaklassifikation, ikke et skøn udført af en LLM.
+-- Uafklarede klassifikationer/fakta giver aldrig et sammenligneligt nulfradrag.
+
+# Ll8VSvar = Ll8VUoplyst | Ll8VJa | Ll8VNej
+# Ll8VÅrsinput = BoligjobUoplyst | IngenBoligjobudgifter | OplysteBoligjobudgifter(poster: List(Ll8VPost), oplysninger_for_året_komplette: Boolsk, skattepligt: Ll8VSkattepligt, personreference: Tekst)
+# Ll8VSkattepligt = Ll8VUoplystSkattepligt | Ll8VFuldtSkattepligtig | Ll8VGrænsegænger | Ll8VBegrænsetSkattepligtig | Ll8VIkkeSkattepligtig
+# Ll8VYdelse = Ll8VUafklaretYdelse | Ll8VRengøring | Ll8VVinduespudsning | Ll8VBørnepasning | Ll8VAfhentningAfBørn | Ll8VGræsslåning | Ll8VHækklipning | Ll8VLugning | Ll8VBeskæring | Ll8VSnerydning | Ll8VFliserensning | Ll8VTræfældning | Ll8VTagrender | Ll8VBelægning | Ll8VNyGræsplæne | Ll8VTyverialarm | Ll8VHvidevarereparation | Ll8VTagisolering | Ll8VSkorsten | Ll8VVinduerOgYderdøre | Ll8VYdervægsisolering | Ll8VGulvisolering | Ll8VAfmonteringBrændeovn | Ll8VVarmeStyring | Ll8VVandbårenVarme | Ll8VSolcellerOgHusstandsmøller | Ll8VSolfanger | Ll8VFjernvarmeunit | Ll8VVarmepumpe | Ll8VElvandvarmer | Ll8VVentilationInstallationReparationForbedring | Ll8VAfløbOgDræn | Ll8VRadonsikring | Ll8VYdelseUdenForBilag1
+# Ll8VKategori = Ll8VIngenKategori | Ll8VService | Ll8VGrønIstandsættelse
+# Ll8VLand = Ll8VUoplystLand | Ll8VDanmark | Ll8VEU_EØS(oplysningsudveksling: Ll8VSvar) | Ll8VUdenforEU_EØS(oplysningsudveksling: Ll8VSvar)
+# Ll8VRegistrering = Ll8VUoplystRegistrering | Ll8VDanskRegistrering | Ll8VEU_EØSRegistrering | Ll8VRegistreringIBoligensTredjeland | Ll8VIngenRegistrering
+# Ll8VLeverandør = Ll8VUoplystLeverandør | Ll8VVirksomhed(moms_eller_tredjelandsregistrering: Ll8VRegistrering, udenlandsk_virksomhed_i_danmark: Ll8VSvar, rut_registreret: Ll8VSvar) | Ll8VPrivatperson(fødselsdato: Dato, fuld_skattepligt_i: Ll8VRegistrering)
+# Ll8VBetalingsform = Ll8VUoplystBetaling | Ll8VKontooverførsel | Ll8VKortEllerMobilbetaling | Ll8VKontanter | Ll8VCheck
+# Ll8VBoligforhold = Ll8VUoplystBoligforhold | Ll8VHelårsbolig(fast_bopæl_ved_arbejdet: Ll8VSvar, individuel_råderet_og_vedligeholdelsesret: Ll8VSvar) | Ll8VFritidsbolig(ejer_og_ejendomsværdiskattepligtig_ved_arbejdet: Ll8VSvar, gift_og_samlevende_med_sådan_ejer_ved_arbejdet: Ll8VSvar, udlejet_i_fradragsåret: Ll8VSvar)
+# Ll8VSærligtForhold = Ll8VUoplystSærligtForhold | Ll8VAlmindeligUdgift | Ll8VForsikringEllerAndenUafklaretFordeling
+# Ll8VAndel(personreference: Tekst, arbejdsløn_øre: Heltal)
+-- Én fælles post pr. dokumenteret betalings-/ydelseslinje; samme nøgle og
+-- samme betalingsfakta genbruges, hvis begge ægtefæller tager en andel.
+# Ll8VBetalingsfakta(identifikation: Tekst, kildereference: Tekst, betalingsreference: Tekst, boligreference: Tekst, ydelse: Ll8VYdelse, arbejdsdato: Dato, betalingsdato: Dato, land: Ll8VLand, eksisterende_bolig: Ll8VSvar, leverandør: Ll8VLeverandør, betalt_arbejdsløn_øre: Heltal, betalte_materialer_kørsel_m_v_øre: Heltal, betalingsform: Ll8VBetalingsform, arbejdsbilag_med_påkrævede_oplysninger: Ll8VSvar, betalingsbilag: Ll8VSvar, offentligt_tilskud: Ll8VSvar, samme_udgift_fradraget_efter_andre_regler: Ll8VSvar, børnepasning_skattefri_efter_par7æ: Ll8VSvar, udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer: Ll8VSvar, betalerreference: Tekst, andele: List(Ll8VAndel), særligt_forhold: Ll8VSærligtForhold)
+# Ll8VPost(betaling: Ll8VBetalingsfakta, boligforhold: Ll8VBoligforhold, fællesøkonomi_med_betalende_ægtefælle_eller_samlever: Ll8VSvar, indberettet_med_leverandøroplysninger: Ll8VSvar)
+# Ll8VBetingelse(navn: Tekst, opfyldt: Boolsk)
+# Ll8VPostresultat(betingelser: List(Ll8VBetingelse), identifikation: Tekst, kategori: Ll8VKategori, fradragsår: Heltal, fakta_afklarede: Boolsk, input_gyldigt: Boolsk, betingelser_opfyldt: Boolsk, egen_andel_øre: Heltal, medregnet_før_årsloft_øre: Heltal, kontrolpunkter: List(Tekst))
+# Ll8VÅrsresultat(indkomstår: Heltal, personreference: Tekst, input_gyldigt: Boolsk, oplysninger_afklarede: Boolsk, poster: List(Ll8VPostresultat), fejl: List(Tekst), service_loft_kroner: Heltal, håndværker_loft_kroner: Heltal, servicefradrag_øre: Heltal, håndværkerfradrag_øre: Heltal, samlet_fradrag_kroner: Heltal)
+
+--@begin:ll8v--
+> ll8v_kategori(ydelse: Ll8VYdelse) -> Ll8VKategori {
+    match ydelse {
+        | Ll8VUafklaretYdelse -> Ll8VIngenKategori
+        | Ll8VYdelseUdenForBilag1 -> Ll8VIngenKategori
+        | Ll8VRengøring -> Ll8VService
+        | Ll8VVinduespudsning -> Ll8VService
+        | Ll8VBørnepasning -> Ll8VService
+        | Ll8VAfhentningAfBørn -> Ll8VService
+        | Ll8VGræsslåning -> Ll8VService
+        | Ll8VHækklipning -> Ll8VService
+        | Ll8VLugning -> Ll8VService
+        | Ll8VBeskæring -> Ll8VService
+        | Ll8VSnerydning -> Ll8VService
+        | Ll8VFliserensning -> Ll8VService
+        | Ll8VTræfældning -> Ll8VService
+        | Ll8VTagrender -> Ll8VService
+        | Ll8VBelægning -> Ll8VService
+        | Ll8VNyGræsplæne -> Ll8VService
+        | Ll8VTyverialarm -> Ll8VService
+        | Ll8VHvidevarereparation -> Ll8VService
+        | _ -> Ll8VGrønIstandsættelse
+    }
+}
+> ll8v_arbejdsår_omfattet(ydelse: Ll8VYdelse, år: Heltal) -> Boolsk {
+    match ydelse {
+        | Ll8VUafklaretYdelse -> Falskt
+        | Ll8VYdelseUdenForBilag1 -> Falskt
+        | Ll8VHvidevarereparation -> år >= 2025 && år <= 2027
+        | Ll8VTræfældning -> år >= 2025
+        | Ll8VTagrender -> år >= 2025
+        | Ll8VBelægning -> år >= 2025
+        | Ll8VNyGræsplæne -> år >= 2025
+        | Ll8VTyverialarm -> år >= 2025
+        | _ -> hvis ll8v_kategori(ydelse) == Ll8VGrønIstandsættelse { år >= 2025 } ellers { år >= 2018 }
+    }
+}
+> ll8v_service_loft(år: Heltal) -> Heltal {
+    match år { | 2023 -> 6600 | 2024 -> 11900 | 2025 -> 17500 | 2026 -> 18300 | _ -> 0 }
+}
+> ll8v_håndværker_loft(år: Heltal) -> Heltal {
+    match år { | 2025 -> 8600 | 2026 -> 9000 | _ -> 0 }
+}
+> ll8v_fradragsår(arbejde: Dato, betaling: Dato) -> Heltal {
+    hvis dato_gyldig(arbejde) && dato_gyldig(betaling) {
+        hvis betaling.år - 1 == arbejde.år && betaling.måned <= 2 { arbejde.år } ellers { betaling.år }
+    } ellers { 0 }
+}
+> ll8v_voksen(fødselsdato: Dato, år: Heltal) -> Boolsk {
+    dato_gyldig(fødselsdato) && fødselsdato.år <= år && år - fødselsdato.år >= 18
+}
+> ll8v_poster(input: Ll8VÅrsinput) -> List(Ll8VPost) {
+    match input { | OplysteBoligjobudgifter(poster, _, _, _) -> poster | _ -> [] }
+}
+> ll8v_afklaret(input: Ll8VÅrsinput) -> Boolsk {
+    match input { | BoligjobUoplyst -> Falskt | IngenBoligjobudgifter -> Sandt | OplysteBoligjobudgifter(_, komplette, skattepligt, person) -> komplette && skattepligt != Ll8VUoplystSkattepligt && trim(person) != "" }
+}
+> ll8v_skattepligt(input: Ll8VÅrsinput) -> Ll8VSkattepligt {
+    match input { | OplysteBoligjobudgifter(_, _, skattepligt, _) -> skattepligt | _ -> Ll8VUoplystSkattepligt }
+}
+> ll8v_personreference(input: Ll8VÅrsinput) -> Tekst {
+    match input { | OplysteBoligjobudgifter(_, _, _, person) -> person | _ -> "ingen-oplyste-udgifter" }
+}
+> ll8v_land_afklaret(land: Ll8VLand) -> Boolsk {
+    match land { | Ll8VUoplystLand -> Falskt | Ll8VDanmark -> Sandt | Ll8VEU_EØS(svar) -> svar != Ll8VUoplyst | Ll8VUdenforEU_EØS(svar) -> svar != Ll8VUoplyst }
+}
+> ll8v_land_udveksler(land: Ll8VLand) -> Boolsk {
+    match land { | Ll8VDanmark -> Sandt | Ll8VEU_EØS(svar) -> svar == Ll8VJa | Ll8VUdenforEU_EØS(svar) -> svar == Ll8VJa | _ -> Falskt }
+}
+> ll8v_fritidsbolig(bolig: Ll8VBoligforhold) -> Boolsk {
+    match bolig { | Ll8VFritidsbolig(_, _, _) -> Sandt | _ -> Falskt }
+}
+> ll8v_bolig_afklaret(bolig: Ll8VBoligforhold) -> Boolsk {
+    match bolig {
+        | Ll8VUoplystBoligforhold -> Falskt
+        | Ll8VHelårsbolig(bopæl, råderet) -> bopæl != Ll8VUoplyst && råderet != Ll8VUoplyst
+        | Ll8VFritidsbolig(ejer, ægtefælle, udlejet) -> (ejer == Ll8VJa || ægtefælle == Ll8VJa || ejer == Ll8VNej && ægtefælle == Ll8VNej) && udlejet != Ll8VUoplyst
+    }
+}
+> ll8v_bolig_omfattet(bolig: Ll8VBoligforhold, kategori: Ll8VKategori) -> Boolsk {
+    match bolig {
+        | Ll8VHelårsbolig(bopæl, råderet) -> bopæl == Ll8VJa && råderet == Ll8VJa
+        | Ll8VFritidsbolig(ejer, ægtefælle, udlejet) -> (ejer == Ll8VJa || ægtefælle == Ll8VJa) && (kategori != Ll8VService || udlejet == Ll8VNej)
+        | _ -> Falskt
+    }
+}
+> ll8v_registrering_omfattet(registrering: Ll8VRegistrering, land: Ll8VLand, udenlandsk_adgang: Boolsk) -> Boolsk {
+    hvis registrering == Ll8VDanskRegistrering { Sandt } ellers hvis udenlandsk_adgang && registrering == Ll8VEU_EØSRegistrering { Sandt } ellers {
+        match land { | Ll8VUdenforEU_EØS(_) -> udenlandsk_adgang && registrering == Ll8VRegistreringIBoligensTredjeland | _ -> Falskt }
+    }
+}
+> ll8v_leverandør_afklaret(leverandør: Ll8VLeverandør, land: Ll8VLand, år: Heltal) -> Boolsk {
+    match leverandør {
+        | Ll8VUoplystLeverandør -> Falskt
+        | Ll8VVirksomhed(registrering, udenlandsk, rut) -> registrering != Ll8VUoplystRegistrering && (land != Ll8VDanmark || udenlandsk != Ll8VUoplyst && (udenlandsk == Ll8VNej || rut != Ll8VUoplyst))
+        | Ll8VPrivatperson(født, skattepligt) -> dato_gyldig(født) && født.år <= år && skattepligt != Ll8VUoplystRegistrering
+    }
+}
+> ll8v_leverandør_omfattet(leverandør: Ll8VLeverandør, land: Ll8VLand, udenlandsk_adgang: Boolsk, kategori: Ll8VKategori, år: Heltal) -> Boolsk {
+    match leverandør {
+        | Ll8VVirksomhed(registrering, udenlandsk, rut) -> ll8v_registrering_omfattet(registrering, land, udenlandsk_adgang) && (land != Ll8VDanmark || udenlandsk == Ll8VNej || rut == Ll8VJa)
+        | Ll8VPrivatperson(født, skattepligt) -> kategori == Ll8VService && ll8v_voksen(født, år) && ll8v_registrering_omfattet(skattepligt, land, udenlandsk_adgang)
+        | _ -> Falskt
+    }
+}
+-- Subtraher fra et ikke-negativt budget: ingen overflow ved summering af
+-- ekstreme eller gentagne beløb. -1 bevarer en overfordelingsfejl.
+> ll8v_restbudget(rest: Heltal, andel: Ll8VAndel) -> Heltal {
+    hvis rest < 0 || andel.arbejdsløn_øre < 0 || andel.arbejdsløn_øre > rest { -1 } ellers { rest - andel.arbejdsløn_øre }
+}
+> ll8v_fordeling_gyldig(betaling: Ll8VBetalingsfakta) -> Boolsk {
+    betaling.betalt_arbejdsløn_øre >= 0 && betaling.betalte_materialer_kørsel_m_v_øre >= 0 && trim(betaling.betalerreference) != "" && foldl(betaling.andele, betaling.betalt_arbejdsløn_øre, |rest: Heltal, andel: Ll8VAndel| ll8v_restbudget(rest, andel)) >= 0 && all(betaling.andele, |andel: Ll8VAndel| trim(andel.personreference) != "" && length(filter(betaling.andele, |anden: Ll8VAndel| anden.personreference == andel.personreference)) == 1)
+}
+> ll8v_egen_andel(betaling: Ll8VBetalingsfakta, person: Tekst) -> Heltal {
+    foldl(betaling.andele, 0, |beløb: Heltal, andel: Ll8VAndel| hvis andel.personreference == person { andel.arbejdsløn_øre } ellers { beløb })
+}
+> ll8v_postresultat(år: Heltal, født: Dato, person: Tekst, skattepligt: Ll8VSkattepligt, post: Ll8VPost) -> Ll8VPostresultat {
+    = b = post.betaling
+    = kategori = ll8v_kategori(b.ydelse)
+    = fradragsår = ll8v_fradragsår(b.arbejdsdato, b.betalingsdato)
+    = fritid = ll8v_fritidsbolig(post.boligforhold)
+    = udenlandsk_adgang = (fritid && b.land != Ll8VDanmark || skattepligt == Ll8VGrænsegænger) && ll8v_land_udveksler(b.land)
+    = afklaret = b.ydelse != Ll8VUafklaretYdelse && ll8v_land_afklaret(b.land) && ll8v_bolig_afklaret(post.boligforhold) && ll8v_leverandør_afklaret(b.leverandør, b.land, år) && b.betalingsform != Ll8VUoplystBetaling && b.arbejdsbilag_med_påkrævede_oplysninger != Ll8VUoplyst && b.betalingsbilag != Ll8VUoplyst && b.offentligt_tilskud != Ll8VUoplyst && b.samme_udgift_fradraget_efter_andre_regler != Ll8VUoplyst && b.udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer != Ll8VUoplyst && post.indberettet_med_leverandøroplysninger != Ll8VUoplyst && (b.betalerreference == person || post.fællesøkonomi_med_betalende_ægtefælle_eller_samlever != Ll8VUoplyst) && (kategori != Ll8VGrønIstandsættelse || b.eksisterende_bolig != Ll8VUoplyst) && (b.ydelse != Ll8VBørnepasning && b.ydelse != Ll8VAfhentningAfBørn || b.børnepasning_skattefri_efter_par7æ != Ll8VUoplyst) && b.særligt_forhold != Ll8VUoplystSærligtForhold
+    = gyldigt = afklaret && dato_gyldig(b.arbejdsdato) && dato_gyldig(b.betalingsdato) && b.arbejdsdato.år >= 2023 && b.arbejdsdato.år <= 2026 && b.betalingsdato.år >= 2023 && b.betalingsdato.år <= 2027 && dato_før_eller_lig_med(b.arbejdsdato, b.betalingsdato) && trim(b.identifikation) != "" && trim(b.kildereference) != "" && trim(b.betalingsreference) != "" && trim(b.boligreference) != "" && ll8v_fordeling_gyldig(b) && length(filter(b.andele, |andel: Ll8VAndel| andel.personreference == person)) == 1 && b.særligt_forhold == Ll8VAlmindeligUdgift
+    = skattepligtig = skattepligt == Ll8VFuldtSkattepligtig || skattepligt == Ll8VGrænsegænger || skattepligt == Ll8VBegrænsetSkattepligtig && fritid && b.land == Ll8VDanmark
+    = bopælsland = fritid || b.land == Ll8VDanmark || skattepligt == Ll8VGrænsegænger
+    = betingelser = [
+        Ll8VBetingelse(navn = "Personens skattepligt", opfyldt = skattepligtig),
+        Ll8VBetingelse(navn = "Helårsboligens land og grænsegængerstatus", opfyldt = bopælsland),
+        Ll8VBetingelse(navn = "18 år ved indkomstårets udløb", opfyldt = ll8v_voksen(født, år)),
+        Ll8VBetingelse(navn = "Ydelse og arbejdets virkningstid", opfyldt = ll8v_arbejdsår_omfattet(b.ydelse, b.arbejdsdato.år)),
+        Ll8VBetingelse(navn = "Bopæl, råderet, ejerskab og udlejning", opfyldt = ll8v_bolig_omfattet(post.boligforhold, kategori)),
+        Ll8VBetingelse(navn = "Oplysningsudveksling med Danmark", opfyldt = ll8v_land_udveksler(b.land)),
+        Ll8VBetingelse(navn = "Leverandørens registrering, alder og RUT", opfyldt = ll8v_leverandør_omfattet(b.leverandør, b.land, udenlandsk_adgang, kategori, år)),
+        Ll8VBetingelse(navn = "Elektronisk betaling, ikke kontanter eller check", opfyldt = (b.betalingsform == Ll8VKontooverførsel || b.betalingsform == Ll8VKortEllerMobilbetaling)),
+        Ll8VBetingelse(navn = "Arbejdsbilag med påkrævede oplysninger", opfyldt = b.arbejdsbilag_med_påkrævede_oplysninger == Ll8VJa),
+        Ll8VBetingelse(navn = "Dokumentation for gennemført betaling", opfyldt = b.betalingsbilag == Ll8VJa),
+        Ll8VBetingelse(navn = "Intet offentligt tilskud til arbejdet", opfyldt = b.offentligt_tilskud == Ll8VNej),
+        Ll8VBetingelse(navn = "Ikke fradraget efter andre regler", opfyldt = b.samme_udgift_fradraget_efter_andre_regler == Ll8VNej),
+        Ll8VBetingelse(navn = "Ingen udelukket bopæls-/ejerrelation til udføreren", opfyldt = b.udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer == Ll8VNej),
+        Ll8VBetingelse(navn = "Indberettet med leverandøroplysninger", opfyldt = post.indberettet_med_leverandøroplysninger == Ll8VJa),
+        Ll8VBetingelse(navn = "Egen betaling eller ægtefælle/samlever med fælles økonomi", opfyldt = (b.betalerreference == person || post.fællesøkonomi_med_betalende_ægtefælle_eller_samlever == Ll8VJa)),
+        Ll8VBetingelse(navn = "Eksisterende bolig for grøn istandsættelse", opfyldt = (kategori != Ll8VGrønIstandsættelse || b.eksisterende_bolig == Ll8VJa)),
+        Ll8VBetingelse(navn = "Børnepasning ikke skattefri efter § 7 Æ", opfyldt = (b.ydelse != Ll8VBørnepasning && b.ydelse != Ll8VAfhentningAfBørn || b.børnepasning_skattefri_efter_par7æ == Ll8VNej))
+    ]
+    = opfyldt = all(betingelser, |betingelse: Ll8VBetingelse| betingelse.opfyldt)
+    = andel = hvis ll8v_fordeling_gyldig(b) { ll8v_egen_andel(b, person) } ellers { 0 }
+    = kontrolpunkter = concat(concat(concat(
+        hvis afklaret { [] } ellers { ["En eller flere nødvendige kildefakta er uoplyste."] },
+        hvis gyldigt { [] } ellers { ["Kontrollér datoer (arbejde 2023-2026, ingen forudbetaling), referencer, beløb, fordeling og særlige forhold. Forsikringssager kræver særskilt beregning."] }),
+        map(filter(betingelser, |betingelse: Ll8VBetingelse| betingelse.opfyldt == Falskt), |betingelse: Ll8VBetingelse| betingelse.navn)),
+        hvis fradragsår == år { [] } ellers { ["Betalingen henføres til et andet indkomstår efter § 8 V, stk. 4."] })
+    Ll8VPostresultat(betingelser = betingelser, identifikation = b.identifikation, kategori = kategori, fradragsår = fradragsår, fakta_afklarede = afklaret, input_gyldigt = gyldigt, betingelser_opfyldt = opfyldt, egen_andel_øre = andel, medregnet_før_årsloft_øre = hvis gyldigt && opfyldt && fradragsår == år { andel } ellers { 0 }, kontrolpunkter = kontrolpunkter)
+}
+> ll8v_begrænset_sum(poster: List(Ll8VPostresultat), kategori: Ll8VKategori, loft_øre: Heltal) -> Heltal {
+    foldl(poster, 0, |sum: Heltal, post: Ll8VPostresultat| hvis post.kategori == kategori { hvis post.medregnet_før_årsloft_øre >= loft_øre - sum { loft_øre } ellers { sum + post.medregnet_før_årsloft_øre } } ellers { sum })
+}
+> ll8v_årsresultat(år: Heltal, født: Dato, person: Tekst, input: Ll8VÅrsinput) -> Ll8VÅrsresultat {
+    = fakta = ll8v_poster(input)
+    = afklaret = ll8v_afklaret(input)
+    = resultater = map(fakta, |post: Ll8VPost| ll8v_postresultat(år, født, person, ll8v_skattepligt(input), post))
+    = unikke = all(fakta, |post: Ll8VPost| length(filter(fakta, |anden: Ll8VPost| ll8v_samme_betalingslinje(anden.betaling, post.betaling))) == 1)
+    = gyldigt = år >= 2023 && år <= 2026 && dato_gyldig(født) && født.år <= år && trim(person) != "" && afklaret && unikke && all(resultater, |post: Ll8VPostresultat| post.input_gyldigt)
+    = service = hvis gyldigt { ll8v_begrænset_sum(resultater, Ll8VService, ll8v_service_loft(år) * 100) } ellers { 0 }
+    = håndværker = hvis gyldigt { ll8v_begrænset_sum(resultater, Ll8VGrønIstandsættelse, ll8v_håndværker_loft(år) * 100) } ellers { 0 }
+    Ll8VÅrsresultat(indkomstår = år, personreference = person, input_gyldigt = gyldigt, oplysninger_afklarede = afklaret, poster = resultater, fejl = hvis gyldigt { [] } ellers { ["Boligjobgrundlaget er uafklaret, ugyldigt, dubleret eller uden for modellens omfang; se posterne. Ukendt er ikke nul."] }, service_loft_kroner = ll8v_service_loft(år), håndværker_loft_kroner = ll8v_håndværker_loft(år), servicefradrag_øre = service, håndværkerfradrag_øre = håndværker, samlet_fradrag_kroner = service / 100 + håndværker / 100)
+}
+-- Ens fælles nøgle kræver samme betalingsfakta, inklusive alle andele.
+-- Bolig-/personbetingelser kan derimod være forskellige for ægtefællerne.
+> ll8v_parfordeling_gyldig(hovedperson: Ll8VÅrsinput, ægtefælle: Ll8VÅrsinput) -> Boolsk {
+    (length(ll8v_poster(hovedperson)) == 0 || length(ll8v_poster(ægtefælle)) == 0 || ll8v_personreference(hovedperson) != ll8v_personreference(ægtefælle)) && all(ll8v_poster(hovedperson), |post: Ll8VPost| all(ll8v_poster(ægtefælle), |anden: Ll8VPost| ll8v_samme_betalingslinje(post.betaling, anden.betaling) == Falskt || post.betaling == anden.betaling))
+}
+> ll8v_samme_betalingslinje(a: Ll8VBetalingsfakta, b: Ll8VBetalingsfakta) -> Boolsk {
+    a.identifikation == b.identifikation || trim(a.kildereference) == trim(b.kildereference) && trim(a.betalingsreference) == trim(b.betalingsreference)
+}
+--@end:ll8v--
+
+= ll8vårsinput_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ll8VÅrsinput::$variant), label = "Service- og håndværkerudgifter", question = Some("Er årets mulige service- og håndværkerudgifter afklaret?"), help = Some("Uoplyst er ikke ingen. Brug fakturaer og betalinger, aldrig årsopgørelsens beregnede fradrag."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VÅrsinput::OplysteBoligjobudgifter::oplysninger_for_året_komplette), label = "Årets oplysninger er komplette", question = Some("Er alle relevante betalinger og mulige fradrag medtaget?"), help = Some("Herunder betalinger for tidligere års arbejde og betalinger i januar/februar efter arbejdsåret."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VÅrsinput::OplysteBoligjobudgifter::personreference), label = "Personens lokale nøgle", question = Some("Hvilken lokal nøgle identificerer denne person i fordelingen?"), help = Some("Fx hovedperson eller ægtefælle. Brug forskellige nøgler, ikke CPR-numre."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VÅrsinput::OplysteBoligjobudgifter::skattepligt), label = "Personens skattepligt", question = Some("Hvilken dansk skattepligt gælder for personen?"), help = Some("Grænsegænger betyder valgt beskatning efter kildeskattelovens afsnit I A."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VÅrsinput::OplysteBoligjobudgifter::poster), label = "Betalte ydelseslinjer", question = Some("Hvilke dokumenterede betalings-/ydelseslinjer vedrører året?"), help = Some("Én post pr. fakturalinje og faktisk betaling. Genbrug de samme fælles fakta ved deling."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
+)
+--@label:Ll8VÅrsinput::meta:ll8vårsinput_meta--
+= ll8vbetalingsfakta_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::identifikation), label = "Fælles betalingslinjenøgle", question = Some("Hvilken stabil nøgle identificerer betalings-/ydelseslinjen?"), help = Some("Samme nøgle hos begge ægtefæller. En ny nøgle må ikke bruges til at gentage samme udgift."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::kildereference), label = "Faktura eller erklæring og linje", question = Some("Hvilket lokalt bilag og hvilken ydelseslinje dokumenterer arbejdet?"), help = Some("Medtag en stabil linjereference ved flere ydelser. Dokumenter forbliver private."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsreference), label = "Betalingsbilag", question = Some("Hvilken faktisk overførsel eller kortbetaling dokumenterer denne post?"), help = Some("Samme kilde- og betalingsreference må ikke gentages med et andet id."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::boligreference), label = "Boligens lokale nøgle", question = Some("Hvilken bolig vedrører arbejdet?"), help = Some("Kilden skal indeholde arbejdsadressen; modellen behøver kun en lokal reference."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::ydelse), label = "Arbejdets art efter bilag 1", question = Some("Hvilken præcis ydelse blev udført?"), help = Some("Afklar tvivl mod bilag 1 og vejledningen. Fx ventilation betyder installation/reparation/forbedring, ikke service; hvidevarer betyder faktisk reparation i hjemmet, ikke undersøgelsesgebyr."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::år), label = "Arbejdets år", question = Some("Hvilket år blev ydelsen udført?"), help = Some("Opdel arbejde på tværs af år. Forudbetaling og arbejde før 2023 er endnu uden for denne model."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::måned), label = "Arbejdets måned", question = Some("Hvilken måned blev ydelsen udført?"), help = None, unit = Some("måned")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::dag), label = "Arbejdets dag", question = Some("Hvilken dag blev ydelsen udført?"), help = None, unit = Some("dag")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsdato::år), label = "Betalingens år", question = Some("Hvilket år blev beløbet betalt?"), help = Some("Betaling i januar/februar efter arbejdsåret henføres til arbejdsåret; senere betaling til betalingsåret."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsdato::måned), label = "Betalingens måned", question = Some("Hvilken måned blev beløbet betalt?"), help = None, unit = Some("måned")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsdato::dag), label = "Betalingens dag", question = Some("Hvilken dag blev beløbet betalt?"), help = None, unit = Some("dag")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalt_arbejdsløn_øre), label = "Betalt arbejdsløn inklusive moms", question = Some("Hvor meget af den dokumenterede betaling er arbejdsløn?"), help = Some("Kun den faktisk betalte del. Brug specificeret faktura, ikke et anslået fradrag."), unit = Some("øre")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalte_materialer_kørsel_m_v_øre), label = "Betalte materialer og øvrige poster", question = Some("Hvor meget af betalingen vedrører materialer, kørsel og andre ikke-lønposter?"), help = Some("Indgår ikke i fradraget. Forsikringsdækkede beløb kræver særskilt fordeling."), unit = Some("øre")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsbilag_med_påkrævede_oplysninger), label = "Arbejdsbilag er fyldestgørende", question = Some("Dokumenterer bilaget ydelse, løn, leverandøridentitet, dato og arbejdsadresse?"), help = Some("Opbevar faktura/serviceerklæring privat. Modellen kontrollerer ikke ægthed."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsbilag), label = "Dokumenteret betaling", question = Some("Foreligger kontoudtog eller kvittering for gennemført betaling?"), help = Some("En faktura alene dokumenterer ikke betaling."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::offentligt_tilskud), label = "Offentligt tilskud til arbejdet", question = Some("Er der ydet offentligt tilskud til arbejdet?"), help = Some("Tilskud afskærer fradrag for arbejdet; det er ikke blot et beløb, der trækkes fra."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::samme_udgift_fradraget_efter_andre_regler), label = "Fradrag efter andre regler", question = Some("Er samme udgift allerede fradraget efter andre skatteregler?"), help = Some("Undgå dobbeltfradrag på tværs af modellen."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::børnepasning_skattefri_efter_par7æ), label = "Skattefri børnepasning hos modtager", question = Some("Er børnepasningsvederlaget skattefrit efter LL § 7 Æ?"), help = Some("Relevant for børnepasning/afhentning, ikke øvrige ydelser."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer), label = "Udførerens relation til boligen", question = Some("Bor udføreren i helårsboligen, ejer fritidsboligen eller bor med en fritidsboligejer?"), help = Some("De nævnte relationer afskærer fradrag efter § 8 V, stk. 7."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalerreference), label = "Betalerens lokale nøgle", question = Some("Hvem har betalt den dokumenterede udgift?"), help = Some("Deling uanset betaler kræver ægtefælle/samlever med fælles økonomi."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::andele), label = "Fordeling af den betalte arbejdsløn", question = Some("Hvordan er arbejdslønnen fordelt mellem alle personer?"), help = Some("Alle andele tilsammen må ikke overstige arbejdslønnen; materialer kan ikke fordeles som løn."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::særligt_forhold), label = "Særlige betalingsforhold", question = Some("Er betalingen almindelig selvbetalt eller forsikringsdækket/anderledes fordelt?"), help = Some("Forsikringssager er endnu ikke beregnet. Vælg ikke almindelig for at få et beløb."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
+)
+--@label:Ll8VBetalingsfakta::meta:ll8vbetalingsfakta_meta--
+= ll8vandel_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ll8VAndel::personreference), label = "Modtagerens lokale nøgle", question = Some("Hvem vedrører denne andel?"), help = Some("Skal svare præcist til personens lokale nøgle, ikke CPR."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VAndel::arbejdsløn_øre), label = "Personens andel af betalt løn", question = Some("Hvor stor en andel af arbejdslønnen tilordnes personen?"), help = Some("En udgiftsfordeling, ikke det fradrag der ønskes. Loftet beregnes af modellen."), unit = Some("øre"))
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
+)
+--@label:Ll8VAndel::meta:ll8vandel_meta--
+= ll8vpost_meta = TypetBeregningsmeta(
+    felter = [
+        TypetBeregningsfelt(path = refof(Ll8VPost::boligforhold::$variant), label = "Personens forhold til boligen", question = Some("Hvilken bopæl/ejendomsret havde personen, da arbejdet blev udført?"), help = Some("Fritidsbolig kræver ejerskab og ejendomsværdiskattepligt eller gift/samlevende med sådan ejer."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VPost::fællesøkonomi_med_betalende_ægtefælle_eller_samlever), label = "Fælles økonomi med betaleren", question = Some("Er betaleren personens ægtefælle/samlever med fælles økonomi?"), help = Some("Kræves, hvis personen får en andel af en andens betaling."), unit = None),
+        TypetBeregningsfelt(path = refof(Ll8VPost::indberettet_med_leverandøroplysninger), label = "Indberetning til Skatteforvaltningen", question = Some("Er beløbet og leverandøroplysninger indberettet som krævet?"), help = Some("Et manglende krav kan være en mulig rettelse, ikke bevis for at det allerede er opfyldt."), unit = None)
+    ], spørgsmål = [], beløbsfelter = [], attachments = Source(value = ll8v_kilde)
+)
+--@label:Ll8VPost::meta:ll8vpost_meta--
