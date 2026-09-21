@@ -102,6 +102,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     personlig_indkomst = personskat_ingen_personlig_indkomst(),
     erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
     ligningsfradrag = PersonskatLigningsfradragInput(
+        enlig_forsørger = IntetEkstraBørnetilskud,
         sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
         sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
         fiskerfradrag = ligningslov9g_intet_årsinput(),
@@ -1873,6 +1874,7 @@ særlige skatte-, underskuds- og årsopgørelsesfelter valgfrie.
     art = art
 )
 = personskat_calculate_ligningsfradrag_2025 = PersonskatLigningsfradragInput(
+    enlig_forsørger = IntetEkstraBørnetilskud,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = ligningslov9g_intet_årsinput(),

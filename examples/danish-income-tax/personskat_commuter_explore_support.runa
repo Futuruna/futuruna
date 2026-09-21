@@ -54,6 +54,7 @@ These constructors encode declared audit facts, not replacement tax formulas.
 | personskat_350k_commuter_ligningsfradrag(
     profil: Personskat350kCommuterProfile
 ) -> PersonskatLigningsfradragInput(
+    enlig_forsørger = IntetEkstraBørnetilskud,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = ligningslov9g_intet_årsinput(),

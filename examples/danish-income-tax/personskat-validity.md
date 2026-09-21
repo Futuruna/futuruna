@@ -46,11 +46,12 @@ modules also remain; this boundary is exercised through `runa call`.
 
 ## Updating existing clients
 
-This is an additive change to the research model's Preview calculation output.
-The input facts and existing numerical projections are unchanged, but the
-contract fingerprint changes: regenerate templates and migrate supported facts
-instead of editing a stale workbook's hidden fingerprint. Existing clients must
-check `vurdering` before using the legacy scalar totals for comparison.
+The validity assessment itself is an additive change to the research model's
+Preview output. Subsequent deduction work also adds a required
+[single-parent benefit input](ligningsloven-par9j-enlig.md): its template default
+is unknown, not confirmed nonreceipt. Regenerate templates and migrate supported
+facts instead of editing a stale workbook's hidden fingerprint. Existing clients
+must check `vurdering` before using the legacy scalar totals for comparison.
 
 Never fill a missing birthday or other unknown fact with a plausible substitute.
 When unavailable spouse facts prevent an independent household calculation, use
