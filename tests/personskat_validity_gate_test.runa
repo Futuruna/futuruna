@@ -1,0 +1,16 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / personskat - beregningskontrol
+
+= gyldig = personskat_beregningsvurdering([PersonskatInputkontrol(sti = "syntetisk", gyldig = Sandt, forklaring = "Modelkontrol bestået")], 12345)
+= ugyldig = personskat_beregningsvurdering([PersonskatInputkontrol(sti = "syntetisk.fødselsdato", gyldig = Falskt, forklaring = "Ugyldig dato")], 12345)
+= tom = personskat_beregningsvurdering([], 12345)
+
+| gyldig_bevarer_modelbeløb: gyldig -> gyldig.alle_kontroller_gyldige && gyldig.slutskat_til_sammenligning_øre == Some(12345) && length(gyldig.fejl) == 0
+| ugyldig_afskærer_sammenligning: ugyldig -> ugyldig.status == UgyldigtBeregningsgrundlag && ugyldig.slutskat_til_sammenligning_øre == None && head(ugyldig.fejl).sti == "syntetisk.fødselsdato"
+| manglende_kontroller_er_ikke_godkendelse: tom -> tom.alle_kontroller_gyldige == Falskt && tom.slutskat_til_sammenligning_øre == None
+| gyldighed_er_ikke_dækningsbevis: gyldig -> gyldig.status == BeregnetMedForbehold && gyldig.samlet_modeldækning_bekræftet == Falskt && length(gyldig.forbehold) > 0
+
+? gyldig_bevarer_modelbeløb
+? ugyldig_afskærer_sammenligning
+? manglende_kontroller_er_ikke_godkendelse
+? gyldighed_er_ikke_dækningsbevis

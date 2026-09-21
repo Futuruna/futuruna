@@ -230,7 +230,18 @@ When the workbook is complete, run:
 "$RUNA_BIN" call examples/danish-income-tax/personskat.calculate.runa --entry beregn_personskat --input PRIVATE_WORK_DIR/personskat-cases.xlsx --output PRIVATE_WORK_DIR/personskat-results.xlsx
 ```
 
-Help the user compare the result with the Annual Tax Report, trace differences back to inputs and rules, and report uncertainties clearly. `schema`, `template`, and `call` are Preview features, and this tax model remains an active research project.
+Before comparing totals, read the canonical result's `vurdering` as described in
+`examples/danish-income-tax/personskat-validity.md`. If its status is
+`UgyldigtBeregningsgrundlag`, the comparison amount is `null`: explain the failed
+input checks and treat the remaining figures as diagnostic only. Do not turn
+successful CLI execution into a claim that the tax calculation is valid.
+`BeregnetMedForbehold` permits comparison of the modeled portion, not a conclusion
+that all relevant facts and deductions are covered. Preserve the stated coverage
+qualifications and never substitute zero for a missing comparison amount.
+
+Help the user trace differences back to inputs and rules, and report
+uncertainties clearly. `schema`, `template`, and `call` are Preview features,
+and this tax model remains an active research project.
 
 ### Explore a rule model
 

@@ -1,0 +1,27 @@
+@ sprog da
+
+-- Modelkontrol, ikke en erklæring om dokumenternes sandhed eller fuld lovdækning.
+-- Domænemodellerne leverer eksplicitte kontroller. Almindelige falske
+-- berettigelsesvilkår eller inaktive grene er ikke i sig selv inputfejl.
+# PersonskatInputkontrol(sti: Tekst, gyldig: Boolsk, forklaring: Tekst)
+# PersonskatBeregningsstatus = UgyldigtBeregningsgrundlag | BeregnetMedForbehold
+# PersonskatBeregningsvurdering(status: PersonskatBeregningsstatus, alle_kontroller_gyldige: Boolsk, slutskat_til_sammenligning_øre: Heltal?, samlet_modeldækning_bekræftet: Boolsk, kontroller: List(PersonskatInputkontrol), fejl: List(PersonskatInputkontrol), forbehold: List(Tekst))
+
+> personskat_beregningsvurdering(kontroller: List(PersonskatInputkontrol), slutskat_øre: Heltal) -> PersonskatBeregningsvurdering {
+    = fejl = filter(kontroller, |kontrol: PersonskatInputkontrol| kontrol.gyldig == Falskt)
+    = gyldigt = length(kontroller) > 0 && length(fejl) == 0
+    PersonskatBeregningsvurdering(
+        status = hvis gyldigt { BeregnetMedForbehold } ellers { UgyldigtBeregningsgrundlag },
+        alle_kontroller_gyldige = gyldigt,
+        slutskat_til_sammenligning_øre = hvis gyldigt { Some(slutskat_øre) } ellers { None },
+        samlet_modeldækning_bekræftet = Falskt,
+        kontroller = kontroller,
+        fejl = fejl,
+        forbehold = [
+            "Ved ugyldigt beregningsgrundlag er alle øvrige beløb diagnostik, ikke et resultat til sammenligning med årsopgørelsen.",
+            "Gyldige kontroller betyder kun, at de anførte modelkontroller er bestået; de bekræfter ikke kildefakta, fuldstændig indberetning eller samlet retlig korrekthed.",
+            "En mulig beløbssammenligning gælder den modellerede del. Samlet modeldækning skal vurderes særskilt; ukendte fakta må ikke erstattes med nul.",
+            "Kendte dækningshuller omfatter ekstra senior- og enligforsørgerbeskæftigelsesfradrag samt service- og håndværkerfradrag. Undersøg relevans før en samlet rapportkonklusion."
+        ]
+    )
+}
