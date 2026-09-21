@@ -95,8 +95,9 @@ The whole-krone projection discards positive fractions, following the existing
 ordinary LL § 9 J model. The cited sources establish eligibility, rates, caps
 and allocation, not independent confirmation of the administrative rounding
 rule. That confirmation and the existing foreign-employer fact-routing gap
-remain launch follow-ups. Future years are not extrapolated. Service and
-handyman deductions and complete model conformance remain separate work.
+remain launch follow-ups. Future years are not extrapolated.
+[Service and handyman deductions](boligjob.md) are composed separately from
+invoice facts. Complete model conformance remains separate work.
 
 Focused checks:
 

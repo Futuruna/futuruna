@@ -1,0 +1,9 @@
+@ sprog da
+@ importer ./ligningsloven - par8v - boligjob
+
+# BoligjobBeregningsinput(indkomstår: Heltal, fødselsdato: Dato, udgifter: Ll8VÅrsinput)
+
+@ calculate("Service- og håndværkerfradrag fra betalingsfakta")
+> beregn_boligjobfradrag(input: BoligjobBeregningsinput) -> Ll8VÅrsresultat {
+    ll8v_årsresultat(input.indkomstår, input.fødselsdato, ll8v_personreference(input.udgifter), input.udgifter)
+}

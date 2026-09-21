@@ -186,6 +186,7 @@
     sømandsbeskatningslov4: Sømandsbeskatningslov4Årsinput
 ) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsfradrag,
     sømandsbeskatningslov4 = sømandsbeskatningslov4,
     fiskerfradrag = personskat_fiskerfradrag_par9g(kildetilknytninger, selvstændige_udgiftsvurderinger),
@@ -233,6 +234,7 @@
 )
 | personskat_fiskerfradrag_nytårs_ligningsfradrag() -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = Ligningslov9GÅrsinput(
@@ -376,6 +378,7 @@
 )
 | personskat_fiskerfradrag_overgangs_ligningsfradrag_med_arbejdsforhold(kontingentperiodeundtagelser: List(Ligningslov9GKontingentperiodeundtagelse), arbejdsforhold: List(Ligningslov9GArbejdsforhold)) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = Ligningslov9GÅrsinput(
@@ -564,6 +567,7 @@
 )
 | personskat_fiskerfradrag_blandede_rejser_ligningsfradrag_med_andet_arbejdes_tilknytning(valg: Ligningslov9GFradragsvalg, andet_arbejdes_tilknytning: Ligningslov9GArbejdstilknytning) -> PersonskatLigningsfradragInput(
     enlig_forsørger = IntetEkstraBørnetilskud,
+    boligjob = IngenBoligjobudgifter,
     sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
     sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
     fiskerfradrag = personskat_fiskerfradrag_blandede_rejser_par9g_med_andet_arbejdes_tilknytning(

@@ -1,0 +1,22 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / ligningsloven - par8v - boligjob
+
+= boligjob_lofter = [ll8v_service_loft(2023) == 6600, ll8v_service_loft(2024) == 11900, ll8v_service_loft(2025) == 17500, ll8v_service_loft(2026) == 18300, ll8v_håndværker_loft(2023) == 0, ll8v_håndværker_loft(2024) == 0, ll8v_håndværker_loft(2025) == 8600, ll8v_håndværker_loft(2026) == 9000, ll8v_service_loft(2027) == 0]
+= boligjob_datoer = [
+    ll8v_fradragsår(Dato(år = 2023, måned = 12, dag = 1), Dato(år = 2024, måned = 2, dag = 29)) == 2023,
+    ll8v_fradragsår(Dato(år = 2023, måned = 12, dag = 1), Dato(år = 2024, måned = 3, dag = 1)) == 2024,
+    ll8v_fradragsår(Dato(år = 2025, måned = 12, dag = 1), Dato(år = 2026, måned = 2, dag = 28)) == 2025,
+    ll8v_fradragsår(Dato(år = 2025, måned = 12, dag = 1), Dato(år = 2026, måned = 2, dag = 29)) == 0
+]
+= boligjob_tidsgrænser = [ll8v_arbejdsår_omfattet(Ll8VTagisolering, 2024) == Falskt, ll8v_arbejdsår_omfattet(Ll8VTagisolering, 2025), ll8v_arbejdsår_omfattet(Ll8VTagrender, 2024) == Falskt, ll8v_arbejdsår_omfattet(Ll8VTagrender, 2025), ll8v_arbejdsår_omfattet(Ll8VHvidevarereparation, 2027), ll8v_arbejdsår_omfattet(Ll8VHvidevarereparation, 2028) == Falskt]
+= boligjob_budget = [ll8v_restbudget(9223372036854775807, Ll8VAndel(personreference = "a", arbejdsløn_øre = 9223372036854775807)) == 0, ll8v_restbudget(100, Ll8VAndel(personreference = "a", arbejdsløn_øre = 101)) == -1, ll8v_restbudget(100, Ll8VAndel(personreference = "a", arbejdsløn_øre = -1)) == -1]
+
+| boligjob_årslofter: boligjob_lofter -> all(boligjob_lofter, |ok: Boolsk| ok)
+| boligjob_betalingsår: boligjob_datoer -> all(boligjob_datoer, |ok: Boolsk| ok)
+| boligjob_ydelsers_virkningstid: boligjob_tidsgrænser -> all(boligjob_tidsgrænser, |ok: Boolsk| ok)
+| boligjob_fordelingsbudget: boligjob_budget -> all(boligjob_budget, |ok: Boolsk| ok)
+
+? boligjob_årslofter
+? boligjob_betalingsår
+? boligjob_ydelsers_virkningstid
+? boligjob_fordelingsbudget

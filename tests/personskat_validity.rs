@@ -4,6 +4,8 @@ use std::path::PathBuf;
 use std::process::Command;
 
 const MODEL: &str = "examples/danish-income-tax/personskat.calculate.runa";
+#[path = "support/boligjob.rs"]
+mod boligjob;
 
 fn run(args: &[&str]) -> Value {
     // Model-only iteration may reuse a verified binary from the same compiler
@@ -75,6 +77,12 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
     );
     ordinary["lønmodtager"]["ligningsfradrag"]["enlig_forsørger"] =
         json!({"$variant":"IntetEkstraBørnetilskud"});
+    assert_eq!(
+        ordinary["lønmodtager"]["ligningsfradrag"]["boligjob"]["$variant"],
+        "BoligjobUoplyst"
+    );
+    ordinary["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+        json!({"$variant":"IngenBoligjobudgifter"});
     ordinary["lønmodtager"]["skatteår"] = json!(2025);
     ordinary["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
     ordinary["lønmodtager"]["pension"]["fødselsdato"] = json!({"år":1990,"måned":1,"dag":1});
@@ -199,6 +207,60 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
             },
         );
     }
+    add("boligjob-service-2023", None, Some(21521910), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2023);
+        v["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+            boligjob::facts(vec![boligjob::post(2023, "Ll8VRengøring", 3000000)]);
+    });
+    add("boligjob-both-caps", None, Some(20234017), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2026);
+        let mut craft = boligjob::post(2026, "Ll8VTagisolering", 3000000);
+        craft["betaling"]["identifikation"] = json!("invoice-line-payment-2");
+        craft["betaling"]["kildereference"] = json!("synthetic-invoice-2-line-1");
+        v["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+            boligjob::facts(vec![boligjob::post(2026, "Ll8VRengøring", 3000000), craft]);
+    });
+    for conflict in [false, true] {
+        add(
+            if conflict {
+                "boligjob-spouse-conflict"
+            } else {
+                "boligjob-shared"
+            },
+            if conflict {
+                Some("lønmodtager.ligningsfradrag.boligjob.fordeling")
+            } else {
+                None
+            },
+            if conflict { None } else { Some(20779004) },
+            &|v| {
+                v["lønmodtager"]["skatteår"] = json!(2026);
+                v["ægtefælle"] = spouse(v);
+                v["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+                let mut row = boligjob::post(2026, "Ll8VRengøring", 1000000);
+                row["betaling"]["andele"] = json!([{"personreference":"hovedperson","arbejdsløn_øre":400000},{"personreference":"ægtefælle","arbejdsløn_øre":600000}]);
+                v["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+                    boligjob::facts(vec![row.clone()]);
+                row["fællesøkonomi_med_betalende_ægtefælle_eller_samlever"] =
+                    json!({"$variant":"Ll8VJa"});
+                if conflict {
+                    row["betaling"]["andele"][0]["arbejdsløn_øre"] = json!(300000);
+                }
+                let mut spouse_facts = boligjob::facts(vec![row]);
+                spouse_facts["personreference"] = json!("ægtefælle");
+                v["ægtefælle"]["fakta"]["lønmodtager"]["ligningsfradrag"]["boligjob"] =
+                    spouse_facts;
+            },
+        );
+    }
+    add(
+        "boligjob-unknown",
+        Some("lønmodtager.ligningsfradrag.boligjob"),
+        None,
+        &|v| {
+            v["lønmodtager"]["ligningsfradrag"]["boligjob"] = json!({"$variant":"BoligjobUoplyst"});
+        },
+    );
     add(
         "invalid-spouse-birth",
         Some("ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato"),
@@ -320,6 +382,23 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
                 result["ægtefælle"]["skat"]["ligningsfradrag"]
                     ["samlede_ligningsmæssige_fradrag_kroner"],
                 91700
+            );
+        }
+        let boligjob_amount = match name.as_str() {
+            "boligjob-service-2023" => 6600,
+            "boligjob-both-caps" => 27300,
+            "boligjob-shared" | "boligjob-spouse-conflict" => 4000,
+            _ => 0,
+        };
+        assert_eq!(
+            result["ligningsfradrag"]["boligjob"]["samlet_fradrag_kroner"], boligjob_amount,
+            "{name}"
+        );
+        if name == "boligjob-shared" {
+            assert_eq!(
+                result["ægtefælle"]["skat"]["ligningsfradrag"]
+                    ["samlede_ligningsmæssige_fradrag_kroner"],
+                72400
             );
         }
         assert!(gate["kontroller"].as_array().unwrap().len() >= 26);

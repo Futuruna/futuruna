@@ -231,6 +231,12 @@ Read `examples/danish-income-tax/ligningsloven-par9j-enlig.md` for quarter facts
 and migration of existing templates. This applies to an active spouse too;
 unavailable facts still permit the separate conditional reconciliation above.
 
+Service and handyman deductions likewise require invoice and payment facts,
+including labour/material separation and any household allocation. Read
+`examples/danish-income-tax/boligjob.md`; do not copy an official deduction into
+another expense field or convert unknown expenses to none. A small standalone
+invoice calculation is available before filling the full tax contract.
+
 When the workbook is complete, run:
 
 ```

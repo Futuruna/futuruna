@@ -114,6 +114,7 @@ components of the final-tax calculation.
     erhvervsbefordring = personskat_ingen_erhvervsbefordring(),
     ligningsfradrag = PersonskatLigningsfradragInput(
         enlig_forsørger = IntetEkstraBørnetilskud,
+        boligjob = IngenBoligjobudgifter,
         sømandsfradrag = sømandsbeskatningslov3_intet_årsinput(),
         sømandsbeskatningslov4 = sømandsbeskatningslov4_intet_årsinput(),
         fiskerfradrag = ligningslov9g_intet_årsinput(),
