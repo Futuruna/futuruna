@@ -116,6 +116,29 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         &|v| v["kapitalindkomst"]["renter"]["renteudgifter_kroner"] = json!(-1),
     );
     add("valid-spouse", None, None, &|v| v["ægtefælle"] = spouse(v));
+    for (year, birth_year, tax) in [
+        (2025, 1960, 21194454),
+        (2026, 1959, 20872564),
+        (2026, 1960, 20729885),
+        (2026, 1961, 20729885),
+        (2026, 1962, 20872564),
+    ] {
+        add(
+            &format!("senior-{year}-{birth_year}"),
+            None,
+            Some(tax),
+            &|v| {
+                v["lønmodtager"]["skatteår"] = json!(year);
+                v["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(birth_year);
+            },
+        );
+    }
+    add("senior-spouse", None, Some(20872564), &|v| {
+        v["lønmodtager"]["skatteår"] = json!(2026);
+        v["ægtefælle"] = spouse(v);
+        v["ægtefælle"]["fakta"]["lønmodtager"]["bruttoløn_kroner"] = json!(600000);
+        v["ægtefælle"]["fakta"]["lønmodtager"]["pension"]["fødselsdato"]["år"] = json!(1960);
+    });
     add(
         "invalid-spouse-birth",
         Some("ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato"),
@@ -182,6 +205,33 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         }
         if let Some(tax) = tax {
             assert_eq!(result["slutskat_øre"], tax, "{name}");
+        }
+        let senior = matches!(name.as_str(), "senior-2026-1960" | "senior-2026-1961");
+        assert_eq!(
+            result["skat"]["seniorbeskæftigelsesfradrag_kroner"],
+            if senior { 6100 } else { 0 },
+            "{name}"
+        );
+        if senior {
+            assert_eq!(result["skat"]["beskæftigelsesfradrag_kroner"], 63300);
+            assert_eq!(result["skat"]["jobfradrag_kroner"], 3100);
+            assert_eq!(result["skat"]["ekstra_pensionsfradrag_kroner"], 0);
+            assert_eq!(
+                result["skat"]["samlede_ligningsmæssige_fradrag_kroner"],
+                72500
+            );
+        }
+        if name == "senior-spouse" {
+            assert_eq!(
+                result["ægtefælle"]["skat"]["ligningsfradrag"]
+                    ["seniorbeskæftigelsesfradrag_kroner"],
+                6100
+            );
+            assert_eq!(
+                result["ægtefælle"]["skat"]["ligningsfradrag"]
+                    ["samlede_ligningsmæssige_fradrag_kroner"],
+                72500
+            );
         }
         assert!(gate["kontroller"].as_array().unwrap().len() >= 26);
     }

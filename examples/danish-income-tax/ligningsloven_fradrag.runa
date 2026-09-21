@@ -3,6 +3,7 @@
 @ importer ./metadata
 @ importer ./pengebeloeb
 @ importer ./socialpensionsloven - par1a
+@ importer ./ligningsloven - par9j - senior
 @ importer ./kapitel - 04 - omregning - skatteloft
 
 -- Ligningsloven — fradragsregler og afhængige henvisninger fra personskatteloven.
@@ -2628,7 +2629,7 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
 # Ligningslov9LInput(skatteår: Heltal, fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
 # Ligningslov9LParametre(skatteår: Heltal, pensionsfradrag_basispoint: Heltal, maksimalt_grundlag_kroner: Heltal)
 # Ligningslov9J9K9LInput(skatteår: Heltal, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver: Boolsk, fødselsdato: Dato, pbl18_fradragsberettiget_indbetaling_kroner: Heltal, pbl19_rate_ophørende_bortseelsesret_efter_am_kroner: Heltal, pbl19_øvrige_indbetalinger_efter_am_kroner: Heltal, pbl20_indkomstskattepligtig_udbetaling_kroner: Heltal, pbl20_udbetaling_status: Ligningslov9LPensionsudbetalingStatus)
-# Ligningslov9J9K9LResult(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, beskæftigelsesfradrag_kroner: Heltal, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal)
+# Ligningslov9J9K9LResult(pensionsalder_resultat: Ligningslov9LPensionsalderResultat, beskæftigelsesfradrag_kroner: Heltal, seniorbeskæftigelsesfradrag: Ligningslov9JSeniorResultat, jobfradrag_kroner: Heltal, ekstra_pensionsfradrag_kroner: Heltal, samlet_fradrag_kroner: Heltal)
 
 | ll9l_gælder_for_skatteår(skatteår: Heltal) -> skatteår >= 2018
 | ll9l_pensionsalder_resultat(skatteår: Heltal, fødselsdato: Dato) -> {
@@ -2687,12 +2688,16 @@ Ekstra pensionsfradrag fra 15 år til folkepensionsalderen
     pbl20_indkomstskattepligtig_udbetaling_kroner = input.pbl20_indkomstskattepligtig_udbetaling_kroner,
     pbl20_udbetaling_status = input.pbl20_udbetaling_status
 )
+> ll9j_9k_9l_senior_resultat(input: Ligningslov9J9K9LInput) -> Ligningslov9JSeniorResultat {
+    ll9j_senior_resultat(input.skatteår, input.fødselsdato, input.arbejdsmarkedsbidragsgrundlag_kroner, ll9j_almindeligt_beskæftigelsesfradrag_berettiget(ll9j_9k_9l_9j_input(input)))
+}
 | ll9j_9k_9l_fradrag_resultat(input: Ligningslov9J9K9LInput) -> Ligningslov9J9K9LResult(
     pensionsalder_resultat = ll9l_pensionsalder_resultat(input.skatteår, input.fødselsdato),
     beskæftigelsesfradrag_kroner = ll9j_beskæftigelsesfradrag_kroner(ll9j_9k_9l_9j_input(input)),
+    seniorbeskæftigelsesfradrag = ll9j_9k_9l_senior_resultat(input),
     jobfradrag_kroner = ll9k_jobfradrag_kroner(ll9j_9k_9l_9k_input(input)),
     ekstra_pensionsfradrag_kroner = ll9l_ekstra_pensionsfradrag_kroner(ll9j_9k_9l_9l_input(input)),
-    samlet_fradrag_kroner = ll9j_beskæftigelsesfradrag_kroner(ll9j_9k_9l_9j_input(input)) + ll9k_jobfradrag_kroner(ll9j_9k_9l_9k_input(input)) + ll9l_ekstra_pensionsfradrag_kroner(ll9j_9k_9l_9l_input(input))
+    samlet_fradrag_kroner = ll9j_beskæftigelsesfradrag_kroner(ll9j_9k_9l_9j_input(input)) + ll9j_9k_9l_senior_resultat(input).fradrag_kroner + ll9k_jobfradrag_kroner(ll9j_9k_9l_9k_input(input)) + ll9l_ekstra_pensionsfradrag_kroner(ll9j_9k_9l_9l_input(input))
 )
 --@end::ligningsloven_par9l--
 

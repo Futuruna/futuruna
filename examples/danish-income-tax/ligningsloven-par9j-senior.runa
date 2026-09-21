@@ -1,0 +1,65 @@
+@ sprog da
+@ importer ./metadata
+@ importer ./pengebeloeb
+@ importer ./socialpensionsloven - par1a
+
+# Ligningslov9JSeniorKilde(url: Tekst, identifier: Tekst, hentet_dato: Tekst)
+= ll9j_senior_kilde = Source(value = Ligningslov9JSeniorKilde(
+    url = "https://www.retsinformation.dk/eli/lta/2024/482",
+    identifier = "§ 2, nr. 4 og § 8, stk. 4: LL § 9 J, stk. 5-6 fra indkomståret 2026",
+    hentet_dato = "2026-09-21"
+))
+--@label:ll9j_senior::meta:ll9j_senior_kilde--
+----
+Stk. 5. Personer, der er omfattet af stk. 1, kan i hvert af de 2 seneste
+indkomstår før det indkomstår, hvor folkepensionsalderen nås, jf. § 1 a i lov
+om social pension, ud over fradraget opgjort efter stk. 2 og eventuelt stk. 4
+ved opgørelsen af den skattepligtige indkomst fradrage procenten anført i stk. 6
+i samme grundlag og under samme betingelser som nævnt i stk. 1, 1.-4., 6. og
+7. pkt. Fradraget kan højst udgøre grundbeløbet i stk. 6.
+
+Stk. 6. For indkomstårene 2026-2028 udgør procenten 1,4, og grundbeløbet
+4.400 kr. (2010-niveau).
+----
+-- Reguleret loft for 2026: 6.100 kr.; kontrolleret 2026-09-21:
+-- https://svmn.dk/tal-og-metode/satser/satser-og-beloebsgraenser-i-lovgivningen/ligningsloven
+-- https://skat.dk/borger/fradrag/arbejdsrelaterede-fradrag/beskaeftigelses-og-jobfradrag
+-- Kun 2026-satsen er optaget her. Senere års satser/lofter må ikke arves.
+-- Hele kroner følger den eksisterende § 9 J-projektion (nedad for positive
+-- beløb); denne projektion er ikke en særskilt kildebelagt afrundingsregel.
+
+--@begin:ll9j_senior--
+# Ligningslov9JSeniorResultat(skatteår: Heltal, folkepensionsalder: Socialpensionslov1AResultat, regelgrundlag_understøttet: Boolsk, input_gyldigt: Boolsk, i_seniorperioden: Boolsk, omfattet_af_stk1: Boolsk, berettiget: Boolsk, grundlag_kroner: Heltal, sats_basispoint: Heltal, maks_fradrag_kroner: Heltal, fradrag_kroner: Heltal)
+
+> ll9j_senior_resultat(skatteår: Heltal, fødselsdato: Dato, arbejdsmarkedsbidragsgrundlag_kroner: Heltal, omfattet_af_stk1: Boolsk) -> Ligningslov9JSeniorResultat {
+    = alder = socialpensionslov1a_resultat_for_indkomstår(fødselsdato, skatteår)
+    = understøttet = skatteår >= 2012 && skatteår <= 2026
+    = gyldigt = understøttet && dato_gyldig(fødselsdato) && fødselsdato.år <= skatteår && (skatteår < 2026 || alder.input_gyldigt)
+    = seniorperiode = gyldigt && skatteår >= 2026 && skatteår >= alder.folkepension_opnåelsesår - 2 && skatteår < alder.folkepension_opnåelsesår
+    = berettiget = seniorperiode && omfattet_af_stk1
+    = grundlag = penge_positivt_beløb(arbejdsmarkedsbidragsgrundlag_kroner)
+    = sats = hvis skatteår == 2026 { 140 } ellers { 0 }
+    = maks_fradrag = hvis skatteår == 2026 { 6100 } ellers { 0 }
+    -- Afskær ved loftet før multiplikation, så store gyldige heltal ikke løber over.
+    = fradrag = hvis berettiget {
+        hvis grundlag >= (maks_fradrag * 10000 + sats - 1) / sats {
+            maks_fradrag
+        } ellers {
+            penge_beløb_gange_basispoint_kroner(grundlag, sats)
+        }
+    } ellers { 0 }
+    Ligningslov9JSeniorResultat(
+        skatteår = skatteår,
+        folkepensionsalder = alder,
+        regelgrundlag_understøttet = understøttet,
+        input_gyldigt = gyldigt,
+        i_seniorperioden = seniorperiode,
+        omfattet_af_stk1 = omfattet_af_stk1,
+        berettiget = berettiget,
+        grundlag_kroner = grundlag,
+        sats_basispoint = sats,
+        maks_fradrag_kroner = maks_fradrag,
+        fradrag_kroner = fradrag
+    )
+}
+--@end:ll9j_senior--
