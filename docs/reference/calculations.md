@@ -265,7 +265,10 @@ JSON is the canonical value model. TOML omits absent optional record fields.
 XLSX flattens nested named records into columns, gives booleans and nullary enums
 constrained choices, expands finite payload alternatives into a `$variant`
 choice plus typed variant-qualified columns, and puts each `List`, string-keyed
-`Map`, or `Set` field in a separate related worksheet. Integer template cells
+`Map`, or `Set` field in a separate related worksheet when it is reachable in a
+supplied case. Inactive alternatives and descendants of empty collections do
+not create sheets. A reachable empty collection still gets its entry sheet.
+Integer template cells
 are text-formatted so all `i64` values remain exact.
 
 `cases` is the first visible worksheet and contains scalar fields for the named
@@ -277,7 +280,9 @@ uses `case_id` and `item_id`; nested collection sheets add `parent_id`. List row
 use one-based `position`, map rows use `key`, and set rows have neither. Leave a
 collection sheet without matching rows to supply an empty collection. Hidden
 `_futuruna`, `_tables`, and `_columns` sheets record the contract fingerprint,
-generated topology, and column types; do not edit them. Optional composite fields
+complete topology, and column types; `_sheets` records the collection sheets
+actually generated. Do not edit these sheets or delete generated entry sheets.
+Optional composite fields
 and recursive or opaque leaves remain canonical JSON cells when they cannot be
 expanded to a finite unambiguous layout. Cells and child rows belonging to an
 inactive alternative are rejected.
@@ -286,6 +291,32 @@ When an AI or person fills a generated workbook, resolve `$variant` choices
 before asking for their payload fields. Variant-qualified columns describe what
 the contract can accept; they are required only when their alternative is
 selected. Do not infer requiredness from a column merely being visible.
+
+After changing a variant or adding parent rows, refresh the workbook to add any
+newly reachable collection sheets:
+
+```sh
+runa template model.calculate.runa --input cases.xlsx --output refreshed.xlsx
+```
+
+Refresh validates and preserves existing values, then creates newly reachable
+collections as empty entry sheets. Complete and review those sheets before
+calling the calculation. It does not invent required scalar facts: missing or
+invalid payload fields must first be corrected. A normal `call` rejects a case
+needing an ungenerated sheet instead of silently assuming an empty collection.
+Deleted declared sheets, stale contracts, and malformed data fail refresh too.
+Item IDs are adapter-local and may change during refresh; parent links are
+rebuilt consistently.
+
+JSON and TOML envelopes can also hydrate a workbook through `template --input`.
+The generated sheets are the union needed by all supplied cases. Use
+`template --all-tables --output complete.xlsx` only when you explicitly need
+every collection sheet, including inactive alternatives. Scalar columns and
+hidden contract metadata remain complete in both modes. This reduces worksheet
+count, not the width of the root input sheet or the size of the contract itself.
+
+New workbooks use input adapter v7; complete v6 workbooks remain readable.
+Older binaries cannot read v7: regenerate with that binary if needed.
 
 Every template records the entry and schema fingerprint. A source type change
 makes an old template stale; invocation reports the expected and actual hashes
