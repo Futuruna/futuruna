@@ -1,0 +1,38 @@
+@ sprog da
+
+-- Fælles PSL § 11-parametre for fremadrettet beregning og rapportafstemning.
+-- Kilde: https://www.retsinformation.dk/eli/lta/2021/1284 (§ 11, stk. 1-2).
+-- Den fulde bestemmelse og modregningsrækkefølge står i kapitel-03-personfradrag.
+----
+§ 11. For den del af den skattepligtiges negative nettokapitalindkomst, der ikke
+overstiger et beløb på 50.000 kr., beregnes et nedslag i skatten med den
+procent, der anføres i stk. 2.
+
+Stk. 2. For indkomståret 2012 udgør procenten 1. For indkomståret 2013 udgør
+procenten 2. For indkomståret 2014 udgør procenten 3. For indkomståret 2015
+udgør procenten 4. For indkomståret 2016 udgør procenten 5. For indkomståret
+2017 udgør procenten 6. For indkomståret 2018 udgør procenten 7. For
+indkomståret 2019 og efterfølgende indkomstår udgør procenten 8.
+----
+
+# Par11NegativKapitalNedslagSatsKilde = PersonskattelovenLbk1284Af2021Par11Stk2
+# Par11NegativKapitalNedslagSatsResultat(skatteår: Heltal, kilde: Par11NegativKapitalNedslagSatsKilde, procent: Heltal, sats_basispoint: Heltal)
+
+| par11_negativ_kapital_nedslag_sats_kilde(skatteår: Heltal) -> PersonskattelovenLbk1284Af2021Par11Stk2 under skatteår >= 2012
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 1 under skatteår == 2012
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 2 under skatteår == 2013
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 3 under skatteår == 2014
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 4 under skatteår == 2015
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 5 under skatteår == 2016
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 6 under skatteår == 2017
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 7 under skatteår == 2018
+| par11_negativ_kapital_nedslag_procent(skatteår: Heltal) -> 8 under skatteår >= 2019
+| par11_negativ_kapital_nedslag_sats_resultat(skatteår: Heltal) -> Par11NegativKapitalNedslagSatsResultat(
+    skatteår = skatteår,
+    kilde = par11_negativ_kapital_nedslag_sats_kilde(skatteår),
+    procent = par11_negativ_kapital_nedslag_procent(skatteår),
+    sats_basispoint = par11_negativ_kapital_nedslag_procent(skatteår) * 100
+) under skatteår >= 2012
+| negativ_kapital_nedslag_sats_basispoint(skatteår: Heltal) -> par11_negativ_kapital_nedslag_sats_resultat(skatteår).sats_basispoint
+
+| par11_beløbsgrænse_kroner() -> 50000

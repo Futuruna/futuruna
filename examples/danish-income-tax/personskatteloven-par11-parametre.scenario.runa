@@ -1,0 +1,17 @@
+@ sprog da
+@ importer ./personskatteloven - par11 - parametre
+
+-- Permanent grænsekontrol af den fælles parameterkilde efter udskillelsen.
+= historiske_par11_satser = map(range(2012, 2019), |år: Heltal| negativ_kapital_nedslag_sats_basispoint(år))
+= aktuelle_par11_satser = map(range(2019, 2027), |år: Heltal| negativ_kapital_nedslag_sats_basispoint(år))
+= par11_grænse = par11_beløbsgrænse_kroner()
+= par11_kilde = par11_negativ_kapital_nedslag_sats_resultat(2026).kilde
+| historiske_par11_satser_bevaret: historiske_par11_satser -> historiske_par11_satser == [100, 200, 300, 400, 500, 600, 700]
+| aktuelle_par11_satser_bevaret: aktuelle_par11_satser -> all(aktuelle_par11_satser, |sats: Heltal| sats == 800)
+| par11_beløbsgrænse_bevaret: par11_grænse -> par11_grænse == 50000
+| par11_kilde_bevaret: par11_kilde -> par11_kilde == PersonskattelovenLbk1284Af2021Par11Stk2
+
+? historiske_par11_satser_bevaret
+? aktuelle_par11_satser_bevaret
+? par11_beløbsgrænse_bevaret
+? par11_kilde_bevaret
