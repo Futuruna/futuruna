@@ -1,0 +1,41 @@
+@ sprog da
+@ importer ../examples / danish - income - tax / ligningsloven - par9j - senior
+
+> seniorgrænse(år: Heltal, fødselsår: Heltal, grundlag: Heltal, stk1: Boolsk, forventet: Heltal) -> Boolsk {
+    = resultat = ll9j_senior_resultat(år, Dato(år = fødselsår, måned = 1, dag = 1), grundlag, stk1)
+    resultat.input_gyldigt && resultat.regelgrundlag_understøttet && resultat.fradrag_kroner == forventet
+}
+= grænser = [
+    seniorgrænse(2023, 1958, 600000, Sandt, 0),
+    seniorgrænse(2024, 1959, 600000, Sandt, 0),
+    seniorgrænse(2025, 1960, 600000, Sandt, 0),
+    seniorgrænse(2026, 1959, 600000, Sandt, 0),
+    seniorgrænse(2026, 1960, 600000, Sandt, 6100),
+    seniorgrænse(2026, 1961, 600000, Sandt, 6100),
+    seniorgrænse(2026, 1962, 600000, Sandt, 0),
+    seniorgrænse(2026, 1963, 600000, Sandt, 0),
+    seniorgrænse(2026, 1960, 100000, Sandt, 1400),
+    seniorgrænse(2026, 1960, 435714, Sandt, 6099),
+    seniorgrænse(2026, 1960, 435715, Sandt, 6100),
+    seniorgrænse(2026, 1960, 435716, Sandt, 6100),
+    seniorgrænse(2026, 1960, 0, Sandt, 0),
+    seniorgrænse(2026, 1960, -1, Sandt, 0),
+    seniorgrænse(2026, 1960, 600000, Falskt, 0),
+    seniorgrænse(2026, 1960, 9223372036854775807, Sandt, 6100)
+]
+= december = ll9j_senior_resultat(2026, Dato(år = 1959, måned = 12, dag = 31), 600000, Sandt)
+= december_før_pensionsår = ll9j_senior_resultat(2026, Dato(år = 1961, måned = 12, dag = 31), 600000, Sandt)
+= ugyldige = map([Dato(år = 0, måned = 0, dag = 0), Dato(år = 1960, måned = 2, dag = 30), Dato(år = 2030, måned = 1, dag = 1)], |dato: Dato| ll9j_senior_resultat(2026, dato, 600000, Sandt))
+= fremtidigt_år = ll9j_senior_resultat(2027, Dato(år = 1961, måned = 1, dag = 1), 600000, Sandt)
+
+| senior_grænser_holder: grænser -> all(grænser, |gyldig: Boolsk| gyldig)
+| senior_intet_fradrag_i_pensionsåret: december -> december.fradrag_kroner == 0
+| senior_helt_fradrag_to_indkomstår_før: december_før_pensionsår -> december_før_pensionsår.fradrag_kroner == 6100
+| senior_ugyldige_datoer_afskæres: ugyldige -> all(ugyldige, |resultat: Ligningslov9JSeniorResultat| resultat.input_gyldigt == Falskt && resultat.fradrag_kroner == 0)
+| senior_fremtidigt_loft_arves_ikke: fremtidigt_år -> fremtidigt_år.regelgrundlag_understøttet == Falskt && fremtidigt_år.input_gyldigt == Falskt && fremtidigt_år.fradrag_kroner == 0
+
+? senior_grænser_holder
+? senior_intet_fradrag_i_pensionsåret
+? senior_helt_fradrag_to_indkomstår_før
+? senior_ugyldige_datoer_afskæres
+? senior_fremtidigt_loft_arves_ikke

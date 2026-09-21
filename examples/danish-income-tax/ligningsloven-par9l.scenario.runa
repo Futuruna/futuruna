@@ -120,6 +120,24 @@
 | ll9j_9k_9l_samlet_fradrag: ll9j_9k_9l_2026_fixture -> ll9j_9k_9l_2026_fixture.pensionsalder_resultat.input_gyldigt && ll9j_9k_9l_2026_fixture.samlet_fradrag_kroner == 76936
 | ll9j_9k_9l_2017_kun_9j_fradrag: ll9j_9k_9l_2017_fixture -> ll9j_9k_9l_2017_fixture.beskæftigelsesfradrag_kroner == 30000 && ll9j_9k_9l_2017_fixture.jobfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.ekstra_pensionsfradrag_kroner == 0 && ll9j_9k_9l_2017_fixture.samlet_fradrag_kroner == 30000
 
+> ll9j_senior_med_pension(udenlandsk: Boolsk) -> Ligningslov9J9K9LResult {
+    ll9j_9k_9l_fradrag_resultat(Ligningslov9J9K9LInput(
+        skatteår = 2026,
+        arbejdsmarkedsbidragsgrundlag_kroner = 600000,
+        udenlandsk_hjemmehørende_udenlandsk_arbejdsgiver = udenlandsk,
+        fødselsdato = Dato(år = 1960, måned = 1, dag = 1),
+        pbl18_fradragsberettiget_indbetaling_kroner = 100000,
+        pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
+        pbl19_øvrige_indbetalinger_efter_am_kroner = 0,
+        pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
+        pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
+    ))
+}
+= ll9j_senior_og_pension = ll9j_senior_med_pension(Falskt)
+= ll9j_senior_udenlandsk = ll9j_senior_med_pension(Sandt)
+| ll9j_senior_erstatter_ikke_pensionsfradrag: ll9j_senior_og_pension -> ll9j_senior_og_pension.seniorbeskæftigelsesfradrag.fradrag_kroner == 6100 && ll9j_senior_og_pension.ekstra_pensionsfradrag_kroner == 28096 && ll9j_senior_og_pension.samlet_fradrag_kroner == 100596
+| ll9j_senior_arver_stk1_udelukkelse: ll9j_senior_udenlandsk -> ll9j_senior_udenlandsk.beskæftigelsesfradrag_kroner == 0 && ll9j_senior_udenlandsk.seniorbeskæftigelsesfradrag.fradrag_kroner == 0 && ll9j_senior_udenlandsk.seniorbeskæftigelsesfradrag.omfattet_af_stk1 == Falskt
+
 ? ll9l_2018_bruger_2015_reglerne
 ? ll9l_2020_er_femtende_indkomstår_før_68_år
 ? ll9l_2021_bruger_2020_reglerne
@@ -134,5 +152,7 @@
 ? ll9l_ugyldig_fødselsdato_failer_lukket
 ? ll9j_9k_9l_samlet_fradrag
 ? ll9j_9k_9l_2017_kun_9j_fradrag
+? ll9j_senior_erstatter_ikke_pensionsfradrag
+? ll9j_senior_arver_stk1_udelukkelse
 
 @ print("Ligningslovens § 9 L: folkepensionsalderen afledes fra fødselsdato og den tidsmæssigt gældende § 1 a")
