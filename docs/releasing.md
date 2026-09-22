@@ -19,7 +19,8 @@ runners:
 | `x86_64-apple-darwin` | `runa-macos-x86_64` | `macos-15-intel` |
 
 Every build uses the declared minimum Rust version 1.94.0, `Cargo.lock`, release
-symbol stripping, the weather example, and the stable first-run canary. When a
+symbol stripping, the weather example, the stable first-run canary, and the
+small tax-audit runtime compatibility check against the staged artifact. When a
 complete Apple credential set is available, the macOS binaries are signed with
 a Developer ID Application certificate and submitted to Apple's notary service.
 Without those credentials, the workflow publishes them unsigned and says so in
@@ -67,8 +68,14 @@ cargo build --locked --release --bin runa
 ./target/release/runa --version
 ./target/release/runa examples/weather_demo.runa
 RUNA_BIN="$PWD/target/release/runa" ./scripts/first-run-canary.sh
+RUNA_BIN="$PWD/target/release/runa" bash scripts/tax-audit-preflight.sh
 cargo publish --locked --dry-run
 ```
+
+For changes to the setup guide or compatibility script, also run the focused
+offline checks with `node --test tests/tax_audit_setup.test.mjs`. They exercise
+download/checksum failure handling without downloading or installing anything;
+Node is a contributor test dependency, not a tax-audit prerequisite.
 
 Inspect the package rather than trusting its compressed size alone:
 
@@ -123,7 +130,10 @@ From clean Linux x86-64, Linux ARM64, Apple Silicon, and Intel macOS machines:
 
 1. Download the matching release asset and `SHA256SUMS`.
 2. Verify the checksum before renaming or executing the binary.
-3. Run `runa --version` and the weather example.
+3. Run `runa --version`, the weather example, and
+   `RUNA_BIN=/absolute/path/to/download bash scripts/tax-audit-preflight.sh`
+   from the intended model checkout. A matching version string alone does not
+   establish runtime compatibility. This probe is not tax-law validation.
 4. On macOS, compare the observed Gatekeeper behavior with the signing status
    stated in the release notes. Never disable Gatekeeper globally.
 5. If the crate was published, run

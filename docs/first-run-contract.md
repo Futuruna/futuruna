@@ -22,6 +22,12 @@ The release workflow runs the same script against each staged native binary by
 setting `RUNA_BIN`. This verifies the artifact that will be distributed rather
 than rebuilding and accidentally testing a different compiler.
 
+Tax-audit setup also runs `bash scripts/tax-audit-preflight.sh` with `RUNA_BIN`
+set to the selected artifact's absolute path, from the intended model checkout.
+This separate, tiny probe guards required Preview calculation behaviors; it
+does not extend the stable first-run path into a tax-law certification. See
+[AI setup](../website/public/ai-setup.md#tax-audit-runtime-check).
+
 ## Stable Path
 
 For a freshly built `runa` binary, this flow must work without source edits:

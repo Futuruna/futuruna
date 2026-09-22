@@ -1,0 +1,15 @@
+-- Synthetic runtime compatibility probe, not a tax model.
+# Input(value: Int)
+# Output(scoped: Int, count: Int)
+
+| amount(value: Int) -> value + 1000
+
+> module Policy {
+    | amount(value: Int) -> value + 10
+    | amounts(value: Int) -> [value, value + 1] under value >= 0
+}
+
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(scoped = Policy.amount(input.value), count = length(Policy.amounts(input.value)))
+}

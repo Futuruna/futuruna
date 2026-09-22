@@ -116,6 +116,7 @@ jobs:
           "$binary" --version
           "$binary" examples/weather_demo.runa
           RUNA_BIN="$binary" ./scripts/first-run-canary.sh
+          RUNA_BIN="$binary" bash scripts/tax-audit-preflight.sh
 
       - name: Sign and notarize macOS binary
         id: macos-signing
