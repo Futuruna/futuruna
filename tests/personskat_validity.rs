@@ -213,6 +213,27 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
         v["lønmodtager"]["ligningsfradrag"]["boligjob"] =
             boligjob::facts(vec![boligjob::post(2023, "Ll8VRengøring", 3000000)]);
     });
+    for (name, month, day, covered) in [
+        ("boligjob-old-covered", 4, 1, true),
+        ("boligjob-old-uncovered", 3, 31, false),
+    ] {
+        add(
+            name,
+            if covered {
+                None
+            } else {
+                Some("lønmodtager.ligningsfradrag.boligjob")
+            },
+            if covered { Some(21521910) } else { None },
+            &|v| {
+                v["lønmodtager"]["skatteår"] = json!(2023);
+                let mut row = boligjob::post(2022, "Ll8VRengøring", 3000000);
+                row["betaling"]["arbejdsdato"] = json!({"år":2022,"måned":month,"dag":day});
+                row["betaling"]["betalingsdato"] = json!({"år":2023,"måned":3,"dag":1});
+                v["lønmodtager"]["ligningsfradrag"]["boligjob"] = boligjob::facts(vec![row]);
+            },
+        );
+    }
     add("boligjob-both-caps", None, Some(20234017), &|v| {
         v["lønmodtager"]["skatteår"] = json!(2026);
         let mut craft = boligjob::post(2026, "Ll8VTagisolering", 3000000);
@@ -386,7 +407,7 @@ fn canonical_results_gate_invalid_input_without_changing_valid_tax_amounts() {
             );
         }
         let boligjob_amount = match name.as_str() {
-            "boligjob-service-2023" => 6600,
+            "boligjob-service-2023" | "boligjob-old-covered" => 6600,
             "boligjob-both-caps" => 27300,
             "boligjob-shared" | "boligjob-spouse-conflict" => 4000,
             _ => 0,

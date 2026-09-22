@@ -10,13 +10,23 @@
 ]
 = boligjob_tidsgrænser = [ll8v_arbejdsår_omfattet(Ll8VTagisolering, 2024) == Falskt, ll8v_arbejdsår_omfattet(Ll8VTagisolering, 2025), ll8v_arbejdsår_omfattet(Ll8VTagrender, 2024) == Falskt, ll8v_arbejdsår_omfattet(Ll8VTagrender, 2025), ll8v_arbejdsår_omfattet(Ll8VHvidevarereparation, 2027), ll8v_arbejdsår_omfattet(Ll8VHvidevarereparation, 2028) == Falskt]
 = boligjob_budget = [ll8v_restbudget(9223372036854775807, Ll8VAndel(personreference = "a", arbejdsløn_øre = 9223372036854775807)) == 0, ll8v_restbudget(100, Ll8VAndel(personreference = "a", arbejdsløn_øre = 101)) == -1, ll8v_restbudget(100, Ll8VAndel(personreference = "a", arbejdsløn_øre = -1)) == -1]
+= boligjob_arbejdsdækning = [
+    ll8v_arbejdsdato_dækket(Dato(år = 2022, måned = 3, dag = 31)) == Falskt,
+    ll8v_arbejdsdato_dækket(Dato(år = 2022, måned = 4, dag = 1)),
+    ll8v_arbejdsdato_dækket(Dato(år = 2021, måned = 12, dag = 31)) == Falskt,
+    ll8v_arbejdsdato_dækket(Dato(år = 2022, måned = 4, dag = 31)) == Falskt,
+    ll8v_arbejdsdato_dækket(Dato(år = 2026, måned = 12, dag = 31)),
+    ll8v_arbejdsdato_dækket(Dato(år = 2027, måned = 1, dag = 1)) == Falskt
+]
 
 | boligjob_årslofter: boligjob_lofter -> all(boligjob_lofter, |ok: Boolsk| ok)
 | boligjob_betalingsår: boligjob_datoer -> all(boligjob_datoer, |ok: Boolsk| ok)
 | boligjob_ydelsers_virkningstid: boligjob_tidsgrænser -> all(boligjob_tidsgrænser, |ok: Boolsk| ok)
 | boligjob_fordelingsbudget: boligjob_budget -> all(boligjob_budget, |ok: Boolsk| ok)
+| boligjob_arbejdsdatodækning: boligjob_arbejdsdækning -> all(boligjob_arbejdsdækning, |ok: Boolsk| ok)
 
 ? boligjob_årslofter
 ? boligjob_betalingsår
 ? boligjob_ydelsers_virkningstid
 ? boligjob_fordelingsbudget
+? boligjob_arbejdsdatodækning

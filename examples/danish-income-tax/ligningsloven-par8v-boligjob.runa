@@ -24,6 +24,18 @@ betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
 -- Arbejdets art er en kildefaktaklassifikation, ikke et skøn udført af en LLM.
 -- Uafklarede klassifikationer/fakta giver aldrig et sammenligneligt nulfradrag.
 
+= ll8v_bek391_kilde = Ll8VKilde(url = "https://www.retsinformation.dk/eli/lta/2022/391", identifier = "BEK nr 391 af 28/03/2022 § 14, stk. 2", kontrolleret = "2026-09-22")
+= ll8v_bek391_kildemeta = Source(value = ll8v_bek391_kilde)
+--@label:ll8v_arbejdsdato_dækket::meta:ll8v_bek391_kildemeta--
+----
+Stk. 2. Bekendtgørelsen har virkning for arbejde, der udføres fra og med den 1. april 2022. Bekendtgørelsen har ikke virkning for arbejde, der er udført til og med den 31. marts 2022. For sådant arbejde finder de hidtil gældende regler anvendelse.
+----
+-- Nedre grænse følger bekendtgørelsens virkningstid; øvre grænse er modellens
+-- dækning, ikke en lovbestemt ophørsdato. Dækning giver ikke i sig selv fradrag.
+> ll8v_arbejdsdato_dækket(dato: Dato) -> Boolsk {
+    dato_gyldig(dato) && dato.år >= 2022 && dato.år <= 2026 && (dato.år > 2022 || dato.måned >= 4)
+}
+
 # Ll8VSvar = Ll8VUoplyst | Ll8VJa | Ll8VNej
 # Ll8VÅrsinput = BoligjobUoplyst | IngenBoligjobudgifter | OplysteBoligjobudgifter(poster: List(Ll8VPost), oplysninger_for_året_komplette: Boolsk, skattepligt: Ll8VSkattepligt, personreference: Tekst)
 # Ll8VSkattepligt = Ll8VUoplystSkattepligt | Ll8VFuldtSkattepligtig | Ll8VGrænsegænger | Ll8VBegrænsetSkattepligtig | Ll8VIkkeSkattepligtig
@@ -167,7 +179,7 @@ betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
     = fritid = ll8v_fritidsbolig(post.boligforhold)
     = udenlandsk_adgang = (fritid && b.land != Ll8VDanmark || skattepligt == Ll8VGrænsegænger) && ll8v_land_udveksler(b.land)
     = afklaret = b.ydelse != Ll8VUafklaretYdelse && ll8v_land_afklaret(b.land) && ll8v_bolig_afklaret(post.boligforhold) && ll8v_leverandør_afklaret(b.leverandør, b.land, år) && b.betalingsform != Ll8VUoplystBetaling && b.arbejdsbilag_med_påkrævede_oplysninger != Ll8VUoplyst && b.betalingsbilag != Ll8VUoplyst && b.offentligt_tilskud != Ll8VUoplyst && b.samme_udgift_fradraget_efter_andre_regler != Ll8VUoplyst && b.udfører_bor_i_helårsboligen_eller_ejer_fritidsboligen_eller_bor_med_ejer != Ll8VUoplyst && post.indberettet_med_leverandøroplysninger != Ll8VUoplyst && (b.betalerreference == person || post.fællesøkonomi_med_betalende_ægtefælle_eller_samlever != Ll8VUoplyst) && (kategori != Ll8VGrønIstandsættelse || b.eksisterende_bolig != Ll8VUoplyst) && (b.ydelse != Ll8VBørnepasning && b.ydelse != Ll8VAfhentningAfBørn || b.børnepasning_skattefri_efter_par7æ != Ll8VUoplyst) && b.særligt_forhold != Ll8VUoplystSærligtForhold
-    = gyldigt = afklaret && dato_gyldig(b.arbejdsdato) && dato_gyldig(b.betalingsdato) && b.arbejdsdato.år >= 2023 && b.arbejdsdato.år <= 2026 && b.betalingsdato.år >= 2023 && b.betalingsdato.år <= 2027 && dato_før_eller_lig_med(b.arbejdsdato, b.betalingsdato) && trim(b.identifikation) != "" && trim(b.kildereference) != "" && trim(b.betalingsreference) != "" && trim(b.boligreference) != "" && ll8v_fordeling_gyldig(b) && length(filter(b.andele, |andel: Ll8VAndel| andel.personreference == person)) == 1 && b.særligt_forhold == Ll8VAlmindeligUdgift
+    = gyldigt = afklaret && ll8v_arbejdsdato_dækket(b.arbejdsdato) && dato_gyldig(b.betalingsdato) && b.betalingsdato.år >= 2023 && b.betalingsdato.år <= 2027 && dato_før_eller_lig_med(b.arbejdsdato, b.betalingsdato) && trim(b.identifikation) != "" && trim(b.kildereference) != "" && trim(b.betalingsreference) != "" && trim(b.boligreference) != "" && ll8v_fordeling_gyldig(b) && length(filter(b.andele, |andel: Ll8VAndel| andel.personreference == person)) == 1 && b.særligt_forhold == Ll8VAlmindeligUdgift
     = skattepligtig = skattepligt == Ll8VFuldtSkattepligtig || skattepligt == Ll8VGrænsegænger || skattepligt == Ll8VBegrænsetSkattepligtig && fritid && b.land == Ll8VDanmark
     = bopælsland = fritid || b.land == Ll8VDanmark || skattepligt == Ll8VGrænsegænger
     = betingelser = [
@@ -193,7 +205,7 @@ betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
     = andel = hvis ll8v_fordeling_gyldig(b) { ll8v_egen_andel(b, person) } ellers { 0 }
     = kontrolpunkter = concat(concat(concat(
         hvis afklaret { [] } ellers { ["En eller flere nødvendige kildefakta er uoplyste."] },
-        hvis gyldigt { [] } ellers { ["Kontrollér datoer (arbejde 2023-2026, ingen forudbetaling), referencer, beløb, fordeling og særlige forhold. Forsikringssager kræver særskilt beregning."] }),
+        hvis gyldigt { [] } ellers { ["Kontrollér datoer (arbejde fra 1. april 2022 til udgangen af 2026, betaling 2023-2027, ingen forudbetaling), referencer, beløb, fordeling og særlige forhold. Forsikringssager kræver særskilt beregning."] }),
         map(filter(betingelser, |betingelse: Ll8VBetingelse| betingelse.opfyldt == Falskt), |betingelse: Ll8VBetingelse| betingelse.navn)),
         hvis fradragsår == år { [] } ellers { ["Betalingen henføres til et andet indkomstår efter § 8 V, stk. 4."] })
     Ll8VPostresultat(betingelser = betingelser, identifikation = b.identifikation, kategori = kategori, fradragsår = fradragsår, fakta_afklarede = afklaret, input_gyldigt = gyldigt, betingelser_opfyldt = opfyldt, egen_andel_øre = andel, medregnet_før_årsloft_øre = hvis gyldigt && opfyldt && fradragsår == år { andel } ellers { 0 }, kontrolpunkter = kontrolpunkter)
@@ -238,7 +250,7 @@ betaling for arbejdet er sket inden for 2 måneder efter indkomstårets udløb.
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsreference), label = "Betalingsbilag", question = Some("Hvilken faktisk overførsel eller kortbetaling dokumenterer denne post?"), help = Some("Samme kilde- og betalingsreference må ikke gentages med et andet id."), unit = None),
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::boligreference), label = "Boligens lokale nøgle", question = Some("Hvilken bolig vedrører arbejdet?"), help = Some("Kilden skal indeholde arbejdsadressen; modellen behøver kun en lokal reference."), unit = None),
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::ydelse), label = "Arbejdets art efter bilag 1", question = Some("Hvilken præcis ydelse blev udført?"), help = Some("Afklar tvivl mod bilag 1 og vejledningen. Fx ventilation betyder installation/reparation/forbedring, ikke service; hvidevarer betyder faktisk reparation i hjemmet, ikke undersøgelsesgebyr."), unit = None),
-        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::år), label = "Arbejdets år", question = Some("Hvilket år blev ydelsen udført?"), help = Some("Opdel arbejde på tværs af år. Forudbetaling og arbejde før 2023 er endnu uden for denne model."), unit = Some("år")),
+        TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::år), label = "Arbejdets år", question = Some("Hvilket år blev ydelsen udført?"), help = Some("Opdel arbejde på tværs af år. Arbejde fra 1. april 2022 er dækket, når øvrige betingelser og betalingsår er opfyldt. Forudbetaling og tidligere arbejde er endnu uden for modellen."), unit = Some("år")),
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::måned), label = "Arbejdets måned", question = Some("Hvilken måned blev ydelsen udført?"), help = None, unit = Some("måned")),
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::arbejdsdato::dag), label = "Arbejdets dag", question = Some("Hvilken dag blev ydelsen udført?"), help = None, unit = Some("dag")),
         TypetBeregningsfelt(path = refof(Ll8VBetalingsfakta::betalingsdato::år), label = "Betalingens år", question = Some("Hvilket år blev beløbet betalt?"), help = Some("Betaling i januar/februar efter arbejdsåret henføres til arbejdsåret; senere betaling til betalingsåret."), unit = Some("år")),

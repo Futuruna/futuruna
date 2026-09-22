@@ -31,6 +31,15 @@ no green handyman deduction. The new service categories also require work from
 2025. Appliance repairs are a time-limited category through 2027; that does not
 extend the calculation's verified annual-cap coverage past 2026.
 
+Work from April 1, 2022 through 2026 can be reviewed when paid in the supported
+payment range (2023–2027); the annual calculation still covers only 2023–2026.
+The lower work-date boundary follows BEK 391/2022 § 14(2), checked September 22,
+2026. Work before that date needs the earlier regulations and remains outside
+this model's coverage, not automatically ineligible. For example, ordinary
+cleaning performed in December 2022 and paid in March 2023 can enter the 2023
+deduction, whereas payment in February 2023 belongs to 2022 and contributes
+nothing to the 2023 calculation. This does not add a calculation for 2022.
+
 Sources checked September 21, 2026:
 
 - [LL § 8 V and the category list in annex 1](https://www.retsinformation.dk/eli/lta/2025/1500).
@@ -128,7 +137,7 @@ templates and migrate confirmed facts, not fingerprints. Existing fictional
 no-deduction constructors explicitly use `IngenBoligjobudgifter`; that is not an
 appropriate automatic choice for private cases.
 
-Insurance allocation, advance payments, work before 2023 and annual limits
+Insurance allocation, advance payments, work before April 1, 2022 and annual limits
 after 2026 are not yet supported. Such active input must be reported as outside
 coverage, not as proof that the legal deduction is zero. The model records
 reporting as a fact; it neither submits a claim nor checks amendment deadlines.
