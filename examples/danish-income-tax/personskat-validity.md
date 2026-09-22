@@ -69,5 +69,8 @@ cargo test --quiet --test personskat_validity -j 1
 ```
 
 For model-only iteration, `FUTURUNA_MODEL_TEST_RUNA` may name a verified existing
-binary from the same compiler revision. Leave it unset for compiler changes and
-CI, which must exercise Cargo's binary under test.
+binary from the same compiler revision. Leave it unset for focused compiler
+regressions to exercise Cargo's debug binary. The canonical
+[mint gate](../../docs/mint-gate.md) builds the current optimized compiler first
+and pins these model tests to that fresh artifact, including in CI; it never
+trusts an inherited binary override.

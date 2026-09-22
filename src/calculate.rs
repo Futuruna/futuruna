@@ -4167,39 +4167,76 @@ enum CalculationCaseOutcome {
     Diagnostic(CalculationCaseDiagnostic),
 }
 
-struct CalculationWorker {
+#[derive(Clone)]
+struct CalculationProgram<'a> {
+    entry: &'a str,
+    stmts: &'a [Stmt],
+    source_dir: Option<String>,
+    rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
+    rule_dispatch_boolean_miss_safe_keys: &'a BTreeSet<RuleDispatchKey>,
+}
+
+struct CalculationWorker<'a> {
+    program: CalculationProgram<'a>,
     interpreter: Interpreter,
     base_env: Env,
     base_actor_instances: BTreeMap<String, (Value, String)>,
     base_rng_state: u64,
+    initialization_error: Option<String>,
+    needs_reinitialization: bool,
 }
 
-impl CalculationWorker {
+impl<'a> CalculationWorker<'a> {
     fn new(
-        entry: &str,
-        stmts: &[Stmt],
+        entry: &'a str,
+        stmts: &'a [Stmt],
         source_dir: Option<String>,
-        rule_dispatch_return_types: &BTreeMap<RuleDispatchKey, String>,
-        rule_dispatch_return_issues: &BTreeMap<RuleDispatchKey, String>,
-        rule_dispatch_boolean_miss_safe_keys: &BTreeSet<RuleDispatchKey>,
+        rule_dispatch_return_types: &'a BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_return_issues: &'a BTreeMap<RuleDispatchKey, String>,
+        rule_dispatch_boolean_miss_safe_keys: &'a BTreeSet<RuleDispatchKey>,
     ) -> Self {
-        let mut interpreter = Interpreter::new();
-        interpreter.suppress_output = true;
-        interpreter.source_dir = source_dir;
-        interpreter.install_rule_dispatch_return_metadata(
+        Self::from_program(CalculationProgram {
+            entry,
+            stmts,
+            source_dir,
             rule_dispatch_return_types,
             rule_dispatch_return_issues,
             rule_dispatch_boolean_miss_safe_keys,
+        })
+    }
+
+    fn from_program(program: CalculationProgram<'a>) -> Self {
+        let mut interpreter = Interpreter::new();
+        interpreter.suppress_output = true;
+        interpreter.source_dir = program.source_dir.clone();
+        interpreter.install_rule_dispatch_return_metadata(
+            program.rule_dispatch_return_types,
+            program.rule_dispatch_return_issues,
+            program.rule_dispatch_boolean_miss_safe_keys,
         );
         let mut base_env = interpreter.default_env();
-        interpreter.initialize_calculation_program(entry, stmts, &mut base_env);
+        let initialization_error = interpreter
+            .with_calculation_runtime(|runtime| {
+                runtime.initialize_calculation_program(program.entry, program.stmts, &mut base_env)
+            })
+            .err()
+            .map(|error| {
+                format!(
+                    "calculation `{}` initialization failed: {error}",
+                    program.entry
+                )
+            });
         let base_actor_instances = interpreter.actor_instances.clone();
         let base_rng_state = interpreter.rng_state;
         Self {
+            program,
             interpreter,
             base_env,
             base_actor_instances,
             base_rng_state,
+            initialization_error,
+            needs_reinitialization: false,
         }
     }
 
@@ -4222,6 +4259,18 @@ impl CalculationWorker {
             }
         };
 
+        if self.needs_reinitialization {
+            *self = Self::from_program(self.program.clone());
+        }
+        if let Some(message) = &self.initialization_error {
+            trace_calculation_case(&case.case_id, started);
+            return CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
+                case_id: case.case_id.clone(),
+                path: "$".to_string(),
+                message: message.clone(),
+            });
+        }
+
         self.interpreter.active_rule_scopes.clear();
         self.interpreter.output.clear();
         self.interpreter.handler_stack.clear();
@@ -4238,7 +4287,21 @@ impl CalculationWorker {
             vec![ExprKind::Var(input_binding).into()],
         )
         .into();
-        let result = self.interpreter.eval(&call, &runtime_env);
+        let result = match self
+            .interpreter
+            .with_calculation_runtime(|runtime| runtime.eval(&call, &runtime_env))
+        {
+            Ok(result) => result,
+            Err(error) => {
+                self.needs_reinitialization = matches!(error, CalculationRuntimeFailure::Panicked);
+                trace_calculation_case(&case.case_id, started);
+                return CalculationCaseOutcome::Diagnostic(CalculationCaseDiagnostic {
+                    case_id: case.case_id.clone(),
+                    path: "$".to_string(),
+                    message: format!("calculation `{}` failed: {error}", contract.entry),
+                });
+            }
+        };
         let outcome = match contract.encode_output(&result) {
             Ok(result) => CalculationCaseOutcome::Result(CalculationResultCase {
                 case_id: case.case_id.clone(),
@@ -4470,6 +4533,485 @@ pub fn invoke_calculation_cases(
 #[cfg(test)]
 mod calculation_execution_tests {
     use super::*;
+
+    fn runtime_failure_fixture(
+        source: &str,
+        inputs: Vec<serde_json::Value>,
+    ) -> (Vec<Stmt>, CalculationContract, CalculationInputEnvelope) {
+        let mut lexer = Lexer::new(source);
+        let statements = Parser::new(lexer.tokenize(), source)
+            .parse_program()
+            .expect("parse runtime-failure calculation");
+        let contract = extract_calculation_contracts(&statements, source, None)
+            .expect("extract runtime-failure calculation")
+            .pop()
+            .expect("calculation contract");
+        let envelope = CalculationInputEnvelope {
+            futuruna: CalculationEnvelopeMetadata {
+                schema: INPUT_SCHEMA.to_string(),
+                schema_hash: contract.schema_hash.clone(),
+                entry: contract.entry.clone(),
+            },
+            cases: inputs
+                .into_iter()
+                .enumerate()
+                .map(|(index, input)| CalculationInputCase {
+                    case_id: format!("case-{index}"),
+                    input,
+                })
+                .collect(),
+        };
+        (statements, contract, envelope)
+    }
+
+    #[test]
+    fn calculation_arithmetic_failures_are_case_scoped() {
+        for (operator, left, right, expected) in [
+            ("/", 7, 0, 4),
+            ("%", 7, 0, 0),
+            ("/", i64::MIN, -1, 4),
+            ("%", i64::MIN, -1, 0),
+            ("+", i64::MAX, 1, 10),
+            ("-", i64::MIN, 1, 6),
+            ("*", i64::MAX, 2, 16),
+        ] {
+            let source = format!(
+                "# Input(left: Int, right: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ input.left {operator} input.right }}\n"
+            );
+            let (statements, contract, envelope) = runtime_failure_fixture(
+                &source,
+                vec![
+                    serde_json::json!({"left": 8, "right": 2}),
+                    serde_json::json!({"left": left, "right": right}),
+                    serde_json::json!({"left": 8, "right": 2}),
+                ],
+            );
+            let serial = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(1),
+            );
+            let parallel = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(3),
+            );
+            assert_eq!(
+                serial, parallel,
+                "{operator} must isolate failures identically"
+            );
+            assert_eq!(serial.results.len(), 2, "{operator}: {serial:?}");
+            assert_eq!(serial.results[0].case_id, "case-0");
+            assert_eq!(serial.results[1].case_id, "case-2");
+            assert!(serial.results.iter().all(|case| case.result == expected));
+            assert_eq!(serial.diagnostics.len(), 1);
+            assert_eq!(serial.diagnostics[0].case_id, "case-1");
+            assert!(serial.diagnostics[0].message.contains("integer"));
+        }
+    }
+
+    #[test]
+    fn calculation_partial_value_misses_are_not_empty_successes() {
+        let source = "# Input(year: Int)\n| parameter(year: Int) -> \"known\" under year == 2026\n@ calculate\n> calculate(input: Input) -> String { parameter(input.year) }\n";
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            vec![
+                serde_json::json!({"year": 2026}),
+                serde_json::json!({"year": 2027}),
+                serde_json::json!({"year": 2026}),
+            ],
+        );
+        for jobs in [1, 3] {
+            let output = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(jobs),
+            );
+            assert_eq!(output.results.len(), 2, "{output:?}");
+            assert!(output.results.iter().all(|case| case.result == "known"));
+            assert_eq!(output.diagnostics.len(), 1);
+            assert_eq!(output.diagnostics[0].case_id, "case-1");
+            assert!(output.diagnostics[0].message.contains("parameter"));
+        }
+    }
+
+    #[test]
+    fn calculation_unsupported_arithmetic_cannot_be_consumed_as_empty_list() {
+        // Exercise the runtime backstop independently of frontend rejection.
+        // A future unchecked/indirect caller must not observe successful zero.
+        let source = r#"
+# Input(bad: Bool, left: List(Int), right: List(Int))
+@ calculate
+> calculate(input: Input) -> Int {
+    if input.bad { length(input.left + input.right) }
+    else { length(concat(input.left, input.right)) }
+}
+"#;
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            [false, true, false]
+                .into_iter()
+                .map(|bad| serde_json::json!({"bad":bad,"left":[1,2],"right":[3]}))
+                .collect(),
+        );
+        let serial =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(1));
+        let parallel =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(3));
+        assert_eq!(serial, parallel);
+        assert_eq!(serial.results.len(), 2, "{serial:?}");
+        assert_eq!(serial.results[0].case_id, "case-0");
+        assert_eq!(serial.results[1].case_id, "case-2");
+        assert!(serial.results.iter().all(|case| case.result == 3));
+        assert_eq!(serial.diagnostics.len(), 1);
+        assert_eq!(serial.diagnostics[0].case_id, "case-1");
+        assert!(serial.diagnostics[0]
+            .message
+            .contains("unsupported operands"));
+    }
+
+    #[test]
+    fn calculation_runtime_faults_do_not_abort_other_cases() {
+        for body in [
+            "head(filter([input.value], |value: Int| value != 0))",
+            "first(filter([input.value], |value: Int| value != 0))",
+            "last(filter([input.value], |value: Int| value != 0))",
+            "nth([7], input.value)",
+            "[7][input.value]",
+            "{ assert(input.value == 0)\n7 }",
+        ] {
+            let source = format!(
+                "# Input(value: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ {body} }}\n"
+            );
+            let (good, bad) = if body.contains("filter") {
+                (7, 0)
+            } else {
+                (0, 1)
+            };
+            let (statements, contract, envelope) = runtime_failure_fixture(
+                &source,
+                vec![
+                    serde_json::json!({"value": good}),
+                    serde_json::json!({"value": bad}),
+                    serde_json::json!({"value": good}),
+                ],
+            );
+            for jobs in [1, 3] {
+                let output = invoke_calculation_cases_with_jobs(
+                    &contract,
+                    &statements,
+                    None,
+                    &envelope,
+                    Some(jobs),
+                );
+                assert_eq!(output.results.len(), 2, "{body}: {output:?}");
+                assert!(output.results.iter().all(|case| case.result == 7));
+                assert_eq!(output.results[1].case_id, "case-2");
+                assert_eq!(output.diagnostics.len(), 1);
+                assert_eq!(output.diagnostics[0].case_id, "case-1");
+            }
+        }
+    }
+
+    #[test]
+    fn calculation_builtin_arithmetic_is_checked() {
+        for (body, bad, expected) in [
+            ("-input.value", i64::MIN, -7),
+            ("abs(input.value)", i64::MIN, 7),
+            ("sum([input.value, 1])", i64::MAX, 8),
+            ("sum_list([input.value, 1])", i64::MAX, 8),
+            ("time_diff(input.value, 1)", i64::MIN, 6),
+        ] {
+            let source = format!(
+                "# Input(value: Int)\n@ calculate\n> calculate(input: Input) -> Int {{ {body} }}\n"
+            );
+            let (statements, contract, envelope) = runtime_failure_fixture(
+                &source,
+                vec![
+                    serde_json::json!({"value": 7}),
+                    serde_json::json!({"value": bad}),
+                    serde_json::json!({"value": 7}),
+                ],
+            );
+            for jobs in [1, 3] {
+                let output = invoke_calculation_cases_with_jobs(
+                    &contract,
+                    &statements,
+                    None,
+                    &envelope,
+                    Some(jobs),
+                );
+                assert_eq!(output.results.len(), 2, "{body}: {output:?}");
+                assert!(output.results.iter().all(|case| case.result == expected));
+                assert_eq!(output.diagnostics.len(), 1);
+                assert_eq!(output.diagnostics[0].case_id, "case-1");
+                assert!(output.diagnostics[0].message.contains("integer"));
+            }
+        }
+    }
+
+    #[test]
+    fn calculation_rejects_non_finite_intermediates_even_with_boolean_output() {
+        for (body, bad) in [
+            (
+                "input.left / input.right > 0.0",
+                serde_json::json!({"left": 1.0, "right": 0.0}),
+            ),
+            (
+                "input.left / input.right > 0.0",
+                serde_json::json!({"left": 0.0, "right": 0.0}),
+            ),
+            (
+                "input.left * input.right > 0.0",
+                serde_json::json!({"left": 1e308, "right": 1e308}),
+            ),
+            (
+                "sqrt(input.left) > 0.0",
+                serde_json::json!({"left": -1.0, "right": 1.0}),
+            ),
+        ] {
+            let source = format!("# Input(left: Float, right: Float)\n@ calculate\n> calculate(input: Input) -> Bool {{ {body} }}\n");
+            let (statements, contract, envelope) = runtime_failure_fixture(
+                &source,
+                vec![
+                    serde_json::json!({"left": 7.0, "right": 1.0}),
+                    bad,
+                    serde_json::json!({"left": 7.0, "right": 1.0}),
+                ],
+            );
+            for jobs in [1, 3] {
+                let output = invoke_calculation_cases_with_jobs(
+                    &contract,
+                    &statements,
+                    None,
+                    &envelope,
+                    Some(jobs),
+                );
+                assert_eq!(output.results.len(), 2, "{body}: {output:?}");
+                assert!(output.results.iter().all(|case| case.result == true));
+                assert_eq!(output.diagnostics.len(), 1);
+                assert!(output.diagnostics[0].message.contains("non-finite"));
+            }
+        }
+    }
+
+    #[test]
+    fn calculation_required_initialization_fault_is_not_a_successful_zero() {
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            "# Input(value: Int)\n= parameter = 7 / 0\n@ calculate\n> calculate(input: Input) -> Int { parameter + input.value }\n",
+            vec![serde_json::json!({"value": 1}), serde_json::json!({"value": 2})],
+        );
+        for jobs in [1, 2] {
+            let output = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(jobs),
+            );
+            assert!(output.results.is_empty(), "{output:?}");
+            assert_eq!(output.diagnostics.len(), 2);
+            assert!(output
+                .diagnostics
+                .iter()
+                .all(|case| case.message.contains("initialization failed")
+                    && case.message.contains("integer division")));
+        }
+    }
+
+    #[test]
+    fn calculation_scoped_and_first_class_value_misses_are_diagnostic() {
+        for (declarations, body, rule) in [
+            ("| parameter(year: Int) -> \"known\" under year == 2026", "{ = callback = parameter\ncallback(input.year) }", "parameter/1"),
+            ("# Policy(year: Int) {\n| parameter() -> \"known\" under year == 2026\n| summary() -> parameter()\n}", "Policy(input.year).parameter()", "Policy.parameter/0"),
+            ("# Policy(year: Int) {\n| parameter() -> \"known\" under year == 2026\n| summary() -> parameter()\n}", "Policy(input.year).summary()", "Policy.parameter/0"),
+        ] {
+            let source = format!("# Input(year: Int)\n{declarations}\n@ calculate\n> calculate(input: Input) -> String {{ {body} }}\n");
+            let (statements, contract, envelope) = runtime_failure_fixture(&source, vec![
+                serde_json::json!({"year": 2026}), serde_json::json!({"year": 2027}), serde_json::json!({"year": 2026}),
+            ]);
+            for jobs in [1, 3] {
+                let output = invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(jobs));
+                assert_eq!(output.results.len(), 2, "{body}: {output:?}");
+                assert!(output.results.iter().all(|case| case.result == "known"));
+                assert_eq!(output.diagnostics.len(), 1);
+                assert!(output.diagnostics[0].message.contains(rule), "{output:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn calculation_preserves_captured_boolean_misses_without_proof_certificates() {
+        let source = r#"
+# Input(value: Int, divisor: Int)
+# Output(direct: Bool, delegated: Bool)
+# Policy(value: Int, divisor: Int) {
+    | predicate() -> True under value / divisor > 0
+    | delegated() -> predicate()
+}
+@ calculate
+> calculate(input: Input) -> Output {
+    = policy = Policy(input.value, input.divisor)
+    Output(policy.predicate(), policy.delegated())
+}
+"#;
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            vec![
+                serde_json::json!({"value": 0, "divisor": 1}),
+                serde_json::json!({"value": 0, "divisor": 0}),
+                serde_json::json!({"value": 1, "divisor": 1}),
+            ],
+        );
+        let (_, _, miss_safe) = TypeChecker::rule_dispatch_metadata_for_runtime(&statements, None);
+        assert!(!miss_safe.contains(&RuleDispatchKey {
+            scope: Some("Policy".into()),
+            name: "predicate".into(),
+            arity: 0
+        }));
+        for jobs in [1, 3] {
+            let output = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(jobs),
+            );
+            assert_eq!(output.results.len(), 2, "{output:?}");
+            assert_eq!(
+                output.results[0].result,
+                serde_json::json!({"direct": false, "delegated": false})
+            );
+            assert_eq!(
+                output.results[1].result,
+                serde_json::json!({"direct": true, "delegated": true})
+            );
+            assert_eq!(output.diagnostics.len(), 1);
+            assert_eq!(output.diagnostics[0].case_id, "case-1");
+            assert!(output.diagnostics[0].message.contains("integer division"));
+        }
+    }
+
+    #[test]
+    fn calculation_inline_module_misses_use_their_own_return_types() {
+        let source = r#"
+# Input(value: Int)
+# Output(eligible: Bool, amount: Int)
+| parameter(value: Int) -> True under value > 0
+> module Policy {
+    | parameter(value: Int) -> 7 under value > 0
+    | predicate(value: Int) -> True under value > 0
+    > eligible(value: Int) -> Bool { predicate(value) }
+    > amount(value: Int) -> Int { parameter(value) }
+}
+@ calculate
+> calculate(input: Input) -> Output {
+    if input.value == 0 {
+        Output(Policy.eligible(input.value), 0)
+    } else {
+        Output(Policy.eligible(input.value), Policy.amount(input.value))
+    }
+}
+"#;
+        let (statements, contract, envelope) = runtime_failure_fixture(
+            source,
+            vec![
+                serde_json::json!({"value": 0}),
+                serde_json::json!({"value": -1}),
+                serde_json::json!({"value": 1}),
+            ],
+        );
+        for jobs in [1, 3] {
+            let output = invoke_calculation_cases_with_jobs(
+                &contract,
+                &statements,
+                None,
+                &envelope,
+                Some(jobs),
+            );
+            assert_eq!(output.results.len(), 2, "{output:?}");
+            assert_eq!(
+                output.results[0].result,
+                serde_json::json!({"eligible":false,"amount":0})
+            );
+            assert_eq!(
+                output.results[1].result,
+                serde_json::json!({"eligible":true,"amount":7})
+            );
+            assert_eq!(output.diagnostics.len(), 1);
+            assert_eq!(output.diagnostics[0].case_id, "case-1");
+            assert!(output.diagnostics[0].message.contains("parameter/1"));
+        }
+    }
+
+    #[test]
+    fn calculation_preserves_valid_empty_zero_false_and_large_collection_values() {
+        // Equality traverses the linked-list representation. Use the normal
+        // calculation-worker stack, not libtest's small default thread stack.
+        std::thread::Builder::new()
+            .stack_size(CALCULATION_WORKER_STACK_BYTES)
+            .spawn(|| {
+        let source = r#"
+# Input(value: Int)
+# Output(zero: Int, empty: String, predicate: Bool, descending: List(Int), same: Bool)
+| empty() -> ""
+| predicate(value: Int) -> value > 0
+@ calculate
+> calculate(input: Input) -> Output {
+    Output(input.value / 2, empty(), predicate(input.value), range(3, 1), range(0, 600) == range(0, 600))
+}
+"#;
+        let (statements, contract, envelope) =
+            runtime_failure_fixture(source, vec![serde_json::json!({"value": 0})]);
+        let output =
+            invoke_calculation_cases_with_jobs(&contract, &statements, None, &envelope, Some(1));
+        assert!(output.diagnostics.is_empty(), "{output:?}");
+        assert_eq!(
+            output.results[0].result,
+            serde_json::json!({"zero": 0, "empty": "", "predicate": false, "descending": [], "same": true})
+        );
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn calculation_guard_restores_state_after_unexpected_panic() {
+        let mut interpreter = Interpreter::new();
+        let failure: Result<(), _> = interpreter.with_calculation_runtime(|runtime| {
+            runtime.calculation_fail("first error");
+            panic!("synthetic internal runtime failure");
+        });
+        assert_eq!(failure, Err(CalculationRuntimeFailure::Panicked));
+        assert!(!interpreter.checking_calculation);
+        assert!(interpreter.calculation_error.borrow().is_none());
+        assert_eq!(interpreter.with_calculation_runtime(|_| 7), Ok(7));
+
+        // Mixed sums use Float arithmetic, not an unused overflowing Int
+        // accumulator. The ordinary mode is deliberately not changed here.
+        let env = interpreter.default_env();
+        let sum = interpreter
+            .with_calculation_runtime(|runtime| {
+                runtime.eval_builtin(
+                    "sum",
+                    vec![Value::List(vec![
+                        Value::Int(i64::MAX),
+                        Value::Int(i64::MAX),
+                        Value::Float(1.0),
+                    ])],
+                    &env,
+                )
+            })
+            .unwrap();
+        assert!(matches!(sum, Value::Float(value) if value.is_finite() && value > i64::MAX as f64));
+    }
 
     fn batch_fixture() -> (Vec<Stmt>, CalculationContract, CalculationInputEnvelope) {
         let source = r#"

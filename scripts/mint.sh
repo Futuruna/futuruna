@@ -15,8 +15,12 @@ run_step() {
 
 RELEASE_RUNA="./target/release/runa"
 
-run_step cargo test --quiet
 run_step cargo build --release
+# Never inherit a stale corpus/model binary in the canonical gate. Large
+# calculation CLI fixtures use the optimized compiler just built above;
+# Rust unit tests and other integration helpers retain their normal profile.
+export FUTURUNA_MODEL_TEST_RUNA="$ROOT_DIR/target/release/runa"
+run_step cargo test --quiet
 run_step ./scripts/first-run-canary.sh
 run_step ./scripts/rust-interop-canary.sh
 run_step ./scripts/from-rust-downstream-canary.sh

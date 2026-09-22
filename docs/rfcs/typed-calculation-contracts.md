@@ -74,6 +74,19 @@ types. A marked function may not declare effects. Direct effect expressions in a
 marked callable are rejected. The calculation CLI also rejects runtime results
 that do not conform to the declared result type.
 
+External invocation checks numerical and partial-value failures during required
+initialization and case execution. Undefined arithmetic, non-finite Float
+intermediates, unmatched value rules, failed assertions, and invalid list access
+produce case-scoped diagnostics and no successful result for that case.
+Typed Boolean predicate misses remain `False`, including captured RuleScope
+predicates without context-independent proof certificates. Errors encountered
+while evaluating their guards or bodies still invalidate the case.
+Serial and parallel invocation preserve the same result and diagnostic order;
+one failed case does not invalidate independent valid cases. Recoverable runtime
+panics discard the affected worker before another case. This does not change
+ordinary invocation of the marked callable, grant additional proof authority,
+or guarantee recovery from resource exhaustion and process termination.
+
 A file may contain multiple calculations. Commands require `--entry NAME` when
 selection is ambiguous. A missing marker, duplicate marker on the same callable,
 misplaced marker, untyped input, unknown result, or requested unknown entry is a

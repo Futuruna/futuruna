@@ -334,6 +334,17 @@ Each case is decoded through the same Futuruna contract and evaluated in an
 isolated interpreter. Valid cases can produce results even when another case has
 a diagnostic. The command exits unsuccessfully when any diagnostics remain.
 
+`call` rejects undefined calculation values: integer division/remainder by zero,
+integer overflow, non-finite floating-point intermediates, failed assertions,
+out-of-bounds list access, and unmatched value rules produce case diagnostics,
+not substitute zero or empty values. Typed Boolean predicate misses still return
+`False`, including scoped predicates with captured fields; an error while
+evaluating a predicate is a diagnostic, not `False`. Required top-level
+initialization is checked too; if it fails, no case receives a result from it.
+An unexpected recoverable runtime panic invalidates that worker, which is
+reinitialized before another case. This boundary is not a sandbox for effects
+or a guarantee of recovery from process termination or resource exhaustion.
+
 Calculation workbooks must be `.xlsx`. VBA projects and formulas in the input
 sheet are rejected. Unknown columns, duplicate or empty case identifiers,
 duplicate item identifiers, list positions, or map keys, orphaned parent rows,

@@ -9,7 +9,8 @@ mod boligjob;
 
 fn run(args: &[&str]) -> Value {
     // Model-only iteration may reuse a verified binary from the same compiler
-    // revision. CI/default runs always use Cargo's binary under test.
+    // revision. Mint pins its freshly built release binary; unpinned focused
+    // Cargo runs use the debug binary under test.
     let binary = std::env::var_os("FUTURUNA_MODEL_TEST_RUNA")
         .unwrap_or_else(|| env!("CARGO_BIN_EXE_runa").into());
     let output = Command::new(binary)

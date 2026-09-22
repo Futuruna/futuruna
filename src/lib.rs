@@ -15156,6 +15156,23 @@ impl RuntimeConstructorSignature {
     }
 }
 
+/// A calculation must not turn undefined runtime values into successful output.
+/// A panic additionally poisons the worker: callers must recreate its runtime.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum CalculationRuntimeFailure {
+    InvalidValue(String),
+    Panicked,
+}
+
+impl std::fmt::Display for CalculationRuntimeFailure {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidValue(message) => formatter.write_str(message),
+            Self::Panicked => formatter.write_str("internal runtime failure during calculation"),
+        }
+    }
+}
+
 /// Typed failures from the exact, effect-free interpreter boundary used by
 /// bounded exploration.  These categories deliberately distinguish a finite
 /// search that ran out of an operational budget from a program that cannot be
@@ -15352,6 +15369,10 @@ pub struct Interpreter {
     /// evaluation. Ordinary program execution leaves this disabled.
     ground_collection_limit: Option<usize>,
     ground_error: RefCell<Option<ExploreRuntimeFailure>>,
+    /// Checked numerical/value failures for external calculation calls only.
+    /// This does not enable Explore's effect whitelist or collection budgets.
+    checking_calculation: bool,
+    calculation_error: RefCell<Option<CalculationRuntimeFailure>>,
     /// Runtime symbols reachable from the active calculation boundary.
     calculation_runtime_symbols: BTreeSet<String>,
     /// Top-level bindings needed to initialize the active calculation.
@@ -15406,6 +15427,8 @@ impl Interpreter {
             exhaustive_preview_error: RefCell::new(None),
             ground_collection_limit: None,
             ground_error: RefCell::new(None),
+            checking_calculation: false,
+            calculation_error: RefCell::new(None),
             calculation_runtime_symbols: BTreeSet::new(),
             calculation_runtime_bindings: BTreeSet::new(),
             exploration_runtime_demand: ExplorationRuntimeDemandState::default(),
@@ -15648,6 +15671,9 @@ impl Interpreter {
         if let Some(value) = self.boolean_rule_miss_value_in_namespace(&owner, key) {
             return Some(value);
         }
+        if self.checking_calculation {
+            return Some(self.calculation_rule_miss(&owner, key));
+        }
         Some(match fallback.unwrap_or(RuleMissFallback::PredicateFalse) {
             RuleMissFallback::EmptyValue => Value::Str(String::new()),
             RuleMissFallback::PredicateFalse => Value::Bool(false),
@@ -15839,6 +15865,96 @@ impl Interpreter {
         }
     }
 
+    fn calculation_failed(&self) -> bool {
+        self.checking_calculation && self.calculation_error.borrow().is_some()
+    }
+
+    fn calculation_fail(&self, message: impl Into<String>) -> Value {
+        let mut error = self.calculation_error.borrow_mut();
+        if error.is_none() {
+            *error = Some(CalculationRuntimeFailure::InvalidValue(message.into()));
+        }
+        Value::Unit
+    }
+
+    fn calculation_rule_miss(&self, namespace: &RuntimeNamespace, key: &RuleDispatchKey) -> Value {
+        // Runtime predicate False is not a proof of totality. In particular,
+        // RuleScope guards may depend on captured fields and lack a closed
+        // miss certificate, while still being ordinary typed Bool predicates.
+        // Keep this calculation-only decision out of exact Explore metadata.
+        // Every caller has already resolved the exact declaring namespace.
+        // Its global-key registry excludes RuleScope members; do not use that
+        // registry to re-resolve (or inherit) a scoped family's type judgment.
+        let is_boolean = {
+            let state = namespace.state.borrow();
+            !state.rule_dispatch_return_issues.contains_key(key)
+                && state
+                    .rule_dispatch_return_types
+                    .get(key)
+                    .is_some_and(|ty| ty == "Bool")
+        };
+        if is_boolean {
+            return Value::Bool(false);
+        }
+        let scope = key
+            .scope
+            .as_ref()
+            .map(|name| format!("{name}."))
+            .unwrap_or_default();
+        self.calculation_fail(format!(
+            "no value rule matched `{scope}{}/{}`; input is outside the rule's supported conditions",
+            key.name, key.arity
+        ))
+    }
+
+    fn calculation_checked_value(&self, value: Value) -> Value {
+        if self.checking_calculation {
+            if self.calculation_failed() {
+                return Value::Unit;
+            }
+            if matches!(&value, Value::Float(number) if !number.is_finite()) {
+                return self.calculation_fail("non-finite floating-point result in calculation");
+            }
+        }
+        value
+    }
+
+    /// Guard initialization as well as case evaluation. Never retain an error
+    /// from an earlier case, and never expose Rust panic payloads as case data.
+    pub(crate) fn with_calculation_runtime<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self) -> T,
+    ) -> Result<T, CalculationRuntimeFailure> {
+        let previous_mode = std::mem::replace(&mut self.checking_calculation, true);
+        let previous_error = self.calculation_error.replace(None);
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| operation(self)));
+        let error = self.calculation_error.replace(previous_error);
+        self.checking_calculation = previous_mode;
+        // A panic wins even if evaluation had already recorded a user error:
+        // the caller must not reuse potentially half-mutated runtime state.
+        let value = result.map_err(|_| CalculationRuntimeFailure::Panicked)?;
+        match error {
+            Some(error) => Err(error),
+            None => Ok(value),
+        }
+    }
+
+    fn panic_or_calculation_fail(&self, message: impl Into<String>) -> Value {
+        if self.checking_calculation {
+            self.calculation_fail(message)
+        } else {
+            panic!("{}", message.into())
+        }
+    }
+
+    fn checked_arithmetic_fail(&self, message: &str) -> Value {
+        if self.checking_calculation {
+            self.calculation_fail(message.replace("in ground expression", "in calculation"))
+        } else {
+            self.ground_fail(message)
+        }
+    }
+
     fn ground_fail(&self, message: impl Into<String>) -> Value {
         let mut error = self.ground_error.borrow_mut();
         if error.is_none() {
@@ -15855,7 +15971,9 @@ impl Interpreter {
     /// panic hook writes to stderr before `catch_unwind` can classify it.
     fn panic_or_ground_fail(&self, message: impl Into<String>) -> Value {
         let message = message.into();
-        if self.exhaustive_preview_forbid_effects || self.ground_collection_limit.is_some() {
+        if self.checking_calculation {
+            self.calculation_fail(message)
+        } else if self.exhaustive_preview_forbid_effects || self.ground_collection_limit.is_some() {
             self.ground_fail(message)
         } else {
             panic!("{}", message)
@@ -15864,7 +15982,9 @@ impl Interpreter {
 
     fn report_runtime_import_failure(&self, message: impl Into<String>) {
         let message = message.into();
-        if self.exhaustive_preview_forbid_effects {
+        if self.checking_calculation {
+            let _ = self.calculation_fail(message);
+        } else if self.exhaustive_preview_forbid_effects {
             let _ = self.ground_fail(message);
         } else {
             eprintln!("{}", message);
@@ -16608,6 +16728,24 @@ impl Interpreter {
         root.rule_dispatch_boolean_miss_safe_keys = boolean_miss_safe_keys.clone();
     }
 
+    fn install_calculation_namespace_return_types(
+        &self,
+        namespace: &RuntimeNamespace,
+        statements: &[Stmt],
+    ) {
+        if !self.checking_calculation {
+            return;
+        }
+        // Qualified and inline modules own their types; they must not borrow
+        // same-spelled root families. Install runtime result judgments only,
+        // never new context-independent Boolean-miss/proof certificates.
+        let (return_types, return_issues, _) =
+            TypeChecker::rule_dispatch_metadata_for_runtime(statements, self.source_dir.clone());
+        let mut state = namespace.state.borrow_mut();
+        state.rule_dispatch_return_types = return_types;
+        state.rule_dispatch_return_issues = return_issues;
+    }
+
     fn boolean_rule_miss_value(&self, key: &RuleDispatchKey) -> Option<Value> {
         self.boolean_rule_miss_value_in_namespace(&self.runtime_root, key)
     }
@@ -17302,6 +17440,10 @@ impl Interpreter {
                 interpreter.with_runtime_source_dir(
                     Self::imported_source_dir(&file_path),
                     |interpreter| {
+                        interpreter.install_calculation_namespace_return_types(
+                            &module_namespace,
+                            &definitions,
+                        );
                         interpreter.with_runtime_plain_type_source(None, |interpreter| {
                             interpreter.run_imported_runtime_statements(
                                 &definitions,
@@ -17321,6 +17463,7 @@ impl Interpreter {
                 std::panic::resume_unwind(payload);
             }
             let initialization_failed = interpreter.budget_exceeded
+                || interpreter.calculation_failed()
                 || interpreter.ground_error.borrow().is_some()
                 || interpreter.exhaustive_preview_error.borrow().is_some();
             if initialization_failed {
@@ -19530,6 +19673,9 @@ impl Interpreter {
         let mut static_declarations_registered = false;
 
         for stmt in ordered_stmts {
+            if self.calculation_failed() {
+                break;
+            }
             // Imports establish the dependency environment first. Once the local
             // module starts, hoist its static declarations before evaluating any
             // binding, matching codegen without reversing local import overrides.
@@ -20196,6 +20342,7 @@ impl Interpreter {
         // declarations outside the module can never be refreshed into it.
         let module_declaration_env = module_env.reset_runtime_declaration_env();
         let initialization = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            self.install_calculation_namespace_return_types(&module_namespace, body);
             if initialization_mode == RuntimeInitializationMode::Exploration {
                 let roots = self
                     .exploration_runtime_demand
@@ -20218,6 +20365,7 @@ impl Interpreter {
             std::panic::resume_unwind(payload);
         }
         let initialization_failed = self.budget_exceeded
+            || self.calculation_failed()
             || self.ground_error.borrow().is_some()
             || self.exhaustive_preview_error.borrow().is_some();
         if initialization_failed {
@@ -20991,6 +21139,14 @@ impl Interpreter {
     }
 
     pub fn eval(&mut self, expr: &Expr, env: &Env) -> Value {
+        if self.calculation_failed() {
+            return Value::Unit;
+        }
+        let value = self.eval_inner(expr, env);
+        self.calculation_checked_value(value)
+    }
+
+    fn eval_inner(&mut self, expr: &Expr, env: &Env) -> Value {
         if self.step_limit > 0 {
             self.step_count += 1;
             if self.step_count > self.step_limit {
@@ -21089,9 +21245,13 @@ impl Interpreter {
                 let v = self.eval(operand, env);
                 match (op.as_str(), v) {
                     ("!", Value::Bool(b)) => Value::Bool(!b),
-                    ("-", Value::Int(n)) if self.ground_collection_limit.is_some() => {
+                    ("-", Value::Int(n))
+                        if self.checking_calculation || self.ground_collection_limit.is_some() =>
+                    {
                         n.checked_neg().map(Value::Int).unwrap_or_else(|| {
-                            self.ground_fail("integer negation overflow in ground expression")
+                            self.checked_arithmetic_fail(
+                                "integer negation overflow in ground expression",
+                            )
                         })
                     }
                     ("-", Value::Int(n)) => Value::Int(-n),
@@ -21238,7 +21398,11 @@ impl Interpreter {
                     (Value::List(elems), Value::Int(i)) => {
                         let i = *i;
                         if i < 0 || i as usize >= elems.len() {
-                            panic!("index out of bounds: {} (len {})", i, elems.len())
+                            self.panic_or_calculation_fail(format!(
+                                "index out of bounds: {} (len {})",
+                                i,
+                                elems.len()
+                            ))
                         } else {
                             elems[i as usize].clone()
                         }
@@ -21248,7 +21412,11 @@ impl Interpreter {
                         let elems = list_to_vec(&arr_val);
                         let i = *i;
                         if i < 0 || i as usize >= elems.len() {
-                            panic!("index out of bounds: {} (len {})", i, elems.len())
+                            self.panic_or_calculation_fail(format!(
+                                "index out of bounds: {} (len {})",
+                                i,
+                                elems.len()
+                            ))
                         } else {
                             elems[i as usize].clone()
                         }
@@ -21377,6 +21545,14 @@ impl Interpreter {
     }
 
     pub fn apply(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
+        if self.calculation_failed() {
+            return Value::Unit;
+        }
+        let value = self.apply_inner(func, args, call_env);
+        self.calculation_checked_value(value)
+    }
+
+    fn apply_inner(&mut self, func: Value, args: Vec<Value>, call_env: &Env) -> Value {
         match func {
             Value::Closure {
                 ref name,
@@ -21484,6 +21660,9 @@ impl Interpreter {
         args: Vec<Value>,
         env: &Env,
     ) -> Value {
+        if self.calculation_failed() {
+            return Value::Unit;
+        }
         // resume(val) — algebraic effect continuation (identity in tail-resumptive)
         if name == "__resume" {
             return args.into_iter().next().unwrap_or(Value::Unit);
@@ -21591,11 +21770,11 @@ impl Interpreter {
                     fields.first().cloned().unwrap_or(Value::Unit)
                 }
                 Some(Value::Constructor(n, _)) if n == "Nil" => {
-                    panic!("head: empty list")
+                    self.panic_or_calculation_fail("head: empty list")
                 }
                 Some(Value::List(elems)) => {
                     if elems.is_empty() {
-                        panic!("head: empty list")
+                        self.panic_or_calculation_fail("head: empty list")
                     } else {
                         elems.first().cloned().unwrap_or(Value::Unit)
                     }
@@ -21632,7 +21811,11 @@ impl Interpreter {
                         let elems = list_to_vec(list_val);
                         let i = *idx;
                         if i < 0 || i as usize >= elems.len() {
-                            panic!("index out of bounds: {} (len {})", i, elems.len())
+                            self.panic_or_calculation_fail(format!(
+                                "index out of bounds: {} (len {})",
+                                i,
+                                elems.len()
+                            ))
                         } else {
                             elems[i as usize].clone()
                         }
@@ -21641,6 +21824,11 @@ impl Interpreter {
                 }
             }
             "abs" => match args.first() {
+                Some(Value::Int(n)) if self.checking_calculation => {
+                    n.checked_abs().map(Value::Int).unwrap_or_else(|| {
+                        self.calculation_fail("integer absolute-value overflow in calculation")
+                    })
+                }
                 Some(Value::Int(n)) => Value::Int(n.abs()),
                 Some(Value::Float(f)) => Value::Float(f.abs()),
                 _ => Value::Int(0),
@@ -21707,6 +21895,9 @@ impl Interpreter {
             "time_diff" => {
                 // time_diff(a, b) → Int — difference in ms (a - b)
                 match (args.first(), args.get(1)) {
+                    (Some(Value::Int(a)), Some(Value::Int(b))) if self.checking_calculation => {
+                        self.eval_binop("-", Value::Int(*a), Value::Int(*b))
+                    }
                     (Some(Value::Int(a)), Some(Value::Int(b))) => Value::Int(a - b),
                     _ => Value::Int(0),
                 }
@@ -22172,6 +22363,9 @@ impl Interpreter {
             "sum_list" => match args.first() {
                 Some(list) => {
                     let items = list_to_vec(list);
+                    if self.checking_calculation {
+                        return self.calculation_integer_sum(&items);
+                    }
                     let total: i64 = items
                         .into_iter()
                         .filter_map(|v| if let Value::Int(n) = v { Some(n) } else { None })
@@ -22629,9 +22823,11 @@ impl Interpreter {
             },
             "assert" => match args.first() {
                 Some(Value::Bool(true)) => Value::Unit,
-                Some(Value::Bool(false)) => panic!("Assertion failed!"),
-                Some(other) => panic!("assert expects Bool, got {}", other),
-                None => panic!("assert expects one Bool argument"),
+                Some(Value::Bool(false)) => self.panic_or_calculation_fail("Assertion failed!"),
+                Some(other) => {
+                    self.panic_or_calculation_fail(format!("assert expects Bool, got {}", other))
+                }
+                None => self.panic_or_calculation_fail("assert expects one Bool argument"),
             },
             "string_length" => match args.first() {
                 Some(Value::Str(s)) => Value::Int(s.chars().count() as i64),
@@ -23419,6 +23615,25 @@ impl Interpreter {
                     Value::Stream(v) | Value::Subject(v) => v,
                     other => list_to_vec(&other),
                 };
+                if self.checking_calculation {
+                    if items.iter().any(|item| matches!(item, Value::Float(_))) {
+                        let mut sum = 0.0;
+                        for item in &items {
+                            sum += match item {
+                                Value::Int(n) => *n as f64,
+                                Value::Float(n) => *n,
+                                _ => 0.0,
+                            };
+                            if !sum.is_finite() {
+                                return self.calculation_fail(
+                                    "non-finite floating-point sum in calculation",
+                                );
+                            }
+                        }
+                        return Value::Float(sum);
+                    }
+                    return self.calculation_integer_sum(&items);
+                }
                 let mut int_sum: i64 = 0;
                 let mut has_float = false;
                 let mut float_sum: f64 = 0.0;
@@ -23451,7 +23666,7 @@ impl Interpreter {
                 items
                     .into_iter()
                     .last()
-                    .unwrap_or_else(|| panic!("last: empty list"))
+                    .unwrap_or_else(|| self.panic_or_calculation_fail("last: empty list"))
             }
             "combine_latest" => {
                 // combine_latest(stream1, stream2) → Stream of Tuple pairs
@@ -23509,7 +23724,7 @@ impl Interpreter {
                 items
                     .into_iter()
                     .next()
-                    .unwrap_or_else(|| panic!("first: empty list"))
+                    .unwrap_or_else(|| self.panic_or_calculation_fail("first: empty list"))
             }
             "reduce" => {
                 // reduce(stream, init, f) → Value — fold, emitting only the final accumulator
@@ -24152,6 +24367,19 @@ impl Interpreter {
         (current_state.clone(), Value::Unit)
     }
 
+    fn calculation_integer_sum(&self, items: &[Value]) -> Value {
+        let mut sum: i64 = 0;
+        for item in items {
+            if let Value::Int(number) = item {
+                let Some(next) = sum.checked_add(*number) else {
+                    return self.calculation_fail("integer sum overflow in calculation");
+                };
+                sum = next;
+            }
+        }
+        Value::Int(sum)
+    }
+
     pub fn eval_binop(&self, op: &str, l: Value, r: Value) -> Value {
         if self.ground_collection_limit.is_some() {
             if matches!(op, "==" | "!=")
@@ -24166,6 +24394,8 @@ impl Interpreter {
                     513,
                 );
             }
+        }
+        if self.checking_calculation || self.ground_collection_limit.is_some() {
             let checked = match (op, &l, &r) {
                 ("+", Value::Int(left), Value::Int(right)) => left
                     .checked_add(*right)
@@ -24189,7 +24419,7 @@ impl Interpreter {
                     .ok_or_else(|| "integer remainder by zero or overflow in ground expression"),
                 _ => return self.eval_binop_unchecked(op, l, r),
             };
-            return checked.unwrap_or_else(|message| self.ground_fail(message));
+            return checked.unwrap_or_else(|message| self.checked_arithmetic_fail(message));
         }
         self.eval_binop_unchecked(op, l, r)
     }
@@ -24308,6 +24538,10 @@ impl Interpreter {
                 _ => Value::Bool(true),
             },
 
+            ("+" | "-" | "*" | "/" | "%", _, _) if self.checking_calculation => self
+                .calculation_fail(format!(
+                    "unsupported operands for arithmetic operator `{op}` in calculation"
+                )),
             _ => Value::Unit,
         }
     }
@@ -24992,6 +25226,9 @@ impl Interpreter {
         };
         self.pop_active_rule_scope_frame();
         result.unwrap_or_else(|| {
+            if self.checking_calculation {
+                return self.calculation_rule_miss(&owner, &family);
+            }
             self.boolean_rule_miss_value_in_namespace(
                 &owner,
                 &RuleDispatchKey {
@@ -25095,6 +25332,9 @@ impl Interpreter {
             (None, None) => None,
         }
         .unwrap_or_else(|| {
+            if self.checking_calculation {
+                return self.calculation_rule_miss(&owner, &family);
+            }
             self.boolean_rule_miss_value_in_namespace(
                 &owner,
                 &RuleDispatchKey {
@@ -25110,6 +25350,7 @@ impl Interpreter {
             .then(|| self.checked_mechanism_completed_rule_selection_memo(&family))
             .flatten();
         let runtime_healthy = !self.budget_exceeded
+            && !self.calculation_failed()
             && self.ground_error.borrow().is_none()
             && self.exhaustive_preview_error.borrow().is_none();
         if args.is_empty() && runtime_healthy && (!trace_active || selection_memo.is_some()) {
@@ -57261,9 +57502,24 @@ impl TypeChecker {
                     self.check_expr(arg, _in_fn);
                 }
             }
-            ExprKind::BinOp(_, lhs, rhs) => {
+            ExprKind::BinOp(operator, lhs, rhs) => {
                 self.check_expr(lhs, _in_fn);
                 self.check_expr(rhs, _in_fn);
+                if operator == "+" {
+                    let is_list = |operand: &Expr| {
+                        matches!(&operand.kind, ExprKind::List(_))
+                            || self.infer_expr_type_name(operand).is_some_and(|ty| {
+                                Self::applied_type_argument(&ty, "List", 0).is_some()
+                            })
+                    };
+                    if is_list(lhs) && is_list(rhs) {
+                        self.error_at_expr(
+                            expr,
+                            "operator `+` does not concatenate lists; use concat(left, right)"
+                                .to_string(),
+                        );
+                    }
+                }
             }
             ExprKind::UnOp(_, operand) => {
                 self.check_expr(operand, _in_fn);
@@ -66445,6 +66701,37 @@ starters first from mechanisms paths for node activation "{digest}" using values
     }
 
     // ── TypeChecker diagnostics ─────────────────────────────────────
+
+    #[test]
+    fn typechecker_rejects_list_addition_even_when_consumed_as_length() {
+        for source in [
+            "= count = length([1, 2] + [3])",
+            "= count = length([] + [])",
+            "> count(a: List(Int), b: List(Int)) -> Int { length(a + b) }",
+            "# Input(a: List(Int), b: List(Int))\n> count(input: Input) -> Int { length(input.a + input.b) }",
+            "# Item(value: Int)\n> join(a: List(Item), b: List(Item)) -> List(Item) { a + b }",
+        ] {
+            let diagnostics = check_source_for_diagnostics(source);
+            assert!(
+                diagnostics.iter().any(|diagnostic| diagnostic
+                    .message
+                    .contains("operator `+` does not concatenate lists")),
+                "{source}: {diagnostics:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn typechecker_preserves_supported_addition_and_list_concatenation() {
+        let source = r#"
+> numbers(a: Int, b: Float) -> Float { a + b }
+> words(a: String, b: String) -> String { a + b }
+> join(a: List(Int), b: List(Int)) -> List(Int) { concat(a, b) }
+= count = length(concat([1, 2], [3]))
+"#;
+        let diagnostics = check_source_for_diagnostics(source);
+        assert!(diagnostics.is_empty(), "{diagnostics:?}");
+    }
 
     #[test]
     fn typechecker_undefined_function_produces_diagnostic() {

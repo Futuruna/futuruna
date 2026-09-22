@@ -1,0 +1,9 @@
+-- expect-command: run
+-- expect-status: pass
+-- expect-stdout: 3
+
+> joined_count(left: List(Int), right: List(Int)) -> Int {
+    length(concat(left, right))
+}
+
+@ print(show(joined_count([1, 2], [3])))
