@@ -7,7 +7,7 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::identifikation),
     label = "Ydelsens identifikation",
     question = Some("Hvilken entydig identifikation skal denne arbejdsgiverbetalte ydelse have?"),
-    help = Some("Brug en stabil identifikation fra lønsedlen, eIndkomst eller pensionsoversigten, så samme ydelse ikke medregnes to gange."),
+    help = Some("Brug en stabil betalingsidentifikation fra lønsedlen, eIndkomst eller pensionsoversigten. En pensionsbetaling må kun stå én gang på tværs af denne liste og pension.pbl18_indbetalinger; omdøb ikke en dublet for at få den accepteret."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_arbejdsgiverydelse_år = TypetBeregningsfelt(
@@ -49,21 +49,21 @@
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::ordning::$variant),
     label = "Den arbejdsgiveradministrerede pensionsordning",
     question = Some("Hvilken pensionsordning blev arbejdsgiverens indbetaling ført til?"),
-    help = Some("Aldersopsparing, aldersforsikring og supplerende engangssum er udtrykkeligt undtaget fra bortseelsesretten i PBL § 19, stk. 1."),
+    help = Some("Denne kildevej samordner almindelig ratepension og ophørende/livsvarig livrente med pension.pbl18_indbetalinger. Aldersopsparing, aldersforsikring og supplerende engangssum er skattepligtige § 19-undtagelser. Særlige ordninger, fx §§ 15, 15 A og 15 B, kræver detaljerede årsgrundlag og kan ikke afstemmes fra denne korte post alene."),
     unit = None
 )
 = personskat_personlig_indkomst_felt_pbl19_pension_før_am = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner),
     label = "Arbejdsgiveradministreret pension før indeholdt AM-bidrag",
     question = Some("Hvilket bruttobeløb før pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag er indberettet?"),
-    help = Some("Feltet er valgfrit, når kilden kun viser beløbet efter AM-bidrag. Et oplyst bruttobeløb bruges i beskæftigelses- og jobfradragets grundlag uden at opkræve bidraget igen."),
+    help = Some("Bevar null, hvis bruttobeløbet er ukendt. Personskat kræver det dokumenterede beløb til beskæftigelses- og jobfradrag og giver ellers intet sammenligningsbeløb. Brug ikke netto/0,92 som erstatning; allerede indeholdt AM opkræves ikke igen."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_pension_efter_am = TypetBeregningsfelt(
     path = refof(PersonskatPersonligIndkomstInput::ordinære_forhold::arbejdsgiverydelser::ydelse::ArbejdsgiveradministreretPensionEfterPbl19::fakta::indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner),
     label = "Arbejdsgiveradministreret pension efter AM-bidrag",
     question = Some("Hvor stor pensionsindbetaling er indberettet efter pensionsinstituttets indeholdelse af arbejdsmarkedsbidrag?"),
-    help = Some("Brug beløbet efter AM-bidrag fra årsopgørelsen, eIndkomst eller pensionsoversigten. Futuruna opkræver ikke arbejdsmarkedsbidrag af beløbet igen."),
+    help = Some("Brug pensionsudbyderens dokumenterede nettobidrag, ikke en afledt skatte- eller fradragspost. Almindelige ratebidrag samles med pensionslisten før årsloftet; overskud til rubrik 347 tilføjes automatisk uden nyt AM. Indtast ikke overskuddet igen som anden indkomst."),
     unit = Some("kr./år")
 )
 = personskat_personlig_indkomst_felt_pbl19_pbl56_samlepost_før_am = TypetBeregningsfelt(

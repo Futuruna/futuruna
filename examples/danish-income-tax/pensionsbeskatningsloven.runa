@@ -784,10 +784,19 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
 | pbl18_par15a_årsfordeling(input: Pbl18Årsinput, resultat: Pbl15AÅrsgrundlagsresultat, postresultater: List(Pbl18Årspostresultat)) -> foldl(postresultater, pbl18_par15a_fordeling_initial(input, resultat), pbl18_par15a_fordelingstrin)
 | pbl18_par15a_tildelte_fradrag_kroner(fordeling: Pbl15AÅrsfordelingstilstand) -> foldl(fordeling.indbetalingsresultater, 0, |sum: Heltal, resultat: Pbl15AÅrsindbetalingsresultat| sum + resultat.tildelt_fradrag_kroner)
 
-# Pbl18ÅrsSag(input: Pbl18Årsinput) {
-    | input_gyldigt() -> pbl18_årsinput_gyldigt(input)
+# Pbl18ÅrsSag(input: Pbl18Årsinput, supplerende_arbejdsgiverrate_brutto_kroner: Heltal, supplerende_arbejdsgiverrate_am_kroner: Heltal) {
+    | input_gyldigt() -> pbl18_årsinput_gyldigt(input) && supplerende_arbejdsgiverrate_am_kroner >= 0 && supplerende_arbejdsgiverrate_brutto_kroner >= supplerende_arbejdsgiverrate_am_kroner
     | par15b_årsresultat() -> pbl18_par15b_årsresultat(input)
-    | arbejdsgivergrundlag() -> pbl18_årsarbejdsgivergrundlag(input, par15b_årsresultat())
+    | oprindeligt_arbejdsgivergrundlag() -> pbl18_årsarbejdsgivergrundlag(input, par15b_årsresultat())
+    -- PBL § 18, stk. 2: også særskilt indberettede arbejdsgiverbidrag
+    -- forbruger den fælles rategrænse. De er ikke nye private betalingsfakta.
+    | arbejdsgivergrundlag() -> Pbl18Årsarbejdsgivergrundlag(
+        rate_og_ophørende_brutto_kroner = oprindeligt_arbejdsgivergrundlag().rate_og_ophørende_brutto_kroner + supplerende_arbejdsgiverrate_brutto_kroner,
+        rate_og_ophørende_am_bidrag_kroner = oprindeligt_arbejdsgivergrundlag().rate_og_ophørende_am_bidrag_kroner + supplerende_arbejdsgiverrate_am_kroner,
+        kapitalordninger_brutto_kroner = oprindeligt_arbejdsgivergrundlag().kapitalordninger_brutto_kroner,
+        kapitalordninger_am_bidrag_kroner = oprindeligt_arbejdsgivergrundlag().kapitalordninger_am_bidrag_kroner,
+        øvrige_efter_am_bidrag_kroner = oprindeligt_arbejdsgivergrundlag().øvrige_efter_am_bidrag_kroner
+    )
     | postresultater() -> pbl18_årspostresultater(input, arbejdsgivergrundlag())
     | rate_par16_resultat() -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(indkomstår = input.indkomstår, art = Pbl16Rateordning))
     | kapital_par16_resultat() -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(indkomstår = input.indkomstår, art = Pbl16Kapitalordning))
@@ -839,7 +848,8 @@ afgiftsmæssige konsekvenser for den pågældende person i dette land.
         egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner = egne_indbetalinger_ikke_fratrukket_i_indkomståret_kroner()
     )
 }
-| pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input).resultat()
+| pbl18_årsresultat(input: Pbl18Årsinput) -> Pbl18ÅrsSag(input, 0, 0).resultat()
+| pbl18_årsresultat_med_supplerende_arbejdsgiverrate(input: Pbl18Årsinput, brutto_kroner: Heltal, am_kroner: Heltal) -> Pbl18ÅrsSag(input, brutto_kroner, am_kroner).resultat()
 --@end::pensionsbeskatningsloven_par18--
 
 = pensionsbeskatningsloven_par19_stk1_metadata = Metadata(
@@ -893,7 +903,9 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
 # Pbl19Arbejdsgiverrelation = Pbl19NuværendeArbejdsgiver | Pbl19TidligereArbejdsgiver | Pbl19AndenIndbetaler
 # Pbl19Kapitalordningsstatus = Pbl19IngenTidligereAfgiftsberigtigelse | Pbl19AfgiftsberigtigetEfterPensionsalderen(afgiftsberigtigelsesår: Heltal)
 # Pbl19ArbejdsgiverindbetalingFakta(arbejdsgiverrelation: Pbl19Arbejdsgiverrelation, ordning: Pbl18Ordning, indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner: Option(Heltal), indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, kapitalordningsstatus: Pbl19Kapitalordningsstatus)
-# Pbl19ArbejdsgiverindbetalingResultat(indkomstår: Heltal, fakta: Pbl19ArbejdsgiverindbetalingFakta, input_gyldigt: Boolsk, arbejdsgiverrelation_omfattet: Boolsk, ordning_omfattet_af_kapitel1: Boolsk, særlig_ordningsundtagelse: Boolsk, kapitalordning_efter_tidligere_afgiftsberigtigelse: Boolsk, bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal)
+-- Postklassifikationen afgør ikke årsloftet. Ratebeløbet skal samordnes
+-- på tværs af kilder i Pbl19RateÅrsresultat, før bortseelsesret kan fastslås.
+# Pbl19ArbejdsgiverindbetalingResultat(indkomstår: Heltal, fakta: Pbl19ArbejdsgiverindbetalingFakta, input_gyldigt: Boolsk, arbejdsgiverrelation_omfattet: Boolsk, ordning_omfattet_af_kapitel1: Boolsk, særlig_ordningsundtagelse: Boolsk, kapitalordning_efter_tidligere_afgiftsberigtigelse: Boolsk, bortseelsesgrundlag_før_årsgrænser_efter_am_kroner: Heltal, personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner: Heltal, arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner: Heltal)
 
 | pbl19_stk1_arbejdsgiverrelation_omfattet(relation: Pbl19Arbejdsgiverrelation) -> relation == Pbl19NuværendeArbejdsgiver || relation == Pbl19TidligereArbejdsgiver
 | pbl19_stk1_særlig_ordningsundtagelse(ordning: Pbl18Ordning) -> ordning == Pbl18Aldersopsparing || ordning == Pbl18Aldersforsikring || ordning == Pbl18SupplerendeEngangssum
@@ -931,7 +943,7 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
     ordning_omfattet_af_kapitel1 = pbl18_ordning_omfattet_af_kapitel1(fakta.ordning),
     særlig_ordningsundtagelse = pbl19_stk1_særlig_ordningsundtagelse(fakta.ordning),
     kapitalordning_efter_tidligere_afgiftsberigtigelse = pbl19_stk1_kapitalordning_efter_tidligere_afgiftsberigtigelse(fakta, indkomstår),
-    bortseelsesberettiget_efter_indeholdt_arbejdsmarkedsbidrag_kroner = pbl19_stk1_bortseelsesberettiget_efter_am_kroner(fakta, indkomstår),
+    bortseelsesgrundlag_før_årsgrænser_efter_am_kroner = pbl19_stk1_bortseelsesberettiget_efter_am_kroner(fakta, indkomstår),
     personlig_indkomst_efter_indeholdt_arbejdsmarkedsbidrag_kroner = pbl19_stk1_personlig_indkomst_efter_am_kroner(fakta, indkomstår),
     arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner = pbl19_stk1_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner(fakta, indkomstår)
 )
@@ -945,11 +957,11 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
 -- ingen kunstig fordeling af indeholdt AM eller netto/0,92 er nødvendig.
 -- https://www.retsinformation.dk/eli/ft/201712L00238 (til § 1, nr. 1 og 2)
 # Pbl19RateÅrsresultat(indkomstår: Heltal, input_gyldigt: Boolsk, indbetaling_før_am_kroner: Heltal, indeholdt_am_kroner: Heltal, indbetaling_efter_am_kroner: Heltal, fælles_rateloft_kroner: Heltal, bortseelsesberettiget_efter_am_kroner: Heltal, skattepligtig_personlig_indkomst_uden_nyt_am_kroner: Heltal)
-# Pbl19RateÅrsSag(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling)) {
-    | input_gyldigt() -> pbl16_understøttet_indkomstår(indkomstår) && all(indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(indbetalinger, indbetaling))
+# Pbl19RateÅrsSag(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling), supplerende_brutto_kroner: Heltal, supplerende_am_kroner: Heltal) {
+    | input_gyldigt() -> pbl16_understøttet_indkomstår(indkomstår) && supplerende_am_kroner >= 0 && supplerende_brutto_kroner >= supplerende_am_kroner && all(indbetalinger, |indbetaling: Pbl18Årsindbetaling| pbl18_årsindbetaling_gyldig(indbetaling) && pbl18_årsidentifikation_unik(indbetalinger, indbetaling))
     | rateindbetalinger() -> filter(indbetalinger, |indbetaling: Pbl18Årsindbetaling| indbetaling.indbetalingskilde == Pbl18Arbejdsgiverindbetaling && pbl18_ordning_har_rate_loft(indbetaling.ordning) && pbl18_årsindbetaling_fradragsår(indbetaling) == indkomstår)
-    | før_am_kroner() -> hvis input_gyldigt() { foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.beløb_kroner) } ellers { 0 }
-    | indeholdt_am_kroner() -> hvis input_gyldigt() { foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.arbejdsmarkedsbidrag_kroner) } ellers { 0 }
+    | før_am_kroner() -> hvis input_gyldigt() { supplerende_brutto_kroner + foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.beløb_kroner) } ellers { 0 }
+    | indeholdt_am_kroner() -> hvis input_gyldigt() { supplerende_am_kroner + foldl(rateindbetalinger(), 0, |sum: Heltal, indbetaling: Pbl18Årsindbetaling| sum + indbetaling.betaling.arbejdsmarkedsbidrag_kroner) } ellers { 0 }
     | efter_am_kroner() -> før_am_kroner() - indeholdt_am_kroner()
     | loft_kroner() -> pbl16_fradragsloft_resultat(Pbl16FradragsloftInput(indkomstår = indkomstår, art = Pbl16Rateordning)).reguleret_bruttoloft_kroner
     | bortseelsesberettiget_kroner() -> penge_mindste_beløb(efter_am_kroner(), loft_kroner())
@@ -964,7 +976,8 @@ for egne præmier og bidrag, jf. § 15 B, stk. 6.
         skattepligtig_personlig_indkomst_uden_nyt_am_kroner = efter_am_kroner() - bortseelsesberettiget_kroner()
     )
 }
-| pbl19_rate_årsresultat(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling)) -> Pbl19RateÅrsSag(indkomstår, indbetalinger).resultat()
+| pbl19_rate_årsresultat(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling)) -> Pbl19RateÅrsSag(indkomstår, indbetalinger, 0, 0).resultat()
+| pbl19_rate_årsresultat_med_supplerende_indbetalinger(indkomstår: Heltal, indbetalinger: List(Pbl18Årsindbetaling), brutto_kroner: Heltal, am_kroner: Heltal) -> Pbl19RateÅrsSag(indkomstår, indbetalinger, brutto_kroner, am_kroner).resultat()
 --@end::pensionsbeskatningsloven_par19_stk1--
 
 = pbl_par52_kildemeta = Source(

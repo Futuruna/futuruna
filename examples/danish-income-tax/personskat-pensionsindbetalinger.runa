@@ -1,0 +1,81 @@
+@ sprog da
+
+@ importer ./personskat - beregningskontrol
+@ importer ./personskat - personlig - indkomst - kildefakta
+
+-- Samordning af to kildeveje, ikke konstruerede PBL § 18-betalingsfakta.
+-- PBL §§ 16, 18 og 19: fælles rategrænse og arbejdsgiverprioritet.
+-- https://info.skat.dk/data.aspx?oid=2048285 (kontrolleret 22. september 2026)
+-- LL §§ 9 J/K bruger brutto, § 9 L det bortseelsesberettigede nettobidrag.
+-- https://www.lovtidende.dk/api/pdf/250970
+# PersonskatPensionsArbejdsgiverydelserResultat(kildeposter: List(PersonskatArbejdsgiverydelseFakta), kontroller: List(PersonskatInputkontrol), alle_input_gyldige: Boolsk, rate_før_am_kroner: Heltal, rate_efter_am_kroner: Heltal, livsvarig_livrente_før_am_kroner: Heltal, livsvarig_livrente_efter_am_kroner: Heltal)
+
+| personskat_arbejdsgiverydelse_er_pbl19(post: PersonskatArbejdsgiverydelseFakta) -> match post.ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(_) -> Sandt
+    | _ -> Falskt
+}
+| personskat_pbl19_ordinær_ordning_understøttet(fakta: Pbl19ArbejdsgiverindbetalingFakta, indkomstår: Heltal) -> pbl18_ordning_har_rate_loft(fakta.ordning) || fakta.ordning == Pbl18LivsvarigLivrente || pbl19_stk1_særlig_ordningsundtagelse(fakta.ordning) || pbl19_stk1_kapitalordning_efter_tidligere_afgiftsberigtigelse(fakta, indkomstår)
+| personskat_pbl19_brutto_oplyst(fakta: Pbl19ArbejdsgiverindbetalingFakta) -> match fakta.indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner {
+    | Some(_) -> Sandt
+    | None -> Falskt
+}
+> personskat_pbl19_kildekontroller(post: PersonskatArbejdsgiverydelseFakta, poster: List(PersonskatArbejdsgiverydelseFakta), indbetalinger: List(Pbl18Årsindbetaling), indkomstår: Heltal) -> List(PersonskatInputkontrol) {
+    match post.ydelse {
+        | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> [
+            PersonskatInputkontrol(
+                sti = "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser",
+                gyldig = personskat_arbejdsgiverydelse_grundfakta_gyldige(post) && post.indkomstår == indkomstår && length(filter(poster, |anden: PersonskatArbejdsgiverydelseFakta| anden.identifikation == post.identifikation)) == 1 && pbl19_stk1_input_gyldigt(fakta, indkomstår),
+                forklaring = "Arbejdsgiverpension " + post.identifikation + ": kontrollér indkomstår, entydig betalingsidentifikation, arbejdsgiverrelation og brutto-/nettobeløb."
+            ),
+            PersonskatInputkontrol(
+                sti = "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser.ydelse.ArbejdsgiveradministreretPensionEfterPbl19.fakta.ordning",
+                gyldig = personskat_pbl19_ordinær_ordning_understøttet(fakta, indkomstår),
+                forklaring = "Arbejdsgiverpension " + post.identifikation + ": denne korte kildevej dækker almindelig ratepension, ophørende/livsvarig livrente og de udtrykkelige skattepligtige § 19-undtagelser. Særlige ordninger kræver deres detaljerede årsgrundlag; generel kapitel 1-klassifikation er ikke tilstrækkelig."
+            ),
+            PersonskatInputkontrol(
+                sti = "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser.ydelse.ArbejdsgiveradministreretPensionEfterPbl19.fakta.indberettet_indbetaling_før_indeholdt_arbejdsmarkedsbidrag_kroner",
+                gyldig = personskat_pbl19_brutto_oplyst(fakta),
+                forklaring = "Arbejdsgiverpension " + post.identifikation + ": oplys det dokumenterede beløb før indeholdt AM til beskæftigelses- og jobfradrag. Ukendt er ikke nul; udled ikke brutto ved netto/0,92."
+            ),
+            PersonskatInputkontrol(
+                sti = "lønmodtager.personlig_indkomst.ordinære_forhold.arbejdsgiverydelser.identifikation",
+                gyldig = all(indbetalinger, |indbetaling: Pbl18Årsindbetaling| indbetaling.identifikation != post.identifikation),
+                forklaring = "Betalingen " + post.identifikation + " må kun forekomme én gang på tværs af arbejdsgiverydelser og pension.pbl18_indbetalinger. Fjern den dobbelte registrering, ikke blot dens identifikation."
+            )
+        ]
+        | _ -> []
+    }
+}
+| personskat_pbl19_er_rate(post: PersonskatArbejdsgiverydelseFakta) -> match post.ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl18_ordning_har_rate_loft(fakta.ordning)
+    | _ -> Falskt
+}
+| personskat_pbl19_er_livsvarig_livrente(post: PersonskatArbejdsgiverydelseFakta) -> match post.ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> fakta.ordning == Pbl18LivsvarigLivrente
+    | _ -> Falskt
+}
+| personskat_pbl19_bruttobeløb(post: PersonskatArbejdsgiverydelseFakta) -> match post.ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> pbl19_stk1_indberettet_bruttobeløb_kroner(fakta)
+    | _ -> 0
+}
+| personskat_pbl19_nettobeløb(post: PersonskatArbejdsgiverydelseFakta) -> match post.ydelse {
+    | ArbejdsgiveradministreretPensionEfterPbl19(fakta) -> fakta.indberettet_indbetaling_efter_indeholdt_arbejdsmarkedsbidrag_kroner
+    | _ -> 0
+}
+# PersonskatPensionsArbejdsgiverydelserSag(indkomstår: Heltal, poster: List(PersonskatArbejdsgiverydelseFakta), indbetalinger: List(Pbl18Årsindbetaling)) {
+    | kildeposter() -> filter(poster, personskat_arbejdsgiverydelse_er_pbl19)
+    | kontroller() -> flat_map(kildeposter(), |post: PersonskatArbejdsgiverydelseFakta| personskat_pbl19_kildekontroller(post, poster, indbetalinger, indkomstår))
+    | alle_input_gyldige() -> all(kontroller(), |kontrol: PersonskatInputkontrol| kontrol.gyldig)
+    | rateposter() -> filter(kildeposter(), personskat_pbl19_er_rate)
+    | livrenteposter() -> filter(kildeposter(), personskat_pbl19_er_livsvarig_livrente)
+    | resultat() -> PersonskatPensionsArbejdsgiverydelserResultat(
+        kildeposter = kildeposter(),
+        kontroller = kontroller(),
+        alle_input_gyldige = alle_input_gyldige(),
+        rate_før_am_kroner = hvis alle_input_gyldige() { foldl(rateposter(), 0, |sum: Heltal, post: PersonskatArbejdsgiverydelseFakta| sum + personskat_pbl19_bruttobeløb(post)) } ellers { 0 },
+        rate_efter_am_kroner = hvis alle_input_gyldige() { foldl(rateposter(), 0, |sum: Heltal, post: PersonskatArbejdsgiverydelseFakta| sum + personskat_pbl19_nettobeløb(post)) } ellers { 0 },
+        livsvarig_livrente_før_am_kroner = hvis alle_input_gyldige() { foldl(livrenteposter(), 0, |sum: Heltal, post: PersonskatArbejdsgiverydelseFakta| sum + personskat_pbl19_bruttobeløb(post)) } ellers { 0 },
+        livsvarig_livrente_efter_am_kroner = hvis alle_input_gyldige() { foldl(livrenteposter(), 0, |sum: Heltal, post: PersonskatArbejdsgiverydelseFakta| sum + personskat_pbl19_nettobeløb(post)) } ellers { 0 }
+    )
+}
+| personskat_pensions_arbejdsgiverydelser_resultat(indkomstår: Heltal, poster: List(PersonskatArbejdsgiverydelseFakta), indbetalinger: List(Pbl18Årsindbetaling)) -> PersonskatPensionsArbejdsgiverydelserSag(indkomstår, poster, indbetalinger).resultat()
