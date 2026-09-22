@@ -10052,7 +10052,7 @@
     path = refof(PersonskatPensionsInput::fødselsdato::år),
     label = "Fødselsår",
     question = Some("Hvilket år er du født?"),
-    help = Some("Futuruna bruger fødselsdatoen til at aflede folkepensionsalderen efter den version af socialpensionslovens § 1 a, der gjaldt ved indkomstårets begyndelse."),
+    help = Some("Fødselsdatoen bruges også uden pensionsindbetalinger: Fra 2026 er AM-bidraget 0 % til og med det år, du fylder 17, og 8 % fra starten af det år, du fylder 18, jf. AMBL § 1, stk. 2. Den bruges desuden til folkepensionsalder og aldersafhængige fradrag."),
     unit = Some("år")
 )
 = personskat_felt_fødselsmåned = TypetBeregningsfelt(
@@ -10066,7 +10066,7 @@
     path = refof(PersonskatPensionsInput::fødselsdato::dag),
     label = "Fødselsdag i måneden",
     question = Some("Hvilken dag i måneden er du født?"),
-    help = Some("Datoen valideres efter den gregorianske kalender; en manglende eller ugyldig dato giver ikke ekstra pensionsfradrag."),
+    help = Some("Datoen valideres efter den gregorianske kalender. En manglende eller ugyldig fødselsdato tilbageholder beløbet til skattesammenligning; nul er ikke en ukendt dato."),
     unit = Some("dag")
 )
 = personskat_felt_pbl18_indbetalinger = Beregningsfelt(
@@ -17395,7 +17395,9 @@ fraflytningen."
         øvrig_personlig_indkomst_kroner = ligningsfradrag.personlig_indkomst_kroner - ligningsfradrag.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.omklassificeret_personlig_indkomst_kroner + kapitalindkomst.kapitalindkomst_resultat.personlig_indkomst_tillæg_kroner + kapitalindkomst.virksomhedskapital_resultat.personlig_indkomst_regulering_kroner + aktieavance.aktieindkomst_resultat.omklassificeret_personlig_indkomst_kroner + aktieavance.øvrig_personlig_indkomst_kroner + udbetalingsresultat.samlet_personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_i_året_kroner + kapitalindkomst.pbl53a_resultat.personlig_indkomst_kroner - kapitalindkomst.pbl53a_resultat.arbejdsmarkedsbidragspligtig_personlig_indkomst_kroner + personlig_indkomst.personlig_indkomst_uden_nyt_arbejdsmarkedsbidrag_kroner + personskat_selvstændig_øvrig_personlig_indkomst_regulering_kroner(personlig_indkomst, selvstændig_arbejdsmarkedsbidrag) - ligningsfradrag.erhvervsbefordring_fradrag_anvendt_kroner - personskat_udenlandske_sociale_bidrag_fradrag_kroner(udenlandske_sociale_bidrag) - personlig_indkomst.fradrag_i_personlig_indkomst_kroner,
         nettokapitalindkomst_kroner = kapitalindkomst.kapitalindkomst_resultat.nettokapitalindkomst_kroner,
         ligningsmæssige_fradrag_kroner = ligningsfradrag.samlet_ligningsfradrag_kroner + personlig_indkomst.ligningsmæssigt_fradrag_kroner,
-        pensionsfradrag = lønmodtager_ingen_ekstra_pensionsfradrag(),
+        -- Bevar personens AM-alder før PBL § 18-fradraget. En fiktiv voksen
+        -- ville trække 8 % fra unges grundlag trods AMBL § 1, stk. 2.
+        pensionsfradrag = lønmodtager_uden_pensionsfradrag(input.lønmodtager.pension.fødselsdato),
         personfradrag_alder_status = input.lønmodtager.personfradrag_alder_status,
         betaler_kirkeskat = input.lønmodtager.betaler_kirkeskat
     )

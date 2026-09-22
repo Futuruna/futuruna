@@ -16,6 +16,12 @@ the downstream arithmetic happens to produce a plausible tax amount. An invalid
 spouse birthday is reported against
 `ægtefælle.MedÆgtefælle.fakta.lønmodtager.pension.fødselsdato`.
 
+The birthday is required even without pension contributions: it also determines
+the AM contribution rate. From 2026 the youth exemption lasts through the year
+of turning 17, while the ordinary rate applies throughout the year of turning
+18. The preliminary pension income basis must preserve the same actual date as
+the final wage calculation. See the [Danish age-boundary example](pension-og-fradrag.md#fødselsdato-er-ikke-kun-et-pensionsfelt).
+
 `BeregnetMedForbehold` means the listed input checks passed. Its comparison
 amount is the existing `slutskat_øre`, unchanged. It does **not** establish that
 the underlying documents are true, all facts were supplied, or the complete

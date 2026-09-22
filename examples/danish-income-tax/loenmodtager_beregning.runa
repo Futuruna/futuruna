@@ -58,8 +58,8 @@ omfang som nævnt i ligningslovens § 8 M,
 | arbejdsmarkedsbidrag_af_skattepligtig_løn_for(input: LønmodtagerInput) -> arbejdsmarkedsbidrag_for_person_kroner(input.bruttoløn_kroner, lønmodtager_arbejdsmarkedsbidrag_satsinput(input))
 | lønmodtager_ambl_par2_stk1_nr5_grundlag_kroner(input: LønmodtagerInput) -> positivt_beløb(input.pensionsfradrag.ambl_par2_stk1_nr5_arbejdsmarkedsbidragsgrundlag_kroner)
 | personlig_indkomst_efter_am(input: LønmodtagerInput) -> input.bruttoløn_kroner - arbejdsmarkedsbidrag_af_skattepligtig_løn_for(input) + input.øvrig_personlig_indkomst_kroner
-| lønmodtager_ingen_ekstra_pensionsfradrag() -> LønmodtagerPensionsfradrag(
-    fødselsdato = Dato(år = 1990, måned = 1, dag = 1),
+| lønmodtager_uden_pensionsfradrag(fødselsdato: Dato) -> LønmodtagerPensionsfradrag(
+    fødselsdato = fødselsdato,
     pbl18_fradragsberettiget_indbetaling_kroner = 0,
     pbl19_rate_ophørende_bortseelsesret_før_am_kroner = 0,
     pbl19_rate_ophørende_bortseelsesret_efter_am_kroner = 0,
@@ -69,6 +69,9 @@ omfang som nævnt i ligningslovens § 8 M,
     pbl20_indkomstskattepligtig_udbetaling_kroner = 0,
     pbl20_udbetaling_status = Ll9lIngenPbl20Udbetaling
 )
+-- Fiktiv voksen til eksisterende scenarier, ikke en erstatning for personfakta.
+-- Beregninger af en oplyst person bruger lønmodtager_uden_pensionsfradrag(dato).
+| lønmodtager_ingen_ekstra_pensionsfradrag() -> lønmodtager_uden_pensionsfradrag(Dato(år = 1990, måned = 1, dag = 1))
 | lønmodtager_ligningsfradragsgrundlag_kroner(input: LønmodtagerInput) -> input.bruttoløn_kroner + positivt_beløb(input.pensionsfradrag.pbl19_rate_ophørende_bortseelsesret_før_am_kroner) + positivt_beløb(input.pensionsfradrag.øvrigt_arbejdsmarkedsbidragsgrundlag_med_indeholdt_bidrag_kroner)
 | ligningslov_fradrag_input_for(input: LønmodtagerInput) -> LigningslovLønmodtagerFradragInput(
     skatteår = input.skatteår,

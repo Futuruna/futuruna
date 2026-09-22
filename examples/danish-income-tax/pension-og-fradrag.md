@@ -28,6 +28,32 @@ planlagt indbetaling i 2026 er to forskellige opgaver. En hypotetisk ændring
 af et afsluttet år betyder ikke, at betalingen kan foretages med tilbagevirkende
 kraft. Gem personlige dokumenter, input og resultater uden for Git-projektet.
 
+### Fødselsdato er ikke kun et pensionsfelt
+
+Oplys den faktiske fødselsdato under `lønmodtager.pension.fødselsdato`, også
+hvis der hverken er pensionsindbetalinger eller -udbetalinger. Den bruges også
+til AM-bidrag. Fra 2026 er satsen 0 % til og med det indkomstår, hvor man fylder
+17. Fra begyndelsen af det år, hvor man fylder 18, er satsen 8 % — ikke først
+fra fødselsdagen. Reglen gælder ikke bagud for 2025.
+[Lov nr. 96 af 4. februar 2025, § 1 og § 7, stk. 4](https://www.retsinformation.dk/eli/lta/2025/96/pdf).
+
+For et fiktivt, almindeligt løngrundlag på 100.000 kr., uden andre indkomster,
+er indkomsten **før pensionsfradrag** derfor:
+
+| Indkomstår | Alder ved årets udgang | AM-bidrag | Indkomst efter AM, før pensionsfradrag |
+| --- | --- | --- | --- |
+| 2025 | 17 | 8.000 kr. | 92.000 kr. |
+| 2026 | 17 | 0 kr. | 100.000 kr. |
+| 2026 | 18 | 8.000 kr. | 92.000 kr. |
+
+Nul AM-bidrag betyder ikke automatisk nul indkomstskat. Løngrundlaget indgår
+fortsat i beskæftigelsesfradraget; satsen på bidraget og grundlaget for fradraget
+er forskellige ting. Den foreløbige pensionsberegning og den endelige
+skatteberegning skal anvende samme oplyste fødselsdato, ikke en voksen
+standardperson. Manglende dato er uafklaret, ikke en grund til at vælge 1990.
+[Lovforarbejderne, bemærkninger til § 1](https://www.retsinformation.dk/eli/ft/202412L00117),
+[Skattestyrelsens guide til første job](https://skat.dk/borger/unge-og-studerende/job/foerste-job).
+
 ## Pension: stil kun de næste nødvendige spørgsmål
 
 1. Mener du **indbetaling** eller **udbetaling**? Her starter vi med en ændring
